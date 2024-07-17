@@ -725,6 +725,8 @@ describe('app-dir static/dynamic handling', () => {
           "blog/tim.rsc",
           "blog/tim/first-post.html",
           "blog/tim/first-post.rsc",
+          "default-cache-search-params/page.js",
+          "default-cache-search-params/page_client-reference-manifest.js",
           "default-cache/page.js",
           "default-cache/page_client-reference-manifest.js",
           "dynamic-error/[id]/page.js",
@@ -2148,6 +2150,32 @@ describe('app-dir static/dynamic handling', () => {
     }, 'success')
   })
 
+  it('should cache correctly when accessing search params opts into dynamic rendering', async () => {
+    const res = await next.fetch('/default-cache-search-params')
+    expect(res.status).toBe(200)
+
+    let prevHtml = await res.text()
+    let prev$ = cheerio.load(prevHtml)
+
+    await retry(async () => {
+      const curRes = await next.fetch('/default-cache-search-params')
+      expect(curRes.status).toBe(200)
+
+      const curHtml = await curRes.text()
+      const cur$ = cheerio.load(curHtml)
+
+      expect(cur$('#data-default-cache').text()).not.toBe(
+        prev$('#data-default-cache').text()
+      )
+      expect(cur$('#data-request-cache').text()).not.toBe(
+        prev$('#data-request-cache').text()
+      )
+      expect(cur$('#data-cache-auto').text()).not.toBe(
+        prev$('#data-cache-auto').text()
+      )
+    })
+  })
+
   it('should cache correctly for fetchCache = force-cache', async () => {
     const res = await next.fetch('/force-cache')
     expect(res.status).toBe(200)
@@ -3400,6 +3428,26 @@ describe('app-dir static/dynamic handling', () => {
       const res2 = await next.fetch('/unstable-cache/dynamic', {
         headers: cookieHeader,
       })
+      const html2 = await res2.text()
+      const data2 = cheerio.load(html2)('#cached-data').text()
+
+      expect(data).not.toEqual(data2)
+    })
+
+    it('should not cache new result in draft mode', async () => {
+      const draftRes = await next.fetch('/api/draft-mode?status=enable')
+      const setCookie = draftRes.headers.get('set-cookie')
+      const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
+
+      expect(cookieHeader.Cookie).toBeTruthy()
+
+      const res = await next.fetch('/unstable-cache/dynamic', {
+        headers: cookieHeader,
+      })
+      const html = await res.text()
+      const data = cheerio.load(html)('#cached-data').text()
+
+      const res2 = await next.fetch('/unstable-cache/dynamic')
       const html2 = await res2.text()
       const data2 = cheerio.load(html2)('#cached-data').text()
 

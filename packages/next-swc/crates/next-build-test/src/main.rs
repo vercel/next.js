@@ -48,7 +48,7 @@ fn main() {
                 .map(|s| Strategy::from_str(&s))
                 .transpose()
                 .unwrap()
-                .unwrap_or(Strategy::Sequential);
+                .unwrap_or(Strategy::Sequential { randomized: true });
 
             let mut factor = std::env::args()
                 .nth(3)
@@ -64,7 +64,10 @@ fn main() {
                 .nth(5)
                 .map(|f| f.split(',').map(ToOwned::to_owned).collect());
 
-            if matches!(strat, Strategy::Sequential | Strategy::Development) {
+            if matches!(
+                strat,
+                Strategy::Sequential { .. } | Strategy::Development { .. }
+            ) {
                 factor = 1;
             }
 

@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from '../../../shared/lib/utils'
 import type { PageConfig, ResponseLimit } from '../../../types'
 import type { __ApiPreviewProps } from '../.'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
+import type { ServerOnInstrumentationRequestError } from '../../app-render/types'
 
 import bytes from 'next/dist/compiled/bytes'
 import { generateETag } from '../../lib/etag'
@@ -324,7 +325,8 @@ export async function apiResolver(
   apiContext: ApiContext,
   propagateError: boolean,
   dev?: boolean,
-  page?: string
+  page?: string,
+  onError?: ServerOnInstrumentationRequestError
 ): Promise<void> {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
@@ -435,6 +437,12 @@ export async function apiResolver(
       }
     }
   } catch (err) {
+    onError?.(err, req, {
+      routerKind: 'Pages Router',
+      routePath: page || '',
+      routeType: 'route',
+    })
+
     if (err instanceof ApiError) {
       sendError(apiRes, err.statusCode, err.message)
     } else {

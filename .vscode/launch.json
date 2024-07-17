@@ -3,22 +3,85 @@
   // Hover to view descriptions of existing attributes.
   // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
+  "inputs": [
+    {
+      "id": "appDirname",
+      "type": "promptString",
+      "description": "Enter an app dirname from examples or test/e2e",
+      "default": "examples/hello-world"
+    },
+    {
+      "id": "nextCommand",
+      "type": "pickString",
+      "description": "Select the next command",
+      "options": ["dev", "build", "start"],
+      "default": "dev"
+    },
+    {
+      "id": "nextTestMode",
+      "type": "pickString",
+      "description": "Select the next test mode",
+      "options": ["dev", "start"],
+      "default": "dev"
+    }
+  ],
   "configurations": [
     {
-      "name": "Launch test/e2e/app-dir/app development",
+      "name": "Launch app",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "node",
       "runtimeArgs": [
         "packages/next/dist/bin/next",
-        "dev",
-        "test/e2e/app-dir/app"
+        "${input:nextCommand}",
+        "${input:appDirname}"
       ],
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
-        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+        "webpack:///./*": "${workspaceFolder}/${input:appDirname}/*",
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${input:appDirname}/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${input:appDirname}/.next/server/$1",
+        "webpack-internal:///(ssr)/./*": "${workspaceFolder}/${input:appDirname}/*",
+        "webpack://(?:_N_E)?/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack://next/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
+        "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "turbopack://[project]/*": "${workspaceFolder}/*"
+      },
+      "env": {
+        // Enable the following environment variables to use turbopack instead of webpack:
+        // "TURBOPACK": "1",
+        // "TURBOPACK_DEV": "1",
+        // "TURBOPACK_BUILD": "1",
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
+        "NEXT_TELEMETRY_DISABLED": "1"
+      }
+    },
+    {
+      "name": "Launch current directory",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "packages/next/dist/bin/next",
+        "${input:nextCommand}",
+        "${fileDirname}"
+      ],
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMapPathOverrides": {
+        "webpack:///./*": "${workspaceFolder}/${fileDirname}/*",
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${fileDirname}/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${fileDirname}/.next/server/$1",
+        "webpack-internal:///(ssr)/./*": "${workspaceFolder}/${fileDirname}/*",
+        "webpack://(?:_N_E)?/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack://next/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
+        "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "turbopack://[project]/*": "${workspaceFolder}/*"
       },
       "env": {
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
@@ -26,103 +89,31 @@
       }
     },
     {
-      "name": "Launch test/e2e/app-dir/app build",
+      "name": "Run e2e test",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "packages/next/dist/bin/next",
-        "build",
-        "test/e2e/app-dir/app"
-      ],
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/jest",
+      "runtimeArgs": ["--runInBand", "--verbose", "${file}"],
+      "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
-        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+        "webpack:///./*": "${workspaceFolder}/${fileDirname}/*",
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${fileDirname}/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${fileDirname}/.next/server/$1",
+        "webpack-internal:///(ssr)/./*": "${workspaceFolder}/${fileDirname}/*",
+        "webpack://(?:_N_E)?/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack://next/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
+        "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "turbopack://[project]/*": "${workspaceFolder}/*"
       },
       "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
-        "NEXT_TELEMETRY_DISABLED": "1"
-      }
-    },
-    {
-      "name": "Launch examples/hello-world development",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "packages/next/dist/bin/next",
-        "dev",
-        "examples/hello-world"
-      ],
-      "skipFiles": ["<node_internals>/**"],
-      "sourceMapPathOverrides": {
-        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
-      },
-      "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
-        "NEXT_TELEMETRY_DISABLED": "1"
-      }
-    },
-    {
-      "name": "Launch examples/hello-world build",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "packages/next/dist/bin/next",
-        "build",
-        "examples/hello-world"
-      ],
-      "sourceMapPathOverrides": {
-        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
-      },
-      "skipFiles": ["<node_internals>/**"],
-      "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
-      }
-    },
-    {
-      "name": "Launch examples/hello-world production",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "packages/next/dist/bin/next",
-        "start",
-        "examples/hello-world"
-      ],
-      "skipFiles": ["<node_internals>/**"],
-      "sourceMapPathOverrides": {
-        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
-      },
-      "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
-        "NEXT_TELEMETRY_DISABLED": "1"
-      }
-    },
-    {
-      "name": "Launch current directory in development",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["packages/next/dist/bin/next", "dev", "${fileDirname}"],
-      "skipFiles": ["<node_internals>/**"],
-      "sourceMapPathOverrides": {
-        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
-      },
-      "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
-        "NEXT_TELEMETRY_DISABLED": "1"
+        "HEADLESS": "true",
+        "NEXT_E2E_TEST_TIMEOUT": "1000000",
+        "NEXT_SKIP_ISOLATE": "1",
+        "NEXT_TEST_MODE": "${input:nextTestMode}"
       }
     },
     {

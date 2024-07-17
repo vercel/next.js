@@ -34,6 +34,7 @@ import {
 import type ws from 'next/dist/compiled/ws'
 import isInternal from '../../shared/lib/is-internal'
 import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
+import type { CustomRoutes } from '../../lib/load-custom-routes'
 
 export async function getTurbopackJsConfig(
   dir: string,
@@ -43,7 +44,23 @@ export async function getTurbopackJsConfig(
   return jsConfig ?? { compilerOptions: {} }
 }
 
-export class ModuleBuildError extends Error {}
+// An error generated from emitted Turbopack issues. This can include build
+// errors caused by issues with user code.
+export class ModuleBuildError extends Error {
+  name = 'ModuleBuildError'
+}
+
+// An error caused by an internal issue in Turbopack. These should be written
+// to a log file and details should not be shown to the user.
+export class TurbopackInternalError extends Error {
+  name = 'TurbopackInternalError'
+  cause: unknown
+
+  constructor(message: string, cause: unknown) {
+    super(message)
+    this.cause = cause
+  }
+}
 
 /**
  * Thin stopgap workaround layer to mimic existing wellknown-errors-plugin in webpack's build
@@ -328,7 +345,8 @@ export async function handleRouteType({
   entrypoints,
   manifestLoader,
   readyIds,
-  rewrites,
+  devRewrites,
+  productionRewrites,
   hooks,
   logErrors,
 }: {
@@ -340,7 +358,8 @@ export async function handleRouteType({
   currentEntryIssues: EntryIssuesMap
   entrypoints: Entrypoints
   manifestLoader: TurbopackManifestLoader
-  rewrites: SetupOpts['fsChecker']['rewrites']
+  devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined
+  productionRewrites: CustomRoutes['rewrites'] | undefined
   logErrors: boolean
 
   readyIds?: ReadyIds // dev
@@ -402,8 +421,9 @@ export async function handleRouteType({
         await manifestLoader.loadLoadableManifest(page, 'pages')
 
         await manifestLoader.writeManifests({
-          rewrites,
-          pageEntrypoints: entrypoints.page,
+          devRewrites,
+          productionRewrites,
+          entrypoints,
         })
 
         processIssues(
@@ -460,8 +480,9 @@ export async function handleRouteType({
       await manifestLoader.loadLoadableManifest(page, 'pages')
 
       await manifestLoader.writeManifests({
-        rewrites,
-        pageEntrypoints: entrypoints.page,
+        devRewrites,
+        productionRewrites,
+        entrypoints,
       })
 
       processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
@@ -504,8 +525,9 @@ export async function handleRouteType({
       await manifestLoader.loadLoadableManifest(page, 'app')
       await manifestLoader.loadFontManifest(page, 'app')
       await manifestLoader.writeManifests({
-        rewrites,
-        pageEntrypoints: entrypoints.page,
+        devRewrites,
+        productionRewrites,
+        entrypoints,
       })
 
       processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
@@ -520,9 +542,7 @@ export async function handleRouteType({
 
       const type = writtenEndpoint?.type
 
-      await manifestLoader.loadAppPathsManifest(
-        normalizeAppMetadataRoutePage(page, false)
-      )
+      await manifestLoader.loadAppPathsManifest(page)
 
       if (type === 'edge') {
         await manifestLoader.loadMiddlewareManifest(page, 'app')
@@ -531,8 +551,9 @@ export async function handleRouteType({
       }
 
       await manifestLoader.writeManifests({
-        rewrites,
-        pageEntrypoints: entrypoints.page,
+        devRewrites,
+        productionRewrites,
+        entrypoints,
       })
       processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
 
@@ -687,7 +708,8 @@ export async function handleEntrypoints({
   currentEntryIssues,
   manifestLoader,
   nextConfig,
-  rewrites,
+  devRewrites,
+  productionRewrites,
   logErrors,
   dev,
 }: {
@@ -698,7 +720,8 @@ export async function handleEntrypoints({
   currentEntryIssues: EntryIssuesMap
   manifestLoader: TurbopackManifestLoader
   nextConfig: NextConfigComplete
-  rewrites: SetupOpts['fsChecker']['rewrites']
+  devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined
+  productionRewrites: CustomRoutes['rewrites'] | undefined
   logErrors: boolean
 
   dev?: HandleEntrypointsDevOpts
@@ -786,8 +809,9 @@ export async function handleEntrypoints({
       'instrumentation'
     )
     await manifestLoader.writeManifests({
-      rewrites: rewrites,
-      pageEntrypoints: currentEntrypoints.page,
+      devRewrites,
+      productionRewrites,
+      entrypoints: currentEntrypoints,
     })
 
     if (dev) {
@@ -844,8 +868,9 @@ export async function handleEntrypoints({
         dev.serverFields.middleware
       )
       await manifestLoader.writeManifests({
-        rewrites: rewrites,
-        pageEntrypoints: currentEntrypoints.page,
+        devRewrites,
+        productionRewrites,
+        entrypoints: currentEntrypoints,
       })
 
       finishBuilding?.()
@@ -937,7 +962,8 @@ export async function handlePagesErrorRoute({
   currentEntryIssues,
   entrypoints,
   manifestLoader,
-  rewrites,
+  devRewrites,
+  productionRewrites,
   logErrors,
 
   hooks,
@@ -945,7 +971,8 @@ export async function handlePagesErrorRoute({
   currentEntryIssues: EntryIssuesMap
   entrypoints: Entrypoints
   manifestLoader: TurbopackManifestLoader
-  rewrites: SetupOpts['fsChecker']['rewrites']
+  devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined
+  productionRewrites: CustomRoutes['rewrites'] | undefined
   logErrors: boolean
 
   hooks?: HandleRouteTypeHooks // dev
@@ -995,12 +1022,17 @@ export async function handlePagesErrorRoute({
   await manifestLoader.loadFontManifest('_error')
 
   await manifestLoader.writeManifests({
-    rewrites,
-    pageEntrypoints: entrypoints.page,
+    devRewrites,
+    productionRewrites,
+    entrypoints,
   })
 }
 
-export function normalizeAppMetadataRoutePage(
+// Since turbopack will create app pages/route entries based on the structure,
+// which means the entry keys are based on file names.
+// But for special metadata conventions we'll change the page/pathname to a different path.
+// So we need this helper to map the new path back to original turbopack entry key.
+export function normalizedPageToTurbopackStructureRoute(
   route: string,
   ext: string | false
 ): string {

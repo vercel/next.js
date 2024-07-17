@@ -35,13 +35,16 @@ extern crate napi_derive;
 
 use std::{
     env,
+    io::prelude::*,
     panic::set_hook,
-    sync::{Arc, Once},
+    sync::{Arc, Mutex, Once},
+    time::Instant,
 };
 
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
+use owo_colors::OwoColorize;
 use turbopack_binding::swc::core::{
     base::{Compiler, TransformOutput},
     common::{FilePathMapping, SourceMap},
@@ -73,19 +76,85 @@ shadow_rs::shadow!(build);
 static ALLOC: turbopack_binding::turbo::malloc::TurboMalloc =
     turbopack_binding::turbo::malloc::TurboMalloc;
 
+static LOG_THROTTLE: Mutex<Option<Instant>> = Mutex::new(None);
+static LOG_FILE_PATH: &str = ".next/turbopack.log";
+
 #[cfg(feature = "__internal_dhat-heap")]
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[napi::module_init]
+
 fn init() {
-    if cfg!(debug_assertions) || env::var("SWC_DEBUG").unwrap_or_default() == "1" {
-        set_hook(Box::new(|panic_info| {
-            let backtrace = Backtrace::new();
-            println!("Panic: {:?}\nBacktrace: {:?}", panic_info, backtrace);
-        }));
-    }
+    use std::{fs::OpenOptions, io};
+
+    set_hook(Box::new(|panic_info| {
+        // hold open this mutex guard to prevent concurrent writes to the file!
+        let mut last_error_time = LOG_THROTTLE.lock().unwrap();
+        if let Some(last_error_time) = last_error_time.as_ref() {
+            if last_error_time.elapsed().as_secs() < 1 {
+                // Throttle panic logging to once per second
+                return;
+            }
+        }
+        *last_error_time = Some(Instant::now());
+
+        let backtrace = Backtrace::new();
+        let info = format!("Panic: {}\nBacktrace: {:?}", panic_info, backtrace);
+        if cfg!(debug_assertions) || env::var("SWC_DEBUG") == Ok("1".to_string()) {
+            eprintln!("{}", info);
+        } else {
+            let size = std::fs::metadata(LOG_FILE_PATH).map(|m| m.len());
+            if let Ok(size) = size {
+                if size > 512 * 1024 {
+                    // Truncate the earliest error from log file if it's larger than 512KB
+                    let new_lines = {
+                        let log_read = OpenOptions::new()
+                            .read(true)
+                            .open(LOG_FILE_PATH)
+                            .unwrap_or_else(|_| panic!("Failed to open {}", LOG_FILE_PATH));
+
+                        io::BufReader::new(&log_read)
+                            .lines()
+                            .skip(1)
+                            .skip_while(|line| match line {
+                                Ok(line) => !line.starts_with("Panic:"),
+                                Err(_) => false,
+                            })
+                            .collect::<Vec<_>>()
+                    };
+
+                    let mut log_write = OpenOptions::new()
+                        .create(true)
+                        .truncate(true)
+                        .write(true)
+                        .open(LOG_FILE_PATH)
+                        .unwrap_or_else(|_| panic!("Failed to open {}", LOG_FILE_PATH));
+
+                    for line in new_lines {
+                        match line {
+                            Ok(line) => {
+                                writeln!(log_write, "{}", line).unwrap();
+                            }
+                            Err(_) => {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            let mut log_file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(LOG_FILE_PATH)
+                .unwrap_or_else(|_| panic!("Failed to open {}", LOG_FILE_PATH));
+
+            writeln!(log_file, "{}", info).unwrap();
+            eprintln!("{}: An unexpected Turbopack error occurred. Please report the content of {} to https://github.com/vercel/next.js/issues/new", "FATAL".red().bold(), LOG_FILE_PATH);
+        }
+    }));
 }
 
 #[inline]

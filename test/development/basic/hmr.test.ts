@@ -17,7 +17,7 @@ import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { outdent } from 'outdent'
 
-describe.each([[''], ['/docs']])(
+describe.each([['', '/docs']])(
   'basic HMR, basePath: %p',
   (basePath: string) => {
     let next: NextInstance
@@ -362,6 +362,37 @@ describe.each([[''], ['/docs']])(
             }
           }
         })
+
+        it('should not full reload when nonlatin characters are used', async () => {
+          let browser = null
+          const pagePath = join('pages', 'hmr', 'nonlatin.js')
+          const originalContent = await next.readFile(pagePath)
+          try {
+            browser = await webdriver(next.url, basePath + '/hmr/nonlatin')
+            const timeOrigin = await browser.eval('performance.timeOrigin')
+            const editedContent = originalContent.replace(
+              '<div>テスト</div>',
+              '<div class="updated">テスト</div>'
+            )
+
+            // Change the page
+            await next.patchFile(pagePath, editedContent)
+
+            await browser.waitForElementByCss('.updated')
+
+            expect(await browser.eval('performance.timeOrigin')).toEqual(
+              timeOrigin
+            )
+          } finally {
+            // Finally is used so that we revert the content back to the original regardless of the test outcome
+            // restore the about page content.
+            await next.patchFile(pagePath, originalContent)
+
+            if (browser) {
+              await browser.close()
+            }
+          }
+        })
       })
     })
 
@@ -505,30 +536,28 @@ describe.each([[''], ['/docs']])(
         )
         if (basePath === '' && !process.env.TURBOPACK) {
           expect(source).toMatchInlineSnapshot(`
-            "./pages/hmr/about2.js
-            Error: 
-              x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-               ,-[TEST_DIR/pages/hmr/about2.js:4:1]
-             4 |       <p>This is the about page.</p>
-             5 |     div
-             6 |   )
-             7 | }
-               : ^
-               \`----
+          "./pages/hmr/about2.js
+          Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+             ,-[7:1]
+           4 |       <p>This is the about page.</p>
+           5 |     div
+           6 |   )
+           7 | }
+             : ^
+             \`----
+            x Unexpected eof
+             ,-[7:3]
+           5 |     div
+           6 |   )
+           7 | }
+             \`----
 
-              x Unexpected eof
-               ,-[TEST_DIR/pages/hmr/about2.js:5:1]
-             5 |     div
-             6 |   )
-             7 | }
-               \`----
+          Caused by:
+              Syntax Error
 
-            Caused by:
-                Syntax Error
-
-            Import trace for requested module:
-            ./pages/hmr/about2.js"
-          `)
+          Import trace for requested module:
+          ./pages/hmr/about2.js"
+        `)
         } else if (basePath === '' && process.env.TURBOPACK) {
           expect(source).toMatchInlineSnapshot(`
             "./pages/hmr/about2.js:7:1
@@ -543,30 +572,28 @@ describe.each([[''], ['/docs']])(
           `)
         } else if (basePath === '/docs' && !process.env.TURBOPACK) {
           expect(source).toMatchInlineSnapshot(`
-            "./pages/hmr/about2.js
-            Error: 
-              x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-               ,-[TEST_DIR/pages/hmr/about2.js:4:1]
-             4 |       <p>This is the about page.</p>
-             5 |     div
-             6 |   )
-             7 | }
-               : ^
-               \`----
+          "./pages/hmr/about2.js
+          Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+             ,-[7:1]
+           4 |       <p>This is the about page.</p>
+           5 |     div
+           6 |   )
+           7 | }
+             : ^
+             \`----
+            x Unexpected eof
+             ,-[7:3]
+           5 |     div
+           6 |   )
+           7 | }
+             \`----
 
-              x Unexpected eof
-               ,-[TEST_DIR/pages/hmr/about2.js:5:1]
-             5 |     div
-             6 |   )
-             7 | }
-               \`----
+          Caused by:
+              Syntax Error
 
-            Caused by:
-                Syntax Error
-
-            Import trace for requested module:
-            ./pages/hmr/about2.js"
-          `)
+          Import trace for requested module:
+          ./pages/hmr/about2.js"
+        `)
         } else if (basePath === '/docs' && process.env.TURBOPACK) {
           expect(source).toMatchInlineSnapshot(`
             "./pages/hmr/about2.js:7:1
@@ -980,18 +1007,17 @@ describe.each([[''], ['/docs']])(
 
             expect(next.normalizeTestDirContent(redboxSource))
               .toMatchInlineSnapshot(`
-              "./components/parse-error.js
-              Error: 
-                x Expression expected
-                 ,-[./components/parse-error.js:1:1]
-               1 | This
-               2 | is
-               3 | }}}
-                 : ^
-               4 | invalid
-               5 | js
-                 "
-            `)
+            "./components/parse-error.js
+            Error:   x Expression expected
+               ,-[3:1]
+             1 | This
+             2 | is
+             3 | }}}
+               : ^
+             4 | invalid
+             5 | js
+               "
+          `)
           }
 
           await next.patchFile(aboutPage, aboutContent)

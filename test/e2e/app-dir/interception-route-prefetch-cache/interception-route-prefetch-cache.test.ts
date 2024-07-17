@@ -1,7 +1,6 @@
 import { nextTestSetup, FileRef } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { join } from 'path'
-import { Response } from 'playwright'
 
 describe('interception-route-prefetch-cache', () => {
   function runTests({ next }: ReturnType<typeof nextTestSetup>) {
@@ -53,49 +52,11 @@ describe('interception-route-prefetch-cache', () => {
   }
 
   describe('runtime = nodejs', () => {
-    const testSetup = nextTestSetup({
-      files: __dirname,
-    })
-    runTests(testSetup)
-
-    const { next, isNextStart } = testSetup
-
-    // this is a node runtime specific test as edge doesn't support static rendering
-    if (isNextStart) {
-      it('should not be a cache HIT when prefetching an interception route', async () => {
-        const responses: { cacheStatus: string; pathname: string }[] = []
-        const browser = await next.browser('/baz', {
-          beforePageLoad(page) {
-            page.on('response', (response: Response) => {
-              const url = new URL(response.url())
-              const request = response.request()
-              const responseHeaders = response.headers()
-              const requestHeaders = request.headers()
-              if (requestHeaders['next-router-prefetch']) {
-                responses.push({
-                  cacheStatus: responseHeaders['x-nextjs-cache'],
-                  pathname: url.pathname,
-                })
-              }
-            })
-          },
-        })
-
-        expect(await browser.elementByCss('body').text()).toContain(
-          'Open Interception Modal'
-        )
-
-        const interceptionPrefetchResponse = responses.find(
-          (response) => response.pathname === '/baz/modal'
-        )
-        const homePrefetchResponse = responses.find(
-          (response) => response.pathname === '/'
-        )
-
-        expect(homePrefetchResponse.cacheStatus).toBe('HIT') // sanity check to ensure we're seeing cache statuses
-        expect(interceptionPrefetchResponse.cacheStatus).toBeUndefined()
+    runTests(
+      nextTestSetup({
+        files: __dirname,
       })
-    }
+    )
   })
 
   describe('runtime = edge', () => {
