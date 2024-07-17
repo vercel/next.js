@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hash::Hash, ops::Deref};
+use std::{fmt::Debug, hash::Hash, num::NonZeroU64, ops::Deref};
 
 use dashmap::{mapref::entry::Entry, DashMap};
 use once_cell::sync::Lazy;
@@ -30,7 +30,7 @@ static TRAIT_TYPES_BY_VALUE: Lazy<DashMap<&'static TraitType, TraitTypeId>> =
 static TRAIT_TYPES: Lazy<NoMoveVec<(&'static TraitType, &'static str)>> = Lazy::new(NoMoveVec::new);
 
 fn register_thing<
-    K: From<u32> + Deref<Target = u32> + Sync + Send + Copy,
+    K: TryFrom<NonZeroU64> + Deref<Target = u32> + Sync + Send + Copy,
     V: Clone + Hash + Ord + Eq + Sync + Send + Copy,
     const INITIAL_CAPACITY_BITS: u32,
 >(

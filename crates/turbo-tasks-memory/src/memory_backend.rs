@@ -25,7 +25,7 @@ use turbo_tasks::{
         TransientTaskType,
     },
     event::EventListener,
-    util::{IdFactory, NoMoveVec},
+    util::{IdFactoryWithReuse, NoMoveVec},
     CellId, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused,
 };
 
@@ -45,7 +45,7 @@ fn prehash_task_type(task_type: PersistentTaskType) -> PreHashed<PersistentTaskT
 pub struct MemoryBackend {
     memory_tasks: NoMoveVec<Task, 13>,
     backend_jobs: NoMoveVec<Job>,
-    backend_job_id_factory: IdFactory<BackendJobId>,
+    backend_job_id_factory: IdFactoryWithReuse<BackendJobId>,
     task_cache:
         DashMap<Arc<PreHashed<PersistentTaskType>>, TaskId, BuildHasherDefault<PassThroughHash>>,
     memory_limit: usize,
@@ -65,7 +65,7 @@ impl MemoryBackend {
         Self {
             memory_tasks: NoMoveVec::new(),
             backend_jobs: NoMoveVec::new(),
-            backend_job_id_factory: IdFactory::new(),
+            backend_job_id_factory: IdFactoryWithReuse::new(),
             task_cache: DashMap::with_hasher_and_shard_amount(
                 Default::default(),
                 (std::thread::available_parallelism().map_or(1, usize::from) * 32)
