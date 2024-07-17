@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { getOutputLogJson } from '../_testing/utils'
 
 describe('on-request-error - dynamic-routes', () => {
   const { next, skipped } = nextTestSetup({
@@ -16,25 +17,18 @@ describe('on-request-error - dynamic-routes', () => {
 
   const outputLogPath = 'output-log.json'
 
-  async function getOutputLogJson() {
-    if (!(await next.hasFile(outputLogPath))) {
-      return {}
-    }
-    const content = await next.readFile(outputLogPath)
-    return JSON.parse(content)
-  }
-
   async function getErrorRecord({ errorMessage }: { errorMessage: string }) {
     // Assert the instrumentation is called
     await retry(async () => {
-      const recordLogs = next.cliOutput
+      const recordLogLines = next.cliOutput
         .split('\n')
         .filter((log) => log.includes('[instrumentation] write-log'))
-      const expectedLog = recordLogs.find((log) => log.includes(errorMessage))
-      expect(expectedLog).toBeDefined()
+      expect(recordLogLines).toEqual(
+        expect.arrayContaining([expect.stringContaining(errorMessage)])
+      )
     }, 5000)
 
-    const json = await getOutputLogJson()
+    const json = await getOutputLogJson(next, outputLogPath)
     const record = json[errorMessage]
 
     return record
@@ -48,11 +42,14 @@ describe('on-request-error - dynamic-routes', () => {
     it('should catch app router dynamic page error with search params', async () => {
       await next.fetch('/app-page/dynamic/123?apple=dope')
       const record = await getErrorRecord({
-        errorMessage: 'server-dynamic-page-node-error?apple=dope',
+        errorMessage: 'server-dynamic-page-node-error',
       })
       expect(record).toMatchObject({
         payload: {
-          message: 'server-dynamic-page-node-error?apple=dope',
+          message: 'server-dynamic-page-node-error',
+          request: {
+            url: '/app-page/dynamic/123?apple=dope',
+          },
           context: {
             routePath: '/app-page/dynamic/[id]',
           },
@@ -63,11 +60,14 @@ describe('on-request-error - dynamic-routes', () => {
     it('should catch app router dynamic routes error with search params', async () => {
       await next.fetch('/app-route/dynamic/123?apple=dope')
       const record = await getErrorRecord({
-        errorMessage: 'server-dynamic-route-node-error?apple=dope',
+        errorMessage: 'server-dynamic-route-node-error',
       })
       expect(record).toMatchObject({
         payload: {
-          message: 'server-dynamic-route-node-error?apple=dope',
+          message: 'server-dynamic-route-node-error',
+          request: {
+            url: '/app-route/dynamic/123?apple=dope',
+          },
           context: {
             routePath: '/app-route/dynamic/[id]',
           },
@@ -84,8 +84,51 @@ describe('on-request-error - dynamic-routes', () => {
       expect(record).toMatchObject({
         payload: {
           message: 'server-suspense-page-node-error',
+          request: {
+            url: '/app-page/suspense',
+          },
           context: {
             routePath: '/app-page/suspense',
+          },
+        },
+      })
+    })
+  })
+
+  describe('pages router', () => {
+    it('should catch pages router dynamic page error with search params', async () => {
+      await next.fetch('/pages-page/dynamic/123?apple=dope')
+      const record = await getErrorRecord({
+        errorMessage: 'pages-page-node-error',
+      })
+
+      expect(record).toMatchObject({
+        payload: {
+          message: 'pages-page-node-error',
+          request: {
+            url: '/pages-page/dynamic/123?apple=dope',
+          },
+          context: {
+            routePath: '/pages-page/dynamic/[id]',
+          },
+        },
+      })
+    })
+
+    it('should catch pages router dynamic API route error with search params', async () => {
+      await next.fetch('/api/dynamic/123?apple=dope')
+      const record = await getErrorRecord({
+        errorMessage: 'pages-api-node-error',
+      })
+
+      expect(record).toMatchObject({
+        payload: {
+          message: 'pages-api-node-error',
+          request: {
+            url: '/api/dynamic/123?apple=dope',
+          },
+          context: {
+            routePath: '/api/dynamic/[id]',
           },
         },
       })

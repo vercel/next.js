@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { getOutputLogJson } from '../_testing/utils'
 
 describe('on-request-error - server-action-error', () => {
   const { next, skipped } = nextTestSetup({
@@ -15,14 +16,6 @@ describe('on-request-error - server-action-error', () => {
   }
 
   const outputLogPath = 'output-log.json'
-
-  async function getOutputLogJson() {
-    if (!(await next.hasFile(outputLogPath))) {
-      return {}
-    }
-    const content = await next.readFile(outputLogPath)
-    return JSON.parse(content)
-  }
 
   async function validateErrorRecord({
     errorMessage,
@@ -42,7 +35,7 @@ describe('on-request-error - server-action-error', () => {
       )
     }, 5000)
 
-    const json = await getOutputLogJson()
+    const json = await getOutputLogJson(next, outputLogPath)
     const record = json[errorMessage]
 
     // Assert error is recorded in the output log
