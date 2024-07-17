@@ -9,15 +9,14 @@ import { createFromReadableStream } from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './on-recoverable-error'
 import { callServer } from './app-call-server'
-import {
-  ActionQueueContext,
-  createMutableActionQueue,
-} from '../shared/lib/router/action-queue'
+import { createMutableActionQueue } from '../shared/lib/router/action-queue'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 import { isNextRouterError } from './components/is-next-router-error'
 import { handleClientError } from './components/react-dev-overlay/internal/helpers/use-error-handler'
 import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
+import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
+import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 
 // Patch console.error to collect information about hydration errors
 const origConsoleError = window.console.error
@@ -172,9 +171,36 @@ const initialServerResponse = createFromReadableStream(readable, {
 })
 
 function ServerRoot(): React.ReactNode {
-  const initialResponse = use<InitialRSCPayload>(initialServerResponse)
+  const initialRSCPayload = use<InitialRSCPayload>(initialServerResponse)
+  const initialState = createInitialRouterState({
+    buildId: initialRSCPayload.b,
+    initialFlightData: initialRSCPayload.f,
+    initialCanonicalUrl: initialRSCPayload.c,
+    initialParallelRoutes: new Map(),
+    location: window.location,
+    couldBeIntercepted: initialRSCPayload.i,
+  })
 
-  return <AppRouter initialRSCPayload={initialResponse} />
+  const actionQueue = createMutableActionQueue(initialState)
+  const router = (
+    <AppRouter
+      actionQueue={actionQueue}
+      globalErrorComponent={initialRSCPayload.G}
+      assetPrefix={initialRSCPayload.p}
+    />
+  )
+
+  if (process.env.NODE_ENV === 'development' && initialRSCPayload.m) {
+    // We provide missing slot information in a context provider only during development
+    // as we log some additional information about the missing slots in the console.
+    return (
+      <MissingSlotContext value={initialRSCPayload.m}>
+        {router}
+      </MissingSlotContext>
+    )
+  }
+
+  return router
 }
 
 const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
@@ -194,16 +220,12 @@ function Root({ children }: React.PropsWithChildren<{}>) {
 }
 
 export function hydrate() {
-  const actionQueue = createMutableActionQueue()
-
   const reactEl = (
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider value={{ appDir: true }}>
-        <ActionQueueContext.Provider value={actionQueue}>
-          <Root>
-            <ServerRoot />
-          </Root>
-        </ActionQueueContext.Provider>
+        <Root>
+          <ServerRoot />
+        </Root>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
   )
