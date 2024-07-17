@@ -75,7 +75,7 @@ describe('on-request-error - dynamic-routes', () => {
       })
     })
 
-    it('should catch client component page error in node runtime', async () => {
+    it('should catch suspense rendering page error in node runtime', async () => {
       await next.fetch('/app-page/suspense')
       const record = await getErrorRecord({
         errorMessage: 'server-suspense-page-node-error',
