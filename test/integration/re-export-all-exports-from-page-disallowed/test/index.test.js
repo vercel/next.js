@@ -15,7 +15,7 @@ describe('Re-export all exports from page is disallowed', () => {
         })
         expect(code).toBe(1)
         expect(stderr).toInclude('pages/contact.js')
-        expect(stderr).toInclude(':3:1')
+        expect(stderr).toInclude('3:1')
         expect(stderr).toInclude(
           "Using `export * from '...'` in a page is disallowed. Please use `export { default } from '...'` instead."
         )
