@@ -52,7 +52,7 @@ export async function detectChangedEntries({
 
   if (!(await hasShuttle(shuttleDir))) {
     // no shuttle so consider everything changed
-    console.log('no shuttle can not detect changes')
+    console.log(`no shuttle. can't detect changes`)
     return {
       changed: {
         pages: pagesPaths || [],
@@ -86,6 +86,7 @@ export async function detectChangedEntries({
   }
 
   const hashSema = new Sema(16)
+  let globalEntryChanged = false
 
   async function detectChange({
     normalizedEntry,
@@ -102,90 +103,97 @@ export async function detectChangedEntries({
       type,
       `${normalizedEntry}.js.nft.json`
     )
+    let changed = true
 
-    const traceData:
-      | false
-      | {
+    // we don't need to check any further entry's dependencies if
+    // a global entry changed since that invalidates everything
+    if (!globalEntryChanged) {
+      try {
+        const traceData: {
           fileHashes: Record<string, string>
-        } = JSON.parse(
-      await fs.promises
-        .readFile(traceFile, 'utf8')
-        .catch(() => JSON.stringify(false))
-    )
-    let changed = false
+        } = JSON.parse(await fs.promises.readFile(traceFile, 'utf8'))
 
-    if (traceData) {
-      await Promise.all(
-        Object.keys(traceData.fileHashes).map(async (file) => {
-          if (changed) return
-          try {
-            await hashSema.acquire()
-            const originalTraceFile = path.join(
-              distDir,
-              'server',
-              type,
-              path.relative(path.join(shuttleDir, 'server', type), traceFile)
-            )
-            const absoluteFile = path.join(
-              path.dirname(originalTraceFile),
-              file
-            )
+        if (traceData) {
+          let changedDependency = false
+          await Promise.all(
+            Object.keys(traceData.fileHashes).map(async (file) => {
+              try {
+                if (changedDependency) return
+                await hashSema.acquire()
+                const relativeTraceFile = path.relative(
+                  path.join(shuttleDir, 'server', type),
+                  traceFile
+                )
+                const originalTraceFile = path.join(
+                  distDir,
+                  'server',
+                  type,
+                  relativeTraceFile
+                )
+                const absoluteFile = path.join(
+                  path.dirname(originalTraceFile),
+                  file
+                )
 
-            if (absoluteFile.startsWith(distDir)) {
-              return
-            }
+                if (absoluteFile.startsWith(distDir)) {
+                  return
+                }
 
-            const prevHash = traceData.fileHashes[file]
-            const curHash = await computeHash(absoluteFile)
+                const prevHash = traceData.fileHashes[file]
+                const curHash = await computeHash(absoluteFile)
 
-            if (prevHash !== curHash) {
-              console.error('detected change on', {
-                prevHash,
-                curHash,
-                file,
-                entry: normalizedEntry,
-              })
-              changed = true
-            }
-          } finally {
-            hashSema.release()
+                if (prevHash !== curHash) {
+                  console.log('detected change on', {
+                    prevHash,
+                    curHash,
+                    file,
+                    entry: normalizedEntry,
+                  })
+                  changedDependency = true
+                }
+              } finally {
+                hashSema.release()
+              }
+            })
+          )
+
+          if (!changedDependency) {
+            changed = false
           }
-        })
-      )
-    } else {
-      console.error('missing trace data', traceFile, normalizedEntry)
-      changed = true
+        } else {
+          console.error('missing trace data', traceFile, normalizedEntry)
+        }
+      } catch (err) {
+        console.error(`Failed to detect change for ${entry}`, err)
+      }
     }
 
-    if (changed || entry.match(/(_app|_document|_error)/)) {
+    // we always rebuild global entries so we have a version
+    // that matches the newest build/runtime
+    const isGlobalEntry = /(_app|_document|_error)/.test(entry)
+
+    if (changed || isGlobalEntry) {
+      // if a global entry changed all entries are changed
+      if (!globalEntryChanged && isGlobalEntry) {
+        console.log(`global entry ${entry} changed invalidating all entries`)
+        globalEntryChanged = true
+        // move unchanged to changed
+        changedEntries[type].push(...unchangedEntries[type])
+      }
       changedEntries[type].push(entry)
     } else {
       unchangedEntries[type].push(entry)
     }
   }
 
-  // collect page entries with default page extensions
-  console.error(
-    JSON.stringify(
-      {
-        appPaths,
-        pagePaths: pagesPaths,
-      },
-      null,
-      2
-    )
-  )
-  // loop over entries and their dependency's hashes to find
-  // which changed
-
-  // TODO: if _app or _document change it invalidates all pages
+  // loop over entries and their dependency's hashes
+  // to detect which changed
   for (const entry of pagesPaths || []) {
     let normalizedEntry = getPageFromPath(entry, pageExtensions)
 
     if (normalizedEntry === '/') {
       normalizedEntry = '/index'
     }
-
     await detectChange({ entry, normalizedEntry, type: 'pages' })
   }
 
@@ -194,7 +202,7 @@ export async function detectChangedEntries({
     await detectChange({ entry, normalizedEntry, type: 'app' })
   }
 
-  console.error(
+  console.log(
     'changed entries',
     JSON.stringify(
       {

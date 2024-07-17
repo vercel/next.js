@@ -68,6 +68,12 @@ export async function stitchBuilds(
     // no shuttle directory nothing to stitch
     return {}
   }
+  // if a manifest is needed in the rest of the build
+  // we return it from here so it can be used without
+  // re-reading from disk after changing
+  const updatedManifests: {
+    pagesManifest?: PagesManifest
+  } = {}
 
   // we need to copy the chunks from the shuttle folder
   // to the distDir (we copy all server split chunks currently)
@@ -227,22 +233,6 @@ export async function stitchBuilds(
     mergedBuildManifest.pages[key] = []
   }
 
-  /* 
-    TODO: for rootMainFiles we need to add a map that allows
-    referencing previous runtimes e.g. 
-    [
-      {
-        entries: string[]
-        runtimeFiles: string[]
-      } 
-    ]
-    then we update the lookup to iterate over the array
-    to find the runtime files for the specific entry
-
-    for pages we need to ensure the react chunk and such
-    is broken out into it's own split chunk correctly so 
-    we don't reference new runtime chunks in a previous build
-  */
   for (const entry of entries.unchanged.app || []) {
     const normalizedEntry = getPageFromPath(entry, entries.pageExtensions)
     mergedBuildManifest.rootMainFilesTree[normalizedEntry] =
@@ -414,8 +404,6 @@ export async function stitchBuilds(
     JSON.stringify(mergedFunctionsConfigManifest, null, 2)
   )
 
-  // for server/pages-manifest.json and server/app-paths-manifest.json
-  // we just merge
   for (const file of [APP_BUILD_MANIFEST, APP_PATH_ROUTES_MANIFEST]) {
     const [restorePagesManifest, currentPagesManifest] = await Promise.all(
       [path.join(shuttleDir, 'manifests', file), path.join(distDir, file)].map(
@@ -440,7 +428,6 @@ export async function stitchBuilds(
       JSON.stringify(mergedPagesManifest, null, 2)
     )
   }
-  let mergedPagesManifest: PagesManifest | undefined
 
   for (const file of [PAGES_MANIFEST, APP_PATHS_MANIFEST]) {
     const [restoreAppManifest, currentAppManifest] = await Promise.all(
@@ -449,16 +436,16 @@ export async function stitchBuilds(
         path.join(distDir, 'server', file),
       ].map(async (f) => JSON.parse(await fs.promises.readFile(f, 'utf8')))
     )
-    const mergedAppManifest = {
+    const mergedManifest = {
       ...restoreAppManifest,
       ...currentAppManifest,
     }
     await fs.promises.writeFile(
       path.join(distDir, 'server', file),
-      JSON.stringify(mergedAppManifest, null, 2)
+      JSON.stringify(mergedManifest, null, 2)
     )
     if (file === PAGES_MANIFEST) {
-      mergedPagesManifest = mergedAppManifest
+      updatedManifests.pagesManifest = mergedManifest
     }
   }
 
@@ -498,7 +485,5 @@ export async function stitchBuilds(
   // TODO: inline env variables post build by find/replace
   // in all the chunks for NEXT_PUBLIC_?
 
-  return {
-    pagesManifest: mergedPagesManifest,
-  }
+  return updatedManifests
 }

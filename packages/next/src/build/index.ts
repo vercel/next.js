@@ -869,7 +869,7 @@ export default async function build(
           distDir,
           shuttleDir,
         })
-        console.error({ changedPagePathsResult })
+        console.log({ changedPagePathsResult })
         pagesPaths = changedPagePathsResult.changed.pages
       }
 
@@ -960,7 +960,7 @@ export default async function build(
             distDir,
             shuttleDir,
           })
-          console.error({ changedAppPathsResult })
+          console.log({ changedAppPathsResult })
           appPaths = changedAppPathsResult.changed.app
         }
 
@@ -1104,7 +1104,7 @@ export default async function build(
       )
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
-      let routesManifest: RoutesManifest = nextBuildSpan
+      const routesManifest: RoutesManifest = nextBuildSpan
         .traceChild('generate-routes-manifest')
         .traceFn(() => {
           const sortedRoutes = getSortedRoutes([
