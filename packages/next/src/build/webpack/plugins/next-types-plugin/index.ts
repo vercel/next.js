@@ -622,6 +622,7 @@ export class NextTypesPlugin {
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
       const IS_ROUTE = !IS_PAGE && /[/\\]route\.[^.]+$/.test(mod.resource)
+      const IS_IMPORTABLE = /\.(js|jsx|ts|tsx|mjs|cjs)$/.test(mod.resource)
       const relativePathToApp = path.relative(this.appDir, mod.resource)
 
       if (!this.dev) {
@@ -641,6 +642,10 @@ export class NextTypesPlugin {
       )
 
       const assetPath = path.join(assetDirRelative, typePath)
+
+      // Typescript won’t allow relative-importing (for example) a .mdx file using the .js extension
+      // so for now we only generate “type guard files” for files that typescript can transform
+      if (!IS_IMPORTABLE) return
 
       if (IS_LAYOUT) {
         const slots = await collectNamedSlots(mod.resource)
