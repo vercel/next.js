@@ -448,6 +448,7 @@ export class NextInstance {
       }
 
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
+        // Faster than `await fs.rm`. Benchmark before change.
         rmSync(this.testDir, { recursive: true, force: true })
       }
       require('console').timeEnd(`destroyed next instance`)
