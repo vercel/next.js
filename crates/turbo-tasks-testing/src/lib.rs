@@ -36,14 +36,15 @@ pub struct VcStorage {
     tasks: Mutex<Vec<Task>>,
 }
 
-impl TurboTasksCallApi for VcStorage {
+impl VcStorage {
     fn dynamic_call(
         &self,
         func: turbo_tasks::FunctionId,
+        this_arg: Option<RawVc>,
         inputs: Vec<turbo_tasks::ConcreteTaskInput>,
     ) -> RawVc {
         let this = self.this.upgrade().unwrap();
-        let func = registry::get_function(func).bind(&inputs);
+        let func = registry::get_function(func).bind(this_arg, &inputs);
         let handle = tokio::runtime::Handle::current();
         let future = func();
         let i = {
@@ -77,6 +78,25 @@ impl TurboTasksCallApi for VcStorage {
         }));
         RawVc::TaskOutput(id)
     }
+}
+
+impl TurboTasksCallApi for VcStorage {
+    fn dynamic_call(
+        &self,
+        func: turbo_tasks::FunctionId,
+        inputs: Vec<turbo_tasks::ConcreteTaskInput>,
+    ) -> RawVc {
+        self.dynamic_call(func, None, inputs)
+    }
+
+    fn dynamic_this_call(
+        &self,
+        func: turbo_tasks::FunctionId,
+        this_arg: RawVc,
+        inputs: Vec<turbo_tasks::ConcreteTaskInput>,
+    ) -> RawVc {
+        self.dynamic_call(func, Some(this_arg), inputs)
+    }
 
     fn native_call(
         &self,
@@ -86,10 +106,20 @@ impl TurboTasksCallApi for VcStorage {
         unreachable!()
     }
 
+    fn this_call(
+        &self,
+        _func: turbo_tasks::FunctionId,
+        _this: RawVc,
+        _inputs: Vec<turbo_tasks::ConcreteTaskInput>,
+    ) -> RawVc {
+        unreachable!()
+    }
+
     fn trait_call(
         &self,
         _trait_type: turbo_tasks::TraitTypeId,
         _trait_fn_name: Cow<'static, str>,
+        _this: RawVc,
         _inputs: Vec<turbo_tasks::ConcreteTaskInput>,
     ) -> RawVc {
         unreachable!()

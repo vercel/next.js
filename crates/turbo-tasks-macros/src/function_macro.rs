@@ -30,7 +30,11 @@ pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
     let mut inline_signature = sig.clone();
     inline_signature.ident = inline_function_ident;
 
-    let native_fn = NativeFn::new(&ident.to_string(), &inline_function_path);
+    let native_fn = NativeFn::new(
+        &ident.to_string(),
+        &inline_function_path,
+        turbo_fn.is_method(),
+    );
     let native_function_ident = get_native_function_ident(ident);
     let native_function_ty = native_fn.ty();
     let native_function_def = native_fn.definition();

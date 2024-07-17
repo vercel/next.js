@@ -120,6 +120,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let native_fn = NativeFn::new(
                     &format!("{ty}::{ident}", ty = ty.to_token_stream()),
                     &inline_function_path,
+                    turbo_fn.is_method(),
                 );
 
                 let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
@@ -225,6 +226,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         trait_path = trait_path.to_token_stream()
                     ),
                     &inline_function_path,
+                    turbo_fn.is_method(),
                 );
 
                 let native_function_ident =

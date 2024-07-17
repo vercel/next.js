@@ -59,6 +59,13 @@ pub enum RawVc {
 }
 
 impl RawVc {
+    pub(crate) fn is_resolved(&self) -> bool {
+        match self {
+            RawVc::TaskOutput(_) => false,
+            RawVc::TaskCell(_, _) => true,
+        }
+    }
+
     pub(crate) fn into_read(self) -> ReadRawVcFuture {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture

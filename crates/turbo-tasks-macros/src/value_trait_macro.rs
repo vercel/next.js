@@ -108,8 +108,11 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             let mut inline_signature = sig.clone();
             inline_signature.ident = inline_function_ident;
 
-            let native_function =
-                NativeFn::new(&format!("{trait_ident}::{ident}"), &inline_function_path);
+            let native_function = NativeFn::new(
+                &format!("{trait_ident}::{ident}"),
+                &inline_function_path,
+                turbo_fn.is_method(),
+            );
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
             let native_function_ty = native_function.ty();
