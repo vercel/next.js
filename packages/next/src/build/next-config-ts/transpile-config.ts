@@ -57,12 +57,17 @@ export async function transpileConfig({
     // lazy require swc since it loads React before even setting NODE_ENV
     // resulting loading Development React on Production
     const { transform } = require('../swc')
-    const { code } = await transform(nextConfigString, swcOptions)
+    let { code } = await transform(nextConfigString, swcOptions)
 
     // register require hook only if require exists
     if (code.includes('require(')) {
       registerHook(swcOptions)
       hasRequire = true
+    }
+
+    // wrap with async IIFE if await is used
+    if (code.includes('await')) {
+      code = `(async function(){${code}})();`
     }
 
     // filename & extension don't matter here
