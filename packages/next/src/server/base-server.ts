@@ -836,10 +836,7 @@ export default abstract class Server<
   ) {
     const [err, req, ctx] = args
 
-    if (
-      process.env.__NEXT_EXPERIMENTAL_INSTRUMENTATION &&
-      this.instrumentation
-    ) {
+    if (this.instrumentation) {
       try {
         await this.instrumentation.onRequestError?.(
           err,
