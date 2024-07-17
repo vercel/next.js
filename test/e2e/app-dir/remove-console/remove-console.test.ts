@@ -6,15 +6,18 @@ describe('remove-console', () => {
   })
 
   it('should remove console.log', async () => {
-    let stdout = jest.fn()
-    let stderr = jest.fn()
-    next.on('stdout', stdout)
-    next.on('stderr', stderr)
+    const browser = await next.browser('/')
+    expect(await browser.elementByCss('p').text()).toBe('hello client')
 
-    const $ = await next.render$('/')
-    expect($('p').text()).toBe('hello world')
+    const logs = await browser.log()
 
-    expect(stdout).not.toHaveBeenCalledWith('MY LOG MESSAGE\n')
-    expect(stderr).toHaveBeenCalledWith('MY ERROR MESSAGE\n')
+    expect(logs).not.toContainEqual({
+      source: 'log',
+      message: 'MY LOG MESSAGE',
+    })
+    expect(logs).toContainEqual({
+      source: 'error',
+      message: 'MY ERROR MESSAGE',
+    })
   })
 })

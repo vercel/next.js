@@ -1,3 +1,9 @@
+import { Client } from './client'
+
 export default function Page() {
-  return <p>hello world</p>
+  return (
+    <p>
+      hello <Client />
+    </p>
+  )
 }
