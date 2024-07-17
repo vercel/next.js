@@ -584,17 +584,30 @@ impl Task {
             TaskTypeForDescription::Root => format!("[{}] root", id),
             TaskTypeForDescription::Once => format!("[{}] once", id),
             TaskTypeForDescription::Persistent(ty) => match &***ty {
-                PersistentTaskType::Native(native_fn, _) => {
+                PersistentTaskType::Native {
+                    fn_type: native_fn,
+                    this: _,
+                    args: _,
+                } => {
                     format!("[{}] {}", id, registry::get_function(*native_fn).name)
                 }
-                PersistentTaskType::ResolveNative(native_fn, _) => {
+                PersistentTaskType::ResolveNative {
+                    fn_type: native_fn,
+                    this: _,
+                    args: _,
+                } => {
                     format!(
                         "[{}] [resolve] {}",
                         id,
                         registry::get_function(*native_fn).name
                     )
                 }
-                PersistentTaskType::ResolveTrait(trait_type, fn_name, _) => {
+                PersistentTaskType::ResolveTrait {
+                    trait_type,
+                    method_name: fn_name,
+                    this: _,
+                    args: _,
+                } => {
                     format!(
                         "[{}] [resolve trait] {} in trait {}",
                         id,
@@ -741,16 +754,24 @@ impl Task {
                 tracing::trace_span!("turbo_tasks::once_task"),
             ),
             TaskType::Persistent { ty, .. } => match &***ty {
-                PersistentTaskType::Native(native_fn, inputs) => {
+                PersistentTaskType::Native {
+                    fn_type: native_fn,
+                    this,
+                    args: inputs,
+                } => {
                     let func = registry::get_function(*native_fn);
                     let span = func.span();
                     let entered = span.enter();
-                    let bound_fn = func.bind(inputs);
+                    let bound_fn = func.bind(*this, inputs);
                     let future = bound_fn();
                     drop(entered);
                     (future, span)
                 }
-                PersistentTaskType::ResolveNative(ref native_fn_id, inputs) => {
+                PersistentTaskType::ResolveNative {
+                    fn_type: ref native_fn_id,
+                    this,
+                    args: inputs,
+                } => {
                     let native_fn_id = *native_fn_id;
                     let func = registry::get_function(native_fn_id);
                     let span = func.resolve_span();
@@ -759,13 +780,19 @@ impl Task {
                     let turbo_tasks = turbo_tasks.pin();
                     let future = Box::pin(PersistentTaskType::run_resolve_native(
                         native_fn_id,
+                        *this,
                         inputs,
                         turbo_tasks,
                     ));
                     drop(entered);
                     (future, span)
                 }
-                PersistentTaskType::ResolveTrait(trait_type_id, name, inputs) => {
+                PersistentTaskType::ResolveTrait {
+                    trait_type: trait_type_id,
+                    method_name: name,
+                    this,
+                    args: inputs,
+                } => {
                     let trait_type_id = *trait_type_id;
                     let trait_type = registry::get_trait(trait_type_id);
                     let span = trait_type.resolve_span(name);
@@ -776,6 +803,7 @@ impl Task {
                     let future = Box::pin(PersistentTaskType::run_resolve_trait(
                         trait_type_id,
                         name,
+                        *this,
                         inputs,
                         turbo_tasks,
                     ));

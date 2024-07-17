@@ -1,6 +1,5 @@
 use std::{
     any::Any,
-    borrow::Cow,
     fmt::{Debug, Display},
     future::Future,
     hash::Hash,
@@ -14,12 +13,11 @@ use unsize::CoerceUnsize;
 
 use crate::{
     backend::CellContent,
-    id::{FunctionId, TraitTypeId},
     magic_any::MagicAny,
     manager::{read_task_cell, read_task_output},
     registry,
     triomphe_utils::{coerce_to_any_send_sync, downcast_triomphe_arc},
-    turbo_tasks, CellId, RawVc, RcStr, TaskId, TraitType, ValueTypeId,
+    turbo_tasks, CellId, RawVc, RcStr, TaskId, ValueTypeId,
 };
 
 /// A type-erased wrapper for [`triomphe::Arc`].
@@ -402,74 +400,6 @@ impl ConcreteTaskInput {
         match self {
             ConcreteTaskInput::TaskOutput(t) | ConcreteTaskInput::TaskCell(t, _) => Some(*t),
             _ => None,
-        }
-    }
-
-    pub fn get_trait_method(
-        &self,
-        trait_type: TraitTypeId,
-        name: Cow<'static, str>,
-    ) -> Result<FunctionId, Cow<'static, str>> {
-        match self {
-            ConcreteTaskInput::TaskOutput(_) | ConcreteTaskInput::TaskCell(_, _) => {
-                panic!("get_trait_method must be called on a resolved TaskInput")
-            }
-            ConcreteTaskInput::SharedValue(SharedValue(ty, _))
-            | ConcreteTaskInput::SharedReference(SharedReference(ty, _)) => {
-                if let Some(ty) = *ty {
-                    let key = (trait_type, name);
-                    if let Some(func) = registry::get_value_type(ty).get_trait_method(&key) {
-                        Ok(*func)
-                    } else if let Some(func) = registry::get_trait(trait_type)
-                        .default_trait_methods
-                        .get(&key.1)
-                    {
-                        Ok(*func)
-                    } else {
-                        Err(key.1)
-                    }
-                } else {
-                    Err(name)
-                }
-            }
-            _ => Err(name),
-        }
-    }
-
-    pub fn has_trait(&self, trait_type: TraitTypeId) -> bool {
-        match self {
-            ConcreteTaskInput::TaskOutput(_) | ConcreteTaskInput::TaskCell(_, _) => {
-                panic!("has_trait() must be called on a resolved TaskInput")
-            }
-            ConcreteTaskInput::SharedValue(SharedValue(ty, _))
-            | ConcreteTaskInput::SharedReference(SharedReference(ty, _)) => {
-                if let Some(ty) = *ty {
-                    registry::get_value_type(ty).has_trait(&trait_type)
-                } else {
-                    false
-                }
-            }
-            _ => false,
-        }
-    }
-
-    pub fn traits(&self) -> Vec<&'static TraitType> {
-        match self {
-            ConcreteTaskInput::TaskOutput(_) | ConcreteTaskInput::TaskCell(_, _) => {
-                panic!("traits() must be called on a resolved TaskInput")
-            }
-            ConcreteTaskInput::SharedValue(SharedValue(ty, _))
-            | ConcreteTaskInput::SharedReference(SharedReference(ty, _)) => {
-                if let Some(ty) = *ty {
-                    registry::get_value_type(ty)
-                        .traits_iter()
-                        .map(registry::get_trait)
-                        .collect()
-                } else {
-                    Vec::new()
-                }
-            }
-            _ => Vec::new(),
         }
     }
 

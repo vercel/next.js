@@ -169,6 +169,13 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
 #[proc_macro_error]
 #[proc_macro_attribute]
+pub fn test_tt(_args: TokenStream, input: TokenStream) -> TokenStream {
+    derive::derive_value_debug(input)
+}
+
+#[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
+#[proc_macro_error]
+#[proc_macro_attribute]
 pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
     value_impl_macro::value_impl(args, input)
 }

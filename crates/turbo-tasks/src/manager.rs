@@ -30,8 +30,8 @@ use crate::{
     id::{BackendJobId, FunctionId, TraitTypeId},
     id_factory::IdFactoryWithReuse,
     raw_vc::{CellId, RawVc},
-    registry,
     trace::TraceRawVcs,
+    trait_helpers::get_trait_method,
     util::StaticOrArc,
     vc::ReadVcFuture,
     Completion, ConcreteTaskInput, InvalidationReason, InvalidationReasonSet, SharedReference,
@@ -40,11 +40,19 @@ use crate::{
 
 pub trait TurboTasksCallApi: Sync + Send {
     fn dynamic_call(&self, func: FunctionId, inputs: Vec<ConcreteTaskInput>) -> RawVc;
+    fn dynamic_this_call(
+        &self,
+        func: FunctionId,
+        this: RawVc,
+        inputs: Vec<ConcreteTaskInput>,
+    ) -> RawVc;
     fn native_call(&self, func: FunctionId, inputs: Vec<ConcreteTaskInput>) -> RawVc;
+    fn this_call(&self, func: FunctionId, this: RawVc, inputs: Vec<ConcreteTaskInput>) -> RawVc;
     fn trait_call(
         &self,
         trait_type: TraitTypeId,
         trait_fn_name: Cow<'static, str>,
+        this: RawVc,
         inputs: Vec<ConcreteTaskInput>,
     ) -> RawVc;
 
@@ -369,7 +377,30 @@ impl<B: Backend + 'static> TurboTasks<B> {
     /// All inputs must be resolved.
     pub(crate) fn native_call(&self, func: FunctionId, inputs: Vec<ConcreteTaskInput>) -> RawVc {
         RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-            PersistentTaskType::Native(func, inputs),
+            PersistentTaskType::Native {
+                fn_type: func,
+                this: None,
+                args: inputs,
+            },
+            current_task("turbo_function calls"),
+            self,
+        ))
+    }
+
+    /// Call a native function with arguments.
+    /// All inputs must be resolved.
+    pub(crate) fn this_call(
+        &self,
+        func: FunctionId,
+        this: RawVc,
+        inputs: Vec<ConcreteTaskInput>,
+    ) -> RawVc {
+        RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
+            PersistentTaskType::Native {
+                fn_type: func,
+                this: Some(this),
+                args: inputs,
+            },
             current_task("turbo_function calls"),
             self,
         ))
@@ -382,7 +413,34 @@ impl<B: Backend + 'static> TurboTasks<B> {
             self.native_call(func, inputs)
         } else {
             RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-                PersistentTaskType::ResolveNative(func, inputs),
+                PersistentTaskType::ResolveNative {
+                    fn_type: func,
+                    this: None,
+                    args: inputs,
+                },
+                current_task("turbo_function calls"),
+                self,
+            ))
+        }
+    }
+
+    /// Calls a native function with arguments. Resolves arguments when needed
+    /// with a wrapper task.
+    pub fn dynamic_this_call(
+        &self,
+        func: FunctionId,
+        this: RawVc,
+        inputs: Vec<ConcreteTaskInput>,
+    ) -> RawVc {
+        if this.is_resolved() && inputs.iter().all(|i| i.is_resolved()) {
+            self.this_call(func, this, inputs)
+        } else {
+            RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
+                PersistentTaskType::ResolveNative {
+                    fn_type: func,
+                    this: Some(this),
+                    args: inputs,
+                },
                 current_task("turbo_function calls"),
                 self,
             ))
@@ -395,24 +453,31 @@ impl<B: Backend + 'static> TurboTasks<B> {
         &self,
         trait_type: TraitTypeId,
         mut trait_fn_name: Cow<'static, str>,
+        this: RawVc,
         inputs: Vec<ConcreteTaskInput>,
     ) -> RawVc {
         // avoid creating a wrapper task if self is already resolved
         // for resolved cells we already know the value type so we can lookup the
         // function
-        let first_input = inputs.first().expect("trait call without self argument");
-        if let &ConcreteTaskInput::TaskCell(_, CellId { type_id, .. }) = first_input {
-            let value_type = registry::get_value_type(type_id);
-            let key = (trait_type, trait_fn_name);
-            if let Some(native_fn) = value_type.get_trait_method(&key) {
-                return self.dynamic_call(*native_fn, inputs);
+        if let RawVc::TaskCell(_, CellId { type_id, .. }) = this {
+            match get_trait_method(trait_type, type_id, trait_fn_name) {
+                Ok(native_fn) => {
+                    return self.dynamic_this_call(native_fn, this, inputs);
+                }
+                Err(name) => {
+                    trait_fn_name = name;
+                }
             }
-            trait_fn_name = key.1;
         }
 
         // create a wrapper task to resolve all inputs
         RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-            PersistentTaskType::ResolveTrait(trait_type, trait_fn_name, inputs),
+            PersistentTaskType::ResolveTrait {
+                trait_type,
+                method_name: trait_fn_name,
+                this,
+                args: inputs,
+            },
             current_task("turbo_function calls"),
             self,
         ))
@@ -794,16 +859,28 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
     fn dynamic_call(&self, func: FunctionId, inputs: Vec<ConcreteTaskInput>) -> RawVc {
         self.dynamic_call(func, inputs)
     }
+    fn dynamic_this_call(
+        &self,
+        func: FunctionId,
+        this: RawVc,
+        inputs: Vec<ConcreteTaskInput>,
+    ) -> RawVc {
+        self.dynamic_this_call(func, this, inputs)
+    }
     fn native_call(&self, func: FunctionId, inputs: Vec<ConcreteTaskInput>) -> RawVc {
         self.native_call(func, inputs)
+    }
+    fn this_call(&self, func: FunctionId, this: RawVc, inputs: Vec<ConcreteTaskInput>) -> RawVc {
+        self.this_call(func, this, inputs)
     }
     fn trait_call(
         &self,
         trait_type: TraitTypeId,
         trait_fn_name: Cow<'static, str>,
+        this: RawVc,
         inputs: Vec<ConcreteTaskInput>,
     ) -> RawVc {
-        self.trait_call(trait_type, trait_fn_name, inputs)
+        self.trait_call(trait_type, trait_fn_name, this, inputs)
     }
 
     #[track_caller]
@@ -1282,13 +1359,20 @@ pub fn dynamic_call(func: FunctionId, inputs: Vec<ConcreteTaskInput>) -> RawVc {
     with_turbo_tasks(|tt| tt.dynamic_call(func, inputs))
 }
 
+/// Calls [`TurboTasks::dynamic_this_call`] for the current turbo tasks
+/// instance.
+pub fn dynamic_this_call(func: FunctionId, this: RawVc, inputs: Vec<ConcreteTaskInput>) -> RawVc {
+    with_turbo_tasks(|tt| tt.dynamic_this_call(func, this, inputs))
+}
+
 /// Calls [`TurboTasks::trait_call`] for the current turbo tasks instance.
 pub fn trait_call(
     trait_type: TraitTypeId,
     trait_fn_name: Cow<'static, str>,
+    this: RawVc,
     inputs: Vec<ConcreteTaskInput>,
 ) -> RawVc {
-    with_turbo_tasks(|tt| tt.trait_call(trait_type, trait_fn_name, inputs))
+    with_turbo_tasks(|tt| tt.trait_call(trait_type, trait_fn_name, this, inputs))
 }
 
 pub fn turbo_tasks() -> Arc<dyn TurboTasksApi> {

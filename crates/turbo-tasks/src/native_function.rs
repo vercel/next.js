@@ -3,10 +3,14 @@ use std::{fmt::Debug, hash::Hash};
 use tracing::Span;
 
 use crate::{
+    self as turbo_tasks,
     registry::register_function,
-    task::{function::NativeTaskFn, IntoTaskFn, TaskFn},
+    task::{
+        function::{IntoTaskFnWithThis, NativeTaskFn},
+        IntoTaskFn, TaskFn,
+    },
     util::SharedError,
-    ConcreteTaskInput, {self as turbo_tasks},
+    ConcreteTaskInput, RawVc,
 };
 
 /// A native (rust) turbo-tasks function. It's used internally by
@@ -30,7 +34,7 @@ impl Debug for NativeFunction {
 }
 
 impl NativeFunction {
-    pub fn new<I, Mode, Inputs>(name: String, implementation: I) -> Self
+    pub fn new_function<Mode, Inputs, I>(name: String, implementation: I) -> Self
     where
         I: IntoTaskFn<Mode, Inputs>,
     {
@@ -40,9 +44,19 @@ impl NativeFunction {
         }
     }
 
+    pub fn new_method<Mode, Inputs, I>(name: String, implementation: I) -> Self
+    where
+        I: IntoTaskFnWithThis<Mode, Inputs>,
+    {
+        Self {
+            name,
+            implementation: Box::new(implementation.into_task_fn_with_this()),
+        }
+    }
+
     /// Creates a functor for execution from a fixed set of inputs.
-    pub fn bind(&'static self, inputs: &[ConcreteTaskInput]) -> NativeTaskFn {
-        match (self.implementation).functor(inputs) {
+    pub fn bind(&'static self, this: Option<RawVc>, inputs: &[ConcreteTaskInput]) -> NativeTaskFn {
+        match (self.implementation).functor(this, inputs) {
             Ok(functor) => functor,
             Err(err) => {
                 let err = SharedError::new(err);

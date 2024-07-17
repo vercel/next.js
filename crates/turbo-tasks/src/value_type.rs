@@ -79,6 +79,12 @@ impl Debug for ValueType {
     }
 }
 
+impl Display for ValueType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.name)
+    }
+}
+
 pub fn any_as_serialize<T: Any + Serialize + Send + Sync + 'static>(
     this: &(dyn Any + Send + Sync),
 ) -> &dyn erased_serde::Serialize {
