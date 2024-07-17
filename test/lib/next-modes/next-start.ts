@@ -121,7 +121,7 @@ export class NextStartInstance extends NextInstance {
     ).trim()
 
     console.log('running', startArgs.join(' '))
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       try {
         this.childProcess = spawn(
           startArgs[0],
@@ -141,6 +141,8 @@ export class NextStartInstance extends NextInstance {
           }
         })
 
+        const serverReadyTimeoutId = this.setServerReadyTimeout(reject)
+
         const readyCb = (msg) => {
           const colorStrippedMsg = stripAnsi(msg)
           if (colorStrippedMsg.includes('- Local:')) {
@@ -151,8 +153,12 @@ export class NextStartInstance extends NextInstance {
               .pop()
               .trim()
             this._parsedUrl = new URL(this._url)
-            this.off('stdout', readyCb)
+          }
+
+          if (this.serverReadyPattern.test(colorStrippedMsg)) {
+            clearTimeout(serverReadyTimeoutId)
             resolve()
+            this.off('stdout', readyCb)
           }
         }
         this.on('stdout', readyCb)

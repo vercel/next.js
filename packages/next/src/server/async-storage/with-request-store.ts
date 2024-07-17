@@ -22,6 +22,7 @@ import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
 import { AfterContext } from '../after/after-context'
 import type { RequestLifecycleOpts } from '../base-server'
+import type { ServerComponentsHmrCache } from '../response-cache'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -75,13 +76,22 @@ export type RequestContext = {
   }
   res?: ServerResponse | BaseNextResponse
   renderOpts?: WrapperRenderOpts
+  isHmrRefresh?: boolean
+  serverComponentsHmrCache?: ServerComponentsHmrCache
 }
 
 export const withRequestStore: WithStore<RequestStore, RequestContext> = <
   Result,
 >(
   storage: AsyncLocalStorage<RequestStore>,
-  { req, url, res, renderOpts }: RequestContext,
+  {
+    req,
+    url,
+    res,
+    renderOpts,
+    isHmrRefresh,
+    serverComponentsHmrCache,
+  }: RequestContext,
   callback: (store: RequestStore) => Result
 ): Result => {
   function defaultOnUpdateCookies(cookies: string[]) {
@@ -171,6 +181,10 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
     afterContext: createAfterContext(renderOpts),
+    isHmrRefresh,
+    serverComponentsHmrCache:
+      serverComponentsHmrCache ||
+      (globalThis as any).__serverComponentsHmrCache,
   }
 
   if (store.afterContext) {

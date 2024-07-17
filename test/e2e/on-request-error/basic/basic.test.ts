@@ -2,12 +2,17 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('on-request-error - basic', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
     env: {
       __NEXT_EXPERIMENTAL_INSTRUMENTATION: '1',
     },
   })
+
+  if (skipped) {
+    return
+  }
 
   const outputLogPath = 'output-log.json'
 
@@ -19,35 +24,31 @@ describe('on-request-error - basic', () => {
     return JSON.parse(content)
   }
 
-  async function validateErrorRecord(
-    name: string,
-    url: string,
-    isMiddleware: boolean = false
-  ) {
+  async function validateErrorRecord({
+    errorMessage,
+    url,
+    renderSource,
+    isMiddleware = false,
+  }: {
+    errorMessage: string
+    url: string
+    renderSource: string | undefined
+    isMiddleware?: boolean
+  }) {
+    // Assert the instrumentation is called
     await retry(async () => {
       const recordLogs = next.cliOutput
         .split('\n')
         .filter((log) => log.includes('[instrumentation] write-log'))
-      const expectedLog = recordLogs.find((log) => log.includes(name))
+      const expectedLog = recordLogs.find((log) => log.includes(errorMessage))
       expect(expectedLog).toBeDefined()
     }, 5000)
 
     const json = await getOutputLogJson()
-    const record = json[name]
+    const record = json[errorMessage]
 
-    expect(record).toBeDefined()
-    const { payload, count } = record
-    expect(payload.message).toBe(name)
-    expect(count).toBe(1)
-
-    validateRequestByName(payload.request, url, isMiddleware)
-  }
-
-  function validateRequestByName(
-    request: any,
-    url: string,
-    isMiddleware: boolean = false
-  ) {
+    const { payload } = record
+    const { request } = payload
     if (isMiddleware) {
       // For middleware, the URL is absolute url with host
       expect(request.url).toMatch(/^http:\/\//)
@@ -55,8 +56,15 @@ describe('on-request-error - basic', () => {
     } else {
       expect(request.url).toBe(url)
     }
-    expect(request.method).toBe('GET')
-    expect(request.headers['accept']).toBe('*/*')
+
+    expect(record).toMatchObject({
+      count: 1,
+      payload: {
+        message: errorMessage,
+        request: { method: 'GET', headers: { accept: '*/*' } },
+        ...(renderSource ? { context: { renderSource } } : undefined),
+      },
+    })
   }
 
   beforeAll(async () => {
@@ -66,61 +74,108 @@ describe('on-request-error - basic', () => {
   describe('app router', () => {
     it('should catch server component page error in node runtime', async () => {
       await next.fetch('/server-page')
-      await validateErrorRecord('server-page-node-error', '/server-page')
+      await validateErrorRecord({
+        errorMessage: 'server-page-node-error',
+        url: '/server-page',
+        renderSource: 'react-server-components',
+      })
     })
 
     it('should catch server component page error in edge runtime', async () => {
       await next.fetch('/server-page/edge')
-      await validateErrorRecord('server-page-edge-error', '/server-page/edge')
+      await validateErrorRecord({
+        errorMessage: 'server-page-edge-error',
+        url: '/server-page/edge',
+        renderSource: 'react-server-components',
+      })
     })
 
     it('should catch client component page error in node runtime', async () => {
       await next.fetch('/client-page')
-      await validateErrorRecord('client-page-node-error', '/client-page')
+      await validateErrorRecord({
+        errorMessage: 'client-page-node-error',
+        url: '/client-page',
+        renderSource: 'server-rendering',
+      })
     })
 
     it('should catch client component page error in edge runtime', async () => {
       await next.fetch('/client-page/edge')
-      await validateErrorRecord('client-page-edge-error', '/client-page/edge')
+
+      await validateErrorRecord({
+        errorMessage: 'client-page-edge-error',
+        url: '/client-page/edge',
+        renderSource: 'server-rendering',
+      })
     })
 
     it('should catch app routes error in node runtime', async () => {
       await next.fetch('/app-route')
-      await validateErrorRecord('route-node-error', '/app-route')
+
+      await validateErrorRecord({
+        errorMessage: 'route-node-error',
+        url: '/app-route',
+        renderSource: undefined,
+      })
     })
 
     it('should catch app routes error in edge runtime', async () => {
       await next.fetch('/app-route/edge')
-      await validateErrorRecord('route-edge-error', '/app-route/edge')
+      await validateErrorRecord({
+        errorMessage: 'route-edge-error',
+        url: '/app-route/edge',
+        renderSource: undefined,
+      })
     })
   })
 
   describe('pages router', () => {
     it('should catch pages router page error in node runtime', async () => {
       await next.fetch('/page')
-      await validateErrorRecord('pages-page-node-error', '/page')
+      await validateErrorRecord({
+        errorMessage: 'pages-page-node-error',
+        url: '/page',
+        renderSource: undefined,
+      })
     })
 
     it('should catch pages router page error in edge runtime', async () => {
       await next.fetch('/page/edge')
-      await validateErrorRecord('pages-page-edge-error', '/page/edge')
+      await validateErrorRecord({
+        errorMessage: 'pages-page-edge-error',
+        url: '/page/edge',
+        renderSource: undefined,
+      })
     })
 
     it('should catch pages router api error in node runtime', async () => {
       await next.fetch('/api/pages-route')
-      await validateErrorRecord('api-node-error', '/api/pages-route')
+      await validateErrorRecord({
+        errorMessage: 'api-node-error',
+        url: '/api/pages-route',
+        renderSource: undefined,
+      })
     })
 
     it('should catch pages router api error in edge runtime', async () => {
       await next.fetch('/api/pages-route/edge')
-      await validateErrorRecord('api-edge-error', '/api/pages-route/edge')
+      await validateErrorRecord({
+        errorMessage: 'api-edge-error',
+        url: '/api/pages-route/edge',
+        renderSource: undefined,
+      })
     })
   })
 
   describe('middleware', () => {
     it('should catch middleware error', async () => {
       await next.fetch('/middleware-error')
-      await validateErrorRecord('middleware-error', '/middleware-error', true)
+      await validateErrorRecord({
+        errorMessage: 'middleware-error',
+        url: '/middleware-error',
+        isMiddleware: true,
+        renderSource: undefined,
+      })
     })
   })
 })

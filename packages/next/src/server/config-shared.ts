@@ -496,6 +496,11 @@ export interface ExperimentalConfig {
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
+
+  /**
+   * Allows previously fetched data to be re-used when editing server components.
+   */
+  serverComponentsHmrCache?: boolean
 }
 
 export type ExportPathMap = {
@@ -1002,6 +1007,7 @@ export const defaultConfig: NextConfig = {
     reactCompiler: undefined,
     after: false,
     staticGenerationRetryCount: undefined,
+    serverComponentsHmrCache: false,
   },
   bundlePagesRouterDependencies: false,
 }

@@ -18,6 +18,7 @@ import type {
 import type {
   CachedAppPageValue,
   CachedPageValue,
+  ServerComponentsHmrCache,
   ResponseCacheBase,
   ResponseCacheEntry,
   ResponseGenerator,
@@ -411,6 +412,14 @@ export default abstract class Server<
   protected abstract getResponseCache(options: {
     dev: boolean
   }): ResponseCacheBase
+
+  protected getServerComponentsHmrCache():
+    | ServerComponentsHmrCache
+    | undefined {
+    return this.nextConfig.experimental.serverComponentsHmrCache
+      ? (globalThis as any).__serverComponentsHmrCache
+      : undefined
+  }
 
   protected abstract loadEnvConfig(params: {
     dev: boolean
@@ -1341,6 +1350,16 @@ export default abstract class Server<
         incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         ;(globalThis as any).__incrementalCache = incrementalCache
+      }
+
+      // set server components HMR cache to request meta so it can be passed
+      // down for edge functions
+      if (!getRequestMeta(req, 'serverComponentsHmrCache')) {
+        addRequestMeta(
+          req,
+          'serverComponentsHmrCache',
+          this.getServerComponentsHmrCache()
+        )
       }
 
       // when invokePath is specified we can short short circuit resolving
@@ -2571,6 +2590,7 @@ export default abstract class Server<
               params: opts.params,
               query,
               renderOpts,
+              serverComponentsHmrCache: this.getServerComponentsHmrCache(),
             })
           }
         } else {

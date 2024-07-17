@@ -6,7 +6,6 @@ export {
   decodeFormState,
 } from 'react-server-dom-webpack/server.edge'
 
-import AppRouter from '../../client/components/app-router'
 import LayoutRouter from '../../client/components/layout-router'
 import RenderFromTemplateContext from '../../client/components/render-from-template-context'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
@@ -48,7 +47,6 @@ function patchFetch() {
 }
 
 export {
-  AppRouter,
   LayoutRouter,
   RenderFromTemplateContext,
   staticGenerationAsyncStorage,

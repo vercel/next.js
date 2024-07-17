@@ -309,7 +309,7 @@ export default class NextNodeServer extends BaseServer<
   protected async loadInstrumentationModule() {
     if (
       !this.serverOptions.dev &&
-      this.nextConfig.experimental.instrumentationHook
+      !!this.nextConfig.experimental.instrumentationHook
     ) {
       try {
         this.instrumentation = await dynamicRequire(
@@ -332,10 +332,11 @@ export default class NextNodeServer extends BaseServer<
 
   protected async prepareImpl() {
     await super.prepareImpl()
+    await this.runInstrumentationHookIfAvailable()
+  }
 
-    if (this.instrumentation) {
-      await this.instrumentation.register?.()
-    }
+  protected async runInstrumentationHookIfAvailable() {
+    await this.instrumentation?.register?.()
   }
 
   protected loadEnvConfig({
@@ -1623,16 +1624,20 @@ export default class NextNodeServer extends BaseServer<
       return { finished: true }
     }
 
-    for (let [key, value] of result.response.headers) {
-      if (key.toLowerCase() !== 'set-cookie') continue
+    // Split compound (comma-separated) set-cookie headers
+    if (result.response.headers.has('set-cookie')) {
+      const cookies = result.response.headers
+        .getSetCookie()
+        .flatMap((maybeCompoundCookie) =>
+          splitCookiesString(maybeCompoundCookie)
+        )
 
-      // Clear existing header.
-      result.response.headers.delete(key)
+      // Clear existing header(s)
+      result.response.headers.delete('set-cookie')
 
       // Append each cookie individually.
-      const cookies = splitCookiesString(value)
       for (const cookie of cookies) {
-        result.response.headers.append(key, cookie)
+        result.response.headers.append('set-cookie', cookie)
       }
 
       // Add cookies to request meta.
@@ -1913,6 +1918,10 @@ export default class NextNodeServer extends BaseServer<
       incrementalCache:
         (globalThis as any).__incrementalCache ||
         getRequestMeta(params.req, 'incrementalCache'),
+      serverComponentsHmrCache: getRequestMeta(
+        params.req,
+        'serverComponentsHmrCache'
+      ),
     })
 
     if (result.fetchMetrics) {

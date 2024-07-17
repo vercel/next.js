@@ -342,34 +342,6 @@ async function writePrerenderManifest(
   manifest: DeepReadonly<PrerenderManifest>
 ): Promise<void> {
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
-  await writeEdgePartialPrerenderManifest(distDir, manifest)
-}
-
-async function writeEdgePartialPrerenderManifest(
-  distDir: string,
-  manifest: DeepReadonly<Partial<PrerenderManifest>>
-): Promise<void> {
-  // We need to write a partial prerender manifest to make preview mode settings available in edge middleware.
-  // Use env vars in JS bundle and inject the actual vars to edge manifest.
-  const edgePartialPrerenderManifest: DeepReadonly<Partial<PrerenderManifest>> =
-    {
-      routes: {},
-      dynamicRoutes: {},
-      notFoundRoutes: [],
-      version: manifest.version,
-      preview: {
-        previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
-        previewModeSigningKey: 'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY',
-        previewModeEncryptionKey:
-          'process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
-      },
-    }
-  await writeFileUtf8(
-    path.join(distDir, PRERENDER_MANIFEST.replace(/\.json$/, '.js')),
-    `self.__PRERENDER_MANIFEST=${JSON.stringify(
-      JSON.stringify(edgePartialPrerenderManifest)
-    )}`
-  )
 }
 
 async function writeClientSsgManifest(
@@ -1217,8 +1189,6 @@ export default async function build(
         '{"type": "commonjs"}'
       )
 
-      await writeEdgePartialPrerenderManifest(distDir, {})
-
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
 
@@ -1261,7 +1231,6 @@ export default async function build(
               path.relative(distDir, pagesManifestPath),
               BUILD_MANIFEST,
               PRERENDER_MANIFEST,
-              PRERENDER_MANIFEST.replace(/\.json$/, '.js'),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
               path.join(

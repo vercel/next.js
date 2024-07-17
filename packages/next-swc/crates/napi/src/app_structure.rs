@@ -153,6 +153,7 @@ async fn prepare_components_for_js(
         page,
         layout,
         error,
+        global_error: _,
         loading,
         template,
         not_found,

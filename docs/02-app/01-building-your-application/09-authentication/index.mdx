@@ -159,7 +159,7 @@ To prevent unnecessary calls to your authentication provider's API or database, 
 ```ts filename="app/actions/auth.ts" switcher
 import { SignupFormSchema, FormState } from '@/app/lib/definitions'
 
-export async function signup(state: FormState, formData) {
+export async function signup(state: FormState, formData: FormData) {
   // Validate form fields
   const validatedFields = SignupFormSchema.safeParse({
     name: formData.get('name'),
@@ -209,7 +209,7 @@ import { useActionState } from 'react'
 import { signup } from '@/app/actions/auth'
 
 export function SignupForm() {
-  const [state, action] = useActionState(signup, undefined)
+  const [state, action, pending] = useActionState(signup, undefined)
 
   return (
     <form action={action}>
@@ -254,7 +254,7 @@ import { useActionState } from 'react'
 import { signup } from '@/app/actions/auth'
 
 export function SignupForm() {
-  const [state, action] = useActionState(signup, undefined)
+  const [state, action, pending] = useActionState(signup, undefined)
 
   return (
     <form action={action}>

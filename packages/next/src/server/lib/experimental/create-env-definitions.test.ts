@@ -17,10 +17,10 @@ describe('create-env-definitions', () => {
       declare global {
         namespace NodeJS {
           interface ProcessEnv {
-            FROM_DEV_ENV_LOCAL: readonly string
-            FROM_ENV_LOCAL: readonly string
-            FROM_ENV: readonly string
-            FROM_NEXT_CONFIG: readonly string
+            FROM_DEV_ENV_LOCAL?: string
+            FROM_ENV_LOCAL?: string
+            FROM_ENV?: string
+            FROM_NEXT_CONFIG?: string
           }
         }
       }
