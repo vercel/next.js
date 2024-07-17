@@ -40,10 +40,10 @@ impl VcStorage {
         &self,
         func: turbo_tasks::FunctionId,
         this_arg: Option<RawVc>,
-        inputs: Vec<turbo_tasks::ConcreteTaskInput>,
+        arg: turbo_tasks::ConcreteTaskInput,
     ) -> RawVc {
         let this = self.this.upgrade().unwrap();
-        let func = registry::get_function(func).bind(this_arg, &inputs);
+        let func = registry::get_function(func).bind(this_arg, &arg);
         let handle = tokio::runtime::Handle::current();
         let future = func();
         let i = {
@@ -83,24 +83,24 @@ impl TurboTasksCallApi for VcStorage {
     fn dynamic_call(
         &self,
         func: turbo_tasks::FunctionId,
-        inputs: Vec<turbo_tasks::ConcreteTaskInput>,
+        arg: turbo_tasks::ConcreteTaskInput,
     ) -> RawVc {
-        self.dynamic_call(func, None, inputs)
+        self.dynamic_call(func, None, arg)
     }
 
     fn dynamic_this_call(
         &self,
         func: turbo_tasks::FunctionId,
         this_arg: RawVc,
-        inputs: Vec<turbo_tasks::ConcreteTaskInput>,
+        arg: turbo_tasks::ConcreteTaskInput,
     ) -> RawVc {
-        self.dynamic_call(func, Some(this_arg), inputs)
+        self.dynamic_call(func, Some(this_arg), arg)
     }
 
     fn native_call(
         &self,
         _func: turbo_tasks::FunctionId,
-        _inputs: Vec<turbo_tasks::ConcreteTaskInput>,
+        _arg: turbo_tasks::ConcreteTaskInput,
     ) -> RawVc {
         unreachable!()
     }
@@ -109,7 +109,7 @@ impl TurboTasksCallApi for VcStorage {
         &self,
         _func: turbo_tasks::FunctionId,
         _this: RawVc,
-        _inputs: Vec<turbo_tasks::ConcreteTaskInput>,
+        _arg: turbo_tasks::ConcreteTaskInput,
     ) -> RawVc {
         unreachable!()
     }
@@ -119,7 +119,7 @@ impl TurboTasksCallApi for VcStorage {
         _trait_type: turbo_tasks::TraitTypeId,
         _trait_fn_name: Cow<'static, str>,
         _this: RawVc,
-        _inputs: Vec<turbo_tasks::ConcreteTaskInput>,
+        _arg: turbo_tasks::ConcreteTaskInput,
     ) -> RawVc {
         unreachable!()
     }

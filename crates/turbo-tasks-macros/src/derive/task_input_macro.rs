@@ -123,7 +123,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                                 _ => return Err(anyhow::anyhow!("invalid discriminant for {}", stringify!(#ident))),
                             })
                         },
-                        _ => Err(anyhow::anyhow!("invalid task input type, expected list")),
+                        _ => Err(anyhow::anyhow!("invalid task input type, expected list (enum)")),
                     }
                 },
                 quote! {
@@ -155,7 +155,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                             #try_from_expansion
                             Ok(#ident #destructuring)
                         },
-                        _ => Err(anyhow::anyhow!("invalid task input type, expected list")),
+                        _ => Err(anyhow::anyhow!("invalid task input type, expected list (struct)")),
                     }
                 },
                 quote! {

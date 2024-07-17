@@ -548,12 +548,12 @@ impl Backend for MemoryBackend {
                 PersistentTaskType::ResolveNative {
                     fn_type: function_id,
                     this: _,
-                    args: _,
+                    arg: _,
                 }
                 | PersistentTaskType::Native {
                     fn_type: function_id,
                     this: _,
-                    args: _,
+                    arg: _,
                 } => {
                     stats.increment_cache_hit(*function_id);
                 }
@@ -561,7 +561,7 @@ impl Backend for MemoryBackend {
                     trait_type,
                     method_name: name,
                     this,
-                    args: _,
+                    arg: _,
                 } => {
                     // HACK: Resolve the this argument (`self`) in order to attribute the cache hit
                     // to the concrete trait implementation, rather than the dynamic trait method.
@@ -595,7 +595,7 @@ impl Backend for MemoryBackend {
                 PersistentTaskType::Native {
                     fn_type: function_id,
                     this: _,
-                    args: _,
+                    arg: _,
                 } => {
                     stats.increment_cache_miss(*function_id);
                 }

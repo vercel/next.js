@@ -396,6 +396,13 @@ impl ConcreteTaskInput {
         }
     }
 
+    pub fn shrink_to_fit(&mut self) {
+        if let ConcreteTaskInput::List(list) = self {
+            list.shrink_to_fit();
+            list.iter_mut().for_each(|i| i.shrink_to_fit());
+        }
+    }
+
     pub fn get_task_id(&self) -> Option<TaskId> {
         match self {
             ConcreteTaskInput::TaskOutput(t) | ConcreteTaskInput::TaskCell(t, _) => Some(*t),
