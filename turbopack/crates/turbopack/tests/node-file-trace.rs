@@ -32,8 +32,10 @@ use turbo_tasks::{backend::Backend, RcStr, ReadRef, TurboTasks, Value, ValueToSt
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAsset, register,
-    ModuleAssetContext,
+    emit_with_completion,
+    module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
+    rebase::RebasedAsset,
+    register, ModuleAssetContext,
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
@@ -426,8 +428,14 @@ fn node_file_trace<B: Backend + 'static>(
                         ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
                     ))),
                     ModuleOptionsContext {
-                        enable_types: true,
-                        enable_raw_css: true,
+                        ecmascript: EcmascriptOptionsContext {
+                            enable_types: true,
+                            ..Default::default()
+                        },
+                        css: CssOptionsContext {
+                            enable_raw_css: true,
+                            ..Default::default()
+                        },
                         ..Default::default()
                     }
                     .cell(),
