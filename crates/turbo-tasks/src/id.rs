@@ -1,7 +1,7 @@
 use std::{
     fmt::{Debug, Display},
     mem::transmute_copy,
-    num::{NonZeroU32, NonZeroU64, TryFromIntError},
+    num::{NonZero, NonZeroU64, TryFromIntError},
     ops::Deref,
 };
 
@@ -10,10 +10,10 @@ use serde::{de::Visitor, Deserialize, Serialize};
 use crate::registry;
 
 macro_rules! define_id {
-    (internal $name:ident $(,$derive:ty)*) => {
-        #[derive(Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord $(,$derive)*)]
+    ($name:ident : $primitive:ty $(,derive($($derive:ty),*))?) => {
+        #[derive(Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord $($(,$derive)*)? )]
         pub struct $name {
-            id: NonZeroU32,
+            id: NonZero<$primitive>,
         }
 
         impl $name {
@@ -22,8 +22,8 @@ macro_rules! define_id {
             /// # Safety
             ///
             /// The passed `id` must not be zero.
-            pub unsafe fn new_unchecked(id: u32) -> Self {
-                Self { id: unsafe { NonZeroU32::new_unchecked(id) } }
+            pub unsafe fn new_unchecked(id: $primitive) -> Self {
+                Self { id: unsafe { NonZero::<$primitive>::new_unchecked(id) } }
             }
         }
 
@@ -34,7 +34,7 @@ macro_rules! define_id {
         }
 
         impl Deref for $name {
-            type Target = u32;
+            type Target = $primitive;
 
             fn deref(&self) -> &Self::Target {
                 unsafe { transmute_copy(&&self.id) }
@@ -44,9 +44,12 @@ macro_rules! define_id {
         /// Converts a numeric identifier to the wrapper type.
         ///
         /// Panics if the given id value is zero.
-        impl From<u32> for $name {
-            fn from(id: u32) -> Self {
-                Self { id: NonZeroU32::new(id).expect("Ids can only be created from non zero values") }
+        impl From<$primitive> for $name {
+            fn from(id: $primitive) -> Self {
+                Self {
+                    id: NonZero::<$primitive>::new(id)
+                        .expect("Ids can only be created from non zero values")
+                }
             }
         }
 
@@ -55,23 +58,18 @@ macro_rules! define_id {
             type Error = TryFromIntError;
 
             fn try_from(id: NonZeroU64) -> Result<Self, Self::Error> {
-                Ok(Self { id: NonZeroU32::try_from(id)? })
+                Ok(Self { id: NonZero::try_from(id)? })
             }
         }
     };
-    ($name:ident) => {
-        define_id!(internal $name);
-    };
-    ($name:ident, derive($($derive:ty),*)) => {
-        define_id!(internal $name $(,$derive)*);
-    };
 }
 
-define_id!(TaskId);
-define_id!(FunctionId);
-define_id!(ValueTypeId);
-define_id!(TraitTypeId);
-define_id!(BackendJobId);
+define_id!(TaskId: u32);
+define_id!(FunctionId: u32);
+define_id!(ValueTypeId: u32);
+define_id!(TraitTypeId: u32);
+define_id!(BackendJobId: u32);
+define_id!(ExecutionId: u64, derive(Debug));
 
 impl Debug for TaskId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
