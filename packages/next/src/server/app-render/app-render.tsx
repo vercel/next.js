@@ -125,6 +125,8 @@ import AppRouter from '../../client/components/app-router'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RequestErrorContext } from '../instrumentation/types'
 import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
+import { createMutableActionQueue } from '../../shared/lib/router/action-queue'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -635,7 +637,26 @@ function ReactServerEntrypoint<T>({
     )
   )
 
-  return <AppRouter initialRSCPayload={response} />
+  const initialState = createInitialRouterState({
+    buildId: response.b,
+    initialFlightData: response.f,
+    initialCanonicalUrl: response.c,
+    // location and initialParallelRoutes are not initialized in the SSR render
+    // they are set to an empty map and window.location, respectively during hydration
+    initialParallelRoutes: null!,
+    location: null,
+    couldBeIntercepted: response.i,
+  })
+
+  const actionQueue = createMutableActionQueue(initialState)
+
+  return (
+    <AppRouter
+      actionQueue={actionQueue}
+      globalErrorComponent={response.G}
+      assetPrefix={response.p}
+    />
+  )
 }
 
 // We use a trick with TS Generics to branch streams with a type so we can
