@@ -290,9 +290,6 @@ export default class DevServer extends Server {
     const telemetry = new Telemetry({ distDir: this.distDir })
 
     await super.prepareImpl()
-    await this.startServerSpan
-      .traceChild('run-instrumentation-hook')
-      .traceAsyncFn(() => this.runInstrumentationHookIfAvailable())
     await this.matchers.reload()
 
     // Store globals again to preserve changes made by the instrumentation hook.
@@ -623,10 +620,10 @@ export default class DevServer extends Server {
     return instrumentationModule
   }
 
-  private async runInstrumentationHookIfAvailable() {
-    if (this.instrumentation) {
-      await this.instrumentation.register?.()
-    }
+  protected async runInstrumentationHookIfAvailable() {
+    await this.startServerSpan
+      .traceChild('run-instrumentation-hook')
+      .traceAsyncFn(() => this.instrumentation?.register?.())
   }
 
   protected async ensureEdgeFunction({
