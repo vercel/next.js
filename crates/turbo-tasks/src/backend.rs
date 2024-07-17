@@ -15,7 +15,7 @@ use auto_hash_map::AutoMap;
 use serde::{Deserialize, Serialize};
 use tracing::Span;
 
-pub use crate::id::BackendJobId;
+pub use crate::id::{BackendJobId, ExecutionId};
 use crate::{
     event::EventListener, manager::TurboTasksBackendApi, raw_vc::CellId, registry,
     ConcreteTaskInput, FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdProvider,
