@@ -419,6 +419,9 @@ function Router({
     use(unresolvedThenable)
   }
 
+  const { cache, tree, nextUrl, focusAndScrollRef } =
+    useUnwrapState(reducerState)
+
   useEffect(() => {
     const originalPushState = window.history.pushState.bind(window.history)
     const originalReplaceState = window.history.replaceState.bind(
@@ -430,8 +433,6 @@ function Router({
       url: string | URL | null | undefined
     ) => {
       const href = window.location.href
-      const tree: FlightRouterState | undefined =
-        window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
 
       startTransition(() => {
         dispatch({
@@ -523,10 +524,7 @@ function Router({
       window.history.replaceState = originalReplaceState
       window.removeEventListener('popstate', onPopState)
     }
-  }, [dispatch])
-
-  const { cache, tree, nextUrl, focusAndScrollRef } =
-    useUnwrapState(reducerState)
+  }, [dispatch, tree])
 
   const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
