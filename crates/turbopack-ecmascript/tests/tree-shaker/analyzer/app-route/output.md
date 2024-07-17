@@ -103,7 +103,7 @@ const routeModule = new AppRouteRouteModule({
 - Side effects
 - Declares: `routeModule`
 - Reads: `AppRouteRouteModule`, `RouteKind`, `userland`
-- Write: `routeModule`, `RouteKind`
+- Write: `routeModule`, `RouteKind`, `userland`
 
 ## Item 10: Stmt 5, `VarDeclarator(0)`
 
@@ -142,6 +142,7 @@ function patchFetch() {
 - Declares: `patchFetch`
 - Reads (eventual): `_patchFetch`, `serverHooks`, `staticGenerationAsyncStorage`
 - Write: `patchFetch`
+- Write (eventual): `serverHooks`, `staticGenerationAsyncStorage`
 
 # Phase 1
 ```mermaid
@@ -282,6 +283,8 @@ graph TD
     Item19 --> Item12;
     Item12 --> Item7;
     Item12 --> Item10;
+    Item12 -.-> Item17;
+    Item12 -.-> Item16;
 ```
 # Phase 4
 ```mermaid
@@ -335,6 +338,8 @@ graph TD
     Item19 --> Item12;
     Item12 --> Item7;
     Item12 --> Item10;
+    Item12 -.-> Item17;
+    Item12 -.-> Item16;
     Item13 --> Item1;
     Item13 --> Item2;
     Item13 --> Item3;
@@ -368,6 +373,8 @@ graph TD
     N4 --> N12;
     N6 --> N11;
     N6 --> N12;
+    N6 --> N4;
+    N6 --> N3;
     N8 --> N7;
     N9 --> N7;
     N9 --> N8;
@@ -400,6 +407,7 @@ graph TD
     Export(
         "routeModule",
     ): 1,
+    Exports: 13,
     Export(
         "originalPathname",
     ): 5,
@@ -476,6 +484,12 @@ import "__TURBOPACK_PART__" assert {
 };
 import { staticGenerationAsyncStorage, serverHooks } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 12
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
 };
 export { patchFetch as patchFetch };
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch';
@@ -595,6 +609,28 @@ export { serverHooks } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
+## Part 13
+```js
+export { routeModule } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export routeModule"
+};
+export { requestAsyncStorage } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export requestAsyncStorage"
+};
+export { staticGenerationAsyncStorage } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export staticGenerationAsyncStorage"
+};
+export { serverHooks } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export serverHooks"
+};
+export { originalPathname } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export originalPathname"
+};
+export { patchFetch } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export patchFetch"
+};
+
+```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -635,6 +671,7 @@ import "__TURBOPACK_PART__" assert {
     Export(
         "routeModule",
     ): 1,
+    Exports: 13,
     Export(
         "originalPathname",
     ): 5,
@@ -820,6 +857,28 @@ export { staticGenerationAsyncStorage } from "__TURBOPACK_VAR__" assert {
 };
 export { serverHooks } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
+};
+
+```
+## Part 13
+```js
+export { routeModule } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export routeModule"
+};
+export { requestAsyncStorage } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export requestAsyncStorage"
+};
+export { staticGenerationAsyncStorage } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export staticGenerationAsyncStorage"
+};
+export { serverHooks } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export serverHooks"
+};
+export { originalPathname } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export originalPathname"
+};
+export { patchFetch } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export patchFetch"
 };
 
 ```
