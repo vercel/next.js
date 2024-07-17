@@ -48,6 +48,8 @@ describe('on-request-error - dynamic-routes', () => {
             url: '/app-page/dynamic/123?apple=dope',
           },
           context: {
+            routerKind: 'App Router',
+            routeType: 'render',
             routePath: '/app-page/dynamic/[id]',
           },
         },
@@ -66,6 +68,8 @@ describe('on-request-error - dynamic-routes', () => {
             url: '/app-route/dynamic/123?apple=dope',
           },
           context: {
+            routerKind: 'App Router',
+            routeType: 'route',
             routePath: '/app-route/dynamic/[id]',
           },
         },
@@ -85,6 +89,8 @@ describe('on-request-error - dynamic-routes', () => {
             url: '/app-page/suspense',
           },
           context: {
+            routerKind: 'App Router',
+            routeType: 'render',
             routePath: '/app-page/suspense',
           },
         },
@@ -106,6 +112,8 @@ describe('on-request-error - dynamic-routes', () => {
             url: '/pages-page/dynamic/123?apple=dope',
           },
           context: {
+            routerKind: 'Pages Router',
+            routeType: 'render',
             routePath: '/pages-page/dynamic/[id]',
           },
         },
@@ -125,6 +133,8 @@ describe('on-request-error - dynamic-routes', () => {
             url: '/api/dynamic/123?apple=dope',
           },
           context: {
+            routerKind: 'Pages Router',
+            routeType: 'route',
             routePath: '/api/dynamic/[id]',
           },
         },
