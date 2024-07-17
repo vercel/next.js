@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@faker-js/faker": "^7.3.0",
-    "@next/bundle-analyzer": "^12.1.6",
+    "@next/bundle-analyzer": "latest",
     "cross-env": "^7.0.3",
     "next": "latest",
     "react": "^18.2.0",

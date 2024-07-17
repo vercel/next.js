@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { faker } from "@faker-js/faker";
 
-export default async function Home() {
+export default function Home() {
   const name = faker.name.findName();
   return (
     <div>
