@@ -1,7 +1,9 @@
 use std::mem::take;
 
 use swc_core::ecma::{
-    ast::{ArrowExpr, BlockStmt, Function, Module, ModuleItem, Program, Script},
+    ast::{
+        ArrowExpr, AwaitExpr, BlockStmt, Expr, Function, Module, ModuleItem, Program, Script, Stmt,
+    },
     visit::{noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
 };
 
@@ -15,11 +17,22 @@ struct TlaIife {
 }
 
 impl VisitMut for TlaIife {
-    noop_visit_mut_type!();
-
     /// `await`s in an arrow function is not a top-level await.
     fn visit_mut_arrow_expr(&mut self, n: &mut ArrowExpr) {
         n.params.visit_mut_with(self);
+    }
+
+    fn visit_mut_await_expr(&mut self, n: &mut AwaitExpr) {
+        self.found = true;
+    }
+
+    fn visit_mut_expr(&mut self, n: &mut Expr) {
+        // Performance optimization.
+        if self.found {
+            return;
+        }
+
+        n.visit_mut_children_with(self);
     }
 
     /// `await`s in a function is not a top-level await.
@@ -55,6 +68,17 @@ impl VisitMut for TlaIife {
             n.body = iife.body.unwrap().stmts;
         }
     }
+
+    fn visit_mut_stmt(&mut self, n: &mut Stmt) {
+        // Performance optimization.
+        if self.found {
+            return;
+        }
+
+        n.visit_mut_children_with(self);
+    }
+
+    noop_visit_mut_type!();
 }
 
 fn create_iife(body: Vec<Stmt>) -> Box<Function> {
