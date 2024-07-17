@@ -2,7 +2,7 @@ import Link from "next/link";
 import { faker } from "@faker-js/faker";
 
 export default function Home() {
-  const name = faker.name.findName();
+  const name = faker.person.fullName();
   return (
     <div>
       <h1>Home Page</h1>
