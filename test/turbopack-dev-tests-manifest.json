@@ -7111,6 +7111,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/instrumentation-hook/register-once/register-once.test.ts": {
+    "passed": [
+      "instrumentation-hook - register-once should only register once"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/link-with-api-rewrite/index.test.ts": {
     "passed": [
       "link-with-api-rewrite should perform hard navigation for direct urls",
@@ -7804,6 +7813,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/on-request-error/server-action-error/server-action-error.test.ts": {
+    "passed": [
+      "on-request-error - server-action-error should catch server action error in listener callback in edge runtime",
+      "on-request-error - server-action-error should catch server action error in listener callback in nodejs runtime",
+      "on-request-error - server-action-error should catch the server action form error in edge runtime",
+      "on-request-error - server-action-error should catch the server action form error in nodejs runtime"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/on-request-error/skip-next-internal-error/skip-next-internal-error.test.ts": {
     "passed": [
       "on-request-error - skip-next-internal-error app router API should not catch server component not-found errors",
@@ -7812,6 +7833,8 @@
       "on-request-error - skip-next-internal-error app router render should not catch client component not-found errors",
       "on-request-error - skip-next-internal-error app router render should not catch client component redirect errors",
       "on-request-error - skip-next-internal-error app router render should not catch next dynamic no-ssr errors",
+      "on-request-error - skip-next-internal-error app router render should not catch server action not-found errors",
+      "on-request-error - skip-next-internal-error app router render should not catch server action redirect errors",
       "on-request-error - skip-next-internal-error app router render should not catch server component dynamic usage errors",
       "on-request-error - skip-next-internal-error app router render should not catch server component not-found errors",
       "on-request-error - skip-next-internal-error app router render should not catch server component redirect errors"
