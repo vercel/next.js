@@ -23,3 +23,7 @@ export type InstrumentationModule = {
   register?(): void
   onRequestError?: InstrumentationOnRequestError
 }
+
+export namespace Instrumentation {
+  export type onRequestError = InstrumentationOnRequestError
+}
