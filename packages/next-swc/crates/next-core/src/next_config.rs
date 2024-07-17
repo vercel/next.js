@@ -729,7 +729,7 @@ impl StyledComponentsTransformOptionsOrBoolean {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerConfig {
-    pub react_remove_properties: Option<bool>,
+    pub react_remove_properties: Option<ReactRemoveProperties>,
     pub relay: Option<RelayConfig>,
     pub emotion: Option<EmotionTransformOptionsOrBoolean>,
     pub remove_console: Option<RemoveConsoleConfig>,
@@ -741,6 +741,15 @@ pub struct CompilerConfig {
 pub enum ReactRemoveProperties {
     Boolean(bool),
     Config { properties: Option<Vec<String>> },
+}
+
+impl ReactRemoveProperties {
+    pub fn is_enabled(&self) -> bool {
+        match self {
+            Self::Boolean(enabled) => *enabled,
+            _ => true,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]

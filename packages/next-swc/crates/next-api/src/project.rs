@@ -740,7 +740,7 @@ impl Project {
             .and_then(|c| c.styled_components.as_ref().map(|sc| sc.is_enabled()))
             .unwrap_or_default();
         let react_remove_properties_enabled = compiler_options
-            .and_then(|c| c.react_remove_properties)
+            .and_then(|c| c.react_remove_properties.as_ref().map(|rc| rc.is_enabled()))
             .unwrap_or_default();
         let remove_console_enabled = compiler_options
             .and_then(|c| c.remove_console.as_ref().map(|rc| rc.is_enabled()))

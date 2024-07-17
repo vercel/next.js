@@ -52,7 +52,9 @@ use crate::{
             NextSharedRuntimeResolvePlugin,
         },
         transforms::{
-            emotion::get_emotion_transform_rule, relay::get_relay_transform_rule,
+            emotion::get_emotion_transform_rule,
+            react_remove_properties::get_react_remove_properties_transform_rule,
+            relay::get_relay_transform_rule,
             styled_components::get_styled_components_transform_rule,
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
@@ -249,6 +251,7 @@ pub async fn get_client_module_options_context(
         get_emotion_transform_rule(next_config).await?,
         get_styled_components_transform_rule(next_config).await?,
         get_styled_jsx_transform_rule(next_config, target_browsers).await?,
+        get_react_remove_properties_transform_rule(next_config).await?,
     ]
     .into_iter()
     .flatten()
