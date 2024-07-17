@@ -603,7 +603,11 @@ export class NextTypesPlugin {
     const handleModule = async (mod: webpack.NormalModule, assets: any) => {
       if (!mod.resource) return
 
-      if (!/\.(js|jsx|ts|tsx|mjs)$/.test(mod.resource)) return
+      const pageExtensionsRegex = new RegExp(
+        `\\.(${this.pageExtensions.join('|')})$`
+      )
+
+      if (!pageExtensionsRegex.test(mod.resource)) return
 
       if (!mod.resource.startsWith(this.appDir + path.sep)) {
         if (!this.dev) {
@@ -628,12 +632,12 @@ export class NextTypesPlugin {
 
       const typePath = path.join(
         appTypesBasePath,
-        relativePathToApp.replace(/\.(js|jsx|ts|tsx|mjs)$/, '.ts')
+        relativePathToApp.replace(pageExtensionsRegex, '.ts')
       )
       const relativeImportPath = normalizePathSep(
         path
           .join(this.getRelativePathFromAppTypesDir(relativePathToApp))
-          .replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
+          .replace(pageExtensionsRegex, '')
       )
 
       const assetPath = path.join(assetDirRelative, typePath)
