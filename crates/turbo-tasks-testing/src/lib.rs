@@ -13,10 +13,9 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use auto_hash_map::AutoMap;
 use futures::FutureExt;
 use turbo_tasks::{
-    backend::CellContent,
+    backend::{CellContent, TaskCollectiblesMap},
     event::{Event, EventListener},
     registry,
     test_helpers::with_turbo_tasks_for_testing,
@@ -244,12 +243,12 @@ impl TurboTasksApi for VcStorage {
     fn unemit_collectibles(
         &self,
         _trait_type: turbo_tasks::TraitTypeId,
-        _collectibles: &AutoMap<RawVc, i32>,
+        _collectibles: &TaskCollectiblesMap,
     ) {
         unimplemented!()
     }
 
-    fn read_task_collectibles(&self, _task: TaskId, _trait_id: TraitTypeId) -> AutoMap<RawVc, i32> {
+    fn read_task_collectibles(&self, _task: TaskId, _trait_id: TraitTypeId) -> TaskCollectiblesMap {
         unimplemented!()
     }
 

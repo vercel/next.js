@@ -24,7 +24,10 @@ use tracing::{info_span, instrument, trace_span, Instrument, Level};
 use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
-    backend::{Backend, CellContent, PersistentTaskType, TaskExecutionSpec, TransientTaskType},
+    backend::{
+        Backend, CellContent, PersistentTaskType, TaskCollectiblesMap, TaskExecutionSpec,
+        TransientTaskType,
+    },
     capture_future::{self, CaptureFuture},
     event::{Event, EventListener},
     id::{BackendJobId, FunctionId, TraitTypeId},
@@ -109,11 +112,11 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
     ) -> Result<Result<CellContent, EventListener>>;
 
-    fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> AutoMap<RawVc, i32>;
+    fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> TaskCollectiblesMap;
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
     fn unemit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc, count: u32);
-    fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &AutoMap<RawVc, i32>);
+    fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &TaskCollectiblesMap);
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
@@ -1010,7 +1013,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             .try_read_own_task_cell_untracked(current_task, index, self)
     }
 
-    fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> AutoMap<RawVc, i32> {
+    fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> TaskCollectiblesMap {
         self.backend.read_task_collectibles(
             task,
             trait_id,
@@ -1038,7 +1041,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         );
     }
 
-    fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &AutoMap<RawVc, i32>) {
+    fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &TaskCollectiblesMap) {
         for (&collectible, &count) in collectibles {
             if count > 0 {
                 self.backend.unemit_collectible(

@@ -17,5 +17,6 @@ anyhow = { workspace = true }
 auto-hash-map = { workspace = true }
 futures = { workspace = true }
 lazy_static = { workspace = true }
+rustc-hash = { workspace = true }
 tokio = { workspace = true }
 turbo-tasks = { workspace = true }

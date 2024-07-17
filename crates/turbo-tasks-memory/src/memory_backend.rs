@@ -13,7 +13,6 @@ use std::{
 };
 
 use anyhow::{bail, Result};
-use auto_hash_map::AutoMap;
 use dashmap::{mapref::entry::Entry, DashMap};
 use rustc_hash::FxHasher;
 use tokio::task::futures::TaskLocalFuture;
@@ -21,8 +20,8 @@ use tracing::trace_span;
 use turbo_prehash::{BuildHasherExt, PassThroughHash, PreHashed};
 use turbo_tasks::{
     backend::{
-        Backend, BackendJobId, CellContent, PersistentTaskType, TaskExecutionSpec,
-        TransientTaskType,
+        Backend, BackendJobId, CellContent, PersistentTaskType, TaskCollectiblesMap,
+        TaskExecutionSpec, TransientTaskType,
     },
     event::EventListener,
     util::{IdFactoryWithReuse, NoMoveVec},
@@ -470,7 +469,7 @@ impl Backend for MemoryBackend {
         trait_id: TraitTypeId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
-    ) -> AutoMap<RawVc, i32> {
+    ) -> TaskCollectiblesMap {
         Task::add_dependency_to_current(TaskEdge::Collectibles(id, trait_id));
         Task::read_collectibles(id, trait_id, reader, self, turbo_tasks)
     }

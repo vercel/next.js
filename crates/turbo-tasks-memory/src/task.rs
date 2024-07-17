@@ -21,7 +21,7 @@ use tokio::task_local;
 use tracing::Span;
 use turbo_prehash::PreHashed;
 use turbo_tasks::{
-    backend::{PersistentTaskType, TaskExecutionSpec},
+    backend::{PersistentTaskType, TaskCollectiblesMap, TaskExecutionSpec},
     event::{Event, EventListener},
     get_invalidator, registry, CellId, Invalidator, RawVc, TaskId, TaskIdSet, TraitTypeId,
     TurboTasksBackendApi, ValueTypeId,
@@ -1573,7 +1573,7 @@ impl Task {
         reader: TaskId,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
-    ) -> AutoMap<RawVc, i32> {
+    ) -> TaskCollectiblesMap {
         let aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let mut aggregation_data = aggregation_context.aggregation_data(id);
         aggregation_data.read_collectibles(trait_type, reader)
