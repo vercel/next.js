@@ -23,7 +23,6 @@ import {
   NEXT_URL,
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
-  NEXT_DID_POSTPONE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
@@ -41,7 +40,6 @@ export interface FetchServerResponseOptions {
 export type FetchServerResponseResult = [
   flightData: FlightData,
   canonicalUrlOverride: URL | undefined,
-  postponed?: boolean,
   intercepted?: boolean,
 ]
 
@@ -63,7 +61,7 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
-  return [urlToUrlWithoutFlightMarker(url).toString(), undefined, false, false]
+  return [urlToUrlWithoutFlightMarker(url).toString(), undefined, false]
 }
 
 /**
@@ -159,7 +157,6 @@ export async function fetchServerResponse(
     const canonicalUrl = res.redirected ? responseUrl : undefined
 
     const contentType = res.headers.get('content-type') || ''
-    const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
 
@@ -194,7 +191,7 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
-    return [response.f, canonicalUrl, postponed, interception]
+    return [response.f, canonicalUrl, interception]
   } catch (err) {
     console.error(
       `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
@@ -203,6 +200,6 @@ export async function fetchServerResponse(
     // If fetch fails handle it like a mpa navigation
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
-    return [url.toString(), undefined, false, false]
+    return [url.toString(), undefined, false]
   }
 }

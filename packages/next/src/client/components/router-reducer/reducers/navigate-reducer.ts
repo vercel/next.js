@@ -324,7 +324,7 @@ function navigateReducer_PPR(
   prefetchQueue.bump(data)
 
   return data.then(
-    ([flightData, canonicalUrlOverride, _postponed]) => {
+    ([flightData, canonicalUrlOverride]) => {
       let isFirstRead = false
       // we only want to mark this once
       if (!prefetchValues.lastUsedTime) {
