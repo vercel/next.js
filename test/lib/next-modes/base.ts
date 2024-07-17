@@ -1,6 +1,6 @@
 import os from 'os'
 import path from 'path'
-import { existsSync, promises as fs } from 'fs'
+import { existsSync, promises as fs, rmSync } from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef, isNextDeploy } from '../e2e-utils'
@@ -416,6 +416,8 @@ export class NextInstance {
 
   public async destroy(): Promise<void> {
     try {
+      require('console').time('destroyed next instance')
+
       if (this.isDestroyed) {
         throw new Error(`next instance already destroyed`)
       }
@@ -446,9 +448,9 @@ export class NextInstance {
       }
 
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-        await fs.rm(this.testDir, { recursive: true, force: true })
+        rmSync(this.testDir, { recursive: true, force: true })
       }
-      require('console').log(`destroyed next instance`)
+      require('console').timeEnd(`destroyed next instance`)
     } catch (err) {
       require('console').error('Error while destroying', err)
     }
