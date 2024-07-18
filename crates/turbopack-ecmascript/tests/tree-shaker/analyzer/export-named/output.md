@@ -41,7 +41,6 @@ graph TD
     Item3["ModuleEvaluation"];
     Item4;
     Item4["export fakeCat"];
-    Item4 --> Item2;
 ```
 # Phase 3
 ```mermaid
@@ -52,7 +51,6 @@ graph TD
     Item3["ModuleEvaluation"];
     Item4;
     Item4["export fakeCat"];
-    Item4 --> Item2;
 ```
 # Phase 4
 ```mermaid
@@ -63,8 +61,8 @@ graph TD
     Item3["ModuleEvaluation"];
     Item4;
     Item4["export fakeCat"];
-    Item4 --> Item2;
     Item3 --> Item1;
+    Item4 --> Item2;
 ```
 # Final
 ```mermaid
@@ -80,7 +78,6 @@ graph TD
     Export(
         "fakeCat",
     ): 1,
-    Exports: 2,
 }
 ```
 
@@ -101,13 +98,6 @@ export { __TURBOPACK__reexport__cat__ } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 2
-```js
-export { fakeCat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export fakeCat"
-};
-
-```
 ## Merged (module eval)
 ```js
 import "./lib";
@@ -122,7 +112,6 @@ import "./lib";
     Export(
         "fakeCat",
     ): 1,
-    Exports: 2,
 }
 ```
 
@@ -140,13 +129,6 @@ export { __TURBOPACK__reexport__cat__ as fakeCat };
 import { cat as __TURBOPACK__reexport__cat__ } from "./lib";
 export { __TURBOPACK__reexport__cat__ } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
-};
-
-```
-## Part 2
-```js
-export { fakeCat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export fakeCat"
 };
 
 ```

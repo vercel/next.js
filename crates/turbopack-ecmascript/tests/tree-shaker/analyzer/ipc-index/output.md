@@ -251,8 +251,8 @@ process.on("uncaughtException", (err)=>{
 ```
 
 - Side effects
-- Reads: `IPC`
-- Write: `IPC`
+- Reads (eventual): `IPC`
+- Write (eventual): `IPC`
 
 ## Item 12: Stmt 8, `VarDeclarator(0)`
 
@@ -274,7 +274,6 @@ const improveConsole = (name, stream, addStack)=>{
 
 ```
 
-- Side effects
 - Declares: `improveConsole`
 - Write: `improveConsole`
 
@@ -535,25 +534,15 @@ graph TD
     Item10 -.-> Item5;
     Item10 -.-> Item4;
     Item10 -.-> Item7;
-    Item11 --> Item10;
     Item11 --> Item1;
     Item11 --> Item2;
     Item11 --> Item3;
     Item11 --> Item9;
+    Item11 --> Item10;
     Item11 -.-> Item6;
     Item11 -.-> Item5;
     Item11 -.-> Item4;
     Item11 -.-> Item7;
-    Item12 --> Item1;
-    Item12 --> Item2;
-    Item12 --> Item3;
-    Item12 --> Item9;
-    Item12 --> Item10;
-    Item12 --> Item11;
-    Item12 -.-> Item6;
-    Item12 -.-> Item5;
-    Item12 -.-> Item4;
-    Item12 -.-> Item7;
     Item13 --> Item12;
     Item13 --> Item1;
     Item13 --> Item2;
@@ -851,7 +840,6 @@ graph TD
     Item28 -.-> Item4;
     Item28 -.-> Item7;
     Item30 --> Item7;
-    Item31 --> Item11;
     Item31 --> Item10;
 ```
 # Phase 3
@@ -910,25 +898,15 @@ graph TD
     Item10 -.-> Item5;
     Item10 -.-> Item4;
     Item10 -.-> Item7;
-    Item11 --> Item10;
     Item11 --> Item1;
     Item11 --> Item2;
     Item11 --> Item3;
     Item11 --> Item9;
+    Item11 --> Item10;
     Item11 -.-> Item6;
     Item11 -.-> Item5;
     Item11 -.-> Item4;
     Item11 -.-> Item7;
-    Item12 --> Item1;
-    Item12 --> Item2;
-    Item12 --> Item3;
-    Item12 --> Item9;
-    Item12 --> Item10;
-    Item12 --> Item11;
-    Item12 -.-> Item6;
-    Item12 -.-> Item5;
-    Item12 -.-> Item4;
-    Item12 -.-> Item7;
     Item13 --> Item12;
     Item13 --> Item1;
     Item13 --> Item2;
@@ -1226,12 +1204,12 @@ graph TD
     Item28 -.-> Item4;
     Item28 -.-> Item7;
     Item30 --> Item7;
-    Item31 --> Item11;
     Item31 --> Item10;
     Item7 --> Item6;
     Item7 --> Item5;
     Item8 --> Item4;
     Item8 --> Item7;
+    Item11 -.-> Item31;
 ```
 # Phase 4
 ```mermaid
@@ -1289,25 +1267,15 @@ graph TD
     Item10 -.-> Item5;
     Item10 -.-> Item4;
     Item10 -.-> Item7;
-    Item11 --> Item10;
     Item11 --> Item1;
     Item11 --> Item2;
     Item11 --> Item3;
     Item11 --> Item9;
+    Item11 --> Item10;
     Item11 -.-> Item6;
     Item11 -.-> Item5;
     Item11 -.-> Item4;
     Item11 -.-> Item7;
-    Item12 --> Item1;
-    Item12 --> Item2;
-    Item12 --> Item3;
-    Item12 --> Item9;
-    Item12 --> Item10;
-    Item12 --> Item11;
-    Item12 -.-> Item6;
-    Item12 -.-> Item5;
-    Item12 -.-> Item4;
-    Item12 -.-> Item7;
     Item13 --> Item12;
     Item13 --> Item1;
     Item13 --> Item2;
@@ -1605,19 +1573,18 @@ graph TD
     Item28 -.-> Item4;
     Item28 -.-> Item7;
     Item30 --> Item7;
-    Item31 --> Item11;
     Item31 --> Item10;
     Item7 --> Item6;
     Item7 --> Item5;
     Item8 --> Item4;
     Item8 --> Item7;
+    Item11 -.-> Item31;
     Item29 --> Item1;
     Item29 --> Item2;
     Item29 --> Item3;
     Item29 --> Item9;
     Item29 --> Item10;
     Item29 --> Item11;
-    Item29 --> Item12;
     Item29 --> Item13;
     Item29 --> Item14;
     Item29 --> Item15;
@@ -1638,7 +1605,7 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(ModuleEvaluation), ItemId(0, ImportBinding(0)), ItemId(1, ImportBinding(0)), ItemId(2, ImportBinding(0)), ItemId(8, VarDeclarator(0)), ItemId(9, Normal), ItemId(10, Normal), ItemId(11, Normal), ItemId(12, Normal), ItemId(13, Normal), ItemId(14, Normal), ItemId(15, Normal), ItemId(16, Normal), ItemId(17, Normal), ItemId(18, Normal), ItemId(19, Normal), ItemId(20, Normal), ItemId(21, Normal), ItemId(22, Normal), ItemId(23, Normal), ItemId(24, Normal)]"];
+    N0["Items: [ItemId(ModuleEvaluation), ItemId(0, ImportBinding(0)), ItemId(1, ImportBinding(0)), ItemId(2, ImportBinding(0)), ItemId(7, Normal), ItemId(8, VarDeclarator(0)), ItemId(9, Normal), ItemId(10, Normal), ItemId(11, Normal), ItemId(12, Normal), ItemId(13, Normal), ItemId(14, Normal), ItemId(15, Normal), ItemId(16, Normal), ItemId(17, Normal), ItemId(18, Normal), ItemId(19, Normal), ItemId(20, Normal), ItemId(21, Normal), ItemId(22, Normal), ItemId(23, Normal), ItemId(24, Normal)]"];
     N1["Items: [ItemId(Export((&quot;structuredError&quot;, #2), &quot;structuredError&quot;))]"];
     N2["Items: [ItemId(Export((&quot;IPC&quot;, #2), &quot;IPC&quot;))]"];
     N3["Items: [ItemId(0, ImportOfModule)]"];
@@ -1647,38 +1614,29 @@ graph TD
     N6["Items: [ItemId(1, ImportBinding(0)), ItemId(2, ImportBinding(0)), ItemId(3, Normal)]"];
     N7["Items: [ItemId(0, ImportBinding(0)), ItemId(1, ImportBinding(0)), ItemId(2, ImportBinding(0)), ItemId(5, VarDeclarator(0))]"];
     N8["Items: [ItemId(0, ImportBinding(0)), ItemId(1, ImportBinding(0)), ItemId(2, ImportBinding(0)), ItemId(4, Normal), ItemId(6, VarDeclarator(0))]"];
-    N9["Items: [ItemId(0, ImportBinding(0)), ItemId(1, ImportBinding(0)), ItemId(2, ImportBinding(0)), ItemId(7, Normal)]"];
     N0 --> N3;
     N0 --> N4;
     N0 --> N5;
     N0 --> N7;
     N0 --> N8;
-    N0 --> N9;
     N0 --> N6;
+    N0 --> N2;
     N1 --> N6;
-    N2 --> N9;
     N2 --> N8;
     N4 --> N3;
     N5 --> N3;
     N5 --> N4;
-    N6 --> N9;
+    N6 --> N8;
     N7 --> N3;
     N7 --> N4;
     N7 --> N5;
-    N7 --> N9;
+    N7 --> N8;
     N7 --> N6;
-    N8 --> N9;
     N8 --> N6;
     N8 --> N7;
     N8 --> N3;
     N8 --> N4;
     N8 --> N5;
-    N9 --> N8;
-    N9 --> N3;
-    N9 --> N4;
-    N9 --> N5;
-    N9 --> N7;
-    N9 --> N6;
 ```
 # Entrypoints
 
@@ -1686,12 +1644,11 @@ graph TD
 {
     ModuleEvaluation: 0,
     Export(
-        "IPC",
-    ): 2,
-    Exports: 10,
-    Export(
         "structuredError",
     ): 1,
+    Export(
+        "IPC",
+    ): 2,
 }
 ```
 
@@ -1711,19 +1668,22 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
-import "__TURBOPACK_PART__" assert {
+import { IPC } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+    __turbopack_part__: 6
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 2
 };
 "module evaluation";
 import { createConnection } from "node:net";
 import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
 import { getProperError } from "./error";
+process.on("uncaughtException", (err)=>{
+    IPC.sendError(err);
+});
 const improveConsole = (name, stream, addStack)=>{
     const original = console[name];
     const stdio = process[stream];
@@ -1778,9 +1738,6 @@ export { structuredError };
 ```
 ## Part 2
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 import { IPC } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
@@ -1814,7 +1771,7 @@ import "./error";
 ## Part 6
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+    __turbopack_part__: 8
 };
 import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
 import { getProperError } from "./error";
@@ -1849,7 +1806,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+    __turbopack_part__: 8
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -1874,9 +1831,6 @@ export { PORT } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 import { structuredError } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
@@ -2039,53 +1993,6 @@ export { IPC } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 9
-```js
-import { IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import { createConnection } from "node:net";
-import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
-import { getProperError } from "./error";
-process.on("uncaughtException", (err)=>{
-    IPC.sendError(err);
-});
-export { createConnection } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-export { parseStackTrace } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-export { getProperError } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 10
-```js
-export { structuredError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export structuredError"
-};
-export { IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export IPC"
-};
-
-```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -2100,19 +2007,22 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
-import "__TURBOPACK_PART__" assert {
+import { IPC } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+    __turbopack_part__: 6
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 2
 };
 import { createConnection } from "node:net";
 import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
 import { getProperError } from "./error";
 "module evaluation";
+process.on("uncaughtException", (err)=>{
+    IPC.sendError(err);
+});
 const improveConsole = (name, stream, addStack)=>{
     const original = console[name];
     const stdio = process[stream];
@@ -2163,12 +2073,11 @@ export { improveConsole } from "__TURBOPACK_VAR__" assert {
 {
     ModuleEvaluation: 0,
     Export(
-        "IPC",
-    ): 2,
-    Exports: 10,
-    Export(
         "structuredError",
     ): 1,
+    Export(
+        "IPC",
+    ): 2,
 }
 ```
 
@@ -2188,13 +2097,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
-import "__TURBOPACK_PART__" assert {
+import { IPC } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 "module evaluation";
+process.on("uncaughtException", (err)=>{
+    IPC.sendError(err);
+});
 const improveConsole = (name, stream, addStack)=>{
     const original = console[name];
     const stdio = process[stream];
@@ -2240,9 +2149,6 @@ export { structuredError };
 ```
 ## Part 2
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 import { IPC } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
@@ -2469,38 +2375,6 @@ export { IPC } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 9
-```js
-import { IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-process.on("uncaughtException", (err)=>{
-    IPC.sendError(err);
-});
-
-```
-## Part 10
-```js
-export { structuredError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export structuredError"
-};
-export { IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export IPC"
-};
-
-```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -2515,13 +2389,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
-import "__TURBOPACK_PART__" assert {
+import { IPC } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 "module evaluation";
+process.on("uncaughtException", (err)=>{
+    IPC.sendError(err);
+});
 const improveConsole = (name, stream, addStack)=>{
     const original = console[name];
     const stdio = process[stream];

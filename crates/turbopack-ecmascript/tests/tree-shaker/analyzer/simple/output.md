@@ -130,7 +130,6 @@ graph TD
 ```
 {
     ModuleEvaluation: 0,
-    Exports: 4,
     Export(
         "DOG",
     ): 1,
@@ -183,16 +182,6 @@ export { dog } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 4
-```js
-export { DOG } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export DOG"
-};
-export { CHIMERA } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export CHIMERA"
-};
-
-```
 ## Merged (module eval)
 ```js
 "module evaluation";
@@ -203,7 +192,6 @@ export { CHIMERA } from "__TURBOPACK_PART__" assert {
 ```
 {
     ModuleEvaluation: 0,
-    Exports: 4,
     Export(
         "DOG",
     ): 1,
@@ -253,16 +241,6 @@ export { CHIMERA } from "__TURBOPACK_VAR__" assert {
 const dog = "dog";
 export { dog } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
-};
-
-```
-## Part 4
-```js
-export { DOG } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export DOG"
-};
-export { CHIMERA } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export CHIMERA"
 };
 
 ```

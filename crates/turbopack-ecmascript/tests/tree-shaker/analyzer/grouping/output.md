@@ -299,7 +299,6 @@ graph TD
 ```
 {
     ModuleEvaluation: 0,
-    Exports: 7,
     Export(
         "y",
     ): 2,
@@ -390,16 +389,6 @@ x += 8;
 x += 9;
 
 ```
-## Part 7
-```js
-export { x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export x"
-};
-export { y } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export y"
-};
-
-```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -413,7 +402,6 @@ import "__TURBOPACK_PART__" assert {
 ```
 {
     ModuleEvaluation: 0,
-    Exports: 6,
     Export(
         "y",
     ): 2,
@@ -489,16 +477,6 @@ x += 6;
 x += 7;
 x += 8;
 x += 9;
-
-```
-## Part 6
-```js
-export { x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export x"
-};
-export { y } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export y"
-};
 
 ```
 ## Merged (module eval)
