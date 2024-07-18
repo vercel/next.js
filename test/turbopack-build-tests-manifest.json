@@ -6892,12 +6892,12 @@
     },
     "test/integration/app-types/app-types.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "app type checking production mode should generate route types correctly and report link error",
         "app type checking production mode should generate route types correctly and report router API errors",
         "app type checking production mode should type check invalid entry exports"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -15550,11 +15550,11 @@
     },
     "test/production/app-dir/typed-routes-with-webpack-worker/typed-routes-with-webpack-worker.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "app dir - typed-routes-with-webpack-worker builds successfully without errors",
         "app dir - typed-routes-with-webpack-worker builds with valid errors"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
