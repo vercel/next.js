@@ -104,15 +104,23 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
                             comments.clone(),
                             |_| {
                                 custom_before_pass(
-                                    cm,
-                                    file,
+                                    cm.clone(),
+                                    file.clone(),
                                     &opts,
                                     comments.clone(),
                                     Default::default(),
                                     unresolved_mark,
                                 )
                             },
-                            |_| custom_after_pass(cm, file, &opts, comments, unresolved_mark),
+                            |_| {
+                                custom_after_pass(
+                                    cm.clone(),
+                                    file.clone(),
+                                    &opts,
+                                    comments.clone(),
+                                    unresolved_mark,
+                                )
+                            },
                         )
                         .context("failed to process js file")?
                     }
