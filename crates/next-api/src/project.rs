@@ -332,7 +332,7 @@ impl ProjectContainer {
         file_path: Vc<FileSystemPath>,
     ) -> Result<Vc<Box<dyn VersionedContent>>> {
         let this = self.await?;
-        Ok(this.versioned_content_map.get(file_path))
+        Ok(this.versioned_content_map.get_asset(file_path))
     }
 
     #[turbo_tasks::function]
@@ -1096,7 +1096,7 @@ impl Project {
         Ok(self
             .await?
             .versioned_content_map
-            .get(self.client_relative_path().join(identifier)))
+            .get_asset(self.client_relative_path().join(identifier)))
     }
 
     #[turbo_tasks::function]

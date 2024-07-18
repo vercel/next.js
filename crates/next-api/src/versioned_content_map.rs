@@ -37,14 +37,14 @@ type PathToOutputOperation = HashMap<Vc<FileSystemPath>, Vc<OutputAssets>>;
 type OutputOperationToComputeEntry = HashMap<Vc<OutputAssets>, Vc<OptionMapEntry>>;
 
 #[turbo_tasks::value]
-pub struct VersionedContentMap {
+pub struct ContentMap {
     map_path_to_op: State<PathToOutputOperation>,
     map_op_to_compute_entry: State<OutputOperationToComputeEntry>,
 }
 
-impl ValueDefault for VersionedContentMap {
+impl ValueDefault for ContentMap {
     fn value_default() -> Vc<Self> {
-        VersionedContentMap {
+        ContentMap {
             map_path_to_op: State::new(HashMap::new()),
             map_op_to_compute_entry: State::new(HashMap::new()),
         }
@@ -52,16 +52,8 @@ impl ValueDefault for VersionedContentMap {
     }
 }
 
-impl VersionedContentMap {
-    // NOTE(alexkirsz) This must not be a `#[turbo_tasks::function]` because it
-    // should be a singleton for each project.
-    pub fn new() -> Vc<Self> {
-        Self::value_default()
-    }
-}
-
 #[turbo_tasks::value_impl]
-impl VersionedContentMap {
+impl ContentMap {
     #[turbo_tasks::function]
     pub async fn insert_output_assets(
         self: Vc<Self>,
@@ -116,11 +108,6 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function]
-    pub fn get(self: Vc<Self>, path: Vc<FileSystemPath>) -> Vc<Box<dyn VersionedContent>> {
-        self.get_asset(path).versioned_content()
-    }
-
-    #[turbo_tasks::function]
     pub async fn get_source_map(
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
@@ -146,26 +133,27 @@ impl VersionedContentMap {
         path: Vc<FileSystemPath>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let result = self.raw_get(path).await?;
-        if let Some(MapEntry {
+        let Some(MapEntry {
             assets_operation: _,
             side_effects,
             path_to_asset,
         }) = &*result
-        {
-            side_effects.await?;
+        else {
+            let path = path.to_string().await?;
+            bail!("could not find asset for path {}", path);
+        };
 
-            if let Some(asset) = path_to_asset.get(&path) {
-                return Ok(*asset);
-            } else {
-                let path = path.to_string().await?;
-                bail!(
-                    "could not find asset for path {} (asset has been removed)",
-                    path
-                );
-            }
+        side_effects.await?;
+
+        if let Some(asset) = path_to_asset.get(&path) {
+            Ok(*asset)
+        } else {
+            let path = path.to_string().await?;
+            bail!(
+                "could not find asset for path {} (asset has been removed)",
+                path
+            );
         }
-        let path = path.to_string().await?;
-        bail!("could not find asset for path {}", path);
     }
 
     #[turbo_tasks::function]
@@ -183,6 +171,7 @@ impl VersionedContentMap {
         Ok(Vc::cell(keys))
     }
 
+    /// Get the `MapEntry` for a particular path.
     #[turbo_tasks::function]
     async fn raw_get(&self, path: Vc<FileSystemPath>) -> Result<Vc<OptionMapEntry>> {
         let assets = {
@@ -206,5 +195,62 @@ impl VersionedContentMap {
         Vc::connect(compute_entry);
 
         Ok(compute_entry)
+    }
+}
+
+/// A version of `ContentMap` that also tracks version data.
+#[turbo_tasks::value]
+pub struct VersionedContentMap(Vc<ContentMap>);
+
+impl ValueDefault for VersionedContentMap {
+    fn value_default() -> Vc<Self> {
+        VersionedContentMap(ContentMap::value_default()).cell()
+    }
+}
+
+impl VersionedContentMap {
+    // NOTE(alexkirsz) This must not be a `#[turbo_tasks::function]` because it
+    // should be a singleton for each project.
+    pub fn new() -> Vc<Self> {
+        Self::value_default()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl VersionedContentMap {
+    #[turbo_tasks::function]
+    pub async fn insert_output_assets(
+        self: Vc<Self>,
+        assets_operation: Vc<OutputAssetsOperation>,
+        client_relative_path: Vc<FileSystemPath>,
+        client_output_path: Vc<FileSystemPath>,
+    ) -> Result<Vc<Completion>> {
+        Ok(self.await?.0.insert_output_assets(
+            assets_operation,
+            client_relative_path,
+            client_output_path,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_source_map(
+        self: Vc<Self>,
+        path: Vc<FileSystemPath>,
+        section: Option<RcStr>,
+    ) -> Result<Vc<OptionSourceMap>> {
+        Ok(self.await?.0.get_source_map(path, section))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_asset(
+        self: Vc<Self>,
+        path: Vc<FileSystemPath>,
+    ) -> Result<Vc<Box<dyn VersionedContent>>> {
+        Ok(self.await?.0.get_asset(path).versioned_content())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn keys_in_path(&self, root: Vc<FileSystemPath>) -> Result<Vc<Vec<RcStr>>> {
+        Ok(self.0.keys_in_path(root))
     }
 }
