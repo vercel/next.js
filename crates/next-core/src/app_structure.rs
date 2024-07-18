@@ -231,11 +231,32 @@ impl DirectoryTree {
     }
 
     #[turbo_tasks::function]
-    pub async fn into_plain(&self) -> Result<Vc<PlainDirectoryTree>> {
+    async fn plain_from_path(
+        &self,
+        app_page: AppPage,
+        for_app_path: AppPath,
+    ) -> Result<Vc<PlainDirectoryTree>> {
         let mut subdirectories = BTreeMap::new();
 
         for (name, subdirectory) in &self.subdirectories {
-            subdirectories.insert(name.clone(), subdirectory.into_plain().await?.clone_value());
+            let mut child_app_page = app_page.clone();
+
+            // ignore result, gets handled in directory tree to loader tree
+            child_app_page.push_str(name).ok();
+
+            let app_path = AppPath::from(app_page.clone());
+
+            if !for_app_path.contains(&app_path) {
+                continue;
+            }
+
+            subdirectories.insert(
+                name.clone(),
+                subdirectory
+                    .plain_from_path(child_app_page, for_app_path.clone())
+                    .await?
+                    .clone_value(),
+            );
         }
 
         Ok(PlainDirectoryTree {
@@ -817,7 +838,9 @@ async fn directory_tree_to_loader_tree(
     // the page this loader tree is constructed for
     for_app_path: AppPath,
 ) -> Result<Vc<Option<Vc<LoaderTree>>>> {
-    let plain_tree = &*directory_tree.into_plain().await?;
+    let plain_tree = &*directory_tree
+        .plain_from_path(app_page.clone(), for_app_path.clone())
+        .await?;
 
     let tree = directory_tree_to_loader_tree_internal(
         app_dir,
