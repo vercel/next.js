@@ -73,28 +73,72 @@ import { retry } from 'next-test-utils'
     })
 
     async function checkAppPagesNavigation() {
-      for (const path of [
-        '/',
-        '/blog/123',
-        '/dynamic-client/first/second',
-        '/dashboard',
-        '/dashboard/deployments/123',
-      ]) {
+      const testPaths = [
+        { path: '/', content: 'hello from pages/index', type: 'pages' },
+        {
+          path: '/blog/123',
+          content: 'hello from pages/blog/[slug]',
+          type: 'pages',
+        },
+        {
+          path: '/dynamic-client/first/second',
+          content: 'button on app/dynamic-client',
+          type: 'app',
+        },
+        {
+          path: '/dashboard',
+          content: 'hello from app/dashboard',
+          type: 'app',
+        },
+        {
+          path: '/dashboard/deployments/123',
+          content: 'hello from app/dashboard/deployments/[id]',
+          type: 'app',
+        },
+      ]
+
+      for (const testPath of testPaths) {
+        const { path, content } = testPath
         require('console').error('checking', path)
+
         const res = await next.fetch(path)
         expect(res.status).toBe(200)
 
         const browser = await next.browser(path)
-        // TODO: check for hydration success properly
+
         await retry(async () => {
           expect(await browser.eval('!!window.next.router')).toBe(true)
+          expect(
+            await browser.eval('document.documentElement.innerHTML')
+          ).toContain(content)
         })
-        const browserLogs = await browser.log()
-        expect(
-          browserLogs.some(({ message }) => message.includes('error'))
-        ).toBeFalse()
+
+        const checkNav = async (testPath: (typeof testPaths)[0]) => {
+          await browser.eval(`window.next.router.push("${testPath.path}")`)
+
+          await retry(async () => {
+            expect(await browser.eval('!!window.next.router')).toBe(true)
+            expect(
+              await browser.eval('document.documentElement.innerHTML')
+            ).toContain(testPath.content)
+          })
+        }
+
+        // test navigating to a pages path
+        const pagesTestPath = testPaths.find(
+          (item) => item.type === 'pages' && item.path !== path
+        )
+        await checkNav(pagesTestPath)
+
+        // go back to initial page
+        await checkNav(testPath)
+
+        // test navigating to an app route
+        const appTestPath = testPaths.find(
+          (item) => item.type === 'app' && item.path !== path
+        )
+        await checkNav(appTestPath)
       }
-      // TODO: check we hard navigate boundaries properly
     }
 
     it('should only rebuild just a changed app route correctly', async () => {

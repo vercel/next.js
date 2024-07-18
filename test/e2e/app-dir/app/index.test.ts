@@ -1,7 +1,8 @@
-import { nextTestSetup } from 'e2e-utils'
-import { check, retry, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
+import type { Route } from 'playwright'
+import { nextTestSetup } from 'e2e-utils'
+import { check, retry, waitFor } from 'next-test-utils'
 
 // TODO: We should decide on an established pattern for gating test assertions
 // on experimental flags. For example, as a first step we could all the common
@@ -49,6 +50,35 @@ describe('app dir - basic', () => {
         buildStage: 'static-generation',
         buildOptions: {},
       })
+    })
+
+    it('should hard navigate on chunk load failure', async () => {
+      let blockChunks = false
+      const browser = await next.browser('/dashboard', {
+        beforePageLoad(page) {
+          page.route('**/_next/static/**', async (route: Route) => {
+            if (blockChunks) {
+              return route.abort()
+            }
+            return route.continue()
+          })
+        },
+      })
+
+      await retry(async () => {
+        expect(await browser.eval('!!next.router.push')).toBe(true)
+      })
+      blockChunks = true
+      await browser.eval('window.beforeNav = 1')
+      await browser.eval('next.router.push("/dynamic-client/first/second")')
+
+      await retry(async () => {
+        expect(
+          await browser.eval('document.documentElement.innerHTML')
+        ).toContain('button on app/dynamic-client')
+      })
+      // since we hard navigate on failure global scope should be cleared
+      expect(await browser.eval('window.beforeNav')).toBeFalsy()
     })
   }
 

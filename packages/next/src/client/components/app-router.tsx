@@ -74,6 +74,12 @@ function HistoryUpdater({
   sync: ReduxDevtoolsSyncFn
 }) {
   useInsertionEffect(() => {
+    if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
+      // clear pending URL as navigation is no longer
+      // in flight
+      window.next.__pendingUrl = undefined
+    }
+
     const { tree, pushRef, canonicalUrl } = appRouterState
     const historyState = {
       ...(pushRef.preserveCustomHistoryState ? window.history.state : {}),
@@ -137,6 +143,11 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
     (href, navigateType, shouldScroll) => {
       const url = new URL(addBasePath(href), location.href)
+
+      if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
+        console.error('navigating!!', url.toString())
+        window.next.__pendingUrl = url
+      }
 
       return dispatch({
         type: ACTION_NAVIGATE,
@@ -592,8 +603,46 @@ export default function AppRouter({
   globalErrorComponent: ErrorComponent
   assetPrefix: string
 }) {
+  if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
+    // this if is only for DCE of the feature flag not conditional
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      const uncaughtExceptionHandler = (
+        evt: ErrorEvent | PromiseRejectionEvent
+      ) => {
+        const error = 'reason' in evt ? evt.reason : evt.error
+        // if we have an unhandled exception/rejection during
+        // a navigation we fall back to a hard navigation to
+        // attempt recovering to a good state
+        if (
+          window.next.__pendingUrl &&
+          createHrefFromUrl(new URL(window.location.href)) !==
+            window.next.__pendingUrl
+        ) {
+          console.error(
+            `Error occurred during navigation, falling back to hard navigation`,
+            error
+          )
+          window.location.href = window.next.__pendingUrl.toString()
+        }
+      }
+      window.addEventListener('unhandledrejection', uncaughtExceptionHandler)
+      window.addEventListener('error', uncaughtExceptionHandler)
+      return () => {
+        window.removeEventListener('error', uncaughtExceptionHandler)
+        window.removeEventListener(
+          'unhandledrejection',
+          uncaughtExceptionHandler
+        )
+      }
+    }, [actionQueue])
+  }
+
   return (
-    <ErrorBoundary errorComponent={globalErrorComponent}>
+    <ErrorBoundary
+      actionQueue={actionQueue}
+      errorComponent={globalErrorComponent}
+    >
       <Router actionQueue={actionQueue} assetPrefix={assetPrefix} />
     </ErrorBoundary>
   )

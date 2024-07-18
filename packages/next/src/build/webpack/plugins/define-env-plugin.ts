@@ -173,6 +173,9 @@ export function getDefineEnv({
         ? 'nodejs'
         : '',
     'process.env.NEXT_MINIMAL': '',
+    'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
+      config.experimental.appNavFailHandling
+    ),
     'process.env.__NEXT_APP_ISR_INDICATOR': Boolean(
       config.devIndicators.appIsrStatus
     ),
