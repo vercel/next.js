@@ -1,4 +1,3 @@
-// import { useRouter } from "next/router";
 import Link from "next/link";
 import styles from "/styles.module.css";
 import Code from "../../_components/Code";
@@ -8,9 +7,6 @@ type NewsProps = {
 };
 
 export default function News({ params }: NewsProps) {
-  console.log(params);
-  // const { asPath } = useRouter();
-
   return (
     <div className={styles.container}>
       <div className={styles.card}>
