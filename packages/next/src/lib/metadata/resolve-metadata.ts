@@ -15,6 +15,7 @@ import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { AbsoluteTemplateString } from './types/metadata-types'
 import type { ParsedUrlQuery } from 'querystring'
+import type { StaticMetadata } from './types/icons'
 
 import {
   createDefaultMetadata,
@@ -44,8 +45,6 @@ import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
-
-type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
 
 type MetadataResolver = (
   parent: ResolvingMetadata
@@ -78,25 +77,6 @@ type PageProps = {
   searchParams: { [key: string]: any }
 }
 
-function hasIconsProperty(
-  icons: Metadata['icons'],
-  prop: 'icon' | 'apple'
-): boolean {
-  if (!icons) return false
-  if (prop === 'icon') {
-    // Detect if icons.icon will be presented, icons array and icons string will all be merged into icons.icon
-    return !!(
-      typeof icons === 'string' ||
-      icons instanceof URL ||
-      Array.isArray(icons) ||
-      (prop in icons && icons[prop])
-    )
-  } else {
-    // Detect if icons.apple will be presented, only icons.apple will be merged into icons.apple
-    return !!(typeof icons === 'object' && prop in icons && icons[prop])
-  }
-}
-
 function mergeStaticMetadata(
   source: Metadata | null,
   target: ResolvedMetadata,
@@ -107,15 +87,22 @@ function mergeStaticMetadata(
   if (!staticFilesMetadata) return
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
   // file based metadata is specified and current level metadata icons is not specified
-  if (
-    (icon && !hasIconsProperty(source?.icons, 'icon')) ||
-    (apple && !hasIconsProperty(source?.icons, 'apple'))
-  ) {
+  if ((icon || apple) && !target.icons) {
     target.icons = {
       icon: icon || [],
       apple: apple || [],
     }
   }
+
+  if (target.icons) {
+    if (icon) {
+      target.icons.icon.unshift(...icon)
+    }
+    if (apple) {
+      target.icons.apple.unshift(...apple)
+    }
+  }
+
   // file based metadata is specified and current level metadata twitter.images is not specified
   if (twitter && !source?.twitter?.hasOwnProperty('images')) {
     const resolvedTwitter = resolveTwitter(
@@ -148,6 +135,7 @@ function mergeStaticMetadata(
 function mergeMetadata({
   source,
   target,
+  firstStaticMetadata,
   staticFilesMetadata,
   titleTemplates,
   metadataContext,
@@ -155,6 +143,7 @@ function mergeMetadata({
 }: {
   source: Metadata | null
   target: ResolvedMetadata
+  firstStaticMetadata: StaticMetadata
   staticFilesMetadata: StaticMetadata
   titleTemplates: TitleTemplates
   metadataContext: MetadataContext
@@ -208,7 +197,7 @@ function mergeMetadata({
         break
 
       case 'icons': {
-        target.icons = resolveIcons(source.icons)
+        target.icons = resolveIcons(source.icons, firstStaticMetadata)
         break
       }
       case 'appleWebApp':
@@ -383,7 +372,10 @@ async function collectStaticImagesFiles(
     : undefined
 }
 
-async function resolveStaticMetadata(components: ComponentsType, props: any) {
+async function resolveStaticMetadata(
+  components: ComponentsType,
+  props: any
+): Promise<StaticMetadata> {
   const { metadata } = components
   if (!metadata) return null
 
@@ -748,6 +740,7 @@ export async function accumulateMetadata(
   const buildState = {
     warnings: new Set<string>(),
   }
+  const firstStaticMetadata = metadataItems[0][1]
   for (let i = 0; i < metadataItems.length; i++) {
     const staticFilesMetadata = metadataItems[i][1]
 
@@ -766,6 +759,7 @@ export async function accumulateMetadata(
       metadataContext,
       staticFilesMetadata,
       titleTemplates,
+      firstStaticMetadata,
       buildState,
     })
 
