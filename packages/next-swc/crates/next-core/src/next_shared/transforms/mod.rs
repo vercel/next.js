@@ -15,6 +15,7 @@ pub(crate) mod next_shake_exports;
 pub(crate) mod next_strip_page_exports;
 pub(crate) mod react_remove_properties;
 pub(crate) mod relay;
+pub(crate) mod remove_console;
 pub(crate) mod server_actions;
 pub(crate) mod styled_components;
 pub(crate) mod styled_jsx;

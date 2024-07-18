@@ -18,7 +18,7 @@ const unsupportedTurbopackNextConfigOptions = [
   // 'compiler.emotion',
   // 'compiler.reactRemoveProperties',
   // 'compiler.relay',
-  'compiler.removeConsole',
+  // 'compiler.removeConsole',
   // 'compiler.styledComponents',
   'experimental.fetchCacheKeyPrefix',
 

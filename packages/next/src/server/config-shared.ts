@@ -1007,7 +1007,7 @@ export const defaultConfig: NextConfig = {
     reactCompiler: undefined,
     after: false,
     staticGenerationRetryCount: undefined,
-    serverComponentsHmrCache: false,
+    serverComponentsHmrCache: true,
   },
   bundlePagesRouterDependencies: false,
 }

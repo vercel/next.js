@@ -14,7 +14,7 @@ const { createFromFetch } = (
 import type {
   FlightRouterState,
   FlightData,
-  NextFlightResponse,
+  NavigationFlightResponse,
 } from '../../../server/app-render/types'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -183,14 +183,18 @@ export async function fetchServerResponse(
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-    const [buildIdFromResponse, flightData]: NextFlightResponse =
-      await createFromFetch(Promise.resolve(res), { callServer })
+    const response: NavigationFlightResponse = await createFromFetch(
+      Promise.resolve(res),
+      {
+        callServer,
+      }
+    )
 
-    if (buildId !== buildIdFromResponse) {
+    if (buildId !== response.b) {
       return doMpaNavigation(res.url)
     }
 
-    return [flightData, canonicalUrl, postponed, interception]
+    return [response.f, canonicalUrl, postponed, interception]
   } catch (err) {
     console.error(
       `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,

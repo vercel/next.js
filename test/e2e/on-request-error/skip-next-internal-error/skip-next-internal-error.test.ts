@@ -4,9 +4,6 @@ describe('on-request-error - skip-next-internal-error', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
-    env: {
-      __NEXT_EXPERIMENTAL_INSTRUMENTATION: '1',
-    },
   })
 
   if (skipped) {

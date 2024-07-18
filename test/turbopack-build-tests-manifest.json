@@ -1243,7 +1243,9 @@
       "failed": [
         "app dir - basic should encode chunk path correctly",
         "app dir - basic should generate build traces correctly",
-        "app dir - basic should not have loader generated function for edge runtime"
+        "app dir - basic should not have loader generated function for edge runtime",
+        "app dir - basic should contain framework.json",
+        "app dir - basic outputs correct build-diagnostics.json"
       ],
       "pending": [
         "app dir - basic known bugs should support React fetch instrumentation client component",
@@ -7176,12 +7178,12 @@
       "runtimeError": false
     },
     "test/integration/client-404/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Client 404 production mode Client Navigation 404 should hard navigate to URL on failing to load bundle",
         "Client 404 production mode Client Navigation 404 should hard navigate to URL on failing to load missing bundle",
         "Client 404 production mode Client Navigation 404 should show 404 upon client replacestate should navigate the page"
       ],
+      "failed": [],
       "pending": [
         "Client 404 development mode Client Navigation 404 should hard navigate to URL on failing to load bundle",
         "Client 404 development mode Client Navigation 404 should show 404 upon client replacestate should navigate the page"
@@ -14067,11 +14069,11 @@
       "runtimeError": false
     },
     "test/integration/re-export-all-exports-from-page-disallowed/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Re-export all exports from page is disallowed production mode builds without error when no `export * from \"...\"` is used in pages",
         "Re-export all exports from page is disallowed production mode shows error when a page re-export all exports"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15899,8 +15901,8 @@
       "runtimeError": false
     },
     "test/production/jest/index.test.ts": {
-      "passed": [],
-      "failed": ["next/jest should work"],
+      "passed": ["next/jest should work"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": true

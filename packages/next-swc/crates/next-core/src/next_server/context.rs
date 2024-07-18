@@ -62,7 +62,7 @@ use crate::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
             next_react_server_components::get_next_react_server_components_transform_rule,
             react_remove_properties::get_react_remove_properties_transform_rule,
-            relay::get_relay_transform_rule,
+            relay::get_relay_transform_rule, remove_console::get_remove_console_transform_rule,
             styled_components::get_styled_components_transform_rule,
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
@@ -80,7 +80,7 @@ use crate::{
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub enum ServerContextType {
     Pages {
         pages_dir: Vc<FileSystemPath>,
@@ -470,6 +470,7 @@ pub async fn get_server_module_options_context(
         get_relay_transform_rule(next_config, project_path).await?,
         get_emotion_transform_rule(next_config).await?,
         get_react_remove_properties_transform_rule(next_config).await?,
+        get_remove_console_transform_rule(next_config).await?,
     ]
     .into_iter()
     .flatten()
