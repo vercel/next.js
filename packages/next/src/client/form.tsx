@@ -52,13 +52,11 @@ export default function Form({ replace, ...props }: FormProps) {
       // If the submitter specified an alternate formAction,
       // use that URL instead -- this is what a native form would do.
       // TODO: ...but what if the formAction is a server action? will that still have a string prop after hydration?
-      if (
-        'formAction' in submitter &&
-        typeof submitter['formAction'] === 'string'
-      ) {
-        const overriddenFormAction = submitter.formAction
-        if (overriddenFormAction !== action) {
-          action = overriddenFormAction
+      // NOTE: `submitter.formAction` is unreliable, because it will give us `location.href` if it *wasn't* set
+      const submitterFormAction = submitter.getAttribute('formAction')
+      if (submitterFormAction !== null) {
+        if (submitterFormAction !== action) {
+          action = submitterFormAction
         }
       }
     }
@@ -112,45 +110,33 @@ export default function Form({ replace, ...props }: FormProps) {
 
 function submitterHasUnsupportedProperty(submitter: HTMLElement): boolean {
   // A submitter can override `encType` for the form.
-  if (
-    'formEncType' in submitter &&
-    typeof submitter['formEncType'] === 'string' &&
-    submitter['formEncType'] &&
-    !isSupportedEncType(submitter['formEncType'])
-  ) {
+  const formEncType = submitter.getAttribute('formEncType')
+  if (formEncType !== null && !isSupportedEncType(formEncType)) {
     if (process.env.NODE_ENV === 'development') {
       console.error(
-        `next/form's \`encType\` was set to an unsupported value via \`formEncType="${submitter['formEncType']}"\`. Use a native <form> instead.`
+        `next/form's \`encType\` was set to an unsupported value via \`formEncType="${formEncType}"\`. Use a native <form> instead.`
       )
     }
     return true
   }
 
   // A submitter can override `method` for the form.
-  if (
-    'formMethod' in submitter &&
-    typeof submitter['formMethod'] === 'string' &&
-    submitter['formMethod'] &&
-    !isSupportedMethod(submitter['formMethod'])
-  ) {
+  const formMethod = submitter.getAttribute('formMethod')
+  if (formMethod !== null && !isSupportedMethod(formMethod)) {
     if (process.env.NODE_ENV === 'development') {
       console.error(
-        `next/form's \`method\` was set to an unsupported value via \`formMethod="${submitter['formMethod']}"\`. Use a native <form> instead.`
+        `next/form's \`method\` was set to an unsupported value via \`formMethod="${formMethod}"\`. Use a native <form> instead.`
       )
     }
     return true
   }
 
   // A submitter can override `target` for the form.
-  if (
-    'formTarget' in submitter &&
-    typeof submitter['formTarget'] === 'string' &&
-    submitter['formTarget'] &&
-    !isSupportedTarget(submitter['formTarget'])
-  ) {
+  const formTarget = submitter.getAttribute('formTarget')
+  if (formTarget !== null && !isSupportedTarget(formTarget)) {
     if (process.env.NODE_ENV === 'development') {
       console.error(
-        `next/form's \`target\` was set to an unsupported value via \`formTarget="${submitter['formTarget']}"\`. Use a native <form> instead.`
+        `next/form's \`target\` was set to an unsupported value via \`formTarget="${formTarget}"\`. Use a native <form> instead.`
       )
     }
     return true
