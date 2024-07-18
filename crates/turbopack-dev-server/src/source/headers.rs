@@ -10,30 +10,13 @@ pub struct Headers(BTreeMap<String, HeaderValue>);
 
 /// The value of an http header. HTTP headers might contain non-utf-8 bytes. An
 /// header might also occur multiple times.
-#[derive(
-    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TraceRawVcs, Serialize, Deserialize,
-)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum HeaderValue {
     SingleString(String),
     SingleBytes(Vec<u8>),
     MultiStrings(Vec<String>),
     MultiBytes(Vec<Vec<u8>>),
-}
-
-impl PartialOrd for Headers {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Headers {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0
-            .len()
-            .cmp(&other.0.len())
-            .then_with(|| self.0.iter().cmp(other.0.iter()))
-    }
 }
 
 impl std::ops::Deref for Headers {

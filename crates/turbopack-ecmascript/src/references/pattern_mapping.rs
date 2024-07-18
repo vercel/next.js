@@ -73,7 +73,7 @@ pub(crate) enum PatternMapping {
     Map(IndexMap<String, SinglePatternMapping>),
 }
 
-#[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
+#[derive(Hash, Debug, Copy, Clone)]
 #[turbo_tasks::value(serialization = "auto_for_input")]
 pub(crate) enum ResolveType {
     AsyncChunkLoader,

@@ -20,7 +20,8 @@ use turbo_tasks::{
     registry,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
-    CellId, InvalidationReason, RawVc, TaskId, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
+    CellId, InvalidationReason, MagicAny, RawVc, TaskId, TraitTypeId, TurboTasksApi,
+    TurboTasksCallApi,
 };
 
 enum Task {
@@ -40,12 +41,11 @@ impl VcStorage {
         &self,
         func: turbo_tasks::FunctionId,
         this_arg: Option<RawVc>,
-        arg: turbo_tasks::ConcreteTaskInput,
+        arg: Box<dyn MagicAny>,
     ) -> RawVc {
         let this = self.this.upgrade().unwrap();
-        let func = registry::get_function(func).bind(this_arg, &arg);
         let handle = tokio::runtime::Handle::current();
-        let future = func();
+        let future = registry::get_function(func).execute(this_arg, &*arg);
         let i = {
             let mut tasks = self.tasks.lock().unwrap();
             let i = tasks.len();
@@ -80,11 +80,7 @@ impl VcStorage {
 }
 
 impl TurboTasksCallApi for VcStorage {
-    fn dynamic_call(
-        &self,
-        func: turbo_tasks::FunctionId,
-        arg: turbo_tasks::ConcreteTaskInput,
-    ) -> RawVc {
+    fn dynamic_call(&self, func: turbo_tasks::FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
         self.dynamic_call(func, None, arg)
     }
 
@@ -92,16 +88,12 @@ impl TurboTasksCallApi for VcStorage {
         &self,
         func: turbo_tasks::FunctionId,
         this_arg: RawVc,
-        arg: turbo_tasks::ConcreteTaskInput,
+        arg: Box<dyn MagicAny>,
     ) -> RawVc {
         self.dynamic_call(func, Some(this_arg), arg)
     }
 
-    fn native_call(
-        &self,
-        _func: turbo_tasks::FunctionId,
-        _arg: turbo_tasks::ConcreteTaskInput,
-    ) -> RawVc {
+    fn native_call(&self, _func: turbo_tasks::FunctionId, _arg: Box<dyn MagicAny>) -> RawVc {
         unreachable!()
     }
 
@@ -109,7 +101,7 @@ impl TurboTasksCallApi for VcStorage {
         &self,
         _func: turbo_tasks::FunctionId,
         _this: RawVc,
-        _arg: turbo_tasks::ConcreteTaskInput,
+        _arg: Box<dyn MagicAny>,
     ) -> RawVc {
         unreachable!()
     }
@@ -119,7 +111,7 @@ impl TurboTasksCallApi for VcStorage {
         _trait_type: turbo_tasks::TraitTypeId,
         _trait_fn_name: Cow<'static, str>,
         _this: RawVc,
-        _arg: turbo_tasks::ConcreteTaskInput,
+        _arg: Box<dyn MagicAny>,
     ) -> RawVc {
         unreachable!()
     }

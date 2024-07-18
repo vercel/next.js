@@ -294,12 +294,13 @@ impl Backend for MemoryBackend {
         DEPENDENCIES_TO_TRACK.scope(RefCell::new(TaskEdgesSet::new()), future)
     }
 
-    fn try_start_task_execution(
-        &self,
+    fn try_start_task_execution<'a>(
+        &'a self,
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
-    ) -> Option<TaskExecutionSpec> {
-        self.with_task(task, |task| task.execute(self, turbo_tasks))
+    ) -> Option<TaskExecutionSpec<'a>> {
+        let task = self.task(task);
+        task.execute(self, turbo_tasks)
     }
 
     fn task_execution_result(
@@ -608,8 +609,7 @@ impl Backend for MemoryBackend {
             });
             // It's important to avoid overallocating memory as this will go into the task
             // cache and stay there forever. We can to be as small as possible.
-            let (task_type_hash, mut task_type) = PreHashed::into_parts(task_type);
-            task_type.shrink_to_fit();
+            let (task_type_hash, task_type) = PreHashed::into_parts(task_type);
             let task_type = Arc::new(PreHashed::new(task_type_hash, task_type));
             // slow pass with key lock
             let id = turbo_tasks.get_fresh_task_id();

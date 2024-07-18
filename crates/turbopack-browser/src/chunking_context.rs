@@ -88,7 +88,7 @@ impl BrowserChunkingContextBuilder {
 /// It splits "node_modules" separately as these are less likely to change
 /// during development
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Hash)]
 pub struct BrowserChunkingContext {
     name: Option<RcStr>,
     /// This path get stripped off of chunk paths before generating output asset

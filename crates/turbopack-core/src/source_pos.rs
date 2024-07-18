@@ -14,6 +14,7 @@ const U8_CR: u8 = 0x0D;
     Eq,
     Copy,
     Clone,
+    Hash,
     PartialOrd,
     Ord,
     TaskInput,

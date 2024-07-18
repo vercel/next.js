@@ -177,7 +177,7 @@ impl HeaderList {
 /// `ContentSource::vary()`. So make sure to request all information that's
 /// needed.
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
-#[derive(Clone, Debug, PartialOrd, Ord, Hash, Default)]
+#[derive(Clone, Debug, Hash, Default)]
 pub struct ContentSourceData {
     /// HTTP method, if requested.
     pub method: Option<RcStr>,
@@ -247,9 +247,7 @@ impl ValueDefault for Body {
 }
 
 /// Filter function that describes which information is required.
-#[derive(
-    Debug, Clone, PartialEq, Eq, TraceRawVcs, Hash, PartialOrd, Ord, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, Hash, Serialize, Deserialize)]
 pub enum ContentSourceDataFilter {
     All,
     Subset(BTreeSet<String>),
@@ -314,7 +312,7 @@ impl ContentSourceDataFilter {
 /// ContentSource. By sending these information ContentSource responses are
 /// cached-keyed by them and they can access them.
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
-#[derive(Debug, Default, Clone, PartialOrd, Ord, Hash)]
+#[derive(Debug, Default, Clone, Hash)]
 pub struct ContentSourceDataVary {
     pub method: bool,
     pub url: bool,

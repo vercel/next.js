@@ -11,7 +11,7 @@ const BUCKETS: usize = (usize::BITS + 1) as usize;
 
 /// An `Option`-like type that guarantees that a fully zeroed value is a valid
 /// `None` variant.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 enum COption<T> {
     // TODO(alexkirsz) We need a way to guarantee that a fully zeroed value is a

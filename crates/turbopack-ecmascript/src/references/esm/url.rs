@@ -31,7 +31,7 @@ use crate::{
 /// This allows to construct url depends on the different building context,
 /// e.g. SSR, CSR, or Node.js.
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Copy, Clone, PartialOrd, Ord, Hash)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub enum UrlRewriteBehavior {
     /// Omits base, resulting in a relative URL.
     Relative,

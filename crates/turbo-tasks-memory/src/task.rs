@@ -695,11 +695,11 @@ impl Task {
         TaskMetaStateWriteGuard::partial_from(self.state.write())
     }
 
-    pub(crate) fn execute(
-        self: &Task,
-        backend: &MemoryBackend,
+    pub(crate) fn execute<'a>(
+        self: &'a Task,
+        backend: &'a MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
-    ) -> Option<TaskExecutionSpec> {
+    ) -> Option<TaskExecutionSpec<'a>> {
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let (future, span) = {
             let mut state = self.full_state_mut();
@@ -740,11 +740,14 @@ impl Task {
     }
 
     /// Prepares task execution and returns a future that will execute the task.
-    fn make_execution_future(
-        self: &Task,
+    fn make_execution_future<'a>(
+        self: &'a Task,
         _backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
-    ) -> (Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>, Span) {
+    ) -> (
+        Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'a>>,
+        Span,
+    ) {
         match &self.ty {
             TaskType::Root(bound_fn) => {
                 (bound_fn(), tracing::trace_span!("turbo_tasks::root_task"))
@@ -757,31 +760,29 @@ impl Task {
                 PersistentTaskType::Native {
                     fn_type: native_fn,
                     this,
-                    arg: inputs,
+                    arg,
                 } => {
                     let func = registry::get_function(*native_fn);
                     let span = func.span();
                     let entered = span.enter();
-                    let bound_fn = func.bind(*this, inputs);
-                    let future = bound_fn();
+                    let future = func.execute(*this, &**arg);
                     drop(entered);
                     (future, span)
                 }
                 PersistentTaskType::ResolveNative {
                     fn_type: ref native_fn_id,
                     this,
-                    arg: inputs,
+                    arg,
                 } => {
                     let native_fn_id = *native_fn_id;
                     let func = registry::get_function(native_fn_id);
                     let span = func.resolve_span();
                     let entered = span.enter();
-                    let inputs = inputs.clone();
                     let turbo_tasks = turbo_tasks.pin();
                     let future = Box::pin(PersistentTaskType::run_resolve_native(
                         native_fn_id,
                         *this,
-                        inputs,
+                        &**arg,
                         turbo_tasks,
                     ));
                     drop(entered);
@@ -791,20 +792,19 @@ impl Task {
                     trait_type: trait_type_id,
                     method_name: name,
                     this,
-                    arg: inputs,
+                    arg,
                 } => {
                     let trait_type_id = *trait_type_id;
                     let trait_type = registry::get_trait(trait_type_id);
                     let span = trait_type.resolve_span(name);
                     let entered = span.enter();
                     let name = name.clone();
-                    let inputs = inputs.clone();
                     let turbo_tasks = turbo_tasks.pin();
                     let future = Box::pin(PersistentTaskType::run_resolve_trait(
                         trait_type_id,
                         name,
                         *this,
-                        inputs,
+                        &**arg,
                         turbo_tasks,
                     ));
                     drop(entered);

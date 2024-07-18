@@ -64,7 +64,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let trait_type_ident = get_trait_type_ident(trait_ident);
     let trait_type_id_ident = get_trait_type_id_ident(trait_ident);
     let mut dynamic_trait_fns = Vec::new();
-    let mut default_method_registers: Vec<TokenStream2> = Vec::new();
+    let mut trait_methods: Vec<TokenStream2> = Vec::new();
     let mut native_functions = Vec::new();
     let mut items = Vec::with_capacity(raw_items.len());
 
@@ -93,6 +93,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         };
 
         let turbo_signature = turbo_fn.signature();
+        let arg_types = turbo_fn.input_types();
         let dynamic_block = turbo_fn.dynamic_block(&trait_type_id_ident);
         dynamic_trait_fns.push(quote! {
             #turbo_signature #dynamic_block
@@ -124,14 +125,13 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 #native_function_ident
             });
 
-            default_method_registers.push(quote! {
-                trait_type.register_default_trait_method(stringify!(#ident).into(), *#native_function_id_ident);
+            trait_methods.push(quote! {
+                trait_type.register_default_trait_method::<(#(#arg_types),*)>(stringify!(#ident).into(), *#native_function_id_ident);
             });
 
             native_functions.push(quote! {
                 #[doc(hidden)]
                 #[allow(non_camel_case_types)]
-                // #[turbo_tasks::async_trait]
                 trait #inline_extension_trait_ident: std::marker::Send {
                     #[allow(declare_interior_mutable_const)]
                     const #native_function_ident: #native_function_ty;
@@ -143,7 +143,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 }
 
                 #[doc(hidden)]
-                // #[turbo_tasks::async_trait]
                 // Needs to be explicit 'static here, otherwise we can get a lifetime error
                 // in the inline signature.
                 impl #inline_extension_trait_ident for Box<dyn #trait_ident> {
@@ -164,6 +163,9 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
             Some(turbo_fn.static_block(&native_function_id_ident))
         } else {
+            trait_methods.push(quote! {
+                trait_type.register_trait_method::<(#(#arg_types),*)>(stringify!(#ident).into());
+            });
             None
         };
 
@@ -177,21 +179,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let value_debug_impl = if debug {
         quote! {
-            #[turbo_tasks::value_impl]
-            impl turbo_tasks::debug::ValueDebug for Box<dyn #trait_ident> {
-                #[turbo_tasks::function]
-                pub fn dbg(self: turbo_tasks::Vc<Self>) -> turbo_tasks::Vc<turbo_tasks::debug::ValueDebugString> {
-                    use turbo_tasks::debug::ValueDebug;
-                    self.dbg_depth(usize::MAX)
-                }
-
-                #[turbo_tasks::function]
-                pub async fn dbg_depth(self: turbo_tasks::Vc<Self>, depth: usize) -> anyhow::Result<turbo_tasks::Vc<turbo_tasks::debug::ValueDebugString>> {
-                    use turbo_tasks::debug::ValueDebugFormat;
-                    let string = self.value_debug_format(depth).try_to_value_debug_string().await?.await?;
-                    Ok(turbo_tasks::debug::ValueDebugString::new(format!(concat!(stringify!(#trait_ident), "({})"), string)))
-                }
-            }
+            unsafe impl turbo_tasks::Dynamic<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
+            unsafe impl turbo_tasks::Upcast<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
         }
     } else {
         quote! {}
@@ -204,6 +193,10 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         });
     }
     extended_supertraits.push(quote!(::std::marker::Send));
+    extended_supertraits.push(quote!(::std::marker::Sync));
+    if debug {
+        extended_supertraits.push(quote!(turbo_tasks::debug::ValueDebug));
+    }
 
     let expanded = quote! {
         #[must_use]
@@ -219,7 +212,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         pub(crate) static #trait_type_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::TraitType> =
             turbo_tasks::macro_helpers::Lazy::new(|| {
                 let mut trait_type = turbo_tasks::TraitType::new(stringify!(#trait_ident).to_string());;
-                #(#default_method_registers)*
+                #(#trait_methods)*
                 trait_type
             });
         #[doc(hidden)]

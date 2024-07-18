@@ -325,7 +325,7 @@ pub enum InfoMessage {
     Log(LogInfo),
 }
 
-#[derive(Deserialize, Debug, Clone, TaskInput)]
+#[derive(Debug, Clone, TaskInput, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 
 pub struct WebpackResolveOptions {
@@ -357,7 +357,7 @@ pub enum ResponseMessage {
     Resolve { path: RcStr },
 }
 
-#[derive(Clone, PartialEq, Eq, TaskInput)]
+#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize, Debug)]
 pub struct WebpackLoaderContext {
     pub module_asset: Vc<Box<dyn Module>>,
     pub cwd: Vc<FileSystemPath>,

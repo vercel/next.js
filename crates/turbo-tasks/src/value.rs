@@ -1,11 +1,13 @@
 use std::{fmt::Debug, marker::PhantomData, ops::Deref};
 
+use serde::{Deserialize, Serialize};
+
 use crate::SharedReference;
 
 /// Pass a value by value (`Value<Xxx>`) instead of by reference (`Vc<Xxx>`).
 ///
 /// Persistent, requires serialization.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Serialize, Deserialize)]
 pub struct Value<T> {
     inner: T,
 }
@@ -69,10 +71,15 @@ impl<T> Deref for TransientValue<T> {
 ///
 /// Doesn't require serialization, and won't be stored in the persistent cache
 /// in the future.
-#[derive(Debug)]
 pub struct TransientInstance<T> {
     inner: SharedReference,
     phantom: PhantomData<T>,
+}
+
+impl<T> Debug for TransientInstance<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("TransientInstance").finish()
+    }
 }
 
 impl<T> Clone for TransientInstance<T> {
@@ -95,18 +102,6 @@ impl<T> PartialEq for TransientInstance<T> {
 impl<T> std::hash::Hash for TransientInstance<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.inner.hash(state);
-    }
-}
-
-impl<T> PartialOrd for TransientInstance<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<T> Ord for TransientInstance<T> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.inner.cmp(&other.inner)
     }
 }
 

@@ -1,17 +1,88 @@
-use std::{fmt::Debug, hash::Hash};
+use std::{fmt::Debug, hash::Hash, pin::Pin};
 
+use anyhow::{Context, Result};
+use futures::Future;
+use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
     self as turbo_tasks,
+    magic_any::{MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::register_function,
     task::{
-        function::{IntoTaskFnWithThis, NativeTaskFn},
+        function::{IntoTaskFnWithThis, NativeTaskFuture},
         IntoTaskFn, TaskFn,
     },
-    util::SharedError,
-    ConcreteTaskInput, RawVc,
+    RawVc, TaskInput,
 };
+
+type ResolveFunctor =
+    for<'a> fn(
+        &'a dyn MagicAny,
+    ) -> Pin<Box<dyn Future<Output = Result<Box<dyn MagicAny>>> + Send + 'a>>;
+
+type IsResolvedFunctor = fn(&dyn MagicAny) -> bool;
+
+pub struct ArgMeta {
+    serializer: MagicAnySerializeSeed,
+    deserializer: MagicAnyDeserializeSeed,
+    is_resolved: IsResolvedFunctor,
+    resolve: ResolveFunctor,
+}
+
+impl ArgMeta {
+    pub fn new<T>() -> Self
+    where
+        T: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+    {
+        fn downcast<T>(value: &dyn MagicAny) -> &T
+        where
+            T: MagicAny,
+        {
+            value
+                .downcast_ref::<T>()
+                .with_context(|| {
+                    #[cfg(debug_assertions)]
+                    return format!(
+                        "Invalid argument type, expected {} got {}",
+                        std::any::type_name::<T>(),
+                        value.magic_type_name()
+                    );
+                    #[cfg(not(debug_assertions))]
+                    return "Invalid argument type";
+                })
+                .unwrap()
+        }
+        Self {
+            serializer: MagicAnySerializeSeed::new::<T>(),
+            deserializer: MagicAnyDeserializeSeed::new::<T>(),
+            is_resolved: |value| downcast::<T>(value).is_resolved(),
+            resolve: |value| {
+                Box::pin(async {
+                    let value = downcast::<T>(value);
+                    let resolved = value.resolve().await?;
+                    Ok(Box::new(resolved) as Box<dyn MagicAny>)
+                })
+            },
+        }
+    }
+
+    pub fn deserialization_seed(&self) -> MagicAnyDeserializeSeed {
+        self.deserializer
+    }
+
+    pub fn as_serialize<'a>(&self, value: &'a dyn MagicAny) -> &'a dyn erased_serde::Serialize {
+        self.serializer.as_serialize(value)
+    }
+
+    pub fn is_resolved(&self, value: &dyn MagicAny) -> bool {
+        (self.is_resolved)(value)
+    }
+
+    pub async fn resolve(&self, value: &dyn MagicAny) -> Result<Box<dyn MagicAny>> {
+        (self.resolve)(value).await
+    }
+}
 
 /// A native (rust) turbo-tasks function. It's used internally by
 /// `#[turbo_tasks::function]`.
@@ -23,6 +94,9 @@ pub struct NativeFunction {
     /// handles the task execution.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     pub implementation: Box<dyn TaskFn + Send + Sync + 'static>,
+
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    pub arg_meta: ArgMeta,
 }
 
 impl Debug for NativeFunction {
@@ -36,35 +110,34 @@ impl Debug for NativeFunction {
 impl NativeFunction {
     pub fn new_function<Mode, Inputs, I>(name: String, implementation: I) -> Self
     where
+        Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
         I: IntoTaskFn<Mode, Inputs>,
     {
         Self {
             name,
             implementation: Box::new(implementation.into_task_fn()),
+            arg_meta: ArgMeta::new::<Inputs>(),
         }
     }
 
-    pub fn new_method<Mode, Inputs, I>(name: String, implementation: I) -> Self
+    pub fn new_method<Mode, This, Inputs, I>(name: String, implementation: I) -> Self
     where
-        I: IntoTaskFnWithThis<Mode, Inputs>,
+        This: Sync + Send + 'static,
+        Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        I: IntoTaskFnWithThis<Mode, This, Inputs>,
     {
         Self {
             name,
             implementation: Box::new(implementation.into_task_fn_with_this()),
+            arg_meta: ArgMeta::new::<Inputs>(),
         }
     }
 
-    /// Creates a functor for execution from a fixed set of inputs.
-    pub fn bind(&'static self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> NativeTaskFn {
+    /// Executed the function
+    pub fn execute(&'static self, this: Option<RawVc>, arg: &dyn MagicAny) -> NativeTaskFuture {
         match (self.implementation).functor(this, arg) {
             Ok(functor) => functor,
-            Err(err) => {
-                let err = SharedError::new(err);
-                Box::new(move || {
-                    let err = err.clone();
-                    Box::pin(async { Err(err.into()) })
-                })
-            }
+            Err(err) => Box::pin(async { Err(err) }),
         }
     }
 

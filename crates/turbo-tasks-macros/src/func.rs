@@ -174,8 +174,6 @@ impl TurboFn {
                             // `turbo_tasks::Vc<Self>` here.
                             // We'll rely on the compiler to emit an error
                             // if the user provided an invalid receiver type
-                            // when
-                            // calling `into_concrete`.
 
                             let ident = ident.ident.clone();
 
@@ -293,15 +291,15 @@ impl TurboFn {
         }
     }
 
-    fn converted_inputs(&self) -> Punctuated<Expr, Token![,]> {
+    fn inputs(&self) -> Vec<&Ident> {
         self.inputs
             .iter()
-            .map(|Input { ty, ident }| -> Expr {
-                parse_quote! {
-                    <#ty as turbo_tasks::task::TaskInput>::into_concrete(#ident)
-                }
-            })
+            .map(|Input { ident, .. }| ident)
             .collect()
+    }
+
+    pub fn input_types(&self) -> Vec<&Type> {
+        self.inputs.iter().map(|Input { ty, .. }| ty).collect()
     }
 
     fn converted_this(&self) -> Option<Expr> {
@@ -318,7 +316,7 @@ impl TurboFn {
         let ident = &self.ident;
         let output = &self.output;
         if let Some(converted_this) = self.converted_this() {
-            let converted_inputs = self.converted_inputs();
+            let inputs = self.inputs();
             parse_quote! {
                 {
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
@@ -326,7 +324,7 @@ impl TurboFn {
                             *#trait_type_id_ident,
                             std::borrow::Cow::Borrowed(stringify!(#ident)),
                             #converted_this,
-                            turbo_tasks::TaskInput::into_concrete((#converted_inputs)),
+                            Box::new((#(#inputs,)*)) as Box<dyn turbo_tasks::MagicAny>,
                         )
                     )
                 }
@@ -344,7 +342,7 @@ impl TurboFn {
     /// given native function.
     pub fn static_block(&self, native_function_id_ident: &Ident) -> Block {
         let output = &self.output;
-        let converted_inputs = self.converted_inputs();
+        let inputs = self.inputs();
         if let Some(converted_this) = self.converted_this() {
             parse_quote! {
                 {
@@ -352,7 +350,7 @@ impl TurboFn {
                         turbo_tasks::dynamic_this_call(
                             *#native_function_id_ident,
                             #converted_this,
-                            turbo_tasks::TaskInput::into_concrete((#converted_inputs)),
+                            Box::new((#(#inputs,)*)) as Box<dyn turbo_tasks::MagicAny>,
                         )
                     )
                 }
@@ -363,7 +361,7 @@ impl TurboFn {
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
                             *#native_function_id_ident,
-                            turbo_tasks::TaskInput::into_concrete((#converted_inputs)),
+                            Box::new((#(#inputs,)*)) as Box<dyn turbo_tasks::MagicAny>,
                         )
                     )
                 }
@@ -394,7 +392,7 @@ fn expand_vc_return_type(orig_output: &Type) -> Type {
         new_output = match new_output {
             Type::Group(TypeGroup { elem, .. }) => *elem,
             Type::Tuple(TypeTuple { elems, .. }) if elems.is_empty() => {
-                Type::Path(parse_quote!(::turbo_tasks::Vc<()>))
+                Type::Path(parse_quote!(turbo_tasks::Vc<()>))
             }
             Type::Path(TypePath {
                 qself: None,

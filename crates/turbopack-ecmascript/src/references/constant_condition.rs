@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Copy, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Hash)]
 pub enum ConstantConditionValue {
     Truthy,
     Falsy,

@@ -14,7 +14,7 @@ use tracing::Span;
 
 use crate::{
     id::{FunctionId, TraitTypeId},
-    magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed},
+    magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::{register_trait_type, register_value_type},
 };
 
@@ -54,17 +54,6 @@ impl Eq for ValueType {}
 impl PartialEq for ValueType {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(self, other)
-    }
-}
-
-impl PartialOrd for ValueType {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl Ord for ValueType {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        (self as *const ValueType).cmp(&(other as *const ValueType))
     }
 }
 
@@ -111,7 +100,7 @@ impl ValueType {
 
     /// This is internally used by `#[turbo_tasks::value]`
     pub fn new_with_magic_serialization<
-        T: Debug + Eq + Ord + Hash + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static,
+        T: Debug + Eq + Hash + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static,
     >() -> Self {
         Self {
             name: std::any::type_name::<T>().to_string(),
@@ -204,10 +193,24 @@ impl ValueType {
     }
 }
 
+pub struct TraitMethod {
+    pub default_method: Option<FunctionId>,
+    pub arg_serializer: MagicAnySerializeSeed,
+    pub arg_deserializer: MagicAnyDeserializeSeed,
+}
+
+impl Debug for TraitMethod {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TraitMethod")
+            .field("default_method", &self.default_method)
+            .finish()
+    }
+}
+
 #[derive(Debug)]
 pub struct TraitType {
     pub name: String,
-    pub(crate) default_trait_methods: AutoMap<Cow<'static, str>, FunctionId>,
+    pub(crate) methods: AutoMap<Cow<'static, str>, TraitMethod>,
 }
 
 impl Hash for TraitType {
@@ -230,32 +233,43 @@ impl PartialEq for TraitType {
     }
 }
 
-impl PartialOrd for TraitType {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for TraitType {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        (self as *const TraitType).cmp(&(other as *const TraitType))
-    }
-}
-
 impl TraitType {
     pub fn new(name: String) -> Self {
         Self {
             name,
-            default_trait_methods: AutoMap::new(),
+            methods: AutoMap::new(),
         }
     }
 
-    pub fn register_default_trait_method(
+    pub fn register_trait_method<T>(&mut self, name: Cow<'static, str>)
+    where
+        T: Serialize + for<'de> Deserialize<'de> + Debug + Eq + Hash + Send + Sync + 'static,
+    {
+        self.methods.insert(
+            name,
+            TraitMethod {
+                default_method: None,
+                arg_serializer: MagicAnySerializeSeed::new::<T>(),
+                arg_deserializer: MagicAnyDeserializeSeed::new::<T>(),
+            },
+        );
+    }
+
+    pub fn register_default_trait_method<T>(
         &mut self,
         name: Cow<'static, str>,
         native_fn: FunctionId,
-    ) {
-        self.default_trait_methods.insert(name, native_fn);
+    ) where
+        T: Serialize + for<'de> Deserialize<'de> + Debug + Eq + Hash + Send + Sync + 'static,
+    {
+        self.methods.insert(
+            name,
+            TraitMethod {
+                default_method: Some(native_fn),
+                arg_serializer: MagicAnySerializeSeed::new::<T>(),
+                arg_deserializer: MagicAnyDeserializeSeed::new::<T>(),
+            },
+        );
     }
 
     pub fn register(&'static self, global_name: &'static str) {
@@ -269,5 +283,3 @@ impl TraitType {
         )
     }
 }
-
-pub trait TraitMethod: Any {}

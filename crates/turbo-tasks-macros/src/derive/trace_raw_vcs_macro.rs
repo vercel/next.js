@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput, Field, FieldsNamed, FieldsUnnamed};
 use turbo_tasks_macros_shared::{generate_destructuring, match_expansion};
@@ -32,7 +32,7 @@ pub fn derive_trace_raw_vcs(input: TokenStream) -> TokenStream {
     .into()
 }
 
-fn trace_named(_ident: &Ident, fields: &FieldsNamed) -> (TokenStream2, TokenStream2) {
+fn trace_named(_ident: TokenStream2, fields: &FieldsNamed) -> (TokenStream2, TokenStream2) {
     let (captures, fields_idents) = generate_destructuring(fields.named.iter(), &filter_field);
     (
         captures,
@@ -44,7 +44,7 @@ fn trace_named(_ident: &Ident, fields: &FieldsNamed) -> (TokenStream2, TokenStre
     )
 }
 
-fn trace_unnamed(_ident: &Ident, fields: &FieldsUnnamed) -> (TokenStream2, TokenStream2) {
+fn trace_unnamed(_ident: TokenStream2, fields: &FieldsUnnamed) -> (TokenStream2, TokenStream2) {
     let (captures, fields_idents) = generate_destructuring(fields.unnamed.iter(), &filter_field);
     (
         captures,
@@ -56,6 +56,6 @@ fn trace_unnamed(_ident: &Ident, fields: &FieldsUnnamed) -> (TokenStream2, Token
     )
 }
 
-fn trace_unit(_ident: &Ident) -> TokenStream2 {
+fn trace_unit(_ident: TokenStream2) -> TokenStream2 {
     quote! { { } }
 }

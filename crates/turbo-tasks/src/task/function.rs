@@ -26,13 +26,12 @@ use std::{future::Future, marker::PhantomData, pin::Pin};
 use anyhow::Result;
 
 use super::{TaskInput, TaskOutput};
-use crate::{ConcreteTaskInput, RawVc, Vc, VcRead, VcValueType};
+use crate::{magic_any::MagicAny, RawVc, Vc, VcRead, VcValueType};
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
-pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
 pub trait TaskFn: Send + Sync + 'static {
-    fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn>;
+    fn functor(&self, this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture>;
 }
 
 pub trait IntoTaskFn<Mode, Inputs> {
@@ -58,24 +57,26 @@ where
     }
 }
 
-pub trait IntoTaskFnWithThis<Mode, Inputs> {
+pub trait IntoTaskFnWithThis<Mode, This, Inputs> {
     type TaskFn: TaskFn;
 
     fn into_task_fn_with_this(self) -> Self::TaskFn;
 }
 
-impl<F, Mode, Inputs> IntoTaskFnWithThis<Mode, Inputs> for F
+impl<F, Mode, This, Inputs> IntoTaskFnWithThis<Mode, This, Inputs> for F
 where
-    F: TaskFnInputFunctionWithThis<Mode, Inputs>,
+    F: TaskFnInputFunctionWithThis<Mode, This, Inputs>,
     Mode: TaskFnMode,
+    This: Sync + Send + 'static,
     Inputs: TaskInputs,
 {
-    type TaskFn = FunctionTaskFnWithThis<F, Mode, Inputs>;
+    type TaskFn = FunctionTaskFnWithThis<F, Mode, This, Inputs>;
 
     fn into_task_fn_with_this(self) -> Self::TaskFn {
         FunctionTaskFnWithThis {
             task_fn: self,
             mode: PhantomData,
+            this: PhantomData,
             inputs: PhantomData,
         }
     }
@@ -93,36 +94,46 @@ where
     Mode: TaskFnMode,
     Inputs: TaskInputs,
 {
-    fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
-        TaskFnInputFunction::functor(&self.task_fn, this, arg)
+    fn functor(&self, _this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+        TaskFnInputFunction::functor(&self.task_fn, arg)
     }
 }
 
-pub struct FunctionTaskFnWithThis<F, Mode: TaskFnMode, Inputs: TaskInputs> {
+pub struct FunctionTaskFnWithThis<
+    F,
+    Mode: TaskFnMode,
+    This: Sync + Send + 'static,
+    Inputs: TaskInputs,
+> {
     task_fn: F,
     mode: PhantomData<Mode>,
+    this: PhantomData<This>,
     inputs: PhantomData<Inputs>,
 }
 
-impl<F, Mode, Inputs> TaskFn for FunctionTaskFnWithThis<F, Mode, Inputs>
+impl<F, Mode, This, Inputs> TaskFn for FunctionTaskFnWithThis<F, Mode, This, Inputs>
 where
-    F: TaskFnInputFunctionWithThis<Mode, Inputs>,
+    F: TaskFnInputFunctionWithThis<Mode, This, Inputs>,
     Mode: TaskFnMode,
+    This: Sync + Send + 'static,
     Inputs: TaskInputs,
 {
-    fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
+    fn functor(&self, this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+        let Some(this) = this else {
+            panic!("Method needs a `self` argument");
+        };
         TaskFnInputFunctionWithThis::functor(&self.task_fn, this, arg)
     }
 }
 
 trait TaskFnInputFunction<Mode: TaskFnMode, Inputs: TaskInputs>: Send + Sync + Clone + 'static {
-    fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn>;
+    fn functor(&self, arg: &dyn MagicAny) -> Result<NativeTaskFuture>;
 }
 
-trait TaskFnInputFunctionWithThis<Mode: TaskFnMode, Inputs: TaskInputs>:
+trait TaskFnInputFunctionWithThis<Mode: TaskFnMode, This: Sync + Send + 'static, Inputs: TaskInputs>:
     Send + Sync + Clone + 'static
 {
-    fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn>;
+    fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture>;
 }
 
 pub trait TaskInputs: Send + Sync + 'static {}
@@ -155,6 +166,20 @@ macro_rules! task_inputs_impl {
     }
 }
 
+fn get_args<T: MagicAny>(arg: &dyn MagicAny) -> Result<&T> {
+    let value = arg.downcast_ref::<T>();
+    #[cfg(debug_assertions)]
+    return anyhow::Context::with_context(value, || {
+        format!(
+            "Invalid argument type, expected {} got {}",
+            std::any::type_name::<T>(),
+            (*arg).magic_type_name()
+        )
+    });
+    #[cfg(not(debug_assertions))]
+    return anyhow::Context::context(value, "Invalid argument type");
+}
+
 macro_rules! task_fn_impl {
     ( $async_fn_trait:ident $arg_len:literal $( $arg:ident )* ) => {
         impl<F, Output, $($arg,)*> TaskFnInputFunction<FunctionMode, ($($arg,)*)> for F
@@ -164,21 +189,16 @@ macro_rules! task_fn_impl {
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, _this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
-                #[allow(unused_parens)]
-                let ($($arg),*) = <($($arg),*) as TaskInput>::try_from_concrete(arg)?;
-
+            fn functor(&self, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
 
-                Ok(Box::new(move || {
-                    let task_fn = task_fn.clone();
-                    $(
-                        let $arg = $arg.clone();
-                    )*
+                let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
+                $(
+                    let $arg = $arg.clone();
+                )*
 
-                    Box::pin(async move {
-                        Output::try_into_raw_vc((task_fn)($($arg),*))
-                    })
+                Ok(Box::pin(async move {
+                    Output::try_into_raw_vc((task_fn)($($arg,)*))
                 }))
             }
         }
@@ -191,26 +211,21 @@ macro_rules! task_fn_impl {
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, _this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
-                #[allow(unused_parens)]
-                let ($($arg),*) = <($($arg),*) as TaskInput>::try_from_concrete(arg)?;
-
+            fn functor(&self, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
 
-                Ok(Box::new(move || {
-                    let task_fn = task_fn.clone();
-                    $(
-                        let $arg = $arg.clone();
-                    )*
+                let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
+                $(
+                    let $arg = $arg.clone();
+                )*
 
-                    Box::pin(async move {
-                        Output::try_into_raw_vc((task_fn)($($arg),*).await)
-                    })
+                Ok(Box::pin(async move {
+                    Output::try_into_raw_vc((task_fn)($($arg,)*).await)
                 }))
             }
         }
 
-        impl<F, Output, Recv, $($arg,)*> TaskFnInputFunctionWithThis<MethodMode, (Vc<Recv>, $($arg,)*)> for F
+        impl<F, Output, Recv, $($arg,)*> TaskFnInputFunctionWithThis<MethodMode, Recv, ($($arg,)*)> for F
         where
             Recv: VcValueType,
             $($arg: TaskInput + 'static,)*
@@ -218,52 +233,42 @@ macro_rules! task_fn_impl {
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
+            fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
-                let recv = Vc::<Recv>::from(this.expect("Method need to have a `self` argument"));
+                let recv = Vc::<Recv>::from(this);
 
-                #[allow(unused_parens)]
-                let ($($arg),*) = <($($arg),*) as TaskInput>::try_from_concrete(arg)?;
+                let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
+                $(
+                    let $arg = $arg.clone();
+                )*
 
-                Ok(Box::new(move || {
-                    let task_fn = task_fn.clone();
-                    $(
-                        let $arg = $arg.clone();
-                    )*
-
-                    Box::pin(async move {
-                        let recv = recv.await?;
-                        let recv = <<Recv as VcValueType>::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
-                        Output::try_into_raw_vc((task_fn)(recv, $($arg),*))
-                    })
+                Ok(Box::pin(async move {
+                    let recv = recv.await?;
+                    let recv = <<Recv as VcValueType>::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
+                    Output::try_into_raw_vc((task_fn)(recv, $($arg,)*))
                 }))
             }
         }
 
-        impl<F, Output, Recv, $($arg,)*> TaskFnInputFunctionWithThis<FunctionMode, (Vc<Recv>, $($arg,)*)> for F
+        impl<F, Output, Recv, $($arg,)*> TaskFnInputFunctionWithThis<FunctionMode, Recv, ($($arg,)*)> for F
         where
-            Recv: Send + 'static,
+            Recv: Sync + Send + 'static,
             $($arg: TaskInput + 'static,)*
             F: Fn(Vc<Recv>, $($arg,)*) -> Output + Send + Sync + Clone + 'static,
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
+            fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
-                let recv = Vc::<Recv>::from(this.expect("Method need to have a `self` argument"));
+                let recv = Vc::<Recv>::from(this);
 
-                #[allow(unused_parens)]
-                let ($($arg),*) = <($($arg),*) as TaskInput>::try_from_concrete(arg)?;
+                let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
+                $(
+                    let $arg = $arg.clone();
+                )*
 
-                Ok(Box::new(move || {
-                    let task_fn = task_fn.clone();
-                    $(
-                        let $arg = $arg.clone();
-                    )*
-
-                    Box::pin(async move {
-                        Output::try_into_raw_vc((task_fn)(recv, $($arg),*))
-                    })
+                Ok(Box::pin(async move {
+                    Output::try_into_raw_vc((task_fn)(recv, $($arg,)*))
                 }))
             }
         }
@@ -283,58 +288,48 @@ macro_rules! task_fn_impl {
             type Output = Fut::Output;
         }
 
-        impl<F, Recv, $($arg,)*> TaskFnInputFunctionWithThis<AsyncMethodMode, (Vc<Recv>, $($arg,)*)> for F
+        impl<F, Recv, $($arg,)*> TaskFnInputFunctionWithThis<AsyncMethodMode, Recv, ($($arg,)*)> for F
         where
             Recv: VcValueType,
             $($arg: TaskInput + 'static,)*
             F: for<'a> $async_fn_trait<&'a Recv, $($arg,)*> + Clone + Send + Sync + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
+            fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
-                let recv = Vc::<Recv>::from(this.expect("Method need to have a `self` argument"));
+                let recv = Vc::<Recv>::from(this);
 
-                #[allow(unused_parens)]
-                let ($($arg),*) = <($($arg),*) as TaskInput>::try_from_concrete(arg)?;
+                let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
+                $(
+                    let $arg = $arg.clone();
+                )*
 
-                Ok(Box::new(move || {
-                    let task_fn = task_fn.clone();
-                    $(
-                        let $arg = $arg.clone();
-                    )*
-
-                    Box::pin(async move {
-                        let recv = recv.await?;
-                        let recv = <<Recv as VcValueType>::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
-                        <F as $async_fn_trait<&Recv, $($arg,)*>>::Output::try_into_raw_vc((task_fn)(recv, $($arg),*).await)
-                    })
+                Ok(Box::pin(async move {
+                    let recv = recv.await?;
+                    let recv = <<Recv as VcValueType>::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
+                    <F as $async_fn_trait<&Recv, $($arg,)*>>::Output::try_into_raw_vc((task_fn)(recv, $($arg,)*).await)
                 }))
             }
         }
 
-        impl<F, Recv, $($arg,)*> TaskFnInputFunctionWithThis<AsyncFunctionMode, (Vc<Recv>, $($arg,)*)> for F
+        impl<F, Recv, $($arg,)*> TaskFnInputFunctionWithThis<AsyncFunctionMode, Recv, ($($arg,)*)> for F
         where
-            Recv: Send + 'static,
+            Recv: Sync + Send + 'static,
             $($arg: TaskInput + 'static,)*
             F: $async_fn_trait<Vc<Recv>, $($arg,)*> + Clone + Send + Sync + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
+            fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
-                let recv = Vc::<Recv>::from(this.expect("Method need to have a `self` argument"));
+                let recv = Vc::<Recv>::from(this);
 
-                #[allow(unused_parens)]
-                let ($($arg),*) = <($($arg),*) as TaskInput>::try_from_concrete(arg)?;
+                let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
+                $(
+                    let $arg = $arg.clone();
+                )*
 
-                Ok(Box::new(move || {
-                    let task_fn = task_fn.clone();
-                    $(
-                        let $arg = $arg.clone();
-                    )*
-
-                    Box::pin(async move {
-                        <F as $async_fn_trait<Vc<Recv>, $($arg,)*>>::Output::try_into_raw_vc((task_fn)(recv, $($arg),*).await)
-                    })
+                Ok(Box::pin(async move {
+                    <F as $async_fn_trait<Vc<Recv>, $($arg,)*>>::Output::try_into_raw_vc((task_fn)(recv, $($arg,)*).await)
                 }))
             }
         }
@@ -354,10 +349,6 @@ task_fn_impl! { AsyncFn9 9 A1 A2 A3 A4 A5 A6 A7 A8 A9 }
 task_fn_impl! { AsyncFn10 10 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 }
 task_fn_impl! { AsyncFn11 11 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 }
 task_fn_impl! { AsyncFn12 12 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 }
-task_fn_impl! { AsyncFn13 13 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 }
-task_fn_impl! { AsyncFn14 14 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 }
-task_fn_impl! { AsyncFn15 15 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 A15 }
-task_fn_impl! { AsyncFn16 16 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 A15 A16 }
 
 // There needs to be one more implementation than task_fn_impl to account for
 // the receiver.
@@ -375,10 +366,6 @@ task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 }
 task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 }
 task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 }
 task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 }
-task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 }
-task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 A15 }
-task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 A15 A16 }
-task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 A15 A16 A17 }
 
 #[cfg(test)]
 mod tests {

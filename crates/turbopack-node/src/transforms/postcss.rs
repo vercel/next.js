@@ -45,7 +45,7 @@ struct PostCssProcessingResult {
 }
 
 #[derive(
-    Default, Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, TaskInput,
+    Default, Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Serialize, Deserialize, TaskInput,
 )]
 pub enum PostCssConfigLocation {
     #[default]
