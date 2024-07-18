@@ -14107,13 +14107,12 @@
     },
     "test/integration/react-profiling-mode/test/index.test.js": {
       "passed": [
-        "React Profiling Mode production mode without config enabled should not have used the react-dom profiling bundle"
-      ],
-      "failed": [
+        "React Profiling Mode production mode without config enabled should not have used the react-dom profiling bundle",
         "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for client component",
         "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for pages",
         "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for server component"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false

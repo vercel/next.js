@@ -639,6 +639,17 @@ async fn insert_next_server_special_aliases(
     Ok(())
 }
 
+async fn get_react_client_package(&next_config: &Vc<NextConfig>) -> Result<&'static str> {
+    let react_production_profiling = *next_config.enable_react_production_profiling().await?;
+    let react_client_package = if react_production_profiling {
+        "profiling"
+    } else {
+        "client"
+    };
+
+    Ok(react_client_package)
+}
+
 async fn rsc_aliases(
     import_map: &mut ImportMap,
     project_path: Vc<FileSystemPath>,
@@ -649,6 +660,7 @@ async fn rsc_aliases(
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
     let react_channel = if ppr || taint { "-experimental" } else { "" };
+    let react_client_package = get_react_client_package(&next_config).await?;
 
     let mut alias = IndexMap::new();
     if matches!(
@@ -663,7 +675,7 @@ async fn rsc_aliases(
             "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
             "react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
             "react/compiler-runtime" => format!("next/dist/compiled/react{react_channel}/compiler-runtime"),
-            "react-dom/client" => format!("next/dist/compiled/react-dom{react_channel}/client"),
+            "react-dom/client" => format!("next/dist/compiled/react-dom{react_channel}/{react_client_package}"),
             "react-dom/static" => format!("next/dist/compiled/react-dom-experimental/static"),
             "react-dom/static.edge" => format!("next/dist/compiled/react-dom-experimental/static.edge"),
             "react-dom/static.browser" => format!("next/dist/compiled/react-dom-experimental/static.browser"),
@@ -841,6 +853,11 @@ async fn insert_next_shared_aliases(
     import_map.insert_singleton_alias("next", project_path);
     import_map.insert_singleton_alias("react", project_path);
     import_map.insert_singleton_alias("react-dom", project_path);
+    let react_client_package = get_react_client_package(&next_config).await?;
+    import_map.insert_exact_alias(
+        "react-dom/client",
+        request_to_import_mapping(project_path, &format!("react-dom/{react_client_package}")),
+    );
 
     import_map.insert_alias(
         // Make sure you can't import custom server as it'll cause all Next.js internals to be
