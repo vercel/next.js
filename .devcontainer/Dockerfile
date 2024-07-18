@@ -29,4 +29,4 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 # RUN su node -c "npm install -g <your-package-list-here>"
 
 # pnpm - globally installed at the version that the repo is expecting
-RUN su node -c "npm install -g pnpm@9.4.0"
+RUN su node -c "npm install -g pnpm@9.5.0"
