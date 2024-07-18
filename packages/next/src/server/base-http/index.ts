@@ -19,7 +19,7 @@ export type FetchMetric = {
   method: string
   status: number
   cacheReason: string
-  cacheStatus: 'hit' | 'miss' | 'skip'
+  cacheStatus: 'hit' | 'miss' | 'skip' | 'hmr'
   cacheWarning?: string
 }
 

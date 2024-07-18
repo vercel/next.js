@@ -1166,77 +1166,78 @@ export default class NextNodeServer extends BaseServer<
             )} in ${reqDuration}ms`
           )
 
-          if (fetchMetrics.length) {
-            for (let i = 0; i < fetchMetrics.length; i++) {
-              const metric = fetchMetrics[i]
-              let { cacheStatus, cacheReason, cacheWarning, url } = metric
+          for (let i = 0; i < fetchMetrics.length; i++) {
+            const metric = fetchMetrics[i]
+            let { cacheStatus, cacheReason, cacheWarning, url } = metric
 
-              if (enabledVerboseLogging) {
-                let cacheReasonStr = ''
+            if (cacheStatus === 'hmr') {
+              // Cache hits during HMR refreshes are intentionally not logged.
+              continue
+            }
 
-                let cacheColor
-                const duration = metric.end - metric.start
-                if (cacheStatus === 'hit') {
-                  cacheColor = green
-                } else {
-                  cacheColor = yellow
-                  const status = cacheStatus === 'skip' ? 'skipped' : 'missed'
-                  cacheReasonStr = gray(
-                    `Cache ${status} reason: (${white(cacheReason)})`
-                  )
-                }
+            if (enabledVerboseLogging) {
+              let cacheReasonStr = ''
 
-                if (url.length > 48) {
-                  const parsed = new URL(url)
-                  const truncatedHost = formatRequestUrl(
-                    parsed.host,
-                    shouldTruncateUrl ? 16 : undefined
-                  )
-                  const truncatedPath = formatRequestUrl(
-                    parsed.pathname,
-                    shouldTruncateUrl ? 24 : undefined
-                  )
-                  const truncatedSearch = formatRequestUrl(
-                    parsed.search,
-                    shouldTruncateUrl ? 16 : undefined
-                  )
+              let cacheColor
+              const duration = metric.end - metric.start
+              if (cacheStatus === 'hit') {
+                cacheColor = green
+              } else {
+                cacheColor = yellow
+                const status = cacheStatus === 'skip' ? 'skipped' : 'missed'
+                cacheReasonStr = gray(
+                  `Cache ${status} reason: (${white(cacheReason)})`
+                )
+              }
 
-                  url =
-                    parsed.protocol +
-                    '//' +
-                    truncatedHost +
-                    truncatedPath +
-                    truncatedSearch
-                }
-
-                const status = cacheColor(`(cache ${cacheStatus})`)
-
-                writeStdoutLine(
-                  `${indentation}${white(
-                    metric.method
-                  )} ${white(url)} ${metric.status} in ${duration}ms ${status}`
+              if (url.length > 48) {
+                const parsed = new URL(url)
+                const truncatedHost = formatRequestUrl(
+                  parsed.host,
+                  shouldTruncateUrl ? 16 : undefined
+                )
+                const truncatedPath = formatRequestUrl(
+                  parsed.pathname,
+                  shouldTruncateUrl ? 24 : undefined
+                )
+                const truncatedSearch = formatRequestUrl(
+                  parsed.search,
+                  shouldTruncateUrl ? 16 : undefined
                 )
 
-                if (cacheReasonStr) {
-                  writeStdoutLine(
-                    `${indentation}${indentation}${cacheReasonStr}`
-                  )
-                }
+                url =
+                  parsed.protocol +
+                  '//' +
+                  truncatedHost +
+                  truncatedPath +
+                  truncatedSearch
+              }
 
-                if (cacheWarning) {
-                  writeStdoutLine(
-                    `${indentation}${indentation}${yellow(bold('⚠'))} ${white(cacheWarning)}`
-                  )
-                }
-              } else if (cacheWarning) {
-                writeStdoutLine(
-                  `${indentation}${white(metric.method)} ${white(url)}`
-                )
+              const status = cacheColor(`(cache ${cacheStatus})`)
 
+              writeStdoutLine(
+                `${indentation}${white(
+                  metric.method
+                )} ${white(url)} ${metric.status} in ${duration}ms ${status}`
+              )
+
+              if (cacheReasonStr) {
+                writeStdoutLine(`${indentation}${indentation}${cacheReasonStr}`)
+              }
+
+              if (cacheWarning) {
                 writeStdoutLine(
                   `${indentation}${indentation}${yellow(bold('⚠'))} ${white(cacheWarning)}`
                 )
               }
+            } else if (cacheWarning) {
+              writeStdoutLine(
+                `${indentation}${white(metric.method)} ${white(url)}`
+              )
+
+              writeStdoutLine(
+                `${indentation}${indentation}${yellow(bold('⚠'))} ${white(cacheWarning)}`
+              )
             }
           }
           delete normalizedReq.fetchMetrics

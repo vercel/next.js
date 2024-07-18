@@ -646,6 +646,7 @@ function createPatchedFetcher(
         let handleUnlock = () => Promise.resolve()
         let cacheReasonOverride
         let isForegroundRevalidate = false
+        let isHmrRefreshCache = false
 
         if (cacheKey && staticGenerationStore.incrementalCache) {
           let cachedFetchData: CachedFetchData | undefined
@@ -656,6 +657,8 @@ function createPatchedFetcher(
           ) {
             cachedFetchData =
               requestStore.serverComponentsHmrCache.get(cacheKey)
+
+            isHmrRefreshCache = true
           }
 
           if (isCacheableRevalidate && !cachedFetchData) {
@@ -711,7 +714,7 @@ function createPatchedFetcher(
               start: fetchStart,
               url: fetchUrl,
               cacheReason,
-              cacheStatus: 'hit',
+              cacheStatus: isHmrRefreshCache ? 'hmr' : 'hit',
               cacheWarning,
               status: cachedFetchData.status || 200,
               method: init?.method || 'GET',

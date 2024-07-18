@@ -210,6 +210,24 @@ describe('app-dir - logging', () => {
             expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
           })
         })
+
+        it('should not log requests for HMR refreshes', async () => {
+          const browser = await next.browser('/default-cache')
+          let headline = await browser.waitForElementByCss('h1').text()
+          expect(headline).toBe('Default Cache')
+          const outputIndex = next.cliOutput.length
+
+          await next.patchFile(
+            'app/default-cache/page.js',
+            (content) => content.replace('Default Cache', 'Hello!'),
+            async () => {
+              headline = await browser.waitForElementByCss('h1').text()
+              expect(headline).toBe('Hello!')
+              const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+              expect(logs).not.toInclude(` │ GET `)
+            }
+          )
+        })
       }
     } else {
       // No fetches logging enabled
