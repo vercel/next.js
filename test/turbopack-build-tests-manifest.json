@@ -15956,8 +15956,8 @@
     },
     "test/production/next-font/babel-unsupported.test.ts": {
       "passed": [],
-      "failed": ["@next/fon babel unsupported Build error when using babel"],
-      "pending": [],
+      "failed": [],
+      "pending": ["@next/font babel unsupported Build error when using babel"],
       "flakey": [],
       "runtimeError": false
     },
