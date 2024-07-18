@@ -1,6 +1,6 @@
 ---
-title: CSS Modules and Global Styles
-nav_title: CSS Modules
+title: Stylesheets
+nav_title: Stylesheets
 description: Style your Next.js Application with CSS Modules, Global Styles, and external stylesheets.
 ---
 
@@ -29,7 +29,7 @@ Next.js has built-in support for CSS Modules using the `.module.css` extension.
 
 CSS Modules locally scope CSS by automatically creating a unique class name. This allows you to use the same class name in different files without worrying about collisions. This behavior makes CSS Modules the ideal way to include component-level CSS.
 
-## Example
+### Example
 
 <AppOnly>
 CSS Modules can be imported into any file inside the `app` directory:
@@ -110,7 +110,10 @@ These `.css` files represent hot execution paths in your application, ensuring t
 <AppOnly>
 Global styles can be imported into any layout, page, or component inside the `app` directory.
 
-> **Good to know**: This is different from the `pages` directory, where you can only import global styles inside the `_app.js` file.
+> **Good to know**:
+>
+> - This is different from the `pages` directory, where you can only import global styles inside the `_app.js` file.
+> - Next.js does not support usage of global styles unless they are actually global, meaning they can apply to all pages and can live for the lifetime of the application. This is because Next.js uses React's built-in support for stylesheets to integrate with Suspense. This built-in support currently does not remove stylesheets as you navigate between routes. Because of this, we recommend using CSS Modules over global styles.
 
 For example, consider a stylesheet named `app/global.css`:
 
@@ -300,7 +303,7 @@ function ExampleDialog(props) {
 
 ## Ordering and Merging
 
-Next.js optimizes CSS during production builds by automatically chunking (merging) stylesheets. The CSS order is determined by the order in which you import the stylesheets into your application code.
+Next.js optimizes CSS during production builds by automatically chunking (merging) stylesheets. The CSS order is _determined by the order in which you import the stylesheets into your application code_.
 
 For example, `base-button.module.css` will be ordered before `page.module.css` since `<BaseButton>` is imported first in `<Page>`:
 
@@ -346,6 +349,7 @@ To maintain a predictable order, we recommend the following:
   - Use a consistent naming convention for your CSS modules. For example, using `<name>.module.css` over `<name>.tsx`.
 - Extract shared styles into a separate shared component.
 - If using [Tailwind](/docs/app/building-your-application/styling/tailwind-css), import the stylesheet at the top of the file, preferably in the [Root Layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required).
+- Turn off any linters/formatters (e.g., ESLint's [`sort-import`](https://eslint.org/docs/latest/rules/sort-imports)) that automatically sort your imports. This can inadvertently affect your CSS since CSS import order _matters_.
 
 > **Good to know:**
 >

@@ -1691,14 +1691,14 @@
       "server-components-hmr-cache edge runtime in after() should use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache edge runtime should not use cached fetch calls for intentional refresh requests",
       "server-components-hmr-cache edge runtime should use cached fetch calls for fast refresh requests",
-      "server-components-hmr-cache edge runtime with experimental.serverComponentsHmrCache not enabled in after() should not use cached fetch calls for fast refresh requests",
-      "server-components-hmr-cache edge runtime with experimental.serverComponentsHmrCache not enabled should not use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache edge runtime with experimental.serverComponentsHmrCache disabled in after() should not use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache edge runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime in after() should not use cached fetch calls for intentional refresh requests",
       "server-components-hmr-cache node runtime in after() should use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache node runtime should not use cached fetch calls for intentional refresh requests",
       "server-components-hmr-cache node runtime should use cached fetch calls for fast refresh requests",
-      "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache not enabled in after() should not use cached fetch calls for fast refresh requests",
-      "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache not enabled should not use cached fetch calls for fast refresh requests"
+      "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled in after() should not use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests"
     ],
     "failed": [],
     "pending": [],

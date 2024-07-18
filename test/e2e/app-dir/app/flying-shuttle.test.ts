@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { nextTestSetup, isNextStart } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 // This feature is only relevant to Webpack.
 ;(process.env.TURBOPACK ? describe.skip : describe)(
@@ -68,6 +69,95 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
 
           expect(typeof traceFile.fileHashes[key]).toBe('string')
         }
+      }
+    })
+
+    async function checkAppPagesNavigation() {
+      for (const path of [
+        '/',
+        '/blog/123',
+        '/dynamic-client/first/second',
+        '/dashboard',
+        '/dashboard/deployments/123',
+      ]) {
+        require('console').error('checking', path)
+        const res = await next.fetch(path)
+        expect(res.status).toBe(200)
+
+        const browser = await next.browser(path)
+        // TODO: check for hydration success properly
+        await retry(async () => {
+          expect(await browser.eval('!!window.next.router')).toBe(true)
+        })
+        const browserLogs = await browser.log()
+        expect(
+          browserLogs.some(({ message }) => message.includes('error'))
+        ).toBeFalse()
+      }
+      // TODO: check we hard navigate boundaries properly
+    }
+
+    it('should only rebuild just a changed app route correctly', async () => {
+      await next.stop()
+
+      const dataPath = 'app/dashboard/deployments/[id]/data.json'
+      const originalContent = await next.readFile(dataPath)
+
+      try {
+        await next.patchFile(dataPath, JSON.stringify({ hello: 'again' }))
+        await next.start()
+
+        await checkAppPagesNavigation()
+      } finally {
+        await next.patchFile(dataPath, originalContent)
+      }
+    })
+
+    it('should only rebuild just a changed pages route correctly', async () => {
+      await next.stop()
+
+      const pagePath = 'pages/index.js'
+      const originalContent = await next.readFile(pagePath)
+
+      try {
+        await next.patchFile(
+          pagePath,
+          originalContent.replace(
+            'hello from pages/index',
+            'hello from pages/index!!'
+          )
+        )
+        await next.start()
+
+        await checkAppPagesNavigation()
+      } finally {
+        await next.patchFile(pagePath, originalContent)
+      }
+    })
+
+    it('should only rebuild a changed app and pages route correctly', async () => {
+      await next.stop()
+
+      const pagePath = 'pages/index.js'
+      const originalPageContent = await next.readFile(pagePath)
+      const dataPath = 'app/dashboard/deployments/[id]/data.json'
+      const originalDataContent = await next.readFile(dataPath)
+
+      try {
+        await next.patchFile(
+          pagePath,
+          originalPageContent.replace(
+            'hello from pages/index',
+            'hello from pages/index!!'
+          )
+        )
+        await next.patchFile(dataPath, JSON.stringify({ hello: 'again' }))
+        await next.start()
+
+        await checkAppPagesNavigation()
+      } finally {
+        await next.patchFile(pagePath, originalPageContent)
+        await next.patchFile(dataPath, originalDataContent)
       }
     })
   }

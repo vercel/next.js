@@ -44,6 +44,8 @@ pub struct Components {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub global_error: Option<Vc<FileSystemPath>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub loading: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub template: Option<Vc<FileSystemPath>>,
@@ -63,6 +65,7 @@ impl Components {
             page: None,
             layout: self.layout,
             error: self.error,
+            global_error: self.global_error,
             loading: self.loading,
             template: self.template,
             not_found: self.not_found,
@@ -97,7 +100,9 @@ pub enum MetadataWithAltItem {
 }
 
 /// A single metadata file.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs)]
+#[derive(
+    Copy, Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs,
+)]
 pub enum MetadataItem {
     Static { path: Vc<FileSystemPath> },
     Dynamic { path: Vc<FileSystemPath> },
@@ -333,6 +338,7 @@ async fn get_directory_tree_internal(
                             "page" => components.page = Some(file),
                             "layout" => components.layout = Some(file),
                             "error" => components.error = Some(file),
+                            "global-error" => components.global_error = Some(file),
                             "loading" => components.loading = Some(file),
                             "template" => components.template = Some(file),
                             "not-found" => components.not_found = Some(file),
@@ -468,7 +474,16 @@ impl LoaderTree {
 }
 
 #[derive(
-    Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, Debug, TaskInput,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    Debug,
+    TaskInput,
 )]
 pub enum Entrypoint {
     AppPage {
