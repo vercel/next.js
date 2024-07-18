@@ -198,7 +198,7 @@ export async function fetchServerResponse(
         new Promise((resolve) => setTimeout(() => resolve(true), 2000)),
       ])
 
-      // Work around existing bugs where we receive an HRM update but no message that it was finished.
+      // Work around existing bugs where we receive an HMR update but no message that it was finished.
       // Having the log before an MPA is pretty bad since it'll just flash the page and then navigate.
       if (webpackHMRTimedOut) {
         console.error(
