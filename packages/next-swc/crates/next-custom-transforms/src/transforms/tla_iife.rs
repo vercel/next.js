@@ -62,7 +62,7 @@ impl VisitMut for TlaIife {
                 .collect();
             let iife = create_iife(body);
 
-            n.body.push(ModuleItem::Stmt(iife.into()));
+            n.body.push(ModuleItem::Stmt(iife));
         }
     }
 
