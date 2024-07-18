@@ -15,11 +15,10 @@ use next_custom_transforms::transforms::{
     page_config::page_config_test,
     pure::pure_magic,
     react_server_components::server_components,
-    server_actions::{
-        server_actions, {self},
-    },
+    server_actions::{self, server_actions},
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
+    tla_iife::tla_iife,
 };
 use serde::de::DeserializeOwned;
 use swc_core::ecma::visit::as_folder;
@@ -575,6 +574,32 @@ fn pure(input: PathBuf) {
             chain!(
                 resolver(unresolved_mark, top_level_mark, false),
                 as_folder(pure_magic(tr.comments.clone()))
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/tla-iife/**/input.js")]
+fn top_level_await_to_iife(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                swc_core::ecma::transforms::module::common_js(
+                    unresolved_mark,
+                    Default::default(),
+                    Default::default(),
+                    Some(tr.comments.clone())
+                ),
+                tla_iife()
             )
         },
         &input,
