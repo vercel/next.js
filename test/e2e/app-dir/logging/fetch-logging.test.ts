@@ -128,10 +128,14 @@ describe('app-dir - logging', () => {
 
           await retry(() => {
             const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-            expect(logs).toContain(' GET /default-cache')
-            expect(logs).toContain(' │ GET ')
-            expect(logs).toContain(' │ │ Cache skipped reason')
-            expect(logs).toContain(' │ │ GET ')
+
+            const expectedUrl = withFullUrlFetches
+              ? 'https://next-data-api-endpoint.vercel.app/api/random'
+              : 'https://next-data-api-en../api/random'
+
+            expect(logs).toIncludeRepeated(' GET /default-cache', 1)
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
+            expect(logs).toIncludeRepeated(' │ │ Cache skipped reason', 3)
           })
         })
 

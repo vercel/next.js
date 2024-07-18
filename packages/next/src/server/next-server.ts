@@ -12,7 +12,6 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest } from '../build'
-import type { FetchMetric } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
@@ -1167,26 +1166,6 @@ export default class NextNodeServer extends BaseServer<
           )
 
           if (fetchMetrics.length && enabledVerboseLogging) {
-            const calcNestedLevel = (
-              prevMetrics: FetchMetric[],
-              start: number
-            ): string => {
-              let nestedLevel = 0
-
-              for (let i = 0; i < prevMetrics.length; i++) {
-                const metric = prevMetrics[i]
-                const prevMetric = prevMetrics[i - 1]
-
-                if (
-                  metric.end <= start &&
-                  !(prevMetric && prevMetric.start < metric.end)
-                ) {
-                  nestedLevel += 1
-                }
-              }
-              return nestedLevel === 0 ? ' ' : ' │ '.repeat(nestedLevel)
-            }
-
             for (let i = 0; i < fetchMetrics.length; i++) {
               const metric = fetchMetrics[i]
               let { cacheStatus, cacheReason } = metric
@@ -1229,26 +1208,15 @@ export default class NextNodeServer extends BaseServer<
               }
 
               const status = cacheColor(`(cache ${cacheStatus})`)
-              const newLineLeadingChar = '│'
-              const nestedIndent = calcNestedLevel(
-                fetchMetrics.slice(0, i + 1),
-                metric.start
-              )
+              const indentation = '│ '
 
               writeStdoutLine(
-                `${newLineLeadingChar}${nestedIndent}${white(
+                `${indentation}${white(
                   metric.method
                 )} ${white(url)} ${metric.status} in ${duration}ms ${status}`
               )
               if (cacheReasonStr) {
-                const nextNestedIndent = calcNestedLevel(
-                  fetchMetrics.slice(0, i + 1),
-                  metric.start
-                )
-
-                writeStdoutLine(
-                  `${newLineLeadingChar}${nextNestedIndent}${newLineLeadingChar} ${cacheReasonStr}`
-                )
+                writeStdoutLine(`${indentation}${indentation}${cacheReasonStr}`)
               }
             }
           }
