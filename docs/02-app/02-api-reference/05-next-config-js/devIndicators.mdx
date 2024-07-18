@@ -7,6 +7,53 @@ description: Optimized pages include an indicator to let you know if it's being 
 
 <AppOnly>
 
+`devIndicators` is a `next.config.js` option that allows you to configure the on-screen indicators that help you understand what's happening to your application during development mode.
+
+```ts filename="Types"
+  devIndicators: {
+    appIsrStatus?: boolean, // default is true
+    buildActivity?: boolean, // default is true
+    buildActivityPosition?: 'bottom-right'
+    | 'bottom-left'
+    | 'top-right'
+    | 'top-left', // default is 'bottom-right'
+  },
+```
+
+## `appIsrStatus` (Static Indicator)
+
+Next.js displays a static indicator in the bottom-left corner of the screen to signal if a route will be prerendered at build time. This makes it easier to understand whether a route is static or dynamic, and for you to identify which routes [silently opt out of static rendering](#static-route not-showing-the-indicator).
+
+{/* TODO: Add screenshot - waiting for design */}
+
+You can hide the indicator by closing it, or disable it for your whole application in `next.config.js`:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  devIndicators: {
+    appIsrStatus: false,
+  },
+}
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+
+const nextConfig = {
+  devIndicators: {
+    appIsrStatus: false,
+  },
+}
+
+module.exports = nextConfig
+```
+
+{/* TODO: Review this section */}
+
+## `buildActivity` (Compilation Indicator)
+
 When you edit your code, and Next.js is compiling the application, a compilation indicator appears in the bottom right corner of the page.
 
 > **Good to know**: This indicator is only present in development mode and will not appear when building and running the app in production mode.
@@ -31,15 +78,11 @@ module.exports = {
 }
 ```
 
-There is also an indicator to show whether a page will be prerendered during a build in dev. It can be hidden per-page by clicking although if you never want it to show it can be disabled:
+## Troubleshooting
 
-```js filename="next.config.js"
-module.exports = {
-  devIndicators: {
-    appIsrStatus: false,
-  },
-}
-```
+### Static route not showing the indicator
+
+TODO: need better title, but tldr what to do if there's a silent static opt-out
 
 </AppOnly>
 
