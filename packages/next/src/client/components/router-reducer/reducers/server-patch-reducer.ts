@@ -18,8 +18,9 @@ export function serverPatchReducer(
   state: ReadonlyReducerState,
   action: ServerPatchAction
 ): ReducerState {
-  const { serverResponse } = action
-  const [flightData, overrideCanonicalUrl] = serverResponse
+  const {
+    serverResponse: { f: flightData, c: canonicalUrlOverride },
+  } = action
 
   const mutable: Mutable = {}
 
@@ -64,8 +65,8 @@ export function serverPatchReducer(
       )
     }
 
-    const canonicalUrlOverrideHref = overrideCanonicalUrl
-      ? createHrefFromUrl(overrideCanonicalUrl)
+    const canonicalUrlOverrideHref = canonicalUrlOverride
+      ? createHrefFromUrl(canonicalUrlOverride)
       : undefined
 
     if (canonicalUrlOverrideHref) {

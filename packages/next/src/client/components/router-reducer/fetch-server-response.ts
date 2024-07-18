@@ -13,8 +13,8 @@ const { createFromFetch } = (
 
 import type {
   FlightRouterState,
-  FlightData,
   NavigationFlightResponse,
+  FetchServerResponseResult,
 } from '../../../server/app-render/types'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -37,12 +37,6 @@ export interface FetchServerResponseOptions {
   readonly isHmrRefresh?: boolean
 }
 
-export type FetchServerResponseResult = [
-  flightData: FlightData,
-  canonicalUrlOverride: URL | undefined,
-  intercepted?: boolean,
-]
-
 function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
   urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
@@ -61,7 +55,11 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
-  return [urlToUrlWithoutFlightMarker(url).toString(), undefined, false]
+  return {
+    f: urlToUrlWithoutFlightMarker(url).toString(),
+    c: undefined,
+    i: false,
+  }
 }
 
 /**
@@ -191,7 +189,11 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
-    return [response.f, canonicalUrl, interception]
+    return {
+      f: response.f,
+      c: canonicalUrl,
+      i: interception,
+    }
   } catch (err) {
     console.error(
       `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
@@ -200,6 +202,10 @@ export async function fetchServerResponse(
     // If fetch fails handle it like a mpa navigation
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
-    return [url.toString(), undefined, false]
+    return {
+      f: url.toString(),
+      c: undefined,
+      i: false,
+    }
   }
 }
