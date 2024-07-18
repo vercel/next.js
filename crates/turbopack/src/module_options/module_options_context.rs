@@ -141,7 +141,6 @@ pub struct ModuleOptionsContext {
     pub placeholder_for_future_extensions: (),
     pub tree_shaking_mode: Option<TreeShakingMode>,
     pub esm_url_rewrite_behavior: Option<UrlRewriteBehavior>,
-    pub special_exports: Vc<Vec<RcStr>>,
     /// References to externals from ESM imports should use `import()` and make
     /// async modules.
     pub import_externals: bool,

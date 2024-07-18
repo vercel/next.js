@@ -45,7 +45,6 @@ graph TD
     Item4["export DOG"];
     Item5;
     Item5["export cat"];
-    Item4 --> Item1;
     Item5 --> Item2;
 ```
 # Phase 3
@@ -59,7 +58,6 @@ graph TD
     Item4["export DOG"];
     Item5;
     Item5["export cat"];
-    Item4 --> Item1;
     Item5 --> Item2;
 ```
 # Phase 4
@@ -73,8 +71,8 @@ graph TD
     Item4["export DOG"];
     Item5;
     Item5["export cat"];
-    Item4 --> Item1;
     Item5 --> Item2;
+    Item4 --> Item1;
 ```
 # Final
 ```mermaid
@@ -88,7 +86,6 @@ graph TD
 ```
 {
     ModuleEvaluation: 0,
-    Exports: 3,
     Export(
         "cat",
     ): 2,
@@ -123,16 +120,6 @@ export { cat } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 3
-```js
-export { DOG } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export DOG"
-};
-export { cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export cat"
-};
-
-```
 ## Merged (module eval)
 ```js
 "module evaluation";
@@ -143,7 +130,6 @@ export { cat } from "__TURBOPACK_PART__" assert {
 ```
 {
     ModuleEvaluation: 0,
-    Exports: 3,
     Export(
         "cat",
     ): 2,
@@ -175,16 +161,6 @@ export { cat as cat };
 const cat = "cat";
 export { cat } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
-};
-
-```
-## Part 3
-```js
-export { DOG } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export DOG"
-};
-export { cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export cat"
 };
 
 ```

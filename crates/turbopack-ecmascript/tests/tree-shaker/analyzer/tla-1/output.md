@@ -116,12 +116,11 @@ graph TD
 {
     ModuleEvaluation: 0,
     Export(
-        "effect",
-    ): 2,
-    Exports: 4,
-    Export(
         "effects",
     ): 1,
+    Export(
+        "effect",
+    ): 2,
 }
 ```
 
@@ -166,16 +165,6 @@ export { effects } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 4
-```js
-export { effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export effects"
-};
-export { effect } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export effect"
-};
-
-```
 ## Merged (module eval)
 ```js
 "module evaluation";
@@ -188,12 +177,11 @@ await Promise.resolve();
 {
     ModuleEvaluation: 0,
     Export(
-        "effect",
-    ): 2,
-    Exports: 4,
-    Export(
         "effects",
     ): 1,
+    Export(
+        "effect",
+    ): 2,
 }
 ```
 
@@ -232,16 +220,6 @@ export { effect } from "__TURBOPACK_VAR__" assert {
 const effects = [];
 export { effects } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
-};
-
-```
-## Part 4
-```js
-export { effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export effects"
-};
-export { effect } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export effect"
 };
 
 ```

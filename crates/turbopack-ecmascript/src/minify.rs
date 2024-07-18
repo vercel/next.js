@@ -54,12 +54,9 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
         GLOBALS.set(&Default::default(), || {
             let program = match parser.parse_program() {
                 Ok(program) => program,
-                Err(err) => {
+                Err(_error) => {
                     // TODO should emit an issue
-                    bail!(
-                        "failed to parse source code\n{err:?}\n{}",
-                        code.source_code().to_str()?
-                    )
+                    bail!("failed to parse source code")
                 }
             };
             let comments = SingleThreadedComments::default();

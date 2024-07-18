@@ -98,7 +98,6 @@ graph TD
     Export(
         "RouteKind",
     ): 1,
-    Exports: 4,
 }
 ```
 
@@ -144,13 +143,6 @@ import { RouteKind } from "__TURBOPACK_PART__" assert {
 })(RouteKind || (RouteKind = {}));
 
 ```
-## Part 4
-```js
-export { RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export RouteKind"
-};
-
-```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -167,7 +159,6 @@ import "__TURBOPACK_PART__" assert {
     Export(
         "RouteKind",
     ): 1,
-    Exports: 4,
 }
 ```
 
@@ -211,13 +202,6 @@ import { RouteKind } from "__TURBOPACK_PART__" assert {
     RouteKind["APP_PAGE"] = "APP_PAGE";
     RouteKind["APP_ROUTE"] = "APP_ROUTE";
 })(RouteKind || (RouteKind = {}));
-
-```
-## Part 4
-```js
-export { RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export RouteKind"
-};
 
 ```
 ## Merged (module eval)
