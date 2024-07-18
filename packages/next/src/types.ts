@@ -38,6 +38,8 @@ export type {
   ResolvedViewport,
 } from './lib/metadata/types/metadata-interface'
 
+export type { Instrumentation } from './server/instrumentation/types'
+
 /**
  * Stub route type for typedRoutes before `next dev` or `next build` is run
  * @link https://nextjs.org/docs/app/building-your-application/configuring/typescript#statically-typed-links
