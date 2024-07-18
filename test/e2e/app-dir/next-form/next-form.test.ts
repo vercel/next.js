@@ -31,7 +31,28 @@ describe('app dir - form', () => {
     expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
   })
 
-  it.todo('should handle submitter with formAction')
+  it('should soft-navigate to the formAction url of the submitter', async () => {
+    const session = await next.browser('/forms/button-formaction')
+
+    const start = Date.now()
+    await session.eval(`window.__MPA_NAV_ID = ${start}`)
+
+    const searchInput = await session.elementByCss('input[name="query"]')
+    await searchInput.fill('my search')
+
+    const submitButton = await session.elementByCss('[type="submit"]')
+    await submitButton.click()
+
+    // we didn't prefetch a loading state, so we don't know if it'll be displayed
+    // TODO: is this correct? it'll probably be there in dev, but what about prod?
+    // await session.waitForElementByCss('#loading')
+
+    const result = await session.waitForElementByCss('#search-results').text()
+    expect(result).toMatch(/query: "my search"/)
+
+    expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
+  })
+
   it.todo(
     'should handle submitter with unsupported form{EncType,Method,Target}'
   )
