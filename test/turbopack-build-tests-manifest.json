@@ -6467,13 +6467,11 @@
       "runtimeError": false
     },
     "test/integration/amphtml/test/index.test.js": {
-      "passed": [
-        "AMP Usage AMP dev no-warn should not warn on valid amp",
-        "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
-        "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
-        "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
-        "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
-        "AMP Usage AMP development mode should not contain missing files warning",
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
+        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
         "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
         "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
         "AMP Usage production mode With AMP context should render the AMP page that uses the AMP hook",
@@ -6497,13 +6495,13 @@
         "AMP Usage production mode combined styles should combine style tags",
         "AMP Usage production mode combined styles should remove sourceMaps from styles",
         "AMP Usage production mode should have amp optimizer in trace",
-        "AMP Usage production mode should not contain missing files warning"
-      ],
-      "failed": [
-        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
-        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration"
-      ],
-      "pending": [
+        "AMP Usage production mode should not contain missing files warning",
+        "AMP Usage AMP dev no-warn should not warn on valid amp",
+        "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
+        "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
+        "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
+        "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
+        "AMP Usage AMP development mode should not contain missing files warning",
         "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
         "AMP Usage AMP development mode should detect changes and refresh an AMP page",
         "AMP Usage AMP development mode should detect changes and refresh an AMP page at root pages/",
