@@ -184,7 +184,7 @@ interface EntryType {
   /**
    * Webpack request to create a dependency for.
    */
-  request: string
+  request: string[]
 }
 
 // Shadowing check in ESLint does not account for enum
@@ -527,7 +527,7 @@ export function onDemandEntryHandler({
   let curInvalidator: Invalidator = getInvalidator(
     multiCompiler.outputPath
   ) as any
-  const curEntries = getEntries(multiCompiler.outputPath) as any
+  const curEntries = getEntries(multiCompiler.outputPath)
 
   if (!curInvalidator) {
     curInvalidator = new Invalidator(multiCompiler)
@@ -773,7 +773,7 @@ export function onDemandEntryHandler({
           type: EntryTypes.ENTRY,
           appPaths,
           absolutePagePath: route.filename,
-          request: route.filename,
+          request: [route.filename],
           bundlePath: route.bundlePath,
           dispose: false,
           lastActiveTime: Date.now(),

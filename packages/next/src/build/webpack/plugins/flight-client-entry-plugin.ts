@@ -102,7 +102,7 @@ const pluginState = getProxiedPluginState({
   // Use an object to simulate Set lookup
   ASYNC_CLIENT_MODULES: {} as Record<string, boolean>,
 
-  injectedClientEntries: {} as Record<string, string>,
+  injectedClientEntries: {} as Record<string, string[]>,
 })
 
 function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
@@ -778,6 +778,11 @@ export class FlightClientEntryPlugin {
       server: false,
     }
 
+    const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
+      modules: loaderOptions.modules.map((x) => JSON.stringify(x)),
+      server: true,
+    })}!`
+
     // For the client entry, we always use the CJS build of Next.js. If the
     // server is using the ESM build (when using the Edge runtime), we need to
     // replace them.
@@ -795,14 +800,43 @@ export class FlightClientEntryPlugin {
       server: false,
     })}!`
 
-    const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
-      modules: loaderOptions.modules.map((x) => JSON.stringify(x)),
-      server: true,
-    })}!`
+    console.log(entryName, clientBrowserLoader)
+
+    const clientBrowserLoaders = [clientBrowserLoader]
+
+    // loaderOptions.modules
+    //   .map(({ request, ids }) => {
+    //     if (!this.isEdgeServer) {
+    //       return `next-flight-client-entry-loader?${stringify({
+    //         modules: JSON.stringify({ request, ids }),
+    //         server: false,
+    //       })}!`
+    //     }
+    //     return `next-flight-client-entry-loader?${stringify({
+    //       modules: JSON.stringify({
+    //         request: request.replace(
+    //           /[\\/]next[\\/]dist[\\/]esm[\\/]/,
+    //           '/next/dist/'.replace(/\//g, path.sep)
+    //         ),
+    //         ids,
+    //       }),
+    //       server: false,
+    //     })}!`
+    //   })
+    //   .sort()
+
+    // Make sure there's at least one request, otherwise Webpack will throw.
+    if (!clientBrowserLoaders.length) {
+      clientBrowserLoaders.push(`next-flight-client-entry-loader?server=false!`)
+    }
 
     // Add for the client compilation
     // Inject the entry to the client compiler.
     if (this.dev) {
+      // For the client entry, we always use the CJS build of Next.js. If the
+      // server is using the ESM build (when using the Edge runtime), we need to
+      // replace them.
+
       const entries = getEntries(compiler.outputPath)
       const pageKey = getEntryKey(
         COMPILER_NAMES.client,
@@ -816,7 +850,7 @@ export class FlightClientEntryPlugin {
           parentEntries: new Set([entryName]),
           absoluteEntryFilePath: absolutePagePath,
           bundlePath,
-          request: clientBrowserLoader,
+          request: clientBrowserLoaders,
           dispose: false,
           lastActiveTime: Date.now(),
         }
@@ -824,8 +858,15 @@ export class FlightClientEntryPlugin {
       } else {
         const entryData = entries[pageKey]
         // New version of the client loader
-        if (entryData.request !== clientBrowserLoader) {
-          entryData.request = clientBrowserLoader
+        // if (entryData.request !== clientBrowserLoader) {
+        //   entryData.request = clientBrowserLoader
+        //   shouldInvalidate = true
+        // }
+        if (
+          JSON.stringify(entryData.request) !==
+          JSON.stringify(clientBrowserLoaders)
+        ) {
+          entryData.request = clientBrowserLoaders
           shouldInvalidate = true
         }
         if (entryData.type === EntryTypes.CHILD_ENTRY) {
@@ -835,7 +876,10 @@ export class FlightClientEntryPlugin {
         entryData.lastActiveTime = Date.now()
       }
     } else {
-      pluginState.injectedClientEntries[bundlePath] = clientBrowserLoader
+      // For the client entry, we always use the CJS build of Next.js. If the
+      // server is using the ESM build (when using the Edge runtime), we need to
+      // replace them.
+      pluginState.injectedClientEntries[bundlePath] = [clientBrowserLoader] // clientBrowserLoaders
     }
 
     // Inject the entry to the server compiler (__ssr__).
