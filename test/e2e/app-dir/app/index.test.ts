@@ -1,7 +1,7 @@
-import cheerio from 'cheerio'
-import stripAnsi from 'strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
 import { check, retry, waitFor } from 'next-test-utils'
+import cheerio from 'cheerio'
+import stripAnsi from 'strip-ansi'
 
 // TODO: We should decide on an established pattern for gating test assertions
 // on experimental flags. For example, as a first step we could all the common
