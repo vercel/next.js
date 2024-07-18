@@ -240,7 +240,7 @@ impl Endpoint for MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn process_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+    fn get_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         Err(anyhow::anyhow!("Not implemented yet"))
     }
 }

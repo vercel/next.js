@@ -1342,7 +1342,7 @@ impl Endpoint for AppEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn process_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+    async fn get_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let this = self.await?;
 
         let next_config = self.await?.app_project.project().next_config();
@@ -1352,9 +1352,7 @@ impl Endpoint for AppEndpoint {
                 true,
                 matches!(ty, AppPageEndpointType::Html),
             ),
-            // NOTE(alexkirsz) For routes, technically, a lot of the following code is not needed,
-            // as we know we won't have any client references. However, for now, for simplicity's
-            // sake, we just do the same thing as for pages.
+
             AppEndpointType::Route { path, root_layouts } => (
                 self.app_route_entry(path, root_layouts, next_config),
                 false,

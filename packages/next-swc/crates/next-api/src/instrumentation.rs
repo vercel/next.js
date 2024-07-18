@@ -242,7 +242,7 @@ impl Endpoint for InstrumentationEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn process_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+    fn get_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         Err(anyhow::anyhow!("Not implemented yet"))
     }
 }

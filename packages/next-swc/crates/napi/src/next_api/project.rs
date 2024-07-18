@@ -41,7 +41,6 @@ use turbopack_binding::{
             version::{PartialUpdate, TotalUpdate, Update, VersionState},
             SOURCE_MAP_PREFIX,
         },
-        ecmascript::references,
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
         trace_utils::{
             exit::{ExitHandler, ExitReceiver},
@@ -1092,7 +1091,7 @@ pub async fn project_trace_source(
 
 async fn travese_modules(module: Vc<Box<dyn Module>>, depth: u32) -> Result<()> {
     async fn inner(module: Vc<Box<dyn Module>>, depth: u32) -> Result<()> {
-        if depth > 8 {
+        if depth > 20 {
             return Ok(());
         }
         eprintln!(
@@ -1113,7 +1112,7 @@ async fn travese_modules(module: Vc<Box<dyn Module>>, depth: u32) -> Result<()> 
     Box::pin(inner(module, depth)).await
 }
 
-// NOTE: WIP!!
+// NOTE: WIP!
 #[napi]
 pub async fn project_generate_global_information(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -1133,17 +1132,42 @@ pub async fn project_generate_global_information(
                         ref data_endpoint,
                     } => {
                         dbg!("Page");
-                        let html_module = html_endpoint.process_module();
-                        dbg!("HTML references");
+                        let html_module = html_endpoint.get_module();
+                        dbg!(html_module.ident().to_string().await?);
+                        dbg!("HTML");
                         travese_modules(html_module, 0).await?;
-                        let data_module = data_endpoint.process_module();
-                        dbg!("Data references");
+                        let data_module = data_endpoint.get_module();
+                        dbg!("DATA");
                         travese_modules(data_module, 0).await?;
                         dbg!("Finished page")
                     }
-                    Route::PageApi { .. } => dbg!("PageApi"),
-                    Route::AppPage(_) => dbg!("AppPage"),
-                    Route::AppRoute { .. } => dbg!("AppRoute"),
+                    Route::PageApi { ref endpoint } => {
+                        dbg!("PageApi");
+                        let module = endpoint.get_module();
+                        travese_modules(module, 0).await?;
+                        dbg!("Finished page api")
+                    }
+                    Route::AppPage(app_page) => {
+                        dbg!("AppPage");
+                        for module in app_page {
+                            dbg!("HTML");
+                            let html_module = module.html_endpoint.get_module();
+                            travese_modules(html_module, 0).await?;
+                            dbg!("RSC");
+                            let rsc_module = module.rsc_endpoint.get_module();
+                            travese_modules(rsc_module, 0).await?;
+                        }
+                        dbg!("Finished app page")
+                    }
+                    Route::AppRoute {
+                        original_name: _,
+                        ref endpoint,
+                    } => {
+                        dbg!("AppRoute");
+                        let module = endpoint.get_module();
+                        travese_modules(module, 0).await?;
+                        dbg!("Finished app route")
+                    }
                     Route::Conflict => dbg!("Conflict"),
                 };
             }

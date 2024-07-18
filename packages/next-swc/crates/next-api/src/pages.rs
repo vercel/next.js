@@ -1216,37 +1216,15 @@ impl Endpoint for PageEndpoint {
             .client_changed(self.output().client_assets()))
     }
 
-    /*
-    LICHU: output() parses and chunks the module. We don't want that.
-    We just want to parse it to get its references().
-    */
     #[turbo_tasks::function]
-    async fn process_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+    async fn get_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let this = self.await?;
 
         let client_module_context = this.pages_project.client_module_context();
+        let client_module =
+            create_page_loader_entry_module(client_module_context, self.source(), this.pathname);
 
-        let client_main_module = esm_resolve(
-            Vc::upcast(PlainResolveOrigin::new(
-                client_module_context,
-                this.pages_project.project().project_path().join("_".into()),
-            )),
-            Request::parse(Value::new(Pattern::Constant(
-                match *this.pages_project.project().next_mode().await? {
-                    NextMode::Development => "next/dist/client/next-dev-turbopack.js",
-                    NextMode::Build => "next/dist/client/next-turbopack.js",
-                }
-                .into(),
-            ))),
-            Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-            IssueSeverity::Error.cell(),
-            None,
-        )
-        .first_module()
-        .await?
-        .context("expected Next.js client runtime to resolve to a module")?;
-
-        Ok(client_main_module)
+        Ok(client_module)
     }
 }
 
