@@ -4,6 +4,7 @@ FROM mcr.microsoft.com/vscode/devcontainers/javascript-node:0-${VARIANT}
 
 # [Optional] Uncomment this section to install additional OS packages.
 # These are required to run playwright properly
+
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends \
     gconf-service libxext6 libxfixes3 libxi6 libxrandr2 \
@@ -16,7 +17,11 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     # Chromium for running Turbopack benchmarks
     chromium \
     # Used for plotters graph visualizations in turbopack benchmarks
-    libfontconfig1-dev
+    libfontconfig1-dev \
+    # include rust compiler
+    rustc
+
+#RUN sudo wget -qO- https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
 
 # [Optional] Uncomment if you want to install an additional version of node using nvm
 # ARG EXTRA_NODE_VERSION=10
@@ -25,5 +30,5 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 # [Optional] Uncomment if you want to install more global node modules
 # RUN su node -c "npm install -g <your-package-list-here>"
 
-# Enable pnpm
-RUN corepack enable pnpm
+# pnpm - globally installed at the version that the repo is expecting
+RUN su node -c "npm install -g pnpm@9.4.0"
