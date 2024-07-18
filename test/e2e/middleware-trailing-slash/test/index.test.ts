@@ -115,7 +115,6 @@ describe('Middleware Runtime trailing slash', () => {
         delete middlewareWithoutEnvs.env
         expect(middlewareWithoutEnvs).toEqual({
           files: expect.arrayContaining([
-            'prerender-manifest.js',
             'server/edge-runtime-webpack.js',
             'server/middleware.js',
           ]),

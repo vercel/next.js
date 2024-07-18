@@ -27,7 +27,10 @@ async function getDiagnosticsDir(): Promise<string> {
 export async function recordFrameworkVersion(version: string): Promise<void> {
   const diagnosticsDir = await getDiagnosticsDir()
   const frameworkVersionFile = join(diagnosticsDir, 'framework.json')
-  await writeFile(frameworkVersionFile, JSON.stringify({ version }))
+  await writeFile(
+    frameworkVersionFile,
+    JSON.stringify({ name: 'Next.js', version })
+  )
 }
 
 /**

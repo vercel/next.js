@@ -4,9 +4,6 @@ describe('on-request-error - skip-next-internal-error', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
-    env: {
-      __NEXT_EXPERIMENTAL_INSTRUMENTATION: '1',
-    },
   })
 
   if (skipped) {
@@ -63,6 +60,17 @@ describe('on-request-error - skip-next-internal-error', () => {
     // No SSR
     it('should not catch next dynamic no-ssr errors', async () => {
       await next.fetch('/client/no-ssr')
+      await assertNoNextjsInternalErrors()
+    })
+
+    // Server Actions navigation
+    it('should not catch server action not-found errors', async () => {
+      await next.fetch('/form/not-found')
+      await assertNoNextjsInternalErrors()
+    })
+
+    it('should not catch server action redirect errors', async () => {
+      await next.fetch('/form/redirect')
       await assertNoNextjsInternalErrors()
     })
   })

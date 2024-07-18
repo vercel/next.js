@@ -36,7 +36,7 @@ use crate::{
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, TaskInput)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize)]
 pub enum PathType {
     PagesPage,
     PagesApi,

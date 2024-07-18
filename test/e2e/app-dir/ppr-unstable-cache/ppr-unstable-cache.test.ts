@@ -53,13 +53,13 @@ describe('ppr-unstable-cache', () => {
       env: { TEST_DATA_SERVER: `http://localhost:${port}/` },
     })
 
-    expect(generations).toHaveLength(3)
+    expect(generations).toHaveLength(2)
 
     const first = await next
       .render$('/')
       .then(($) => JSON.parse($('#data').text()))
 
-    expect(generations).toHaveLength(3)
+    expect(generations).toHaveLength(2)
 
     expect(first.data.forceCache).toBeOneOf(generations)
     expect(first.data.noStore).toBeOneOf(generations)
@@ -70,7 +70,7 @@ describe('ppr-unstable-cache', () => {
         .render$('/')
         .then(($) => JSON.parse($('#data').text()))
 
-      expect(generations).toHaveLength(3)
+      expect(generations).toHaveLength(2)
       expect(first).toEqual(again)
     }
 
@@ -85,13 +85,13 @@ describe('ppr-unstable-cache', () => {
 
     // Expect that the `cache: no-store` value has been updated, but not
     // the `cache: force-cache` value.
-    expect(generations).toHaveLength(5)
+    expect(generations).toHaveLength(3)
 
     // We know now that the generations have been updated, so let's try to
     // validate the value. We don't need to do this within the retry.
     expect(revalidated.random).not.toEqual(first.random)
-    expect(revalidated.data.forceCache).toBeOneOf(generations.slice(0, 3))
-    expect(revalidated.data.noStore).toBeOneOf(generations.slice(3))
+    expect(revalidated.data.forceCache).toBe(generations[1])
+    expect(revalidated.data.noStore).toBe(generations[2])
     expect(revalidated).not.toEqual(first)
 
     // Ensure that the `force-cache` value has not been updated, and only called
