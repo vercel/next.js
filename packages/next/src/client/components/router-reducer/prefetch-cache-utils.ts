@@ -152,7 +152,7 @@ export function createPrefetchCacheEntryForInitialLoad({
   kind: PrefetchKind
   data: FetchServerResponseResult
 }) {
-  const [, , , intercept] = data
+  const [, , intercept] = data
   // if the prefetch corresponds with an interception route, we use the nextUrl to prefix the cache key
   const prefetchCacheKey = intercept
     ? createPrefetchCacheKey(url, nextUrl)
@@ -204,7 +204,7 @@ function createLazyPrefetchEntry({
       // TODO: `fetchServerResponse` should be more tighly coupled to these prefetch cache operations
       // to avoid drift between this cache key prefixing logic
       // (which is currently directly influenced by the server response)
-      const [, , , intercepted] = prefetchResponse
+      const [, , intercepted] = prefetchResponse
       if (intercepted) {
         prefixExistingPrefetchCacheEntry({ url, nextUrl, prefetchCache })
       }
