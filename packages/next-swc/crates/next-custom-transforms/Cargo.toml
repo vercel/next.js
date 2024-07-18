@@ -37,7 +37,7 @@ turbopack-binding = { workspace = true, features = [
   "__swc_transform_relay",
 ] }
 # To allow quote! macro works
-swc_core = { workspace = true, features = ["ecma_quote"] }
+swc_core = { workspace = true, features = ["ecma_quote","ecma_transforms_module"] }
 react_remove_properties = "0.24.15"
 remove_console = "0.25.15"
 preset_env_base = "0.5.1"
