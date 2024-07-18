@@ -9,7 +9,7 @@ use turbopack_binding::swc::{
     core::{
         base::Compiler,
         common::{comments::SingleThreadedComments, Mark},
-        ecma::{parser::Syntax, transforms::base::pass::noop},
+        ecma::parser::Syntax,
     },
     testing::{NormalizedOutput, Tester},
 };
