@@ -1122,7 +1122,7 @@ export default class NextNodeServer extends BaseServer<
       const shouldTruncateUrl = !loggingFetchesConfig?.fullUrl
 
       if (this.renderOpts.dev) {
-        const { blue, green, yellow, red, gray, white } =
+        const { blue, green, yellow, red, gray, white, bold } =
           require('../lib/picocolors') as typeof import('../lib/picocolors')
 
         const { originalResponse } = normalizedRes
@@ -1158,6 +1158,7 @@ export default class NextNodeServer extends BaseServer<
           const loggingUrl = isRSC
             ? stripNextRscUnionQuery(requestUrl)
             : requestUrl
+          const indentation = '│ '
 
           writeStdoutLine(
             `${method} ${loggingUrl} ${color(
@@ -1165,58 +1166,76 @@ export default class NextNodeServer extends BaseServer<
             )} in ${reqDuration}ms`
           )
 
-          if (fetchMetrics.length && enabledVerboseLogging) {
+          if (fetchMetrics.length) {
             for (let i = 0; i < fetchMetrics.length; i++) {
               const metric = fetchMetrics[i]
-              let { cacheStatus, cacheReason } = metric
-              let cacheReasonStr = ''
+              let { cacheStatus, cacheReason, cacheWarning, url } = metric
 
-              let cacheColor
-              const duration = metric.end - metric.start
-              if (cacheStatus === 'hit') {
-                cacheColor = green
-              } else {
-                cacheColor = yellow
-                const status = cacheStatus === 'skip' ? 'skipped' : 'missed'
-                cacheReasonStr = gray(
-                  `Cache ${status} reason: (${white(cacheReason)})`
+              if (enabledVerboseLogging) {
+                let cacheReasonStr = ''
+
+                let cacheColor
+                const duration = metric.end - metric.start
+                if (cacheStatus === 'hit') {
+                  cacheColor = green
+                } else {
+                  cacheColor = yellow
+                  const status = cacheStatus === 'skip' ? 'skipped' : 'missed'
+                  cacheReasonStr = gray(
+                    `Cache ${status} reason: (${white(cacheReason)})`
+                  )
+                }
+
+                if (url.length > 48) {
+                  const parsed = new URL(url)
+                  const truncatedHost = formatRequestUrl(
+                    parsed.host,
+                    shouldTruncateUrl ? 16 : undefined
+                  )
+                  const truncatedPath = formatRequestUrl(
+                    parsed.pathname,
+                    shouldTruncateUrl ? 24 : undefined
+                  )
+                  const truncatedSearch = formatRequestUrl(
+                    parsed.search,
+                    shouldTruncateUrl ? 16 : undefined
+                  )
+
+                  url =
+                    parsed.protocol +
+                    '//' +
+                    truncatedHost +
+                    truncatedPath +
+                    truncatedSearch
+                }
+
+                const status = cacheColor(`(cache ${cacheStatus})`)
+
+                writeStdoutLine(
+                  `${indentation}${white(
+                    metric.method
+                  )} ${white(url)} ${metric.status} in ${duration}ms ${status}`
                 )
-              }
-              let url = metric.url
 
-              if (url.length > 48) {
-                const parsed = new URL(url)
-                const truncatedHost = formatRequestUrl(
-                  parsed.host,
-                  shouldTruncateUrl ? 16 : undefined
+                if (cacheReasonStr) {
+                  writeStdoutLine(
+                    `${indentation}${indentation}${cacheReasonStr}`
+                  )
+                }
+
+                if (cacheWarning) {
+                  writeStdoutLine(
+                    `${indentation}${indentation}${yellow(bold('⚠'))} ${white(cacheWarning)}`
+                  )
+                }
+              } else if (cacheWarning) {
+                writeStdoutLine(
+                  `${indentation}${white(metric.method)} ${white(url)}`
                 )
-                const truncatedPath = formatRequestUrl(
-                  parsed.pathname,
-                  shouldTruncateUrl ? 24 : undefined
+
+                writeStdoutLine(
+                  `${indentation}${indentation}${yellow(bold('⚠'))} ${white(cacheWarning)}`
                 )
-                const truncatedSearch = formatRequestUrl(
-                  parsed.search,
-                  shouldTruncateUrl ? 16 : undefined
-                )
-
-                url =
-                  parsed.protocol +
-                  '//' +
-                  truncatedHost +
-                  truncatedPath +
-                  truncatedSearch
-              }
-
-              const status = cacheColor(`(cache ${cacheStatus})`)
-              const indentation = '│ '
-
-              writeStdoutLine(
-                `${indentation}${white(
-                  metric.method
-                )} ${white(url)} ${metric.status} in ${duration}ms ${status}`
-              )
-              if (cacheReasonStr) {
-                writeStdoutLine(`${indentation}${indentation}${cacheReasonStr}`)
               }
             }
           }
