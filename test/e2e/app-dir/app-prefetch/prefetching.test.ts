@@ -28,14 +28,9 @@ const browserConfigWithFixedTime = {
 }
 
 describe('app dir - prefetching', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // TODO: re-enable for dev after https://vercel.slack.com/archives/C035J346QQL/p1663822388387959 is resolved (Sep 22nd 2022)
   if (isNextDev) {
@@ -109,6 +104,23 @@ describe('app dir - prefetching', () => {
       .click()
       .waitForElementByCss('#static-page')
 
+    expect(
+      requests.filter((request) => request === '/static-page').length
+    ).toBe(1)
+
+    // return to the home page
+    await browser.elementByCss('#to-home').click()
+    await browser.waitForElementByCss('#to-static-page')
+    // there shouldn't be any additional prefetches
+    expect(
+      requests.filter((request) => request === '/static-page').length
+    ).toBe(1)
+
+    // navigate to the static page again
+    await browser.elementByCss('#to-static-page').click()
+    await browser.waitForElementByCss('#static-page')
+
+    // there still should only be the initial request to the static page
     expect(
       requests.filter((request) => request === '/static-page').length
     ).toBe(1)
@@ -289,60 +301,65 @@ describe('app dir - prefetching', () => {
     await browser.waitForElementByCss('#prefetch-auto-page-data')
   })
 
-  describe('dynamic rendering', () => {
-    describe.each(['/force-dynamic', '/revalidate-0'])('%s', (basePath) => {
-      it('should not re-render layout when navigating between sub-pages', async () => {
-        const logStartIndex = next.cliOutput.length
+  // These tests are skipped when deployed as they rely on runtime logs
+  if (!isNextDeploy) {
+    describe('dynamic rendering', () => {
+      describe.each(['/force-dynamic', '/revalidate-0'])('%s', (basePath) => {
+        it('should not re-render layout when navigating between sub-pages', async () => {
+          const logStartIndex = next.cliOutput.length
 
-        const browser = await next.browser(`${basePath}/test-page`)
-        let initialRandomNumber = await browser
-          .elementById('random-number')
-          .text()
-        await browser
-          .elementByCss(`[href="${basePath}/test-page/sub-page"]`)
-          .click()
+          const browser = await next.browser(`${basePath}/test-page`)
+          let initialRandomNumber = await browser
+            .elementById('random-number')
+            .text()
+          await browser
+            .elementByCss(`[href="${basePath}/test-page/sub-page"]`)
+            .click()
 
-        await check(() => browser.hasElementByCssSelector('#sub-page'), true)
+          await check(() => browser.hasElementByCssSelector('#sub-page'), true)
 
-        const newRandomNumber = await browser
-          .elementById('random-number')
-          .text()
+          const newRandomNumber = await browser
+            .elementById('random-number')
+            .text()
 
-        expect(initialRandomNumber).toBe(newRandomNumber)
+          expect(initialRandomNumber).toBe(newRandomNumber)
 
-        await check(() => {
-          const logOccurrences =
-            next.cliOutput.slice(logStartIndex).split('re-fetching in layout')
-              .length - 1
+          await check(() => {
+            const logOccurrences =
+              next.cliOutput.slice(logStartIndex).split('re-fetching in layout')
+                .length - 1
 
-          return logOccurrences
-        }, 1)
-      })
+            return logOccurrences
+          }, 1)
+        })
 
-      it('should update search params following a link click', async () => {
-        const browser = await next.browser(`${basePath}/search-params`)
-        await check(
-          () => browser.elementById('search-params-data').text(),
-          /{}/
-        )
-        await browser.elementByCss('[href="?foo=true"]').click()
-        await check(
-          () => browser.elementById('search-params-data').text(),
-          /{"foo":"true"}/
-        )
-        await browser.elementByCss(`[href="${basePath}/search-params"]`).click()
-        await check(
-          () => browser.elementById('search-params-data').text(),
-          /{}/
-        )
-        await browser.elementByCss('[href="?foo=true"]').click()
-        await check(
-          () => browser.elementById('search-params-data').text(),
-          /{"foo":"true"}/
-        )
+        it('should update search params following a link click', async () => {
+          const browser = await next.browser(`${basePath}/search-params`)
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{}/
+          )
+          await browser.elementByCss('[href="?foo=true"]').click()
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{"foo":"true"}/
+          )
+          await browser
+            .elementByCss(`[href="${basePath}/search-params"]`)
+            .click()
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{}/
+          )
+          await browser.elementByCss('[href="?foo=true"]').click()
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{"foo":"true"}/
+          )
+        })
       })
     })
-  })
+  }
 
   describe('invalid URLs', () => {
     it('should not throw when an invalid URL is passed to Link', async () => {

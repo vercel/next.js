@@ -24,6 +24,7 @@ import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
+  NEXT_IS_PRERENDER_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
@@ -59,6 +60,7 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
     f: urlToUrlWithoutFlightMarker(url).toString(),
     c: undefined,
     i: false,
+    p: false,
   }
 }
 
@@ -156,6 +158,7 @@ export async function fetchServerResponse(
 
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
+    const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
     let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
 
     if (process.env.NODE_ENV === 'production') {
@@ -193,6 +196,7 @@ export async function fetchServerResponse(
       f: response.f,
       c: canonicalUrl,
       i: interception,
+      p: isPrerender,
     }
   } catch (err) {
     console.error(
@@ -206,6 +210,7 @@ export async function fetchServerResponse(
       f: url.toString(),
       c: undefined,
       i: false,
+      p: false,
     }
   }
 }

@@ -133,6 +133,8 @@ function prefixExistingPrefetchCacheEntry({
   const newCacheKey = createPrefetchCacheKey(url, nextUrl)
   prefetchCache.set(newCacheKey, existingCacheEntry)
   prefetchCache.delete(existingCacheKey)
+
+  return newCacheKey
 }
 
 /**
@@ -201,8 +203,28 @@ function createLazyPrefetchEntry({
       // TODO: `fetchServerResponse` should be more tighly coupled to these prefetch cache operations
       // to avoid drift between this cache key prefixing logic
       // (which is currently directly influenced by the server response)
+      let newCacheKey
+
       if (prefetchResponse.i) {
-        prefixExistingPrefetchCacheEntry({ url, nextUrl, prefetchCache })
+        // Determine if we need to prefix the cache key with the nextUrl
+        newCacheKey = prefixExistingPrefetchCacheEntry({
+          url,
+          nextUrl,
+          prefetchCache,
+        })
+      }
+
+      // If the prefetch was a cache hit, we want to update the existing cache entry to reflect that it was a full prefetch.
+      // This is because we know that a static response will contain the full RSC payload, and can be updated to respect the `static`
+      // staleTime.
+      if (prefetchResponse.p) {
+        const existingCacheEntry = prefetchCache.get(
+          // if we prefixed the cache key due to route interception, we want to use the new key. Otherwise we use the original key
+          newCacheKey ?? prefetchCacheKey
+        )
+        if (existingCacheEntry) {
+          existingCacheEntry.kind = PrefetchKind.FULL
+        }
       }
 
       return prefetchResponse
