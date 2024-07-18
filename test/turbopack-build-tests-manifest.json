@@ -15524,7 +15524,8 @@
     },
     "test/production/app-dir/subresource-integrity/subresource-integrity.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Subresource Integrity does not include nonce when not enabled",
         "Subresource Integrity includes a nonce value with bootstrap scripts when Content-Security-Policy header is defined",
         "Subresource Integrity includes a nonce value with inline scripts when Content-Security-Policy header is defined",
@@ -15532,7 +15533,6 @@
         "Subresource Integrity includes an integrity attribute on scripts",
         "Subresource Integrity throws when escape characters are included in nonce"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
