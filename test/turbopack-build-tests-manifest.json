@@ -9260,12 +9260,12 @@
     },
     "test/integration/externals-esm-loose/test/index.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Handle ESM externals with esmExternals: 'loose' production mode should render the ssg page",
         "Handle ESM externals with esmExternals: 'loose' production mode should render the ssr page",
         "Handle ESM externals with esmExternals: 'loose' production mode should render the static page"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
