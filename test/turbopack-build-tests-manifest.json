@@ -12669,12 +12669,12 @@
       "passed": [
         "Mixed getStaticProps and getServerSideProps error production mode should error when exporting getStaticPaths on a non-dynamic page"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Mixed getStaticProps and getServerSideProps error production mode should error when exporting both getStaticPaths and getServerSideProps",
         "Mixed getStaticProps and getServerSideProps error production mode should error when exporting both getStaticProps and getServerSideProps",
         "Mixed getStaticProps and getServerSideProps error production mode should error with getStaticProps but no default export"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
