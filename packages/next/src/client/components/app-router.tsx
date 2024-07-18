@@ -145,7 +145,6 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
       const url = new URL(addBasePath(href), location.href)
 
       if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
-        console.error('navigating!!', url.toString())
         window.next.__pendingUrl = url
       }
 
@@ -635,14 +634,11 @@ export default function AppRouter({
           uncaughtExceptionHandler
         )
       }
-    }, [actionQueue])
+    }, [])
   }
 
   return (
-    <ErrorBoundary
-      actionQueue={actionQueue}
-      errorComponent={globalErrorComponent}
-    >
+    <ErrorBoundary errorComponent={globalErrorComponent}>
       <Router actionQueue={actionQueue} assetPrefix={assetPrefix} />
     </ErrorBoundary>
   )

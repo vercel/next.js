@@ -5,7 +5,6 @@ import { usePathname } from './navigation'
 import { isNextRouterError } from './is-next-router-error'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
-import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
 
 const styles = {
   error: {
@@ -42,7 +41,6 @@ export interface ErrorBoundaryProps {
 interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
   pathname: string
   errorComponent: ErrorComponent
-  actionQueue?: AppRouterActionQueue
 }
 
 interface ErrorBoundaryHandlerState {
@@ -87,7 +85,6 @@ export class ErrorBoundaryHandler extends React.Component<
     state: ErrorBoundaryHandlerState
   ): ErrorBoundaryHandlerState | null {
     const { error } = state
-    const { actionQueue } = props
 
     // if we encounter a chunk load error while
     // a navigation is pending we shouldn't render
@@ -96,19 +93,15 @@ export class ErrorBoundaryHandler extends React.Component<
     // a stale deploy and hard navigating can correct
     if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
       if (
-        error &&
-        typeof error === 'object' &&
-        error.name === 'ChunkLoadError' &&
-        actionQueue?.state?.pushRef?.pendingPush &&
-        actionQueue.state.nextUrl &&
-        actionQueue.state.nextUrl !==
-          createHrefFromUrl(new URL(window.location.href))
+        window.next.__pendingUrl &&
+        createHrefFromUrl(new URL(window.location.href)) !==
+          window.next.__pendingUrl
       ) {
         console.error(
           `Encountered ChunkLoadError falling back to hard navigation`,
           error
         )
-        window.location.href = actionQueue.state.nextUrl
+        window.location.href = window.next.__pendingUrl
         // clear error so we don't render anything
         return {
           error: null,
@@ -201,16 +194,13 @@ export function ErrorBoundary({
   errorStyles,
   errorScripts,
   children,
-  actionQueue,
 }: ErrorBoundaryProps & {
   children: React.ReactNode
-  actionQueue?: AppRouterActionQueue
 }): JSX.Element {
   const pathname = usePathname()
   if (errorComponent) {
     return (
       <ErrorBoundaryHandler
-        actionQueue={actionQueue}
         pathname={pathname}
         errorComponent={errorComponent}
         errorStyles={errorStyles}
