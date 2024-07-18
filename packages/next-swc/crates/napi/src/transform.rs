@@ -37,7 +37,9 @@ use std::{
 use anyhow::{anyhow, bail, Context as _};
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
-use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
+use next_custom_transforms::chain_transforms::{
+    custom_after_pass, custom_before_pass, TransformOptions,
+};
 use once_cell::sync::Lazy;
 use turbopack_binding::swc::core::{
     base::{try_with_handler, Compiler, TransformOutput},
@@ -137,15 +139,23 @@ impl Task for TransformTask {
                                 comments.clone(),
                                 |_| {
                                     custom_before_pass(
-                                        cm,
-                                        file,
+                                        cm.clone(),
+                                        file.clone(),
                                         &options,
                                         comments.clone(),
                                         eliminated_packages.clone(),
                                         unresolved_mark,
                                     )
                                 },
-                                |_| custom_after_pass(cm, file, &opts, comments, unresolved_mark),
+                                |_| {
+                                    custom_after_pass(
+                                        cm.clone(),
+                                        file.clone(),
+                                        &options,
+                                        comments.clone(),
+                                        unresolved_mark,
+                                    )
+                                },
                             )
                         })
                     },
