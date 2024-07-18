@@ -161,12 +161,12 @@ pub struct DefineEnv {
     pub nodejs: Vec<(RcStr, RcStr)>,
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
+#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug)]
 pub struct Middleware {
     pub endpoint: Vc<Box<dyn Endpoint>>,
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
+#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug)]
 pub struct Instrumentation {
     pub node_js: Vc<Box<dyn Endpoint>>,
     pub edge: Vc<Box<dyn Endpoint>>,

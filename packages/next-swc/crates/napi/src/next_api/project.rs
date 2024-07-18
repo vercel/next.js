@@ -22,7 +22,9 @@ use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
-use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
+use turbo_tasks::{
+    Completion, RcStr, ReadRef, TransientInstance, TurboTasks, UpdateInfo, ValueToString, Vc,
+};
 use turbopack_binding::{
     turbo::{
         tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath},
@@ -33,10 +35,13 @@ use turbopack_binding::{
             diagnostics::PlainDiagnostic,
             error::PrettyPrintError,
             issue::PlainIssue,
+            module::Module,
+            reference::ModuleReference,
             source_map::Token,
             version::{PartialUpdate, TotalUpdate, Update, VersionState},
             SOURCE_MAP_PREFIX,
         },
+        ecmascript::references,
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
         trace_utils::{
             exit::{ExitHandler, ExitReceiver},
@@ -1083,6 +1088,70 @@ pub async fn project_trace_source(
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(traced_frame)
+}
+
+async fn travese_modules(module: Vc<Box<dyn Module>>, depth: u32) -> Result<()> {
+    async fn inner(module: Vc<Box<dyn Module>>, depth: u32) -> Result<()> {
+        if depth > 8 {
+            return Ok(());
+        }
+        eprintln!(
+            "{}{}",
+            "\t".repeat(depth as usize),
+            module.ident().to_string().await?
+        );
+        let references = module.references();
+        for reference in references.await? {
+            let resolved_reference = reference.resolve_reference();
+            for module in resolved_reference.await?.primary_modules_iter() {
+                Box::pin(inner(module, depth + 1)).await?;
+            }
+        }
+        Ok(())
+    }
+
+    Box::pin(inner(module, depth)).await
+}
+
+// NOTE: WIP!!
+#[napi]
+pub async fn project_generate_global_information(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<Option<String>> {
+    let container = project.container;
+    let turbo_tasks = project.turbo_tasks.clone();
+
+    turbo_tasks
+        .run_once(async move {
+            let entrypoints = container.entrypoints().await?;
+
+            for (path, mut _entrypoint) in entrypoints.routes.iter() {
+                dbg!(path);
+                match _entrypoint {
+                    Route::Page {
+                        ref html_endpoint,
+                        ref data_endpoint,
+                    } => {
+                        dbg!("Page");
+                        let html_module = html_endpoint.process_module();
+                        dbg!("HTML references");
+                        travese_modules(html_module, 0).await?;
+                        let data_module = data_endpoint.process_module();
+                        dbg!("Data references");
+                        travese_modules(data_module, 0).await?;
+                        dbg!("Finished page")
+                    }
+                    Route::PageApi { .. } => dbg!("PageApi"),
+                    Route::AppPage(_) => dbg!("AppPage"),
+                    Route::AppRoute { .. } => dbg!("AppRoute"),
+                    Route::Conflict => dbg!("Conflict"),
+                };
+            }
+
+            Ok(Some("Message sent from Rust".to_string()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
 }
 
 #[napi]

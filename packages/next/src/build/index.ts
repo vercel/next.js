@@ -1464,6 +1464,10 @@ export default async function build(
           )
         }
 
+        const res_await = await project.generateGlobalInformation()
+        console.log(res_await)
+        console.log('Finished generateGlobalInformation')
+
         for (const [page, route] of currentEntrypoints.page) {
           enqueue(() =>
             handleRouteType({

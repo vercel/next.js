@@ -668,6 +668,8 @@ export interface Project {
     TurbopackResult<HmrIdentifiers>
   >
 
+  generateGlobalInformation(): Promise<string | null>
+
   getSourceForAsset(filePath: string): Promise<string | null>
 
   traceSource(
@@ -1072,6 +1074,10 @@ function bindingToApi(
       stackFrame: TurbopackStackFrame
     ): Promise<TurbopackStackFrame | null> {
       return binding.projectTraceSource(this._nativeProject, stackFrame)
+    }
+
+    generateGlobalInformation(): Promise<string | null> {
+      return binding.projectGenerateGlobalInformation(this._nativeProject)
     }
 
     getSourceForAsset(filePath: string): Promise<string | null> {
