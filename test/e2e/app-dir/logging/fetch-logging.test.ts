@@ -126,13 +126,12 @@ describe('app-dir - logging', () => {
           const outputIndex = next.cliOutput.length
           await next.fetch('/default-cache')
 
+          const expectedUrl = withFullUrlFetches
+            ? 'https://next-data-api-endpoint.vercel.app/api/random'
+            : 'https://next-data-api-en../api/random'
+
           await retry(() => {
             const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-
-            const expectedUrl = withFullUrlFetches
-              ? 'https://next-data-api-endpoint.vercel.app/api/random'
-              : 'https://next-data-api-en../api/random'
-
             expect(logs).toIncludeRepeated(' GET /default-cache', 1)
             expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
             expect(logs).toIncludeRepeated(' │ │ Cache skipped reason', 3)
@@ -194,6 +193,22 @@ describe('app-dir - logging', () => {
           expect(logs).toContain('GET /headers')
           expect(logs).not.toContain('/_next/static')
           expect(logs).not.toContain('?_rsc')
+        })
+
+        it('should log requests for client-side navigations', async () => {
+          const outputIndex = next.cliOutput.length
+          const browser = await next.browser('/')
+          await browser.elementById('nav-default-cache').click()
+          await browser.waitForElementByCss('h1')
+
+          const expectedUrl = withFullUrlFetches
+            ? 'https://next-data-api-endpoint.vercel.app/api/random'
+            : 'https://next-data-api-en../api/random'
+
+          await retry(() => {
+            const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
+          })
         })
       }
     } else {
