@@ -32,6 +32,7 @@ lazy_static = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 rustc-hash = { workspace = true }
+remove_console = "0.25.15"
 turbopack-binding = { workspace = true, features = [
   "__swc_transform_modularize_imports",
   "__swc_transform_relay",
