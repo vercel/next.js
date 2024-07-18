@@ -41,6 +41,8 @@
     "image.d.ts",
     "link.js",
     "link.d.ts",
+    "form.js",
+    "form.d.ts",
     "router.js",
     "router.d.ts",
     "jest.js",
