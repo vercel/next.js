@@ -3021,6 +3021,7 @@ dependencies = [
  "next-custom-transforms",
  "once_cell",
  "qstring",
+ "react_remove_properties",
  "regex",
  "remove_console",
  "rustc-hash",

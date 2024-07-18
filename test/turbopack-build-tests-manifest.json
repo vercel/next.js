@@ -15927,8 +15927,8 @@
       "runtimeError": false
     },
     "test/production/jest/remove-react-properties/remove-react-properties-jest.test.ts": {
-      "passed": [],
-      "failed": ["next/jest data-testid should be removed in production"],
+      "passed": ["next/jest data-testid should be removed in production"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": true
