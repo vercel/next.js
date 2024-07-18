@@ -107,7 +107,15 @@ fn test(input: &Path, minify: bool) {
                         unresolved_mark,
                     )
                 },
-                |_| custom_after_pass(cm, fm.clone(), &options, comments.clone(), unresolved_mark),
+                |_| {
+                    custom_after_pass(
+                        cm.clone(),
+                        fm.clone(),
+                        &options,
+                        comments.clone(),
+                        unresolved_mark,
+                    )
+                },
             ) {
                 Ok(v) => {
                     NormalizedOutput::from(v.code)
