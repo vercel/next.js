@@ -86,22 +86,22 @@ export class ErrorBoundaryHandler extends React.Component<
   ): ErrorBoundaryHandlerState | null {
     const { error } = state
 
-    // if we encounter a chunk load error while
+    // if we encounter an error while
     // a navigation is pending we shouldn't render
     // the error boundary and instead should fallback
-    // to a hard navigation as the chunk might be from
-    // a stale deploy and hard navigating can correct
+    // to a hard navigation to attempt recovering
     if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
       if (
+        typeof window !== 'undefined' &&
         window.next.__pendingUrl &&
         createHrefFromUrl(new URL(window.location.href)) !==
-          window.next.__pendingUrl
+          createHrefFromUrl(window.next.__pendingUrl)
       ) {
         console.error(
           `Encountered ChunkLoadError falling back to hard navigation`,
           error
         )
-        window.location.href = window.next.__pendingUrl
+        window.location.href = window.next.__pendingUrl.toString()
         // clear error so we don't render anything
         return {
           error: null,

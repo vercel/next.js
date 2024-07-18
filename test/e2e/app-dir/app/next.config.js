@@ -7,7 +7,6 @@ module.exports = {
     parallelServerCompiles: true,
     parallelServerBuildTraces: true,
     webpackBuildWorker: true,
-    appNavFailHandling: true,
   },
   webpack(cfg) {
     if (process.env.NEXT_PRIVATE_FLYING_SHUTTLE) {

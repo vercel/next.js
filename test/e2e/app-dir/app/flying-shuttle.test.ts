@@ -1,9 +1,10 @@
 import fs from 'fs'
 import path from 'path'
-import { nextTestSetup, isNextStart } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { nextTestSetup, isNextStart } from 'e2e-utils'
 
 // This feature is only relevant to Webpack.
+import { Route } from 'playwright'
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'should output updated trace files',
   () => {
@@ -70,6 +71,35 @@ import { retry } from 'next-test-utils'
           expect(typeof traceFile.fileHashes[key]).toBe('string')
         }
       }
+    })
+
+    it('should hard navigate on chunk load failure', async () => {
+      let blockChunks = false
+      const browser = await next.browser('/dashboard', {
+        beforePageLoad(page) {
+          page.route('**/_next/static/**', async (route: Route) => {
+            if (blockChunks) {
+              return route.abort()
+            }
+            return route.continue()
+          })
+        },
+      })
+
+      await retry(async () => {
+        expect(await browser.eval('!!next.router.push')).toBe(true)
+      })
+      blockChunks = true
+      await browser.eval('window.beforeNav = 1')
+      await browser.eval('next.router.push("/dynamic-client/first/second")')
+
+      await retry(async () => {
+        expect(
+          await browser.eval('document.documentElement.innerHTML')
+        ).toContain('button on app/dynamic-client')
+      })
+      // since we hard navigate on failure global scope should be cleared
+      expect(await browser.eval('window.beforeNav')).toBeFalsy()
     })
 
     async function checkAppPagesNavigation() {

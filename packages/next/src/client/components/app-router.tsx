@@ -55,6 +55,7 @@ import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
 import { getSelectedParams } from './router-reducer/compute-changed-path'
 import type { FlightRouterState } from '../../server/app-render/types'
+import { useNavFailureHandler } from './nav-failure-handler'
 import { useServerActionDispatcher } from '../app-call-server'
 import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
 
@@ -602,40 +603,7 @@ export default function AppRouter({
   globalErrorComponent: ErrorComponent
   assetPrefix: string
 }) {
-  if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
-    // this if is only for DCE of the feature flag not conditional
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useEffect(() => {
-      const uncaughtExceptionHandler = (
-        evt: ErrorEvent | PromiseRejectionEvent
-      ) => {
-        const error = 'reason' in evt ? evt.reason : evt.error
-        // if we have an unhandled exception/rejection during
-        // a navigation we fall back to a hard navigation to
-        // attempt recovering to a good state
-        if (
-          window.next.__pendingUrl &&
-          createHrefFromUrl(new URL(window.location.href)) !==
-            window.next.__pendingUrl
-        ) {
-          console.error(
-            `Error occurred during navigation, falling back to hard navigation`,
-            error
-          )
-          window.location.href = window.next.__pendingUrl.toString()
-        }
-      }
-      window.addEventListener('unhandledrejection', uncaughtExceptionHandler)
-      window.addEventListener('error', uncaughtExceptionHandler)
-      return () => {
-        window.removeEventListener('error', uncaughtExceptionHandler)
-        window.removeEventListener(
-          'unhandledrejection',
-          uncaughtExceptionHandler
-        )
-      }
-    }, [])
-  }
+  useNavFailureHandler()
 
   return (
     <ErrorBoundary errorComponent={globalErrorComponent}>
