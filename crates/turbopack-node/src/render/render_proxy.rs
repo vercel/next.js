@@ -5,8 +5,10 @@ use futures::{
     pin_mut, SinkExt, StreamExt, TryStreamExt,
 };
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    duration_span, mark_finished, prevent_gc, util::SharedError, RawVc, RcStr, ValueToString, Vc,
+    duration_span, mark_finished, prevent_gc, util::SharedError, RawVc, RcStr, TaskInput,
+    ValueToString, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -44,7 +46,7 @@ pub async fn render_proxy(
     body: Vc<Body>,
     debug: bool,
 ) -> Result<Vc<ProxyResult>> {
-    let render = render_stream(
+    let render = render_stream(RenderStreamOptions {
         cwd,
         env,
         path,
@@ -57,7 +59,7 @@ pub async fn render_proxy(
         data,
         body,
         debug,
-    )
+    })
     .await?;
 
     let mut stream = render.read();
@@ -146,8 +148,8 @@ struct RenderStreamSender {
 #[turbo_tasks::value(transparent)]
 struct RenderStream(#[turbo_tasks(trace_ignore)] Stream<RenderItemResult>);
 
-#[turbo_tasks::function]
-fn render_stream(
+#[derive(Clone, Debug, TaskInput, PartialEq, Eq, Hash, Serialize, Deserialize)]
+struct RenderStreamOptions {
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
     path: Vc<FileSystemPath>,
@@ -160,7 +162,10 @@ fn render_stream(
     data: Vc<RenderData>,
     body: Vc<Body>,
     debug: bool,
-) -> Vc<RenderStream> {
+}
+
+#[turbo_tasks::function]
+fn render_stream(options: RenderStreamOptions) -> Vc<RenderStream> {
     // TODO: The way we invoke render_stream_internal as side effect is not
     // GC-safe, so we disable GC for this task.
     prevent_gc();
@@ -180,17 +185,7 @@ fn render_stream(
 
     // run the evaluation as side effect
     let _ = render_stream_internal(
-        cwd,
-        env,
-        path,
-        module,
-        runtime_entries,
-        chunking_context,
-        intermediate_output_path,
-        output_root,
-        project_dir,
-        data,
-        body,
+        options,
         RenderStreamSender {
             get: Box::new(move || {
                 if let Some(sender) = initial.lock().take() {
@@ -205,7 +200,6 @@ fn render_stream(
             }),
         }
         .cell(),
-        debug,
     );
 
     let raw: RawVc = cell.into();
@@ -214,20 +208,24 @@ fn render_stream(
 
 #[turbo_tasks::function]
 async fn render_stream_internal(
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    path: Vc<FileSystemPath>,
-    module: Vc<Box<dyn Module>>,
-    runtime_entries: Vc<EvaluatableAssets>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: Vc<FileSystemPath>,
-    output_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
-    data: Vc<RenderData>,
-    body: Vc<Body>,
+    options: RenderStreamOptions,
     sender: Vc<RenderStreamSender>,
-    debug: bool,
 ) -> Result<Vc<()>> {
+    let RenderStreamOptions {
+        cwd,
+        env,
+        path,
+        module,
+        runtime_entries,
+        chunking_context,
+        intermediate_output_path,
+        output_root,
+        project_dir,
+        data,
+        body,
+        debug,
+    } = options;
+
     mark_finished();
     let Ok(sender) = sender.await else {
         // Impossible to handle the error in a good way.

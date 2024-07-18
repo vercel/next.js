@@ -27,20 +27,20 @@ impl InnerAssets {
 // behavior.
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Hash)]
 pub enum CommonJsReferenceSubType {
     Custom(u8),
     Undefined,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Hash)]
 pub enum ImportWithType {
     Json,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Default, Clone, PartialOrd, Ord, Hash)]
+#[derive(Debug, Default, Clone, Hash)]
 pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(Vc<ModulePart>),
     Import,
@@ -163,7 +163,7 @@ impl ImportContext {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Hash)]
 pub enum CssReferenceSubType {
     AtImport(Option<Vc<ImportContext>>),
     Compose,
@@ -178,7 +178,7 @@ pub enum CssReferenceSubType {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Hash)]
 pub enum UrlReferenceSubType {
     EcmaScriptNewUrl,
     CssUrl,
@@ -187,7 +187,7 @@ pub enum UrlReferenceSubType {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Hash)]
 pub enum TypeScriptReferenceSubType {
     Custom(u8),
     Undefined,
@@ -196,7 +196,7 @@ pub enum TypeScriptReferenceSubType {
 // TODO(sokra) this was next.js specific values. We want to solve this in a
 // different way.
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Hash)]
 pub enum EntryReferenceSubType {
     Web,
     Page,
@@ -212,7 +212,7 @@ pub enum EntryReferenceSubType {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Hash)]
 pub enum ReferenceType {
     CommonJs(CommonJsReferenceSubType),
     EcmaScriptModules(EcmaScriptModulesReferenceSubType),

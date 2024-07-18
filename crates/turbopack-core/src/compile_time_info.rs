@@ -75,7 +75,7 @@ macro_rules! free_var_references {
 // TODO: replace with just a `serde_json::Value`
 // https://linear.app/vercel/issue/WEB-1641/compiletimedefinevalue-should-just-use-serde-jsonvalue
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Hash)]
 pub enum CompileTimeDefineValue {
     Bool(bool),
     String(RcStr),

@@ -11,7 +11,7 @@ use turbo_tasks_fs::{
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(PartialOrd, Ord, Hash, Clone, Debug, Default)]
+#[derive(Hash, Clone, Debug, Default)]
 pub enum Pattern {
     Constant(RcStr),
     #[default]
@@ -764,10 +764,24 @@ impl ValueToString for Pattern {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, TraceRawVcs, Serialize, Deserialize)]
 pub enum PatternMatch {
     File(RcStr, Vc<FileSystemPath>),
     Directory(RcStr, Vc<FileSystemPath>),
+}
+
+impl PatternMatch {
+    pub fn path(&self) -> Vc<FileSystemPath> {
+        match *self {
+            PatternMatch::File(_, path) | PatternMatch::Directory(_, path) => path,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            PatternMatch::File(name, _) | PatternMatch::Directory(name, _) => name.as_str(),
+        }
+    }
 }
 
 // TODO this isn't super efficient
@@ -1087,7 +1101,7 @@ pub async fn read_matches(
         for (pos, nested) in nested.into_iter() {
             results.extend(nested.await?.iter().cloned().map(|p| (pos, p)));
         }
-        results.sort();
+        results.sort_by(|(a, am), (b, bm)| (*a).cmp(b).then_with(|| am.name().cmp(bm.name())));
         Ok(Vc::cell(
             results.into_iter().map(|(_, p)| p).collect::<Vec<_>>(),
         ))

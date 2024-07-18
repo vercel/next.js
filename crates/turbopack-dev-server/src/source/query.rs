@@ -21,21 +21,6 @@ impl Query {
     }
 }
 
-impl PartialOrd for Query {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Query {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0
-            .len()
-            .cmp(&other.0.len())
-            .then_with(|| self.0.iter().cmp(other.0.iter()))
-    }
-}
-
 impl std::ops::Deref for Query {
     type Target = BTreeMap<String, QueryValue>;
     fn deref(&self) -> &Self::Target {
@@ -49,9 +34,7 @@ impl DerefMut for Query {
     }
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TraceRawVcs, Serialize, Deserialize,
-)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum QueryValue {
     /// Simple string value, might be an empty string when there is no value

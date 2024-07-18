@@ -18,12 +18,13 @@ use tracing::Span;
 pub use crate::id::{BackendJobId, ExecutionId};
 use crate::{
     event::EventListener,
+    magic_any::MagicAny,
     manager::TurboTasksBackendApi,
     raw_vc::CellId,
     registry,
     trait_helpers::{get_trait_method, has_trait, traits},
-    ConcreteTaskInput, FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdProvider,
-    TaskIdSet, TraitRef, TraitTypeId, ValueTypeId, VcValueTrait, VcValueType,
+    FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdProvider, TaskIdSet, TraitRef,
+    TraitTypeId, ValueTypeId, VcValueTrait, VcValueType,
 };
 
 pub enum TaskType {
@@ -65,13 +66,13 @@ impl Debug for TransientTaskType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum PersistentTaskType {
     /// A normal task execution a native (rust) function
     Native {
         fn_type: FunctionId,
         this: Option<RawVc>,
-        arg: ConcreteTaskInput,
+        arg: Box<dyn MagicAny>,
     },
 
     /// A resolve task, which resolves arguments and calls the function with
@@ -79,7 +80,7 @@ pub enum PersistentTaskType {
     ResolveNative {
         fn_type: FunctionId,
         this: Option<RawVc>,
-        arg: ConcreteTaskInput,
+        arg: Box<dyn MagicAny>,
     },
 
     /// A trait method resolve task. It resolves the first (`self`) argument and
@@ -90,7 +91,7 @@ pub enum PersistentTaskType {
         trait_type: TraitTypeId,
         method_name: Cow<'static, str>,
         this: RawVc,
-        arg: ConcreteTaskInput,
+        arg: Box<dyn MagicAny>,
     },
 }
 
@@ -100,28 +101,206 @@ impl Display for PersistentTaskType {
     }
 }
 
-impl PersistentTaskType {
-    pub fn shrink_to_fit(&mut self) {
-        match self {
-            Self::Native {
-                fn_type: _,
-                this: _,
-                arg,
-            } => arg.shrink_to_fit(),
-            Self::ResolveNative {
-                fn_type: _,
-                this: _,
-                arg,
-            } => arg.shrink_to_fit(),
-            Self::ResolveTrait {
-                trait_type: _,
-                method_name: _,
-                this: _,
-                arg,
-            } => arg.shrink_to_fit(),
+mod ser {
+    use serde::{
+        ser::{SerializeSeq, SerializeTuple},
+        Deserialize, Deserializer, Serialize, Serializer,
+    };
+
+    use super::*;
+
+    enum FunctionAndArg<'a> {
+        Owned {
+            fn_type: FunctionId,
+            arg: Box<dyn MagicAny>,
+        },
+        Borrowed {
+            fn_type: FunctionId,
+            arg: &'a dyn MagicAny,
+        },
+    }
+
+    impl<'a> Serialize for FunctionAndArg<'a> {
+        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let FunctionAndArg::Borrowed { fn_type, arg } = self else {
+                unreachable!();
+            };
+            let mut state = serializer.serialize_seq(Some(2))?;
+            state.serialize_element(&fn_type)?;
+            let arg = *arg;
+            let arg = registry::get_function(*fn_type).arg_meta.as_serialize(arg);
+            state.serialize_element(arg)?;
+            state.end()
         }
     }
 
+    impl<'de> Deserialize<'de> for FunctionAndArg<'de> {
+        fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            struct Visitor;
+            impl<'de> serde::de::Visitor<'de> for Visitor {
+                type Value = FunctionAndArg<'de>;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    write!(formatter, "a valid PersistentTaskType")
+                }
+
+                fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
+                where
+                    A: serde::de::SeqAccess<'de>,
+                {
+                    let fn_type = seq
+                        .next_element()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                    let seed = registry::get_function(fn_type)
+                        .arg_meta
+                        .deserialization_seed();
+                    let arg = seq
+                        .next_element_seed(seed)?
+                        .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                    Ok(FunctionAndArg::Owned { fn_type, arg })
+                }
+            }
+            deserializer.deserialize_seq(Visitor)
+        }
+    }
+
+    impl Serialize for PersistentTaskType {
+        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: ser::Serializer,
+        {
+            match self {
+                PersistentTaskType::Native { fn_type, this, arg } => {
+                    let mut s = serializer.serialize_seq(Some(3))?;
+                    s.serialize_element::<u8>(&0)?;
+                    s.serialize_element(&FunctionAndArg::Borrowed {
+                        fn_type: *fn_type,
+                        arg,
+                    })?;
+                    s.serialize_element(this)?;
+                    s.end()
+                }
+                PersistentTaskType::ResolveNative { fn_type, this, arg } => {
+                    let mut s = serializer.serialize_seq(Some(3))?;
+                    s.serialize_element::<u8>(&1)?;
+                    s.serialize_element(&FunctionAndArg::Borrowed {
+                        fn_type: *fn_type,
+                        arg,
+                    })?;
+                    s.serialize_element(this)?;
+                    s.end()
+                }
+                PersistentTaskType::ResolveTrait {
+                    trait_type,
+                    method_name,
+                    this,
+                    arg,
+                } => {
+                    let mut s = serializer.serialize_tuple(5)?;
+                    s.serialize_element::<u8>(&2)?;
+                    s.serialize_element(trait_type)?;
+                    s.serialize_element(method_name)?;
+                    s.serialize_element(this)?;
+                    let arg = if let Some(method) =
+                        registry::get_trait(*trait_type).methods.get(method_name)
+                    {
+                        method.arg_serializer.as_serialize(arg)
+                    } else {
+                        return Err(serde::ser::Error::custom("Method not found"));
+                    };
+                    s.serialize_element(arg)?;
+                    s.end()
+                }
+            }
+        }
+    }
+
+    impl<'de> Deserialize<'de> for PersistentTaskType {
+        fn deserialize<D: ser::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            #[derive(Deserialize)]
+            enum VariantKind {
+                Native,
+                ResolveNative,
+                ResolveTrait,
+            }
+            struct Visitor;
+            impl<'de> serde::de::Visitor<'de> for Visitor {
+                type Value = PersistentTaskType;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    write!(formatter, "a valid PersistentTaskType")
+                }
+
+                fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
+                where
+                    A: serde::de::SeqAccess<'de>,
+                {
+                    let kind = seq
+                        .next_element::<u8>()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                    match kind {
+                        0 => {
+                            let FunctionAndArg::Owned { fn_type, arg } = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?
+                            else {
+                                unreachable!();
+                            };
+                            let this = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                            Ok(PersistentTaskType::Native { fn_type, this, arg })
+                        }
+                        1 => {
+                            let FunctionAndArg::Owned { fn_type, arg } = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?
+                            else {
+                                unreachable!();
+                            };
+                            let this = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                            Ok(PersistentTaskType::ResolveNative { fn_type, this, arg })
+                        }
+                        2 => {
+                            let trait_type = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                            let method_name = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                            let this = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                            let Some(method) =
+                                registry::get_trait(trait_type).methods.get(&method_name)
+                            else {
+                                return Err(serde::de::Error::custom("Method not found"));
+                            };
+                            let arg = seq
+                                .next_element_seed(method.arg_deserializer)?
+                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                            Ok(PersistentTaskType::ResolveTrait {
+                                trait_type,
+                                method_name,
+                                this,
+                                arg,
+                            })
+                        }
+                        _ => Err(serde::de::Error::custom("Invalid variant")),
+                    }
+                }
+            }
+            deserializer.deserialize_seq(Visitor)
+        }
+    }
+}
+
+impl PersistentTaskType {
     /// Returns the name of the function in the code. Trait methods are
     /// formatted as `TraitName::method_name`.
     ///
@@ -149,8 +328,8 @@ impl PersistentTaskType {
     }
 }
 
-pub struct TaskExecutionSpec {
-    pub future: Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>,
+pub struct TaskExecutionSpec<'a> {
+    pub future: Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'a>>,
     pub span: Span,
 }
 
@@ -232,11 +411,11 @@ pub trait Backend: Sync + Send {
         future: T,
     ) -> Self::ExecutionScopeFuture<T>;
 
-    fn try_start_task_execution(
-        &self,
+    fn try_start_task_execution<'a>(
+        &'a self,
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Option<TaskExecutionSpec>;
+    ) -> Option<TaskExecutionSpec<'a>>;
 
     fn task_execution_result(
         &self,
@@ -376,13 +555,13 @@ impl PersistentTaskType {
     pub async fn run_resolve_native<B: Backend + 'static>(
         fn_id: FunctionId,
         mut this: Option<RawVc>,
-        arg: ConcreteTaskInput,
+        arg: &dyn MagicAny,
         turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
     ) -> Result<RawVc> {
         if let Some(this) = this.as_mut() {
             *this = this.resolve().await?;
         }
-        let arg = arg.resolve().await?;
+        let arg = registry::get_function(fn_id).arg_meta.resolve(arg).await?;
         Ok(if let Some(this) = this {
             turbo_tasks.this_call(fn_id, this, arg)
         } else {
@@ -406,7 +585,7 @@ impl PersistentTaskType {
         trait_type: TraitTypeId,
         name: Cow<'static, str>,
         this: RawVc,
-        arg: ConcreteTaskInput,
+        arg: &dyn MagicAny,
         turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
     ) -> Result<RawVc> {
         let this = this.resolve().await?;
@@ -418,7 +597,10 @@ impl PersistentTaskType {
         };
 
         let native_fn = Self::resolve_trait_method_from_value(trait_type, this_ty, name)?;
-        let arg = arg.resolve().await?;
+        let arg = registry::get_function(native_fn)
+            .arg_meta
+            .resolve(arg)
+            .await?;
         Ok(turbo_tasks.dynamic_this_call(native_fn, this, arg))
     }
 
@@ -454,40 +636,6 @@ impl PersistentTaskType {
             }
         }
     }
-
-    pub fn run<B: Backend + 'static>(
-        self,
-        turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
-    ) -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> {
-        match self {
-            PersistentTaskType::Native {
-                fn_type: fn_id,
-                this,
-                arg,
-            } => {
-                let native_fn = registry::get_function(fn_id);
-                let bound = native_fn.bind(this, &arg);
-                (bound)()
-            }
-            PersistentTaskType::ResolveNative {
-                fn_type: fn_id,
-                this,
-                arg: inputs,
-            } => Box::pin(Self::run_resolve_native(fn_id, this, inputs, turbo_tasks)),
-            PersistentTaskType::ResolveTrait {
-                trait_type,
-                method_name: name,
-                this,
-                arg: inputs,
-            } => Box::pin(Self::run_resolve_trait(
-                trait_type,
-                name,
-                this,
-                inputs,
-                turbo_tasks,
-            )),
-        }
-    }
 }
 
 #[cfg(test)]
@@ -512,7 +660,7 @@ pub(crate) mod tests {
             PersistentTaskType::Native {
                 fn_type: *MOCK_FUNC_TASK_FUNCTION_ID,
                 this: None,
-                arg: Default::default()
+                arg: Box::new(()),
             }
             .get_name(),
             "mock_func_task",
@@ -522,7 +670,7 @@ pub(crate) mod tests {
                 trait_type: *MOCKTRAIT_TRAIT_TYPE_ID,
                 method_name: "mock_method_task".into(),
                 this: RawVc::TaskOutput(unsafe { TaskId::new_unchecked(1) }),
-                arg: Default::default()
+                arg: Box::new(()),
             }
             .get_name(),
             "MockTrait::mock_method_task",

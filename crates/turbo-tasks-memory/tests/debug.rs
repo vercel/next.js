@@ -27,7 +27,7 @@ async fn transparent_debug() {
 async fn enum_none_debug() {
     run! {
         let a: Vc<Enum> = Enum::None.cell();
-        assert_eq!(format!("{:?}", a.dbg().await?), "None");
+        assert_eq!(format!("{:?}", a.dbg().await?), "Enum::None");
     }
 }
 
@@ -35,7 +35,7 @@ async fn enum_none_debug() {
 async fn enum_transparent_debug() {
     run! {
         let a: Vc<Enum> = Enum::Transparent(Transparent(42).cell()).cell();
-        assert_eq!(format!("{:?}", a.dbg().await?), r#"Transparent(
+        assert_eq!(format!("{:?}", a.dbg().await?), r#"Enum::Transparent(
     42,
 )"#);
     }
@@ -45,8 +45,8 @@ async fn enum_transparent_debug() {
 async fn enum_inner_vc_debug() {
     run! {
         let a: Vc<Enum> = Enum::Enum(Enum::None.cell()).cell();
-        assert_eq!(format!("{:?}", a.dbg().await?), r#"Enum(
-    None,
+        assert_eq!(format!("{:?}", a.dbg().await?), r#"Enum::Enum(
+    Enum::None,
 )"#);
     }
 }

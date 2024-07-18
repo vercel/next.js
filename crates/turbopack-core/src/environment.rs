@@ -53,7 +53,7 @@ impl Environment {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(PartialOrd, Ord, Debug, Hash, Clone, Copy)]
+#[derive(Debug, Hash, Clone, Copy)]
 pub enum ExecutionEnvironment {
     NodeJsBuildTime(Vc<NodeJsEnvironment>),
     NodeJsLambda(Vc<NodeJsEnvironment>),

@@ -8,7 +8,7 @@ use turbopack_core::{
     source_pos::SourcePos,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ResourceIdentifier {
     pub path: String,
     pub headers: Option<BTreeMap<String, String>>,

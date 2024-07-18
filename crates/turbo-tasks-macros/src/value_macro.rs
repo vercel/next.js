@@ -241,7 +241,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 // effectively appending to. If there's not, rustdoc will strip
                 // the leading whitespace.
                 let doc_str = format!(
-                    "\n\nThis is a [transparent value type][::turbo_tasks::value#transparent] \
+                    "\n\nThis is a [transparent value type][turbo_tasks::value#transparent] \
                      wrapping [`{}`].",
                     inner_type_string,
                 );

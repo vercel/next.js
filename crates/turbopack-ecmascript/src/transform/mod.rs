@@ -26,7 +26,7 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Hash)]
 pub enum EcmascriptInputTransform {
     CommonJs,
     Plugin(Vc<TransformPlugin>),
@@ -100,7 +100,7 @@ impl CustomTransformer for TransformPlugin {
 }
 
 #[turbo_tasks::value(transparent, serialization = "auto_for_input")]
-#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Hash)]
 pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
 
 #[turbo_tasks::value_impl]

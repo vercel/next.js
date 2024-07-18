@@ -2,12 +2,13 @@
 //! However, we keep one test here as an integration test between the derive
 //! macro and the `#[turbo_tasks::function]` macro.
 
+use serde::{Deserialize, Serialize};
 use turbo_tasks::{Completion, TaskInput, Vc};
 use turbo_tasks_testing::{register, run};
 
 register!();
 
-#[derive(Clone, TaskInput)]
+#[derive(Clone, TaskInput, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 struct OneUnnamedField(u32);
 
 #[turbo_tasks::function]

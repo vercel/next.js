@@ -11,10 +11,11 @@ pub fn get_trait_method(
     if let Some(func) = registry::get_value_type(value_type).get_trait_method(&key) {
         Ok(*func)
     } else if let Some(func) = registry::get_trait(trait_type)
-        .default_trait_methods
+        .methods
         .get(&key.1)
+        .and_then(|method| method.default_method)
     {
-        Ok(*func)
+        Ok(func)
     } else {
         Err(key.1)
     }

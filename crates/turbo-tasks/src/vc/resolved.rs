@@ -20,12 +20,22 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::{vc::Vc, RcStr};
 
-#[derive(Copy, Clone)]
 pub struct ResolvedVc<T>
 where
     T: ?Sized + Send,
 {
     pub(crate) node: Vc<T>,
+}
+
+impl<T> Copy for ResolvedVc<T> where T: ?Sized + Send {}
+
+impl<T> Clone for ResolvedVc<T>
+where
+    T: ?Sized + Send,
+{
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl<T> Deref for ResolvedVc<T>
@@ -39,12 +49,34 @@ where
     }
 }
 
+impl<T> PartialEq<ResolvedVc<T>> for ResolvedVc<T>
+where
+    T: ?Sized + Send,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.node == other.node
+    }
+}
+
+impl<T> Eq for ResolvedVc<T> where T: ?Sized + Send {}
+
 impl<T> Hash for ResolvedVc<T>
 where
     T: ?Sized + Send,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.node.hash(state);
+    }
+}
+
+impl<T> std::fmt::Debug for ResolvedVc<T>
+where
+    T: Send,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResolvedVc")
+            .field("node", &self.node.node)
+            .finish()
     }
 }
 

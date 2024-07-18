@@ -134,7 +134,7 @@ impl Asset for EcmascriptDevChunkList {
     }
 }
 
-#[derive(Debug, Clone, Copy, Ord, PartialOrd, Hash)]
+#[derive(Debug, Clone, Copy, Hash)]
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[serde(rename_all = "camelCase")]
 pub enum EcmascriptDevChunkListSource {

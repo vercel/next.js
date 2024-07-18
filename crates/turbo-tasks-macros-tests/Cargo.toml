@@ -7,6 +7,7 @@ edition = "2021"
 
 [dev-dependencies]
 anyhow = { workspace = true }
+serde = { workspace = true }
 tokio = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-memory = { workspace = true }

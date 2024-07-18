@@ -32,7 +32,7 @@ fn modifier() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialOrd, Ord, Hash, Debug, Clone)]
+#[derive(Hash, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum MdxParseConstructs {
     Commonmark,
@@ -43,7 +43,7 @@ pub enum MdxParseConstructs {
 /// into mdxjs. This is thin, near straightforward subset of mdxjs::Options to
 /// enable turbo tasks.
 #[turbo_tasks::value(shared)]
-#[derive(PartialOrd, Ord, Hash, Debug, Clone)]
+#[derive(Hash, Debug, Clone)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MdxTransformOptions {
     pub development: Option<bool>,

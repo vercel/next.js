@@ -9,7 +9,7 @@ use super::{GetContentSourceContent, GetContentSourceContents};
 
 /// The type of the route. THis will decide about the remaining segements of the
 /// route after the base.
-#[derive(TaskInput, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs)]
 pub enum RouteType {
     Exact,
     CatchAll,
@@ -18,7 +18,7 @@ pub enum RouteType {
 }
 
 /// Some normal segment of a route.
-#[derive(TaskInput, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs)]
 pub enum BaseSegment {
     Static(RcStr),
     Dynamic,

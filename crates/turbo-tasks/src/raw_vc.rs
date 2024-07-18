@@ -35,7 +35,7 @@ pub enum ResolveTypeError {
     ReadError { source: anyhow::Error },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CellId {
     pub type_id: ValueTypeId,
     pub index: u32,
@@ -52,7 +52,7 @@ impl Display for CellId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RawVc {
     TaskOutput(TaskId),
     TaskCell(TaskId, CellId),

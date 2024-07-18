@@ -18,7 +18,7 @@ use turbo_tasks_macros_shared::{
     get_impl_function_ident, get_native_function_ident, get_path_ident,
     get_register_trait_methods_ident, get_register_value_type_ident,
     get_trait_default_impl_function_ident, get_trait_impl_function_ident, get_trait_type_ident,
-    get_type_ident, GenericTypeInput, PrimitiveInput, ValueTraitArguments,
+    get_type_ident, GenericTypeInput, PrimitiveInput,
 };
 
 pub fn generate_register() {
@@ -361,10 +361,10 @@ impl<'a> RegisterContext<'a> {
     }
 
     fn process_trait_inner(&mut self, trait_item: &ItemTrait) -> Result<()> {
-        if let Some(attr) = trait_item
+        if trait_item
             .attrs
             .iter()
-            .find(|a| is_turbo_attribute(a, "value_trait"))
+            .any(|a| is_turbo_attribute(a, "value_trait"))
         {
             let trait_ident = &trait_item.ident;
 
@@ -388,16 +388,6 @@ impl<'a> RegisterContext<'a> {
 
             let trait_type_ident = get_trait_type_ident(trait_ident);
             self.register(trait_type_ident, self.get_global_name(&[trait_ident]))?;
-
-            let trait_args: ValueTraitArguments = parse_attr_args(attr)?.unwrap_or_default();
-            if trait_args.debug {
-                self.register_debug_impl(
-                    &get_type_ident(&parse_quote! {
-                        Box<dyn #trait_ident>
-                    })
-                    .unwrap(),
-                )?;
-            }
         }
         Ok(())
     }
@@ -609,15 +599,4 @@ fn is_cfg_attribute(attr: &Attribute) -> bool {
     attr.path
         .get_ident()
         .is_some_and(|ident| ident == "cfg" || ident == "cfg_attr")
-}
-
-fn parse_attr_args<T>(attr: &Attribute) -> syn::Result<Option<T>>
-where
-    T: syn::parse::Parse,
-{
-    if attr.tokens.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(attr.parse_args_with(T::parse)?))
-    }
 }

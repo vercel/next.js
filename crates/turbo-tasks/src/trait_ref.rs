@@ -48,18 +48,6 @@ impl<T> PartialEq for TraitRef<T> {
 
 impl<T> Eq for TraitRef<T> {}
 
-impl<T> PartialOrd for TraitRef<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<T> Ord for TraitRef<T> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.shared_reference.cmp(&other.shared_reference)
-    }
-}
-
 impl<T> std::hash::Hash for TraitRef<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.shared_reference.hash(state)

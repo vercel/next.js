@@ -392,7 +392,9 @@ impl ModuleResolveResultOption {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs, TaskInput)]
+#[derive(
+    Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, TraceRawVcs, TaskInput,
+)]
 pub enum ExternalType {
     Url,
     CommonJs,
@@ -425,7 +427,7 @@ pub enum ResolveResultItem {
 /// resolving. A primary factor is the actual request string, but there are
 /// other factors like exports conditions that can affect resolting and become
 /// part of the key (assuming the condition is unknown at compile time)
-#[derive(Clone, Debug, Default, Hash, Ord, PartialOrd)]
+#[derive(Clone, Debug, Default, Hash)]
 #[turbo_tasks::value(serialization = "auto_for_input")]
 pub struct RequestKey {
     pub request: Option<RcStr>,

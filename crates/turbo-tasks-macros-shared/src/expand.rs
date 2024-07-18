@@ -20,9 +20,9 @@ use syn::{
 /// These helpers should themselves call [generate_destructuring] to generate
 /// the destructure necessary to access the fields of the value.
 pub fn match_expansion<
-    EN: Fn(&Ident, &FieldsNamed) -> (TokenStream, TokenStream),
-    EU: Fn(&Ident, &FieldsUnnamed) -> (TokenStream, TokenStream),
-    U: Fn(&Ident) -> TokenStream,
+    EN: Fn(TokenStream, &FieldsNamed) -> (TokenStream, TokenStream),
+    EU: Fn(TokenStream, &FieldsUnnamed) -> (TokenStream, TokenStream),
+    U: Fn(TokenStream) -> TokenStream,
 >(
     derive_input: &DeriveInput,
     expand_named: &EN,
@@ -33,36 +33,48 @@ pub fn match_expansion<
     let expand_unit = move |ident| (TokenStream::new(), expand_unit(ident));
     match &derive_input.data {
         Data::Enum(DataEnum { variants, .. }) => {
-            let (variants_idents, (variants_fields_capture, expansion)): (
-                Vec<_>,
-                (Vec<_>, Vec<_>),
-            ) = variants
-                .iter()
-                .map(|variant| {
-                    (
-                        &variant.ident,
-                        expand_fields(
-                            &variant.ident,
-                            &variant.fields,
-                            expand_named,
-                            expand_unnamed,
-                            expand_unit,
-                        ),
-                    )
-                })
-                .unzip();
+            let (idents, (variants_fields_capture, expansion)): (Vec<_>, (Vec<_>, Vec<_>)) =
+                variants
+                    .iter()
+                    .map(|variant| {
+                        let variants_idents = &variant.ident;
+                        let ident = quote! { #ident::#variants_idents };
+                        (
+                            ident.clone(),
+                            expand_fields(
+                                ident,
+                                &variant.fields,
+                                expand_named,
+                                expand_unnamed,
+                                expand_unit,
+                            ),
+                        )
+                    })
+                    .unzip();
 
-            quote! {
-                match self {
-                    #(
-                        #ident::#variants_idents #variants_fields_capture => #expansion,
-                    )*
+            if idents.is_empty() {
+                let (_, expansion) = expand_unit(quote! { #ident });
+                quote! {
+                    #expansion
+                }
+            } else {
+                quote! {
+                    match self {
+                        #(
+                            #idents #variants_fields_capture => #expansion,
+                        )*
+                    }
                 }
             }
         }
         Data::Struct(DataStruct { fields, .. }) => {
-            let (captures, expansion) =
-                expand_fields(ident, fields, expand_named, expand_unnamed, expand_unit);
+            let (captures, expansion) = expand_fields(
+                quote! { #ident },
+                fields,
+                expand_named,
+                expand_unnamed,
+                expand_unit,
+            );
 
             if fields.is_empty() {
                 assert!(captures.is_empty());
@@ -100,12 +112,12 @@ pub fn match_expansion<
 pub fn expand_fields<
     'ident,
     'fields,
-    EN: Fn(&'ident Ident, &'fields FieldsNamed) -> R,
-    EU: Fn(&'ident Ident, &'fields FieldsUnnamed) -> R,
-    U: Fn(&'ident Ident) -> R,
+    EN: Fn(TokenStream, &'fields FieldsNamed) -> R,
+    EU: Fn(TokenStream, &'fields FieldsUnnamed) -> R,
+    U: Fn(TokenStream) -> R,
     R,
 >(
-    ident: &'ident Ident,
+    ident: TokenStream,
     fields: &'fields Fields,
     expand_named: EN,
     expand_unnamed: EU,

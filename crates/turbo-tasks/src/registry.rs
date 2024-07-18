@@ -31,7 +31,7 @@ static TRAIT_TYPES: Lazy<NoMoveVec<(&'static TraitType, &'static str)>> = Lazy::
 
 fn register_thing<
     K: TryFrom<NonZeroU64> + Deref<Target = u32> + Sync + Send + Copy,
-    V: Clone + Hash + Ord + Eq + Sync + Send + Copy,
+    V: Clone + Hash + Eq + Sync + Send + Copy,
     const INITIAL_CAPACITY_BITS: u32,
 >(
     global_name: &'static str,
@@ -54,7 +54,7 @@ fn register_thing<
 
 fn get_thing_id<
     K: From<u32> + Deref<Target = u32> + Sync + Send + Copy + Debug,
-    V: Clone + Hash + Ord + Eq + Debug + Sync + Send + Debug,
+    V: Clone + Hash + Eq + Debug + Sync + Send + Debug,
 >(
     value: V,
     map_by_value: &DashMap<V, K>,

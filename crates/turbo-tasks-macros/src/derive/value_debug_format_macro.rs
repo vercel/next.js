@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput, Field, FieldsNamed, FieldsUnnamed};
 use turbo_tasks_macros_shared::{generate_destructuring, match_expansion};
@@ -62,7 +62,7 @@ fn format_field(value: TokenStream2) -> TokenStream2 {
 
 /// Formats a struct or enum variant with named fields (e.g. `struct Foo {
 /// bar: u32 }`, `Foo::Bar { baz: u32 }`).
-fn format_named(ident: &Ident, fields: &FieldsNamed) -> (TokenStream2, TokenStream2) {
+fn format_named(ident: TokenStream2, fields: &FieldsNamed) -> (TokenStream2, TokenStream2) {
     let (captures, fields_idents) = generate_destructuring(fields.named.iter(), &filter_field);
     (
         captures,
@@ -70,13 +70,13 @@ fn format_named(ident: &Ident, fields: &FieldsNamed) -> (TokenStream2, TokenStre
             // this can happen if all fields are ignored, we must special-case this to avoid
             // rustc being unable to infer the type of an empty vec of futures
             quote! {
-                FormattingStruct::new_named(stringify!(#ident), vec![])
+                FormattingStruct::new_named(turbo_tasks::stringify_path!(#ident), vec![])
             }
         } else {
             let fields_values = fields_idents.iter().cloned().map(format_field);
             quote! {
                 FormattingStruct::new_named_async(
-                    stringify!(#ident),
+                    turbo_tasks::stringify_path!(#ident),
                     vec![#(
                         AsyncFormattingField::new(
                             stringify!(#fields_idents),
@@ -91,7 +91,7 @@ fn format_named(ident: &Ident, fields: &FieldsNamed) -> (TokenStream2, TokenStre
 
 /// Formats a struct or enum variant with unnamed fields (e.g. `struct
 /// Foo(u32)`, `Foo::Bar(u32)`).
-fn format_unnamed(ident: &Ident, fields: &FieldsUnnamed) -> (TokenStream2, TokenStream2) {
+fn format_unnamed(ident: TokenStream2, fields: &FieldsUnnamed) -> (TokenStream2, TokenStream2) {
     let (captures, fields_idents) = generate_destructuring(fields.unnamed.iter(), &filter_field);
     (
         captures,
@@ -99,13 +99,13 @@ fn format_unnamed(ident: &Ident, fields: &FieldsUnnamed) -> (TokenStream2, Token
             // this can happen if all fields are ignored, we must special-case this to avoid
             // rustc being unable to infer the type of an empty vec of futures
             quote! {
-                FormattingStruct::new_unnamed(stringify!(#ident), vec![])
+                FormattingStruct::new_unnamed(turbo_tasks::stringify_path!(#ident), vec![])
             }
         } else {
             let fields_values = fields_idents.into_iter().map(format_field);
             quote! {
                 FormattingStruct::new_unnamed_async(
-                    stringify!(#ident),
+                    turbo_tasks::stringify_path!(#ident),
                     vec![#(
                         #fields_values,
                     )*],
@@ -116,10 +116,10 @@ fn format_unnamed(ident: &Ident, fields: &FieldsUnnamed) -> (TokenStream2, Token
 }
 
 /// Formats a unit struct or enum variant (e.g. `struct Foo;`, `Foo::Bar`).
-fn format_unit(ident: &Ident) -> TokenStream2 {
+fn format_unit(ident: TokenStream2) -> TokenStream2 {
     quote! {
         FormattingStruct::new_unnamed(
-            stringify!(#ident),
+            turbo_tasks::stringify_path!(#ident),
             vec![],
         )
     }

@@ -232,24 +232,6 @@ where
 
 impl<T> Eq for Vc<T> where T: ?Sized + Send {}
 
-impl<T> PartialOrd<Vc<T>> for Vc<T>
-where
-    T: ?Sized + Send,
-{
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<T> Ord for Vc<T>
-where
-    T: ?Sized + Send,
-{
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.node.cmp(&other.node)
-    }
-}
-
 impl<T> Serialize for Vc<T>
 where
     T: ?Sized + Send,
@@ -384,6 +366,13 @@ where
         Ok(ResolvedVc {
             node: self.resolve().await?,
         })
+    }
+
+    /// Returns `true` if the reference is resolved.
+    ///
+    /// See also [`Vc::resolve`].
+    pub fn is_resolved(self) -> bool {
+        self.node.is_resolved()
     }
 
     /// Resolve the reference until it points to a cell directly in a strongly

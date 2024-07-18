@@ -27,7 +27,9 @@ fn layer() -> Vc<RcStr> {
     Vc::cell("external".into())
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs, TaskInput)]
+#[derive(
+    Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs, TaskInput, Hash,
+)]
 pub enum CachedExternalType {
     CommonJs,
     EcmaScriptViaRequire,

@@ -244,7 +244,7 @@ enum ChunkContentGraphNode {
     },
 }
 
-#[derive(Debug, Clone, Copy, TaskInput)]
+#[derive(Debug, Clone, Copy, TaskInput, PartialEq, Eq, Hash, Serialize, Deserialize)]
 enum ChunkGraphNodeToReferences {
     PassthroughChunkItem(Vc<Box<dyn ChunkItem>>),
     ChunkItem(Vc<Box<dyn ChunkItem>>),

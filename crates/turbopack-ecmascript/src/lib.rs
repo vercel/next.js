@@ -91,7 +91,7 @@ use crate::{
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(PartialOrd, Ord, Hash, Debug, Clone, Copy, Default, TaskInput)]
+#[derive(Hash, Debug, Clone, Copy, Default, TaskInput)]
 pub enum SpecifiedModuleType {
     #[default]
     Automatic,
@@ -124,7 +124,7 @@ pub enum TreeShakingMode {
 pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
-#[derive(PartialOrd, Ord, Hash, Debug, Default, Copy, Clone)]
+#[derive(Hash, Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
     pub refresh: bool,
     /// variant of tree shaking to use
@@ -150,7 +150,7 @@ pub struct EcmascriptOptions {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
+#[derive(Hash, Debug, Copy, Clone)]
 pub enum EcmascriptModuleAssetType {
     /// Module with EcmaScript code
     Ecmascript,

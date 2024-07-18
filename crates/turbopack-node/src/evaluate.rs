@@ -456,7 +456,7 @@ async fn basic_compute(
     compute(evaluate_context, sender).await
 }
 
-#[derive(Clone, PartialEq, Eq, TaskInput)]
+#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, Serialize, Deserialize)]
 struct BasicEvaluateContext {
     module_asset: Vc<Box<dyn Module>>,
     cwd: Vc<FileSystemPath>,
