@@ -1,10 +1,15 @@
 use std::mem::take;
 
-use swc_core::ecma::{
-    ast::{
-        ArrowExpr, AwaitExpr, BlockStmt, Expr, Function, Module, ModuleItem, Program, Script, Stmt,
+use swc_core::{
+    common::DUMMY_SP,
+    ecma::{
+        ast::{
+            ArrowExpr, AwaitExpr, BlockStmt, CallExpr, Expr, Function, Module, ModuleItem, Program,
+            Script, Stmt,
+        },
+        utils::ExprFactory,
+        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
     },
-    visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
 };
 
 /// Compiles top-level await into an async IIFE.
@@ -67,7 +72,7 @@ impl VisitMut for TlaIife {
         if self.found {
             let iife = create_iife(take(&mut n.body));
 
-            n.body = iife.body.unwrap().stmts;
+            n.body = vec![iife];
         }
     }
 
@@ -83,8 +88,8 @@ impl VisitMut for TlaIife {
     noop_visit_mut_type!();
 }
 
-fn create_iife(body: Vec<Stmt>) -> Box<Function> {
-    Box::new(Function {
+fn create_iife(body: Vec<Stmt>) -> Stmt {
+    let f = Box::new(Function {
         params: vec![],
         decorators: vec![],
         span: Default::default(),
@@ -96,5 +101,13 @@ fn create_iife(body: Vec<Stmt>) -> Box<Function> {
         is_generator: false,
         return_type: None,
         type_params: None,
-    })
+    });
+
+    CallExpr {
+        span: DUMMY_SP,
+        callee: f.as_callee(),
+        args: vec![],
+        type_args: None,
+    }
+    .into_stmt()
 }
