@@ -24,27 +24,24 @@ describe('app-dir - fetch warnings', () => {
     it('should log when request input is a string', async () => {
       await retry(() => {
         expect(next.cliOutput).toInclude(`
-   │ GET https://next-data-api-endpoint.vercel.app/api/random?request-string
-   │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.
-  `)
+ │ GET https://next-data-api-endpoint.vercel.app/api/random?request-string
+ │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
       })
     })
 
     it('should log when request input is a Request instance', async () => {
       await retry(() => {
         expect(next.cliOutput).toInclude(`
-   │ GET https://next-data-api-endpoint.vercel.app/api/random?request-input-cache-override
-   │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.
-  `)
+ │ GET https://next-data-api-endpoint.vercel.app/api/random?request-input-cache-override
+ │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
       })
     })
 
     it('should not log when overriding cache within the Request object', async () => {
       await retry(() => {
         expect(next.cliOutput).not.toInclude(`
-        │ GET https://next-data-api-endpoint.vercel.app/api/random?request-input
-        │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.
-        `)
+ │ GET https://next-data-api-endpoint.vercel.app/api/random?request-input
+ │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
       })
     })
   } else {
