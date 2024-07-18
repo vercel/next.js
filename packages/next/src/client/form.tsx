@@ -67,7 +67,7 @@ export default function Form({ replace, ...props }: FormProps) {
     // can that cause any problems with e.g. basePath?
     // WHAT about <base>, is that something we're handling at all?
 
-    const targetUrl = new URL(actionProp, window.location.origin)
+    const targetUrl = new URL(action, window.location.origin)
     if (targetUrl.searchParams.size) {
       // url-encoded HTML forms ignore any queryparams in the `action` url. We need to match that.
       // (note that all other parts of the URL, like `hash`, are preserved)
