@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use anyhow::{Context, Error};
 use js_sys::JsString;
-use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
+use next_custom_transforms::chain_transforms::{
+    custom_after_pass, custom_before_pass, TransformOptions,
+};
 use swc_core::common::Mark;
 use turbopack_binding::swc::core::{
     base::{
@@ -110,7 +112,7 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
                                     unresolved_mark,
                                 )
                             },
-                            |_| noop(),
+                            |_| custom_after_pass(cm, file, &opts, comments, unresolved_mark),
                         )
                         .context("failed to process js file")?
                     }

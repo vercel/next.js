@@ -25,6 +25,7 @@ use crate::transforms::{
     dynamic::{next_dynamic, NextDynamicMode},
     fonts::next_font_loaders,
     react_server_components,
+    tla_iife::tla_iife,
 };
 
 #[derive(Clone, Debug, Deserialize)]
@@ -109,6 +110,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub optimize_server_react: Option<crate::transforms::optimize_server_react::Config>,
+
+    #[serde(default)]
+    pub convert_tla_to_iife: bool,
 }
 
 pub fn custom_before_pass<'a, C>(
@@ -299,6 +303,19 @@ where
         },
         as_folder(crate::transforms::pure::pure_magic(comments)),
     )
+}
+
+pub fn custom_after_pass<'a, C>(
+    _cm: Arc<SourceMap>,
+    _file: Arc<SourceFile>,
+    opts: &'a TransformOptions,
+    _comments: C,
+    _unresolved_mark: Mark,
+) -> impl Fold + 'a
+where
+    C: Clone + Comments + 'a,
+{
+    Optional::new(tla_iife(), opts.convert_tla_to_iife)
 }
 
 impl TransformOptions {

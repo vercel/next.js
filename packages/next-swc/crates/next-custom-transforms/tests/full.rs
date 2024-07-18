@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
+use next_custom_transforms::chain_transforms::{
+    custom_after_pass, custom_before_pass, TransformOptions,
+};
 use serde::de::DeserializeOwned;
 use swc_core::ecma::parser::TsSyntax;
 use turbopack_binding::swc::{
@@ -81,6 +83,7 @@ fn test(input: &Path, minify: bool) {
                 optimize_barrel_exports: None,
                 optimize_server_react: None,
                 prefer_esm: false,
+                convert_tla_to_iife: false,
             };
 
             let unresolved_mark = Mark::new();
@@ -104,7 +107,7 @@ fn test(input: &Path, minify: bool) {
                         unresolved_mark,
                     )
                 },
-                |_| noop(),
+                |_| custom_after_pass(cm, fm.clone(), &options, comments.clone(), unresolved_mark),
             ) {
                 Ok(v) => {
                     NormalizedOutput::from(v.code)

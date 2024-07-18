@@ -4,8 +4,8 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::{
-            ArrowExpr, AwaitExpr, BlockStmt, CallExpr, Expr, Function, Module, ModuleItem, Program,
-            Script, Stmt,
+            ArrowExpr, AwaitExpr, BlockStmt, CallExpr, Expr, Function, Module, ModuleItem, Script,
+            Stmt,
         },
         utils::ExprFactory,
         visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
@@ -29,7 +29,7 @@ impl VisitMut for TlaIife {
         n.params.visit_mut_with(self);
     }
 
-    fn visit_mut_await_expr(&mut self, n: &mut AwaitExpr) {
+    fn visit_mut_await_expr(&mut self, _: &mut AwaitExpr) {
         self.found = true;
     }
 
