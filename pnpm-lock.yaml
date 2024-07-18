@@ -419,9 +419,6 @@ importers:
       postcss:
         specifier: 8.4.31
         version: 8.4.31
-      postcss-nested:
-        specifier: 4.2.1
-        version: 4.2.1
       postcss-pseudoelements:
         specifier: 5.0.0
         version: 5.0.0
@@ -11881,9 +11878,6 @@ packages:
     resolution: {integrity: sha512-ghS/ovDzDqARm4Zj6L2ntadjyQMoyJmi0JkLlYtH2QFLrvNlxH5OAVRPWPeKilB0pY7SbuhO173KOWkPAxRJcw==}
     peerDependencies:
       postcss: ^8.0.0
-
-  postcss-nested@4.2.1:
-    resolution: {integrity: sha512-AMayXX8tS0HCp4O4lolp4ygj9wBn32DJWXvG6gCv+ZvJrEa00GUxJcJEEzMh87BIe6FrWdYkpR2cuyqHKrxmXw==}
 
   postcss-nested@6.0.0:
     resolution: {integrity: sha512-0DkamqrPcmkBDsLn+vQDIrtkSbNkv5AD/M322ySo9kqFkCIYklym2xEmWkwo+Y3/qZo34tzEPNUw4y7yMCdv5w==}
@@ -28183,11 +28177,6 @@ snapshots:
       postcss-modules-scope: 3.0.0(postcss@8.4.31)
       postcss-modules-values: 4.0.0(postcss@8.4.31)
       string-hash: 1.1.3
-
-  postcss-nested@4.2.1:
-    dependencies:
-      postcss: 7.0.32
-      postcss-selector-parser: 6.0.10
 
   postcss-nested@6.0.0(postcss@8.4.31):
     dependencies:
