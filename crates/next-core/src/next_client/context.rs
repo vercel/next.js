@@ -280,7 +280,7 @@ pub async fn get_client_module_options_context(
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-        special_exports: next_js_special_exports(),
+        special_exports: Some(next_js_special_exports()),
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
         ..Default::default()

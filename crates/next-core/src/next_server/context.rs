@@ -490,7 +490,7 @@ pub async fn get_server_module_options_context(
         use_swc_css,
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         import_externals: *next_config.import_externals().await?,
-        special_exports: next_js_special_exports(),
+        special_exports: Some(next_js_special_exports()),
         ignore_dynamic_requests: true,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
         ..Default::default()
