@@ -164,7 +164,8 @@ export class NextDeployInstance extends NextInstance {
     // output other unrelated logs to stderr.
 
     // TODO: Combine with runtime logs (via `vercel logs`)
-    this._cliOutput = buildLogs.stdout
+    // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
+    this._cliOutput = buildLogs.stdout + buildLogs.stderr
   }
 
   public get cliOutput() {
