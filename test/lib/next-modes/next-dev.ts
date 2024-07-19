@@ -153,7 +153,7 @@ export class NextDevInstance extends NextInstance {
   public override async patchFile(
     filename: string,
     content: string | ((contents: string) => string),
-    retryWithTempContent?: (context: { newFile: boolean }) => Promise<void>
+    runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
   ) {
     const isServerRunning = this.childProcess && !this.isStopping
     const cliOutputLength = this.cliOutput.length
@@ -174,10 +174,10 @@ export class NextDevInstance extends NextInstance {
       }
     }
 
-    if (retryWithTempContent) {
+    if (runWithTempContent) {
       return super.patchFile(filename, content, async ({ newFile }) => {
         await waitForChanges({ newFile })
-        await retryWithTempContent({ newFile })
+        await runWithTempContent({ newFile })
       })
     }
 
