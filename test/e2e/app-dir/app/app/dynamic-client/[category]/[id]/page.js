@@ -19,7 +19,7 @@ export default function IdPage({ children, params }) {
       <p id="search-params">
         {JSON.stringify(Object.fromEntries(useSearchParams()))}
       </p>
-      <Button>Click me!!</Button>
+      <Button>button on app/dynamic-client</Button>
     </>
   )
 }
