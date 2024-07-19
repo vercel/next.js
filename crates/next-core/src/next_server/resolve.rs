@@ -80,9 +80,6 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         reference_type: Value<ReferenceType>,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
-        if *condition(self.root).matches(lookup_path).await? {
-            return Ok(ResolveResultOption::none());
-        }
         let request_value = &*request.await?;
         if !matches!(request_value, Request::Module { .. }) {
             return Ok(ResolveResultOption::none());
