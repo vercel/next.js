@@ -429,10 +429,11 @@ describe('app dir - metadata', () => {
       })
 
       // icon should be overridden and contain favicon.ico
-      expect($('link[rel="icon"]').attr('href').toArray()).toEqual([
-        '/favicon.ico',
-        'https://custom-icon-1.png',
-      ])
+      expect(
+        $('link[rel="icon"]')
+          .toArray()
+          .map((i) => i.attr('href'))
+      ).toEqual(['/favicon.ico', 'https://custom-icon-1.png'])
     })
   })
 
