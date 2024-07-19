@@ -3,8 +3,8 @@
 import React, { type JSX } from 'react'
 import { usePathname } from './navigation'
 import { isNextRouterError } from './is-next-router-error'
+import { handleHardNavError } from './nav-failure-handler'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
-import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 
 const styles = {
   error: {
@@ -91,17 +91,7 @@ export class ErrorBoundaryHandler extends React.Component<
     // the error boundary and instead should fallback
     // to a hard navigation to attempt recovering
     if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
-      if (
-        typeof window !== 'undefined' &&
-        window.next.__pendingUrl &&
-        createHrefFromUrl(new URL(window.location.href)) !==
-          createHrefFromUrl(window.next.__pendingUrl)
-      ) {
-        console.error(
-          `Encountered ChunkLoadError falling back to hard navigation`,
-          error
-        )
-        window.location.href = window.next.__pendingUrl.toString()
+      if (handleHardNavError(error)) {
         // clear error so we don't render anything
         return {
           error: null,

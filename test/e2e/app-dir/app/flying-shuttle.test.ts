@@ -1,10 +1,10 @@
 import fs from 'fs'
 import path from 'path'
+import type { Route } from 'playwright'
 import { retry } from 'next-test-utils'
 import { nextTestSetup, isNextStart } from 'e2e-utils'
 
 // This feature is only relevant to Webpack.
-import { Route } from 'playwright'
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'should output updated trace files',
   () => {
