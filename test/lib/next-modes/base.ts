@@ -69,7 +69,7 @@ export class NextInstance {
   public env: Record<string, string>
   public forcedPort?: string
   public dirSuffix: string = ''
-  public serverReadyPattern?: RegExp = /^\s* ✓ Ready in /
+  public serverReadyPattern?: RegExp = / ✓ Ready in /
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}

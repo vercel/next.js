@@ -167,9 +167,13 @@ export class NextDevInstance extends NextInstance {
         if (newFile) {
           await this.handleDevWatchDelayAfterChange(filename)
         } else if (filename.startsWith('next.config')) {
-          if (!this.cliOutput.slice(cliOutputLength).includes('Ready in')) {
-            throw new Error('Server has not finished restarting.')
-          }
+          await retry(async () => {
+            const cliOutput = this.cliOutput.slice(cliOutputLength)
+
+            if (!this.serverReadyPattern.test(cliOutput)) {
+              throw new Error('Server has not finished restarting.')
+            }
+          })
         }
       }
     }
