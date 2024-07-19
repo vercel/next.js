@@ -13,7 +13,7 @@ import type { OpenGraph } from './types/opengraph-types'
 import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
-import type { AbsoluteTemplateString } from './types/metadata-types'
+import type { AbsoluteTemplateString, IconDescriptor } from './types/metadata-types'
 import type { ParsedUrlQuery } from 'querystring'
 import type { StaticMetadata } from './types/icons'
 
@@ -135,7 +135,7 @@ function mergeStaticMetadata(
 function mergeMetadata({
   source,
   target,
-  firstStaticMetadata,
+  rootSegmentStaticMetadata,
   staticFilesMetadata,
   titleTemplates,
   metadataContext,
@@ -143,7 +143,7 @@ function mergeMetadata({
 }: {
   source: Metadata | null
   target: ResolvedMetadata
-  firstStaticMetadata: StaticMetadata
+  rootSegmentStaticMetadata: StaticMetadata
   staticFilesMetadata: StaticMetadata
   titleTemplates: TitleTemplates
   metadataContext: MetadataContext
@@ -197,7 +197,7 @@ function mergeMetadata({
         break
 
       case 'icons': {
-        target.icons = resolveIcons(source.icons, firstStaticMetadata)
+        target.icons = resolveIcons(source.icons, rootSegmentStaticMetadata)
         break
       }
       case 'appleWebApp':
@@ -565,6 +565,7 @@ function inheritFromMetadata(
 const commonOgKeys = ['title', 'description', 'images'] as const
 function postProcessMetadata(
   metadata: ResolvedMetadata,
+  rootSegmentStaticMetadata: StaticMetadata,
   titleTemplates: TitleTemplates,
   metadataContext: MetadataContext
 ): ResolvedMetadata {
@@ -620,6 +621,28 @@ function postProcessMetadata(
   // use the title and description from metadata.
   inheritFromMetadata(openGraph, metadata)
   inheritFromMetadata(twitter, metadata)
+
+
+  const isFavicon = (icon: IconDescriptor) =>
+    icon.url === '/favicon.ico' && icon.type === 'image/x-icon'
+
+  const firstIconOfRootSegment = rootSegmentStaticMetadata?.icon?.[0]
+  if (firstIconOfRootSegment) {
+
+    if (!metadata.icons) { 
+      metadata.icons = {
+        icon: [firstIconOfRootSegment],
+        apple: [],
+      }
+    }
+    const firstIcon = metadata.icons.icon[0]
+    // let favicon: IconDescriptor | undefined
+    console.log('firstIcon', firstIcon, 'firstIconOfRootSegment', firstIconOfRootSegment)
+    if (firstIcon && !isFavicon(firstIcon) && isFavicon(firstIconOfRootSegment)) {
+      metadata.icons.icon.unshift(firstIconOfRootSegment)
+    }
+    console.log('metadata.icons', metadata.icons.icon)
+  }
 
   return metadata
 }
@@ -740,7 +763,7 @@ export async function accumulateMetadata(
   const buildState = {
     warnings: new Set<string>(),
   }
-  const firstStaticMetadata = metadataItems[0][1]
+  const rootSegmentStaticMetadata = metadataItems[0][1]
   for (let i = 0; i < metadataItems.length; i++) {
     const staticFilesMetadata = metadataItems[i][1]
 
@@ -759,7 +782,7 @@ export async function accumulateMetadata(
       metadataContext,
       staticFilesMetadata,
       titleTemplates,
-      firstStaticMetadata,
+      rootSegmentStaticMetadata: i > 0 ? rootSegmentStaticMetadata : null,
       buildState,
     })
 
@@ -781,7 +804,12 @@ export async function accumulateMetadata(
     }
   }
 
-  return postProcessMetadata(resolvedMetadata, titleTemplates, metadataContext)
+  return postProcessMetadata(
+    resolvedMetadata,
+    rootSegmentStaticMetadata,
+    titleTemplates, 
+    metadataContext
+  )
 }
 
 export async function accumulateViewport(
