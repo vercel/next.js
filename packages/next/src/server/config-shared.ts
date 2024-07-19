@@ -852,11 +852,13 @@ export interface NextConfig extends Record<string, any> {
     }
   >
 
-  logging?: {
-    fetches?: {
-      fullUrl?: boolean
-    }
-  }
+  logging?:
+    | {
+        fetches?: {
+          fullUrl?: boolean
+        }
+      }
+    | boolean
 
   /**
    * period (in seconds) where the server allow to serve stale cache
