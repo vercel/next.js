@@ -76,11 +76,11 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
     async fn after_resolve(
         &self,
         fs_path: Vc<FileSystemPath>,
-        context: Vc<FileSystemPath>,
+        lookup_path: Vc<FileSystemPath>,
         reference_type: Value<ReferenceType>,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
-        if *condition(self.root).matches(context).await? {
+        if *condition(self.root).matches(lookup_path).await? {
             return Ok(ResolveResultOption::none());
         }
         let request_value = &*request.await?;
@@ -205,13 +205,13 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let mut request = request;
 
         let node_resolve_options = if is_esm {
-            node_esm_resolve_options(context.root())
+            node_esm_resolve_options(lookup_path.root())
         } else {
-            node_cjs_resolve_options(context.root())
+            node_cjs_resolve_options(lookup_path.root())
         };
         let result_from_original_location = loop {
             let node_resolved_from_original_location = resolve(
-                context,
+                lookup_path,
                 reference_type.clone(),
                 request,
                 node_resolve_options,
@@ -367,7 +367,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // It would be more efficient to use an CJS external instead of an ESM external,
                 // but we need to verify if that would be correct (as in resolves to the same
                 // file).
-                let node_resolve_options = node_cjs_resolve_options(context.root());
+                let node_resolve_options = node_cjs_resolve_options(lookup_path.root());
                 let node_resolved = resolve(
                     self.project_path,
                     reference_type.clone(),
