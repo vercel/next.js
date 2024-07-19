@@ -957,21 +957,18 @@ describe('Prerender', () => {
       })
     })
 
-    if (!isDeploy) {
-      // relies on runtime logs, which aren't currently captured by `next.cliOutput` in deploys
-      it('should show warning when large amount of page data is returned', async () => {
-        await renderViaHTTP(next.url, '/large-page-data')
-        await check(
-          () => next.cliOutput,
-          /Warning: data for page "\/large-page-data" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
-        )
-        await renderViaHTTP(next.url, '/blocking-fallback/lots-of-data')
-        await check(
-          () => next.cliOutput,
-          /Warning: data for page "\/blocking-fallback\/\[slug\]" \(path "\/blocking-fallback\/lots-of-data"\) is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
-        )
-      })
-    }
+    it('should show warning when large amount of page data is returned', async () => {
+      await renderViaHTTP(next.url, '/large-page-data')
+      await check(
+        () => next.cliOutput,
+        /Warning: data for page "\/large-page-data" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+      )
+      await renderViaHTTP(next.url, '/blocking-fallback/lots-of-data')
+      await check(
+        () => next.cliOutput,
+        /Warning: data for page "\/blocking-fallback\/\[slug\]" \(path "\/blocking-fallback\/lots-of-data"\) is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+      )
+    })
 
     if ((global as any).isNextDev) {
       it('should show warning every time page with large amount of page data is returned', async () => {
