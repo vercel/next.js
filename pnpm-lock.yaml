@@ -22,7 +22,7 @@ overrides:
 
 patchedDependencies:
   webpack-sources@3.2.3:
-    hash: exarmjd4pnde4auoeobjrmju54
+    hash: jbynf5dc46ambamq3wuyho6hkq
     path: patches/webpack-sources@3.2.3.patch
 
 importers:
@@ -1471,7 +1471,7 @@ importers:
         version: webpack-sources@1.4.3
       webpack-sources3:
         specifier: npm:webpack-sources@3.2.3
-        version: webpack-sources@3.2.3(patch_hash=exarmjd4pnde4auoeobjrmju54)
+        version: webpack-sources@3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
       ws:
         specifier: 8.2.3
         version: 8.2.3
@@ -31425,7 +31425,7 @@ snapshots:
       source-list-map: 2.0.1
       source-map: 0.6.1
 
-  webpack-sources@3.2.3(patch_hash=exarmjd4pnde4auoeobjrmju54): {}
+  webpack-sources@3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq): {}
 
   webpack-stats-plugin@1.1.0: {}
 
@@ -31454,7 +31454,7 @@ snapshots:
       tapable: 2.2.0
       terser-webpack-plugin: 5.3.10(@swc/core@1.6.13(@swc/helpers@0.5.12))(webpack@5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.12)))
       watchpack: 2.4.0
-      webpack-sources: 3.2.3(patch_hash=exarmjd4pnde4auoeobjrmju54)
+      webpack-sources: 3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
     transitivePeerDependencies:
       - '@swc/core'
       - esbuild
@@ -31485,7 +31485,7 @@ snapshots:
       tapable: 2.2.0
       terser-webpack-plugin: 5.3.10(@swc/core@1.7.0-nightly-20240714.1(@swc/helpers@0.5.12))(webpack@5.90.0(@swc/core@1.7.0-nightly-20240714.1(@swc/helpers@0.5.12)))
       watchpack: 2.4.0
-      webpack-sources: 3.2.3(patch_hash=exarmjd4pnde4auoeobjrmju54)
+      webpack-sources: 3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
     transitivePeerDependencies:
       - '@swc/core'
       - esbuild
