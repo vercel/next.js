@@ -934,11 +934,7 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
-  logging: {
-    fetches: {
-      fullUrl: true,
-    },
-  },
+  logging: {},
   swrDelta: undefined,
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,

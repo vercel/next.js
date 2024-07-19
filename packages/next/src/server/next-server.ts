@@ -1123,7 +1123,7 @@ export default class NextNodeServer extends BaseServer<
         ? false
         : logConfig?.fetches
 
-      const enabledVerboseLogging = !isLoggingDisabled
+      const enabledVerboseLogging = !!fetchesLoggingConfig
       const shouldTruncateUrl =
         typeof fetchesLoggingConfig === 'object' &&
         !fetchesLoggingConfig.fullUrl
