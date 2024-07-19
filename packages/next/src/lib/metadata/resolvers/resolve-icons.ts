@@ -27,14 +27,7 @@ export const resolveIcons: FieldResolver<'icons'> = (icons) => {
   } else {
     for (const key of IconKeys) {
       const values = resolveAsArrayOrUndefined(icons[key])
-      if (values) {
-        const resolvedIcons = values.map(resolveIcon)
-        if (resolved[key]) {
-          resolved[key].push(...resolvedIcons)
-        } else {
-          resolved[key] = resolvedIcons
-        }
-      }
+      if (values) resolved[key] = values.map(resolveIcon)
     }
   }
   return resolved
