@@ -61,6 +61,7 @@ describe(`app-dir-hmr`, () => {
       await browser.loadPage(`${next.url}/env/edge`)
       await browser.eval('window.__TEST_NO_RELOAD = true')
 
+      expect(await browser.elementByCss('p').text()).toBe('mac')
       await next.patchFile(envFile, 'MY_DEVICE="ipad"')
 
       try {
