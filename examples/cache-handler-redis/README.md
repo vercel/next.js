@@ -29,6 +29,8 @@ docker-compose up -d
 
 Then, build and start the Next.js app as usual.
 
+To see the cache logs use NEXT_PRIVATE_DEBUG_CACHE=1 [troubleshooting](https://caching-tools.github.io/next-shared-cache/troubleshooting)
+
 ## Documentation
 
 For detailed information on configuration and usage, please refer to our comprehensive [Documentation ↗](https://caching-tools.github.io/next-shared-cache).
