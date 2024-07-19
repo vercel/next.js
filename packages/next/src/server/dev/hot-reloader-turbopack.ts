@@ -256,7 +256,7 @@ export async function createHotReloaderTurbopack(
           loading: true,
           trigger: id,
           url: requestUrl,
-          isLoggingDisabled: nextConfig.logging === false,
+          logging: nextConfig.logging,
         } as OutputState,
         true
       )
@@ -273,7 +273,7 @@ export async function createHotReloaderTurbopack(
         consoleStore.setState(
           {
             loading: false,
-            isLoggingDisabled: nextConfig.logging === false,
+            logging: nextConfig.logging,
           } as OutputState,
           true
         )

@@ -1120,10 +1120,13 @@ export default class NextNodeServer extends BaseServer<
       let logging = this.nextConfig.logging
       let isLoggingDisabled = false
       if (typeof logging === 'boolean') {
-        if (!logging) {
-          isLoggingDisabled = true
+        if (logging === false) {
+          // disable all logging options if logging === false
           logging = {}
-        } else {
+          isLoggingDisabled = true
+        }
+        // explicit check value for better readability
+        if (logging === true) {
           // enable all logging options if logging === true
           logging = { fetches: { fullUrl: true } }
         }
