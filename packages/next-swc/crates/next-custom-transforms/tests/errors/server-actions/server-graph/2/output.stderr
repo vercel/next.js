@@ -1,6 +1,5 @@
-
   x Server actions must be async functions
-   ,-[input.js:6:1]
+   ,-[input.js:7:1]
  6 | 
  7 | export function bar() {}
    :                 ^^^

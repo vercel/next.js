@@ -2,15 +2,15 @@ import type { CacheNode } from '../../../shared/lib/app-router-context.shared-ru
 import type {
   FlightRouterState,
   FlightSegmentPath,
+  FetchServerResponseResult,
 } from '../../../server/app-render/types'
-import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
 export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
 export const ACTION_PREFETCH = 'prefetch'
-export const ACTION_FAST_REFRESH = 'fast-refresh'
+export const ACTION_HMR_REFRESH = 'hmr-refresh'
 export const ACTION_SERVER_ACTION = 'server-action'
 
 export type RouterChangeByServerResponse = ({
@@ -55,8 +55,8 @@ export interface RefreshAction {
   origin: Location['origin']
 }
 
-export interface FastRefreshAction {
-  type: typeof ACTION_FAST_REFRESH
+export interface HmrRefreshAction {
+  type: typeof ACTION_HMR_REFRESH
   origin: Location['origin']
 }
 
@@ -268,7 +268,7 @@ export type ReducerActions = Readonly<
   | RestoreAction
   | ServerPatchAction
   | PrefetchAction
-  | FastRefreshAction
+  | HmrRefreshAction
   | ServerActionAction
 >
 

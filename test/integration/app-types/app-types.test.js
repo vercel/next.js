@@ -6,7 +6,8 @@ import { nextBuild } from 'next-test-utils'
 
 const appDir = __dirname
 
-describe('app type checking', () => {
+// Turbopack doesn't support additional experimental features in the first version
+;(process.env.TURBOPACK ? describe.skip : describe)('app type checking', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

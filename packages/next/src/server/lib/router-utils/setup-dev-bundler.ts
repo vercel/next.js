@@ -80,10 +80,14 @@ import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
-import { ModuleBuildError } from '../../dev/turbopack-utils'
+import {
+  ModuleBuildError,
+  TurbopackInternalError,
+} from '../../dev/turbopack-utils'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
+import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -626,16 +630,16 @@ async function startWatcher(opts: SetupOpts) {
             config.resolve?.plugins?.forEach((plugin: any) => {
               // look for the JsConfigPathsPlugin and update with
               // the latest paths/baseUrl config
-              if (plugin && plugin.jsConfigPlugin && tsconfigResult) {
+              if (plugin instanceof JsConfigPathsPlugin && tsconfigResult) {
                 const { resolvedBaseUrl, jsConfig } = tsconfigResult
                 const currentResolvedBaseUrl = plugin.resolvedBaseUrl
                 const resolvedUrlIndex = config.resolve?.modules?.findIndex(
-                  (item) => item === currentResolvedBaseUrl
+                  (item) => item === currentResolvedBaseUrl?.baseUrl
                 )
 
                 if (resolvedBaseUrl) {
                   if (
-                    resolvedBaseUrl.baseUrl !== currentResolvedBaseUrl.baseUrl
+                    resolvedBaseUrl.baseUrl !== currentResolvedBaseUrl?.baseUrl
                   ) {
                     // remove old baseUrl and add new one
                     if (resolvedUrlIndex && resolvedUrlIndex > -1) {
@@ -1057,7 +1061,11 @@ function logError(
   type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
 ) {
   if (err instanceof ModuleBuildError) {
+    // Errors that may come from issues from the user's code
     Log.error(err.message)
+  } else if (err instanceof TurbopackInternalError) {
+    // An internal Turbopack error that has been handled by next-swc, written
+    // to disk and a simplified message shown to user on the Rust side.
   } else if (type === 'warning') {
     Log.warn(err)
   } else if (type === 'app-dir') {
