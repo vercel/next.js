@@ -16,7 +16,7 @@ export function getSocketUrl(assetPrefix: string): string {
   const protocol = getSocketProtocol(assetPrefix)
   const prefix = normalizedAssetPrefix(assetPrefix)
 
-  let url = `${protocol}://${hostname}:${port}${prefix ? `/${prefix}` : ''}`
+  let url = `${protocol}://${hostname}:${port}${prefix && prefix !== '' ? `/${prefix}` : ''}`
 
   if (prefix.startsWith('http')) {
     url = `${protocol}://${prefix.split('://', 2)[1]}`
