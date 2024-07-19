@@ -13,7 +13,10 @@ import type { OpenGraph } from './types/opengraph-types'
 import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
-import type { AbsoluteTemplateString, IconDescriptor } from './types/metadata-types'
+import type {
+  AbsoluteTemplateString,
+  IconDescriptor,
+} from './types/metadata-types'
 import type { ParsedUrlQuery } from 'querystring'
 import type { StaticMetadata } from './types/icons'
 
@@ -77,6 +80,9 @@ type PageProps = {
   searchParams: { [key: string]: any }
 }
 
+const isFavicon = (icon: IconDescriptor) =>
+  !!icon && icon.url === '/favicon.ico' && icon.type === 'image/x-icon'
+
 function mergeStaticMetadata(
   source: Metadata | null,
   target: ResolvedMetadata,
@@ -135,7 +141,6 @@ function mergeStaticMetadata(
 function mergeMetadata({
   source,
   target,
-  rootSegmentStaticMetadata,
   staticFilesMetadata,
   titleTemplates,
   metadataContext,
@@ -143,7 +148,6 @@ function mergeMetadata({
 }: {
   source: Metadata | null
   target: ResolvedMetadata
-  rootSegmentStaticMetadata: StaticMetadata
   staticFilesMetadata: StaticMetadata
   titleTemplates: TitleTemplates
   metadataContext: MetadataContext
@@ -197,7 +201,7 @@ function mergeMetadata({
         break
 
       case 'icons': {
-        target.icons = resolveIcons(source.icons, rootSegmentStaticMetadata)
+        target.icons = resolveIcons(source.icons)
         break
       }
       case 'appleWebApp':
@@ -565,7 +569,7 @@ function inheritFromMetadata(
 const commonOgKeys = ['title', 'description', 'images'] as const
 function postProcessMetadata(
   metadata: ResolvedMetadata,
-  rootSegmentStaticMetadata: StaticMetadata,
+  favicon: any,
   titleTemplates: TitleTemplates,
   metadataContext: MetadataContext
 ): ResolvedMetadata {
@@ -622,26 +626,15 @@ function postProcessMetadata(
   inheritFromMetadata(openGraph, metadata)
   inheritFromMetadata(twitter, metadata)
 
-
-  const isFavicon = (icon: IconDescriptor) =>
-    icon.url === '/favicon.ico' && icon.type === 'image/x-icon'
-
-  const firstIconOfRootSegment = rootSegmentStaticMetadata?.icon?.[0]
-  if (firstIconOfRootSegment) {
-
-    if (!metadata.icons) { 
+  if (favicon) {
+    if (!metadata.icons) {
       metadata.icons = {
-        icon: [firstIconOfRootSegment],
+        icon: [],
         apple: [],
       }
     }
-    const firstIcon = metadata.icons.icon[0]
-    // let favicon: IconDescriptor | undefined
-    console.log('firstIcon', firstIcon, 'firstIconOfRootSegment', firstIconOfRootSegment)
-    if (firstIcon && !isFavicon(firstIcon) && isFavicon(firstIconOfRootSegment)) {
-      metadata.icons.icon.unshift(firstIconOfRootSegment)
-    }
-    console.log('metadata.icons', metadata.icons.icon)
+
+    metadata.icons.icon.unshift(favicon)
   }
 
   return metadata
@@ -763,9 +756,17 @@ export async function accumulateMetadata(
   const buildState = {
     warnings: new Set<string>(),
   }
-  const rootSegmentStaticMetadata = metadataItems[0][1]
+
+  let favicon
   for (let i = 0; i < metadataItems.length; i++) {
     const staticFilesMetadata = metadataItems[i][1]
+
+    // Treat favicon as special case, it should be the first icon in the list
+    // i <= 1 represents root layout, and if current page is also at root
+    if (i <= 1 && isFavicon(staticFilesMetadata?.icon?.[0])) {
+      const iconMod = staticFilesMetadata?.icon?.shift()
+      if (i === 0) favicon = iconMod
+    }
 
     const metadata = await getMetadataFromExport<Metadata, ResolvedMetadata>(
       (metadataItem) => metadataItem[0],
@@ -782,7 +783,6 @@ export async function accumulateMetadata(
       metadataContext,
       staticFilesMetadata,
       titleTemplates,
-      rootSegmentStaticMetadata: i > 0 ? rootSegmentStaticMetadata : null,
       buildState,
     })
 
@@ -806,8 +806,8 @@ export async function accumulateMetadata(
 
   return postProcessMetadata(
     resolvedMetadata,
-    rootSegmentStaticMetadata,
-    titleTemplates, 
+    favicon,
+    titleTemplates,
     metadataContext
   )
 }

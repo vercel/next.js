@@ -5,27 +5,27 @@ describe('app-dir - metadata-icons', () => {
     files: __dirname,
   })
 
-  it('should work using cheerio', async () => {
+  it('should only have 1 favicon link in root page', async () => {
     const $ = await next.render$('/')
-    expect($('p').text()).toBe('hello world')
+    expect($('link[href="/favicon.ico"]').length).toBe(1)
   })
 
-  // Recommended for tests that need a full browser
-  it('should work using browser', async () => {
-    const browser = await next.browser('/')
-    expect(await browser.elementByCss('p').text()).toBe('hello world')
+  it('should only have 1 favicon link in nested page', async () => {
+    const $ = await next.render$('/nested')
+    expect($('link[href="/favicon.ico"]').length).toBe(1)
   })
 
-  // In case you need the full HTML. Can also use $.html() with cheerio.
-  it('should work with html', async () => {
-    const html = await next.render('/')
-    expect(html).toContain('hello world')
+  it('should render custom icons along with favicon in root page', async () => {
+    const $ = await next.render$('/')
+    expect($('link[rel="shortcut icon"]').attr('href')).toBe(
+      '/shortcut-icon.png'
+    )
   })
 
-  // In case you need to test the response object
-  it('should work with fetch', async () => {
-    const res = await next.fetch('/')
-    const html = await res.text()
-    expect(html).toContain('hello world')
+  it('should render custom icons along with favicon in nested page', async () => {
+    const $ = await next.render$('/nested')
+    expect($('link[rel="shortcut icon"]').attr('href')).toBe(
+      '/shortcut-icon-nested.png'
+    )
   })
 })

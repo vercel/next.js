@@ -1,7 +1,6 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
 import type { Icon, IconDescriptor } from '../types/metadata-types'
-import type { FieldResolverExtraArgs } from '../types/resolvers'
-import type { StaticMetadata } from '../types/icons'
+import type { FieldResolver } from '../types/resolvers'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
 import { isStringOrURL } from './resolve-url'
 import { IconKeys } from '../constants'
@@ -12,19 +11,9 @@ export function resolveIcon(icon: Icon): IconDescriptor {
   return icon
 }
 
-export const resolveIcons: FieldResolverExtraArgs<'icons', [StaticMetadata | null]> = (
-  icons,
-  rootSegmentStaticMetadata
-) => {
+export const resolveIcons: FieldResolver<'icons'> = (icons) => {
   if (!icons) {
     return null
-  }
-
-  // if there's favicon, always add it into icon list
-  const firstIconOfRootSegment = rootSegmentStaticMetadata?.icon?.[0]
-  let favicon: IconDescriptor | undefined
-  if (firstIconOfRootSegment?.url === '/favicon.ico' && firstIconOfRootSegment?.type === 'image/x-icon') {
-    favicon = firstIconOfRootSegment
   }
 
   const resolved: ResolvedMetadata['icons'] = {
