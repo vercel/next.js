@@ -1,15 +1,16 @@
-import { useRouter } from "next/router";
 import Link from "next/link";
-import styles from "../../styles.module.css";
-import Code from "../../components/Code";
+import styles from "/styles.module.css";
+import Code from "../../_components/Code";
 
-export default function News() {
-  const { asPath } = useRouter();
+type NewsProps = {
+  params: { slug: [] };
+};
 
+export default function News({ params }: NewsProps) {
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        <h1>Path: {asPath}</h1>
+        <h1>Path: {`/news/${params.slug.join("/")}`}</h1>
         <hr className={styles.hr} />
         <p>
           The response contains a custom header{" "}

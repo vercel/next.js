@@ -534,13 +534,16 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       })
       .optional(),
     logging: z
-      .object({
-        fetches: z
-          .object({
-            fullUrl: z.boolean().optional(),
-          })
-          .optional(),
-      })
+      .union([
+        z.object({
+          fetches: z
+            .object({
+              fullUrl: z.boolean().optional(),
+            })
+            .optional(),
+        }),
+        z.boolean(),
+      ])
       .optional(),
     modularizeImports: z
       .record(
