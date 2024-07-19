@@ -12,7 +12,6 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest } from '../build'
-import type { FetchMetric } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
@@ -1123,7 +1122,7 @@ export default class NextNodeServer extends BaseServer<
       const shouldTruncateUrl = !loggingFetchesConfig?.fullUrl
 
       if (this.renderOpts.dev) {
-        const { blue, green, yellow, red, gray, white } =
+        const { blue, green, yellow, red, gray, white, bold } =
           require('../lib/picocolors') as typeof import('../lib/picocolors')
 
         const { originalResponse } = normalizedRes
@@ -1159,6 +1158,7 @@ export default class NextNodeServer extends BaseServer<
           const loggingUrl = isRSC
             ? stripNextRscUnionQuery(requestUrl)
             : requestUrl
+          const indentation = '│ '
 
           writeStdoutLine(
             `${method} ${loggingUrl} ${color(
@@ -1166,30 +1166,16 @@ export default class NextNodeServer extends BaseServer<
             )} in ${reqDuration}ms`
           )
 
-          if (fetchMetrics.length && enabledVerboseLogging) {
-            const calcNestedLevel = (
-              prevMetrics: FetchMetric[],
-              start: number
-            ): string => {
-              let nestedLevel = 0
+          for (let i = 0; i < fetchMetrics.length; i++) {
+            const metric = fetchMetrics[i]
+            let { cacheStatus, cacheReason, cacheWarning, url } = metric
 
-              for (let i = 0; i < prevMetrics.length; i++) {
-                const metric = prevMetrics[i]
-                const prevMetric = prevMetrics[i - 1]
-
-                if (
-                  metric.end <= start &&
-                  !(prevMetric && prevMetric.start < metric.end)
-                ) {
-                  nestedLevel += 1
-                }
-              }
-              return nestedLevel === 0 ? ' ' : ' │ '.repeat(nestedLevel)
+            if (cacheStatus === 'hmr') {
+              // Cache hits during HMR refreshes are intentionally not logged.
+              continue
             }
 
-            for (let i = 0; i < fetchMetrics.length; i++) {
-              const metric = fetchMetrics[i]
-              let { cacheStatus, cacheReason } = metric
+            if (enabledVerboseLogging) {
               let cacheReasonStr = ''
 
               let cacheColor
@@ -1203,7 +1189,6 @@ export default class NextNodeServer extends BaseServer<
                   `Cache ${status} reason: (${white(cacheReason)})`
                 )
               }
-              let url = metric.url
 
               if (url.length > 48) {
                 const parsed = new URL(url)
@@ -1229,27 +1214,30 @@ export default class NextNodeServer extends BaseServer<
               }
 
               const status = cacheColor(`(cache ${cacheStatus})`)
-              const newLineLeadingChar = '│'
-              const nestedIndent = calcNestedLevel(
-                fetchMetrics.slice(0, i + 1),
-                metric.start
-              )
 
               writeStdoutLine(
-                `${newLineLeadingChar}${nestedIndent}${white(
+                `${indentation}${white(
                   metric.method
                 )} ${white(url)} ${metric.status} in ${duration}ms ${status}`
               )
-              if (cacheReasonStr) {
-                const nextNestedIndent = calcNestedLevel(
-                  fetchMetrics.slice(0, i + 1),
-                  metric.start
-                )
 
+              if (cacheReasonStr) {
+                writeStdoutLine(`${indentation}${indentation}${cacheReasonStr}`)
+              }
+
+              if (cacheWarning) {
                 writeStdoutLine(
-                  `${newLineLeadingChar}${nextNestedIndent}${newLineLeadingChar} ${cacheReasonStr}`
+                  `${indentation}${indentation}${yellow(bold('⚠'))} ${white(cacheWarning)}`
                 )
               }
+            } else if (cacheWarning) {
+              writeStdoutLine(
+                `${indentation}${white(metric.method)} ${white(url)}`
+              )
+
+              writeStdoutLine(
+                `${indentation}${indentation}${yellow(bold('⚠'))} ${white(cacheWarning)}`
+              )
             }
           }
           delete normalizedReq.fetchMetrics
