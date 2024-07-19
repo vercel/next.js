@@ -82,7 +82,7 @@ let loadingLogTimer: NodeJS.Timeout | null = null
 let traceSpan: Span | null = null
 
 store.subscribe((state) => {
-  if (state.logging === false) {
+  if (!state.logging) {
     return
   }
 

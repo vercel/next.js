@@ -859,7 +859,7 @@ export interface NextConfig extends Record<string, any> {
           fullUrl?: boolean
         }
       }
-    | boolean
+    | false
 
   /**
    * period (in seconds) where the server allow to serve stale cache
@@ -933,6 +933,11 @@ export const defaultConfig: NextConfig = {
   reactStrictMode: null,
   httpAgentOptions: {
     keepAlive: true,
+  },
+  logging: {
+    fetches: {
+      fullUrl: false,
+    },
   },
   swrDelta: undefined,
   staticPageGenerationTimeout: 60,

@@ -1117,24 +1117,17 @@ export default class NextNodeServer extends BaseServer<
       const normalizedReq = this.normalizeReq(req)
       const normalizedRes = this.normalizeRes(res)
 
-      let logging = this.nextConfig.logging
-      let isLoggingDisabled = false
-      if (typeof logging === 'boolean') {
-        if (logging === false) {
-          // disable all logging options if logging === false
-          logging = {}
-          isLoggingDisabled = true
-        }
-        // explicit check value for better readability
-        if (logging === true) {
-          // enable all logging options if logging === true
-          logging = { fetches: { fullUrl: true } }
-        }
-      }
+      const logConfig = this.nextConfig.logging
+      const isLoggingDisabled = logConfig === false
+      const fetchesLoggingConfig = isLoggingDisabled
+        ? false
+        : logConfig?.fetches
 
-      const loggingFetchesConfig = logging?.fetches
+      const loggingFetchesConfig = fetchesLoggingConfig
       const enabledVerboseLogging = !!loggingFetchesConfig
-      const shouldTruncateUrl = !loggingFetchesConfig?.fullUrl
+      const shouldTruncateUrl =
+        typeof fetchesLoggingConfig === 'object' &&
+        !!fetchesLoggingConfig.fullUrl
 
       if (this.renderOpts.dev) {
         const { blue, green, yellow, red, gray, white, bold } =
