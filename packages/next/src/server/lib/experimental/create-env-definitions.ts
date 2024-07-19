@@ -10,7 +10,7 @@ export async function createEnvDefinitions({
   env: Env
 }) {
   const envKeysStr = Object.keys(env)
-    .map((key) => `      ${key}: string`)
+    .map((key) => `      ${key}?: string`)
     .join('\n')
 
   const definitionStr = `// Type definitions for Next.js environment variables

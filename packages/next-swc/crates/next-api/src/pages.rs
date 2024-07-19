@@ -574,7 +574,9 @@ struct PageEndpoint {
     pages_structure: Vc<PagesStructure>,
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TaskInput, TraceRawVcs)]
+#[derive(
+    Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs,
+)]
 enum PageEndpointType {
     Api,
     Html,
@@ -582,7 +584,9 @@ enum PageEndpointType {
     SsrOnly,
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TaskInput, TraceRawVcs)]
+#[derive(
+    Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs,
+)]
 enum SsrChunkType {
     Page,
     Data,
