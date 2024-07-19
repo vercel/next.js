@@ -176,40 +176,11 @@ function trackFetchMetric(
   }
   staticGenerationStore.fetchMetrics ??= []
 
-  const dedupeFields = ['url', 'status', 'method'] as const
-
-  // don't add metric if one already exists for the fetch
-  if (
-    staticGenerationStore.fetchMetrics.some((metric) =>
-      dedupeFields.every((field) => metric[field] === ctx[field])
-    )
-  ) {
-    return
-  }
   staticGenerationStore.fetchMetrics.push({
     ...ctx,
     end: Date.now(),
     idx: staticGenerationStore.nextFetchId || 0,
   })
-
-  // only store top 10 metrics to avoid storing too many
-  if (staticGenerationStore.fetchMetrics.length > 10) {
-    // sort slowest first as these should be highlighted
-    staticGenerationStore.fetchMetrics.sort((a, b) => {
-      const aDur = a.end - a.start
-      const bDur = b.end - b.start
-
-      if (aDur < bDur) {
-        return 1
-      } else if (aDur > bDur) {
-        return -1
-      }
-      return 0
-    })
-    // now grab top 10
-    staticGenerationStore.fetchMetrics =
-      staticGenerationStore.fetchMetrics.slice(0, 10)
-  }
 }
 
 interface PatchableModule {
