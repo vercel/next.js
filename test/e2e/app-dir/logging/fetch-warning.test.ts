@@ -44,6 +44,22 @@ describe('app-dir - fetch warnings', () => {
  │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
       })
     })
+
+    it('should not log when logging is disabled', async () => {
+      await next.stop()
+      await next.patchFile(
+        'next.config.js',
+        `module.exports = { logging: false }`
+      )
+      await next.start()
+      await next.fetch('/cache-revalidate')
+
+      await retry(async () => {
+        expect(next.cliOutput).not.toInclude(`
+ │ GET https://next-data-api-endpoint.vercel.app/api/random?request-string
+ │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
+      })
+    })
   } else {
     it('should not log fetch warnings in production', async () => {
       await retry(() => {
