@@ -45,7 +45,7 @@ import {
   HMR_ACTIONS_SENT_TO_BROWSER,
   type AppIsrManifestAction,
 } from '../dev/hot-reloader-types'
-import { normalizerAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
+import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -665,7 +665,7 @@ export async function initialize(opts: {
 
         let hmrPrefix = basePath
         if (assetPrefix) {
-          hmrPrefix = normalizerAssetPrefix(assetPrefix)
+          hmrPrefix = normalizedAssetPrefix(assetPrefix)
         }
         const isHMRRequest = req.url.startsWith(
           ensureLeadingSlash(`${hmrPrefix}/_next/webpack-hmr`)

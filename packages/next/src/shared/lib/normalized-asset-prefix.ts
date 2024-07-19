@@ -1,4 +1,4 @@
-export function normalizerAssetPrefix(assetPrefix: string): string {
+export function normalizedAssetPrefix(assetPrefix: string): string {
   const escapedAssetPrefix = assetPrefix.replace(/^\/+/, '')
 
   if (escapedAssetPrefix.startsWith('http')) {
