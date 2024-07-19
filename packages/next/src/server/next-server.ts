@@ -1118,12 +1118,15 @@ export default class NextNodeServer extends BaseServer<
       const normalizedRes = this.normalizeRes(res)
 
       let logging = this.nextConfig.logging
+      let isLoggingDisabled = false
       if (typeof logging === 'boolean') {
         if (!logging) {
-          return handler(normalizedReq, normalizedRes, parsedUrl)
+          isLoggingDisabled = true
+          logging = {}
+        } else {
+          // enable all logging options if logging === true
+          logging = { fetches: { fullUrl: true } }
         }
-
-        logging = { fetches: { fullUrl: true } }
       }
 
       const loggingFetchesConfig = logging?.fetches
@@ -1142,6 +1145,8 @@ export default class NextNodeServer extends BaseServer<
         const reqCallback = () => {
           const fetchMetrics = normalizedReq.fetchMetrics || []
           delete normalizedReq.fetchMetrics
+
+          if (isLoggingDisabled) return
 
           // we don't log for non-route requests
           const routeMatch = getRequestMeta(req).match

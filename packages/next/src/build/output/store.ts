@@ -11,13 +11,13 @@ export type OutputState =
       bootstrap: true
       appUrl: string | null
       bindAddr: string | null
-      logging?: boolean
+      isLoggingDisabled: boolean
     }
   | ({
       bootstrap: false
       appUrl: string | null
       bindAddr: string | null
-      logging?: boolean
+      isLoggingDisabled: boolean
     } & (
       | {
           loading: true
@@ -51,9 +51,15 @@ export const store = createStore<OutputState>({
   appUrl: null,
   bindAddr: null,
   bootstrap: true,
+  isLoggingDisabled: false,
 })
 
-let lastStore: OutputState = { appUrl: null, bindAddr: null, bootstrap: true }
+let lastStore: OutputState = {
+  appUrl: null,
+  bindAddr: null,
+  bootstrap: true,
+  isLoggingDisabled: false,
+}
 function hasStoreChanged(nextStore: OutputState) {
   if (
     (
@@ -76,7 +82,7 @@ let loadingLogTimer: NodeJS.Timeout | null = null
 let traceSpan: Span | null = null
 
 store.subscribe((state) => {
-  if (state.logging === false) {
+  if (state.isLoggingDisabled) {
     return
   }
 
