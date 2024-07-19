@@ -1126,7 +1126,7 @@ export default class NextNodeServer extends BaseServer<
       const enabledVerboseLogging = !isLoggingDisabled
       const shouldTruncateUrl =
         typeof fetchesLoggingConfig === 'object' &&
-        !!fetchesLoggingConfig.fullUrl
+        !fetchesLoggingConfig.fullUrl
 
       if (this.renderOpts.dev) {
         const { blue, green, yellow, red, gray, white, bold } =
