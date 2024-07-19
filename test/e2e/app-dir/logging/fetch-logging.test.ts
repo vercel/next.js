@@ -267,7 +267,7 @@ describe('app-dir - logging', () => {
       await next.start()
     })
 
-    runTests({ withFetchesLogging: false })
+    runTests({ withFetchesLogging: true, withFullUrlFetches: true })
   })
 
   describe('with default logging', () => {
