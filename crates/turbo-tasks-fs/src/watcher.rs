@@ -271,6 +271,17 @@ impl DiskWatcher {
                                         | ModifyKind::Metadata(MetadataKind::Any),
                                     ) => {
                                         batched_invalidate_path.extend(paths.clone());
+                                        #[cfg(target_os = "macos")]
+                                        {
+                                            // Sometimes file creation is reported as
+                                            // ModifyKind::Data on macOS.
+                                            paths.iter().for_each(|path| {
+                                                if let Some(parent) = path.parent() {
+                                                    batched_invalidate_path_dir
+                                                        .insert(PathBuf::from(parent));
+                                                }
+                                            });
+                                        }
                                     }
                                     EventKind::Create(_) => {
                                         batched_invalidate_path_and_children.extend(paths.clone());
