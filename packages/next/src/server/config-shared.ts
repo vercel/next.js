@@ -936,7 +936,7 @@ export const defaultConfig: NextConfig = {
   },
   logging: {
     fetches: {
-      fullUrl: false,
+      fullUrl: true,
     },
   },
   swrDelta: undefined,
