@@ -147,32 +147,24 @@ export class NextDeployInstance extends NextInstance {
 
     require('console').log(`Got buildId: ${this._buildId}`)
 
-    // Use the vercel logs command to get the CLI output from the build.
-    const logs = await execa(
+    // Use the vercel inspect command to get the CLI output from the build.
+    const buildLogs = await execa(
       'vercel',
-      [
-        'logs',
-        this._url,
-        '--output',
-        'raw',
-        // The default # of lines to show in the output is 100, but some of our tests have noisy output,
-        // so bump to 1000
-        '-n',
-        1000,
-        ...vercelFlags,
-      ],
+      ['inspect', '--logs', this._url, ...vercelFlags],
       {
         env: vercelEnv,
         reject: false,
       }
     )
-    if (logs.exitCode !== 0) {
-      throw new Error(`Failed to get build output logs: ${logs.stderr}`)
+    if (buildLogs.exitCode !== 0) {
+      throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
     }
 
     // Use the stdout from the logs command as the CLI output. The CLI will
     // output other unrelated logs to stderr.
-    this._cliOutput = logs.stdout
+
+    // TODO: Combine with runtime logs (via `vercel logs`)
+    this._cliOutput = buildLogs.stdout
   }
 
   public get cliOutput() {

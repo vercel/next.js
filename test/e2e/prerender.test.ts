@@ -23,6 +23,7 @@ describe('Prerender', () => {
   let next: NextInstance
 
   beforeAll(async () => {
+    console.log('changing test to validate')
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'prerender/pages')),
