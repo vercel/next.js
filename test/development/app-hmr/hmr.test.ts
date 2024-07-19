@@ -55,8 +55,6 @@ describe(`app-dir-hmr`, () => {
     })
 
     it('should update server components after navigating to a page with a different runtime', async () => {
-      const envContent = await next.readFile(envFile)
-
       const browser = await next.browser('/env/node')
       await browser.loadPage(`${next.url}/env/edge`)
       await browser.eval('window.__TEST_NO_RELOAD = true')
@@ -134,12 +132,15 @@ describe(`app-dir-hmr`, () => {
           ])
         }
       } finally {
-        await next.patchFile(envFile, envContent)
+        // TOOD: use sandbox instead
+        await next.patchFile(envFile, 'MY_DEVICE="mac"')
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe('mac')
+        })
       }
     })
 
     it('should update server components pages when env files is changed (nodejs)', async () => {
-      const envContent = await next.readFile(envFile)
       const browser = await next.browser('/env/node')
       expect(await browser.elementByCss('p').text()).toBe('mac')
       await next.patchFile(envFile, 'MY_DEVICE="ipad"')
@@ -182,12 +183,15 @@ describe(`app-dir-hmr`, () => {
           )
         }
       } finally {
-        await next.patchFile(envFile, envContent)
+        // TOOD: use sandbox instead
+        await next.patchFile(envFile, 'MY_DEVICE="mac"')
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe('mac')
+        })
       }
     })
 
     it('should update server components pages when env files is changed (edge)', async () => {
-      const envContent = await next.readFile(envFile)
       const browser = await next.browser('/env/edge')
       expect(await browser.elementByCss('p').text()).toBe('mac')
       await next.patchFile(envFile, 'MY_DEVICE="ipad"')
@@ -230,7 +234,11 @@ describe(`app-dir-hmr`, () => {
           )
         }
       } finally {
-        await next.patchFile(envFile, envContent)
+        // TOOD: use sandbox instead
+        await next.patchFile(envFile, 'MY_DEVICE="mac"')
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe('mac')
+        })
       }
     })
 
