@@ -85,11 +85,6 @@ static PANIC_LOG: Lazy<PathBuf> = Lazy::new(|| {
     path
 });
 
-#[napi]
-pub fn get_panic_log_path() -> String {
-    PANIC_LOG.to_string_lossy().to_string()
-}
-
 #[cfg(feature = "__internal_dhat-heap")]
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
