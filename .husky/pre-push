@@ -13,9 +13,19 @@ if [ "$remote_url" != "$protected_remote_url" ]; then
   exit 0
 fi
 
-branch="$(git rev-parse --abbrev-ref HEAD)"
+# check if the push is targeting canary on the remote
+# https://stackoverflow.com/a/44156933
+push_targets_protected_branch=0
+protected_ref="refs/heads/$protected_branch"
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [ "$remote_ref" = "$protected_ref" ]; then
+    push_targets_protected_branch=1
+    break
+  fi
+done
 
-if [ "$branch" = "$protected_branch" ]; then
+
+if [ "$push_targets_protected_branch" = "1" ]; then
   echo "You probably didn't intend to push directly to '$protected_branch' on '$remote_name' ($remote_url)." >&2
   echo "If you're sure that that's what you want to do, bypass this check via" >&2
   echo "" >&2
