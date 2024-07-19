@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "lint-eslint",
+      "problemMatcher": ["$eslint-stylish"],
+      "label": "pnpm: lint-eslint"
+    }
+  ]
+}
