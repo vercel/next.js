@@ -1243,7 +1243,9 @@
       "failed": [
         "app dir - basic should encode chunk path correctly",
         "app dir - basic should generate build traces correctly",
-        "app dir - basic should not have loader generated function for edge runtime"
+        "app dir - basic should not have loader generated function for edge runtime",
+        "app dir - basic should contain framework.json",
+        "app dir - basic outputs correct build-diagnostics.json"
       ],
       "pending": [
         "app dir - basic known bugs should support React fetch instrumentation client component",
@@ -1793,15 +1795,14 @@
     },
     "test/e2e/app-dir/global-error/basic/index.test.ts": {
       "passed": [
-        "app dir - global error should catch metadata error in error boundary if presented"
-      ],
-      "failed": [
+        "app dir - global error should catch metadata error in error boundary if presented",
         "app dir - global error should catch metadata error in global-error if no error boundary is presented",
         "app dir - global error should catch the client error thrown in the nested routes",
         "app dir - global error should render global error for error in client components",
         "app dir - global error should render global error for error in server components",
         "app dir - global error should trigger error component when an error happens during rendering"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -1809,20 +1810,19 @@
     "test/e2e/app-dir/global-error/catch-all/index.test.ts": {
       "passed": [
         "app dir - global error - with catch-all route should render 404 page correctly",
-        "app dir - global error - with catch-all route should render catch-all route correctly"
-      ],
-      "failed": [
+        "app dir - global error - with catch-all route should render catch-all route correctly",
         "app dir - global error - with catch-all route should render global error correctly"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/e2e/app-dir/global-error/layout-error/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app dir - global error - layout error should render global error for error in server components"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -6467,13 +6467,11 @@
       "runtimeError": false
     },
     "test/integration/amphtml/test/index.test.js": {
-      "passed": [
-        "AMP Usage AMP dev no-warn should not warn on valid amp",
-        "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
-        "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
-        "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
-        "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
-        "AMP Usage AMP development mode should not contain missing files warning",
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
+        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
         "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
         "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
         "AMP Usage production mode With AMP context should render the AMP page that uses the AMP hook",
@@ -6497,13 +6495,13 @@
         "AMP Usage production mode combined styles should combine style tags",
         "AMP Usage production mode combined styles should remove sourceMaps from styles",
         "AMP Usage production mode should have amp optimizer in trace",
-        "AMP Usage production mode should not contain missing files warning"
-      ],
-      "failed": [
-        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
-        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration"
-      ],
-      "pending": [
+        "AMP Usage production mode should not contain missing files warning",
+        "AMP Usage AMP dev no-warn should not warn on valid amp",
+        "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
+        "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
+        "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
+        "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
+        "AMP Usage AMP development mode should not contain missing files warning",
         "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
         "AMP Usage AMP development mode should detect changes and refresh an AMP page",
         "AMP Usage AMP development mode should detect changes and refresh an AMP page at root pages/",
@@ -6892,12 +6890,12 @@
     },
     "test/integration/app-types/app-types.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "app type checking production mode should generate route types correctly and report link error",
         "app type checking production mode should generate route types correctly and report router API errors",
         "app type checking production mode should type check invalid entry exports"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -7178,12 +7176,12 @@
       "runtimeError": false
     },
     "test/integration/client-404/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Client 404 production mode Client Navigation 404 should hard navigate to URL on failing to load bundle",
         "Client 404 production mode Client Navigation 404 should hard navigate to URL on failing to load missing bundle",
         "Client 404 production mode Client Navigation 404 should show 404 upon client replacestate should navigate the page"
       ],
+      "failed": [],
       "pending": [
         "Client 404 development mode Client Navigation 404 should hard navigate to URL on failing to load bundle",
         "Client 404 development mode Client Navigation 404 should show 404 upon client replacestate should navigate the page"
@@ -9262,12 +9260,12 @@
     },
     "test/integration/externals-esm-loose/test/index.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Handle ESM externals with esmExternals: 'loose' production mode should render the ssg page",
         "Handle ESM externals with esmExternals: 'loose' production mode should render the ssr page",
         "Handle ESM externals with esmExternals: 'loose' production mode should render the static page"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -12671,12 +12669,12 @@
       "passed": [
         "Mixed getStaticProps and getServerSideProps error production mode should error when exporting getStaticPaths on a non-dynamic page"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Mixed getStaticProps and getServerSideProps error production mode should error when exporting both getStaticPaths and getServerSideProps",
         "Mixed getStaticProps and getServerSideProps error production mode should error when exporting both getStaticProps and getServerSideProps",
         "Mixed getStaticProps and getServerSideProps error production mode should error with getStaticProps but no default export"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -14069,11 +14067,11 @@
       "runtimeError": false
     },
     "test/integration/re-export-all-exports-from-page-disallowed/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Re-export all exports from page is disallowed production mode builds without error when no `export * from \"...\"` is used in pages",
         "Re-export all exports from page is disallowed production mode shows error when a page re-export all exports"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15524,7 +15522,8 @@
     },
     "test/production/app-dir/subresource-integrity/subresource-integrity.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Subresource Integrity does not include nonce when not enabled",
         "Subresource Integrity includes a nonce value with bootstrap scripts when Content-Security-Policy header is defined",
         "Subresource Integrity includes a nonce value with inline scripts when Content-Security-Policy header is defined",
@@ -15532,7 +15531,6 @@
         "Subresource Integrity includes an integrity attribute on scripts",
         "Subresource Integrity throws when escape characters are included in nonce"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -15550,11 +15548,11 @@
     },
     "test/production/app-dir/typed-routes-with-webpack-worker/typed-routes-with-webpack-worker.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "app dir - typed-routes-with-webpack-worker builds successfully without errors",
         "app dir - typed-routes-with-webpack-worker builds with valid errors"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -15901,8 +15899,8 @@
       "runtimeError": false
     },
     "test/production/jest/index.test.ts": {
-      "passed": [],
-      "failed": ["next/jest should work"],
+      "passed": ["next/jest should work"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": true
@@ -15929,8 +15927,8 @@
       "runtimeError": false
     },
     "test/production/jest/remove-react-properties/remove-react-properties-jest.test.ts": {
-      "passed": [],
-      "failed": ["next/jest data-testid should be removed in production"],
+      "passed": ["next/jest data-testid should be removed in production"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": true
@@ -15958,8 +15956,8 @@
     },
     "test/production/next-font/babel-unsupported.test.ts": {
       "passed": [],
-      "failed": ["@next/fon babel unsupported Build error when using babel"],
-      "pending": [],
+      "failed": [],
+      "pending": ["@next/font babel unsupported Build error when using babel"],
       "flakey": [],
       "runtimeError": false
     },

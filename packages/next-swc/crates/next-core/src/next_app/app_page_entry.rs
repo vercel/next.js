@@ -22,7 +22,7 @@ use turbopack_binding::{
 use super::app_entry::AppEntry;
 use crate::{
     app_structure::LoaderTree,
-    loader_tree::LoaderTreeModule,
+    loader_tree::{LoaderTreeModule, GLOBAL_ERROR},
     next_app::{AppPage, AppPath},
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
@@ -81,8 +81,11 @@ pub async fn get_app_page_entry(
         indexmap! {
             "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
-            // TODO(alexkirsz) Support custom global error.
-            "VAR_MODULE_GLOBAL_ERROR" => "next/dist/client/components/error-boundary".into(),
+            "VAR_MODULE_GLOBAL_ERROR" => if inner_assets.contains_key(GLOBAL_ERROR) {
+                GLOBAL_ERROR.into()
+             } else {
+                "next/dist/client/components/error-boundary".into()
+            },
         },
         indexmap! {
             "tree" => loader_tree_code,
