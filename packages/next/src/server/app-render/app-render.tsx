@@ -1,13 +1,14 @@
 import type {
   ActionResult,
   DynamicParamTypesShort,
-  FlightData,
   FlightRouterState,
   FlightSegmentPath,
   RenderOpts,
   Segment,
   CacheNodeSeedData,
   PreloadCallbacks,
+  RSCPayload,
+  FlightData,
   InitialRSCPayload,
 } from './types'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
@@ -39,6 +40,7 @@ import {
 } from '../stream-utils/node-web-streams-helper'
 import { stripInternalQueries } from '../internal-utils'
 import {
+  NEXT_HMR_REFRESH_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
@@ -120,6 +122,11 @@ import { isNodeNextRequest } from '../base-http/helpers'
 import { parseParameter } from '../../shared/lib/router/utils/route-regex'
 import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-url'
 import AppRouter from '../../client/components/app-router'
+import type { ServerComponentsHmrCache } from '../response-cache'
+import type { RequestErrorContext } from '../instrumentation/types'
+import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
+import { createMutableActionQueue } from '../../shared/lib/router/action-queue'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -136,9 +143,10 @@ type AppRenderBaseContext = {
   requestStore: RequestStore
   componentMod: AppPageModule
   renderOpts: RenderOpts
+  parsedRequestHeaders: ParsedRequestHeaders
 }
 
-export type GenerateFlight = typeof generateFlight
+export type GenerateFlight = typeof generateDynamicFlightRenderResult
 
 export type AppRenderContext = AppRenderBaseContext & {
   getDynamicParamFromSegment: GetDynamicParamFromSegment
@@ -172,6 +180,7 @@ interface ParsedRequestHeaders {
    */
   readonly flightRouterState: FlightRouterState | undefined
   readonly isPrefetchRequest: boolean
+  readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
   readonly nonce: string | undefined
 }
@@ -182,6 +191,9 @@ function parseRequestHeaders(
 ): ParsedRequestHeaders {
   const isPrefetchRequest =
     headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
+
+  const isHmrRefresh =
+    headers[NEXT_HMR_REFRESH_HEADER.toLowerCase()] !== undefined
 
   const isRSCRequest = headers[RSC_HEADER.toLowerCase()] !== undefined
 
@@ -201,7 +213,13 @@ function parseRequestHeaders(
   const nonce =
     typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
 
-  return { flightRouterState, isPrefetchRequest, isRSCRequest, nonce }
+  return {
+    flightRouterState,
+    isPrefetchRequest,
+    isHmrRefresh,
+    isRSCRequest,
+    nonce,
+  }
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
@@ -302,25 +320,25 @@ function NonIndex({ ctx }: { ctx: AppRenderContext }) {
   return null
 }
 
-// Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
-async function generateFlight(
+/**
+ * This is used by server actions & client-side navigations to generate RSC data from a client-side request.
+ * This function is only called on "dynamic" requests (ie, there wasn't already a static response).
+ * It uses request headers (namely `Next-Router-State-Tree`) to determine where to start rendering.
+ */
+async function generateDynamicRSCPayload(
   ctx: AppRenderContext,
   options?: {
     actionResult: ActionResult
     skipFlight: boolean
     asNotFound?: boolean
   }
-): Promise<RenderResult> {
+): Promise<RSCPayload> {
   // Flight data that is going to be passed to the browser.
   // Currently a single item array but in the future multiple patches might be combined in a single request.
   let flightData: FlightData | null = null
 
   const {
-    componentMod: {
-      tree: loaderTree,
-      renderToReadableStream,
-      createDynamicallyTrackedSearchParams,
-    },
+    componentMod: { tree: loaderTree, createDynamicallyTrackedSearchParams },
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
     requestStore: { url },
@@ -329,9 +347,9 @@ async function generateFlight(
     flightRouterState,
   } = ctx
 
-  const preloadCallbacks: PreloadCallbacks = []
-
   if (!options?.skipFlight) {
+    const preloadCallbacks: PreloadCallbacks = []
+
     const [MetadataTree, MetadataOutlet] = createMetadataComponents({
       tree: loaderTree,
       query,
@@ -367,14 +385,49 @@ async function generateFlight(
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
 
-  const buildIdFlightDataPair = [ctx.renderOpts.buildId, flightData]
+  // If we have an action result, then this is a server action response.
+  // We can rely on this because `ActionResult` will always be a promise, even if
+  // the result is falsey.
+  if (options?.actionResult) {
+    return {
+      a: options.actionResult,
+      f: flightData,
+      b: ctx.renderOpts.buildId,
+    }
+  }
+
+  // Otherwise, it's a regular RSC response.
+  return {
+    b: ctx.renderOpts.buildId,
+    // Anything besides an action response should have non-null flightData.
+    // We don't ever expect this to be null because `skipFlight` is only
+    // used when invoked by a server action, which is covered above.
+    // The client router can handle an empty string (treating it as an MPA navigation),
+    // so we'll use that as a fallback.
+    f: flightData ?? '',
+  }
+}
+
+/**
+ * Produces a RenderResult containing the Flight data for the given request. See
+ * `generateDynamicRSCPayload` for information on the contents of the render result.
+ */
+async function generateDynamicFlightRenderResult(
+  ctx: AppRenderContext,
+  options?: {
+    actionResult: ActionResult
+    skipFlight: boolean
+    asNotFound?: boolean
+    componentTree?: CacheNodeSeedData
+    preloadCallbacks?: PreloadCallbacks
+  }
+): Promise<RenderResult> {
+  const rscPayload = await generateDynamicRSCPayload(ctx, options)
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
-  const flightReadableStream = renderToReadableStream(
-    options
-      ? [options.actionResult, buildIdFlightDataPair]
-      : buildIdFlightDataPair,
+  const flightReadableStream = ctx.componentMod.renderToReadableStream(
+    rscPayload,
     ctx.clientReferenceManifest.clientModules,
     {
       onError: ctx.flightDataRendererErrorHandler,
@@ -402,41 +455,12 @@ type RenderToStreamOptions = {
   formState: any
 }
 
-/**
- * Creates a resolver that eagerly generates a flight payload that is then
- * resolved when the resolver is called.
- */
-function createFlightDataResolver(ctx: AppRenderContext) {
-  // Generate the flight data and as soon as it can, convert it into a string.
-  const promise = generateFlight(ctx)
-    .then(async (result) => ({
-      flightData: await result.toUnchunkedBuffer(true),
-    }))
-    // Otherwise if it errored, return the error.
-    .catch((err) => ({ err }))
-
-  return async () => {
-    // Resolve the promise to get the flight data or error.
-    const result = await promise
-
-    // If the flight data failed to render due to an error, re-throw the error
-    // here.
-    if ('err' in result) {
-      throw result.err
-    }
-
-    // Otherwise, return the flight data.
-    return result.flightData
-  }
-}
-
 // This is the data necessary to render <AppRouter /> when no SSR errors are encountered
 async function getRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
   asNotFound: boolean
 ) {
-  // Create full component tree from root to leaf.
   const injectedCSS = new Set<string>()
   const injectedJS = new Set<string>()
   const injectedFontPreloadTags = new Set<string>()
@@ -510,12 +534,10 @@ async function getRSCPayload(
     p: ctx.assetPrefix,
     c: url.pathname + url.search,
     i: couldBeIntercepted,
-    t: initialTree,
-    d: seedData,
-    h: initialHead,
+    f: [[initialTree, seedData, initialHead]],
     m: missingSlots,
     G: GlobalError,
-  } as InitialRSCPayload & { P: React.ReactNode }
+  } satisfies RSCPayload & { P: React.ReactNode }
 }
 
 /**
@@ -587,12 +609,11 @@ async function getErrorRSCPayload(
     b: ctx.renderOpts.buildId,
     p: ctx.assetPrefix,
     c: url.pathname + url.search,
+    m: undefined,
     i: false,
-    t: initialTree,
-    d: initialSeedData,
-    h: initialHead,
+    f: [[initialTree, initialSeedData, initialHead]],
     G: GlobalError,
-  } as InitialRSCPayload
+  } satisfies RSCPayload
 }
 
 // This component must run in an SSR context. It will render the RSC root component
@@ -608,7 +629,7 @@ function ReactServerEntrypoint<T>({
   nonce?: string
 }): JSX.Element {
   preinitScripts()
-  const initialRSCPayload = React.use(
+  const response = React.use(
     useFlightStream<InitialRSCPayload>(
       reactServerStream,
       clientReferenceManifest,
@@ -616,7 +637,26 @@ function ReactServerEntrypoint<T>({
     )
   )
 
-  return <AppRouter initialRSCPayload={initialRSCPayload} />
+  const initialState = createInitialRouterState({
+    buildId: response.b,
+    initialFlightData: response.f,
+    initialCanonicalUrl: response.c,
+    // location and initialParallelRoutes are not initialized in the SSR render
+    // they are set to an empty map and window.location, respectively during hydration
+    initialParallelRoutes: null!,
+    location: null,
+    couldBeIntercepted: response.i,
+  })
+
+  const actionQueue = createMutableActionQueue(initialState)
+
+  return (
+    <AppRouter
+      actionQueue={actionQueue}
+      globalErrorComponent={response.G}
+      assetPrefix={response.p}
+    />
+  )
 }
 
 // We use a trick with TS Generics to branch streams with a type so we can
@@ -742,7 +782,7 @@ async function renderToHTMLOrFlightImpl(
   const digestErrorsMap: Map<string, DigestedError> = new Map()
   const allCapturedErrors: Error[] = []
   const isNextExport = !!renderOpts.nextExport
-  const { staticGenerationStore, requestStore } = baseCtx
+  const { staticGenerationStore, requestStore, parsedRequestHeaders } = baseCtx
   const { isStaticGeneration } = staticGenerationStore
 
   /**
@@ -767,12 +807,16 @@ async function renderToHTMLOrFlightImpl(
   // intentionally silence the error logger in this case to avoid double
   // logging.
   const silenceStaticGenerationErrors = isRoutePPREnabled && isStaticGeneration
+  const isActionRequest = getServerActionRequestMetadata(req).isServerAction
 
-  const errorContext = {
+  const errorContext: Pick<
+    RequestErrorContext,
+    'routerKind' | 'routePath' | 'routeType'
+  > = {
     routerKind: 'App Router',
     routePath: pagePath,
-    routeType: 'render',
-  } as const
+    routeType: isActionRequest ? 'action' : 'render',
+  }
 
   // Including RSC rendering and flight data rendering
   function getRSCError(err: DigestedError) {
@@ -872,9 +916,7 @@ async function renderToHTMLOrFlightImpl(
   stripInternalQueries(query)
 
   const { flightRouterState, isPrefetchRequest, isRSCRequest, nonce } =
-    // We read these values from the request object as, in certain cases,
-    // base-server will strip them to opt into different rendering behavior.
-    parseRequestHeaders(req.headers, { isRoutePPREnabled })
+    parsedRequestHeaders
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -919,17 +961,8 @@ async function renderToHTMLOrFlightImpl(
   }
 
   if (isRSCRequest && !isStaticGeneration) {
-    return generateFlight(ctx)
+    return generateDynamicFlightRenderResult(ctx)
   }
-
-  // Create the resolver that can get the flight payload when it's ready or
-  // throw the error if it occurred. If we are not generating static HTML, we
-  // don't need to generate the flight payload because it's a dynamic request
-  // which means we're either getting the flight payload only or just the
-  // regular HTML.
-  const flightDataResolver = isStaticGeneration
-    ? createFlightDataResolver(ctx)
-    : null
 
   const validateRootLayout = dev
 
@@ -984,16 +1017,17 @@ async function renderToHTMLOrFlightImpl(
         renderOpts.crossOrigin,
         subresourceIntegrityManifest,
         getAssetQueryString(ctx, true),
-        nonce
+        nonce,
+        renderOpts.page
       )
 
-      const RSCPayload = await getRSCPayload(tree, ctx, asNotFound)
+      const rscPayload = await getRSCPayload(tree, ctx, asNotFound)
 
       // We kick off the Flight Request (render) here. It is ok to initiate the render in an arbitrary
       // place however it is critical that we only construct the Flight Response inside the SSR
       // render so that directives like preloads are correctly piped through
       const serverStream = ComponentMod.renderToReadableStream(
-        RSCPayload,
+        rscPayload,
         clientReferenceManifest.clientModules,
         {
           onError: serverComponentsErrorHandler,
@@ -1081,6 +1115,15 @@ async function renderToHTMLOrFlightImpl(
         },
       })
 
+      let flightRenderResult: FlightRenderResult | undefined = undefined
+
+      // Tee the data stream so that we can create a static flight payload.
+      if (isStaticGeneration) {
+        const [original, flightSpy] = dataStream.tee()
+        dataStream = original
+        flightRenderResult = new FlightRenderResult(flightSpy)
+      }
+
       try {
         const result = await renderer.render(children)
 
@@ -1100,6 +1143,10 @@ async function renderToHTMLOrFlightImpl(
            *   Static:            The prerender has no dynamic holes and no dynamic APIs were used. We statically encode
            *                      all server inserted HTML and flight data
            */
+
+          // We need to provide flightData to the page metadata so it can be written to disk
+          metadata.flightData =
+            await flightRenderResult?.toUnchunkedBuffer(true)
 
           // First we check if we have any dynamic holes in our HTML prerender
           if (usedDynamicAPIs(prerenderState)) {
@@ -1247,6 +1294,11 @@ async function renderToHTMLOrFlightImpl(
           // This may be a static render or a dynamic render
           // @TODO factor this further to make the render types more clearly defined and remove
           // the deluge of optional params that passed to configure the various behaviors
+
+          // Since this is a potentially static branch, we need to provide flightData to the page metadata so it can be written to disk
+          metadata.flightData =
+            await flightRenderResult?.toUnchunkedBuffer(true)
+
           return {
             stream: await continueFizzStream(result.stream, {
               inlinedDataStream: createInlinedDataReadableStream(
@@ -1334,7 +1386,8 @@ async function renderToHTMLOrFlightImpl(
           renderOpts.crossOrigin,
           subresourceIntegrityManifest,
           getAssetQueryString(ctx, false),
-          nonce
+          nonce,
+          '/_not-found/page'
         )
 
         const errorRSCPayload = await getErrorRSCPayload(tree, ctx, errorType)
@@ -1366,6 +1419,10 @@ async function renderToHTMLOrFlightImpl(
               formState,
             },
           })
+
+          // Since this is a potentially static branch, we need to provide flightData to the page metadata so it can be written to disk
+          metadata.flightData =
+            await flightRenderResult?.toUnchunkedBuffer(true)
 
           return {
             // Returning the error that was thrown so it can be used to handle
@@ -1413,7 +1470,7 @@ async function renderToHTMLOrFlightImpl(
     res,
     ComponentMod,
     serverModuleMap,
-    generateFlight,
+    generateFlight: generateDynamicFlightRenderResult,
     staticGenerationStore,
     requestStore,
     serverActions,
@@ -1497,23 +1554,10 @@ async function renderToHTMLOrFlightImpl(
     }
   }
 
-  if (!flightDataResolver) {
-    throw new Error(
-      'Invariant: Flight data resolver is missing when generating static HTML'
-    )
-  }
-
   // If we encountered any unexpected errors during build we fail the
   // prerendering phase and the build.
   if (buildFailingError) {
     throw buildFailingError
-  }
-
-  // Wait for and collect the flight payload data if we don't have it
-  // already
-  const flightData = await flightDataResolver()
-  if (flightData) {
-    metadata.flightData = flightData
   }
 
   // If force static is specifically set to false, we should not revalidate
@@ -1542,7 +1586,8 @@ export type AppPageRender = (
   res: BaseNextResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
-  renderOpts: RenderOpts
+  renderOpts: RenderOpts,
+  serverComponentsHmrCache?: ServerComponentsHmrCache
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export const renderToHTMLOrFlight: AppPageRender = (
@@ -1550,7 +1595,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
   res,
   pagePath,
   query,
-  renderOpts
+  renderOpts,
+  serverComponentsHmrCache
 ) => {
   if (!req.url) {
     throw new Error('Invalid URL')
@@ -1558,9 +1604,24 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
   const url = parseRelativeUrl(req.url, undefined, false)
 
+  // We read these values from the request object as, in certain cases,
+  // base-server will strip them to opt into different rendering behavior.
+  const parsedRequestHeaders = parseRequestHeaders(req.headers, {
+    isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
+  })
+
+  const { isHmrRefresh } = parsedRequestHeaders
+
   return withRequestStore(
     renderOpts.ComponentMod.requestAsyncStorage,
-    { req, url, res, renderOpts },
+    {
+      req,
+      url,
+      res,
+      renderOpts,
+      isHmrRefresh,
+      serverComponentsHmrCache,
+    },
     (requestStore) =>
       withStaticGenerationStore(
         renderOpts.ComponentMod.staticGenerationAsyncStorage,
@@ -1581,6 +1642,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
               staticGenerationStore,
               componentMod: renderOpts.ComponentMod,
               renderOpts,
+              parsedRequestHeaders,
             },
             staticGenerationStore.requestEndedState || {}
           )

@@ -623,6 +623,15 @@ export async function ncc_browserslist(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('browserslist')))
     .ncc({ packageName: 'browserslist', externals })
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // We replace the module/chunk loading code with our own implementation in Next.js.
+      file.data = source.replace(
+        /process\.env\.BROWSERSLIST_IGNORE_OLD_DATA/g,
+        'true'
+      )
+    })
     .target('src/compiled/browserslist')
 
   await fs.writeFile(nodeFile, content)

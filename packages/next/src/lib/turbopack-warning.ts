@@ -16,9 +16,9 @@ const unsupportedTurbopackNextConfigOptions = [
   // 'experimental.clientRouterFilter',
   // 'experimental.optimizePackageImports',
   // 'compiler.emotion',
-  'compiler.reactRemoveProperties',
+  // 'compiler.reactRemoveProperties',
   // 'compiler.relay',
-  'compiler.removeConsole',
+  // 'compiler.removeConsole',
   // 'compiler.styledComponents',
   'experimental.fetchCacheKeyPrefix',
 

@@ -129,13 +129,13 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  return null
+  return '...'
 }
 ```
 
 ```jsx filename="app/layout.js" switcher
 export default function RootLayout({ children }) {
-  return null
+  return '...'
 }
 ```
 
@@ -313,7 +313,7 @@ With the above changes, you shifted from declaring everything in your `index.htm
 
 ### Step 6: Styles
 
-Like Create React App, Next.js has built-in support for [CSS Modules](/docs/app/building-your-application/styling/css-modules).
+Like Create React App, Next.js has built-in support for [CSS Modules](/docs/app/building-your-application/styling/stylesheets).
 
 If you're using a global CSS file, import it into your `app/layout.tsx` file:
 

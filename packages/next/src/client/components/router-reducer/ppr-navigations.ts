@@ -3,6 +3,7 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   Segment,
+  FetchServerResponseResult,
 } from '../../../server/app-render/types'
 import type {
   CacheNode,
@@ -15,7 +16,6 @@ import {
 } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
 import { createRouterCacheKey } from './create-router-cache-key'
-import type { FetchServerResponseResult } from './fetch-server-response'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -353,8 +353,7 @@ export function listenForDynamicRequest(
   responsePromise: Promise<FetchServerResponseResult>
 ) {
   responsePromise.then(
-    (response: FetchServerResponseResult) => {
-      const flightData = response[0]
+    ({ f: flightData }: FetchServerResponseResult) => {
       for (const flightDataPath of flightData) {
         const segmentPath = flightDataPath.slice(0, -3)
         const serverRouterState = flightDataPath[flightDataPath.length - 3]

@@ -22,7 +22,7 @@ export function adaptForAppRouterInstance(
     refresh() {
       pagesRouter.reload()
     },
-    fastRefresh() {},
+    hmrRefresh() {},
     push(href, { scroll } = {}) {
       void pagesRouter.push(href, undefined, { scroll })
     },

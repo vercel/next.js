@@ -87,13 +87,13 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  return null
+  return '...'
 }
 ```
 
 ```jsx filename="app/layout.js" switcher
 export default function RootLayout({ children }) {
-  return null
+  return '...'
 }
 ```
 
@@ -143,7 +143,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-> **Good to know**: We'll ignore the [manifest file](/docs/app/api-reference/file-conventions/metadata), additional iconography other than the favicon, and [testing configuration](/docs/app/building-your-application/testing), but if these are requirements, Next.js also supports these options.
+> **Good to know**: Next.js ignores CRA's `public/manifest.json` file, additional iconography (except [`favicon`, `icon`, and `apple-icon`](/docs/app/api-reference/file-conventions/metadata/app-icons) ), and [testing configuration](/docs/app/building-your-application/testing), but if these are requirements, Next.js also supports these options. See the [Metadata API](/docs/app/building-your-application/optimizing/metadata) and [Testing](/docs/app/building-your-application/testing) docs for more information.
 
 ### Step 4: Metadata
 
