@@ -689,7 +689,7 @@ async function getMetadataFromExport<Data, ResolvedData>(
     // Only preload at the beginning when resolves are empty
     if (!dynamicMetadataResolvers.length) {
       for (let j = currentIndex; j < metadataItems.length; j++) {
-        const preloadMetadataExport = getPreloadMetadataExport(metadataItems[j]) // metadataItems[j][0]
+        const preloadMetadataExport = getPreloadMetadataExport(metadataItems[j])
         // call each `generateMetadata function concurrently and stash their resolver
         if (typeof preloadMetadataExport === 'function') {
           collectMetadataExportPreloading<Data, ResolvedData>(
