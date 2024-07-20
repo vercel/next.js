@@ -12,6 +12,7 @@ const getImageUpstream = async (filepath, contentType = 'image/jpeg') => {
     buffer,
     contentType,
     cacheControl: 'max-age=31536000',
+    etag: getImageEtag(buffer),
   } satisfies Parameters<typeof shouldUsePreviouslyCachedEntry>[0]
 }
 const baseCacheEntry = {
