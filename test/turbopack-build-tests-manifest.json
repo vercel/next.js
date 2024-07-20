@@ -12763,11 +12763,10 @@
         "Static Image Component Tests for basePath production mode Should allow provided width and height to override intrinsic",
         "Static Image Component Tests for basePath production mode Should automatically provide an image height and width",
         "Static Image Component Tests for basePath production mode Should use immutable cache-control header even when unoptimized",
-        "Static Image Component Tests for basePath production mode Should use immutable cache-control header for static import"
-      ],
-      "failed": [
+        "Static Image Component Tests for basePath production mode Should use immutable cache-control header for static import",
         "Build Error Tests for basePath production mode should throw build error when import statement is used with missing file"
       ],
+      "failed": [],
       "pending": [
         "Static Image Component Tests for basePath development mode Should add a blur placeholder to statically imported jpg",
         "Static Image Component Tests for basePath development mode Should add a blur placeholder to statically imported png",
