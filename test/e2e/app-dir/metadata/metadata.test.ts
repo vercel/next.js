@@ -432,7 +432,7 @@ describe('app dir - metadata', () => {
       expect(
         $('link[rel="icon"]')
           .toArray()
-          .map((i) => i.attr('href'))
+          .map((i) => $(i).attr('href'))
       ).toEqual(['/favicon.ico', 'https://custom-icon-1.png'])
     })
   })
