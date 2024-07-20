@@ -123,23 +123,16 @@ function prefetch(
 
   // dedupe requests
   if (!options.bypassPrefetchedCheck) {
-    const locale =
-      // Let the link's locale prop override the default router locale.
-      typeof options.locale !== 'undefined'
-        ? options.locale
-        : // Otherwise fallback to the router's locale.
-          'locale' in router
-          ? router.locale
-          : undefined
+    const routerLocale = 'locale' in router ? router.locale : undefined
+    const locale = options.locale ?? routerLocale
 
     const prefetchedKey = href + '%' + as + '%' + locale
 
-    // If we've already fetched the key, then don't prefetch it again!
+    // Use cached result
     if (prefetched.has(prefetchedKey)) {
       return
     }
 
-    // Mark this URL as prefetched.
     prefetched.add(prefetchedKey)
   }
 
@@ -379,8 +372,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkProps>(
         }
       })
 
-      // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
-      // eslint-disable-next-line react-hooks/rules-of-hooks
       if (props.prefetch && !isAppRouter) {
         warnOnce(
           'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://nextjs.org/docs/messages/prefetch-true-deprecated'
@@ -488,8 +479,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkProps>(
 
     // Prefetch the URL if we haven't already and it's visible.
     if (router && isVisible) {
-      // with `bypassPrefetchedCheck` disabled, it'll check if the link is prefetched
-      // so we don't need another `useEffect` to track the changes of `isVisible` and other related properties.
+      // prefetch is deduped by default
+      // we don't need a hook to track the change of `isVisible` and other related properties.
       prefetch(
         router,
         href,
@@ -502,13 +493,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkProps>(
       )
     }
 
-    const childProps: {
-      onTouchStart?: React.TouchEventHandler<HTMLAnchorElement>
-      onMouseEnter: React.MouseEventHandler<HTMLAnchorElement>
-      onClick: React.MouseEventHandler<HTMLAnchorElement>
-      href?: string
-      ref?: any
-    } = {
+    const childProps: React.ComponentProps<'a'> = {
       ref: mergedRef,
       onClick(e) {
         if (!legacyBehavior) {
