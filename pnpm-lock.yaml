@@ -22,7 +22,7 @@ overrides:
 
 patchedDependencies:
   webpack-sources@3.2.3:
-    hash: exarmjd4pnde4auoeobjrmju54
+    hash: jbynf5dc46ambamq3wuyho6hkq
     path: patches/webpack-sources@3.2.3.patch
 
 importers:
@@ -777,7 +777,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.0.0-canary.73
+        specifier: 15.0.0-canary.74
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -838,7 +838,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.0.0-canary.73
+        specifier: 15.0.0-canary.74
         version: link:../next-env
       '@swc/counter':
         specifier: 0.1.3
@@ -969,16 +969,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 15.0.0-canary.73
+        specifier: 15.0.0-canary.74
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.0.0-canary.73
+        specifier: 15.0.0-canary.74
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.0.0-canary.73
+        specifier: 15.0.0-canary.74
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.0.0-canary.73
+        specifier: 15.0.0-canary.74
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1471,7 +1471,7 @@ importers:
         version: webpack-sources@1.4.3
       webpack-sources3:
         specifier: npm:webpack-sources@3.2.3
-        version: webpack-sources@3.2.3(patch_hash=exarmjd4pnde4auoeobjrmju54)
+        version: webpack-sources@3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
       ws:
         specifier: 8.2.3
         version: 8.2.3
@@ -1593,7 +1593,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.0.0-canary.73
+        specifier: 15.0.0-canary.74
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -31425,7 +31425,7 @@ snapshots:
       source-list-map: 2.0.1
       source-map: 0.6.1
 
-  webpack-sources@3.2.3(patch_hash=exarmjd4pnde4auoeobjrmju54): {}
+  webpack-sources@3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq): {}
 
   webpack-stats-plugin@1.1.0: {}
 
@@ -31454,7 +31454,7 @@ snapshots:
       tapable: 2.2.0
       terser-webpack-plugin: 5.3.10(@swc/core@1.6.13(@swc/helpers@0.5.12))(webpack@5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.12)))
       watchpack: 2.4.0
-      webpack-sources: 3.2.3(patch_hash=exarmjd4pnde4auoeobjrmju54)
+      webpack-sources: 3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
     transitivePeerDependencies:
       - '@swc/core'
       - esbuild
@@ -31485,7 +31485,7 @@ snapshots:
       tapable: 2.2.0
       terser-webpack-plugin: 5.3.10(@swc/core@1.7.0-nightly-20240714.1(@swc/helpers@0.5.12))(webpack@5.90.0(@swc/core@1.7.0-nightly-20240714.1(@swc/helpers@0.5.12)))
       watchpack: 2.4.0
-      webpack-sources: 3.2.3(patch_hash=exarmjd4pnde4auoeobjrmju54)
+      webpack-sources: 3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
     transitivePeerDependencies:
       - '@swc/core'
       - esbuild

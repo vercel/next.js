@@ -152,7 +152,8 @@ export class NextDevInstance extends NextInstance {
 
   public override async patchFile(
     filename: string,
-    content: string | ((contents: string) => string)
+    content: string | ((contents: string) => string),
+    retryWithTempContent?: (context: { newFile: boolean }) => Promise<void>
   ) {
     const isServerRunning = this.childProcess && !this.isStopping
     const cliOutputLength = this.cliOutput.length
@@ -161,19 +162,27 @@ export class NextDevInstance extends NextInstance {
       await this.handleDevWatchDelayBeforeChange(filename)
     }
 
-    const { newFile } = await super.patchFile(filename, content)
-
-    if (isServerRunning) {
-      if (newFile) {
-        await this.handleDevWatchDelayAfterChange(filename)
-      } else if (filename.startsWith('next.config')) {
-        await retry(() => {
+    const waitForChanges = async ({ newFile }: { newFile: boolean }) => {
+      if (isServerRunning) {
+        if (newFile) {
+          await this.handleDevWatchDelayAfterChange(filename)
+        } else if (filename.startsWith('next.config')) {
           if (!this.cliOutput.slice(cliOutputLength).includes('Ready in')) {
             throw new Error('Server has not finished restarting.')
           }
-        })
+        }
       }
     }
+
+    if (retryWithTempContent) {
+      return super.patchFile(filename, content, async ({ newFile }) => {
+        await waitForChanges({ newFile })
+        await retryWithTempContent({ newFile })
+      })
+    }
+
+    const { newFile } = await super.patchFile(filename, content)
+    await retry(() => waitForChanges({ newFile }))
 
     return { newFile }
   }

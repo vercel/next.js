@@ -200,6 +200,7 @@ export interface ReactCompilerOptions {
 }
 
 export interface ExperimentalConfig {
+  appNavFailHandling?: boolean
   flyingShuttle?: boolean
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
@@ -852,11 +853,13 @@ export interface NextConfig extends Record<string, any> {
     }
   >
 
-  logging?: {
-    fetches?: {
-      fullUrl?: boolean
-    }
-  }
+  logging?:
+    | {
+        fetches?: {
+          fullUrl?: boolean
+        }
+      }
+    | boolean
 
   /**
    * period (in seconds) where the server allow to serve stale cache
@@ -936,6 +939,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
     flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
     prerenderEarlyExit: true,
     serverMinification: true,

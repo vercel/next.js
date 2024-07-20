@@ -7,8 +7,18 @@ import * as Log from './log'
 const MAX_LOG_SKIP_DURATION = 500 // 500ms
 
 export type OutputState =
-  | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
-  | ({ bootstrap: false; appUrl: string | null; bindAddr: string | null } & (
+  | {
+      bootstrap: true
+      appUrl: string | null
+      bindAddr: string | null
+      logging: boolean
+    }
+  | ({
+      bootstrap: false
+      appUrl: string | null
+      bindAddr: string | null
+      logging: boolean
+    } & (
       | {
           loading: true
           trigger: string | undefined
@@ -41,9 +51,15 @@ export const store = createStore<OutputState>({
   appUrl: null,
   bindAddr: null,
   bootstrap: true,
+  logging: true,
 })
 
-let lastStore: OutputState = { appUrl: null, bindAddr: null, bootstrap: true }
+let lastStore: OutputState = {
+  appUrl: null,
+  bindAddr: null,
+  bootstrap: true,
+  logging: true,
+}
 function hasStoreChanged(nextStore: OutputState) {
   if (
     (
@@ -66,6 +82,10 @@ let loadingLogTimer: NodeJS.Timeout | null = null
 let traceSpan: Span | null = null
 
 store.subscribe((state) => {
+  if (state.logging === false) {
+    return
+  }
+
   if (!hasStoreChanged(state)) {
     return
   }

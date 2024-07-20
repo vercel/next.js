@@ -1,6 +1,6 @@
 import Link from "next/link";
-import styles from "../styles.module.css";
-import Code from "../components/Code";
+import styles from "/styles.module.css";
+import Code from "../_components/Code";
 
 export default function About() {
   return (

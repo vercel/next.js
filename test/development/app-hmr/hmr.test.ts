@@ -3,8 +3,6 @@ import { retry, waitFor } from 'next-test-utils'
 
 const envFile = '.env.development.local'
 
-const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
 describe(`app-dir-hmr`, () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -57,12 +55,11 @@ describe(`app-dir-hmr`, () => {
     })
 
     it('should update server components after navigating to a page with a different runtime', async () => {
-      const envContent = await next.readFile(envFile)
-
       const browser = await next.browser('/env/node')
       await browser.loadPage(`${next.url}/env/edge`)
       await browser.eval('window.__TEST_NO_RELOAD = true')
 
+      expect(await browser.elementByCss('p').text()).toBe('mac')
       await next.patchFile(envFile, 'MY_DEVICE="ipad"')
 
       try {
@@ -73,7 +70,7 @@ describe(`app-dir-hmr`, () => {
             const fastRefreshLogs = logs.filter((log) => {
               return log.message.startsWith('[Fast Refresh]')
             })
-            // FIXME:  3+ "rebuilding" but single "done" is confusing.
+            // FIXME:  3+ "rebuilding" but no "done" is confusing.
             // There may actually be more "rebuilding" but not reliably.
             // To ignore this flakiness, we just assert on subset matches.
             // Once the  bug is fixed, each "rebuilding" should be paired with a "done in" exactly.
@@ -81,62 +78,69 @@ describe(`app-dir-hmr`, () => {
               expect.arrayContaining([
                 { source: 'log', message: '[Fast Refresh] rebuilding' },
                 { source: 'log', message: '[Fast Refresh] rebuilding' },
-                {
-                  source: 'log',
-                  message: expect.stringContaining('[Fast Refresh] done in '),
-                },
                 { source: 'log', message: '[Fast Refresh] rebuilding' },
+              ])
+            )
+            // FIXME: Turbopack should have matching "done in" for each "rebuilding"
+            expect(logs).not.toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({
+                  message: expect.stringContaining('[Fast Refresh] done in'),
+                  source: 'log',
+                }),
               ])
             )
           })
         } else {
           await retry(
             async () => {
-              const fastRefreshLogs = logs.filter((log) => {
-                return log.message.startsWith('[Fast Refresh]')
+              const envValue = await browser.elementByCss('p').text()
+              const mpa = await browser.eval(
+                'window.__TEST_NO_RELOAD === undefined'
+              )
+              // Used to be flaky but presumably no longer is.
+              // If this flakes again, please add the received value as a commnet.
+              expect({ envValue, mpa }).toEqual({
+                envValue: 'ipad',
+                mpa: false,
               })
-              // FIXME: Should be either a single "rebuilding"+"done" or the last "rebuilding" should be followed by "done"
-              expect(fastRefreshLogs).toEqual([
-                { source: 'log', message: '[Fast Refresh] rebuilding' },
-                { source: 'log', message: '[Fast Refresh] rebuilding' },
-                {
-                  source: 'log',
-                  message: expect.stringContaining('[Fast Refresh] done in '),
-                },
-                { source: 'log', message: '[Fast Refresh] rebuilding' },
-              ])
             },
             // Very slow Hot Update for some reason.
             // May be related to receiving 3 rebuild events but only one finish event
             5000
           )
+
+          const fastRefreshLogs = logs.filter((log) => {
+            return log.message.startsWith('[Fast Refresh]')
+          })
+          expect(fastRefreshLogs).toEqual([
+            { source: 'log', message: '[Fast Refresh] rebuilding' },
+            {
+              source: 'log',
+              message: expect.stringContaining('[Fast Refresh] done in '),
+            },
+            { source: 'log', message: '[Fast Refresh] rebuilding' },
+            { source: 'log', message: '[Fast Refresh] rebuilding' },
+            {
+              source: 'log',
+              message: expect.stringContaining('[Fast Refresh] done in '),
+            },
+            {
+              source: 'log',
+              message: expect.stringContaining('[Fast Refresh] done in '),
+            },
+          ])
         }
-        const envValue = await browser.elementByCss('p').text()
-        const mpa = await browser.eval('window.__TEST_NO_RELOAD === undefined')
-        // Flaky sometimes in Webpack:
-        // A. misses update and just receives `{ envValue: 'mac', mpa: false }`
-        // B. triggers error on server resulting in MPA: `{ envValue: 'ipad', mpa: true }` and server logs: ⨯ [TypeError: Cannot read properties of undefined (reading 'polyfillFiles')] ⨯ [TypeError: Cannot read properties of null (reading 'default')]
-        // A is more common than B.
-        expect({ envValue, mpa }).toEqual({
-          envValue:
-            isPPREnabledByDefault && !process.env.TURBOPACK
-              ? // FIXME: Should be 'ipad' but PPR+Webpack swallows the update reliably
-                'mac'
-              : 'ipad',
-          mpa: false,
-        })
       } finally {
-        await next.patchFile(envFile, envContent)
+        // TOOD: use sandbox instead
+        await next.patchFile(envFile, 'MY_DEVICE="mac"')
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe('mac')
+        })
       }
     })
 
     it('should update server components pages when env files is changed (nodejs)', async () => {
-      // If "should update server components after navigating to a page with a different runtime" failed, the dev server is in a corrupted state.
-      // Restart fixes this.
-      await next.stop()
-      await next.start()
-
-      const envContent = await next.readFile(envFile)
       const browser = await next.browser('/env/node')
       expect(await browser.elementByCss('p').text()).toBe('mac')
       await next.patchFile(envFile, 'MY_DEVICE="ipad"')
@@ -158,25 +162,36 @@ describe(`app-dir-hmr`, () => {
           expect(await browser.elementByCss('p').text()).toBe('ipad')
         })
 
-        expect(logs).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              message: expect.stringContaining('[Fast Refresh] done in'),
-              source: 'log',
-            }),
-          ])
-        )
+        if (process.env.TURBOPACK) {
+          // FIXME: Turbopack should have matching "done in" for each "rebuilding"
+          expect(logs).not.toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                message: expect.stringContaining('[Fast Refresh] done in'),
+                source: 'log',
+              }),
+            ])
+          )
+        } else {
+          expect(logs).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                message: expect.stringContaining('[Fast Refresh] done in'),
+                source: 'log',
+              }),
+            ])
+          )
+        }
       } finally {
-        await next.patchFile(envFile, envContent)
+        // TOOD: use sandbox instead
+        await next.patchFile(envFile, 'MY_DEVICE="mac"')
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe('mac')
+        })
       }
     })
 
     it('should update server components pages when env files is changed (edge)', async () => {
-      // Restart to work around a bug highlighted in the flakiness of "should update server components after navigating to a page with a different runtime"
-      await next.stop()
-      await next.start()
-
-      const envContent = await next.readFile(envFile)
       const browser = await next.browser('/env/edge')
       expect(await browser.elementByCss('p').text()).toBe('mac')
       await next.patchFile(envFile, 'MY_DEVICE="ipad"')
@@ -198,16 +213,32 @@ describe(`app-dir-hmr`, () => {
           expect(await browser.elementByCss('p').text()).toBe('ipad')
         })
 
-        expect(logs).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              message: expect.stringContaining('[Fast Refresh] done in'),
-              source: 'log',
-            }),
-          ])
-        )
+        if (process.env.TURBOPACK) {
+          // FIXME: Turbopack should have matching "done in" for each "rebuilding"
+          expect(logs).not.toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                message: expect.stringContaining('[Fast Refresh] done in'),
+                source: 'log',
+              }),
+            ])
+          )
+        } else {
+          expect(logs).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                message: expect.stringContaining('[Fast Refresh] done in'),
+                source: 'log',
+              }),
+            ])
+          )
+        }
       } finally {
-        await next.patchFile(envFile, envContent)
+        // TOOD: use sandbox instead
+        await next.patchFile(envFile, 'MY_DEVICE="mac"')
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe('mac')
+        })
       }
     })
 

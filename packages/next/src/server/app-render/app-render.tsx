@@ -435,7 +435,9 @@ async function generateDynamicFlightRenderResult(
     }
   )
 
-  return new FlightRenderResult(flightReadableStream)
+  return new FlightRenderResult(flightReadableStream, {
+    fetchMetrics: ctx.staticGenerationStore.fetchMetrics,
+  })
 }
 
 type RenderToStreamResult = {
