@@ -454,19 +454,7 @@ declare module 'next/link' {
   import type { AnchorHTMLAttributes, DetailedHTMLProps } from 'react'
   import type { UrlObject } from 'url'
 
-  type LinkRestProps = Omit<
-    Omit<
-      DetailedHTMLProps<
-        AnchorHTMLAttributes<HTMLAnchorElement>,
-        HTMLAnchorElement
-      >,
-      keyof OriginalLinkProps
-    > &
-      OriginalLinkProps,
-    'href'
-  >
-
-  export type LinkProps<RouteInferType> = LinkRestProps & {
+  export type LinkProps<RouteInferType> = Omit<OriginalLinkProps, 'href'> & {
     /**
      * The path or URL to navigate to. This is the only required prop. It can also be an object.
      * @see https://nextjs.org/docs/api-reference/next/link
