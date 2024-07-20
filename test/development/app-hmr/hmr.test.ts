@@ -99,7 +99,7 @@ describe(`app-dir-hmr`, () => {
                 'window.__TEST_NO_RELOAD === undefined'
               )
               // Used to be flaky but presumably no longer is.
-              // If this flakes again, please add the received value as a commnet.
+              // If this flakes again, please add the received value as a comment.
               expect({ envValue, mpa }).toEqual({
                 envValue: 'ipad',
                 mpa: false,
