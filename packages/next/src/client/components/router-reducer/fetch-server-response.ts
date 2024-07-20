@@ -93,14 +93,11 @@ export async function fetchServerResponse(
   }
 
   /**
-   * Four cases:
+   * Three cases:
    * - `prefetchKind` is `undefined`, it means it's a normal navigation, so we want to prefetch the page data fully
-   * - `prefetchKind` is `temporary` - it means it's a normal navigation, so we want to prefetch the page data fully
    * - `prefetchKind` is `full` - we want to prefetch the whole page so same as above
    * - `prefetchKind` is `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully
    */
-  const isNavigation =
-    prefetchKind === undefined || prefetchKind === PrefetchKind.TEMPORARY
   if (prefetchKind === PrefetchKind.AUTO) {
     headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
   }
@@ -188,11 +185,7 @@ export async function fetchServerResponse(
     // In prod, every page will have the same Webpack runtime.
     // In dev, the Webpack runtime is minimal for each page.
     // We need to ensure the Webpack runtime is updated before executing client-side JS of the new page.
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      isNavigation &&
-      !process.env.TURBOPACK
-    ) {
+    if (process.env.NODE_ENV !== 'production' && !process.env.TURBOPACK) {
       await waitForWebpackRuntimeHotUpdate()
     }
 
