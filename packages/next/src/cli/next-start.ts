@@ -15,22 +15,23 @@ export type NextStartOptions = {
   keepAliveTimeout?: number
 }
 
+/**
+ * Start the Next.js server
+ *
+ * @param options The options for the start command
+ * @param directory The directory to start the server in
+ */
 const nextStart = async (options: NextStartOptions, directory?: string) => {
   const dir = getProjectDir(directory)
-  const host = options.hostname
-  const port = options.port
-  let keepAliveTimeout = options.keepAliveTimeout
 
-  if (isPortIsReserved(port)) {
-    printAndExit(getReservedPortExplanation(port), 1)
+  if (isPortIsReserved(options.port)) {
+    printAndExit(getReservedPortExplanation(options.port), 1)
   }
 
   await startServer({
     dir,
     isDev: false,
-    hostname: host,
-    port,
-    keepAliveTimeout,
+    ...options,
   })
 }
 
