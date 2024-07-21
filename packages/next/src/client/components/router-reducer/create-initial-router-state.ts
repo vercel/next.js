@@ -1,10 +1,5 @@
-import type { ReactNode } from 'react'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type {
-  FlightRouterState,
-  CacheNodeSeedData,
-  FlightData,
-} from '../../../server/app-render/types'
+import type { FlightDataPath } from '../../../server/app-render/types'
 
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
@@ -15,25 +10,24 @@ import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-par
 
 export interface InitialRouterStateParameters {
   buildId: string
-  initialTree: FlightRouterState
   initialCanonicalUrl: string
-  initialSeedData: CacheNodeSeedData
   initialParallelRoutes: CacheNode['parallelRoutes']
+  initialFlightData: FlightDataPath[]
   location: Location | null
-  initialHead: ReactNode
   couldBeIntercepted?: boolean
 }
 
 export function createInitialRouterState({
   buildId,
-  initialTree,
-  initialSeedData,
+  initialFlightData,
   initialCanonicalUrl,
   initialParallelRoutes,
   location,
-  initialHead,
   couldBeIntercepted,
 }: InitialRouterStateParameters) {
+  // The initialFlightData is an array of FlightDataPath arrays.
+  // For the root render, there'll only be a top-level FlightDataPath array.
+  const [initialTree, initialSeedData, initialHead] = initialFlightData[0]
   const isServer = !location
   const rsc = initialSeedData[2]
 
@@ -45,7 +39,6 @@ export function createInitialRouterState({
     prefetchHead: null,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
-    lazyDataResolved: false,
     loading: initialSeedData[3],
   }
 
@@ -106,11 +99,16 @@ export function createInitialRouterState({
       location.origin
     )
 
-    const initialFlightData: FlightData = [['', initialTree, null, null]]
     createPrefetchCacheEntryForInitialLoad({
       url,
       kind: PrefetchKind.AUTO,
-      data: [initialFlightData, undefined, false, couldBeIntercepted],
+      data: {
+        f: initialFlightData,
+        c: undefined,
+        i: !!couldBeIntercepted,
+        // TODO: the server should probably send a value for this. Default to false for now.
+        p: false,
+      },
       tree: initialState.tree,
       prefetchCache: initialState.prefetchCache,
       nextUrl: initialState.nextUrl,

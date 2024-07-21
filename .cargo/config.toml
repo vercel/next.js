@@ -18,6 +18,9 @@ rustflags = ["-C", "target-feature=+crt-static"]
 [target.i686-pc-windows-msvc]
 rustflags = ["-C", "target-feature=+crt-static"]
 
+[target.aarch64-pc-windows-msvc]
+linker = "rust-lld"
+
 [target.aarch64-apple-darwin]
 linker = "rust-lld"
 

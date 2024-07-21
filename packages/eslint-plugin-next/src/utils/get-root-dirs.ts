@@ -1,4 +1,4 @@
-import { globSync } from 'glob'
+import { globSync } from 'fast-glob'
 import type { Rule } from 'eslint'
 
 /**

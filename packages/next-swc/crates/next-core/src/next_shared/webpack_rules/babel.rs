@@ -35,8 +35,8 @@ pub async fn maybe_add_babel_loader(
 ) -> Result<Vc<OptionWebpackRules>> {
     let has_babel_config = {
         let mut has_babel_config = false;
-        for filename in BABEL_CONFIG_FILES {
-            let filetype = *project_root.join(filename.to_string()).get_type().await?;
+        for &filename in BABEL_CONFIG_FILES {
+            let filetype = *project_root.join(filename.into()).get_type().await?;
             if matches!(filetype, FileSystemEntryType::File) {
                 has_babel_config = true;
                 break;
@@ -71,13 +71,11 @@ pub async fn maybe_add_babel_loader(
                     BabelIssue {
                         path: project_root,
                         title: StyledString::Text(
-                            "Unable to resolve babel-loader, but a babel config is present"
-                                .to_owned(),
+                            "Unable to resolve babel-loader, but a babel config is present".into(),
                         )
                         .cell(),
                         description: StyledString::Text(
-                            "Make sure babel-loader is installed via your package manager."
-                                .to_owned(),
+                            "Make sure babel-loader is installed via your package manager.".into(),
                         )
                         .cell(),
                         severity: IssueSeverity::Fatal.cell(),
@@ -89,7 +87,7 @@ pub async fn maybe_add_babel_loader(
                 }
 
                 let loader = WebpackLoaderItem {
-                    loader: "babel-loader".to_string(),
+                    loader: "babel-loader".into(),
                     options: Default::default(),
                 };
                 if let Some(rule) = rule {
@@ -98,10 +96,10 @@ pub async fn maybe_add_babel_loader(
                     rule.loaders = Vc::cell(loaders);
                 } else {
                     rules.insert(
-                        pattern.to_string(),
+                        pattern.into(),
                         LoaderRuleItem {
                             loaders: Vc::cell(vec![loader]),
-                            rename_as: Some("*".to_string()),
+                            rename_as: Some("*".into()),
                         },
                     );
                 }
@@ -122,7 +120,7 @@ pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Resu
         project_path,
         Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
         Request::parse(Value::new(Pattern::Constant(
-            "babel-loader/package.json".to_string(),
+            "babel-loader/package.json".into(),
         ))),
         node_cjs_resolve_options(project_path),
     );

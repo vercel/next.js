@@ -1,5 +1,29 @@
 {
-  "extends": "./tsconfig.base.json",
-  "include": ["test/**/*.test.ts", "test/**/*.test.tsx"],
-  "exclude": ["node_modules"]
+  "compilerOptions": {
+    "noEmit": true,
+    "strict": false,
+    "allowJs": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "target": "ESNext",
+    "moduleResolution": "node",
+    "types": ["react", "jest", "node", "trusted-types", "jest-extended"],
+    "paths": {
+      "development-sandbox": ["./test/lib/development-sandbox"],
+      "next-test-utils": ["./test/lib/next-test-utils"],
+      "amp-test-utils": ["./test/lib/amp-test-utils"],
+      "next-webdriver": ["./test/lib/next-webdriver"],
+      "e2e-utils": ["./test/lib/e2e-utils"],
+      "test-data-service/*": ["./test/lib/test-data-service/*"],
+      "test-log": ["./test/lib/test-log"]
+    }
+  },
+  "include": [
+    "test/**/*.test.ts",
+    "test/**/*.test.tsx",
+    "test/lib/**/*.ts",
+    "turbo/**/*.ts"
+  ]
 }

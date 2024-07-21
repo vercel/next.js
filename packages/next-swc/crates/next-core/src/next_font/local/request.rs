@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use turbo_tasks::RcStr;
 use turbopack_binding::turbo::tasks::trace::TraceRawVcs;
 
 /// The top-most structure encoded into the query param in requests to
@@ -8,40 +9,40 @@ use turbopack_binding::turbo::tasks::trace::TraceRawVcs;
 #[serde(rename_all = "camelCase")]
 pub(super) struct NextFontLocalRequest {
     pub arguments: (NextFontLocalRequestArguments,),
-    pub variable_name: String,
+    pub variable_name: RcStr,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct NextFontLocalRequestArguments {
     pub src: SrcRequest,
-    pub weight: Option<String>,
-    pub style: Option<String>,
+    pub weight: Option<RcStr>,
+    pub style: Option<RcStr>,
     #[serde(default = "default_display")]
-    pub display: String,
+    pub display: RcStr,
     #[serde(default = "default_preload")]
     pub preload: bool,
-    pub fallback: Option<Vec<String>>,
+    pub fallback: Option<Vec<RcStr>>,
     #[serde(
         default = "default_adjust_font_fallback",
         deserialize_with = "deserialize_adjust_font_fallback"
     )]
     pub adjust_font_fallback: AdjustFontFallback,
-    pub variable: Option<String>,
+    pub variable: Option<RcStr>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub(super) enum SrcRequest {
-    One(String),
+    One(RcStr),
     Many(Vec<SrcDescriptor>),
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub(super) struct SrcDescriptor {
-    pub path: String,
-    pub weight: Option<String>,
-    pub style: Option<String>,
+    pub path: RcStr,
+    pub weight: Option<RcStr>,
+    pub style: Option<RcStr>,
 }
 
 /// The user's desired fallback font
@@ -99,8 +100,8 @@ fn default_preload() -> bool {
     true
 }
 
-fn default_display() -> String {
-    "swap".to_owned()
+fn default_display() -> RcStr {
+    "swap".into()
 }
 
 #[cfg(test)]

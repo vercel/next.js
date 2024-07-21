@@ -39,6 +39,9 @@ const CHANGE_ITEM_GROUPS = {
     'packages/create-next-app',
     'test/integration/create-next-app',
     'examples/basic-css',
+    'examples/with-mdx',
+    'examples/with-next-sass',
+    'examples/with-eslint',
   ],
   'next-codemod': ['packages/next-codemod'],
   'next-swc': [

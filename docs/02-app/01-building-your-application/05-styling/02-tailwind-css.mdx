@@ -29,9 +29,29 @@ npx tailwindcss init -p
 
 ## Configuring Tailwind
 
-Inside `tailwind.config.js`, add paths to the files that will use Tailwind CSS class names:
+Inside your Tailwind configuration file, add paths to the files that will use Tailwind class names:
 
-```js filename="tailwind.config.js"
+```ts filename="tailwind.config.ts" switcher
+import type { Config } from 'tailwindcss'
+
+const config: Config = {
+  content: [
+    './app/**/*.{js,ts,jsx,tsx,mdx}', // Note the addition of the `app` directory.
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+
+    // Or if using `src` directory:
+    './src/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+export default config
+```
+
+```js filename="tailwind.config.js" switcher
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -55,7 +75,7 @@ You do not need to modify `postcss.config.js`.
 
 ## Importing Styles
 
-Add the [Tailwind CSS directives](https://tailwindcss.com/docs/functions-and-directives#directives) that Tailwind will use to inject its generated styles to a [Global Stylesheet](/docs/app/building-your-application/styling/css-modules#global-styles) in your application, for example:
+Add the [Tailwind CSS directives](https://tailwindcss.com/docs/functions-and-directives#directives) that Tailwind will use to inject its generated styles to a [Global Stylesheet](/docs/app/building-your-application/styling/stylesheets#global-styles) in your application, for example:
 
 ```css filename="app/globals.css"
 @tailwind base;

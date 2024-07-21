@@ -8,10 +8,6 @@ import { outdent } from 'outdent'
 describe('Error Overlay for server components', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: '19.0.0-beta-04b058868c-20240508',
-      'react-dom': '19.0.0-beta-04b058868c-20240508',
-    },
     skipStart: true,
   })
 
@@ -545,7 +541,7 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      expect(await session.hasRedbox()).toBe(true)
+      await session.assertHasRedbox()
       // In webpack when the message too long it gets truncated with `  | ` with new lines.
       // So we need to check for the first part of the message.
       const normalizedSource = await session.getRedboxSource()

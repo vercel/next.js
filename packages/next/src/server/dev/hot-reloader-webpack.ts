@@ -4,7 +4,7 @@ import type { Duplex } from 'stream'
 import type { Telemetry } from '../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { UrlObject } from 'url'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteDefinition } from '../route-definitions/route-definition'
 
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware'
@@ -62,7 +62,6 @@ import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { existsSync, promises as fs } from 'fs'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
-import { getRegistry } from '../../lib/helpers/get-registry'
 import { parseVersionInfo } from './parse-version-info'
 import type { VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
@@ -71,7 +70,7 @@ import {
   isInternalComponent,
   isNonRoutePagesPage,
 } from '../../lib/is-internal-component'
-import { RouteKind } from '../future/route-kind'
+import { RouteKind } from '../route-kind'
 import {
   HMR_ACTIONS_SENT_TO_BROWSER,
   type NextJsHotReloaderInterface,
@@ -192,14 +191,6 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
-const networkErrors = [
-  'EADDRINFO',
-  'ENOTFOUND',
-  'ETIMEDOUT',
-  'ECONNREFUSED',
-  'EAI_AGAIN',
-]
-
 export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
   let installed = '0.0.0'
 
@@ -210,16 +201,22 @@ export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
   try {
     installed = require('next/package.json').version
 
-    const registry = getRegistry()
-    const res = await fetch(`${registry}-/package/next/dist-tags`)
+    let res
 
-    if (!res.ok) return { installed, staleness: 'unknown' }
+    try {
+      // use NPM registry regardless user using Yarn
+      res = await fetch('https://registry.npmjs.org/-/package/next/dist-tags')
+    } catch {
+      // ignore fetch errors
+    }
+
+    if (!res || !res.ok) return { installed, staleness: 'unknown' }
 
     const { latest, canary } = await res.json()
 
     return parseVersionInfo({ installed, latest, canary })
   } catch (e: any) {
-    if (!networkErrors.includes(e?.code)) console.error(e)
+    console.error(e)
     return { installed, staleness: 'unknown' }
   }
 }
@@ -407,10 +404,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     })
   }
 
-  public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
+  public onHMR(
+    req: IncomingMessage,
+    _socket: Duplex,
+    head: Buffer,
+    callback: (client: ws.WebSocket) => void
+  ) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
       this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
+      callback(client)
 
       client.addEventListener('message', ({ data }) => {
         data = typeof data !== 'string' ? data.toString() : data
@@ -585,9 +588,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               ])
             )
 
-      this.pagesMapping = webpackConfigSpan
+      this.pagesMapping = await webpackConfigSpan
         .traceChild('create-pages-mapping')
-        .traceFn(() =>
+        .traceAsyncFn(() =>
           createPagesMapping({
             isDev: true,
             pageExtensions: this.config.pageExtensions,
@@ -596,6 +599,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               (i: string | null): i is string => typeof i === 'string'
             ),
             pagesDir: this.pagesDir,
+            appDir: this.appDir,
           })
         )
 

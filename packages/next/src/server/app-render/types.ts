@@ -4,13 +4,17 @@ import type { NextConfigComplete } from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
-import type { AppPageModule } from '../future/route-modules/app-page/module'
+import type { AppPageModule } from '../route-modules/app-page/module'
 import type { SwrDelta } from '../lib/revalidate'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 import s from 'next/dist/compiled/superstruct'
 import type { RequestLifecycleOpts } from '../base-server'
+import type { InstrumentationOnRequestError } from '../instrumentation/types'
+import type { NextRequestHint } from '../web/adapter'
+import type { BaseNextRequest } from '../base-http'
+import type { IncomingMessage } from 'http'
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -113,14 +117,13 @@ export type FlightData = Array<FlightDataPath> | string
 
 export type ActionResult = Promise<any>
 
-// Response from `createFromFetch` for normal rendering
-export type NextFlightResponse = [buildId: string, flightData: FlightData]
-
-// Response from `createFromFetch` for server actions. Action's flight data can be null
-export type ActionFlightResponse =
-  | [ActionResult, [buildId: string, flightData: FlightData | null]]
-  // This case happens when `redirect()` is called in a server action.
-  | NextFlightResponse
+export type ServerOnInstrumentationRequestError = (
+  error: unknown,
+  // The request could be middleware, node server or web server request,
+  // we normalized them into an aligned format to `onRequestError` API later.
+  request: NextRequestHint | BaseNextRequest | IncomingMessage,
+  errorContext: Parameters<InstrumentationOnRequestError>[2]
+) => void | Promise<void>
 
 export interface RenderOptsPartial {
   err?: Error | null
@@ -129,7 +132,7 @@ export interface RenderOptsPartial {
   basePath: string
   trailingSlash: boolean
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
-  supportsDynamicHTML: boolean
+  supportsDynamicResponse: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
   enableTainting?: boolean
@@ -138,11 +141,11 @@ export interface RenderOptsPartial {
   nextFontManifest?: DeepReadonly<NextFontManifest>
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
+  setAppIsrStatus?: (key: string, value: false | number | null) => void
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
-  appDirDevErrorLogger?: (err: any) => Promise<void>
-  originalPathname?: string
+  onInstrumentationRequestError?: ServerOnInstrumentationRequestError
   isDraftMode?: boolean
   deploymentId?: string
   onUpdateCookies?: (cookies: string[]) => void
@@ -161,11 +164,6 @@ export interface RenderOptsPartial {
   isPrefetch?: boolean
   experimental: {
     /**
-     * When true, some routes support partial prerendering (PPR).
-     */
-    isAppPPREnabled: boolean
-
-    /**
      * When true, it indicates that the current page supports partial
      * prerendering.
      */
@@ -176,13 +174,73 @@ export interface RenderOptsPartial {
   }
   postponed?: string
   /**
-   * When true, only the skeleton of the PPR page will be rendered. This will
-   * also enable other debugging features such as logging.
+   * When true, only the static shell of the page will be rendered. This will
+   * also enable other debugging features such as logging in development.
    */
-  isDebugPPRSkeleton?: boolean
+  isDebugStaticShell?: boolean
+
+  /**
+   * When true, the page will be rendered using the static rendering to detect
+   * any dynamic API's that would have stopped the page from being fully
+   * statically generated.
+   */
+  isDebugDynamicAccesses?: boolean
   isStaticGeneration?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
   RenderOptsPartial &
   RequestLifecycleOpts
+
+export type PreloadCallbacks = (() => void)[]
+
+export type InitialRSCPayload = {
+  /** buildId */
+  b: string
+  /** assetPrefix */
+  p: string
+  /** initialCanonicalUrl */
+  c: string
+  /** couldBeIntercepted */
+  i: boolean
+  /** initialFlightData */
+  f: FlightDataPath[]
+  /** missingSlots */
+  m: Set<string> | undefined
+  /** GlobalError */
+  G: React.ComponentType<any>
+}
+
+// Response from `createFromFetch` for normal rendering
+export type NavigationFlightResponse = {
+  /** buildId */
+  b: string
+  /** flightData */
+  f: FlightData
+}
+
+// Response from `createFromFetch` for server actions. Action's flight data can be null
+export type ActionFlightResponse = {
+  /** actionResult */
+  a: ActionResult
+  /** buildId */
+  b: string
+  /** flightData */
+  f: FlightData | null
+}
+
+export type FetchServerResponseResult = {
+  /** flightData */
+  f: FlightData
+  /** canonicalUrl */
+  c: URL | undefined
+  /** couldBeIntercepted */
+  i: boolean
+  /** isPrerender */
+  p: boolean
+}
+
+export type RSCPayload =
+  | InitialRSCPayload
+  | NavigationFlightResponse
+  | ActionFlightResponse

@@ -4,6 +4,8 @@ import type {
 } from 'react-dom/server.edge'
 import type { Options as PrerenderOptions } from 'react-dom/static.edge'
 
+import type { JSX } from 'react'
+
 type RenderResult = {
   stream: ReadableStream<Uint8Array>
   postponed?: object | null

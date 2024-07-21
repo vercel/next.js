@@ -450,6 +450,16 @@ declare module 'next/dist/compiled/zod' {
 declare module 'mini-css-extract-plugin'
 declare module 'next/dist/compiled/loader-utils3'
 
+declare module 'next/dist/compiled/webpack-sources3' {
+  interface StringBufferUtils {
+    disableDualStringBufferCaching: () => boolean
+    enableDualStringBufferCaching: () => boolean
+    enterStringInterningRange: () => boolean
+    exitStringInterningRange: () => boolean
+  }
+  export let stringBufferUtils: StringBufferUtils
+}
+
 declare module 'next/dist/compiled/webpack/webpack' {
   import type webpackSources from 'webpack-sources1'
   export function init(): void

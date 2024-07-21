@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::Result;
 use indexmap::IndexMap;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
@@ -27,7 +27,7 @@ use turbopack_binding::{
             condition::ContextCondition,
             module_options::{
                 module_options_context::ModuleOptionsContext, JsxTransformOptions, ModuleRule,
-                TypescriptTransformOptions,
+                TypeofWindow, TypescriptTransformOptions,
             },
             resolve_options_context::ResolveOptionsContext,
         },
@@ -49,10 +49,12 @@ use crate::{
     next_shared::{
         resolve::{
             get_invalid_server_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
-            NextSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
+            NextSharedRuntimeResolvePlugin,
         },
         transforms::{
-            emotion::get_emotion_transform_rule, relay::get_relay_transform_rule,
+            emotion::get_emotion_transform_rule,
+            react_remove_properties::get_react_remove_properties_transform_rule,
+            relay::get_relay_transform_rule, remove_console::get_remove_console_transform_rule,
             styled_components::get_styled_components_transform_rule,
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
@@ -66,17 +68,17 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-fn defines(define_env: &IndexMap<String, String>) -> CompileTimeDefines {
+fn defines(define_env: &IndexMap<RcStr, RcStr>) -> CompileTimeDefines {
     let mut defines = IndexMap::new();
 
     for (k, v) in define_env {
         defines
-            .entry(k.split('.').map(|s| s.to_string()).collect::<Vec<String>>())
+            .entry(k.split('.').map(|s| s.into()).collect::<Vec<RcStr>>())
             .or_insert_with(|| {
                 let val = serde_json::from_str(v);
                 match val {
                     Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
-                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v),
+                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v.into()),
                     _ => CompileTimeDefineValue::JSON(v.clone()),
                 }
             });
@@ -95,14 +97,14 @@ async fn next_client_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
     Ok(free_var_references!(
         ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
-            request: "node:buffer".to_string(),
+            request: "node:buffer".into(),
             lookup_path: None,
-            export: Some("Buffer".to_string()),
+            export: Some("Buffer".into()),
         },
         process = FreeVarReference::EcmaScriptModule {
-            request: "node:process".to_string(),
+            request: "node:process".into(),
             lookup_path: None,
-            export: Some("default".to_string()),
+            export: Some("default".into()),
         }
     )
     .cell())
@@ -110,7 +112,7 @@ async fn next_client_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 
 #[turbo_tasks::function]
 pub fn get_client_compile_time_info(
-    browserslist_query: String,
+    browserslist_query: RcStr,
     define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
@@ -128,7 +130,7 @@ pub fn get_client_compile_time_info(
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub enum ClientContextType {
     Pages { pages_dir: Vc<FileSystemPath> },
     App { app_dir: Vc<FileSystemPath> },
@@ -149,7 +151,7 @@ pub async fn get_client_resolve_options_context(
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
     let next_client_resolved_map =
         get_next_client_resolved_map(project_path, project_path, *mode.await?);
-    let custom_conditions = vec![mode.await?.condition().to_string()];
+    let custom_conditions = vec![mode.await?.condition().into()];
     let module_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
         custom_conditions,
@@ -158,13 +160,14 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
-        before_resolve_plugins: vec![Vc::upcast(NextFontLocalResolvePlugin::new(project_path))],
-        after_resolve_plugins: vec![
-            Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
-            Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
-            Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
+        before_resolve_plugins: vec![
             Vc::upcast(get_invalid_server_only_resolve_plugin(project_path)),
+            Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
+            Vc::upcast(NextFontLocalResolvePlugin::new(project_path)),
         ],
+        after_resolve_plugins: vec![Vc::upcast(NextSharedRuntimeResolvePlugin::new(
+            project_path,
+        ))],
         ..Default::default()
     };
     Ok(ResolveOptionsContext {
@@ -218,7 +221,7 @@ pub async fn get_client_module_options_context(
     // foreign_code_context_condition. This allows to import codes from
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
-    let conditions = vec!["browser".to_string(), mode.await?.condition().to_string()];
+    let conditions = vec!["browser".into(), mode.await?.condition().into()];
     let foreign_enable_webpack_loaders = webpack_loader_options(
         project_path,
         next_config,
@@ -226,7 +229,7 @@ pub async fn get_client_module_options_context(
         conditions
             .iter()
             .cloned()
-            .chain(once("foreign".to_string()))
+            .chain(once("foreign".into()))
             .collect(),
     )
     .await?;
@@ -244,10 +247,12 @@ pub async fn get_client_module_options_context(
         get_next_client_transforms_rules(next_config, ty.into_value(), mode, true).await?;
     let additional_rules: Vec<ModuleRule> = vec![
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
-        get_relay_transform_rule(next_config).await?,
+        get_relay_transform_rule(next_config, project_path).await?,
         get_emotion_transform_rule(next_config).await?,
         get_styled_components_transform_rule(next_config).await?,
         get_styled_jsx_transform_rule(next_config, target_browsers).await?,
+        get_react_remove_properties_transform_rule(next_config).await?,
+        get_remove_console_transform_rule(next_config).await?,
     ]
     .into_iter()
     .flatten()
@@ -270,6 +275,7 @@ pub async fn get_client_module_options_context(
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
 
     let module_options_context = ModuleOptionsContext {
+        enable_typeof_window_inlining: Some(TypeofWindow::Object),
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
@@ -280,6 +286,7 @@ pub async fn get_client_module_options_context(
 
     // node_modules context
     let foreign_codes_options_context = ModuleOptionsContext {
+        enable_typeof_window_inlining: None,
         enable_webpack_loaders: foreign_enable_webpack_loaders,
         enable_postcss_transform: enable_foreign_postcss_transform,
         custom_rules: foreign_next_client_rules,
@@ -324,7 +331,7 @@ pub async fn get_client_module_options_context(
 pub async fn get_client_chunking_context(
     project_path: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<Option<String>>,
+    asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
     mode: Vc<NextMode>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
@@ -333,7 +340,7 @@ pub async fn get_client_chunking_context(
         project_path,
         client_root,
         client_root,
-        client_root.join("static/chunks".to_string()),
+        client_root.join("static/chunks".into()),
         get_client_assets_path(client_root),
         environment,
         next_mode.runtime_type(),
@@ -351,7 +358,7 @@ pub async fn get_client_chunking_context(
 
 #[turbo_tasks::function]
 pub fn get_client_assets_path(client_root: Vc<FileSystemPath>) -> Vc<FileSystemPath> {
-    client_root.join("static/media".to_string())
+    client_root.join("static/media".into())
 }
 
 #[turbo_tasks::function]
@@ -377,7 +384,7 @@ pub async fn get_client_runtime_entries(
         // functions to be available.
         if let Some(request) = enable_react_refresh {
             runtime_entries
-                .push(RuntimeEntry::Request(request, project_root.join("_".to_string())).cell())
+                .push(RuntimeEntry::Request(request, project_root.join("_".into())).cell())
         };
     }
 
@@ -385,9 +392,9 @@ pub async fn get_client_runtime_entries(
         runtime_entries.push(
             RuntimeEntry::Request(
                 Request::parse(Value::new(Pattern::Constant(
-                    "next/dist/client/app-next-turbopack.js".to_string(),
+                    "next/dist/client/app-next-turbopack.js".into(),
                 ))),
-                project_root.join("_".to_string()),
+                project_root.join("_".into()),
             )
             .cell(),
         );

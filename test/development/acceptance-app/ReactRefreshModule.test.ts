@@ -6,16 +6,12 @@ import { outdent } from 'outdent'
 describe('ReactRefreshModule app', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: '19.0.0-beta-04b058868c-20240508',
-      'react-dom': '19.0.0-beta-04b058868c-20240508',
-    },
     skipStart: true,
   })
 
   it('should allow any variable names', async () => {
     const { session, cleanup } = await sandbox(next, new Map([]))
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     const variables = [
       '_a',
@@ -37,7 +33,7 @@ describe('ReactRefreshModule app', () => {
           }
         `
       )
-      expect(await session.hasRedbox()).toBe(false)
+      await session.assertNoRedbox()
       expect(next.cliOutput).not.toContain(
         `'${variable}' has already been declared`
       )

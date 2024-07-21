@@ -5,8 +5,8 @@ import type {
 } from '../../../../server/app-render/types'
 import { callServer } from '../../../app-call-server'
 import {
-  ACTION,
-  NEXT_ROUTER_STATE_TREE,
+  ACTION_HEADER,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
@@ -63,8 +63,10 @@ async function fetchServerAction(
     method: 'POST',
     headers: {
       Accept: RSC_CONTENT_TYPE_HEADER,
-      [ACTION]: actionId,
-      [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(JSON.stringify(state.tree)),
+      [ACTION_HEADER]: actionId,
+      [NEXT_ROUTER_STATE_TREE_HEADER]: encodeURIComponent(
+        JSON.stringify(state.tree)
+      ),
       ...(process.env.NEXT_DEPLOYMENT_ID
         ? {
             'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
@@ -106,10 +108,9 @@ async function fetchServerAction(
       )
     : undefined
 
-  let isFlightResponse =
-    res.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
+  const contentType = res.headers.get('content-type')
 
-  if (isFlightResponse) {
+  if (contentType === RSC_CONTENT_TYPE_HEADER) {
     const response: ActionFlightResponse = await createFromFetch(
       Promise.resolve(res),
       {
@@ -119,23 +120,33 @@ async function fetchServerAction(
 
     if (location) {
       // if it was a redirection, then result is just a regular RSC payload
-      const [, actionFlightData] = (response as any) ?? []
       return {
-        actionFlightData: actionFlightData,
+        actionFlightData: response.f,
         redirectLocation,
         revalidatedParts,
       }
     }
 
-    // otherwise it's a tuple of [actionResult, actionFlightData]
-    const [actionResult, [, actionFlightData]] = (response as any) ?? []
     return {
-      actionResult,
-      actionFlightData,
+      actionResult: response.a,
+      actionFlightData: response.f,
       redirectLocation,
       revalidatedParts,
     }
   }
+
+  // Handle invalid server action responses
+  if (res.status >= 400) {
+    // The server can respond with a text/plain error message, but we'll fallback to something generic
+    // if there isn't one.
+    const error =
+      contentType === 'text/plain'
+        ? await res.text()
+        : 'An unexpected response was received from the server.'
+
+    throw new Error(error)
+  }
+
   return {
     redirectLocation,
     revalidatedParts,
@@ -167,9 +178,7 @@ export function serverActionReducer(
       ? state.nextUrl
       : null
 
-  mutable.inFlightServerAction = fetchServerAction(state, nextUrl, action)
-
-  return mutable.inFlightServerAction.then(
+  return fetchServerAction(state, nextUrl, action).then(
     async ({
       actionResult,
       actionFlightData: flightData,
@@ -207,8 +216,10 @@ export function serverActionReducer(
         )
       }
 
-      // Remove cache.data as it has been resolved at this point.
-      mutable.inFlightServerAction = null
+      if (redirectLocation) {
+        const newHref = createHrefFromUrl(redirectLocation, false)
+        mutable.canonicalUrl = newHref
+      }
 
       for (const flightDataPath of flightData) {
         // FlightDataPath with more than two items means unexpected Flight data was returned
@@ -252,6 +263,7 @@ export function serverActionReducer(
           const cache: CacheNode = createEmptyCacheNode()
           cache.rsc = rsc
           cache.prefetchRsc = null
+          cache.loading = cacheNodeSeedData[3]
           fillLazyItemsTillLeafWithHead(
             cache,
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
@@ -266,6 +278,7 @@ export function serverActionReducer(
             updatedTree: newTree,
             updatedCache: cache,
             includeNextUrl: Boolean(nextUrl),
+            canonicalUrl: mutable.canonicalUrl || state.canonicalUrl,
           })
 
           mutable.cache = cache
@@ -273,14 +286,7 @@ export function serverActionReducer(
         }
 
         mutable.patchedTree = newTree
-        mutable.canonicalUrl = href
-
         currentTree = newTree
-      }
-
-      if (redirectLocation) {
-        const newHref = createHrefFromUrl(redirectLocation, false)
-        mutable.canonicalUrl = newHref
       }
 
       resolve(actionResult)

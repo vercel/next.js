@@ -11,6 +11,20 @@ export default function Page() {
       <p id="rsc-cookie-2">Cookie 2: {rscCookie2}</p>
       <p id="total-cookies">Total Cookie Length: {cookies().size}</p>
       <Link href="/rsc-cookies-delete">To Delete Cookies Route</Link>
+
+      <form
+        action={async () => {
+          'use server'
+          console.log(
+            '[Cookie From Action]:',
+            cookies().get('rsc-cookie-value-1').value
+          )
+        }}
+      >
+        <button type="submit" id="submit-server-action">
+          server action
+        </button>
+      </form>
     </div>
   )
 }

@@ -1,10 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, hasRedbox, waitFor } from 'next-test-utils'
+import { assertNoRedbox, retry } from 'next-test-utils'
 
 describe('app dir', () => {
-  const { next, isNextDev, isNextStart } = nextTestSetup({
+  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
+    // This is skipped when deployed because there are no assertions outside of next start/next dev
+    skipDeployment: true,
   })
+
+  if (skipped) return
 
   if (isNextStart) {
     describe('Loading', () => {
@@ -19,30 +23,37 @@ describe('app dir', () => {
     describe('HMR', () => {
       it('should not cause error when removing loading.js', async () => {
         const browser = await next.browser('/page-with-loading')
-        await check(
-          () => browser.elementByCss('h1').text(),
-          'hello from slow page'
-        )
+
+        await retry(async () => {
+          const headline = await browser.elementByCss('h1').text()
+          expect(headline).toBe('hello from slow page')
+        })
+
+        const cliOutputLength = next.cliOutput.length
 
         await next.renameFile(
           'app/page-with-loading/loading.js',
           'app/page-with-loading/_loading.js'
         )
 
-        await waitFor(1000)
+        await retry(async () => {
+          expect(next.cliOutput.slice(cliOutputLength)).toInclude('✓ Compiled')
+        })
 
         // It should not have an error
-        expect(await hasRedbox(browser)).toBe(false)
+        await assertNoRedbox(browser)
 
         // HMR should still work
-        const code = await next.readFile('app/page-with-loading/page.js')
         await next.patchFile(
           'app/page-with-loading/page.js',
-          code.replace('hello from slow page', 'hello from new page')
-        )
-        await check(
-          () => browser.elementByCss('h1').text(),
-          'hello from new page'
+          (content) =>
+            content.replace('hello from slow page', 'hello from new page'),
+          async () =>
+            retry(async () => {
+              const headline = await browser.elementByCss('h1').text()
+              expect(headline).toBe('hello from new page')
+              await browser.close()
+            })
         )
       })
     })

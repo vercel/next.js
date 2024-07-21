@@ -10,6 +10,7 @@ import { promisify } from 'util'
 import http from 'http'
 import path from 'path'
 
+import cheerio from 'cheerio'
 import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
@@ -45,6 +46,8 @@ export function initNextServerScript(
     nodeArgs?: string[]
     onStdout?: (data: any) => void
     onStderr?: (data: any) => void
+    // If true, the promise will reject if the process exits with a non-zero code
+    shouldRejectOnError?: boolean
   }
 ): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
@@ -52,7 +55,7 @@ export function initNextServerScript(
       'node',
       [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
       {
-        env,
+        env: { HOSTNAME: '::', ...env },
         cwd: opts && opts.cwd,
       }
     )
@@ -80,6 +83,14 @@ export function initNextServerScript(
       if (opts && opts.onStderr) {
         opts.onStderr(message.toString())
       }
+    }
+
+    if (opts?.shouldRejectOnError) {
+      instance.on('exit', (code) => {
+        if (code !== 0) {
+          reject(new Error('exited with code: ' + code))
+        }
+      })
     }
 
     instance.stdout.on('data', handleStdout)
@@ -191,6 +202,12 @@ export interface NextOptions {
   stderr?: true | 'log'
   stdout?: true | 'log'
   ignoreFail?: boolean
+
+  /**
+   * If true, this enables the linting step in the build process. If false or
+   * undefined, it adds a `--no-lint` flag to the build command.
+   */
+  lint?: boolean
 
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
@@ -428,12 +445,11 @@ export function launchApp(
       dir,
       '-p',
       port as string,
+      '--hostname',
+      '::',
     ].filter(Boolean),
     undefined,
-    {
-      ...options,
-      turbo: useTurbo,
-    }
+    { ...options, turbo: useTurbo }
   )
 }
 
@@ -442,6 +458,12 @@ export function nextBuild(
   args: string[] = [],
   opts: NextOptions = {}
 ) {
+  // If the build hasn't requested it to be linted explicitly, disable linting
+  // if it's not already disabled.
+  if (!opts.lint && !args.includes('--no-lint')) {
+    args.push('--no-lint')
+  }
+
   return runNextCommand(['build', dir, ...args], opts)
 }
 
@@ -472,10 +494,11 @@ export function nextStart(
   port: string | number,
   opts: NextDevOptions = {}
 ) {
-  return runNextCommandDev(['start', '-p', port as string, dir], undefined, {
-    ...opts,
-    nextStart: true,
-  })
+  return runNextCommandDev(
+    ['start', '-p', port as string, '--hostname', '::', dir],
+    undefined,
+    { ...opts, nextStart: true }
+  )
 }
 
 export function buildTS(
@@ -781,7 +804,7 @@ export async function retry<T>(
         )
         throw err
       }
-      console.warn(
+      console.log(
         `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
       )
       await waitFor(interval)
@@ -789,9 +812,36 @@ export async function retry<T>(
   }
 }
 
-export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
+export async function assertHasRedbox(browser: BrowserInterface) {
+  try {
+    await retry(
+      async () => {
+        const hasRedbox = await evaluate(browser, () => {
+          return Boolean(
+            [].slice
+              .call(document.querySelectorAll('nextjs-portal'))
+              .find((p) =>
+                p.shadowRoot.querySelector(
+                  '#nextjs__container_errors_label, #nextjs__container_errors_label'
+                )
+              )
+          )
+        })
+        expect(hasRedbox).toBe(true)
+      },
+      5000,
+      200
+    )
+  } catch (errorCause) {
+    const error = new Error('Expected Redbox but found none')
+    Error.captureStackTrace(error, assertHasRedbox)
+    throw error
+  }
+}
+
+export async function assertNoRedbox(browser: BrowserInterface) {
   await waitFor(5000)
-  const result = await evaluate(browser, () => {
+  const hasRedbox = await evaluate(browser, () => {
     return Boolean(
       [].slice
         .call(document.querySelectorAll('nextjs-portal'))
@@ -802,7 +852,23 @@ export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
         )
     )
   })
-  return result
+
+  if (hasRedbox) {
+    const [redboxHeader, redboxDescription, redboxSource] = await Promise.all([
+      getRedboxHeader(browser).catch(() => '<missing>'),
+      getRedboxDescription(browser).catch(() => '<missing>'),
+      getRedboxSource(browser).catch(() => '<missing>'),
+    ])
+
+    const error = new Error(
+      'Expected no Redbox but found one\n' +
+        `header: ${redboxHeader}\n` +
+        `description: ${redboxDescription}\n` +
+        `source: ${redboxSource}`
+    )
+    Error.captureStackTrace(error, assertHasRedbox)
+    throw error
+  }
 }
 
 export async function hasErrorToast(
@@ -1220,3 +1286,150 @@ export const describeVariants = {
     }
   },
 }
+
+export const getTitle = (browser: BrowserInterface) =>
+  browser.elementByCss('title').text()
+
+async function checkMeta(
+  browser: BrowserInterface,
+  queryValue: string,
+  expected: RegExp | string | string[] | undefined | null,
+  queryKey: string = 'property',
+  tag: string = 'meta',
+  domAttributeField: string = 'content'
+) {
+  const values = await browser.eval(
+    `[...document.querySelectorAll('${tag}[${queryKey}="${queryValue}"]')].map((el) => el.getAttribute("${domAttributeField}"))`
+  )
+  if (expected instanceof RegExp) {
+    expect(values[0]).toMatch(expected)
+  } else {
+    if (Array.isArray(expected)) {
+      expect(values).toEqual(expected)
+    } else {
+      // If expected is undefined, then it should not exist.
+      // Otherwise, it should exist in the matched values.
+      if (expected === undefined) {
+        expect(values).not.toContain(undefined)
+      } else {
+        expect(values).toContain(expected)
+      }
+    }
+  }
+}
+
+export function createDomMatcher(browser: BrowserInterface) {
+  /**
+   * @param tag - tag name, e.g. 'meta'
+   * @param query - query string, e.g. 'name="description"'
+   * @param expectedObject - expected object, e.g. { content: 'my description' }
+   * @returns {Promise<void>} - promise that resolves when the check is done
+   *
+   * @example
+   * const matchDom = createDomMatcher(browser)
+   * await matchDom('meta', 'name="description"', { content: 'description' })
+   */
+  return async (
+    tag: string,
+    query: string,
+    expectedObject: Record<string, string | null | undefined>
+  ) => {
+    const props = await browser.eval(`
+      const el = document.querySelector('${tag}[${query}]');
+      const res = {}
+      const keys = ${JSON.stringify(Object.keys(expectedObject))}
+      for (const k of keys) {
+        res[k] = el?.getAttribute(k)
+      }
+      res
+    `)
+    expect(props).toEqual(expectedObject)
+  }
+}
+
+export function createMultiHtmlMatcher($: ReturnType<typeof cheerio.load>) {
+  /**
+   * @param tag - tag name, e.g. 'meta'
+   * @param queryKey - query key, e.g. 'property'
+   * @param domAttributeField - dom attribute field, e.g. 'content'
+   * @param expected - expected object, e.g. { description: 'my description' }
+   * @returns {void} - void when the check is done
+   *
+   * @example
+   *
+   * const $ = await next.render$('html')
+   * const matchHtml = createMultiHtmlMatcher($)
+   * matchHtml('meta', 'name', 'property', {
+   *   description: 'description',
+   *   og: 'og:description'
+   * })
+   *
+   */
+  return (
+    tag: string,
+    queryKey: string,
+    domAttributeField: string,
+    expected: Record<string, string | string[] | undefined>
+  ) => {
+    const res = {}
+    for (const key of Object.keys(expected)) {
+      const el = $(`${tag}[${queryKey}="${key}"]`)
+      if (el.length > 1) {
+        res[key] = el.toArray().map((el) => el.attribs[domAttributeField])
+      } else {
+        res[key] = el.attr(domAttributeField)
+      }
+    }
+    expect(res).toEqual(expected)
+  }
+}
+
+export function createMultiDomMatcher(browser: BrowserInterface) {
+  /**
+   * @param tag - tag name, e.g. 'meta'
+   * @param queryKey - query key, e.g. 'property'
+   * @param domAttributeField - dom attribute field, e.g. 'content'
+   * @param expected - expected object, e.g. { description: 'my description' }
+   * @returns {Promise<void>} - promise that resolves when the check is done
+   *
+   * @example
+   * const matchMultiDom = createMultiDomMatcher(browser)
+   * await matchMultiDom('meta', 'property', 'content', {
+   *   description: 'description',
+   *   'og:title': 'title',
+   *   'twitter:title': 'title'
+   * })
+   *
+   */
+  return async (
+    tag: string,
+    queryKey: string,
+    domAttributeField: string,
+    expected: Record<string, string | string[] | undefined | null>
+  ) => {
+    await Promise.all(
+      Object.keys(expected).map(async (key) => {
+        return checkMeta(
+          browser,
+          key,
+          expected[key],
+          queryKey,
+          tag,
+          domAttributeField
+        )
+      })
+    )
+  }
+}
+
+export const checkMetaNameContentPair = (
+  browser: BrowserInterface,
+  name: string,
+  content: string | string[]
+) => checkMeta(browser, name, content, 'name')
+
+export const checkLink = (
+  browser: BrowserInterface,
+  rel: string,
+  content: string | string[]
+) => checkMeta(browser, rel, content, 'rel', 'link', 'href')

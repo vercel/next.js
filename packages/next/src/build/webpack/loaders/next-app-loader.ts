@@ -21,8 +21,8 @@ import { promises as fs } from 'fs'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import type { NextConfig } from '../../../server/config-shared'
-import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/app/app-pathname-normalizer'
-import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
+import { AppPathnameNormalizer } from '../../../server/normalizers/built/app/app-pathname-normalizer'
+import { AppBundlePathNormalizer } from '../../../server/normalizers/built/app/app-bundle-path-normalizer'
 import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { getFilenameAndExtension } from './next-metadata-route-loader'
 import { isAppBuiltinNotFoundPage } from '../../utils'
@@ -47,10 +47,11 @@ export type AppLoaderOptions = {
   assetPrefix: string
   rootDir?: string
   tsconfigPath?: string
-  isDev?: boolean
+  isDev?: true
   basePath: string
+  flyingShuttle?: boolean
   nextConfigOutput?: NextConfig['output']
-  nextConfigExperimentalUseEarlyImport?: boolean
+  nextConfigExperimentalUseEarlyImport?: true
   middlewareConfig: string
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
@@ -121,15 +122,14 @@ async function createAppRouteCode({
 
   // If this is a metadata route, then we need to use the metadata loader for
   // the route to ensure that the route is generated.
-  const filename = path.parse(resolvedPagePath).name
-  if (isMetadataRoute(name) && filename !== 'route') {
+  const fileBaseName = path.parse(resolvedPagePath).name
+  if (isMetadataRoute(name) && fileBaseName !== 'route') {
     const { ext } = getFilenameAndExtension(resolvedPagePath)
-    const isDynamic = pageExtensions.includes(ext)
+    const isDynamicRouteExtension = pageExtensions.includes(ext)
 
     resolvedPagePath = `next-metadata-route-loader?${stringify({
-      page,
       filePath: resolvedPagePath,
-      isDynamic: isDynamic ? '1' : '0',
+      isDynamicRouteExtension: isDynamicRouteExtension ? '1' : '0',
     })}!?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`
   }
 
@@ -142,10 +142,9 @@ async function createAppRouteCode({
       VAR_USERLAND: resolvedPagePath,
       VAR_DEFINITION_PAGE: page,
       VAR_DEFINITION_PATHNAME: pathname,
-      VAR_DEFINITION_FILENAME: filename,
+      VAR_DEFINITION_FILENAME: fileBaseName,
       VAR_DEFINITION_BUNDLE_PATH: bundlePath,
       VAR_RESOLVED_PAGE_PATH: resolvedPagePath,
-      VAR_ORIGINAL_PATHNAME: page,
     },
     {
       nextConfigOutput: JSON.stringify(nextConfigOutput),
@@ -175,9 +174,13 @@ async function createTreeCodeFromPath(
     metadataResolver,
     pageExtensions,
     basePath,
-    collectedAsyncImports,
+    buildInfo,
+    flyingShuttle,
+    collectedDeclarations,
   }: {
     page: string
+    flyingShuttle?: boolean
+    buildInfo: ReturnType<typeof getModuleBuildInfo>
     resolveDir: DirResolver
     resolver: PathResolver
     metadataResolver: MetadataResolver
@@ -187,7 +190,7 @@ async function createTreeCodeFromPath(
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
     pageExtensions: PageExtensions
     basePath: string
-    collectedAsyncImports: string[]
+    collectedDeclarations: [string, string][]
   }
 ): Promise<{
   treeCode: string
@@ -242,7 +245,7 @@ async function createTreeCodeFromPath(
 
   async function createSubtreePropsFromSegmentPath(
     segments: string[],
-    nestedCollectedAsyncImports: string[]
+    nestedCollectedDeclarations: [string, string][]
   ): Promise<{
     treeCode: string
   }> {
@@ -291,18 +294,18 @@ async function createTreeCodeFromPath(
         const resolvedPagePath = await resolver(matchedPagePath)
         if (resolvedPagePath) {
           pages.push(resolvedPagePath)
-          nestedCollectedAsyncImports.push(resolvedPagePath)
-        }
 
-        // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-        props[normalizeParallelKey(parallelKey)] =
-          `['${PAGE_SEGMENT_KEY}', {}, {
-          page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
-            resolvedPagePath
-          )}), ${JSON.stringify(resolvedPagePath)}],
+          const varName = `page${nestedCollectedDeclarations.length}`
+          nestedCollectedDeclarations.push([varName, resolvedPagePath])
+
+          // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
+          props[normalizeParallelKey(parallelKey)] =
+            `['${PAGE_SEGMENT_KEY}', {}, {
+          page: [${varName}, ${JSON.stringify(resolvedPagePath)}],
           ${createMetadataExportsCode(metadata)}
         }]`
-        if (resolvedPagePath) continue
+          continue
+        }
       }
 
       // if the parallelSegment was not matched to the __PAGE__ slot, then it's a parallel route at this level.
@@ -330,12 +333,6 @@ async function createTreeCodeFromPath(
         subSegmentPath.push(normalizedParallelSegment)
       }
 
-      const { treeCode: pageSubtreeCode } =
-        await createSubtreePropsFromSegmentPath(
-          subSegmentPath,
-          nestedCollectedAsyncImports
-        )
-
       const parallelSegmentPath = subSegmentPath.join('/')
 
       // Fill in the loader tree for all of the special files types (layout, default, etc) at this level
@@ -356,9 +353,15 @@ async function createTreeCodeFromPath(
         })
       )
 
-      const definedFilePaths = filePaths.filter(
-        ([, filePath]) => filePath !== undefined
-      )
+      const definedFilePaths = filePaths.filter(([, filePath]) => {
+        if (filePath !== undefined) {
+          if (flyingShuttle && buildInfo.route?.relatedModules) {
+            buildInfo.route.relatedModules.push(filePath)
+          }
+          return true
+        }
+        return false
+      }) as [ValueOf<typeof FILE_TYPES>, string][]
 
       // Add default not found error as root not found if not present
       const hasNotFoundFile = definedFilePaths.some(
@@ -411,20 +414,20 @@ async function createTreeCodeFromPath(
             : parallelSegmentKey
 
       const normalizedParallelKey = normalizeParallelKey(parallelKey)
-      let subtreeCode = pageSubtreeCode
+      let subtreeCode
       // If it's root not found page, set not-found boundary as children page
       if (isNotFoundRoute && normalizedParallelKey === 'children') {
         const notFoundPath =
           definedFilePaths.find(([type]) => type === 'not-found')?.[1] ??
           defaultNotFoundPath
-        nestedCollectedAsyncImports.push(notFoundPath)
+
+        const varName = `notFound${nestedCollectedDeclarations.length}`
+        nestedCollectedDeclarations.push([varName, notFoundPath])
         subtreeCode = `{
           children: [${JSON.stringify(UNDERSCORE_NOT_FOUND_ROUTE)}, {
             children: ['${PAGE_SEGMENT_KEY}', {}, {
               page: [
-                () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-                  notFoundPath
-                )}),
+                ${varName},
                 ${JSON.stringify(notFoundPath)}
               ]
             }]
@@ -435,14 +438,23 @@ async function createTreeCodeFromPath(
       const componentsCode = `{
         ${definedFilePaths
           .map(([file, filePath]) => {
-            if (filePath) nestedCollectedAsyncImports.push(filePath)
-            return `'${file}': [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
-              filePath
-            )}), ${JSON.stringify(filePath)}],`
+            const varName = `component${nestedCollectedDeclarations.length}`
+            nestedCollectedDeclarations.push([varName, filePath])
+            return `'${file}': [${varName}, ${JSON.stringify(filePath)}],`
           })
           .join('\n')}
         ${createMetadataExportsCode(metadata)}
       }`
+
+      if (!subtreeCode) {
+        const { treeCode: pageSubtreeCode } =
+          await createSubtreePropsFromSegmentPath(
+            subSegmentPath,
+            nestedCollectedDeclarations
+          )
+
+        subtreeCode = pageSubtreeCode
+      }
 
       props[normalizedParallelKey] = `[
         '${parallelSegmentKey}',
@@ -467,14 +479,13 @@ async function createTreeCodeFromPath(
             `${appDirPrefix}${segmentPath}${actualSegment}/default`
           )) ?? PARALLEL_ROUTE_DEFAULT_PATH
 
-        nestedCollectedAsyncImports.push(defaultPath)
+        const varName = `default${nestedCollectedDeclarations.length}`
+        nestedCollectedDeclarations.push([varName, defaultPath])
         props[normalizeParallelKey(adjacentParallelSegment)] = `[
           '${DEFAULT_SEGMENT_KEY}',
           {},
           {
-            defaultPage: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
-              defaultPath
-            )}), ${JSON.stringify(defaultPath)}],
+            defaultPage: [${varName}, ${JSON.stringify(defaultPath)}],
           }
         ]`
       }
@@ -490,7 +501,7 @@ async function createTreeCodeFromPath(
 
   const { treeCode } = await createSubtreePropsFromSegmentPath(
     [],
-    collectedAsyncImports
+    collectedDeclarations
   )
 
   return {
@@ -524,12 +535,13 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     nextConfigOutput,
     preferredRegion,
     basePath,
+    flyingShuttle,
     middlewareConfig: middlewareConfigBase64,
     nextConfigExperimentalUseEarlyImport,
   } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
-  const collectedAsyncImports: string[] = []
+  const collectedDeclarations: [string, string][] = []
   const page = name.replace(/^app/, '')
   const middlewareConfig: MiddlewareConfig = JSON.parse(
     Buffer.from(middlewareConfigBase64, 'base64').toString()
@@ -539,6 +551,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     absolutePagePath: createAbsolutePath(appDir, pagePath),
     preferredRegion,
     middlewareConfig,
+    relatedModules: [],
   }
 
   const extensions = pageExtensions.map((extension) => `.${extension}`)
@@ -707,7 +720,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     loaderContext: this,
     pageExtensions,
     basePath,
-    collectedAsyncImports,
+    collectedDeclarations,
+    buildInfo,
+    flyingShuttle,
   })
 
   if (!treeCodeResult.rootLayout) {
@@ -756,7 +771,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         loaderContext: this,
         pageExtensions,
         basePath,
-        collectedAsyncImports,
+        collectedDeclarations,
+        buildInfo,
+        flyingShuttle,
       })
     }
   }
@@ -771,7 +788,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       VAR_DEFINITION_PAGE: page,
       VAR_DEFINITION_PATHNAME: pathname,
       VAR_MODULE_GLOBAL_ERROR: treeCodeResult.globalError,
-      VAR_ORIGINAL_PATHNAME: page,
     },
     {
       tree: treeCodeResult.treeCode,
@@ -781,18 +797,27 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
   )
 
-  // Evaluated the imported modules early in the generated code
-  const earlyEvaluateCode =
+  const header =
     nextConfigExperimentalUseEarlyImport &&
     process.env.NODE_ENV === 'production'
-      ? collectedAsyncImports
-          .map((modulePath) => {
-            return `import ${JSON.stringify(modulePath)};`
+      ? // Evaluate the imported modules early in the generated code
+        collectedDeclarations
+          .map(([varName, modulePath]) => {
+            return `import * as ${varName}_ from ${JSON.stringify(
+              modulePath
+            )};\nconst ${varName} = () => ${varName}_;\n`
           })
-          .join('\n')
-      : ''
+          .join('')
+      : // Lazily evaluate the imported modules in the generated code
+        collectedDeclarations
+          .map(([varName, modulePath]) => {
+            return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+              modulePath
+            )});\n`
+          })
+          .join('')
 
-  return earlyEvaluateCode + code
+  return header + code
 }
 
 export default nextAppLoader
