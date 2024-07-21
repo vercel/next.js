@@ -41,6 +41,7 @@ export default function page() {
       <Card href="/aaa" />
       <Card href="/blog/a/b?1" />
       <Link href="/about">test</Link>
+      <Link href="/mdx-test" />
       <Link href="/aaa#aaa">test</Link>
       <Link href="/aaa?q=1">test</Link>
       <Link href="/blog/a/b">test</Link>

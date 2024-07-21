@@ -67,7 +67,7 @@ use crate::{
     versioned_content_map::{OutputAssetsOperation, VersionedContentMap},
 };
 
-#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
+#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct DraftModeOptions {
     pub preview_mode_id: RcStr,
@@ -75,7 +75,7 @@ pub struct DraftModeOptions {
     pub preview_mode_signing_key: RcStr,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
+#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
@@ -114,7 +114,7 @@ pub struct ProjectOptions {
     pub preview_props: DraftModeOptions,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
+#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct PartialProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
@@ -153,7 +153,7 @@ pub struct PartialProjectOptions {
     pub preview_props: Option<DraftModeOptions>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
+#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct DefineEnv {
     pub client: Vec<(RcStr, RcStr)>,
@@ -568,8 +568,8 @@ impl Project {
                 self.project_path(),
                 node_root,
                 node_root,
-                node_root.join("chunks".into()),
-                node_root.join("assets".into()),
+                node_root.join("build/chunks".into()),
+                node_root.join("build/assets".into()),
                 node_build_environment(),
                 next_mode.runtime_type(),
             )
@@ -740,7 +740,7 @@ impl Project {
             .and_then(|c| c.styled_components.as_ref().map(|sc| sc.is_enabled()))
             .unwrap_or_default();
         let react_remove_properties_enabled = compiler_options
-            .and_then(|c| c.react_remove_properties)
+            .and_then(|c| c.react_remove_properties.as_ref().map(|rc| rc.is_enabled()))
             .unwrap_or_default();
         let remove_console_enabled = compiler_options
             .and_then(|c| c.remove_console.as_ref().map(|rc| rc.is_enabled()))

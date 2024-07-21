@@ -61,7 +61,8 @@ use crate::{
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
             next_react_server_components::get_next_react_server_components_transform_rule,
-            relay::get_relay_transform_rule,
+            react_remove_properties::get_react_remove_properties_transform_rule,
+            relay::get_relay_transform_rule, remove_console::get_remove_console_transform_rule,
             styled_components::get_styled_components_transform_rule,
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
@@ -72,11 +73,14 @@ use crate::{
         get_decorators_transform_options, get_jsx_transform_options,
         get_typescript_transform_options,
     },
-    util::{foreign_code_context_condition, load_next_js_templateon, NextRuntime},
+    util::{
+        foreign_code_context_condition, get_transpiled_packages, load_next_js_templateon,
+        NextRuntime,
+    },
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub enum ServerContextType {
     Pages {
         pages_dir: Vc<FileSystemPath>,
@@ -140,13 +144,6 @@ pub async fn get_server_resolve_options_context(
     let invalid_styled_jsx_client_only_resolve_plugin =
         get_invalid_styled_jsx_resolve_plugin(project_path);
 
-    let mut transpile_packages = next_config.transpile_packages().await?.clone_value();
-    transpile_packages.extend(
-        (*next_config.optimize_package_imports().await?)
-            .iter()
-            .cloned(),
-    );
-
     // Always load these predefined packages as external.
     let mut external_packages: Vec<RcStr> = load_next_js_templateon(
         project_path,
@@ -154,9 +151,19 @@ pub async fn get_server_resolve_options_context(
     )
     .await?;
 
+    let mut transpiled_packages = get_transpiled_packages(next_config, project_path)
+        .await?
+        .clone_value();
+
+    transpiled_packages.extend(
+        (*next_config.optimize_package_imports().await?)
+            .iter()
+            .cloned(),
+    );
+
     let server_external_packages = &*next_config.server_external_packages().await?;
 
-    let conflicting_packages = transpile_packages
+    let conflicting_packages = transpiled_packages
         .iter()
         .filter(|package| server_external_packages.contains(package))
         .collect::<Vec<_>>();
@@ -172,7 +179,7 @@ pub async fn get_server_resolve_options_context(
     // Add the config's own list of external packages.
     external_packages.extend(server_external_packages.iter().cloned());
 
-    external_packages.retain(|item| !transpile_packages.contains(item));
+    external_packages.retain(|item| !transpiled_packages.contains(item));
 
     let ty = ty.into_value();
 
@@ -203,7 +210,7 @@ pub async fn get_server_resolve_options_context(
         ExternalCjsModulesResolvePlugin::new(
             project_path,
             project_path.root(),
-            ExternalPredicate::AllExcept(Vc::cell(transpile_packages)).cell(),
+            ExternalPredicate::AllExcept(Vc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
         )
     };
@@ -460,8 +467,10 @@ pub async fn get_server_module_options_context(
     // A set of custom ecma transform rules being applied to server context.
     let source_transform_rules: Vec<ModuleRule> = vec![
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
-        get_relay_transform_rule(next_config).await?,
+        get_relay_transform_rule(next_config, project_path).await?,
         get_emotion_transform_rule(next_config).await?,
+        get_react_remove_properties_transform_rule(next_config).await?,
+        get_remove_console_transform_rule(next_config).await?,
     ]
     .into_iter()
     .flatten()

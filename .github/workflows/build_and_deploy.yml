@@ -9,7 +9,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.16.2
-  TURBO_VERSION: 2.0.6-canary.0
+  TURBO_VERSION: 2.0.7
   NODE_LTS_VERSION: 20
   CARGO_PROFILE_RELEASE_LTO: 'true'
   TURBO_TEAM: 'vercel'
@@ -111,7 +111,7 @@ jobs:
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'i686-pc-windows-msvc' }}
           - settings:
-              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-pc-windows-msvc' }}
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-pc-windows-msvc' }}
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-unknown-linux-musl' }}
           - settings:
@@ -443,7 +443,7 @@ jobs:
           name: wasm-binaries-${{matrix.target}}
           path: packages/next-swc/crates/wasm/pkg-*
 
-  deployTarball:
+  deploy-tarball:
     if: ${{ needs.deploy-target.outputs.value != 'production' }}
     name: Deploy preview tarball
     runs-on: ubuntu-latest

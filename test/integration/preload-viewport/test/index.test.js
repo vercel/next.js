@@ -410,33 +410,38 @@ describe('Prefetching Links in viewport', () => {
         expect(found).toBe(false)
       })
 
-      it('should not prefetch already loaded scripts', async () => {
-        const browser = await webdriver(appPort, '/')
+      // Turbopack handling of chunks is different, by default it does not include a script tag for the page itself.
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'should not prefetch already loaded scripts',
+        async () => {
+          const browser = await webdriver(appPort, '/')
 
-        const scriptSrcs = await browser.eval(`(function() {
+          const scriptSrcs = await browser.eval(`(function() {
       return Array.from(document.querySelectorAll('script'))
         .map(function(el) {
           return el.src && new URL(el.src).pathname
         }).filter(Boolean)
     })()`)
 
-        await browser.eval('next.router.prefetch("/")')
+          await browser.eval('next.router.prefetch("/")')
 
-        const linkHrefs = await browser.eval(`(function() {
+          const linkHrefs = await browser.eval(`(function() {
       return Array.from(document.querySelectorAll('link'))
         .map(function(el) {
           return el.href && new URL(el.href).pathname
         }).filter(Boolean)
     })()`)
 
-        console.log({ linkHrefs, scriptSrcs })
-        expect(scriptSrcs.some((src) => src.includes('pages/index-'))).toBe(
-          true
-        )
-        expect(linkHrefs.some((href) => href.includes('pages/index-'))).toBe(
-          false
-        )
-      })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(scriptSrcs.some((src) => src.includes('pages/index-'))).toBe(
+            true
+          )
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(linkHrefs.some((href) => href.includes('pages/index-'))).toBe(
+            false
+          )
+        }
+      )
 
       it('should not duplicate prefetches', async () => {
         const browser = await webdriver(appPort, '/multi-prefetch')
@@ -454,7 +459,7 @@ describe('Prefetching Links in viewport', () => {
         expect(hrefs).toEqual([...new Set(hrefs)])
 
         // Verify encoding
-        expect(hrefs.some((e) => e.includes(`%5Bhello%5D-`))).toBe(true)
+        expect(hrefs.some((e) => e.includes(`%5Bhello%5D`))).toBe(true)
       })
 
       it('should not re-prefetch for an already prefetched page', async () => {

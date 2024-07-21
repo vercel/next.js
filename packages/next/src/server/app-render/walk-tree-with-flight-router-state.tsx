@@ -2,9 +2,9 @@ import type {
   FlightDataPath,
   FlightRouterState,
   FlightSegmentPath,
+  PreloadCallbacks,
   Segment,
 } from './types'
-import type React from 'react'
 import {
   canSegmentBeOverridden,
   matchSegment,
@@ -16,12 +16,10 @@ import {
   addSearchParamsIfPageSegment,
   createFlightRouterStateFromLoaderTree,
 } from './create-flight-router-state-from-loader-tree'
-import { parseLoaderTree } from './parse-loader-tree'
 import type { CreateSegmentPath, AppRenderContext } from './app-render'
-import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
-import { createComponentTree } from './create-component-tree'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
+import { createComponentTree } from './create-component-tree'
 
 /**
  * Use router state to decide at what common layout to render the page.
@@ -42,6 +40,7 @@ export async function walkTreeWithFlightRouterState({
   asNotFound,
   metadataOutlet,
   ctx,
+  preloadCallbacks,
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTreeToFilter: LoaderTree
@@ -57,6 +56,7 @@ export async function walkTreeWithFlightRouterState({
   asNotFound?: boolean
   metadataOutlet: React.ReactNode
   ctx: AppRenderContext
+  preloadCallbacks: PreloadCallbacks
 }): Promise<FlightDataPath[]> {
   const {
     renderOpts: { nextFontManifest, experimental },
@@ -137,10 +137,10 @@ export async function walkTreeWithFlightRouterState({
 
     if (shouldSkipComponentTree) {
       // Send only the router state
-      return [[overriddenSegment, routerState, null, null, null]]
+      return [[overriddenSegment, routerState, null, null]]
     } else {
       // Create component tree using the slice of the loaderTree
-      const { seedData } = await createComponentTree(
+      const seedData = await createComponentTree(
         // This ensures flightRouterPath is valid and filters down the tree
         {
           ctx,
@@ -155,22 +155,11 @@ export async function walkTreeWithFlightRouterState({
           rootLayoutIncluded,
           asNotFound,
           metadataOutlet,
+          preloadCallbacks,
         }
       )
 
-      // Create head
-      const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
-      const layerAssets = getLayerAssets({
-        ctx,
-        layoutOrPagePath,
-        injectedCSS: new Set(injectedCSS),
-        injectedJS: new Set(injectedJS),
-        injectedFontPreloadTags: new Set(injectedFontPreloadTags),
-      })
-
-      return [
-        [overriddenSegment, routerState, seedData, rscPayloadHead, layerAssets],
-      ]
+      return [[overriddenSegment, routerState, seedData, rscPayloadHead]]
     }
   }
 
@@ -227,6 +216,7 @@ export async function walkTreeWithFlightRouterState({
           rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           asNotFound,
           metadataOutlet,
+          preloadCallbacks,
         })
 
         return path

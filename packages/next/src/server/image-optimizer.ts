@@ -213,6 +213,12 @@ export class ImageOptimizerCache {
       }
     }
 
+    if (url.startsWith('/_next/image')) {
+      return {
+        errorMessage: '"url" parameter cannot be recursive',
+      }
+    }
+
     let isAbsolute: boolean
 
     if (url.startsWith('/')) {

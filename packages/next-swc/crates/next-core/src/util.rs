@@ -36,7 +36,7 @@ use crate::{
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, TaskInput)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize)]
 pub enum PathType {
     PagesPage,
     PagesApi,
@@ -89,11 +89,29 @@ pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
     format!("{}{}", get_asset_prefix_from_pathname(pathname), ext)
 }
 
+#[turbo_tasks::function]
+pub async fn get_transpiled_packages(
+    next_config: Vc<NextConfig>,
+    project_path: Vc<FileSystemPath>,
+) -> Result<Vc<Vec<RcStr>>> {
+    let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().await?.clone_value();
+
+    let default_transpiled_packages: Vec<RcStr> = load_next_js_templateon(
+        project_path,
+        "dist/lib/default-transpiled-packages.json".into(),
+    )
+    .await?;
+
+    transpile_packages.extend(default_transpiled_packages.iter().cloned());
+
+    Ok(Vc::cell(transpile_packages))
+}
+
 pub async fn foreign_code_context_condition(
     next_config: Vc<NextConfig>,
     project_path: Vc<FileSystemPath>,
 ) -> Result<ContextCondition> {
-    let transpile_packages = next_config.transpile_packages().await?;
+    let transpiled_packages = get_transpiled_packages(next_config, project_path).await?;
 
     // The next template files are allowed to import the user's code via import
     // mapping, and imports must use the project-level [ResolveOptions] instead
@@ -103,23 +121,16 @@ pub async fn foreign_code_context_condition(
         get_next_package(project_path).join(NEXT_TEMPLATE_PATH.into()),
     ));
 
-    let result = if transpile_packages.is_empty() {
-        ContextCondition::all(vec![
-            ContextCondition::InDirectory("node_modules".to_string()),
-            not_next_template_dir,
-        ])
-    } else {
-        ContextCondition::all(vec![
-            ContextCondition::InDirectory("node_modules".to_string()),
-            not_next_template_dir,
-            ContextCondition::not(ContextCondition::any(
-                transpile_packages
-                    .iter()
-                    .map(|package| ContextCondition::InDirectory(format!("node_modules/{package}")))
-                    .collect(),
-            )),
-        ])
-    };
+    let result = ContextCondition::all(vec![
+        ContextCondition::InDirectory("node_modules".to_string()),
+        not_next_template_dir,
+        ContextCondition::not(ContextCondition::any(
+            transpiled_packages
+                .iter()
+                .map(|package| ContextCondition::InDirectory(format!("node_modules/{package}")))
+                .collect(),
+        )),
+    ]);
     Ok(result)
 }
 

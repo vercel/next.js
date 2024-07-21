@@ -98,6 +98,9 @@ type ClientEntries = {
 const EXTERNAL_PACKAGES =
   require('../lib/server-external-packages.json') as string[]
 
+const DEFAULT_TRANSPILED_PACKAGES =
+  require('../lib/default-transpiled-packages.json') as string[]
+
 export const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
 export const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
 const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
@@ -395,7 +398,9 @@ export default async function getBaseWebpackConfig(
 
   // since `pages` doesn't always bundle by default we need to
   // auto-include optimizePackageImports in transpilePackages
-  const finalTranspilePackages: string[] = config.transpilePackages || []
+  const finalTranspilePackages: string[] = (
+    config.transpilePackages || []
+  ).concat(DEFAULT_TRANSPILED_PACKAGES)
 
   for (const pkg of config.experimental.optimizePackageImports || []) {
     if (!finalTranspilePackages.includes(pkg)) {
@@ -855,6 +860,7 @@ export default async function getBaseWebpackConfig(
     config,
     optOutBundlingPackages,
     optOutBundlingPackageRegex,
+    transpiledPackages: finalTranspilePackages,
     dir,
   })
 
@@ -938,10 +944,12 @@ export default async function getBaseWebpackConfig(
                 }
               ),
           ],
+
     optimization: {
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
+
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
@@ -998,7 +1006,7 @@ export default async function getBaseWebpackConfig(
 
         if (isNodeServer || isEdgeServer) {
           return {
-            filename: `${isEdgeServer ? 'edge-chunks/' : ''}[name].js`,
+            filename: `${isEdgeServer ? `edge-chunks${config.experimental.flyingShuttle ? `-${buildId}` : ''}/` : ''}[name].js`,
             chunks: 'all',
             minChunks: 2,
           }
@@ -1086,6 +1094,7 @@ export default async function getBaseWebpackConfig(
       runtimeChunk: isClient
         ? { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK }
         : undefined,
+
       minimize:
         !dev &&
         (isClient ||
@@ -1174,6 +1183,34 @@ export default async function getBaseWebpackConfig(
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
+
+      ...(config.experimental.flyingShuttle
+        ? {
+            // ensure we only use contenthash as it's more deterministic
+            filename: (p) => {
+              if (isNodeOrEdgeCompilation) {
+                // runtime chunk needs hash so it can be isolated
+                // across builds
+                const isRuntimeChunk = p.chunk?.name?.match(
+                  /webpack-(api-runtime|runtime)/
+                )
+                return `${isEdgeServer ? '' : '../'}[name]${isRuntimeChunk ? `-${buildId}` : ''}.js`
+              }
+              // client filename
+              return `static/chunks/[name]-[contenthash].js`
+            },
+
+            path: isNodeServer
+              ? path.join(outputPath, `chunks-${buildId}`)
+              : outputPath,
+
+            chunkFilename: isNodeOrEdgeCompilation
+              ? `[name].js`
+              : `static/chunks/[contenthash].js`,
+
+            webassemblyModuleFilename: 'static/wasm/[contenthash].wasm',
+          }
+        : {}),
     },
     performance: false,
     resolve: resolveConfig,
@@ -1762,7 +1799,6 @@ export default async function getBaseWebpackConfig(
         }),
       getDefineEnvPlugin({
         isTurbopack: false,
-        clientRouterFilters,
         config,
         dev,
         distDir,
@@ -1783,7 +1819,7 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
-      isNodeServer &&
+      (isNodeServer || (config.experimental.flyingShuttle && isEdgeServer)) &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
@@ -1860,6 +1896,7 @@ export default async function getBaseWebpackConfig(
           rewrites,
           isDevFallback,
           appDirEnabled: hasAppDir,
+          clientRouterFilters,
         }),
       new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
       config.optimizeFonts &&
@@ -2099,6 +2136,7 @@ export default async function getBaseWebpackConfig(
     modularizeImports: config.modularizeImports,
     imageLoaderFile: config.images.loaderFile,
     clientTraceMetadata: config.experimental.clientTraceMetadata,
+    serverSourceMaps: config.experimental.serverSourceMaps,
   })
 
   const cache: any = {

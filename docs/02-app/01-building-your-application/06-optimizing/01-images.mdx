@@ -41,7 +41,7 @@ You can then define the `src` for your image (either local or remote).
 
 To use a local image, `import` your `.jpg`, `.png`, or `.webp` image files.
 
-Next.js will [automatically determine](#image-sizing) the `width` and `height` of your image based on the imported file. These values are used to prevent [Cumulative Layout Shift](https://nextjs.org/learn/seo/web-performance/cls) while your image is loading.
+Next.js will [automatically determine](#image-sizing) the intrisic `width` and `height` of your image based on the imported file. These values are used to determine the image ratio and prevent [Cumulative Layout Shift](https://nextjs.org/learn/seo/web-performance/cls) while your image is loading.
 
 <AppOnly>
 
@@ -203,7 +203,7 @@ One of the ways that images most commonly hurt performance is through _layout sh
 Because `next/image` is designed to guarantee good performance results, it cannot be used in a way that will contribute to layout shift, and **must** be sized in one of three ways:
 
 1. Automatically, using a [static import](#local-images)
-2. Explicitly, by including a [`width`](/docs/app/api-reference/components/image#width) and [`height`](/docs/app/api-reference/components/image#height) property
+2. Manually, by including a [`width`](/docs/app/api-reference/components/image#width) and [`height`](/docs/app/api-reference/components/image#height) property used to determine the image's aspect ratio.
 3. Implicitly, by using [fill](/docs/app/api-reference/components/image#fill) which causes the image to expand to fill its parent element.
 
 > **What if I don't know the size of my images?**
@@ -229,7 +229,7 @@ If none of the suggested methods works for sizing your images, the `next/image` 
 Styling the Image component is similar to styling a normal `<img>` element, but there are a few guidelines to keep in mind:
 
 - Use `className` or `style`, not `styled-jsx`.
-  - In most cases, we recommend using the `className` prop. This can be an imported [CSS Module](/docs/app/building-your-application/styling/css-modules), a [global stylesheet](/docs/app/building-your-application/styling/css-modules#global-styles), etc.
+  - In most cases, we recommend using the `className` prop. This can be an imported [CSS Module](/docs/app/building-your-application/styling/stylesheets), a [global stylesheet](/docs/app/building-your-application/styling/stylesheets#global-styles), etc.
   - You can also use the `style` prop to assign inline styles.
   - You cannot use [styled-jsx](/docs/app/building-your-application/styling/css-in-js) because it's scoped to the current component (unless you mark the style as `global`).
 - When using `fill`, the parent element must have `position: relative`
