@@ -1604,6 +1604,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/disable-logging-route/disable-logging-route.test.ts": {
+    "passed": ["disable-logging-route should not log if disabled logging"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/dynamic-error-trace/index.test.ts": {
     "passed": ["app dir - dynamic error trace should show the error trace"],
     "failed": [],
@@ -1727,6 +1734,7 @@
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
       "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
+      "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime",
       "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge)",
       "app-dir-hmr filesystem changes should update server components pages when env files is changed (nodejs)"
     ],
@@ -3020,7 +3028,9 @@
       "app-dir with middleware Mutate request headers for next/headers Supports draft mode",
       "app-dir with middleware Mutate request headers for next/headers Updates headers",
       "app-dir with middleware should be possible to modify cookies & read them in an RSC in a single request",
-      "app-dir with middleware should filter correctly after middleware rewrite"
+      "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
+      "app-dir with middleware should filter correctly after middleware rewrite",
+      "app-dir with middleware should respect cookie options of merged middleware cookies"
     ],
     "failed": [],
     "pending": [],
@@ -3585,13 +3595,6 @@
       "app dir - basic should not rerender layout when navigating between routes in the same layout",
       "app dir - basic template component should render the template that is a server component and rerender on navigation"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app/provide-paths.test.ts": {
-    "passed": ["Provided page/app paths should skip dev"],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -4320,10 +4323,13 @@
       "app-dir - logging with fetches default logging should log 'skip' cache status with a reason when revalidate: 0 is used",
       "app-dir - logging with fetches default logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
       "app-dir - logging with fetches default logging should log each page request only once",
+      "app-dir - logging with fetches default logging should log requests for client-side navigations",
       "app-dir - logging with fetches default logging should log requests with correct indentation",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain trailing word page for app router routes",
+      "app-dir - logging with fetches default logging should not limit the number of requests that are logged",
       "app-dir - logging with fetches default logging should not log _rsc query for client navigation RSC request",
+      "app-dir - logging with fetches default logging should not log requests for HMR refreshes",
       "app-dir - logging with fetches default logging should only log requests in development mode",
       "app-dir - logging with fetches default logging should respect request.init.cache when use with fetch input is instance",
       "app-dir - logging with fetches default logging should show cache reason of noStore when use with fetch",
@@ -4332,16 +4338,31 @@
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when revalidate: 0 is used",
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
       "app-dir - logging with fetches verbose logging should log each page request only once",
+      "app-dir - logging with fetches verbose logging should log requests for client-side navigations",
       "app-dir - logging with fetches verbose logging should log requests with correct indentation",
       "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain trailing word page for app router routes",
+      "app-dir - logging with fetches verbose logging should not limit the number of requests that are logged",
       "app-dir - logging with fetches verbose logging should not log _rsc query for client navigation RSC request",
+      "app-dir - logging with fetches verbose logging should not log requests for HMR refreshes",
       "app-dir - logging with fetches verbose logging should only log requests in development mode",
       "app-dir - logging with fetches verbose logging should respect request.init.cache when use with fetch input is instance",
       "app-dir - logging with fetches verbose logging should show cache reason of noStore when use with fetch",
+      "app-dir - logging with verbose logging for edge runtime should exclude Middleware invoked and _rsc requests",
+      "app-dir - logging with verbose logging for edge runtime should log 'skip' cache status with a reason when cache: 'no-cache' is used",
+      "app-dir - logging with verbose logging for edge runtime should log 'skip' cache status with a reason when revalidate: 0 is used",
+      "app-dir - logging with verbose logging for edge runtime should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
+      "app-dir - logging with verbose logging for edge runtime should log each page request only once",
+      "app-dir - logging with verbose logging for edge runtime should log requests for client-side navigations",
+      "app-dir - logging with verbose logging for edge runtime should log requests with correct indentation",
       "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain trailing word page for app router routes",
-      "app-dir - logging with verbose logging for edge runtime should not log fetch requests at all"
+      "app-dir - logging with verbose logging for edge runtime should not limit the number of requests that are logged",
+      "app-dir - logging with verbose logging for edge runtime should not log _rsc query for client navigation RSC request",
+      "app-dir - logging with verbose logging for edge runtime should not log requests for HMR refreshes",
+      "app-dir - logging with verbose logging for edge runtime should only log requests in development mode",
+      "app-dir - logging with verbose logging for edge runtime should respect request.init.cache when use with fetch input is instance",
+      "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch"
     ],
     "failed": [],
     "pending": [],
@@ -5419,6 +5440,13 @@
     "passed": [
       "react-owner-stacks-svgr renders an SVG that is transformed by @svgr/webpack into a React component"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/remove-console/remove-console.test.ts": {
+    "passed": ["remove-console should remove console.log"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -7111,6 +7139,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/instrumentation-hook/register-once/register-once.test.ts": {
+    "passed": [
+      "instrumentation-hook - register-once should only register once"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/link-with-api-rewrite/index.test.ts": {
     "passed": [
       "link-with-api-rewrite should perform hard navigation for direct urls",
@@ -7804,6 +7841,31 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/on-request-error/dynamic-routes/dynamic-routes.test.ts": {
+    "passed": [
+      "on-request-error - dynamic-routes app router should catch app router dynamic page error with search params",
+      "on-request-error - dynamic-routes app router should catch app router dynamic routes error with search params",
+      "on-request-error - dynamic-routes app router should catch suspense rendering page error in node runtime",
+      "on-request-error - dynamic-routes pages router should catch pages router dynamic API route error with search params",
+      "on-request-error - dynamic-routes pages router should catch pages router dynamic page error with search params"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/on-request-error/server-action-error/server-action-error.test.ts": {
+    "passed": [
+      "on-request-error - server-action-error should catch server action error in listener callback in edge runtime",
+      "on-request-error - server-action-error should catch server action error in listener callback in nodejs runtime",
+      "on-request-error - server-action-error should catch the server action form error in edge runtime",
+      "on-request-error - server-action-error should catch the server action form error in nodejs runtime"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/on-request-error/skip-next-internal-error/skip-next-internal-error.test.ts": {
     "passed": [
       "on-request-error - skip-next-internal-error app router API should not catch server component not-found errors",
@@ -7812,6 +7874,8 @@
       "on-request-error - skip-next-internal-error app router render should not catch client component not-found errors",
       "on-request-error - skip-next-internal-error app router render should not catch client component redirect errors",
       "on-request-error - skip-next-internal-error app router render should not catch next dynamic no-ssr errors",
+      "on-request-error - skip-next-internal-error app router render should not catch server action not-found errors",
+      "on-request-error - skip-next-internal-error app router render should not catch server action redirect errors",
       "on-request-error - skip-next-internal-error app router render should not catch server component dynamic usage errors",
       "on-request-error - skip-next-internal-error app router render should not catch server component not-found errors",
       "on-request-error - skip-next-internal-error app router render should not catch server component redirect errors"
