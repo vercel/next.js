@@ -91,7 +91,6 @@ async function createComponentTreeInternal({
       serverHooks: { DynamicServerError },
       Postpone,
     },
-    pagePath,
     getDynamicParamFromSegment,
     isPrefetch,
     query,
@@ -108,6 +107,10 @@ async function createComponentTreeInternal({
     injectedFontPreloadTags
   )
 
+  const isTemplate = typeof template !== 'undefined'
+  const isError = typeof error !== 'undefined'
+  const isLoading = typeof loading !== 'undefined'
+
   const layerAssets = getLayerAssets({
     ctx,
     layoutOrPagePath,
@@ -116,7 +119,7 @@ async function createComponentTreeInternal({
     injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
   })
 
-  const [Template, templateStyles, templateScripts] = template
+  const [Template, templateStyles, templateScripts] = isTemplate
     ? await createComponentStylesAndScripts({
         ctx,
         filePath: template[1],
@@ -126,7 +129,7 @@ async function createComponentTreeInternal({
       })
     : [React.Fragment]
 
-  const [ErrorComponent, errorStyles, errorScripts] = error
+  const [ErrorComponent, errorStyles, errorScripts] = isError
     ? await createComponentStylesAndScripts({
         ctx,
         filePath: error[1],
@@ -136,7 +139,7 @@ async function createComponentTreeInternal({
       })
     : []
 
-  const [Loading, loadingStyles, loadingScripts] = loading
+  const [Loading, loadingStyles, loadingScripts] = isLoading
     ? await createComponentStylesAndScripts({
         ctx,
         filePath: loading[1],
@@ -170,7 +173,8 @@ async function createComponentTreeInternal({
   const rootLayoutIncludedAtThisLevelOrAbove =
     rootLayoutIncluded || rootLayoutAtThisLevel
 
-  const [NotFound, notFoundStyles] = notFound
+  const isNotFound = typeof notFound !== 'undefined'
+  const [NotFound, notFoundStyles] = isNotFound
     ? await createComponentStylesAndScripts({
         ctx,
         filePath: notFound[1],
@@ -310,33 +314,62 @@ async function createComponentTreeInternal({
 
   if (process.env.NODE_ENV === 'development') {
     const { isValidElementType } = require('next/dist/compiled/react-is')
-    if (
-      (isPage || typeof Component !== 'undefined') &&
-      !isValidElementType(Component)
-    ) {
+
+    if (isPage && !isValidElementType(Component)) {
       throw new Error(
-        `The default export is not a React Component in page: "${pagePath}"`
+        `The default export of page is not a React Component in ${page[1]}`
+      )
+    }
+
+    if (isLayout && !isValidElementType(Component)) {
+      throw new Error(
+        `The default export of layout is not a React Component in ${layout[1]}`
+      )
+    }
+
+    if (typeof Component !== 'undefined' && !isValidElementType(Component)) {
+      throw new Error(
+        `The default export is not a React Component in ${layoutOrPagePath}`
       )
     }
 
     if (
+      isTemplate &&
+      typeof Template !== 'undefined' &&
+      !isValidElementType(Template)
+    ) {
+      throw new Error(
+        `The default export of template is not a React Component in ${template[1]}`
+      )
+    }
+
+    if (
+      isError &&
       typeof ErrorComponent !== 'undefined' &&
       !isValidElementType(ErrorComponent)
     ) {
       throw new Error(
-        `The default export of error is not a React Component in page: ${segment}`
+        `The default export of error is not a React Component in ${error[1]}`
       )
     }
 
-    if (typeof Loading !== 'undefined' && !isValidElementType(Loading)) {
+    if (
+      isLoading &&
+      typeof Loading !== 'undefined' &&
+      !isValidElementType(Loading)
+    ) {
       throw new Error(
-        `The default export of loading is not a React Component in ${segment}`
+        `The default export of loading is not a React Component in ${loading[1]}`
       )
     }
 
-    if (typeof NotFound !== 'undefined' && !isValidElementType(NotFound)) {
+    if (
+      isNotFound &&
+      typeof NotFound !== 'undefined' &&
+      !isValidElementType(NotFound)
+    ) {
       throw new Error(
-        `The default export of notFound is not a React Component in ${segment}`
+        `The default export of notFound is not a React Component in ${notFound[1]}`
       )
     }
   }

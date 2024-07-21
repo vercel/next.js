@@ -137,8 +137,8 @@ describe('Error overlay - RSC build errors', () => {
     )
 
     expect(await session.hasRedbox()).toBe(true)
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in page: "/server-with-errors/page-export"'
+    expect(await session.getRedboxDescription()).toMatch(
+      /The default export of page is not a React Component in \/.+\/app\/server-with-errors\/page-export\/page\.js/
     )
 
     await cleanup()
@@ -152,8 +152,43 @@ describe('Error overlay - RSC build errors', () => {
     )
 
     expect(await session.hasRedbox()).toBe(true)
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in page: "/server-with-errors/page-export-initial-error"'
+    expect(await session.getRedboxDescription()).toMatch(
+      /The default export of page is not a React Component in \/.+\/app\/server-with-errors\/page-export-initial-error\/page\.js/
+    )
+
+    await cleanup()
+  })
+
+  it('should error when layout component export is not valid', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/server-with-errors/layout-export'
+    )
+
+    await next.patchFile(
+      'app/server-with-errors/layout-export/layout.js',
+      'export const a = 123'
+    )
+
+    expect(await session.hasRedbox()).toBe(true)
+    expect(await session.getRedboxDescription()).toMatch(
+      /The default export of layout is not a React Component in \/.+\/app\/server-with-errors\/layout-export\/layout\.js/
+    )
+
+    await cleanup()
+  })
+
+  it('should error when layout component export is not valid on initial load', async () => {
+    const { session, cleanup } = await sandbox(
+      next,
+      undefined,
+      '/server-with-errors/layout-export-initial-error'
+    )
+
+    expect(await session.hasRedbox()).toBe(true)
+    expect(await session.getRedboxDescription()).toMatch(
+      /The default export of layout is not a React Component in \/.+\/app\/server-with-errors\/layout-export-initial-error\/layout\.js/
     )
 
     await cleanup()
