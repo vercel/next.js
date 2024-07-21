@@ -26118,6 +26118,25 @@ export declare function ZCOOL_XiaoWei<
   adjustFontFallback?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Zain<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight:
+    | '200'
+    | '300'
+    | '400'
+    | '700'
+    | '800'
+    | '900'
+    | Array<'200' | '300' | '400' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'latin'>
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Zen_Antique<
   T extends CssVariable | undefined = undefined,
 >(options: {
