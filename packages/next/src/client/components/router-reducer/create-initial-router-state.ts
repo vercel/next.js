@@ -102,7 +102,13 @@ export function createInitialRouterState({
     createPrefetchCacheEntryForInitialLoad({
       url,
       kind: PrefetchKind.AUTO,
-      data: { f: initialFlightData, c: undefined, i: !!couldBeIntercepted },
+      data: {
+        f: initialFlightData,
+        c: undefined,
+        i: !!couldBeIntercepted,
+        // TODO: the server should probably send a value for this. Default to false for now.
+        p: false,
+      },
       tree: initialState.tree,
       prefetchCache: initialState.prefetchCache,
       nextUrl: initialState.nextUrl,

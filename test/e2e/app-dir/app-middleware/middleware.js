@@ -52,6 +52,16 @@ export async function middleware(request) {
     return res
   }
 
+  if (request.nextUrl.pathname === '/rsc-cookies/cookie-options') {
+    const res = NextResponse.next()
+    res.cookies.set('rsc-secure-cookie', `${Math.random()}`, {
+      secure: true,
+      httpOnly: true,
+    })
+
+    return res
+  }
+
   if (request.nextUrl.pathname === '/rsc-cookies-delete') {
     const res = NextResponse.next()
     res.cookies.delete('rsc-cookie-value-1')

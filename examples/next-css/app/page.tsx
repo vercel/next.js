@@ -1,4 +1,4 @@
-import HelloWorld from "../component/hello-world";
+import HelloWorld from "./_component/hello-world";
 
 export default function Home() {
   return (

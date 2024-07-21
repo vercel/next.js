@@ -252,6 +252,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         after: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),
         appIsrStatus: z.boolean().optional(),
+        appNavFailHandling: z.boolean().optional(),
         preloadEntriesOnStart: z.boolean().optional(),
         adjustFontFallbacks: z.boolean().optional(),
         adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
@@ -533,13 +534,16 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       })
       .optional(),
     logging: z
-      .object({
-        fetches: z
-          .object({
-            fullUrl: z.boolean().optional(),
-          })
-          .optional(),
-      })
+      .union([
+        z.object({
+          fetches: z
+            .object({
+              fullUrl: z.boolean().optional(),
+            })
+            .optional(),
+        }),
+        z.boolean(),
+      ])
       .optional(),
     modularizeImports: z
       .record(
