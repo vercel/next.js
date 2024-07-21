@@ -97,7 +97,7 @@ export default function sitemap() {
 
 Output:
 
-```xml filename="acme.com/sitemap"
+```xml filename="acme.com/sitemap.xml"
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://acme.com</loc>
@@ -199,7 +199,7 @@ export default function sitemap() {
 
 Output:
 
-```xml filename="acme.com/sitemap"
+```xml filename="acme.com/sitemap.xml"
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://acme.com</loc>
@@ -272,7 +272,7 @@ export default async function sitemap({
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
   return products.map((product) => ({
-    url: `${BASE_URL}/product/${id}`,
+    url: `${BASE_URL}/product/${product.id}`,
     lastModified: product.date,
   }))
 }
@@ -294,13 +294,13 @@ export default async function sitemap({ id }) {
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
   return products.map((product) => ({
-    url: `${BASE_URL}/product/${id}`,
+    url: `${BASE_URL}/product/${product.id}`,
     lastModified: product.date,
   }))
 }
 ```
 
-Your generated sitemaps will be available at `/.../sitemap/[id]`. For example, `/product/sitemap/1`.
+Your generated sitemaps will be available at `/.../sitemap/[id]`. For example, `/product/sitemap/1.xml`.
 
 See the [`generateSitemaps` API reference](/docs/app/api-reference/functions/generate-sitemaps) for more information.
 

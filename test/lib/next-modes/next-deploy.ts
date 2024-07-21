@@ -76,6 +76,7 @@ export class NextDeployInstance extends NextInstance {
       {
         cwd: this.testDir,
         env: vercelEnv,
+        reject: false,
       }
     )
 
@@ -117,12 +118,13 @@ export class NextDeployInstance extends NextInstance {
       {
         cwd: this.testDir,
         env: vercelEnv,
+        reject: false,
       }
     )
 
     if (deployRes.exitCode !== 0) {
       throw new Error(
-        `Failed to deploy project ${linkRes.stdout} ${linkRes.stderr} (${linkRes.exitCode})`
+        `Failed to deploy project ${deployRes.stdout} ${deployRes.stderr} (${deployRes.exitCode})`
       )
     }
     // the CLI gives just the deployment URL back when not a TTY
@@ -145,21 +147,25 @@ export class NextDeployInstance extends NextInstance {
 
     require('console').log(`Got buildId: ${this._buildId}`)
 
-    // Use the vercel logs command to get the CLI output from the build.
-    const logs = await execa(
+    // Use the vercel inspect command to get the CLI output from the build.
+    const buildLogs = await execa(
       'vercel',
-      ['logs', this._url, '--output', 'raw', ...vercelFlags],
+      ['inspect', '--logs', this._url, ...vercelFlags],
       {
         env: vercelEnv,
+        reject: false,
       }
     )
-    if (logs.exitCode !== 0) {
-      throw new Error(`Failed to get build output logs: ${logs.stderr}`)
+    if (buildLogs.exitCode !== 0) {
+      throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
     }
 
     // Use the stdout from the logs command as the CLI output. The CLI will
     // output other unrelated logs to stderr.
-    this._cliOutput = logs.stdout
+
+    // TODO: Combine with runtime logs (via `vercel logs`)
+    // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
+    this._cliOutput = buildLogs.stdout + buildLogs.stderr
   }
 
   public get cliOutput() {
@@ -170,7 +176,10 @@ export class NextDeployInstance extends NextInstance {
     // no-op as the deployment is created during setup()
   }
 
-  public async patchFile(filename: string, content: string): Promise<void> {
+  public async patchFile(
+    filename: string,
+    content: string
+  ): Promise<{ newFile: boolean }> {
     throw new Error('patchFile is not available in deploy test mode')
   }
   public async readFile(filename: string): Promise<string> {

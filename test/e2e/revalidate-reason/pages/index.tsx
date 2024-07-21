@@ -7,11 +7,11 @@ export async function getStaticProps({ params, revalidateReason }) {
   )
   return {
     props: {
-      hello: 'world',
+      reason: revalidateReason,
     },
   }
 }
 
-export default ({ hello }) => {
-  return <p>hello: {hello}</p>
+export default ({ reason }) => {
+  return <p id="reason">revalidate reason: {reason}</p>
 }

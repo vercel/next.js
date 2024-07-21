@@ -29,6 +29,8 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .alias('g', 'group')
   .number('c')
   .boolean('related')
+  .boolean('dry')
+  .boolean('local')
   .alias('r', 'related')
   .alias('c', 'concurrency').argv
 
@@ -205,9 +207,11 @@ async function main() {
     type: argv.type ?? false,
     related: argv.related ?? false,
     retries: argv.retries ?? DEFAULT_NUM_RETRIES,
+    dry: argv.dry ?? false,
+    local: argv.local ?? false,
   }
   let numRetries = options.retries
-  const hideOutput = !options.debug
+  const hideOutput = !options.debug && !options.dry
 
   let filterTestsBy
 
@@ -227,7 +231,12 @@ async function main() {
     }
   }
 
-  console.log('Running tests with concurrency:', options.concurrency)
+  console.log(
+    'Running tests with concurrency:',
+    options.concurrency,
+    'in test mode',
+    process.env.NEXT_TEST_MODE
+  )
 
   /** @type TestFile[] */
   let tests = argv._.filter((arg) =>
@@ -397,6 +406,7 @@ ${ENDGROUP}`)
   })
 
   if (
+    !options.dry &&
     process.platform !== 'win32' &&
     process.env.NEXT_TEST_MODE !== 'deploy' &&
     ((options.type && options.type !== 'unit') || hasIsolatedTests)
@@ -405,8 +415,7 @@ ${ENDGROUP}`)
     // a starter Next.js install to re-use to speed up tests
     // to avoid having to run yarn each time
     console.log(`${GROUP}Creating Next.js install for isolated tests`)
-    const reactVersion =
-      process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc-f994737d14-20240522'
+    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc.0'
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
@@ -467,36 +476,43 @@ ${ENDGROUP}`)
             ]),
       ]
       const env = {
-        IS_RETRY: isRetry ? 'true' : undefined,
-        RECORD_REPLAY: shouldRecordTestWithReplay,
         // run tests in headless mode by default
         HEADLESS: 'true',
-        TRACE_PLAYWRIGHT: 'true',
         NEXT_TELEMETRY_DISABLED: '1',
         // unset CI env so CI behavior is only explicitly
         // tested when enabled
         CI: '',
-        CIRCLECI: '',
-        GITHUB_ACTIONS: '',
-        CONTINUOUS_INTEGRATION: '',
-        RUN_ID: '',
-        BUILD_NUMBER: '',
-        // Format the output of junit report to include the test name
-        // For the debugging purpose to compare actual run list to the generated reports
-        // [NOTE]: This won't affect if junit reporter is not enabled
-        // @ts-expect-error .replaceAll() does exist. Follow-up why TS is not recognizing it
-        JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
-        // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
-        // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
-        // [NOTE]: This won't affect if junit reporter is not enabled
-        JEST_SUITE_NAME: [
-          `${process.env.NEXT_TEST_MODE ?? 'default'}`,
-          options.group,
-          options.type,
-          test.file,
-        ]
-          .filter(Boolean)
-          .join(':'),
+
+        ...(options.local
+          ? {}
+          : {
+              IS_RETRY: isRetry ? 'true' : undefined,
+              RECORD_REPLAY: shouldRecordTestWithReplay,
+
+              TRACE_PLAYWRIGHT:
+                process.env.NEXT_TEST_MODE === 'deploy' ? undefined : 'true',
+              CIRCLECI: '',
+              GITHUB_ACTIONS: '',
+              CONTINUOUS_INTEGRATION: '',
+              RUN_ID: '',
+              BUILD_NUMBER: '',
+              // Format the output of junit report to include the test name
+              // For the debugging purpose to compare actual run list to the generated reports
+              // [NOTE]: This won't affect if junit reporter is not enabled
+              // @ts-expect-error .replaceAll() does exist. Follow-up why TS is not recognizing it
+              JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
+              // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
+              // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
+              // [NOTE]: This won't affect if junit reporter is not enabled
+              JEST_SUITE_NAME: [
+                `${process.env.NEXT_TEST_MODE ?? 'default'}`,
+                options.group,
+                options.type,
+                test.file,
+              ]
+                .filter(Boolean)
+                .join(':'),
+            }),
         ...(isFinalRun
           ? {
               // Events can be finicky in CI. This switches to a more
@@ -523,6 +539,11 @@ ${ENDGROUP}`)
           ...args.map((a) => `'${a}'`),
         ].join(' ') + '\n'
       )
+
+      // Don't execute tests when in dry run mode
+      if (options.dry) {
+        return resolve(new Date().getTime() - start)
+      }
 
       const child = spawn(jestPath, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -693,6 +714,7 @@ ${ENDGROUP}`)
       }
 
       // Emit test output if test failed or if we're continuing tests on error
+      // This is parsed by the commenter webhook to notify about failing tests
       if ((!passed || shouldContinueTestsOnError) && isTestJob) {
         try {
           const testsOutput = await fsp.readFile(

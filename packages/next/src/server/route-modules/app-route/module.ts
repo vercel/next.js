@@ -12,13 +12,13 @@ import {
   type RouteModuleOptions,
 } from '../route-module'
 import {
-  RequestAsyncStorageWrapper,
+  withRequestStore,
   type RequestContext,
-} from '../../async-storage/request-async-storage-wrapper'
+} from '../../async-storage/with-request-store'
 import {
-  StaticGenerationAsyncStorageWrapper,
+  withStaticGenerationStore,
   type StaticGenerationContext,
-} from '../../async-storage/static-generation-async-storage-wrapper'
+} from '../../async-storage/with-static-generation-store'
 import {
   handleBadRequestResponse,
   handleInternalServerErrorResponse,
@@ -56,6 +56,7 @@ import { StaticGenBailoutError } from '../../../client/components/static-generat
 import { isStaticGenEnabled } from './helpers/is-static-gen-enabled'
 import { trackDynamicDataAccessed } from '../../app-render/dynamic-rendering'
 import { ReflectAdapter } from '../../web/spec-extension/adapters/reflect'
+import type { RenderOptsPartial } from '../../app-render/types'
 
 /**
  * The AppRouteModule is the type of the module exported by the bundled App
@@ -68,7 +69,8 @@ export type AppRouteModule = typeof import('../../../build/templates/app-route')
  * handler for app routes.
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
-  renderOpts: StaticGenerationContext['renderOpts']
+  renderOpts: StaticGenerationContext['renderOpts'] &
+    Pick<RenderOptsPartial, 'onInstrumentationRequestError'>
   prerenderManifest: DeepReadonly<PrerenderManifest>
 }
 
@@ -257,19 +259,18 @@ export class AppRouteRouteModule extends RouteModule<
     // Get the context for the request.
     const requestContext: RequestContext = {
       req: rawRequest,
-    }
-
-    requestContext.renderOpts = {
-      // @ts-expect-error TODO: types for renderOpts should include previewProps
-      previewProps: context.prerenderManifest.preview,
-      waitUntil: context.renderOpts.waitUntil,
-      onClose: context.renderOpts.onClose,
-      experimental: context.renderOpts.experimental,
+      url: rawRequest.nextUrl,
+      renderOpts: {
+        previewProps: context.prerenderManifest.preview,
+        waitUntil: context.renderOpts.waitUntil,
+        onClose: context.renderOpts.onClose,
+        experimental: context.renderOpts.experimental,
+      },
     }
 
     // Get the context for the static generation.
     const staticGenerationContext: StaticGenerationContext = {
-      urlPathname: rawRequest.nextUrl.pathname,
+      page: this.definition.page,
       renderOpts: context.renderOpts,
     }
 
@@ -285,11 +286,11 @@ export class AppRouteRouteModule extends RouteModule<
         isAction: getIsServerAction(rawRequest),
       },
       () =>
-        RequestAsyncStorageWrapper.wrap(
+        withRequestStore(
           this.requestAsyncStorage,
           requestContext,
-          () =>
-            StaticGenerationAsyncStorageWrapper.wrap(
+          (requestStore) =>
+            withStaticGenerationStore(
               this.staticGenerationAsyncStorage,
               staticGenerationContext,
               (staticGenerationStore) => {
@@ -375,6 +376,7 @@ export class AppRouteRouteModule extends RouteModule<
                     patchFetch({
                       staticGenerationAsyncStorage:
                         this.staticGenerationAsyncStorage,
+                      requestAsyncStorage: this.requestAsyncStorage,
                     })
                     const res = await handler(request, {
                       params: context.params
@@ -398,14 +400,13 @@ export class AppRouteRouteModule extends RouteModule<
                       ),
                     ])
 
-                    addImplicitTags(staticGenerationStore)
+                    addImplicitTags(staticGenerationStore, requestStore)
                     ;(context.renderOpts as any).fetchTags =
                       staticGenerationStore.tags?.join(',')
 
                     // It's possible cookies were set in the handler, so we need
                     // to merge the modified cookies and the returned response
                     // here.
-                    const requestStore = this.requestAsyncStorage.getStore()
                     if (requestStore && requestStore.mutableCookies) {
                       const headers = new Headers(res.headers)
                       if (

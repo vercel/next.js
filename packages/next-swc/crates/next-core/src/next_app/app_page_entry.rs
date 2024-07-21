@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use indexmap::indexmap;
 use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_binding::{
@@ -14,7 +14,7 @@ use turbopack_binding::{
             source::Source,
             virtual_source::VirtualSource,
         },
-        ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
+        ecmascript::utils::StringifyJs,
         turbopack::ModuleAssetContext,
     },
 };
@@ -22,7 +22,7 @@ use turbopack_binding::{
 use super::app_entry::AppEntry;
 use crate::{
     app_structure::LoaderTree,
-    loader_tree::LoaderTreeModule,
+    loader_tree::{LoaderTreeModule, GLOBAL_ERROR},
     next_app::{AppPage, AppPath},
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
@@ -81,9 +81,11 @@ pub async fn get_app_page_entry(
         indexmap! {
             "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
-            "VAR_ORIGINAL_PATHNAME" => original_name.clone(),
-            // TODO(alexkirsz) Support custom global error.
-            "VAR_MODULE_GLOBAL_ERROR" => "next/dist/client/components/error-boundary".into(),
+            "VAR_MODULE_GLOBAL_ERROR" => if inner_assets.contains_key(GLOBAL_ERROR) {
+                GLOBAL_ERROR.into()
+             } else {
+                "next/dist/client/components/error-boundary".into()
+            },
         },
         indexmap! {
             "tree" => loader_tree_code,
@@ -124,12 +126,6 @@ pub async fn get_app_page_entry(
             page,
             next_config,
         );
-    };
-
-    let Some(rsc_entry) =
-        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
-    else {
-        bail!("expected an ECMAScript chunk placeable module");
     };
 
     Ok(AppEntry {

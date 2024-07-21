@@ -84,6 +84,7 @@ export const dynamicParams = true // true | false,
 > **Good to know**:
 >
 > - This option replaces the `fallback: true | false | blocking` option of `getStaticPaths` in the `pages` directory.
+> - To statically render all paths the first time they're visited, you'll need to return an empty array in `generateStaticParams` or utilize `export const dynamic = 'force-static'`.
 > - When `dynamicParams = true`, the segment uses [Streaming Server Rendering](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense).
 > - If the `dynamic = 'error'` and `dynamic = 'force-static'` are used, it'll change the default of `dynamicParams` to `false`.
 
@@ -148,7 +149,7 @@ export const fetchCache = 'auto'
 
 - Any options set across each layout and page of a single route need to be compatible with each other.
   - If both the `'only-cache'` and `'force-cache'` are provided, then `'force-cache'` wins. If both `'only-no-store'` and `'force-no-store'` are provided, then `'force-no-store'` wins. The force option changes the behavior across the route so a single segment with `'force-*'` would prevent any errors caused by `'only-*'`.
-  - The intention of the `'only-*'` and `force-*'` options is to guarantee the whole route is either fully static or fully dynamic. This means:
+  - The intention of the `'only-*'` and `'force-*'` options is to guarantee the whole route is either fully static or fully dynamic. This means:
     - A combination of `'only-cache'` and `'only-no-store'` in a single route is not allowed.
     - A combination of `'force-cache'` and `'force-no-store'` in a single route is not allowed.
   - A parent cannot provide `'default-no-store'` if a child provides `'auto'` or `'*-cache'` since that could make the same fetch have different behavior.

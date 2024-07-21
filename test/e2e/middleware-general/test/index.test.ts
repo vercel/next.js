@@ -561,7 +561,8 @@ describe('Middleware Runtime', () => {
       const payload = readMiddlewareJSON(response)
       expect('error' in payload).toBe(true)
       expect(payload.error.name).toBe('AbortError')
-      expect(payload.error.message).toContain('The operation was aborted')
+      // AbortError messages differ depending on the runtime
+      expect(payload.error.message).toMatch(/(This|The) operation was aborted/)
     })
 
     it(`should validate & parse request url from any route`, async () => {

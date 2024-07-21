@@ -1,44 +1,46 @@
 ---
-title: unstable_rethrow
+title: unstable_rethrow (experimental)
 description: API Reference for the unstable_rethrow function.
 ---
 
-`unstable_rethrow` can be used to avoid catching internal errors thrown by Next.js when attempting to handle errors thrown from your own application.
+`unstable_rethrow` can be used to avoid catching internal errors thrown by Next.js when attempting to handle errors thrown in your application code.
 
-For example, given the following code:
+For example, calling the `notFound` function will throw an internal Next.js error and render the [`not-found.js`](/docs/app/api-reference/file-conventions/not-found) component. However, if used inside a `try/catch` block, the error will be caught, preventing `not-found.js` from rendering:
 
-```jsx
+```tsx filename="@/app/ui/component.tsx"
 import { notFound } from 'next/navigation'
 
-export default async function Component() {
+export default async function Page() {
   try {
-    notFound()
-    await getData()
+    const post = await fetch('https://.../posts/1').then((res) => {
+      if (res.status === 404) notFound()
+      if (!res.ok) throw new Error(res.statusText)
+      return res.json()
+    })
   } catch (err) {
     console.error(err)
   }
 }
 ```
 
-In this scenario, `console.error` will pick up the error thrown by `notFound`, which won't be useful for logging and will prevent
-the `not-found.js` page from rendering. Instead, you can do this:
+You can use `unstable_rethrow` API to re-throw the internal error and continue with the expected behavior:
 
-```jsx
+```tsx filename="@/app/ui/component.tsx"
 import { notFound, unstable_rethrow } from 'next/navigation'
 
-export default async function Component() {
+export default async function Page() {
   try {
-    notFound()
-    await getData()
+    const post = await fetch('https://.../posts/1').then((res) => {
+      if (res.status === 404) notFound()
+      if (!res.ok) throw new Error(res.statusText)
+      return res.json()
+    })
   } catch (err) {
     unstable_rethrow(err)
     console.error(err)
   }
 }
 ```
-
-If the caught error is meant to be handled by Next.js, `unstable_rethrow` will re-throw the error instead of letting it reach your
-error handling code.
 
 The following Next.js APIs rely on throwing an error which should be rethrown and handled by Next.js itself:
 

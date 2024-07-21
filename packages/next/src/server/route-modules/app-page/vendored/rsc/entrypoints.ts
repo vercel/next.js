@@ -69,14 +69,6 @@ if (process.env.TURBOPACK) {
   }
 }
 
-if (ReactDOM.version === undefined) {
-  // FIXME: ReactDOM's 'react-server' entrypoint is missing `.version`,
-  // which makes our tests fail when it's used, so this is an ugly workaround
-  // (but should be safe because these are always kept in sync anyway)
-  // @ts-expect-error
-  ReactDOM.version = React.version
-}
-
 export {
   React,
   ReactJsxDevRuntime,

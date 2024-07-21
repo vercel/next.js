@@ -18,7 +18,10 @@ use turbopack_binding::{
             free_var_references,
         },
         ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode},
-        ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
+        ecmascript_plugin::transform::directives::{
+            client::ClientDirectiveTransformer,
+            client_disallowed::ClientDisallowedDirectiveTransformer,
+        },
         node::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -53,12 +56,13 @@ use crate::{
         resolve::{
             get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            NextNodeSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
+            NextNodeSharedRuntimeResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
             next_react_server_components::get_next_react_server_components_transform_rule,
-            relay::get_relay_transform_rule,
+            react_remove_properties::get_react_remove_properties_transform_rule,
+            relay::get_relay_transform_rule, remove_console::get_remove_console_transform_rule,
             styled_components::get_styled_components_transform_rule,
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
@@ -69,11 +73,14 @@ use crate::{
         get_decorators_transform_options, get_jsx_transform_options,
         get_typescript_transform_options,
     },
-    util::{foreign_code_context_condition, load_next_js_templateon, NextRuntime},
+    util::{
+        foreign_code_context_condition, get_transpiled_packages, load_next_js_templateon,
+        NextRuntime,
+    },
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub enum ServerContextType {
     Pages {
         pages_dir: Vc<FileSystemPath>,
@@ -96,8 +103,14 @@ pub enum ServerContextType {
         app_dir: Vc<FileSystemPath>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
-    Middleware,
-    Instrumentation,
+    Middleware {
+        app_dir: Option<Vc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    },
+    Instrumentation {
+        app_dir: Option<Vc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    },
 }
 
 impl ServerContextType {
@@ -108,6 +121,7 @@ impl ServerContextType {
                 | ServerContextType::AppRoute { .. }
                 | ServerContextType::PagesApi { .. }
                 | ServerContextType::Middleware { .. }
+                | ServerContextType::Instrumentation { .. }
         )
     }
 }
@@ -126,17 +140,9 @@ pub async fn get_server_resolve_options_context(
         foreign_code_context_condition(next_config, project_path).await?;
     let root_dir = project_path.root().resolve().await?;
     let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path);
-    let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePlugin::new(project_path);
     let invalid_client_only_resolve_plugin = get_invalid_client_only_resolve_plugin(project_path);
     let invalid_styled_jsx_client_only_resolve_plugin =
         get_invalid_styled_jsx_resolve_plugin(project_path);
-
-    let mut transpile_packages = next_config.transpile_packages().await?.clone_value();
-    transpile_packages.extend(
-        (*next_config.optimize_package_imports().await?)
-            .iter()
-            .cloned(),
-    );
 
     // Always load these predefined packages as external.
     let mut external_packages: Vec<RcStr> = load_next_js_templateon(
@@ -145,9 +151,19 @@ pub async fn get_server_resolve_options_context(
     )
     .await?;
 
+    let mut transpiled_packages = get_transpiled_packages(next_config, project_path)
+        .await?
+        .clone_value();
+
+    transpiled_packages.extend(
+        (*next_config.optimize_package_imports().await?)
+            .iter()
+            .cloned(),
+    );
+
     let server_external_packages = &*next_config.server_external_packages().await?;
 
-    let conflicting_packages = transpile_packages
+    let conflicting_packages = transpiled_packages
         .iter()
         .filter(|package| server_external_packages.contains(package))
         .collect::<Vec<_>>();
@@ -163,16 +179,17 @@ pub async fn get_server_resolve_options_context(
     // Add the config's own list of external packages.
     external_packages.extend(server_external_packages.iter().cloned());
 
-    external_packages.retain(|item| !transpile_packages.contains(item));
+    external_packages.retain(|item| !transpiled_packages.contains(item));
+
+    let ty = ty.into_value();
 
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
-        // TODO(sokra) esmExternals support
-        false,
+        // app-ssr can't have esm externals as that would make the module async on the server only
+        *next_config.import_externals().await? && !matches!(ty, ServerContextType::AppSSR { .. }),
     );
-    let ty = ty.into_value();
 
     let mut custom_conditions = vec![mode.await?.condition().to_string().into()];
     custom_conditions.extend(
@@ -193,7 +210,7 @@ pub async fn get_server_resolve_options_context(
         ExternalCjsModulesResolvePlugin::new(
             project_path,
             project_path.root(),
-            ExternalPredicate::AllExcept(Vc::cell(transpile_packages)).cell(),
+            ExternalPredicate::AllExcept(Vc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
         )
     };
@@ -202,26 +219,29 @@ pub async fn get_server_resolve_options_context(
     let next_node_shared_runtime_plugin =
         NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
-    let before_resolve_plugins = match ty {
+    let mut before_resolve_plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. } => {
-            vec![Vc::upcast(NextFontLocalResolvePlugin::new(project_path))]
+            vec![
+                Vc::upcast(NextFontLocalResolvePlugin::new(project_path)),
+                Vc::upcast(module_feature_report_resolve_plugin),
+            ]
         }
         ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation => vec![],
+        | ServerContextType::Instrumentation { .. } => {
+            vec![Vc::upcast(module_feature_report_resolve_plugin)]
+        }
     };
 
-    let mut after_resolve_plugins = match ty {
+    let after_resolve_plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::PagesData { .. } => {
             vec![
-                Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
                 Vc::upcast(external_cjs_modules_plugin),
                 Vc::upcast(next_external_plugin),
@@ -231,24 +251,16 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
             vec![
-                Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
                 Vc::upcast(server_external_packages_plugin),
                 Vc::upcast(next_external_plugin),
             ]
         }
         ServerContextType::Middleware { .. } => {
-            vec![
-                Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_node_shared_runtime_plugin),
-            ]
+            vec![Vc::upcast(next_node_shared_runtime_plugin)]
         }
         ServerContextType::Instrumentation { .. } => {
             vec![
-                Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
                 Vc::upcast(next_external_plugin),
             ]
@@ -270,9 +282,9 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation => {
-            after_resolve_plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
-            after_resolve_plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
+        | ServerContextType::Instrumentation { .. } => {
+            before_resolve_plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
+            before_resolve_plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
         }
         ServerContextType::AppSSR { .. } => {
             //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
@@ -455,8 +467,10 @@ pub async fn get_server_module_options_context(
     // A set of custom ecma transform rules being applied to server context.
     let source_transform_rules: Vec<ModuleRule> = vec![
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
-        get_relay_transform_rule(next_config).await?,
+        get_relay_transform_rule(next_config, project_path).await?,
         get_emotion_transform_rule(next_config).await?,
+        get_react_remove_properties_transform_rule(next_config).await?,
+        get_remove_console_transform_rule(next_config).await?,
     ]
     .into_iter()
     .flatten()
@@ -737,12 +751,45 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             }
         }
-        ServerContextType::Middleware | ServerContextType::Instrumentation => {
-            let custom_source_transform_rules: Vec<ModuleRule> =
+        ServerContextType::Middleware {
+            app_dir,
+            ecmascript_client_reference_transition_name,
+        }
+        | ServerContextType::Instrumentation {
+            app_dir,
+            ecmascript_client_reference_transition_name,
+        } => {
+            let mut custom_source_transform_rules: Vec<ModuleRule> =
                 vec![styled_components_transform_rule, styled_jsx_transform_rule]
                     .into_iter()
                     .flatten()
                     .collect();
+
+            if let Some(ecmascript_client_reference_transition_name) =
+                ecmascript_client_reference_transition_name
+            {
+                custom_source_transform_rules.push(get_ecma_transform_rule(
+                    Box::new(ClientDirectiveTransformer::new(
+                        ecmascript_client_reference_transition_name,
+                    )),
+                    enable_mdx_rs.is_some(),
+                    true,
+                ));
+            } else {
+                custom_source_transform_rules.push(get_ecma_transform_rule(
+                    Box::new(ClientDisallowedDirectiveTransformer::new(
+                        "next/dist/client/use-client-disallowed.js".to_string(),
+                    )),
+                    enable_mdx_rs.is_some(),
+                    true,
+                ));
+            }
+
+            custom_source_transform_rules.push(
+                get_next_react_server_components_transform_rule(next_config, true, app_dir).await?,
+            );
+
+            internal_custom_rules.extend(custom_source_transform_rules.iter().cloned());
 
             next_server_rules.extend(custom_source_transform_rules);
             next_server_rules.extend(source_transform_rules);

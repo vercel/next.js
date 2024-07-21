@@ -2,6 +2,7 @@ import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import { NextInstance } from './base'
 import { getTurbopackFlag } from '../turbo'
+import { waitFor, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 export class NextDevInstance extends NextInstance {
@@ -88,8 +89,11 @@ export class NextDevInstance extends NextInstance {
           }
         })
 
+        const serverReadyTimeoutId = this.setServerReadyTimeout(reject)
+
         const readyCb = (msg) => {
           const resolveServer = () => {
+            clearTimeout(serverReadyTimeoutId)
             try {
               this._parsedUrl = new URL(this._url)
             } catch (err) {
@@ -110,12 +114,9 @@ export class NextDevInstance extends NextInstance {
               .split(/\s*- Local:/)
               .pop()
               .trim()
-            resolveServer()
-          } else if (
-            msg.includes('started server on') &&
-            msg.includes('url:')
-          ) {
-            this._url = msg.split('url: ').pop().split(/\s/, 1)[0].trim()
+          }
+
+          if (this.serverReadyPattern.test(colorStrippedMsg)) {
             resolveServer()
           }
         }
@@ -125,5 +126,89 @@ export class NextDevInstance extends NextInstance {
         setTimeout(() => process.exit(1), 0)
       }
     })
+  }
+
+  private async handleDevWatchDelayBeforeChange(filename: string) {
+    // This is a temporary workaround for turbopack starting watching too late.
+    // So we delay file changes by 500ms to give it some time
+    // to connect the WebSocket and start watching.
+    if (process.env.TURBOPACK) {
+      require('console').log('fs dev delay before', filename)
+      await waitFor(500)
+    }
+  }
+
+  private async handleDevWatchDelayAfterChange(filename: string) {
+    // to help alleviate flakiness with tests that create
+    // dynamic routes // and then request it we give a buffer
+    // of 500ms to allow WatchPack to detect the changed files
+    // TODO: replace this with an event directly from WatchPack inside
+    // router-server for better accuracy
+    if (filename.startsWith('app/') || filename.startsWith('pages/')) {
+      require('console').log('fs dev delay', filename)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  }
+
+  public override async patchFile(
+    filename: string,
+    content: string | ((contents: string) => string),
+    runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
+  ) {
+    const isServerRunning = this.childProcess && !this.isStopping
+    const cliOutputLength = this.cliOutput.length
+
+    if (isServerRunning) {
+      await this.handleDevWatchDelayBeforeChange(filename)
+    }
+
+    const waitForChanges = async ({ newFile }: { newFile: boolean }) => {
+      if (isServerRunning) {
+        if (newFile) {
+          await this.handleDevWatchDelayAfterChange(filename)
+        } else if (filename.startsWith('next.config')) {
+          await retry(async () => {
+            const cliOutput = this.cliOutput.slice(cliOutputLength)
+
+            if (!this.serverReadyPattern.test(cliOutput)) {
+              throw new Error('Server has not finished restarting.')
+            }
+          })
+        }
+      }
+    }
+
+    if (runWithTempContent) {
+      return super.patchFile(filename, content, async ({ newFile }) => {
+        await waitForChanges({ newFile })
+        await runWithTempContent({ newFile })
+      })
+    }
+
+    const { newFile } = await super.patchFile(filename, content)
+    await retry(() => waitForChanges({ newFile }))
+
+    return { newFile }
+  }
+
+  public override async renameFile(filename: string, newFilename: string) {
+    await this.handleDevWatchDelayBeforeChange(filename)
+    await super.renameFile(filename, newFilename)
+    await this.handleDevWatchDelayAfterChange(filename)
+  }
+
+  public override async renameFolder(
+    foldername: string,
+    newFoldername: string
+  ) {
+    await this.handleDevWatchDelayBeforeChange(foldername)
+    await super.renameFolder(foldername, newFoldername)
+    await this.handleDevWatchDelayAfterChange(foldername)
+  }
+
+  public override async deleteFile(filename: string) {
+    await this.handleDevWatchDelayBeforeChange(filename)
+    await super.deleteFile(filename)
+    await this.handleDevWatchDelayAfterChange(filename)
   }
 }

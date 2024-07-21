@@ -7,8 +7,18 @@ import * as Log from './log'
 const MAX_LOG_SKIP_DURATION = 500 // 500ms
 
 export type OutputState =
-  | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
-  | ({ bootstrap: false; appUrl: string | null; bindAddr: string | null } & (
+  | {
+      bootstrap: true
+      appUrl: string | null
+      bindAddr: string | null
+      logging: boolean
+    }
+  | ({
+      bootstrap: false
+      appUrl: string | null
+      bindAddr: string | null
+      logging: boolean
+    } & (
       | {
           loading: true
           trigger: string | undefined
@@ -24,13 +34,13 @@ export type OutputState =
         }
     ))
 
-const internalSegments = ['[[...__metadata_id__]]', '[__metadata_id__]']
 export function formatTrigger(trigger: string) {
-  for (const segment of internalSegments) {
-    if (trigger.includes(segment)) {
-      trigger = trigger.replace(segment, '')
-    }
+  // Format dynamic sitemap routes to simpler file path
+  // e.g., /sitemap.xml[] -> /sitemap.xml
+  if (trigger.includes('[__metadata_id__]')) {
+    trigger = trigger.replace('/[__metadata_id__]', '/[id]')
   }
+
   if (trigger.length > 1 && trigger.endsWith('/')) {
     trigger = trigger.slice(0, -1)
   }
@@ -41,9 +51,15 @@ export const store = createStore<OutputState>({
   appUrl: null,
   bindAddr: null,
   bootstrap: true,
+  logging: true,
 })
 
-let lastStore: OutputState = { appUrl: null, bindAddr: null, bootstrap: true }
+let lastStore: OutputState = {
+  appUrl: null,
+  bindAddr: null,
+  bootstrap: true,
+  logging: true,
+}
 function hasStoreChanged(nextStore: OutputState) {
   if (
     (
@@ -66,6 +82,10 @@ let loadingLogTimer: NodeJS.Timeout | null = null
 let traceSpan: Span | null = null
 
 store.subscribe((state) => {
+  if (state.logging === false) {
+    return
+  }
+
   if (!hasStoreChanged(state)) {
     return
   }

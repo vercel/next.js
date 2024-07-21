@@ -15,7 +15,7 @@ use turbopack_binding::{
         resolve::{
             parse::Request,
             plugin::{BeforeResolvePlugin, BeforeResolvePluginCondition},
-            RequestKey, ResolveResult, ResolveResultItem, ResolveResultOption,
+            ResolveResult, ResolveResultItem, ResolveResultOption,
         },
         virtual_source::VirtualSource,
     },
@@ -70,7 +70,7 @@ impl NextFontLocalResolvePlugin {
 impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
     #[turbo_tasks::function]
     async fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
-        BeforeResolvePluginCondition::new(Glob::new(
+        BeforeResolvePluginCondition::from_request_glob(Glob::new(
             "{next,@vercel/turbopack-next/internal}/font/local/*".into(),
         ))
     }
@@ -125,16 +125,10 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                             .emit();
 
                             return Ok(ResolveResultOption::some(
-                                ResolveResult::primary_with_key(
-                                    RequestKey::new(font_path.clone()),
-                                    ResolveResultItem::Error(Vc::cell(
-                                        format!(
-                                            "Font file not found: Can't resolve {}'",
-                                            font_path
-                                        )
+                                ResolveResult::primary(ResolveResultItem::Error(Vc::cell(
+                                    format!("Font file not found: Can't resolve {}'", font_path)
                                         .into(),
-                                    )),
-                                )
+                                )))
                                 .into(),
                             ));
                         }

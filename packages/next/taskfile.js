@@ -584,7 +584,7 @@ export async function ncc_react_refresh_utils(task, opts) {
   await rmrf(destDir)
   await fs.mkdir(destDir, { recursive: true })
 
-  const files = glob.sync('**/*.{js,json}', { cwd: srcDir })
+  const files = glob.sync('**/*.{js,json,map}', { cwd: srcDir })
 
   for (const file of files) {
     if (file === 'tsconfig.json') continue
@@ -623,6 +623,15 @@ export async function ncc_browserslist(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('browserslist')))
     .ncc({ packageName: 'browserslist', externals })
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // We replace the module/chunk loading code with our own implementation in Next.js.
+      file.data = source.replace(
+        /process\.env\.BROWSERSLIST_IGNORE_OLD_DATA/g,
+        'true'
+      )
+    })
     .target('src/compiled/browserslist')
 
   await fs.writeFile(nodeFile, content)
@@ -728,13 +737,6 @@ export async function ncc_buffer(task, opts) {
       target: 'es5',
     })
     .target('src/compiled/buffer')
-}
-
-// eslint-disable-next-line camelcase
-export async function copy_react_is(task, opts) {
-  await task
-    .source(join(dirname(require.resolve('react-is/package.json')), '**/*'))
-    .target('src/compiled/react-is')
 }
 
 // eslint-disable-next-line camelcase
@@ -1765,6 +1767,13 @@ export async function copy_vendor_react(task_) {
   for (const res of copy_vendor_react_impl(task_, { experimental: true })) {
     await res
   }
+
+  // TODO: Support react-is experimental channel. We currently assume Canary and Experimental are equal.
+  await task_
+    .source(
+      join(dirname(require.resolve('react-is-builtin/package.json')), '**/*')
+    )
+    .target('src/compiled/react-is')
 }
 
 // eslint-disable-next-line camelcase
@@ -2307,7 +2316,6 @@ export async function ncc(task, opts) {
       'copy_vercel_og',
       'copy_constants_browserify',
       'copy_vendor_react',
-      'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',
       'ncc_edge_runtime_cookies',
@@ -2339,6 +2347,7 @@ export async function next_compile(task, opts) {
       'lib_esm',
       'client',
       'client_esm',
+      'diagnostics',
       'telemetry',
       'trace',
       'shared',
@@ -2581,48 +2590,21 @@ export async function trace(task, opts) {
     .target('dist/trace')
 }
 
+export async function diagnostics(task, opts) {
+  await task
+    .source('src/diagnostics/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev })
+    .target('dist/diagnostics')
+}
+
 export async function build(task, opts) {
-  await task.serial(
-    ['precompile', 'compile', 'generate_types', 'rewrite_compiled_references'],
-    opts
-  )
+  await task.serial(['precompile', 'compile', 'generate_types'], opts)
 }
 
 export async function generate_types(task, opts) {
   await execa.command('pnpm run types', {
     stdio: 'inherit',
   })
-}
-
-/**
- * TypeScript will emit references to the compiled types used to type the implementation.
- * The declarations however don't need such detailed types.
- * We rewrite the references to reference a more lightweight solution instead.
- * @param {import('taskr').Task} task
- */
-export async function rewrite_compiled_references(task, opts) {
-  const declarationDirectory = join(__dirname, 'dist')
-  const declarationFiles = glob.sync('**/*.d.ts', { cwd: declarationDirectory })
-
-  for (const declarationFile of declarationFiles) {
-    const content = await fs.readFile(
-      join(declarationDirectory, declarationFile),
-      'utf8'
-    )
-    // Rewrite
-    // /// <reference path="../../../../types/$$compiled.internal.d.ts" />
-    // to
-    // /// <reference path="../../../../types/compiled.d.ts" />
-    if (content.indexOf('/types/$$compiled.internal.d.ts" />') !== -1) {
-      await fs.writeFile(
-        join(declarationDirectory, declarationFile),
-        content.replace(
-          /\/types\/\$\$compiled\.internal\.d\.ts" \/>/g,
-          '/types/compiled.d.ts" />'
-        )
-      )
-    }
-  }
 }
 
 export default async function (task) {
@@ -2643,6 +2625,7 @@ export default async function (task) {
   await task.watch('src/export', 'nextbuildstatic_esm', opts)
   await task.watch('src/client', 'client', opts)
   await task.watch('src/client', 'client_esm', opts)
+  await task.watch('src/diagnostics', 'diagnostics', opts)
   await task.watch('src/lib', 'lib', opts)
   await task.watch('src/lib', 'lib_esm', opts)
   await task.watch('src/cli', 'cli', opts)

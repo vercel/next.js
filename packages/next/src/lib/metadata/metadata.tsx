@@ -13,6 +13,7 @@ import {
   BasicMeta,
   ViewportMeta,
   VerificationMeta,
+  FacebookMeta,
 } from './generate/basic'
 import { AlternatesMetadata } from './generate/alternate'
 import {
@@ -35,11 +36,11 @@ import { isNotFoundError } from '../../client/components/not-found'
 import type { MetadataContext } from './types/resolvers'
 
 export function createMetadataContext(
-  urlPathname: string,
+  pathname: string,
   renderOpts: AppRenderContext['renderOpts']
 ): MetadataContext {
   return {
-    pathname: urlPathname.split('?')[0],
+    pathname,
     trailingSlash: renderOpts.trailingSlash,
     isStandaloneMode: renderOpts.nextConfigOutput === 'standalone',
   }
@@ -131,6 +132,7 @@ export function createMetadataComponents({
       BasicMeta({ metadata }),
       AlternatesMetadata({ alternates: metadata.alternates }),
       ItunesMeta({ itunes: metadata.itunes }),
+      FacebookMeta({ facebook: metadata.facebook }),
       FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
       VerificationMeta({ verification: metadata.verification }),
       AppleWebAppMeta({ appleWebApp: metadata.appleWebApp }),

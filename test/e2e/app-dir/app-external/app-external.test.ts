@@ -1,5 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, hasRedbox, retry, shouldRunTurboDevTest } from 'next-test-utils'
+import {
+  assertNoRedbox,
+  check,
+  retry,
+  shouldRunTurboDevTest,
+} from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -16,7 +21,7 @@ async function resolveStreamResponse(response: any, onData?: any) {
 }
 
 describe('app dir - external dependency', () => {
-  const { next, skipped, isTurbopack } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     dependencies: {
       swr: 'latest',
@@ -250,7 +255,7 @@ describe('app dir - external dependency', () => {
     expect($('#transpile-cjs-lib').text()).toBe('transpile-cjs-lib')
 
     const browser = await next.browser('/cjs/client')
-    expect(await hasRedbox(browser)).toBe(false)
+    await assertNoRedbox(browser)
   })
 
   it('should export client module references in esm', async () => {
@@ -286,10 +291,7 @@ describe('app dir - external dependency', () => {
       browser.elementByCss('#dual-pkg-outout button').click()
       await check(async () => {
         const text = await browser.elementByCss('#dual-pkg-outout p').text()
-        // TODO: enable esm externals for app router in turbopack for actions
-        expect(text).toBe(
-          isTurbopack ? 'dual-pkg-optout:cjs' : 'dual-pkg-optout:mjs'
-        )
+        expect(text).toBe('dual-pkg-optout:mjs')
         return 'success'
       }, /success/)
     })

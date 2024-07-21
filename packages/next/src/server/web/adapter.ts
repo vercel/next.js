@@ -1,6 +1,5 @@
 import type { RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
-import type { PrerenderManifest } from '../../build'
 import { PageSignatureError } from './error'
 import { fromNodeOutgoingHttpHeaders, normalizeNextQueryParam } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
@@ -11,17 +10,18 @@ import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
-import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
+import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
 import {
-  RequestAsyncStorageWrapper,
+  withRequestStore,
   type WrapperRenderOpts,
-} from '../async-storage/request-async-storage-wrapper'
+} from '../async-storage/with-request-store'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
+import { getEdgePreviewProps } from './get-edge-preview-props'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -93,10 +93,6 @@ export async function adapter(
 
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
-  const prerenderManifest: PrerenderManifest | undefined =
-    typeof self.__PRERENDER_MANIFEST === 'string'
-      ? JSON.parse(self.__PRERENDER_MANIFEST)
-      : undefined
 
   params.request.url = normalizeRscURL(params.request.url)
 
@@ -133,13 +129,13 @@ export async function adapter(
 
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const flightHeaders = new Map()
-  // Parameters should only be stripped for middleware
+  // Headers should only be stripped for middleware
   if (!isEdgeRendering) {
-    for (const param of FLIGHT_PARAMETERS) {
-      const key = param.toString().toLowerCase()
+    for (const header of FLIGHT_HEADERS) {
+      const key = header.toLowerCase()
       const value = requestHeaders.get(key)
       if (value) {
-        flightHeaders.set(key, requestHeaders.get(key))
+        flightHeaders.set(key, value)
         requestHeaders.delete(key)
       }
     }
@@ -196,9 +192,7 @@ export async function adapter(
           routes: {},
           dynamicRoutes: {},
           notFoundRoutes: [],
-          preview: {
-            previewModeId: 'development-id',
-          } as any, // `preview` is special case read in next-dev-server
+          preview: getEdgePreviewProps(),
         }
       },
     })
@@ -240,20 +234,18 @@ export async function adapter(
         },
         async () => {
           try {
-            return await RequestAsyncStorageWrapper.wrap(
+            const previewProps = getEdgePreviewProps()
+
+            return await withRequestStore(
               requestAsyncStorage,
               {
                 req: request,
+                url: request.nextUrl,
                 renderOpts: {
                   onUpdateCookies: (cookies) => {
                     cookiesFromResponse = cookies
                   },
-                  // @ts-expect-error TODO: investigate why previewProps isn't on RenderOpts
-                  previewProps: prerenderManifest?.preview || {
-                    previewModeId: 'development-id',
-                    previewModeEncryptionKey: '',
-                    previewModeSigningKey: '',
-                  },
+                  previewProps,
                   waitUntil,
                   onClose: closeController
                     ? closeController.onClose.bind(closeController)
@@ -298,7 +290,7 @@ export async function adapter(
    * a data URL if the request was a data request.
    */
   const rewrite = response?.headers.get('x-middleware-rewrite')
-  if (response && rewrite) {
+  if (response && rewrite && !isEdgeRendering) {
     const rewriteUrl = new NextURL(rewrite, {
       forceLocale: true,
       headers: params.request.headers,
