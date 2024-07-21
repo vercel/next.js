@@ -9,7 +9,7 @@ import {
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 
-type NextStartOptions = {
+export type NextStartOptions = {
   port: number
   hostname?: string
   keepAliveTimeout?: number
