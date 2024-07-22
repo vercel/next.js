@@ -3853,7 +3853,7 @@
     "test/e2e/app-dir/scss/webpack-error/webpack-error.test.ts": {
       "passed": [],
       "failed": [
-        "SCSS Support production only Friendly Webpack Error should be a friendly error successfully"
+        "SCSS Support Friendly Webpack Error should be a friendly error successfully"
       ],
       "pending": [],
       "flakey": [],
