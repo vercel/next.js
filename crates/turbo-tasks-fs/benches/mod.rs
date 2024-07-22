@@ -10,10 +10,7 @@ use criterion::{
     measurement::{Measurement, WallTime},
     BenchmarkId, Criterion,
 };
-use notify_debouncer_full::{
-    new_debouncer,
-    notify::{RecursiveMode, Watcher},
-};
+use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::runtime::Runtime;
 use turbo_tasks::event::Event;
 use turbo_tasks_fs::rope::{Rope, RopeBuilder};
@@ -38,11 +35,8 @@ fn bench_file_watching(c: &mut Criterion) {
             let (tx, rx) = channel();
             let event = Arc::new(Event::new(|| "test event".to_string()));
 
-            let mut watcher = new_debouncer(Duration::from_micros(1), None, tx).unwrap();
-            watcher
-                .watcher()
-                .watch(temp_path, RecursiveMode::Recursive)
-                .unwrap();
+            let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
+            watcher.watch(temp_path, RecursiveMode::Recursive).unwrap();
 
             let t = thread::spawn({
                 let event = event.clone();
