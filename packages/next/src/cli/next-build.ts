@@ -6,7 +6,7 @@ import { italic } from '../lib/picocolors'
 import build from '../build'
 import { warn } from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
-import isError, { type NextError } from '../lib/is-error'
+import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
@@ -86,7 +86,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     experimentalBuildMode,
     traceUploadUrl
   )
-    .catch((err: NextError | string) => {
+    .catch((err) => {
       if (experimentalDebugMemoryUsage) {
         disableMemoryDebuggingMode()
       }
@@ -101,11 +101,10 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
           err.code === 'EDGE_RUNTIME_UNSUPPORTED_API')
       ) {
         printAndExit(`> ${err.message}`)
-        return
+      } else {
+        console.error('> Build error occurred')
+        printAndExit(err)
       }
-
-      console.error('> Build error occurred')
-      printAndExit(err as string)
     })
     .finally(() => {
       if (experimentalDebugMemoryUsage) {

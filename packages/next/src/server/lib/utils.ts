@@ -249,7 +249,6 @@ export function getFormattedNodeOptionsWithoutInspect() {
  * Check if the value is a valid positive integer and parse it. If it's not, it will throw an error.
  *
  * @param value The value to be parsed.
- * @returns The parsed value as a number.
  */
 export function parseValidPositiveInteger(value: string): number {
   const parsedValue = parseInt(value, 10)

@@ -23,15 +23,20 @@ export type NextStartOptions = {
  */
 const nextStart = async (options: NextStartOptions, directory?: string) => {
   const dir = getProjectDir(directory)
+  const hostname = options.hostname
+  const port = options.port
+  const keepAliveTimeout = options.keepAliveTimeout
 
-  if (isPortIsReserved(options.port)) {
-    printAndExit(getReservedPortExplanation(options.port), 1)
+  if (isPortIsReserved(port)) {
+    printAndExit(getReservedPortExplanation(port), 1)
   }
 
   await startServer({
     dir,
     isDev: false,
-    ...options,
+    hostname,
+    port,
+    keepAliveTimeout,
   })
 }
 

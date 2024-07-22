@@ -69,8 +69,7 @@ class NextRootCommand extends Command {
         }
       }
 
-      // Set the default NODE_ENV for the command
-      // @ts-expect-error NODE_ENV is not writable
+      // @ts-ignore not readonly
       process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
       process.env.NEXT_RUNTIME = 'nodejs'
 

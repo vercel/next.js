@@ -12,8 +12,6 @@ export interface NextError extends Error {
 /**
  * Checks whether the given value is a NextError.
  * This can be used to print a more detailed error message with properties like `code` & `digest`.
- *
- * @returns `true` if the value is a NextError, `false` otherwise.
  */
 export default function isError(err: unknown): err is NextError {
   return (
