@@ -714,6 +714,12 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
 
+  crates/next-core/js:
+    dependencies:
+      next:
+        specifier: workspace:*
+        version: link:../../../packages/next
+
   packages/create-next-app:
     devDependencies:
       '@types/async-retry':
@@ -1571,8 +1577,6 @@ importers:
       cross-env:
         specifier: 6.0.3
         version: 6.0.3
-
-  packages/next-swc/crates/next-core/js: {}
 
   packages/react-refresh-utils:
     devDependencies:

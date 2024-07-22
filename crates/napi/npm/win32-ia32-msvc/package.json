@@ -4,7 +4,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/vercel/next.js",
-    "directory": "packages/next-swc/crates/napi/npm/win32-ia32-msvc"
+    "directory": "crates/napi/npm/win32-ia32-msvc"
   },
   "os": [
     "win32"
