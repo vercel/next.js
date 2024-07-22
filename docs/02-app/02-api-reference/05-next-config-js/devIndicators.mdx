@@ -83,7 +83,7 @@ module.exports = {
 
 ### Static route not showing the indicator
 
-If you expect a route to be static but the indicator is enabled but not showing, it's likely that the route has opted out of static rendering.
+If you expect a route to be static and the indicator is enabled but not showing, it's likely the route has opted out of static rendering.
 
 You can confirm if a route is [static](/docs/app/building-your-application/rendering/server-components#static-rendering-default) or [dynamic](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) by building your application using `next build`, and checking the output in your terminal. Static (or prerendered) routes will display a `○` symbol, whereas dynamic routes will display a `ƒ` symbol. For example:
 
@@ -101,7 +101,7 @@ There are two reasons a route might opt out of static rendering:
 - The presence of [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-functions) which rely on runtime information.
 - An [uncached data request](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#opting-out-of-data-caching) that relies on fresh data for each request.
 
-Check your route for any of these conditions, and if you are not able to statically render the route, then consider using [loading.js](/docs/app/api-reference/file-conventions/loading) or [`<Suspense />`](https://react.dev/reference/react/Suspense) to leverage [streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming#what-is-streaming).
+Check your route for any of these conditions, and if you are not able to statically render the route, then consider using [`loading.js`](/docs/app/api-reference/file-conventions/loading) or [`<Suspense />`](https://react.dev/reference/react/Suspense) to leverage [streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming#what-is-streaming).
 
 </AppOnly>
 
