@@ -636,6 +636,22 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         ) {
           child.props.onClick(e)
         }
+
+        if (!router) {
+          return
+        }
+
+        linkClicked(
+          e,
+          router,
+          href,
+          as,
+          replace,
+          shallow,
+          scroll,
+          locale,
+          isAppRouter
+        )
       },
       onMouseDown(e) {
         if (process.env.NODE_ENV !== 'production') {
@@ -658,12 +674,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           child.props.onMouseDown(e)
         }
 
-        // if there's onClickProp set, let it handle the event.
-        if (typeof onClickProp === 'function') {
+        if (!router) {
           return
         }
 
-        if (!router) {
+        if (e.defaultPrevented) {
           return
         }
 
