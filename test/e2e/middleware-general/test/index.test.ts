@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -166,20 +166,32 @@ describe('Middleware Runtime', () => {
         const manifest = await fs.readJSON(
           join(next.testDir, '.next/server/middleware-manifest.json')
         )
-        expect(manifest.middleware).toEqual({
-          '/': {
-            files: expect.arrayContaining([
-              'server/edge-runtime-webpack.js',
-              'server/middleware.js',
-            ]),
-            name: 'middleware',
-            page: '/',
-            matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
-            wasm: [],
-            assets: [],
-            regions: 'auto',
-          },
+        const middlewareWithoutEnvs = {
+          ...manifest.middleware['/'],
+        }
+        const envs = {
+          ...middlewareWithoutEnvs.env,
+        }
+        delete middlewareWithoutEnvs.env
+        expect(middlewareWithoutEnvs).toEqual({
+          files: expect.arrayContaining([
+            'server/edge-runtime-webpack.js',
+            'server/middleware.js',
+          ]),
+          name: 'middleware',
+          page: '/',
+          matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
+          wasm: [],
+          assets: [],
+          regions: 'auto',
         })
+        expect(envs).toContainAllKeys([
+          'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
+          '__NEXT_BUILD_ID',
+          '__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
+          '__NEXT_PREVIEW_MODE_ID',
+          '__NEXT_PREVIEW_MODE_SIGNING_KEY',
+        ])
       })
 
       it('should have the custom config in the manifest', async () => {
@@ -549,7 +561,8 @@ describe('Middleware Runtime', () => {
       const payload = readMiddlewareJSON(response)
       expect('error' in payload).toBe(true)
       expect(payload.error.name).toBe('AbortError')
-      expect(payload.error.message).toContain('The operation was aborted')
+      // AbortError messages differ depending on the runtime
+      expect(payload.error.message).toMatch(/(This|The) operation was aborted/)
     })
 
     it(`should validate & parse request url from any route`, async () => {

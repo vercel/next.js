@@ -191,16 +191,6 @@ Options:
   -h, --help                        Displays this message.
 ```
 
-### Profiling
-
-You can enable production profiling for React with the `--profile` flag in `next build`.
-
-```bash filename="Terminal"
-next build --profile
-```
-
-After that, you can use the profiler in the same way as you would in development.
-
 ### Debug
 
 You can enable more verbose build output with the `--debug` flag in `next build`.
@@ -228,6 +218,16 @@ next build --no-mangling
 ```
 
 > **Good to know**: This may affect performance and should only be used for debugging purposes.
+
+### Profiling
+
+You can enable production profiling for React with the `--profile` flag in `next build`.
+
+```bash filename="Terminal"
+next build --profile
+```
+
+After that, you can use the profiler in the same way as you would in development.
 
 ## Production
 
@@ -357,51 +357,49 @@ The output should look like this:
 ```bash filename="Terminal"
 Usage: next lint [directory] [options]
 
-Runs ESLint for all files in the `/src`, `/app`, `/pages`, `/components`, and `/lib`
-directories. It also provides a guided setup to install any required dependencies if ESLint
-is not already configured in your application.
+Runs ESLint for all files in the `/src`, `/app`, `/pages`, `/components`, and `/lib` directories. It also
+provides a guided setup to install any required dependencies if ESLint is not already configured in your
+application.
 
 Arguments:
-  [directory]                            A base directory on which to lint the application.
-                                         If no directory is provided, the current
-                                         directory will be used.
+  [directory]                                         A base directory on which to lint the application.
+                                                      If no directory is provided, the current directory
+                                                      will be used.
 
 Options:
-  -d, --dir, <dirs...>                   Include directory, or directories, to run ESLint.
-  --file, <files...>                     Include file, or files, to run ESLint.
-  --ext, [exts...]                       Specify JavaScript file extensions. (default:
-                                         [".js", ".mjs", ".cjs", ".jsx", ".ts", ".mts", ".cts", ".ts
-x"])
-  -c, --config, <config>                 Uses this configuration file, overriding all other
-                                         configuration options.
-  --resolve-plugins-relative-to, <rprt>  Specify a directory where plugins should be
-                                         resolved from.
-  --strict                               Creates a `.eslintrc.json` file using the Next.js
-                                         strict configuration.
-  --rulesdir, <rulesdir...>              Uses additional rules from this directory(s).
-  --fix                                  Automatically fix linting issues.
-  --fix-type <fixType>                   Specify the types of fixes to apply (e.g., problem,
-                                         suggestion, layout).
-  --ignore-path <path>                   Specify a file to ignore.
-  --no-ignore <path>                     Disables the `--ignore-path` option.
-  --quiet                                Reports errors only.
-  --max-warnings [maxWarnings]           Specify the number of warnings before triggering a
-                                         non-zero exit code. (default: -1)
-  -o, --output-file, <outputFile>        Specify a file to write report to.
-  -f, --format, <format>                 Uses a specifc output format.
-  --no-inline-config                     Prevents comments from changing config or rules.
-  --report-unused-disable-directives     Adds reprted errors for unused eslint-disable
-                                         directives.
-  --no-cache                             Disables caching.
-  --cache-location, <cacheLocation>      Specify a location for cache.
-  --cache-strategy, [cacheStrategy]      Specify a strategy to use for detecting changed
-                                         files in the cache. (default: "metadata")
-  --error-on-unmatched-pattern           Reports errors when any file patterns are
-                                         unmatched.
-  -h, --help                             Displays this message.
+  -d, --dir, <dirs...>                                Include directory, or directories, to run ESLint.
+  --file, <files...>                                  Include file, or files, to run ESLint.
+  --ext, [exts...]                                    Specify JavaScript file extensions. (default:
+                                                      [".js", ".mjs", ".cjs", ".jsx", ".ts", ".mts", ".cts", ".tsx"])
+  -c, --config, <config>                              Uses this configuration file, overriding all other
+                                                      configuration options.
+  --resolve-plugins-relative-to, <rprt>               Specify a directory where plugins should be resolved
+                                                      from.
+  --strict                                            Creates a `.eslintrc.json` file using the Next.js
+                                                      strict configuration.
+  --rulesdir, <rulesdir...>                           Uses additional rules from this directory(s).
+  --fix                                               Automatically fix linting issues.
+  --fix-type <fixType>                                Specify the types of fixes to apply (e.g., problem,
+                                                      suggestion, layout).
+  --ignore-path <path>                                Specify a file to ignore.
+  --no-ignore <path>                                  Disables the `--ignore-path` option.
+  --quiet                                             Reports errors only.
+  --max-warnings [maxWarnings]                        Specify the number of warnings before triggering a
+                                                      non-zero exit code. (default: -1)
+  -o, --output-file, <outputFile>                     Specify a file to write report to.
+  -f, --format, <format>                              Uses a specifc output format.
+  --no-inline-config                                  Prevents comments from changing config or rules.
+  --report-unused-disable-directives-severity <level> Specify severity level for unused eslint-disable
+                                                      directives. (choices: "error", "off", "warn")
+  --no-cache                                          Disables caching.
+  --cache-location, <cacheLocation>                   Specify a location for cache.
+  --cache-strategy, [cacheStrategy]                   Specify a strategy to use for detecting changed files
+                                                      in the cache. (default: "metadata")
+  --error-on-unmatched-pattern                        Reports errors when any file patterns are unmatched.
+  -h, --help                                          Displays this message.
 ```
 
-If you have other directories that you would like to lint, you can specfy them using the `--dir` flag:
+If you have other directories that you would like to lint, you can specify them using the `--dir` flag:
 
 ```bash filename="Terminal"
 next lint --dir utils
@@ -428,7 +426,7 @@ Usage: next telemetry [options]
 Allows you to enable or disable Next.js' completely anonymous telemetry collection.
 
 Options:
-  --enable    Eanbles Next.js' telemetry collection.
+  --enable    Enables Next.js' telemetry collection.
   --disable   Disables Next.js' telemetry collection.
   -h, --help  Displays this message.
 

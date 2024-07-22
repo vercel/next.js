@@ -194,7 +194,8 @@ These metrics work in all browsers that support the [User Timing API](https://ca
 
 ## Usage on Vercel
 
-[Vercel Speed Insights](https://vercel.com/docs/concepts/speed-insights) are automatically configured on Vercel deployments, and don't require the use of `useReportWebVitals`. This hook is useful in local development, or if you're using a different analytics service.
+[Vercel Speed Insights](https://vercel.com/docs/speed-insights/quickstart) does not `useReportWebVitals`, but `@vercel/speed-insights` package instead.
+`useReportWebVitals` hook is useful in local development, or if you're using a different service for collecting Web Vitals.
 
 ## Sending results to external systems
 

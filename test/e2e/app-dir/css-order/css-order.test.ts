@@ -1,5 +1,5 @@
 import path from 'path'
-import { createNextDescribe, FileRef } from 'e2e-utils'
+import { nextTestSetup, FileRef } from 'e2e-utils'
 
 function getPairs(all: string[]): (readonly [string, string])[] {
   const result: (readonly [string, string])[] = []
@@ -183,145 +183,168 @@ const PAGES: Record<
     color: 'rgb(255, 55, 255)',
     background: 'rgba(0, 0, 0, 0)',
   },
+  'global-first': {
+    group: 'global',
+    conflict: true,
+    url: '/global-first',
+    selector: '#hello1',
+    color: 'rgb(0, 255, 0)',
+  },
+  'global-second': {
+    group: 'global',
+    conflict: true,
+    url: '/global-second',
+    selector: '#hello2',
+    color: 'rgb(0, 0, 255)',
+  },
 }
 
 const allPairs = getPairs(Object.keys(PAGES))
 
-for (const mode of process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])
-  createNextDescribe(
-    `css-order ${mode}`,
-    {
-      files: {
-        app: new FileRef(path.join(__dirname, 'app')),
-        pages: new FileRef(path.join(__dirname, 'pages')),
-        'next.config.js': process.env.TURBOPACK
-          ? `
+const options = (mode) => ({
+  files: {
+    app: new FileRef(path.join(__dirname, 'app')),
+    pages: new FileRef(path.join(__dirname, 'pages')),
+    'next.config.js': process.env.TURBOPACK
+      ? `
             module.exports = {}`
-          : `
+      : `
             module.exports = {
               experimental: {
                 cssChunking: ${JSON.stringify(mode)}
               }
             }`,
-      },
-      dependencies: {
-        sass: 'latest',
-      },
-    },
-    ({ next, isNextDev }) => {
-      for (const ordering of allPairs) {
-        const name = `should load correct styles navigating back again ${ordering.join(
-          ' -> '
-        )} -> ${ordering.join(' -> ')}`
-        if (ordering.some((page) => PAGES[page].conflict)) {
-          // Conflict scenarios won't support that case
-          continue
-        }
-        // TODO fix this case
-        const broken =
-          mode === 'turbo'
-            ? isNextDev
-            : ordering.some(
-                (page) =>
-                  PAGES[page].brokenLoading ||
-                  (isNextDev && PAGES[page].brokenLoadingDev)
-              )
-        if (broken) {
-          it.todo(name)
-          continue
-        }
-        it(name, async () => {
-          const start = PAGES[ordering[0]]
-          const browser = await next.browser(start.url)
-          const check = async (pageInfo) => {
-            expect(
-              await browser
-                .waitForElementByCss(pageInfo.selector)
-                .getComputedCss('color')
-            ).toBe(pageInfo.color)
-            if (pageInfo.background) {
-              expect(
-                await browser
-                  .waitForElementByCss(pageInfo.selector)
-                  .getComputedCss('background-color')
-              ).toBe(pageInfo.background)
-            }
-          }
-          const navigate = async (page) => {
-            await browser.waitForElementByCss('#' + page).click()
-          }
-          await check(start)
-          for (const page of ordering.slice(1)) {
-            await navigate(page)
-            await check(PAGES[page])
-          }
-          for (const page of ordering) {
-            await navigate(page)
-            await check(PAGES[page])
-          }
-        })
+  },
+  dependencies: {
+    sass: 'latest',
+  },
+})
+describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
+  'css-order %s',
+  (mode: string) => {
+    const { next, isNextDev } = nextTestSetup(options(mode))
+    for (const ordering of allPairs) {
+      const name = `should load correct styles navigating back again ${ordering.join(
+        ' -> '
+      )} -> ${ordering.join(' -> ')}`
+      if (ordering.some((page) => PAGES[page].conflict)) {
+        // Conflict scenarios won't support that case
+        continue
       }
-      for (const ordering of allPairs) {
-        const name = `should load correct styles navigating ${ordering.join(
-          ' -> '
-        )}`
-        if (mode !== 'turbo') {
-          if (ordering.some((page) => PAGES[page].conflict)) {
-            // Conflict scenarios won't support that case
-            continue
-          }
-          // TODO fix this case
-          const broken = ordering.some(
-            (page) =>
-              PAGES[page].brokenLoading ||
-              (isNextDev && PAGES[page].brokenLoadingDev)
-          )
-          if (broken) {
-            it.todo(name)
-            continue
-          }
-        } else {
-          // TODO fix this case
-          const broken = ordering.some((page) => PAGES[page].brokenLoadingTurbo)
-          if (broken) {
-            it.todo(name)
-            continue
-          }
-        }
-        it(name, async () => {
-          const start = PAGES[ordering[0]]
-          const browser = await next.browser(start.url)
-          const check = async (pageInfo) => {
-            expect(
-              await browser
-                .waitForElementByCss(pageInfo.selector)
-                .getComputedCss('color')
-            ).toBe(pageInfo.color)
-          }
-          const navigate = async (page) => {
-            await browser.waitForElementByCss('#' + page).click()
-          }
-          await check(start)
-          for (const page of ordering.slice(1)) {
-            await navigate(page)
-            await check(PAGES[page])
-          }
-        })
+      // TODO fix this case
+      const broken =
+        isNextDev || ordering.some((page) => PAGES[page].brokenLoading)
+      if (broken) {
+        it.todo(name)
+        continue
       }
-      for (const [page, pageInfo] of Object.entries(PAGES)) {
-        const name = `should load correct styles on ${page}`
-        if (mode === 'loose' && pageInfo.conflict) {
-          // Conflict scenarios won't support that case
-          continue
-        }
-        it(name, async () => {
-          const browser = await next.browser(pageInfo.url)
+      it(name, async () => {
+        const start = PAGES[ordering[0]]
+        const browser = await next.browser(start.url)
+        const check = async (pageInfo) => {
           expect(
             await browser
               .waitForElementByCss(pageInfo.selector)
               .getComputedCss('color')
           ).toBe(pageInfo.color)
-        })
-      }
+          if (pageInfo.background) {
+            expect(
+              await browser
+                .waitForElementByCss(pageInfo.selector)
+                .getComputedCss('background-color')
+            ).toBe(pageInfo.background)
+          }
+        }
+        const navigate = async (page) => {
+          await browser.waitForElementByCss('#' + page).click()
+        }
+        await check(start)
+        for (const page of ordering.slice(1)) {
+          await navigate(page)
+          await check(PAGES[page])
+        }
+        for (const page of ordering) {
+          await navigate(page)
+          await check(PAGES[page])
+        }
+        await browser.close()
+      })
     }
-  )
+  }
+)
+describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
+  'css-order %s',
+  (mode: string) => {
+    const { next, isNextDev } = nextTestSetup(options(mode))
+    for (const ordering of allPairs) {
+      const name = `should load correct styles navigating ${ordering.join(
+        ' -> '
+      )}`
+      if (mode !== 'turbo') {
+        if (ordering.some((page) => PAGES[page].conflict)) {
+          // Conflict scenarios won't support that case
+          continue
+        }
+        // TODO fix this case
+        const broken = ordering.some(
+          (page) =>
+            PAGES[page].brokenLoading ||
+            (isNextDev && PAGES[page].brokenLoadingDev)
+        )
+        if (broken) {
+          it.todo(name)
+          continue
+        }
+      } else {
+        // TODO fix this case
+        const broken = ordering.some((page) => PAGES[page].brokenLoadingTurbo)
+        if (broken) {
+          it.todo(name)
+          continue
+        }
+      }
+      it(name, async () => {
+        const start = PAGES[ordering[0]]
+        const browser = await next.browser(start.url)
+        const check = async (pageInfo) => {
+          expect(
+            await browser
+              .waitForElementByCss(pageInfo.selector)
+              .getComputedCss('color')
+          ).toBe(pageInfo.color)
+        }
+        const navigate = async (page) => {
+          await browser.waitForElementByCss('#' + page).click()
+        }
+        await check(start)
+        for (const page of ordering.slice(1)) {
+          await navigate(page)
+          await check(PAGES[page])
+        }
+        await browser.close()
+      })
+    }
+  }
+)
+describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
+  'css-order %s',
+  (mode: string) => {
+    const { next } = nextTestSetup(options(mode))
+    for (const [page, pageInfo] of Object.entries(PAGES)) {
+      const name = `should load correct styles on ${page}`
+      if (mode === 'loose' && pageInfo.conflict) {
+        // Conflict scenarios won't support that case
+        continue
+      }
+      it(name, async () => {
+        const browser = await next.browser(pageInfo.url)
+        expect(
+          await browser
+            .waitForElementByCss(pageInfo.selector)
+            .getComputedCss('color')
+        ).toBe(pageInfo.color)
+        await browser.close()
+      })
+    }
+  }
+)

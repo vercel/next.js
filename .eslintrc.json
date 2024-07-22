@@ -1,4 +1,9 @@
 {
+  // This is the default eslint config that is used by IDEs. It does not use
+  // computation-heavy type-checked rules to ensure maximum responsiveness while
+  // writing code. In addition, there is .eslintrc.cli.json that does use
+  // type-checked rules, and it is used when running `pnpm lint-eslint`.
+  "$schema": "https://json.schemastore.org/eslintrc",
   "root": true,
   "parser": "@babel/eslint-parser",
   "plugins": ["react", "react-hooks", "jest", "import", "jsdoc"],
@@ -93,7 +98,7 @@
         ],
         "no-unused-vars": "off",
         "@typescript-eslint/no-unused-vars": [
-          "warn",
+          "error",
           {
             "args": "none",
             "ignoreRestSiblings": true
@@ -102,7 +107,7 @@
         "no-use-before-define": "off",
         "no-useless-constructor": "off",
         "@typescript-eslint/no-use-before-define": "off",
-        "@typescript-eslint/no-useless-constructor": "warn",
+        "@typescript-eslint/no-useless-constructor": "error",
         "@typescript-eslint/prefer-literal-enum-member": "error"
       }
     },
@@ -150,7 +155,7 @@
         "packages/next/webpack.config.js"
       ],
       "rules": {
-        "no-shadow": ["warn", { "builtinGlobals": false }],
+        "no-shadow": ["error", { "builtinGlobals": false }],
         "import/no-extraneous-dependencies": [
           "error",
           { "devDependencies": false }
@@ -162,9 +167,9 @@
       "rules": {
         // Note: you must disable the base rule as it can report incorrect errors
         "no-shadow": "off",
-        "@typescript-eslint/no-shadow": ["warn", { "builtinGlobals": false }],
+        "@typescript-eslint/no-shadow": ["error", { "builtinGlobals": false }],
         "@typescript-eslint/no-unused-vars": [
-          "warn",
+          "error",
           {
             "args": "all",
             "argsIgnorePattern": "^_",
@@ -211,39 +216,39 @@
     }
   ],
   "rules": {
-    "array-callback-return": "warn",
-    "default-case": ["warn", { "commentPattern": "^no default$" }],
-    "dot-location": ["warn", "property"],
-    "eqeqeq": ["warn", "smart"],
-    "new-parens": "warn",
-    "no-array-constructor": "warn",
-    "no-caller": "warn",
-    "no-cond-assign": ["warn", "except-parens"],
-    "no-const-assign": "warn",
-    "no-control-regex": "warn",
-    "no-delete-var": "warn",
-    "no-dupe-args": "warn",
-    "no-dupe-class-members": "warn",
-    "no-dupe-keys": "warn",
-    "no-duplicate-case": "warn",
-    "no-empty-character-class": "warn",
-    "no-empty-pattern": "warn",
-    "no-eval": "warn",
-    "no-ex-assign": "warn",
-    "no-extend-native": "warn",
-    "no-extra-bind": "warn",
-    "no-extra-label": "warn",
-    "no-fallthrough": "warn",
-    "no-func-assign": "warn",
-    "no-implied-eval": "warn",
-    "no-invalid-regexp": "warn",
-    "no-iterator": "warn",
-    "no-label-var": "warn",
-    "no-labels": ["warn", { "allowLoop": true, "allowSwitch": false }],
-    "no-lone-blocks": "warn",
-    "no-loop-func": "warn",
+    "array-callback-return": "error",
+    "default-case": ["error", { "commentPattern": "^no default$" }],
+    "dot-location": ["error", "property"],
+    "eqeqeq": ["error", "smart"],
+    "new-parens": "error",
+    "no-array-constructor": "error",
+    "no-caller": "error",
+    "no-cond-assign": ["error", "except-parens"],
+    "no-const-assign": "error",
+    "no-control-regex": "error",
+    "no-delete-var": "error",
+    "no-dupe-args": "error",
+    "no-dupe-class-members": "error",
+    "no-dupe-keys": "error",
+    "no-duplicate-case": "error",
+    "no-empty-character-class": "error",
+    "no-empty-pattern": "error",
+    "no-eval": "error",
+    "no-ex-assign": "error",
+    "no-extend-native": "error",
+    "no-extra-bind": "error",
+    "no-extra-label": "error",
+    "no-fallthrough": "error",
+    "no-func-assign": "error",
+    "no-implied-eval": "error",
+    "no-invalid-regexp": "error",
+    "no-iterator": "error",
+    "no-label-var": "error",
+    "no-labels": ["error", { "allowLoop": true, "allowSwitch": false }],
+    "no-lone-blocks": "error",
+    "no-loop-func": "error",
     "no-mixed-operators": [
-      "warn",
+      "error",
       {
         "groups": [
           ["&", "|", "^", "~", "<<", ">>", ">>>"],
@@ -254,37 +259,37 @@
         "allowSamePrecedence": false
       }
     ],
-    "no-multi-str": "warn",
-    "no-native-reassign": "warn",
-    "no-negated-in-lhs": "warn",
-    "no-new-func": "warn",
-    "no-new-object": "warn",
-    "no-new-symbol": "warn",
-    "no-new-wrappers": "warn",
-    "no-obj-calls": "warn",
-    "no-octal": "warn",
-    "no-octal-escape": "warn",
-    "no-regex-spaces": "warn",
+    "no-multi-str": "error",
+    "no-native-reassign": "error",
+    "no-negated-in-lhs": "error",
+    "no-new-func": "error",
+    "no-new-object": "error",
+    "no-new-symbol": "error",
+    "no-new-wrappers": "error",
+    "no-obj-calls": "error",
+    "no-octal": "error",
+    "no-octal-escape": "error",
+    "no-regex-spaces": "error",
     "no-restricted-syntax": [
-      "warn",
+      "error",
       "WithStatement",
       {
         "message": "substr() is deprecated, use slice() or substring() instead",
         "selector": "MemberExpression > Identifier[name='substr']"
       }
     ],
-    "no-script-url": "warn",
-    "no-self-assign": "warn",
-    "no-self-compare": "warn",
-    "no-sequences": "warn",
-    "no-shadow-restricted-names": "warn",
-    "no-sparse-arrays": "warn",
+    "no-script-url": "error",
+    "no-self-assign": "error",
+    "no-self-compare": "error",
+    "no-sequences": "error",
+    "no-shadow-restricted-names": "error",
+    "no-sparse-arrays": "error",
     "no-template-curly-in-string": "error",
-    "no-this-before-super": "warn",
-    "no-throw-literal": "warn",
+    "no-this-before-super": "error",
+    "no-throw-literal": "error",
     "no-undef": "error",
-    "no-unexpected-multiline": "warn",
-    "no-unreachable": "warn",
+    "no-unexpected-multiline": "error",
+    "no-unreachable": "error",
     "no-unused-expressions": [
       "error",
       {
@@ -293,64 +298,64 @@
         "allowTaggedTemplates": true
       }
     ],
-    "no-unused-labels": "warn",
+    "no-unused-labels": "error",
     "no-unused-vars": [
-      "warn",
+      "error",
       {
         "args": "none",
         "ignoreRestSiblings": true
       }
     ],
     "no-use-before-define": "off",
-    "no-useless-computed-key": "warn",
-    "no-useless-concat": "warn",
-    "no-useless-constructor": "warn",
-    "no-useless-escape": "warn",
+    "no-useless-computed-key": "error",
+    "no-useless-concat": "error",
+    "no-useless-constructor": "error",
+    "no-useless-escape": "error",
     "no-useless-rename": [
-      "warn",
+      "error",
       {
         "ignoreDestructuring": false,
         "ignoreImport": false,
         "ignoreExport": false
       }
     ],
-    "no-with": "warn",
-    "no-whitespace-before-property": "warn",
-    "react-hooks/exhaustive-deps": "warn",
-    "require-yield": "warn",
-    "rest-spread-spacing": ["warn", "never"],
-    "strict": ["warn", "never"],
-    "unicode-bom": ["warn", "never"],
-    "use-isnan": "warn",
-    "valid-typeof": "warn",
-    "getter-return": "warn",
-    "react/forbid-foreign-prop-types": ["warn", { "allowInPropTypes": true }],
-    "react/jsx-no-comment-textnodes": "warn",
-    "react/jsx-no-duplicate-props": "warn",
-    "react/jsx-no-target-blank": "warn",
+    "no-with": "error",
+    "no-whitespace-before-property": "error",
+    "react-hooks/exhaustive-deps": "error",
+    "require-yield": "error",
+    "rest-spread-spacing": ["error", "never"],
+    "strict": ["error", "never"],
+    "unicode-bom": ["error", "never"],
+    "use-isnan": "error",
+    "valid-typeof": "error",
+    "getter-return": "error",
+    "react/forbid-foreign-prop-types": ["error", { "allowInPropTypes": true }],
+    "react/jsx-no-comment-textnodes": "error",
+    "react/jsx-no-duplicate-props": "error",
+    "react/jsx-no-target-blank": "error",
     "react/jsx-no-undef": "error",
     "react/jsx-pascal-case": [
-      "warn",
+      "error",
       {
         "allowAllCaps": true,
         "ignore": []
       }
     ],
-    "react/jsx-uses-react": "warn",
-    "react/jsx-uses-vars": "warn",
-    "react/no-danger-with-children": "warn",
-    "react/no-deprecated": "warn",
-    "react/no-direct-mutation-state": "warn",
-    "react/no-is-mounted": "warn",
+    "react/jsx-uses-react": "error",
+    "react/jsx-uses-vars": "error",
+    "react/no-danger-with-children": "error",
+    "react/no-deprecated": "error",
+    "react/no-direct-mutation-state": "error",
+    "react/no-is-mounted": "error",
     "react/no-typos": "error",
     "react/react-in-jsx-scope": "off",
     "react/require-render-return": "error",
-    "react/style-prop-object": "warn",
+    "react/style-prop-object": "error",
     "react-hooks/rules-of-hooks": "error",
-    // "@typescript-eslint/non-nullable-type-assertion-style": "warn",
-    "@typescript-eslint/prefer-as-const": "warn",
+    // "@typescript-eslint/non-nullable-type-assertion-style": "error",
+    "@typescript-eslint/prefer-as-const": "error",
     "@typescript-eslint/no-redeclare": [
-      "warn",
+      "error",
       { "builtinGlobals": false, "ignoreDeclarationMerge": true }
     ]
   }

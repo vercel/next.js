@@ -10,6 +10,7 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
 import {
+  assertNoRedbox,
   launchApp,
   killApp,
   findPort,
@@ -21,7 +22,6 @@ import {
   getBrowserBodyText,
   waitFor,
   normalizeRegEx,
-  hasRedbox,
   check,
 } from 'next-test-utils'
 
@@ -296,7 +296,7 @@ const runTests = (isDev = false) => {
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
     if (isDev) {
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
     }
   })
 

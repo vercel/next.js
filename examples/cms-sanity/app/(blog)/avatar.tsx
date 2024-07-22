@@ -1,9 +1,14 @@
 import { Image } from "next-sanity/image";
 
-import { Author } from "@/sanity/lib/queries";
+import type { Author } from "@/sanity.types";
 import { urlForImage } from "@/sanity/lib/utils";
 
-export default function Avatar({ name, picture }: Author) {
+interface Props {
+  name: string;
+  picture: Exclude<Author["picture"], undefined> | null;
+}
+
+export default function Avatar({ name, picture }: Props) {
   return (
     <div className="flex items-center text-xl">
       {picture?.asset?._ref ? (

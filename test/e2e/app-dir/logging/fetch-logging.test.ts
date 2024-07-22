@@ -4,7 +4,7 @@ import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-const cahceReasonRe = /Cache (missed|skipped) reason: /
+const cacheReasonRegex = /Cache (missed|skipped) reason: /
 
 interface ParsedLog {
   method: string
@@ -17,13 +17,13 @@ interface ParsedLog {
 function parseLogsFromCli(cliOutput: string) {
   const logs = stripAnsi(cliOutput)
     .split('\n')
-    .filter((log) => cahceReasonRe.test(log) || log.includes('GET'))
+    .filter((log) => cacheReasonRegex.test(log) || log.includes('GET'))
 
   return logs.reduce<ParsedLog[]>((parsedLogs, log) => {
-    if (cahceReasonRe.test(log)) {
+    if (cacheReasonRegex.test(log)) {
       // cache miss/skip reason
       // Example of `log`: "│ │ Cache skipped reason: (cache: no-cache)"
-      const reasonSegment = log.split(cahceReasonRe, 3)[2].trim()
+      const reasonSegment = log.split(cacheReasonRegex, 3)[2].trim()
       const reason = reasonSegment.slice(1, -1)
       parsedLogs[parsedLogs.length - 1].cache = reason
     } else {
@@ -126,12 +126,30 @@ describe('app-dir - logging', () => {
           const outputIndex = next.cliOutput.length
           await next.fetch('/default-cache')
 
+          const expectedUrl = withFullUrlFetches
+            ? 'https://next-data-api-endpoint.vercel.app/api/random'
+            : 'https://next-data-api-en../api/random'
+
           await retry(() => {
             const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-            expect(logs).toContain(' GET /default-cache')
-            expect(logs).toContain(' │ GET ')
-            expect(logs).toContain(' │ │ Cache skipped reason')
-            expect(logs).toContain(' │ │ GET ')
+            expect(logs).toIncludeRepeated(' GET /default-cache', 1)
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
+            expect(logs).toIncludeRepeated(' │ │ Cache skipped reason', 3)
+          })
+        })
+
+        it('should not limit the number of requests that are logged', async () => {
+          const outputIndex = next.cliOutput.length
+          await next.fetch('/many-requests')
+
+          const expectedUrl = withFullUrlFetches
+            ? 'https://next-data-api-endpoint.vercel.app/api/random'
+            : 'https://next-data-api-en../api/random'
+
+          await retry(() => {
+            const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 6)
+            expect(logs).toIncludeRepeated(` │ POST ${expectedUrl}`, 6)
           })
         })
 
@@ -155,15 +173,76 @@ describe('app-dir - logging', () => {
           })
         })
 
-        it('should exlucde Middleware invoked and _rsc requests', async () => {
+        it('should log each page request only once', async () => {
           const outputIndex = next.cliOutput.length
           await next.fetch('/')
+          await retry(() => {
+            const logsAfterRequest = stripAnsi(
+              next.cliOutput.slice(outputIndex)
+            )
+            // Only show `GET /` once
+            expect(logsAfterRequest.split('GET /').length).toBe(2)
+          })
+        })
+
+        it('should exclude Middleware invoked and _rsc requests', async () => {
+          const outputIndex = next.cliOutput.length
+
           const browser = await next.browser('/link')
-          await browser.elementByCss('a').click()
+          await browser.elementByCss('a#foo').click()
           await browser.waitForElementByCss('h2')
           const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-          expect(logs).not.toContain('GET /_next/static')
-          expect(logs).not.toContain('GET /foo?_rsc')
+          expect(logs).not.toContain('/_next/static')
+          expect(logs).not.toContain('?_rsc')
+        })
+
+        it('should not log _rsc query for client navigation RSC request', async () => {
+          const outputIndex = next.cliOutput.length
+
+          const browser = await next.browser('/')
+          await browser.elementByCss('a#nav-headers').click()
+          await browser.waitForElementByCss('p')
+          const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+
+          expect(logs).toContain('GET /')
+          expect(logs).toContain('GET /headers')
+          expect(logs).not.toContain('/_next/static')
+          expect(logs).not.toContain('?_rsc')
+        })
+
+        it('should log requests for client-side navigations', async () => {
+          const outputIndex = next.cliOutput.length
+          const browser = await next.browser('/')
+          await browser.elementById('nav-default-cache').click()
+          await browser.waitForElementByCss('h1')
+
+          const expectedUrl = withFullUrlFetches
+            ? 'https://next-data-api-endpoint.vercel.app/api/random'
+            : 'https://next-data-api-en../api/random'
+
+          await retry(() => {
+            const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
+          })
+        })
+
+        it('should not log requests for HMR refreshes', async () => {
+          const browser = await next.browser('/default-cache')
+          let headline = await browser.waitForElementByCss('h1').text()
+          expect(headline).toBe('Default Cache')
+          const outputIndex = next.cliOutput.length
+
+          await next.patchFile(
+            'app/default-cache/page.js',
+            (content) => content.replace('Default Cache', 'Hello!'),
+            async () =>
+              retry(async () => {
+                headline = await browser.waitForElementByCss('h1').text()
+                expect(headline).toBe('Hello!')
+                const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+                expect(logs).not.toInclude(` │ GET `)
+              })
+          )
         })
       }
     } else {
@@ -199,7 +278,7 @@ describe('app-dir - logging', () => {
           const output = stripAnsi(next.cliOutput.slice(logLength))
           expect(output).toContain('/dynamic/[slug]/icon')
           expect(output).not.toContain('/(group)')
-          expect(output).not.toContain('[[...__metadata_id__]]')
+          expect(output).not.toContain('[__metadata_id__]')
           expect(output).not.toContain('/route')
         })
       })
@@ -241,7 +320,7 @@ describe('app-dir - logging', () => {
       await next.start()
     })
 
-    runTests({ withFetchesLogging: false })
+    runTests({ withFetchesLogging: true, withFullUrlFetches: true })
   })
 
   describe('with default logging', () => {

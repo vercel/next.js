@@ -2,7 +2,10 @@ import type { NextConfig } from '../server/config-shared'
 import path from 'path'
 import loadConfig from '../server/config'
 import * as Log from '../build/output/log'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+} from '../shared/lib/constants'
 
 const unsupportedTurbopackNextConfigOptions = [
   // is this supported?
@@ -13,9 +16,9 @@ const unsupportedTurbopackNextConfigOptions = [
   // 'experimental.clientRouterFilter',
   // 'experimental.optimizePackageImports',
   // 'compiler.emotion',
-  'compiler.reactRemoveProperties',
+  // 'compiler.reactRemoveProperties',
   // 'compiler.relay',
-  'compiler.removeConsole',
+  // 'compiler.removeConsole',
   // 'compiler.styledComponents',
   'experimental.fetchCacheKeyPrefix',
 
@@ -29,7 +32,6 @@ const unsupportedTurbopackNextConfigOptions = [
   'experimental.adjustFontFallbacks',
   'experimental.adjustFontFallbacksWithSizeAdjust',
   'experimental.allowedRevalidateHeaderKeys',
-  'experimental.bundlePagesExternals',
   'experimental.extensionAlias',
   'experimental.fallbackNodePolyfills',
 
@@ -48,23 +50,9 @@ const unsupportedTurbopackNextConfigOptions = [
 ]
 
 // The following will need to be supported by `next build --turbo`
-const prodSpecificTurboNextConfigOptions = [
-  'eslint',
-  'typescript',
-  'outputFileTracing',
-  'generateBuildId',
-  'compress',
-  'productionBrowserSourceMaps',
-  'optimizeFonts',
-  'poweredByHeader',
-  'staticPageGenerationTimeout',
-  'reactProductionProfiling',
-  'cleanDistDir',
-  'experimental.turbotrace',
-  'experimental.outputFileTracingRoot',
-  'experimental.outputFileTracingExcludes',
-  'experimental.outputFileTracingIgnores',
-  'experimental.outputFileTracingIncludes',
+const unsupportedProductionSpecificTurbopackNextConfigOptions: string[] = [
+  // TODO: Support disabling sourcemaps, currently they're always enabled.
+  // 'productionBrowserSourceMaps',
 ]
 
 // check for babelrc, swc plugins
@@ -72,10 +60,7 @@ export async function validateTurboNextConfig({
   dir,
   isDev,
 }: {
-  allowRetry?: boolean
   dir: string
-  port: number
-  hostname?: string
   isDev?: boolean
 }) {
   const { getPkgManager } =
@@ -99,15 +84,16 @@ export async function validateTurboNextConfig({
   let unsupportedConfig: string[] = []
   let rawNextConfig: NextConfig = {}
 
+  const phase = isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD
   try {
     rawNextConfig = interopDefault(
-      await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+      await loadConfig(phase, dir, {
         rawConfig: true,
       })
     ) as NextConfig
 
     if (typeof rawNextConfig === 'function') {
-      rawNextConfig = (rawNextConfig as any)(PHASE_DEVELOPMENT_SERVER, {
+      rawNextConfig = (rawNextConfig as any)(phase, {
         defaultConfig,
       })
     }
@@ -150,7 +136,10 @@ export async function validateTurboNextConfig({
 
     let unsupportedKeys = isDev
       ? unsupportedTurbopackNextConfigOptions
-      : prodSpecificTurboNextConfigOptions
+      : [
+          ...unsupportedTurbopackNextConfigOptions,
+          ...unsupportedProductionSpecificTurbopackNextConfigOptions,
+        ]
 
     for (const key of customKeys) {
       if (key.startsWith('webpack') && rawNextConfig.webpack) {

@@ -1,11 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 import { browserConfigWithFixedTime, fastForwardTo } from './test-utils'
 import { findAllTelemetryEvents } from 'next-test-utils'
+import path from 'path'
 
 describe('app dir client cache semantics (experimental staleTimes)', () => {
   describe('dynamic: 0', () => {
-    const { next, isNextDev } = nextTestSetup({
-      files: __dirname,
+    const { next, isNextDev, isNextDeploy } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures', 'regular'),
       nextConfig: {
         experimental: { staleTimes: { dynamic: 0 } },
       },
@@ -15,9 +16,58 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
     })
 
     if (isNextDev) {
-      // since the router behavior is different in development mode (no viewport prefetching + liberal revalidation)
-      // we only check the production behavior
-      it('should skip dev', () => {})
+      // dev doesn't support prefetch={true}, so this just performs a basic test to make sure data is fresh on each navigation
+      it('should trigger a loading state before fetching the page, followed by fresh data on every subsequent navigation', async () => {
+        const browser = await next.browser('/', browserConfigWithFixedTime)
+
+        // this test introduces an artificial delay in rendering the requested page, so we verify a loading state is rendered
+        await browser
+          .elementByCss('[href="/1?timeout=1000"]')
+          .click()
+          .waitForElementByCss('#loading')
+
+        const initialRandomNumber = await browser
+          .waitForElementByCss('#random-number')
+          .text()
+
+        await browser.elementByCss('[href="/"]').click()
+
+        await browser.eval(fastForwardTo, 5 * 1000) // fast forward 5 seconds
+
+        const newRandomNumber = await browser
+          .elementByCss('[href="/1?timeout=1000"]')
+          .click()
+          .waitForElementByCss('#random-number')
+          .text()
+
+        expect(initialRandomNumber).not.toBe(newRandomNumber)
+      })
+
+      describe('without a loading boundary', () => {
+        it('should get fresh data on every subsequent navigation', async () => {
+          const browser = await next.browser(
+            '/without-loading',
+            browserConfigWithFixedTime
+          )
+
+          const initialRandomNumber = await browser
+            .elementByCss('[href="/without-loading/1?timeout=1000"]')
+            .click()
+            .waitForElementByCss('#random-number')
+            .text()
+
+          await browser.elementByCss('[href="/without-loading"]').click()
+
+          const newRandomNumber = await browser
+            .elementByCss('[href="/without-loading/1?timeout=1000"]')
+            .click()
+            .waitForElementByCss('#random-number')
+            .text()
+
+          expect(initialRandomNumber).not.toBe(newRandomNumber)
+        })
+      })
+
       return
     }
 
@@ -172,28 +222,30 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       })
     })
 
-    describe('telemetry', () => {
-      it('should send staleTimes feature usage event', async () => {
-        const events = findAllTelemetryEvents(
-          next.cliOutput,
-          'NEXT_CLI_SESSION_STARTED'
-        )
+    if (!isNextDeploy) {
+      describe('telemetry', () => {
+        it('should send staleTimes feature usage event', async () => {
+          const events = findAllTelemetryEvents(
+            next.cliOutput,
+            'NEXT_CLI_SESSION_STARTED'
+          )
 
-        expect(events).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              staticStaleTime: null,
-              dynamicStaleTime: 0,
-            }),
-          ])
-        )
+          expect(events).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                staticStaleTime: null,
+                dynamicStaleTime: 0,
+              }),
+            ])
+          )
+        })
       })
-    })
+    }
   })
 
   describe('static: 180', () => {
-    const { next, isNextDev } = nextTestSetup({
-      files: __dirname,
+    const { next, isNextDev, isNextDeploy } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures', 'regular'),
       nextConfig: {
         experimental: { staleTimes: { static: 180 } },
       },
@@ -291,20 +343,86 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       })
     })
 
-    describe('telemetry', () => {
-      it('should send staleTimes feature usage event', async () => {
-        const events = findAllTelemetryEvents(
-          next.cliOutput,
-          'NEXT_CLI_SESSION_STARTED'
+    if (!isNextDeploy) {
+      describe('telemetry', () => {
+        it('should send staleTimes feature usage event', async () => {
+          const events = findAllTelemetryEvents(
+            next.cliOutput,
+            'NEXT_CLI_SESSION_STARTED'
+          )
+          expect(events).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                staticStaleTime: 180,
+                dynamicStaleTime: null,
+              }),
+            ])
+          )
+        })
+      })
+    }
+  })
+
+  describe('dynamic: 0, static: 0', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures', 'regular'),
+      nextConfig: {
+        experimental: { staleTimes: { dynamic: 0, static: 0 } },
+      },
+      env: {
+        NEXT_TELEMETRY_DEBUG: '1',
+      },
+    })
+
+    // dev doesn't support prefetch={true}, so this just performs a basic test to make sure data is fresh on each navigation
+    it('should trigger a loading state before fetching the page, followed by fresh data on every subsequent navigation', async () => {
+      const browser = await next.browser('/', browserConfigWithFixedTime)
+
+      // this test introduces an artificial delay in rendering the requested page, so we verify a loading state is rendered
+      await browser
+        .elementByCss('[href="/1?timeout=1000"]')
+        .click()
+        .waitForElementByCss('#loading')
+
+      const initialRandomNumber = await browser
+        .waitForElementByCss('#random-number')
+        .text()
+
+      await browser.elementByCss('[href="/"]').click()
+
+      await browser.eval(fastForwardTo, 5 * 1000) // fast forward 5 seconds
+
+      const newRandomNumber = await browser
+        .elementByCss('[href="/1?timeout=1000"]')
+        .click()
+        .waitForElementByCss('#random-number')
+        .text()
+
+      expect(initialRandomNumber).not.toBe(newRandomNumber)
+    })
+
+    describe('without a loading boundary', () => {
+      it('should get fresh data on every subsequent navigation', async () => {
+        const browser = await next.browser(
+          '/without-loading',
+          browserConfigWithFixedTime
         )
-        expect(events).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              staticStaleTime: 180,
-              dynamicStaleTime: null,
-            }),
-          ])
-        )
+
+        const initialRandomNumber = await browser
+          .elementByCss('[href="/without-loading/1?timeout=1000"]')
+          .click()
+          .waitForElementByCss('#random-number')
+          .text()
+
+        await browser.elementByCss('[href="/without-loading"]').click()
+
+        const newRandomNumber = await browser
+          .elementByCss('[href="/without-loading/1?timeout=1000"]')
+          .click()
+          .waitForElementByCss('#random-number')
+          .text()
+
+        expect(initialRandomNumber).not.toBe(newRandomNumber)
       })
     })
   })

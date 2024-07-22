@@ -80,6 +80,7 @@ checkFields<Diff<{
   generateMetadata?: Function
   viewport?: any
   generateViewport?: Function
+  experimental_ppr?: boolean
   `
   }
 }, TEntry, ''>>()
@@ -441,8 +442,8 @@ declare namespace __next_route_internal_types__ {
 }
 
 declare module 'next' {
-  export { default } from 'next/types/index.js'
-  export * from 'next/types/index.js'
+  export { default } from 'next/types.js'
+  export * from 'next/types.js'
 
   export type Route<T extends string = string> =
     __next_route_internal_types__.RouteImpl<T>
@@ -596,13 +597,17 @@ export class NextTypesPlugin {
     const assetDirRelative = this.dev
       ? '..'
       : this.isEdgeServer
-      ? '..'
-      : '../..'
+        ? '..'
+        : '../..'
 
     const handleModule = async (mod: webpack.NormalModule, assets: any) => {
       if (!mod.resource) return
 
-      if (!/\.(js|jsx|ts|tsx|mjs)$/.test(mod.resource)) return
+      const pageExtensionsRegex = new RegExp(
+        `\\.(${this.pageExtensions.join('|')})$`
+      )
+
+      if (!pageExtensionsRegex.test(mod.resource)) return
 
       if (!mod.resource.startsWith(this.appDir + path.sep)) {
         if (!this.dev) {
@@ -612,15 +617,12 @@ export class NextTypesPlugin {
         }
         return
       }
-      if (
-        mod.layer !== WEBPACK_LAYERS.reactServerComponents &&
-        mod.layer !== WEBPACK_LAYERS.appRouteHandler
-      )
-        return
+      if (mod.layer !== WEBPACK_LAYERS.reactServerComponents) return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
       const IS_ROUTE = !IS_PAGE && /[/\\]route\.[^.]+$/.test(mod.resource)
+      const IS_IMPORTABLE = /\.(js|jsx|ts|tsx|mjs|cjs)$/.test(mod.resource)
       const relativePathToApp = path.relative(this.appDir, mod.resource)
 
       if (!this.dev) {
@@ -631,15 +633,19 @@ export class NextTypesPlugin {
 
       const typePath = path.join(
         appTypesBasePath,
-        relativePathToApp.replace(/\.(js|jsx|ts|tsx|mjs)$/, '.ts')
+        relativePathToApp.replace(pageExtensionsRegex, '.ts')
       )
       const relativeImportPath = normalizePathSep(
         path
           .join(this.getRelativePathFromAppTypesDir(relativePathToApp))
-          .replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
+          .replace(pageExtensionsRegex, '')
       )
 
       const assetPath = path.join(assetDirRelative, typePath)
+
+      // Typescript won’t allow relative-importing (for example) a .mdx file using the .js extension
+      // so for now we only generate “type guard files” for files that typescript can transform
+      if (!IS_IMPORTABLE) return
 
       if (IS_LAYOUT) {
         const slots = await collectNamedSlots(mod.resource)

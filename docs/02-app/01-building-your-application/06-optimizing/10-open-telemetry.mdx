@@ -27,10 +27,10 @@ That's why we prepared a package `@vercel/otel` that helps you get started quick
 
 ### Using `@vercel/otel`
 
-To get started, you must install `@vercel/otel`:
+To get started, install the following packages:
 
 ```bash filename="Terminal"
-npm install @vercel/otel
+npm install @vercel/otel @opentelemetry/sdk-logs @opentelemetry/api-logs @opentelemetry/instrumentation
 ```
 
 <AppOnly>
@@ -180,7 +180,7 @@ Once you have your collector up and running, you can deploy your Next.js app to 
 
 ### Custom Exporters
 
-OpenTelemetry Collector is not necessary. You can use a custom OpenTelemetry exporter with [`@vercel/otel`](#using-vercelotel) or [manual OpenTelemetry configuration](/docs/pages/building-your-application/optimizing/open-telemetry#manual-opentelemetry-configuration).
+OpenTelemetry Collector is not necessary. You can use a custom OpenTelemetry exporter with [`@vercel/otel`](#using-vercelotel) or [manual OpenTelemetry configuration](#manual-opentelemetry-configuration).
 
 ## Custom Spans
 

@@ -44,6 +44,10 @@ type ReadyErrorEvent = ReadyRuntimeError
 
 type DisplayState = 'minimized' | 'fullscreen' | 'hidden'
 
+function isNextjsLink(text: string): boolean {
+  return text.startsWith('https://nextjs.org')
+}
+
 function getErrorSignature(ev: SupportedErrorEvent): string {
   const { event } = ev
   switch (event.type) {
@@ -223,6 +227,7 @@ export function Errors({
   )
 
   const errorDetails: HydrationErrorState = (error as any).details || {}
+  const notes = errorDetails.notes || ''
   const [warningTemplate, serverContent, clientContent] =
     errorDetails.warning || [null, '', '']
 
@@ -234,6 +239,7 @@ export function Errors({
         .replace('%s', '') // remove the %s for stack
         .replace(/%s$/, '') // If there's still a %s at the end, remove it
         .replace(/^Warning: /, '')
+        .replace(/^Error: /, '')
     : null
 
   return (
@@ -259,7 +265,7 @@ export function Errors({
                 {' error'}
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
-              {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
+              <VersionStalenessInfo versionInfo={versionInfo} />
             </LeftRightDialogHeader>
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
@@ -268,27 +274,36 @@ export function Errors({
               id="nextjs__container_errors_desc"
               className="nextjs__container_errors_desc"
             >
-              {error.name}: <HotlinkedText text={error.message} />
+              {/* If there's hydration warning, skip displaying the error name */}
+              {hydrationWarning ? '' : error.name + ': '}
+              <HotlinkedText
+                text={hydrationWarning || error.message}
+                matcher={isNextjsLink}
+              />
             </p>
-            {hydrationWarning && (
+            {notes ? (
               <>
                 <p
-                  id="nextjs__container_errors__extra"
-                  className="nextjs__container_errors__extra"
+                  id="nextjs__container_errors__notes"
+                  className="nextjs__container_errors__notes"
                 >
-                  {hydrationWarning}
+                  {notes}
                 </p>
-                {activeError.componentStackFrames?.length ? (
-                  <PseudoHtmlDiff
-                    className="nextjs__container_errors__extra_code"
-                    hydrationMismatchType={hydrationErrorType}
-                    componentStackFrames={activeError.componentStackFrames}
-                    firstContent={serverContent}
-                    secondContent={clientContent}
-                  />
-                ) : null}
               </>
-            )}
+            ) : null}
+
+            {hydrationWarning &&
+            (activeError.componentStackFrames?.length ||
+              !!errorDetails.reactOutputComponentDiff) ? (
+              <PseudoHtmlDiff
+                className="nextjs__container_errors__component-stack"
+                hydrationMismatchType={hydrationErrorType}
+                componentStackFrames={activeError.componentStackFrames || []}
+                firstContent={serverContent}
+                secondContent={clientContent}
+                reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
+              />
+            ) : null}
             {isServerError ? (
               <div>
                 <small>
@@ -308,11 +323,15 @@ export function Errors({
 }
 
 export const styles = css`
+  .nextjs-container-errors-header {
+    position: relative;
+  }
   .nextjs-container-errors-header > h1 {
     font-size: var(--size-font-big);
     line-height: var(--size-font-bigger);
     font-weight: bold;
-    margin: var(--size-gap-double) 0;
+    margin: calc(var(--size-gap-double) * 1.5) 0;
+    color: var(--color-title-h1);
   }
   .nextjs-container-errors-header small {
     font-size: var(--size-font-small);
@@ -320,44 +339,45 @@ export const styles = css`
     margin-left: var(--size-gap-double);
   }
   .nextjs-container-errors-header small > span {
-    font-family: var(--font-stack-sans);
+    font-family: var(--font-stack-monospace);
   }
   .nextjs-container-errors-header p {
-    font-family: var(--font-stack-sans);
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
-    margin: 0;
-    margin-top: var(--size-gap);
     white-space: pre-wrap;
   }
   .nextjs__container_errors_desc {
-    padding-left: var(--size-gap);
-    border-left: 4px solid var(--color-accents-1);
+    font-family: var(--font-stack-monospace);
+    padding: var(--size-gap) var(--size-gap-double);
+    border-left: 2px solid var(--color-text-color-red-1);
     margin-top: var(--size-gap);
-    font-weight: 500;
-    color: var(--color-stack-subline);
+    font-weight: bold;
+    color: var(--color-text-color-red-1);
+    background-color: var(--color-text-background-red-1);
   }
-  .nextjs__container_errors__extra {
-    margin: var(--size-gap-half) 0;
-    color: var(--color-stack-headline);
-    font-weight: 500;
+  p.nextjs__container_errors__notes {
+    margin: var(--size-gap-double) auto;
+    color: var(--color-stack-notes);
+    font-weight: 600;
+    font-size: 15px;
   }
   .nextjs-container-errors-header > div > small {
     margin: 0;
     margin-top: var(--size-gap-half);
   }
   .nextjs-container-errors-header > p > a {
+    color: inherit;
     font-weight: bold;
   }
   .nextjs-container-errors-body > h2:not(:first-child) {
     margin-top: calc(var(--size-gap-double) + var(--size-gap));
   }
   .nextjs-container-errors-body > h2 {
+    color: var(--color-title-color);
     margin-bottom: var(--size-gap);
     font-size: var(--size-font-big);
   }
-  .nextjs__container_errors__extra_code {
-    margin-top: var(--size-gap);
+  .nextjs__container_errors__component-stack {
     padding: 12px 32px;
     color: var(--color-ansi-fg);
     background: var(--color-ansi-bg);
@@ -388,5 +408,11 @@ export const styles = css`
   }
   .nextjs-toast-errors-hide-button:hover {
     opacity: 1;
+  }
+  .nextjs-container-errors-header
+    > .nextjs-container-build-error-version-status {
+    position: absolute;
+    top: 0;
+    right: 0;
   }
 `

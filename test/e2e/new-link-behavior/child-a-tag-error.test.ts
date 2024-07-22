@@ -1,6 +1,6 @@
 import { createNext, FileRef, isNextDev } from 'e2e-utils'
-import { getRedboxDescription, hasRedbox } from 'next-test-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { assertHasRedbox, getRedboxDescription } from 'next-test-utils'
+import { NextInstance } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 import path from 'path'
 
@@ -17,8 +17,6 @@ describe('New Link Behavior with <a> child', () => {
       },
       dependencies: {
         next: 'latest',
-        react: 'latest',
-        'react-dom': 'latest',
       },
     })
   })
@@ -32,7 +30,7 @@ describe('New Link Behavior with <a> child', () => {
 
     if (isNextDev) {
       expect(next.cliOutput).toContain(msg)
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxDescription(browser)).toContain(msg)
       expect(link.length).toBe(0)
     } else {

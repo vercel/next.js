@@ -1,3 +1,5 @@
+import { accountForOverhead } from '../../account-for-overhead'
+
 async function action(formData) {
   'use server'
   const payload = formData.get('payload').toString()
@@ -11,7 +13,7 @@ export default function Page() {
         <input
           type="hidden"
           name="payload"
-          value={'a'.repeat(1024 * 1024 * 1)}
+          value={'a'.repeat(accountForOverhead(1))}
         />
         <button type="submit" id="size-1mb">
           SUBMIT 1mb
@@ -21,7 +23,7 @@ export default function Page() {
         <input
           type="hidden"
           name="payload"
-          value={'a'.repeat(1024 * 1024 * 2)}
+          value={'a'.repeat(accountForOverhead(2))}
         />
         <button type="submit" id="size-2mb">
           SUBMIT 2mb
@@ -31,7 +33,7 @@ export default function Page() {
         <input
           type="hidden"
           name="payload"
-          value={'a'.repeat(1024 * 1024 * 3)}
+          value={'a'.repeat(accountForOverhead(3))}
         />
         <button type="submit" id="size-3mb">
           SUBMIT 3mb

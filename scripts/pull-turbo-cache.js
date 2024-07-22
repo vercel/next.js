@@ -17,7 +17,12 @@ const { spawn } = require('child_process')
       }
     )
 
+    child.stderr.on('data', (data) => {
+      process.stderr.write(data)
+    })
+
     child.stdout.on('data', (data) => {
+      process.stdout.write(data)
       turboResult += data.toString()
     })
 
@@ -42,6 +47,7 @@ const { spawn } = require('child_process')
 
   // pull cache if it was available
   if (task.cache.local || task.cache.remote) {
+    console.log('Cache Status', task.taskId, task.hash, task.cache)
     await new Promise((resolve, reject) => {
       const child = spawn(
         '/bin/bash',

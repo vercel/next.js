@@ -3,12 +3,13 @@ resolver = "2"
 
 members = [
   "scripts/send-trace-to-jaeger",
-  "packages/next-swc/crates/napi",
-  "packages/next-swc/crates/wasm",
-  "packages/next-swc/crates/next-api",
-  "packages/next-swc/crates/next-build",
-  "packages/next-swc/crates/next-core",
-  "packages/next-swc/crates/next-custom-transforms",
+  "crates/napi",
+  "crates/wasm",
+  "crates/next-api",
+  "crates/next-build-test",
+  "crates/next-build",
+  "crates/next-core",
+  "crates/next-custom-transforms",
 ]
 
 [workspace.lints.clippy]
@@ -24,24 +25,24 @@ opt-level = 3
 
 [workspace.dependencies]
 # Workspace crates
-next-api = { path = "packages/next-swc/crates/next-api" }
-next-build = { path = "packages/next-swc/crates/next-build" }
-next-core = { path = "packages/next-swc/crates/next-core" }
-next-custom-transforms = { path = "packages/next-swc/crates/next-custom-transforms" }
+next-api = { path = "crates/next-api" }
+next-build = { path = "crates/next-build" }
+next-core = { path = "crates/next-core" }
+next-custom-transforms = { path = "crates/next-custom-transforms" }
 
 # SWC crates
-swc_core = { version = "0.90.24", features = [
+swc_core = { version = "0.96.9", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "0.35.21" }
+testing = { version = "0.36.0" }
 
 # Turbo crates
-turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240404.2" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240718.2" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240404.2" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240718.2" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240404.2" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240718.2" }
 
 # General Deps
 
@@ -59,7 +60,7 @@ chromiumoxide = { version = "0.5.0", features = [
 tungstenite = "0.18.0"
 
 # flate2_zlib requires zlib, use flate2_rust
-allsorts = { version = "0.14.0", default_features = false, features = [
+allsorts = { version = "0.14.0", default-features = false, features = [
   "outline",
   "flate2_rust",
 ] }
@@ -90,12 +91,12 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
-lightningcss = { version = "=1.0.0-alpha.54", features = [
+lightningcss = { version = "1.0.0-alpha.57", features = [
   "serde",
   "visitor",
   "into_owned",
 ] }
-lightningcss-napi = { version = "0.1.0", default-features = false, features = [
+lightningcss-napi = { version = "0.2.0", default-features = false, features = [
   "visitor"
 ]}
 mime = "0.3.16"
@@ -141,4 +142,5 @@ dhat = { version = "0.3.2" }
 
 # Sync with the entries in turbo's Cargo.toml
 [patch.crates-io]
-pathfinder_simd = { git = "https://github.com/servo/pathfinder", rev = "30419d" }
+# TODO: Use upstream when https://github.com/servo/pathfinder/pull/566 lands
+pathfinder_simd = { git = "https://github.com/vercel/pathfinder", branch = "rm-stdarch_arm_crc32"}

@@ -1,6 +1,6 @@
 import { execSync } from 'child_process'
 import { getPkgManager } from './get-pkg-manager'
-import { getNodeOptionsWithoutInspect } from '../../server/lib/utils'
+import { getFormattedNodeOptionsWithoutInspect } from '../../server/lib/utils'
 
 /**
  * Returns the package registry using the user's package manager.
@@ -14,7 +14,7 @@ export function getRegistry(baseDir: string = process.cwd()) {
     const output = execSync(`${pkgManager} config get registry`, {
       env: {
         ...process.env,
-        NODE_OPTIONS: getNodeOptionsWithoutInspect(),
+        NODE_OPTIONS: getFormattedNodeOptionsWithoutInspect(),
       },
     })
       .toString()
