@@ -12,7 +12,7 @@ struct Wrapper(u32);
 struct TransparentWrapper(u32);
 
 #[tokio::test]
-async fn store_and_read() {
+async fn test_store_and_read() {
     run(&REGISTRATION, async {
         let a: Vc<u32> = Vc::local_cell(42);
         assert_eq!(*a.await.unwrap(), 42);
@@ -27,7 +27,7 @@ async fn store_and_read() {
 }
 
 #[tokio::test]
-async fn store_and_read_generic() {
+async fn test_store_and_read_generic() {
     run(&REGISTRATION, async {
         // `Vc<Vec<Vc<T>>>` is stored as `Vc<Vec<Vc<()>>>` and requires special
         // transmute handling
@@ -40,6 +40,57 @@ async fn store_and_read_generic() {
         }
 
         assert_eq!(output, vec![1, 2, 3]);
+    })
+    .await
+}
+
+#[turbo_tasks::function]
+async fn returns_resolved_local_vc() -> Vc<u32> {
+    Vc::<u32>::local_cell(42).resolve().await.unwrap()
+}
+
+#[tokio::test]
+async fn test_return_resolved() {
+    run(&REGISTRATION, async {
+        assert_eq!(*returns_resolved_local_vc().await.unwrap(), 42);
+    })
+    .await
+}
+
+#[turbo_tasks::value(eq = "manual")]
+#[derive(Default)]
+struct Untracked {
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[serde(skip)]
+    cell: Vc<u32>,
+}
+
+impl PartialEq for Untracked {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self as *const _, other as *const _)
+    }
+}
+
+impl Eq for Untracked {}
+
+#[turbo_tasks::function]
+async fn get_untracked_local_cell() -> Vc<Untracked> {
+    Untracked {
+        cell: Vc::local_cell(42),
+    }
+    .cell()
+}
+
+#[tokio::test]
+#[should_panic(expected = "Local Vcs must only be accessed within their own task")]
+async fn test_panics_on_local_cell_escape() {
+    run(&REGISTRATION, async {
+        get_untracked_local_cell()
+            .await
+            .unwrap()
+            .cell
+            .await
+            .unwrap();
     })
     .await
 }

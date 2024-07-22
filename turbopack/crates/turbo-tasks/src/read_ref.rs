@@ -251,7 +251,7 @@ where
         };
         Vc {
             node: <T::CellMode as VcCellMode<T>>::raw_cell(
-                SharedReference::new(value).typed(type_id),
+                SharedReference::new(value).into_typed(type_id),
             ),
             _t: PhantomData,
         }

@@ -20,6 +20,7 @@ use crate::{
     manager::TurboTasksBackendApi,
     raw_vc::CellId,
     registry,
+    task::shared_reference::TypedSharedReference,
     trait_helpers::{get_trait_method, has_trait, traits},
     triomphe_utils::unchecked_sidecast_triomphe_arc,
     FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdProvider, TaskIdSet, TraitRef,
@@ -364,7 +365,7 @@ impl TypedCellContent {
             .1
              .0
             .ok_or_else(|| anyhow!("Cell is empty"))?
-            .typed(self.0);
+            .into_typed(self.0);
         Ok(
             // Safety: It is a TypedSharedReference
             TraitRef::new(shared_reference),
@@ -376,9 +377,51 @@ impl TypedCellContent {
     }
 }
 
+impl From<TypedSharedReference> for TypedCellContent {
+    fn from(value: TypedSharedReference) -> Self {
+        TypedCellContent(value.0, CellContent(Some(value.1)))
+    }
+}
+
+impl TryFrom<TypedCellContent> for TypedSharedReference {
+    type Error = TypedCellContent;
+
+    fn try_from(content: TypedCellContent) -> Result<Self, TypedCellContent> {
+        if let TypedCellContent(type_id, CellContent(Some(shared_reference))) = content {
+            Ok(TypedSharedReference(type_id, shared_reference))
+        } else {
+            Err(content)
+        }
+    }
+}
+
 impl CellContent {
     pub fn into_typed(self, type_id: ValueTypeId) -> TypedCellContent {
         TypedCellContent(type_id, self)
+    }
+}
+
+impl From<SharedReference> for CellContent {
+    fn from(value: SharedReference) -> Self {
+        CellContent(Some(value))
+    }
+}
+
+impl From<Option<SharedReference>> for CellContent {
+    fn from(value: Option<SharedReference>) -> Self {
+        CellContent(value)
+    }
+}
+
+impl TryFrom<CellContent> for SharedReference {
+    type Error = CellContent;
+
+    fn try_from(content: CellContent) -> Result<Self, CellContent> {
+        if let CellContent(Some(shared_reference)) = content {
+            Ok(shared_reference)
+        } else {
+            Err(content)
+        }
     }
 }
 
