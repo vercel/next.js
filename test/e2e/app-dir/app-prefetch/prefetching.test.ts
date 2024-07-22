@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
-
+import { check, waitFor, retry } from 'next-test-utils'
+import type { Page, Request } from 'playwright'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 const browserConfigWithFixedTime = {
@@ -28,14 +28,9 @@ const browserConfigWithFixedTime = {
 }
 
 describe('app dir - prefetching', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // TODO: re-enable for dev after https://vercel.slack.com/archives/C035J346QQL/p1663822388387959 is resolved (Sep 22nd 2022)
   if (isNextDev) {
@@ -109,6 +104,23 @@ describe('app dir - prefetching', () => {
       .click()
       .waitForElementByCss('#static-page')
 
+    expect(
+      requests.filter((request) => request === '/static-page').length
+    ).toBe(1)
+
+    // return to the home page
+    await browser.elementByCss('#to-home').click()
+    await browser.waitForElementByCss('#to-static-page')
+    // there shouldn't be any additional prefetches
+    expect(
+      requests.filter((request) => request === '/static-page').length
+    ).toBe(1)
+
+    // navigate to the static page again
+    await browser.elementByCss('#to-static-page').click()
+    await browser.waitForElementByCss('#static-page')
+
+    // there still should only be the initial request to the static page
     expect(
       requests.filter((request) => request === '/static-page').length
     ).toBe(1)
@@ -220,7 +232,8 @@ describe('app dir - prefetching', () => {
     })
 
     const prefetchResponse = await response.text()
-    expect(prefetchResponse).not.toContain('Hello World')
+    expect(prefetchResponse).toContain('Page Data!')
+    expect(prefetchResponse).not.toContain('Layout Data!')
     expect(prefetchResponse).not.toContain('Loading Prefetch Auto')
   })
 
@@ -254,7 +267,7 @@ describe('app dir - prefetching', () => {
     })
 
     const prefetchResponse = await response.text()
-    expect(prefetchResponse).not.toContain('Hello World')
+    expect(prefetchResponse).not.toContain('Page Data!')
     expect(prefetchResponse).toContain('Loading Prefetch Auto')
   })
 
@@ -275,57 +288,178 @@ describe('app dir - prefetching', () => {
     )
   })
 
-  describe('dynamic rendering', () => {
-    describe.each(['/force-dynamic', '/revalidate-0'])('%s', (basePath) => {
-      it('should not re-render layout when navigating between sub-pages', async () => {
-        const logStartIndex = next.cliOutput.length
+  it('should immediately render the loading state for a dynamic segment when fetched from higher up in the tree', async () => {
+    const browser = await next.browser('/')
+    const loadingText = await browser
+      .elementById('to-dynamic-page')
+      .click()
+      .waitForElementByCss('#loading-text')
+      .text()
 
-        const browser = await next.browser(`${basePath}/test-page`)
-        let initialRandomNumber = await browser
-          .elementById('random-number')
-          .text()
-        await browser
-          .elementByCss(`[href="${basePath}/test-page/sub-page"]`)
-          .click()
+    expect(loadingText).toBe('Loading Prefetch Auto')
 
-        await check(() => browser.hasElementByCssSelector('#sub-page'), true)
+    await browser.waitForElementByCss('#prefetch-auto-page-data')
+  })
 
-        const newRandomNumber = await browser
-          .elementById('random-number')
-          .text()
+  // These tests are skipped when deployed as they rely on runtime logs
+  if (!isNextDeploy) {
+    describe('dynamic rendering', () => {
+      describe.each(['/force-dynamic', '/revalidate-0'])('%s', (basePath) => {
+        it('should not re-render layout when navigating between sub-pages', async () => {
+          const logStartIndex = next.cliOutput.length
 
-        expect(initialRandomNumber).toBe(newRandomNumber)
+          const browser = await next.browser(`${basePath}/test-page`)
+          let initialRandomNumber = await browser
+            .elementById('random-number')
+            .text()
+          await browser
+            .elementByCss(`[href="${basePath}/test-page/sub-page"]`)
+            .click()
 
-        await check(() => {
-          const logOccurrences =
-            next.cliOutput.slice(logStartIndex).split('re-fetching in layout')
-              .length - 1
+          await check(() => browser.hasElementByCssSelector('#sub-page'), true)
 
-          return logOccurrences
-        }, 1)
+          const newRandomNumber = await browser
+            .elementById('random-number')
+            .text()
+
+          expect(initialRandomNumber).toBe(newRandomNumber)
+
+          await check(() => {
+            const logOccurrences =
+              next.cliOutput.slice(logStartIndex).split('re-fetching in layout')
+                .length - 1
+
+            return logOccurrences
+          }, 1)
+        })
+
+        it('should update search params following a link click', async () => {
+          const browser = await next.browser(`${basePath}/search-params`)
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{}/
+          )
+          await browser.elementByCss('[href="?foo=true"]').click()
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{"foo":"true"}/
+          )
+          await browser
+            .elementByCss(`[href="${basePath}/search-params"]`)
+            .click()
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{}/
+          )
+          await browser.elementByCss('[href="?foo=true"]').click()
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{"foo":"true"}/
+          )
+        })
+      })
+    })
+  }
+
+  describe('invalid URLs', () => {
+    it('should not throw when an invalid URL is passed to Link', async () => {
+      const browser = await next.browser('/invalid-url/from-link')
+
+      await check(() => browser.hasElementByCssSelector('h1'), true)
+      expect(await browser.elementByCss('h1').text()).toEqual('Hello, world!')
+    })
+
+    it('should throw when an invalid URL is passed to router.prefetch', async () => {
+      const browser = await next.browser('/invalid-url/from-router-prefetch')
+
+      await check(() => browser.hasElementByCssSelector('h1'), true)
+      expect(await browser.elementByCss('h1').text()).toEqual(
+        'A prefetch threw an error'
+      )
+    })
+  })
+
+  describe('fetch priority', () => {
+    it('should prefetch links in viewport with low priority', async () => {
+      const requests: { priority: string; url: string }[] = []
+      const browser = await next.browser('/', {
+        beforePageLoad(page: Page) {
+          page.on('request', async (req: Request) => {
+            const url = new URL(req.url())
+            const headers = await req.allHeaders()
+            if (headers['rsc']) {
+              requests.push({
+                priority: headers['next-test-fetch-priority'],
+                url: url.pathname,
+              })
+            }
+          })
+        },
       })
 
-      it('should update search params following a link click', async () => {
-        const browser = await next.browser(`${basePath}/search-params`)
-        await check(
-          () => browser.elementById('search-params-data').text(),
-          /{}/
+      await browser.waitForIdleNetwork()
+
+      await retry(async () => {
+        expect(requests.length).toBeGreaterThan(0)
+        expect(requests.every((req) => req.priority === 'low')).toBe(true)
+      })
+    })
+
+    it('should prefetch with high priority when navigating to a page without a prefetch entry', async () => {
+      const requests: { priority: string; url: string }[] = []
+      const browser = await next.browser('/prefetch-false/initial', {
+        beforePageLoad(page: Page) {
+          page.on('request', async (req: Request) => {
+            const url = new URL(req.url())
+            const headers = await req.allHeaders()
+            if (headers['rsc']) {
+              requests.push({
+                priority: headers['next-test-fetch-priority'],
+                url: url.pathname,
+              })
+            }
+          })
+        },
+      })
+
+      await browser.waitForIdleNetwork()
+
+      expect(requests.length).toBe(0)
+
+      await browser.elementByCss('#to-prefetch-false-result').click()
+      await retry(async () => {
+        expect(requests.length).toBe(1)
+        expect(requests[0].priority).toBe('high')
+      })
+    })
+
+    it('should have an auto priority for all other fetch operations', async () => {
+      const requests: { priority: string; url: string }[] = []
+      const browser = await next.browser('/', {
+        beforePageLoad(page: Page) {
+          page.on('request', async (req: Request) => {
+            const url = new URL(req.url())
+            const headers = await req.allHeaders()
+            if (headers['rsc']) {
+              requests.push({
+                priority: headers['next-test-fetch-priority'],
+                url: url.pathname,
+              })
+            }
+          })
+        },
+      })
+
+      await browser.elementByCss('#to-dashboard').click()
+      await browser.waitForIdleNetwork()
+
+      await retry(async () => {
+        const dashboardRequests = requests.filter(
+          (req) => req.url === '/dashboard'
         )
-        await browser.elementByCss('[href="?foo=true"]').click()
-        await check(
-          () => browser.elementById('search-params-data').text(),
-          /{"foo":"true"}/
-        )
-        await browser.elementByCss(`[href="${basePath}/search-params"]`).click()
-        await check(
-          () => browser.elementById('search-params-data').text(),
-          /{}/
-        )
-        await browser.elementByCss('[href="?foo=true"]').click()
-        await check(
-          () => browser.elementById('search-params-data').text(),
-          /{"foo":"true"}/
-        )
+        expect(dashboardRequests.length).toBe(2)
+        expect(dashboardRequests[0].priority).toBe('low') // the first request is the prefetch
+        expect(dashboardRequests[1].priority).toBe('auto') // the second request is the lazy fetch to fill in missing data
       })
     })
   })

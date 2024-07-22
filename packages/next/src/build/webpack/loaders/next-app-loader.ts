@@ -49,6 +49,7 @@ export type AppLoaderOptions = {
   tsconfigPath?: string
   isDev?: true
   basePath: string
+  flyingShuttle?: boolean
   nextConfigOutput?: NextConfig['output']
   nextConfigExperimentalUseEarlyImport?: true
   middlewareConfig: string
@@ -121,15 +122,14 @@ async function createAppRouteCode({
 
   // If this is a metadata route, then we need to use the metadata loader for
   // the route to ensure that the route is generated.
-  const filename = path.parse(resolvedPagePath).name
-  if (isMetadataRoute(name) && filename !== 'route') {
+  const fileBaseName = path.parse(resolvedPagePath).name
+  if (isMetadataRoute(name) && fileBaseName !== 'route') {
     const { ext } = getFilenameAndExtension(resolvedPagePath)
-    const isDynamic = pageExtensions.includes(ext)
+    const isDynamicRouteExtension = pageExtensions.includes(ext)
 
     resolvedPagePath = `next-metadata-route-loader?${stringify({
-      page,
       filePath: resolvedPagePath,
-      isDynamic: isDynamic ? '1' : '0',
+      isDynamicRouteExtension: isDynamicRouteExtension ? '1' : '0',
     })}!?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`
   }
 
@@ -142,10 +142,9 @@ async function createAppRouteCode({
       VAR_USERLAND: resolvedPagePath,
       VAR_DEFINITION_PAGE: page,
       VAR_DEFINITION_PATHNAME: pathname,
-      VAR_DEFINITION_FILENAME: filename,
+      VAR_DEFINITION_FILENAME: fileBaseName,
       VAR_DEFINITION_BUNDLE_PATH: bundlePath,
       VAR_RESOLVED_PAGE_PATH: resolvedPagePath,
-      VAR_ORIGINAL_PATHNAME: page,
     },
     {
       nextConfigOutput: JSON.stringify(nextConfigOutput),
@@ -175,9 +174,13 @@ async function createTreeCodeFromPath(
     metadataResolver,
     pageExtensions,
     basePath,
+    buildInfo,
+    flyingShuttle,
     collectedDeclarations,
   }: {
     page: string
+    flyingShuttle?: boolean
+    buildInfo: ReturnType<typeof getModuleBuildInfo>
     resolveDir: DirResolver
     resolver: PathResolver
     metadataResolver: MetadataResolver
@@ -350,9 +353,15 @@ async function createTreeCodeFromPath(
         })
       )
 
-      const definedFilePaths = filePaths.filter(
-        ([, filePath]) => filePath !== undefined
-      ) as [ValueOf<typeof FILE_TYPES>, string][]
+      const definedFilePaths = filePaths.filter(([, filePath]) => {
+        if (filePath !== undefined) {
+          if (flyingShuttle && buildInfo.route?.relatedModules) {
+            buildInfo.route.relatedModules.push(filePath)
+          }
+          return true
+        }
+        return false
+      }) as [ValueOf<typeof FILE_TYPES>, string][]
 
       // Add default not found error as root not found if not present
       const hasNotFoundFile = definedFilePaths.some(
@@ -526,6 +535,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     nextConfigOutput,
     preferredRegion,
     basePath,
+    flyingShuttle,
     middlewareConfig: middlewareConfigBase64,
     nextConfigExperimentalUseEarlyImport,
   } = loaderOptions
@@ -541,6 +551,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     absolutePagePath: createAbsolutePath(appDir, pagePath),
     preferredRegion,
     middlewareConfig,
+    relatedModules: [],
   }
 
   const extensions = pageExtensions.map((extension) => `.${extension}`)
@@ -710,6 +721,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     pageExtensions,
     basePath,
     collectedDeclarations,
+    buildInfo,
+    flyingShuttle,
   })
 
   if (!treeCodeResult.rootLayout) {
@@ -759,6 +772,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         pageExtensions,
         basePath,
         collectedDeclarations,
+        buildInfo,
+        flyingShuttle,
       })
     }
   }
@@ -773,7 +788,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       VAR_DEFINITION_PAGE: page,
       VAR_DEFINITION_PATHNAME: pathname,
       VAR_MODULE_GLOBAL_ERROR: treeCodeResult.globalError,
-      VAR_ORIGINAL_PATHNAME: page,
     },
     {
       tree: treeCodeResult.treeCode,
@@ -789,13 +803,17 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       ? // Evaluate the imported modules early in the generated code
         collectedDeclarations
           .map(([varName, modulePath]) => {
-            return `import * as ${varName}_ from ${JSON.stringify(modulePath)};\nconst ${varName} = () => ${varName}_;\n`
+            return `import * as ${varName}_ from ${JSON.stringify(
+              modulePath
+            )};\nconst ${varName} = () => ${varName}_;\n`
           })
           .join('')
       : // Lazily evaluate the imported modules in the generated code
         collectedDeclarations
           .map(([varName, modulePath]) => {
-            return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(modulePath)});\n`
+            return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+              modulePath
+            )});\n`
           })
           .join('')
 

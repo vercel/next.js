@@ -9,22 +9,13 @@ import type { RequestLifecycleOpts } from '../base-server'
 import type { AfterCallback, AfterTask } from './after'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
-export interface AfterContext {
-  run<T>(requestStore: RequestStore, callback: () => T): T
-  after(task: AfterTask): void
-}
-
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
   onClose: RequestLifecycleOpts['onClose'] | undefined
   cacheScope: CacheScope | undefined
 }
 
-export function createAfterContext(opts: AfterContextOpts): AfterContext {
-  return new AfterContextImpl(opts)
-}
-
-export class AfterContextImpl implements AfterContext {
+export class AfterContext {
   private waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
   private onClose: RequestLifecycleOpts['onClose'] | undefined
   private cacheScope: CacheScope | undefined
@@ -143,6 +134,7 @@ function wrapRequestStoreForAfterCallbacks(
   requestStore: RequestStore
 ): RequestStore {
   return {
+    url: requestStore.url,
     get headers() {
       return requestStore.headers
     },
@@ -157,6 +149,8 @@ function wrapRequestStoreForAfterCallbacks(
     assetPrefix: requestStore.assetPrefix,
     reactLoadableManifest: requestStore.reactLoadableManifest,
     afterContext: requestStore.afterContext,
+    isHmrRefresh: requestStore.isHmrRefresh,
+    serverComponentsHmrCache: requestStore.serverComponentsHmrCache,
   }
 }
 

@@ -17,7 +17,6 @@ export const hydrationErrorState: HydrationErrorState = {}
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 const htmlTagsWarnings = new Set([
-  'Warning: Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.%s',
   'Warning: In HTML, %s cannot be a child of <%s>.%s\nThis will cause a hydration error.%s',
   'Warning: In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s',
   'Warning: In HTML, text nodes cannot be a child of <%s>.\nThis will cause a hydration error.',
@@ -66,22 +65,18 @@ export const getReactHydrationDiffSegments = (msg: NullableText) => {
  * When the hydration runtime error is thrown, the message and component stack are added to the error.
  * This results in a more helpful error message in the error overlay.
  */
-export function patchConsoleError() {
-  const prev = console.error
-  console.error = function (msg, serverContent, clientContent, componentStack) {
-    if (isKnownHydrationWarning(msg)) {
-      hydrationErrorState.warning = [
-        // remove the last %s from the message
-        msg,
-        serverContent,
-        clientContent,
-      ]
-      hydrationErrorState.componentStack = componentStack
-      hydrationErrorState.serverContent = serverContent
-      hydrationErrorState.clientContent = clientContent
-    }
 
-    // @ts-expect-error argument is defined
-    prev.apply(console, arguments)
+export function storeHydrationErrorStateFromConsoleArgs(...args: any[]) {
+  const [msg, serverContent, clientContent, componentStack] = args
+  if (isKnownHydrationWarning(msg)) {
+    hydrationErrorState.warning = [
+      // remove the last %s from the message
+      msg,
+      serverContent,
+      clientContent,
+    ]
+    hydrationErrorState.componentStack = componentStack
+    hydrationErrorState.serverContent = serverContent
+    hydrationErrorState.clientContent = clientContent
   }
 }

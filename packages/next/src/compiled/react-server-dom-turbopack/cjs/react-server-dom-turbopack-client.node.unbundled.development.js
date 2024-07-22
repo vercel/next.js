@@ -387,32 +387,48 @@ function error(format) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      printWarning('error', format, args);
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
     }
   }
-}
+} // eslint-disable-next-line react-internal/no-production-logging
 
-function printWarning(level, format, args) {
+function printWarning(level, format, args, currentStack) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var stack = ReactSharedInternals.getStackAddendum();
+    var isErrorLogger = format === '%s\n\n%s\n' || format === '%o\n\n%s\n\n%s\n';
 
-    if (stack !== '') {
-      format += '%s';
-      args = args.concat([stack]);
-    } // eslint-disable-next-line react-internal/safe-string-coercion
+    if (ReactSharedInternals.getCurrentStack) {
+      // We only add the current stack to the console when createTask is not supported.
+      // Since createTask requires DevTools to be open to work, this means that stacks
+      // can be lost while DevTools isn't open but we can't detect this.
+      var stack = ReactSharedInternals.getCurrentStack(currentStack);
 
+      if (stack !== '') {
+        format += '%s';
+        args = args.concat([stack]);
+      }
+    }
 
-    var argsWithFormat = args.map(function (item) {
-      return String(item);
-    }); // Careful: RN currently depends on this prefix
-
-    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
+    if (isErrorLogger) {
+      // Don't prefix our default logging formatting in ReactFiberErrorLoggger.
+      // Don't toString the arguments.
+      args.unshift(format);
+    } else {
+      // TODO: Remove this prefix and stop toStringing in the wrapper and
+      // instead do it at each callsite as needed.
+      // Careful: RN currently depends on this prefix
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      args = args.map(function (item) {
+        return String(item);
+      });
+      args.unshift('Warning: ' + format);
+    } // We intentionally don't use spread (or .apply) directly because it
     // breaks IE9: https://github.com/facebook/react/issues/13610
     // eslint-disable-next-line react-internal/no-production-logging
 
-    Function.prototype.apply.call(console[level], console, argsWithFormat);
+
+    Function.prototype.apply.call(console[level], console, args);
   }
 }
 
@@ -2163,8 +2179,9 @@ function nullRefGetter() {
   }
 }
 
-function createElement(type, key, props, owner, // DEV-only
-stack) // DEV-only
+function createElement(response, type, key, props, owner, // DEV-only
+stack, // DEV-only
+validated) // DEV-only
 {
   var element;
 
@@ -2192,7 +2209,7 @@ stack) // DEV-only
       configurable: false,
       enumerable: false,
       writable: true,
-      value: true // This element has already been validated on the server.
+      value: 1 // Whether the element has already been validated on the server.
 
     }); // debugInfo contains Server Component debug information.
 
@@ -2602,7 +2619,7 @@ function parseModelTuple(response, value) {
   if (tuple[0] === REACT_ELEMENT_TYPE) {
     // TODO: Consider having React just directly accept these arrays as elements.
     // Or even change the ReactElement type to be an array.
-    return createElement(tuple[1], tuple[2], tuple[3], tuple[4] );
+    return createElement(response, tuple[1], tuple[2], tuple[3], tuple[4] );
   }
 
   return value;
@@ -2612,7 +2629,7 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce, temporaryReferences) {
+function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce, temporaryReferences, findSourceMapURL) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
@@ -2629,7 +2646,12 @@ function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormActi
     _rowLength: 0,
     _buffer: [],
     _tempRefs: temporaryReferences
-  }; // Don't inline this call because it causes closure to outline the call above.
+  };
+
+  {
+    response._debugFindSourceMapURL = findSourceMapURL;
+  } // Don't inline this call because it causes closure to outline the call above.
+
 
   response._fromJSON = createFromJSONCallback(response);
   return response;
@@ -2985,10 +3007,9 @@ function resolveErrorDev(response, id, digest, message, stack) {
 function resolveHint(response, code, model) {
   var hintModel = parseModel(response, model);
   dispatchHint(code, hintModel);
-}
+} // eslint-disable-next-line react-internal/no-production-logging
 
 function resolveDebugInfo(response, id, debugInfo) {
-
   var chunk = getChunk(response, id);
   var chunkDebugInfo = chunk._debugInfo || (chunk._debugInfo = []);
   chunkDebugInfo.push(debugInfo);
@@ -2997,13 +3018,16 @@ function resolveDebugInfo(response, id, debugInfo) {
 function resolveConsoleEntry(response, value) {
 
   var payload = parseModel(response, value);
-  var methodName = payload[0]; // TODO: Restore the fake stack before logging.
-  // const stackTrace = payload[1];
-  // const owner = payload[2];
-
+  var methodName = payload[0];
   var env = payload[3];
   var args = payload.slice(4);
-  printToConsole(methodName, args, env);
+
+  {
+    // Printing with stack isn't really limited to owner stacks but
+    // we gate it behind the same flag for now while iterating.
+    printToConsole(methodName, args, env);
+    return;
+  }
 }
 
 function mergeBuffer(buffer, lastChunk) {
@@ -3466,8 +3490,8 @@ function createServerReference(id, callServer) {
 }
 
 function createFromNodeStream(stream, ssrManifest, options) {
-  var response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options ? options.encodeFormAction : undefined, options && typeof options.nonce === 'string' ? options.nonce : undefined, undefined // TODO: If encodeReply is supported, this should support temporaryReferences
-  );
+  var response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options ? options.encodeFormAction : undefined, options && typeof options.nonce === 'string' ? options.nonce : undefined, undefined, // TODO: If encodeReply is supported, this should support temporaryReferences
+  options && options.findSourceMapURL ? options.findSourceMapURL : undefined);
   stream.on('data', function (chunk) {
     processBinaryChunk(response, chunk);
   });

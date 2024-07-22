@@ -1,0 +1,19 @@
+{
+  "name": "bench-heavy-npm-deps",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev-turbopack": "next dev --turbo",
+    "dev-webpack": "next dev",
+    "build-application": "next build",
+    "start-application": "next start"
+  },
+  "dependencies": {
+    "@mantine/core": "^7.10.1",
+    "lodash-es": "^4.17.21",
+    "lucide-react": "^0.383.0",
+    "mermaid": "^10.9.1",
+    "next": "workspace:*"
+  },
+  "devDependencies": {}
+}

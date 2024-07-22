@@ -7,7 +7,14 @@ module.exports = {
     parallelServerCompiles: true,
     parallelServerBuildTraces: true,
     webpackBuildWorker: true,
-    flyingShuttle: Boolean(process.env.FLYING_SHUTTLE),
+  },
+  webpack(cfg) {
+    if (process.env.NEXT_PRIVATE_FLYING_SHUTTLE) {
+      // disable the webpack cache to make sure we're
+      // deterministic without
+      cfg.cache = false
+    }
+    return cfg
   },
   // output: 'standalone',
   rewrites: async () => {

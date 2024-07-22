@@ -2,7 +2,7 @@
 // @ts-check
 
 /*
- This prevents busting the turbo cache un-necessarily due 
+ This prevents busting the turbo cache un-necessarily due
  to bumping the version in the repo's package.json files
 */
 const path = require('path')
@@ -72,5 +72,6 @@ const writeJson = async (filePath, data) =>
     private: true,
     workspaces: ['packages/*'],
     scripts: {},
+    packageManager: 'pnpm@9.5.0',
   })
 })()

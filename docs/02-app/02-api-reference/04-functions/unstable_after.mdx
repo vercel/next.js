@@ -1,5 +1,5 @@
 ---
-title: unstable_after (Experimental)
+title: unstable_after (experimental)
 description: API Reference for the unstable_after function.
 ---
 
@@ -19,6 +19,8 @@ const nextConfig = {
 }
 module.exports = nextConfig
 ```
+
+The function accepts a callback that will be executed after the response is finished:
 
 ```tsx filename="app/layout.tsx switcher
 import { unstable_after as after } from 'next/server'
@@ -52,11 +54,25 @@ export default function Layout({ children }) {
 > - `unstable_after()` is a [dynamic function](/docs/app/building-your-application/rendering/server-components#dynamic-functions) that will opt a route into dynamic rendering. This behavior can be overridden with the [`export dynamic = "force-static"`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) segment config.
 > - You can use React `cache` to deduplicate functions called inside `unstable_after()`.
 > - [`cookies()`](/docs/app/api-reference/functions/cookies) cannot be set inside `unstable_after()` since the response has already been sent.
+> - `unstable_after()` can be nested inside other `unstable_after()` calls.
 
-### Parameters
+## Parameters
 
-- A function that will be executed after the response is finished.
+- A callback function which will be executed after the response is finished.
 
-### Returns
+## Returns
 
 - `unstable_after()` does not return a value.
+
+## Alternatives
+
+The use case for `unstable_after()` is to process secondary tasks without blocking the primary response. It's similar to using the platform's [`waitUntil()`](https://vercel.com/docs/functions/functions-api-reference) or removing `await` from a promise, but with the following differences:
+
+- **`waitUntil()`**: accepts a promise and enqueues a task to be executed during the lifecycle of the request, whereas `unstable_after()` accepts a callback that will be executed **after** the response is finished.
+- **Removing `await`**: starts executing during the response, which uses resources. It's also not reliable in serverless environments as the function stops computation immediately after the response is sent, potentially interrupting the task.
+
+We recommend using `unstable_after()` as it has been designed to consider other Next.js APIs and contexts.
+
+## Serverless function duration
+
+`unstable_after()` will run for the platform's default or configured max duration of a serverless function. If your platform supports it, you can configure the timeout limit using the [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-config#maxduration) route segment config.

@@ -26,6 +26,7 @@ export default function Page({ params }) {
 > **Good to know**
 >
 > - You can use the [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) segment config option to control what happens when a dynamic segment is visited that was not generated with `generateStaticParams`.
+> - You must return [an empty array from `generateStaticParams`](#all-paths-at-build-time) or utilize [`export const dynamic = 'force-static'`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) in order to revalidate (ISR) [paths at runtime](#all-paths-at-runtime).
 > - During `next dev`, `generateStaticParams` will be called when you navigate to a route.
 > - During `next build`, `generateStaticParams` runs before the corresponding Layouts or Pages are generated.
 > - During revalidation (ISR), `generateStaticParams` will not be called again.
@@ -168,6 +169,73 @@ export default function Page({ params }) {
 
 ## Examples
 
+### Static Rendering
+
+#### All paths at build time
+
+To statically render all paths at build time, supply the full list of paths to `generateStaticParams`:
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+
+  return posts.map((post) => ({
+    slug: post.slug,
+  }))
+}
+```
+
+#### Subset of paths at build time
+
+To statically render a subset of paths at build time, and the rest the first time they're visited at runtime, return a partial list of paths:
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+
+  // Render the first 10 posts at build time
+  return posts.slice(0, 10).map((post) => ({
+    slug: post.slug,
+  }))
+}
+```
+
+Then, by using the [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) segment config option, you can control what happens when a dynamic segment is visited that was not generated with `generateStaticParams`.
+
+```jsx filename="app/blog/[slug]/page.js"
+// All posts besides the top 10 will be a 404
+export const dynamicParams = false
+
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+  const topPosts = posts.slice(0, 10)
+
+  return topPosts.map((post) => ({
+    slug: post.slug,
+  }))
+}
+```
+
+#### All paths at runtime
+
+To statically render all paths the first time they're visited, return an empty array (no paths will be rendered at build time) or utilize [`export const dynamic = 'force-static'`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic):
+
+```jsx filename="app/blog/[slug]/page.js"
+export async function generateStaticParams() {
+  return []
+}
+```
+
+> **Good to know:** You must always return an array from `generateStaticParams`, even if it's empty. Otherwise, the route will be dynamically rendered.
+
+```jsx filename="app/changelog/[slug]/page.js"
+export const dynamic = 'force-static'
+```
+
+### Disable rendering for unspecified paths
+
+To prevent unspecified paths from being statically rendered at runtime, add the `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and unspecified routes will 404 or match (in the case of [catch-all routes](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)).
+
 ### Multiple Dynamic Segments in a Route
 
 You can generate params for dynamic segments above the current layout or page, but **not below**. For example, given the `app/products/[category]/[product]` route:
@@ -177,7 +245,7 @@ You can generate params for dynamic segments above the current layout or page, b
 
 There are two approaches to generating params for a route with multiple dynamic segments:
 
-### Generate params from the bottom up
+#### Generate params from the bottom up
 
 Generate multiple dynamic segments from the child route segment.
 
@@ -217,7 +285,7 @@ export default function Page({ params }) {
 }
 ```
 
-### Generate params from the top down
+#### Generate params from the top down
 
 Generate the parent segments first and use the result to generate the child segments.
 
@@ -300,24 +368,6 @@ export default function Page({ params }) {
 ```
 
 > **Good to know**: `fetch` requests are automatically [memoized](/docs/app/building-your-application/caching#request-memoization) for the same data across all `generate`-prefixed functions, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/caching#react-cache-function) if `fetch` is unavailable.
-
-### Generate only a subset of params
-
-You can generate a subset of params for a route by returning an array of objects with only the dynamic segments you want to generate. Then, by using the [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) segment config option, you can control what happens when a dynamic segment is visited that was not generated with `generateStaticParams`.
-
-```jsx filename="app/blog/[slug]/page.js"
-// All posts besides the top 10 will be a 404
-export const dynamicParams = false
-
-export async function generateStaticParams() {
-  const posts = await fetch('https://.../posts').then((res) => res.json())
-  const topPosts = posts.slice(0, 10)
-
-  return topPosts.map((post) => ({
-    slug: post.slug,
-  }))
-}
-```
 
 ## Version History
 

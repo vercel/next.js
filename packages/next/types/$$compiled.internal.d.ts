@@ -453,9 +453,9 @@ declare module 'next/dist/compiled/loader-utils3'
 declare module 'next/dist/compiled/webpack-sources3' {
   interface StringBufferUtils {
     disableDualStringBufferCaching: () => boolean
-    disableStringInterning: () => boolean
     enableDualStringBufferCaching: () => boolean
-    enableStringInterning: () => boolean
+    enterStringInterningRange: () => boolean
+    exitStringInterningRange: () => boolean
   }
   export let stringBufferUtils: StringBufferUtils
 }

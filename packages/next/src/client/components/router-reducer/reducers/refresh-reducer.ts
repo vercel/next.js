@@ -37,15 +37,19 @@ export function refreshReducer(
 
   // TODO-APP: verify that `href` is not an external url.
   // Fetch data from the root of the tree.
-  cache.lazyData = fetchServerResponse(
-    new URL(href, origin),
-    [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
-    includeNextUrl ? state.nextUrl : null,
-    state.buildId
-  )
+  cache.lazyData = fetchServerResponse(new URL(href, origin), {
+    flightRouterState: [
+      currentTree[0],
+      currentTree[1],
+      currentTree[2],
+      'refetch',
+    ],
+    nextUrl: includeNextUrl ? state.nextUrl : null,
+    buildId: state.buildId,
+  })
 
   return cache.lazyData.then(
-    async ([flightData, canonicalUrlOverride]) => {
+    async ({ f: flightData, c: canonicalUrlOverride }) => {
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
         return handleExternalUrl(
@@ -61,7 +65,7 @@ export function refreshReducer(
 
       for (const flightDataPath of flightData) {
         // FlightDataPath with more than two items means unexpected Flight data was returned
-        if (flightDataPath.length !== 4) {
+        if (flightDataPath.length !== 3) {
           // TODO-APP: handle this case better
           console.log('REFRESH FAILED')
           return state
@@ -99,7 +103,7 @@ export function refreshReducer(
         }
 
         // The one before last item is the router state tree patch
-        const [cacheNodeSeedData, head, layerAssets] = flightDataPath.slice(-3)
+        const [cacheNodeSeedData, head] = flightDataPath.slice(-2)
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (cacheNodeSeedData !== null) {
@@ -114,8 +118,7 @@ export function refreshReducer(
             undefined,
             treePatch,
             cacheNodeSeedData,
-            head,
-            layerAssets
+            head
           )
           mutable.prefetchCache = new Map()
         }
