@@ -15533,6 +15533,11 @@
     "styles": ["normal"],
     "subsets": ["latin"]
   },
+  "Zain": {
+    "weights": ["200", "300", "400", "700", "800", "900"],
+    "styles": ["normal"],
+    "subsets": ["arabic", "latin"]
+  },
   "Zen Antique": {
     "weights": ["400"],
     "styles": ["normal"],
