@@ -25,7 +25,7 @@ use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
     backend::{
-        Backend, CellContent, PersistentTaskType, TaskCollectiblesMap, TaskExecutionSpec,
+        Backend, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
         TransientTaskType, TypedCellContent,
     },
     capture_future::{self, CaptureFuture},
@@ -45,10 +45,37 @@ use crate::{
 };
 
 pub trait TurboTasksCallApi: Sync + Send {
+    /// Calls a native function with arguments. Resolves arguments when needed
+    /// with a wrapper task.
     fn dynamic_call(&self, func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc;
+    fn transient_dynamic_call(&self, func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
+        self.dynamic_call(func, arg)
+    }
+    /// Calls a native function with arguments. Resolves arguments when needed
+    /// with a wrapper task.
     fn dynamic_this_call(&self, func: FunctionId, this: RawVc, arg: Box<dyn MagicAny>) -> RawVc;
+    fn transient_dynamic_this_call(
+        &self,
+        func: FunctionId,
+        this: RawVc,
+        arg: Box<dyn MagicAny>,
+    ) -> RawVc {
+        self.dynamic_this_call(func, this, arg)
+    }
+    /// Call a native function with arguments.
+    /// All inputs must be resolved.
     fn native_call(&self, func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc;
+    fn transient_native_call(&self, func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
+        self.native_call(func, arg)
+    }
+    /// Call a native function with arguments.
+    /// All inputs must be resolved.
     fn this_call(&self, func: FunctionId, this: RawVc, arg: Box<dyn MagicAny>) -> RawVc;
+    fn transient_this_call(&self, func: FunctionId, this: RawVc, arg: Box<dyn MagicAny>) -> RawVc {
+        self.this_call(func, this, arg)
+    }
+    /// Calls a trait method with arguments. First input is the `self` object.
+    /// Uses a wrapper task to resolve
     fn trait_call(
         &self,
         trait_type: TraitTypeId,
@@ -56,6 +83,15 @@ pub trait TurboTasksCallApi: Sync + Send {
         this: RawVc,
         arg: Box<dyn MagicAny>,
     ) -> RawVc;
+    fn transient_trait_call(
+        &self,
+        trait_type: TraitTypeId,
+        trait_fn_name: Cow<'static, str>,
+        this: RawVc,
+        arg: Box<dyn MagicAny>,
+    ) -> RawVc {
+        self.trait_call(trait_type, trait_fn_name, this, arg)
+    }
 
     fn run_once(
         &self,
@@ -384,11 +420,9 @@ impl<B: Backend + 'static> TurboTasks<B> {
         Ok(rx.await?)
     }
 
-    /// Call a native function with arguments.
-    /// All inputs must be resolved.
     pub(crate) fn native_call(&self, func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
         RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-            PersistentTaskType::Native {
+            CachedTaskType::Native {
                 fn_type: func,
                 this: None,
                 arg,
@@ -398,11 +432,21 @@ impl<B: Backend + 'static> TurboTasks<B> {
         ))
     }
 
-    /// Call a native function with arguments.
-    /// All inputs must be resolved.
+    pub(crate) fn transient_native_call(&self, func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
+        RawVc::TaskOutput(self.backend.get_or_create_transient_task(
+            CachedTaskType::Native {
+                fn_type: func,
+                this: None,
+                arg,
+            },
+            current_task("turbo_function calls"),
+            self,
+        ))
+    }
+
     pub(crate) fn this_call(&self, func: FunctionId, this: RawVc, arg: Box<dyn MagicAny>) -> RawVc {
         RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-            PersistentTaskType::Native {
+            CachedTaskType::Native {
                 fn_type: func,
                 this: Some(this),
                 arg,
@@ -412,15 +456,30 @@ impl<B: Backend + 'static> TurboTasks<B> {
         ))
     }
 
-    /// Calls a native function with arguments. Resolves arguments when needed
-    /// with a wrapper task.
+    pub(crate) fn transient_this_call(
+        &self,
+        func: FunctionId,
+        this: RawVc,
+        arg: Box<dyn MagicAny>,
+    ) -> RawVc {
+        RawVc::TaskOutput(self.backend.get_or_create_transient_task(
+            CachedTaskType::Native {
+                fn_type: func,
+                this: Some(this),
+                arg,
+            },
+            current_task("turbo_function calls"),
+            self,
+        ))
+    }
+
     pub fn dynamic_call(&self, func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
         // TODO(bgw): Don't create a full turbo task if this is a function using local_cells
         if registry::get_function(func).arg_meta.is_resolved(&*arg) {
             self.native_call(func, arg)
         } else {
             RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-                PersistentTaskType::ResolveNative {
+                CachedTaskType::ResolveNative {
                     fn_type: func,
                     this: None,
                     arg,
@@ -431,8 +490,22 @@ impl<B: Backend + 'static> TurboTasks<B> {
         }
     }
 
-    /// Calls a native function with arguments. Resolves arguments when needed
-    /// with a wrapper task.
+    pub fn transient_dynamic_call(&self, func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
+        if registry::get_function(func).arg_meta.is_resolved(&*arg) {
+            self.transient_native_call(func, arg)
+        } else {
+            RawVc::TaskOutput(self.backend.get_or_create_transient_task(
+                CachedTaskType::ResolveNative {
+                    fn_type: func,
+                    this: None,
+                    arg,
+                },
+                current_task("turbo_function calls"),
+                self,
+            ))
+        }
+    }
+
     pub fn dynamic_this_call(
         &self,
         func: FunctionId,
@@ -443,7 +516,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             self.this_call(func, this, arg)
         } else {
             RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-                PersistentTaskType::ResolveNative {
+                CachedTaskType::ResolveNative {
                     fn_type: func,
                     this: Some(this),
                     arg,
@@ -454,8 +527,27 @@ impl<B: Backend + 'static> TurboTasks<B> {
         }
     }
 
-    /// Calls a trait method with arguments. First input is the `self` object.
-    /// Uses a wrapper task to resolve
+    pub fn transient_dynamic_this_call(
+        &self,
+        func: FunctionId,
+        this: RawVc,
+        arg: Box<dyn MagicAny>,
+    ) -> RawVc {
+        if this.is_resolved() && registry::get_function(func).arg_meta.is_resolved(&*arg) {
+            self.transient_this_call(func, this, arg)
+        } else {
+            RawVc::TaskOutput(self.backend.get_or_create_transient_task(
+                CachedTaskType::ResolveNative {
+                    fn_type: func,
+                    this: Some(this),
+                    arg,
+                },
+                current_task("turbo_function calls"),
+                self,
+            ))
+        }
+    }
+
     pub fn trait_call(
         &self,
         trait_type: TraitTypeId,
@@ -479,7 +571,41 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
         // create a wrapper task to resolve all inputs
         RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-            PersistentTaskType::ResolveTrait {
+            CachedTaskType::ResolveTrait {
+                trait_type,
+                method_name: trait_fn_name,
+                this,
+                arg,
+            },
+            current_task("turbo_function calls"),
+            self,
+        ))
+    }
+
+    pub fn transient_trait_call(
+        &self,
+        trait_type: TraitTypeId,
+        mut trait_fn_name: Cow<'static, str>,
+        this: RawVc,
+        arg: Box<dyn MagicAny>,
+    ) -> RawVc {
+        // avoid creating a wrapper task if self is already resolved
+        // for resolved cells we already know the value type so we can lookup the
+        // function
+        if let RawVc::TaskCell(_, CellId { type_id, .. }) = this {
+            match get_trait_method(trait_type, type_id, trait_fn_name) {
+                Ok(native_fn) => {
+                    return self.transient_dynamic_this_call(native_fn, this, arg);
+                }
+                Err(name) => {
+                    trait_fn_name = name;
+                }
+            }
+        }
+
+        // create a wrapper task to resolve all inputs
+        RawVc::TaskOutput(self.backend.get_or_create_transient_task(
+            CachedTaskType::ResolveTrait {
                 trait_type,
                 method_name: trait_fn_name,
                 this,
@@ -872,14 +998,31 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
     fn dynamic_call(&self, func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
         self.dynamic_call(func, arg)
     }
+    fn transient_dynamic_call(&self, func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
+        self.transient_dynamic_call(func, arg)
+    }
     fn dynamic_this_call(&self, func: FunctionId, this: RawVc, arg: Box<dyn MagicAny>) -> RawVc {
         self.dynamic_this_call(func, this, arg)
+    }
+    fn transient_dynamic_this_call(
+        &self,
+        func: FunctionId,
+        this: RawVc,
+        arg: Box<dyn MagicAny>,
+    ) -> RawVc {
+        self.transient_dynamic_this_call(func, this, arg)
     }
     fn native_call(&self, func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
         self.native_call(func, arg)
     }
+    fn transient_native_call(&self, func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
+        self.transient_native_call(func, arg)
+    }
     fn this_call(&self, func: FunctionId, this: RawVc, arg: Box<dyn MagicAny>) -> RawVc {
         self.this_call(func, this, arg)
+    }
+    fn transient_this_call(&self, func: FunctionId, this: RawVc, arg: Box<dyn MagicAny>) -> RawVc {
+        self.transient_this_call(func, this, arg)
     }
     fn trait_call(
         &self,
@@ -889,6 +1032,15 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         arg: Box<dyn MagicAny>,
     ) -> RawVc {
         self.trait_call(trait_type, trait_fn_name, this, arg)
+    }
+    fn transient_trait_call(
+        &self,
+        trait_type: TraitTypeId,
+        trait_fn_name: Cow<'static, str>,
+        this: RawVc,
+        arg: Box<dyn MagicAny>,
+    ) -> RawVc {
+        self.transient_trait_call(trait_type, trait_fn_name, this, arg)
     }
 
     #[track_caller]
@@ -1384,10 +1536,22 @@ pub fn dynamic_call(func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
     with_turbo_tasks(|tt| tt.dynamic_call(func, arg))
 }
 
+/// Calls [`TurboTasks::transient_dynamic_call`] for the current turbo tasks
+/// instance.
+pub fn transient_dynamic_call(func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
+    with_turbo_tasks(|tt| tt.transient_dynamic_call(func, arg))
+}
+
 /// Calls [`TurboTasks::dynamic_this_call`] for the current turbo tasks
 /// instance.
 pub fn dynamic_this_call(func: FunctionId, this: RawVc, arg: Box<dyn MagicAny>) -> RawVc {
     with_turbo_tasks(|tt| tt.dynamic_this_call(func, this, arg))
+}
+
+/// Calls [`TurboTasks::transient_dynamic_this_call`] for the current turbo
+/// tasks instance.
+pub fn transient_dynamic_this_call(func: FunctionId, this: RawVc, arg: Box<dyn MagicAny>) -> RawVc {
+    with_turbo_tasks(|tt| tt.transient_dynamic_this_call(func, this, arg))
 }
 
 /// Calls [`TurboTasks::trait_call`] for the current turbo tasks instance.
@@ -1398,6 +1562,17 @@ pub fn trait_call(
     arg: Box<dyn MagicAny>,
 ) -> RawVc {
     with_turbo_tasks(|tt| tt.trait_call(trait_type, trait_fn_name, this, arg))
+}
+
+/// Calls [`TurboTasks::transient_trait_call`] for the current turbo tasks
+/// instance.
+pub fn transient_trait_call(
+    trait_type: TraitTypeId,
+    trait_fn_name: Cow<'static, str>,
+    this: RawVc,
+    arg: Box<dyn MagicAny>,
+) -> RawVc {
+    with_turbo_tasks(|tt| tt.transient_trait_call(trait_type, trait_fn_name, this, arg))
 }
 
 pub fn turbo_tasks() -> Arc<dyn TurboTasksApi> {
