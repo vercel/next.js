@@ -854,7 +854,18 @@ export async function assertNoRedbox(browser: BrowserInterface) {
   })
 
   if (hasRedbox) {
-    const error = new Error('Expected no Redbox but found one')
+    const [redboxHeader, redboxDescription, redboxSource] = await Promise.all([
+      getRedboxHeader(browser).catch(() => '<missing>'),
+      getRedboxDescription(browser).catch(() => '<missing>'),
+      getRedboxSource(browser).catch(() => '<missing>'),
+    ])
+
+    const error = new Error(
+      'Expected no Redbox but found one\n' +
+        `header: ${redboxHeader}\n` +
+        `description: ${redboxDescription}\n` +
+        `source: ${redboxSource}`
+    )
     Error.captureStackTrace(error, assertHasRedbox)
     throw error
   }
