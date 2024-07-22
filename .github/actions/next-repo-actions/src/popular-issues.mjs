@@ -48,10 +48,10 @@ async function run() {
     const { owner, repo } = context.repo
     const { data } = await octoClient.rest.search.issuesAndPullRequests({
       order: 'desc',
-      per_page: 15,
       q: `repo:${owner}/${repo} is:issue created:>=2024-07-15`,
     })
 
+    info(`issues length = ${data.items.length}`)
     info(`issues = ${JSON.stringify(data.items)}`)
 
     // if (data.items.length > 0) {
