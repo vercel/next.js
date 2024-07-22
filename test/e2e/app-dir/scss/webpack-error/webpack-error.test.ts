@@ -2,12 +2,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('SCSS Support', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
-  describe('Friendly Webpack Error', () => {
+  // Production only test
+  ;(isNextDev ? describe.skip : describe)('Friendly Webpack Error', () => {
     it('should be a friendly error successfully', async () => {
       const { exitCode, cliOutput } = await next.build()
       expect(exitCode).toBe(1)
