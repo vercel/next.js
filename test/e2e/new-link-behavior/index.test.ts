@@ -58,7 +58,7 @@ describe('New Link Behavior', () => {
     expect(await matchLogs(browser, 'link to home clicked')).toBe(true)
   })
 
-  it('should handle onClick preventdefault', async () => {
+  it('should handle onclick preventdefault', async () => {
     const browser = await webdriver(next.url, `/onclick-prevent-default`)
     await browser.elementByCss('a').click()
     const text = await browser.elementByCss('h1').text()
@@ -69,7 +69,7 @@ describe('New Link Behavior', () => {
     )
   })
 
-  it('should handle onMouseDown', async () => {
+  it('should handle onmousedown', async () => {
     const browser = await webdriver(next.url, `/onmousedown`)
     await browser.elementByCss('a').click().waitForElementByCss('h1')
     const text = await browser.elementByCss('h1').text()
