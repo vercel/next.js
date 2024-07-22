@@ -1,7 +1,8 @@
-use std::collections::HashMap;
+use std::cmp::Ordering;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use indexmap::IndexMap;
 use turbo_tasks::{emit, CollectiblesSource, RcStr, Upcast, Vc};
 
 #[turbo_tasks::value(serialization = "none")]
@@ -9,11 +10,41 @@ use turbo_tasks::{emit, CollectiblesSource, RcStr, Upcast, Vc};
 pub struct PlainDiagnostic {
     pub category: RcStr,
     pub name: RcStr,
-    pub payload: HashMap<RcStr, RcStr>,
+    pub payload: IndexMap<RcStr, RcStr>,
+}
+
+impl Ord for PlainDiagnostic {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.name
+            .cmp(&other.name)
+            .then_with(|| self.category.cmp(&other.category))
+            .then_with(|| self.payload.len().cmp(&other.payload.len()))
+            .then_with(|| {
+                for ((a_key, a_value), (b_key, b_value)) in
+                    self.payload.iter().zip(other.payload.iter())
+                {
+                    match a_key.cmp(b_key) {
+                        Ordering::Equal => {}
+                        other => return other,
+                    }
+                    match a_value.cmp(b_value) {
+                        Ordering::Equal => {}
+                        other => return other,
+                    }
+                }
+                Ordering::Equal
+            })
+    }
+}
+
+impl PartialOrd for PlainDiagnostic {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct DiagnosticPayload(pub HashMap<RcStr, RcStr>);
+pub struct DiagnosticPayload(pub IndexMap<RcStr, RcStr>);
 
 /// An arbitrary payload can be used to analyze, diagnose
 /// Turbopack's behavior.

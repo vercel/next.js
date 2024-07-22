@@ -590,8 +590,12 @@ impl Ord for PlainIssue {
 
         cmp!(self.severity, other.severity);
         cmp!(self.stage, other.stage);
-
-        self.title.cmp(&other.title)
+        cmp!(self.title, other.title);
+        cmp!(self.file_path, other.file_path);
+        cmp!(self.description, other.description);
+        cmp!(self.detail, other.detail);
+        cmp!(self.documentation_link, other.documentation_link);
+        Ordering::Equal
     }
 }
 
