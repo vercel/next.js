@@ -641,6 +641,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
+        if (e.defaultPrevented) {
+          return
+        }
+
         linkClicked(
           e,
           router,
@@ -675,10 +679,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         }
 
         if (!router) {
-          return
-        }
-
-        if (e.defaultPrevented) {
           return
         }
 
