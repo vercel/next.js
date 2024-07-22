@@ -169,6 +169,14 @@ pub async fn get_next_client_import_map(
                     "next/dist/compiled/react-dom-experimental/static.browser",
                 ),
             );
+            let react_client_package = get_react_client_package(&next_config).await?;
+            import_map.insert_exact_alias(
+                "react-dom/client",
+                request_to_import_mapping(
+                    app_dir,
+                    &format!("next/dist/compiled/react-dom{react_flavor}/{react_client_package}"),
+                ),
+            );
             import_map.insert_wildcard_alias(
                 "react-dom/",
                 request_to_import_mapping(
@@ -322,6 +330,7 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias("react", external);
             import_map.insert_wildcard_alias("react/", external);
             import_map.insert_exact_alias("react-dom", external);
+            import_map.insert_exact_alias("react-dom/client", external);
             import_map.insert_wildcard_alias("react-dom/", external);
             import_map.insert_exact_alias("styled-jsx", external);
             import_map.insert_exact_alias(
