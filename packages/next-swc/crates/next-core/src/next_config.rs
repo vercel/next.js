@@ -73,6 +73,7 @@ pub struct NextConfig {
     pub experimental: ExperimentalConfig,
     pub images: ImageConfig,
     pub page_extensions: Vec<RcStr>,
+    pub react_production_profiling: Option<bool>,
     pub react_strict_mode: Option<bool>,
     pub transpile_packages: Option<Vec<RcStr>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
@@ -787,6 +788,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn bundle_pages_router_dependencies(&self) -> Vc<bool> {
         Vc::cell(self.bundle_pages_router_dependencies.unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_react_production_profiling(&self) -> Vc<bool> {
+        Vc::cell(self.react_production_profiling.unwrap_or_default())
     }
 
     #[turbo_tasks::function]

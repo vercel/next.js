@@ -697,6 +697,7 @@ export default async function build(
               loadConfig(PHASE_PRODUCTION_BUILD, dir, {
                 // Log for next.config loading process
                 silent: false,
+                reactProductionProfiling,
               }),
             turborepoAccessTraceResult
           )
