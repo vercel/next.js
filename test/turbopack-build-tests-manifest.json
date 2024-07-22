@@ -1286,8 +1286,8 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/app/useReportWebVitals.test.ts": {
-      "passed": [],
-      "failed": ["useReportWebVitals hook should send web-vitals"],
+      "passed": ["useReportWebVitals hook should send web-vitals"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -3853,7 +3853,7 @@
     "test/e2e/app-dir/scss/webpack-error/webpack-error.test.ts": {
       "passed": [],
       "failed": [
-        "SCSS Support production only Friendly Webpack Error should be a friendly error successfully"
+        "SCSS Support Friendly Webpack Error should be a friendly error successfully"
       ],
       "pending": [],
       "flakey": [],
@@ -12763,11 +12763,10 @@
         "Static Image Component Tests for basePath production mode Should allow provided width and height to override intrinsic",
         "Static Image Component Tests for basePath production mode Should automatically provide an image height and width",
         "Static Image Component Tests for basePath production mode Should use immutable cache-control header even when unoptimized",
-        "Static Image Component Tests for basePath production mode Should use immutable cache-control header for static import"
-      ],
-      "failed": [
+        "Static Image Component Tests for basePath production mode Should use immutable cache-control header for static import",
         "Build Error Tests for basePath production mode should throw build error when import statement is used with missing file"
       ],
+      "failed": [],
       "pending": [
         "Static Image Component Tests for basePath development mode Should add a blur placeholder to statically imported jpg",
         "Static Image Component Tests for basePath development mode Should add a blur placeholder to statically imported png",
@@ -14108,13 +14107,12 @@
     },
     "test/integration/react-profiling-mode/test/index.test.js": {
       "passed": [
-        "React Profiling Mode production mode without config enabled should not have used the react-dom profiling bundle"
-      ],
-      "failed": [
+        "React Profiling Mode production mode without config enabled should not have used the react-dom profiling bundle",
         "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for client component",
         "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for pages",
         "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for server component"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false

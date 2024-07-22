@@ -138,6 +138,21 @@ describe('app-dir - logging', () => {
           })
         })
 
+        it('should not limit the number of requests that are logged', async () => {
+          const outputIndex = next.cliOutput.length
+          await next.fetch('/many-requests')
+
+          const expectedUrl = withFullUrlFetches
+            ? 'https://next-data-api-endpoint.vercel.app/api/random'
+            : 'https://next-data-api-en../api/random'
+
+          await retry(() => {
+            const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 6)
+            expect(logs).toIncludeRepeated(` │ POST ${expectedUrl}`, 6)
+          })
+        })
+
         it('should show cache reason of noStore when use with fetch', async () => {
           const logLength = next.cliOutput.length
           await next.fetch('/no-store')
@@ -220,12 +235,13 @@ describe('app-dir - logging', () => {
           await next.patchFile(
             'app/default-cache/page.js',
             (content) => content.replace('Default Cache', 'Hello!'),
-            async () => {
-              headline = await browser.waitForElementByCss('h1').text()
-              expect(headline).toBe('Hello!')
-              const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-              expect(logs).not.toInclude(` │ GET `)
-            }
+            async () =>
+              retry(async () => {
+                headline = await browser.waitForElementByCss('h1').text()
+                expect(headline).toBe('Hello!')
+                const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+                expect(logs).not.toInclude(` │ GET `)
+              })
           )
         })
       }
@@ -304,7 +320,7 @@ describe('app-dir - logging', () => {
       await next.start()
     })
 
-    runTests({ withFetchesLogging: false })
+    runTests({ withFetchesLogging: true, withFullUrlFetches: true })
   })
 
   describe('with default logging', () => {

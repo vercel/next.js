@@ -3,13 +3,13 @@ resolver = "2"
 
 members = [
   "scripts/send-trace-to-jaeger",
-  "packages/next-swc/crates/napi",
-  "packages/next-swc/crates/wasm",
-  "packages/next-swc/crates/next-api",
-  "packages/next-swc/crates/next-build-test",
-  "packages/next-swc/crates/next-build",
-  "packages/next-swc/crates/next-core",
-  "packages/next-swc/crates/next-custom-transforms",
+  "crates/napi",
+  "crates/wasm",
+  "crates/next-api",
+  "crates/next-build-test",
+  "crates/next-build",
+  "crates/next-core",
+  "crates/next-custom-transforms",
 ]
 
 [workspace.lints.clippy]
@@ -25,10 +25,10 @@ opt-level = 3
 
 [workspace.dependencies]
 # Workspace crates
-next-api = { path = "packages/next-swc/crates/next-api" }
-next-build = { path = "packages/next-swc/crates/next-build" }
-next-core = { path = "packages/next-swc/crates/next-core" }
-next-custom-transforms = { path = "packages/next-swc/crates/next-custom-transforms" }
+next-api = { path = "crates/next-api" }
+next-build = { path = "crates/next-build" }
+next-core = { path = "crates/next-core" }
+next-custom-transforms = { path = "crates/next-custom-transforms" }
 
 # SWC crates
 swc_core = { version = "0.96.9", features = [

@@ -1117,9 +1117,16 @@ export default class NextNodeServer extends BaseServer<
       const normalizedReq = this.normalizeReq(req)
       const normalizedRes = this.normalizeRes(res)
 
-      const loggingFetchesConfig = this.nextConfig.logging?.fetches
-      const enabledVerboseLogging = !!loggingFetchesConfig
-      const shouldTruncateUrl = !loggingFetchesConfig?.fullUrl
+      const logConfig = this.nextConfig.logging
+      const isLoggingDisabled = logConfig === false
+      const fetchesLoggingConfig = isLoggingDisabled
+        ? false
+        : logConfig?.fetches
+
+      const enabledVerboseLogging = !!fetchesLoggingConfig
+      const shouldTruncateUrl =
+        typeof fetchesLoggingConfig === 'object' &&
+        !fetchesLoggingConfig.fullUrl
 
       if (this.renderOpts.dev) {
         const { blue, green, yellow, red, gray, white, bold } =
@@ -1131,6 +1138,11 @@ export default class NextNodeServer extends BaseServer<
         const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
 
         const reqCallback = () => {
+          const fetchMetrics = normalizedReq.fetchMetrics || []
+          delete normalizedReq.fetchMetrics
+
+          if (isLoggingDisabled) return
+
           // we don't log for non-route requests
           const routeMatch = getRequestMeta(req).match
 
@@ -1141,7 +1153,6 @@ export default class NextNodeServer extends BaseServer<
           const isRSC = getRequestMeta(normalizedReq, 'isRSCRequest')
 
           const reqEnd = Date.now()
-          const fetchMetrics = normalizedReq.fetchMetrics || []
           const reqDuration = reqEnd - reqStart
 
           const statusColor = (status?: number) => {
@@ -1240,7 +1251,6 @@ export default class NextNodeServer extends BaseServer<
               )
             }
           }
-          delete normalizedReq.fetchMetrics
           originalResponse.off('close', reqCallback)
         }
         originalResponse.on('close', reqCallback)
