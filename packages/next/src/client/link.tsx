@@ -227,6 +227,8 @@ function linkClicked(
   }
 
   e.preventDefault()
+  e.stopPropagation()
+  e.nativeEvent.stopImmediatePropagation()
 
   const navigate = () => {
     // If the router is an NextRouter instance it will have `beforePopState`
@@ -638,26 +640,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         ) {
           child.props.onClick(e)
         }
-
-        if (!router) {
-          return
-        }
-
-        if (e.defaultPrevented) {
-          return
-        }
-
-        linkClicked(
-          e,
-          router,
-          href,
-          as,
-          replace,
-          shallow,
-          scroll,
-          locale,
-          isAppRouter
-        )
       },
       onMouseDown(e) {
         if (process.env.NODE_ENV !== 'production') {
@@ -672,19 +654,20 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           onMouseDownProp(e)
         }
 
-        if (legacyBehavior && child.props) {
-          if (typeof child.props.onMouseDown === 'function') {
-            child.props.onMouseDown(e)
-          }
-
-          // if there's onClickProp set, let it handle the event.
-          if (typeof child.props.onClick === 'function') {
-            return
-          }
+        if (
+          legacyBehavior &&
+          child.props &&
+          typeof child.props.onMouseDown === 'function'
+        ) {
+          child.props.onMouseDown(e)
         }
 
-        // if there's onClickProp set, let it handle the event.
-        if (typeof onClickProp === 'function') {
+        // To prevent breaking custom onClick behaviors,
+        // let onClick handle the event if present.
+        if (
+          typeof onClickProp === 'function' ||
+          typeof child?.props?.onClick === 'function'
+        ) {
           return
         }
 
