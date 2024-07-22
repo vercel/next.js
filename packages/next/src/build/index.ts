@@ -101,7 +101,7 @@ import {
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
-import { createPagesMapping, sortByPageExts } from './entries'
+import { createPagesMapping, getPageFromPath, sortByPageExts } from './entries'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -187,6 +187,12 @@ import {
   checkIsAppPPREnabled,
   checkIsRoutePPREnabled,
 } from '../server/lib/experimental/ppr'
+import {
+  detectChangedEntries,
+  type DetectedEntriesResult,
+} from './flying-shuttle/detect-changed-entries'
+import { storeShuttle } from './flying-shuttle/store-shuttle'
+import { stitchBuilds } from './flying-shuttle/stitch-builds'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -342,32 +348,6 @@ async function writePrerenderManifest(
   manifest: DeepReadonly<PrerenderManifest>
 ): Promise<void> {
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
-  await writeEdgePartialPrerenderManifest(distDir, manifest)
-}
-
-async function writeEdgePartialPrerenderManifest(
-  distDir: string,
-  manifest: DeepReadonly<Partial<PrerenderManifest>>
-): Promise<void> {
-  // We need to write a partial prerender manifest to make preview mode settings available in edge middleware.
-  // Use env vars in JS bundle and inject the actual vars to edge manifest.
-  const edgePartialPrerenderManifest: DeepReadonly<Partial<PrerenderManifest>> =
-    {
-      routes: {},
-      dynamicRoutes: {},
-      notFoundRoutes: [],
-      version: manifest.version,
-      // Preview props are inlined in the code with dynamic env vars,
-      // During edge runtime build:
-      // - local: env vars will be injected through edge-runtime as runtime env vars
-      // - deployment: env vars will be replaced by edge build pipeline as inline values
-    }
-  await writeFileUtf8(
-    path.join(distDir, PRERENDER_MANIFEST.replace(/\.json$/, '.js')),
-    `self.__PRERENDER_MANIFEST=${JSON.stringify(
-      JSON.stringify(edgePartialPrerenderManifest)
-    )}`
-  )
 }
 
 async function writeClientSsgManifest(
@@ -717,6 +697,7 @@ export default async function build(
               loadConfig(PHASE_PRODUCTION_BUILD, dir, {
                 // Log for next.config loading process
                 silent: false,
+                reactProductionProfiling,
               }),
             turborepoAccessTraceResult
           )
@@ -743,8 +724,10 @@ export default async function build(
       )
       NextBuildContext.buildId = buildId
 
+      const shuttleDir = path.join(distDir, 'cache', 'shuttle')
+
       if (config.experimental.flyingShuttle) {
-        await fs.mkdir(path.join(distDir, 'cache', 'shuttle'), {
+        await fs.mkdir(shuttleDir, {
           recursive: true,
         })
       }
@@ -820,11 +803,6 @@ export default async function build(
         expFeatureInfo,
       })
 
-      await recordFrameworkVersion(process.env.__NEXT_VERSION as string)
-      await updateBuildDiagnostics({
-        buildStage: 'start',
-      })
-
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
       const shouldLint = !ignoreESLint && runLint
 
@@ -869,20 +847,32 @@ export default async function build(
         appDir
       )
 
-      const providedPagePaths: string[] = JSON.parse(
-        process.env.NEXT_PROVIDED_PAGE_PATHS || '[]'
-      )
-
       let pagesPaths =
-        providedPagePaths.length > 0
-          ? providedPagePaths
-          : !appDirOnly && pagesDir
-            ? await nextBuildSpan.traceChild('collect-pages').traceAsyncFn(() =>
-                recursiveReadDir(pagesDir, {
-                  pathnameFilter: validFileMatcher.isPageFile,
-                })
-              )
-            : []
+        !appDirOnly && pagesDir
+          ? await nextBuildSpan.traceChild('collect-pages').traceAsyncFn(() =>
+              recursiveReadDir(pagesDir, {
+                pathnameFilter: validFileMatcher.isPageFile,
+              })
+            )
+          : []
+
+      let changedPagePathsResult:
+        | undefined
+        | {
+            changed: DetectedEntriesResult
+            unchanged: DetectedEntriesResult
+          }
+
+      if (pagesPaths && config.experimental.flyingShuttle) {
+        changedPagePathsResult = await detectChangedEntries({
+          pagesPaths,
+          pageExtensions: config.pageExtensions,
+          distDir,
+          shuttleDir,
+        })
+        console.log({ changedPagePathsResult })
+        pagesPaths = changedPagePathsResult.changed.pages
+      }
 
       const middlewareDetectionRegExp = new RegExp(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
@@ -943,27 +933,37 @@ export default async function build(
 
       let mappedAppPages: MappedPages | undefined
       let denormalizedAppPages: string[] | undefined
+      let changedAppPathsResult:
+        | undefined
+        | {
+            changed: DetectedEntriesResult
+            unchanged: DetectedEntriesResult
+          }
 
       if (appDir) {
-        const providedAppPaths: string[] = JSON.parse(
-          process.env.NEXT_PROVIDED_APP_PATHS || '[]'
-        )
+        let appPaths = await nextBuildSpan
+          .traceChild('collect-app-paths')
+          .traceAsyncFn(() =>
+            recursiveReadDir(appDir, {
+              pathnameFilter: (absolutePath) =>
+                validFileMatcher.isAppRouterPage(absolutePath) ||
+                // For now we only collect the root /not-found page in the app
+                // directory as the 404 fallback
+                validFileMatcher.isRootNotFound(absolutePath),
+              ignorePartFilter: (part) => part.startsWith('_'),
+            })
+          )
 
-        let appPaths =
-          providedAppPaths.length > 0
-            ? providedAppPaths
-            : await nextBuildSpan
-                .traceChild('collect-app-paths')
-                .traceAsyncFn(() =>
-                  recursiveReadDir(appDir, {
-                    pathnameFilter: (absolutePath) =>
-                      validFileMatcher.isAppRouterPage(absolutePath) ||
-                      // For now we only collect the root /not-found page in the app
-                      // directory as the 404 fallback
-                      validFileMatcher.isRootNotFound(absolutePath),
-                    ignorePartFilter: (part) => part.startsWith('_'),
-                  })
-                )
+        if (appPaths && config.experimental.flyingShuttle) {
+          changedAppPathsResult = await detectChangedEntries({
+            appPaths,
+            pageExtensions: config.pageExtensions,
+            distDir,
+            shuttleDir,
+          })
+          console.log({ changedAppPathsResult })
+          appPaths = changedAppPathsResult.changed.app
+        }
 
         mappedAppPages = await nextBuildSpan
           .traceChild('create-app-mapping')
@@ -1168,19 +1168,41 @@ export default async function build(
           ),
         }
       }
+      let clientRouterFilters:
+        | undefined
+        | ReturnType<typeof createClientRouterFilter>
 
       if (config.experimental.clientRouterFilter) {
         const nonInternalRedirects = (config._originalRedirects || []).filter(
           (r: any) => !r.internal
         )
-        const clientRouterFilters = createClientRouterFilter(
-          appPaths,
+        const filterPaths: string[] = []
+
+        if (config.experimental.flyingShuttle) {
+          filterPaths.push(
+            ...[
+              // client filter always has all app paths
+              ...(changedAppPathsResult?.unchanged?.app || []),
+              ...(changedAppPathsResult?.changed?.app || []),
+            ].map((entry) =>
+              normalizeAppPath(getPageFromPath(entry, config.pageExtensions))
+            ),
+            ...(changedPagePathsResult?.unchanged.pages.length
+              ? changedPagePathsResult.changed?.pages || []
+              : []
+            ).map((item) => getPageFromPath(item, config.pageExtensions))
+          )
+        } else {
+          filterPaths.push(...appPaths)
+        }
+
+        clientRouterFilters = createClientRouterFilter(
+          filterPaths,
           config.experimental.clientRouterFilterRedirects
             ? nonInternalRedirects
             : [],
           config.experimental.clientRouterFilterAllowedRate
         )
-
         NextBuildContext.clientRouterFilters = clientRouterFilters
       }
 
@@ -1215,7 +1237,11 @@ export default async function build(
         '{"type": "commonjs"}'
       )
 
-      await writeEdgePartialPrerenderManifest(distDir, {})
+      // These are written to distDir, so they need to come after creating and cleaning distDr.
+      await recordFrameworkVersion(process.env.__NEXT_VERSION as string)
+      await updateBuildDiagnostics({
+        buildStage: 'start',
+      })
 
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
@@ -1259,7 +1285,6 @@ export default async function build(
               path.relative(distDir, pagesManifestPath),
               BUILD_MANIFEST,
               PRERENDER_MANIFEST,
-              PRERENDER_MANIFEST.replace(/\.json$/, '.js'),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
               path.join(
@@ -1351,7 +1376,7 @@ export default async function build(
             env: process.env as Record<string, string>,
             defineEnv: createDefineEnv({
               isTurbopack: true,
-              clientRouterFilters: NextBuildContext.clientRouterFilters,
+              clientRouterFilters,
               config,
               dev,
               distDir,
@@ -1764,7 +1789,7 @@ export default async function build(
       const appDynamicParamPaths = new Set<string>()
       const appDefaultConfigs = new Map<string, AppConfig>()
       const pageInfos: PageInfos = new Map<string, PageInfo>()
-      const pagesManifest = await readManifest<PagesManifest>(pagesManifestPath)
+      let pagesManifest = await readManifest<PagesManifest>(pagesManifestPath)
       const buildManifest = await readManifest<BuildManifest>(buildManifestPath)
       const appBuildManifest = appDir
         ? await readManifest<AppBuildManifest>(appBuildManifestPath)
@@ -2451,6 +2476,53 @@ export default async function build(
       const middlewareManifest: MiddlewareManifest = await readManifest(
         path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
       )
+
+      if (!isGenerateMode) {
+        if (config.experimental.flyingShuttle) {
+          console.log('stitching builds...')
+          const stitchResult = await stitchBuilds(
+            {
+              buildId,
+              distDir,
+              shuttleDir,
+              rewrites,
+              redirects,
+              edgePreviewProps: {
+                __NEXT_PREVIEW_MODE_ID:
+                  NextBuildContext.previewProps!.previewModeId,
+                __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
+                  NextBuildContext.previewProps!.previewModeEncryptionKey,
+                __NEXT_PREVIEW_MODE_SIGNING_KEY:
+                  NextBuildContext.previewProps!.previewModeSigningKey,
+              },
+              encryptionKey,
+              allowedErrorRate:
+                config.experimental.clientRouterFilterAllowedRate,
+            },
+            {
+              changed: {
+                pages: changedPagePathsResult?.changed.pages || [],
+                app: changedAppPathsResult?.changed.app || [],
+              },
+              unchanged: {
+                pages: changedPagePathsResult?.unchanged.pages || [],
+                app: changedAppPathsResult?.unchanged.app || [],
+              },
+              pageExtensions: config.pageExtensions,
+            }
+          )
+          // reload pagesManifest since it's been updated on disk
+          if (stitchResult.pagesManifest) {
+            pagesManifest = stitchResult.pagesManifest
+          }
+
+          console.log('storing shuttle')
+          await storeShuttle({
+            distDir,
+            shuttleDir,
+          })
+        }
+      }
 
       const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
       const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}

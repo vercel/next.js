@@ -46,16 +46,42 @@ export default async function getChangedTests() {
     return { devTests: [], prodTests: [] }
   }
 
-  try {
-    await execa('git remote set-branches --add origin canary', EXECA_OPTS_STDIO)
-    await execa('git fetch origin canary --depth=20', EXECA_OPTS_STDIO)
-  } catch (err) {
-    console.error(await execa('git remote -v', EXECA_OPTS_STDIO))
-    console.error(`Failed to fetch origin/canary`, err)
+  let diffRevision
+  if (
+    process.env.GITHUB_ACTIONS === 'true' &&
+    process.env.GITHUB_EVENT_NAME === 'pull_request'
+  ) {
+    // GH Actions for `pull_request` run on the merge commit so HEAD~1:
+    // 1. includes all changes in the PR
+    //    e.g. in
+    //    A-B-C-main - F
+    //     \          /
+    //      D-E-branch
+    //    GH actions for `branch` runs on F, so a diff for HEAD~1 includes the diff of D and E combined
+    // 2. Includes all changes of the commit for pushes
+    diffRevision = 'HEAD~1'
+  } else {
+    try {
+      await execa(
+        'git remote set-branches --add origin canary',
+        EXECA_OPTS_STDIO
+      )
+      await execa('git fetch origin canary --depth=20', EXECA_OPTS_STDIO)
+    } catch (err) {
+      console.error(await execa('git remote -v', EXECA_OPTS_STDIO))
+      console.error(`Failed to fetch origin/canary`, err)
+    }
+    // TODO: We should diff against the merge base with origin/canary not directly against origin/canary.
+    // A --- B ---- origin/canary
+    //  \
+    //   \-- C ---- HEAD
+    // `git diff origin/canary` includes B and C
+    // But we should only include C.
+    diffRevision = 'origin/canary'
   }
 
   const changesResult = await execa(
-    `git diff origin/canary --name-only`,
+    `git diff ${diffRevision} --name-only`,
     EXECA_OPTS
   ).catch((err) => {
     console.error(err)

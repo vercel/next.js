@@ -5,8 +5,10 @@ import type {
   PrefetchKind,
   RouterChangeByServerResponse,
 } from '../../client/components/router-reducer/router-reducer-types'
-import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
-import type { FlightRouterState } from '../../server/app-render/types'
+import type {
+  FlightRouterState,
+  FetchServerResponseResult,
+} from '../../server/app-render/types'
 import React from 'react'
 
 export type ChildSegmentMap = Map<string, CacheNode>

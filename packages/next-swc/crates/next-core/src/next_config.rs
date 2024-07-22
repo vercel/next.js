@@ -73,6 +73,7 @@ pub struct NextConfig {
     pub experimental: ExperimentalConfig,
     pub images: ImageConfig,
     pub page_extensions: Vec<RcStr>,
+    pub react_production_profiling: Option<bool>,
     pub react_strict_mode: Option<bool>,
     pub transpile_packages: Option<Vec<RcStr>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
@@ -729,7 +730,7 @@ impl StyledComponentsTransformOptionsOrBoolean {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerConfig {
-    pub react_remove_properties: Option<bool>,
+    pub react_remove_properties: Option<ReactRemoveProperties>,
     pub relay: Option<RelayConfig>,
     pub emotion: Option<EmotionTransformOptionsOrBoolean>,
     pub remove_console: Option<RemoveConsoleConfig>,
@@ -741,6 +742,15 @@ pub struct CompilerConfig {
 pub enum ReactRemoveProperties {
     Boolean(bool),
     Config { properties: Option<Vec<String>> },
+}
+
+impl ReactRemoveProperties {
+    pub fn is_enabled(&self) -> bool {
+        match self {
+            Self::Boolean(enabled) => *enabled,
+            _ => true,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -778,6 +788,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn bundle_pages_router_dependencies(&self) -> Vc<bool> {
         Vc::cell(self.bundle_pages_router_dependencies.unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_react_production_profiling(&self) -> Vc<bool> {
+        Vc::cell(self.react_production_profiling.unwrap_or_default())
     }
 
     #[turbo_tasks::function]
