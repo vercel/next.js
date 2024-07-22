@@ -3,6 +3,7 @@ use once_cell::sync::Lazy;
 pub static TRACING_OVERVIEW_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     vec![
         "turbo_tasks=info",
+        "turbo_tasks_fs=info",
         "turbopack=info",
         "turbopack_binding=info",
         "turbopack_nodejs=info",
@@ -30,7 +31,6 @@ pub static TRACING_TURBOPACK_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     [
         &TRACING_OVERVIEW_TARGETS[..],
         &[
-            "turbo_tasks=info",
             "turbopack=trace",
             "turbopack_binding=trace",
             "turbopack_nodejs=trace",

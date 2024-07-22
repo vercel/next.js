@@ -3,7 +3,7 @@ use std::{
     mem::take,
     path::{Path, PathBuf},
     sync::{
-        mpsc::{channel, Receiver, RecvError, TryRecvError},
+        mpsc::{channel, Receiver, TryRecvError},
         Arc, Mutex,
     },
     time::Duration,
@@ -12,9 +12,8 @@ use std::{
 use anyhow::Result;
 use notify::{
     event::{MetadataKind, ModifyKind, RenameMode},
-    EventKind, RecommendedWatcher, RecursiveMode, Watcher,
+    Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
-use notify_debouncer_full::{DebounceEventResult, DebouncedEvent, Debouncer, FileIdMap};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tracing::instrument;
@@ -30,7 +29,7 @@ use crate::{
 #[derive(Default, Serialize, Deserialize)]
 pub(crate) struct DiskWatcher {
     #[serde(skip)]
-    watcher: Mutex<Option<Debouncer<RecommendedWatcher, FileIdMap>>>,
+    watcher: Mutex<Option<RecommendedWatcher>>,
 
     /// Array of paths that should not notify invalidations.
     /// `notify` currently doesn't support unwatching subpaths from the root,
@@ -77,7 +76,7 @@ impl DiskWatcher {
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     fn start_watching_dir(
         &self,
-        watcher: &mut std::sync::MutexGuard<Option<Debouncer<RecommendedWatcher, FileIdMap>>>,
+        watcher: &mut std::sync::MutexGuard<Option<RecommendedWatcher>>,
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
@@ -85,7 +84,7 @@ impl DiskWatcher {
 
         if let Some(watcher) = watcher.as_mut() {
             let mut path = dir_path;
-            while let Err(err) = watcher.watcher().watch(path, RecursiveMode::NonRecursive) {
+            while let Err(err) = watcher.watch(path, RecursiveMode::NonRecursive) {
                 if path == root_path {
                     return Err(err).context(format!(
                         "Unable to watch {} (tried up to {})",
@@ -138,29 +137,19 @@ impl DiskWatcher {
 
         // Create a channel to receive the events.
         let (tx, rx) = channel();
-        // Linux watching is too fast, so we need to throttle it a bit to avoid reading
-        // wip files
-        #[cfg(target_os = "linux")]
-        let delay = Duration::from_millis(10);
-        #[cfg(not(target_os = "linux"))]
-        let delay = Duration::from_millis(1);
         // Create a watcher object, delivering debounced events.
         // The notification back-end is selected based on the platform.
-        let mut debounced_watcher = notify_debouncer_full::new_debouncer(delay, None, tx)?;
+        let mut watcher = RecommendedWatcher::new(tx, Config::default())?;
         // Add a path to be watched. All files and directories at that path and
         // below will be monitored for changes.
         #[cfg(any(target_os = "macos", target_os = "windows"))]
         {
-            debounced_watcher
-                .watcher()
-                .watch(&root_path, RecursiveMode::Recursive)?;
+            watcher.watch(&root_path, RecursiveMode::Recursive)?;
         }
 
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         for dir_path in self.watching.iter() {
-            debounced_watcher
-                .watcher()
-                .watch(&dir_path, RecursiveMode::NonRecursive)?;
+            watcher.watch(&dir_path, RecursiveMode::NonRecursive)?;
         }
 
         // We need to invalidate all reads that happened before watching
@@ -177,7 +166,7 @@ impl DiskWatcher {
             }
         }
 
-        watcher_guard.replace(debounced_watcher);
+        watcher_guard.replace(watcher);
         drop(watcher_guard);
 
         spawn_thread(move || {
@@ -207,7 +196,7 @@ impl DiskWatcher {
     /// Should only be called once from `start_watching`.
     fn watch_thread(
         &self,
-        rx: Receiver<DebounceEventResult>,
+        rx: Receiver<notify::Result<notify::Event>>,
         root_path: PathBuf,
         report_invalidation_reason: Option<(RcStr, PathBuf)>,
         invalidation_lock: Arc<RwLock<()>>,
@@ -223,167 +212,126 @@ impl DiskWatcher {
         let mut batched_new_paths = HashSet::new();
 
         'outer: loop {
-            let mut event = rx.recv().map_err(|e| match e {
-                RecvError => TryRecvError::Disconnected,
-            });
+            let mut event = rx.recv().or(Err(TryRecvError::Disconnected));
             loop {
                 match event {
-                    Ok(Ok(events)) => {
-                        events.iter().for_each(
-                            |DebouncedEvent {
-                                 event: notify::Event { kind, paths, .. },
-                                 ..
-                             }| {
-                                let paths: Vec<PathBuf> = paths
+                    Ok(Ok(notify::Event { kind, paths, .. })) => {
+                        let paths: Vec<PathBuf> = paths
+                            .iter()
+                            .filter(|p| {
+                                !self
+                                    .ignored_subpaths
                                     .iter()
-                                    .filter(|p| {
-                                        !self
-                                            .ignored_subpaths
-                                            .iter()
-                                            .any(|ignored| p.starts_with(ignored))
-                                    })
-                                    .cloned()
-                                    .collect();
+                                    .any(|ignored| p.starts_with(ignored))
+                            })
+                            .cloned()
+                            .collect();
 
-                                if paths.is_empty() {
-                                    return;
-                                }
+                        if paths.is_empty() {
+                            return;
+                        }
 
-                                // [NOTE] there is attrs in the `Event` struct, which contains few
-                                // more metadata like process_id who triggered the event,
-                                // or the source we may able to utilize later.
-                                match kind {
-                                    // [NOTE] Observing `ModifyKind::Metadata(MetadataKind::Any)` is
-                                    // not a mistake, fix for PACK-2437.
-                                    // In here explicitly subscribes to the `ModifyKind::Data` which
-                                    // indicates file content changes - in case of fsevents backend,
-                                    // this is `kFSEventStreamEventFlagItemModified`.
-                                    // Also meanwhile we subscribe to ModifyKind::Metadata as well.
-                                    // This is due to in some cases fsevents does not emit explicit
-                                    // kFSEventStreamEventFlagItemModified kernel events,
-                                    // but only emits kFSEventStreamEventFlagItemInodeMetaMod. While
-                                    // this could cause redundant invalidation,
-                                    // it's the way to reliably detect file content changes.
-                                    // ref other implementation, i.e libuv does same thing to
-                                    // trigger UV_CHANEGS https://github.com/libuv/libuv/commit/73cf3600d75a5884b890a1a94048b8f3f9c66876#diff-e12fdb1f404f1c97bbdcc0956ac90d7db0d811d9fa9ca83a3deef90c937a486cR95-R99
-                                    EventKind::Modify(
-                                        ModifyKind::Data(_)
-                                        | ModifyKind::Metadata(MetadataKind::Any),
-                                    ) => {
-                                        batched_invalidate_path.extend(paths.clone());
-                                        #[cfg(target_os = "macos")]
-                                        {
-                                            // Sometimes file creation is reported as
-                                            // ModifyKind::Data on macOS.
-                                            paths.iter().for_each(|path| {
-                                                if let Some(parent) = path.parent() {
-                                                    batched_invalidate_path_dir
-                                                        .insert(PathBuf::from(parent));
-                                                }
-                                            });
-                                        }
-                                    }
-                                    EventKind::Create(_) => {
-                                        batched_invalidate_path_and_children.extend(paths.clone());
-                                        batched_invalidate_path_and_children_dir
-                                            .extend(paths.clone());
-                                        paths.iter().for_each(|path| {
-                                            if let Some(parent) = path.parent() {
-                                                batched_invalidate_path_dir
-                                                    .insert(PathBuf::from(parent));
-                                            }
-                                        });
-
-                                        #[cfg(not(any(
-                                            target_os = "macos",
-                                            target_os = "windows"
-                                        )))]
-                                        batched_new_paths.extend(paths.clone());
-                                    }
-                                    EventKind::Remove(_) => {
-                                        batched_invalidate_path_and_children.extend(paths.clone());
-                                        batched_invalidate_path_and_children_dir
-                                            .extend(paths.clone());
-                                        paths.iter().for_each(|path| {
-                                            if let Some(parent) = path.parent() {
-                                                batched_invalidate_path_dir
-                                                    .insert(PathBuf::from(parent));
-                                            }
-                                        });
-                                    }
-                                    // A single event emitted with both the `From` and `To` paths.
-                                    EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
-                                        // For the rename::both, notify provides an array of paths
-                                        // in given order
-                                        if let [source, destination, ..] = &paths[..] {
-                                            batched_invalidate_path_and_children
-                                                .insert(source.clone());
-                                            if let Some(parent) = source.parent() {
-                                                batched_invalidate_path_dir
-                                                    .insert(PathBuf::from(parent));
-                                            }
-                                            batched_invalidate_path_and_children
-                                                .insert(destination.clone());
-                                            if let Some(parent) = destination.parent() {
-                                                batched_invalidate_path_dir
-                                                    .insert(PathBuf::from(parent));
-                                            }
-                                            #[cfg(not(any(
-                                                target_os = "macos",
-                                                target_os = "windows"
-                                            )))]
-                                            batched_new_paths.insert(destination.clone());
-                                        } else {
-                                            // If we hit here, we expect this as a bug either in
-                                            // notify or system weirdness.
-                                            panic!(
-                                                "Rename event does not contain source and \
-                                                 destination paths {:#?}",
-                                                paths
-                                            );
-                                        }
-                                    }
-                                    // We expect `RenameMode::Both` to cover most of the cases we
-                                    // need to invalidate,
-                                    // but we also check other RenameModes
-                                    // to cover cases where notify couldn't match the two rename
-                                    // events.
-                                    EventKind::Any
-                                    | EventKind::Modify(ModifyKind::Any | ModifyKind::Name(..)) => {
-                                        batched_invalidate_path.extend(paths.clone());
-                                        batched_invalidate_path_and_children.extend(paths.clone());
-                                        batched_invalidate_path_and_children_dir
-                                            .extend(paths.clone());
-                                        for parent in paths.iter().filter_map(|path| path.parent())
-                                        {
-                                            batched_invalidate_path_dir
-                                                .insert(PathBuf::from(parent));
-                                        }
-                                    }
-                                    EventKind::Modify(
-                                        ModifyKind::Metadata(..) | ModifyKind::Other,
-                                    )
-                                    | EventKind::Access(_)
-                                    | EventKind::Other => {
-                                        // ignored
-                                    }
-                                }
-                            },
-                        );
-                    }
-                    // Error raised by notify watcher itself
-                    Ok(Err(errors)) => {
-                        errors.iter().for_each(|notify::Error { kind, paths }| {
-                            println!("watch error ({:?}): {:?} ", paths, kind);
-
-                            if paths.is_empty() {
-                                batched_invalidate_path_and_children.insert(root_path.clone());
-                                batched_invalidate_path_and_children_dir.insert(root_path.clone());
-                            } else {
+                        // [NOTE] there is attrs in the `Event` struct, which contains few
+                        // more metadata like process_id who triggered the event,
+                        // or the source we may able to utilize later.
+                        match kind {
+                            // [NOTE] Observing `ModifyKind::Metadata(MetadataKind::Any)` is
+                            // not a mistake, fix for PACK-2437.
+                            // In here explicitly subscribes to the `ModifyKind::Data` which
+                            // indicates file content changes - in case of fsevents backend,
+                            // this is `kFSEventStreamEventFlagItemModified`.
+                            // Also meanwhile we subscribe to ModifyKind::Metadata as well.
+                            // This is due to in some cases fsevents does not emit explicit
+                            // kFSEventStreamEventFlagItemModified kernel events,
+                            // but only emits kFSEventStreamEventFlagItemInodeMetaMod. While
+                            // this could cause redundant invalidation,
+                            // it's the way to reliably detect file content changes.
+                            // ref other implementation, i.e libuv does same thing to
+                            // trigger UV_CHANEGS https://github.com/libuv/libuv/commit/73cf3600d75a5884b890a1a94048b8f3f9c66876#diff-e12fdb1f404f1c97bbdcc0956ac90d7db0d811d9fa9ca83a3deef90c937a486cR95-R99
+                            EventKind::Modify(
+                                ModifyKind::Data(_) | ModifyKind::Metadata(MetadataKind::Any),
+                            ) => {
+                                batched_invalidate_path.extend(paths.clone());
+                            }
+                            EventKind::Create(_) => {
                                 batched_invalidate_path_and_children.extend(paths.clone());
                                 batched_invalidate_path_and_children_dir.extend(paths.clone());
+                                paths.iter().for_each(|path| {
+                                    if let Some(parent) = path.parent() {
+                                        batched_invalidate_path_dir.insert(PathBuf::from(parent));
+                                    }
+                                });
+
+                                #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+                                batched_new_paths.extend(paths.clone());
                             }
-                        });
+                            EventKind::Remove(_) => {
+                                batched_invalidate_path_and_children.extend(paths.clone());
+                                batched_invalidate_path_and_children_dir.extend(paths.clone());
+                                paths.iter().for_each(|path| {
+                                    if let Some(parent) = path.parent() {
+                                        batched_invalidate_path_dir.insert(PathBuf::from(parent));
+                                    }
+                                });
+                            }
+                            // A single event emitted with both the `From` and `To` paths.
+                            EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
+                                // For the rename::both, notify provides an array of paths
+                                // in given order
+                                if let [source, destination, ..] = &paths[..] {
+                                    batched_invalidate_path_and_children.insert(source.clone());
+                                    if let Some(parent) = source.parent() {
+                                        batched_invalidate_path_dir.insert(PathBuf::from(parent));
+                                    }
+                                    batched_invalidate_path_and_children
+                                        .insert(destination.clone());
+                                    if let Some(parent) = destination.parent() {
+                                        batched_invalidate_path_dir.insert(PathBuf::from(parent));
+                                    }
+                                    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+                                    batched_new_paths.insert(destination.clone());
+                                } else {
+                                    // If we hit here, we expect this as a bug either in
+                                    // notify or system weirdness.
+                                    panic!(
+                                        "Rename event does not contain source and destination \
+                                         paths {:#?}",
+                                        paths
+                                    );
+                                }
+                            }
+                            // We expect `RenameMode::Both` to cover most of the cases we
+                            // need to invalidate,
+                            // but we also check other RenameModes
+                            // to cover cases where notify couldn't match the two rename
+                            // events.
+                            EventKind::Any
+                            | EventKind::Modify(ModifyKind::Any | ModifyKind::Name(..)) => {
+                                batched_invalidate_path.extend(paths.clone());
+                                batched_invalidate_path_and_children.extend(paths.clone());
+                                batched_invalidate_path_and_children_dir.extend(paths.clone());
+                                for parent in paths.iter().filter_map(|path| path.parent()) {
+                                    batched_invalidate_path_dir.insert(PathBuf::from(parent));
+                                }
+                            }
+                            EventKind::Modify(ModifyKind::Metadata(..) | ModifyKind::Other)
+                            | EventKind::Access(_)
+                            | EventKind::Other => {
+                                // ignored
+                            }
+                        }
+                    }
+                    // Error raised by notify watcher itself
+                    Ok(Err(notify::Error { kind, paths })) => {
+                        println!("watch error ({:?}): {:?} ", paths, kind);
+
+                        if paths.is_empty() {
+                            batched_invalidate_path_and_children.insert(root_path.clone());
+                            batched_invalidate_path_and_children_dir.insert(root_path.clone());
+                        } else {
+                            batched_invalidate_path_and_children.extend(paths.clone());
+                            batched_invalidate_path_and_children_dir.extend(paths.clone());
+                        }
                     }
                     Err(TryRecvError::Disconnected) => {
                         // Sender has been disconnected
@@ -392,7 +340,19 @@ impl DiskWatcher {
                         break 'outer;
                     }
                     Err(TryRecvError::Empty) => {
-                        break;
+                        // Linux watching is too fast, so we need to throttle it a bit to avoid
+                        // reading wip files
+                        #[cfg(target_os = "linux")]
+                        let delay = Duration::from_millis(10);
+                        #[cfg(not(target_os = "linux"))]
+                        let delay = Duration::from_millis(1);
+                        match rx.recv_timeout(delay) {
+                            Ok(result) => {
+                                event = Ok(result);
+                                continue;
+                            }
+                            Err(_) => break,
+                        }
                     }
                 }
                 event = rx.try_recv();
