@@ -607,6 +607,7 @@ type SitemapFile = Array<{
   alternates?: {
     languages?: Languages<string>
   }
+  images?: string[]
 }>
 
 type ResolvingMetadata = Promise<ResolvedMetadata>
