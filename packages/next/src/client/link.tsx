@@ -86,10 +86,15 @@ type InternalLinkProps = {
   as?: Url
 }
 
+// TODO-APP: Include the full set of Anchor props
+// adding this to the publicly exported type currently breaks existing apps
+
 // `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
 // isn't generated yet. It will be replaced when the webpack plugin runs.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export type LinkProps<RouteInferType = any> = React.PropsWithChildren<
+export type LinkProps<RouteInferType = any> = InternalLinkProps
+
+type RealLinksProps = React.PropsWithChildren<
   Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof InternalLinkProps> &
     InternalLinkProps
 >
@@ -281,7 +286,7 @@ function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
  *
  * Read more: [Next.js docs: `<Link>`](https://nextjs.org/docs/app/api-reference/components/link)
  */
-const Link = React.forwardRef<HTMLAnchorElement, LinkProps>(
+const Link = React.forwardRef<HTMLAnchorElement, RealLinksProps>(
   function LinkComponent(props, forwardedRef) {
     const {
       href: hrefProp,
