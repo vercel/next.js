@@ -48,6 +48,7 @@ async function run() {
     const { owner, repo } = context.repo
     const { data } = await octoClient.rest.search.issuesAndPullRequests({
       order: 'desc',
+      per_page: 50,
       q: `repo:${owner}/${repo} is:issue created:>=2024-07-15`,
     })
 
