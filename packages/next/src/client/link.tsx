@@ -678,6 +678,14 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           child.props.onMouseDown(e)
         }
 
+        // if there's onClickProp set, let it handle the event.
+        if (
+          typeof onClickProp === 'function' ||
+          typeof child.props.onClick === 'function'
+        ) {
+          return
+        }
+
         if (!router) {
           return
         }
