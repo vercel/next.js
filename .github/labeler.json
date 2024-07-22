@@ -5,7 +5,7 @@
     "area: examples": ["examples/**"],
     "area: Font Optimization": ["**/*font*"],
     "area: tests": ["test/**", "bench/**"],
-    "area: Turbopack": ["packages/next-swc/crates/next-*/**"],
+    "area: Turbopack": ["crates/next-*/**"],
     "created-by: Chrome Aurora": [
       { "type": "user", "pattern": "atcastle" },
       { "type": "user", "pattern": "devknoll" },

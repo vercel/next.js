@@ -381,7 +381,7 @@ jobs:
         run: turbo run build-wasm -vvv --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }}
 
       - name: Add target to folder name
-        run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
+        run: '[[ -d "crates/wasm/pkg" ]] && mv crates/wasm/pkg crates/wasm/pkg-${{ matrix.target }} || ls crates/wasm'
 
       - name: Upload turbo summary artifact
         uses: actions/upload-artifact@v4
@@ -393,7 +393,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wasm-binaries-${{matrix.target}}
-          path: packages/next-swc/crates/wasm/pkg-*
+          path: crates/wasm/pkg-*
 
   deployTarball:
     if: ${{ needs.build.outputs.isRelease != 'true' }}
@@ -435,7 +435,7 @@ jobs:
         with:
           pattern: wasm-binaries-*
           merge-multiple: true
-          path: packages/next-swc/crates/wasm
+          path: crates/wasm
 
       - run: npm i -g vercel@latest
 
@@ -483,7 +483,7 @@ jobs:
         with:
           pattern: wasm-binaries-*
           merge-multiple: true
-          path: packages/next-swc/crates/wasm
+          path: crates/wasm
 
       - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc

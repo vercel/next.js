@@ -10,7 +10,7 @@
     "build-native-no-plugin-woa": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --cargo-flags=--no-default-features --features image-webp --js false native",
     "build-native-no-plugin-woa-release": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --release --cargo-flags=--no-default-features --features image-webp,tracing/release_max_level_info --js false native",
     "build-native-wasi": "npx --package=@napi-rs/cli@3.0.0-alpha.45 napi build --platform --target wasm32-wasip1-threads -p next-swc-napi --cwd ../../ --output-dir packages/next-swc/native",
-    "build-wasm": "wasm-pack build crates/wasm --scope=next",
+    "build-wasm": "wasm-pack build ../../crates/wasm --scope=next",
     "cache-build-native": "[ -d native ] && echo $(ls native)",
     "rust-check-fmt": "cd ../..; cargo fmt -- --check",
     "rust-check-clippy": "cargo clippy --workspace --all-targets -- -D warnings -A deprecated",
