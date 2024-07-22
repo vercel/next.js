@@ -80,9 +80,16 @@ let trigger = '' // default, use empty string for trigger
 let triggerUrl: string | undefined = undefined
 let loadingLogTimer: NodeJS.Timeout | null = null
 let traceSpan: Span | null = null
+let logging = true
 
 store.subscribe((state) => {
-  if (state.logging === false) {
+  // Update persisted logging state
+  if ('logging' in state) {
+    logging = state.logging
+  }
+
+  // If logging is disabled, do not log
+  if (!logging) {
     return
   }
 
