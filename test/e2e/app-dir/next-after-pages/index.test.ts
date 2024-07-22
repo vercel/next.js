@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { nextTestSetup, isNextDev } from 'e2e-utils'
-import { getRedboxSource, hasRedbox, retry } from 'next-test-utils'
+import { assertHasRedbox, getRedboxSource, retry } from 'next-test-utils'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
@@ -69,7 +69,7 @@ _describe('unstable_after() - pages', () => {
       ])('$title', async ({ path }) => {
         const browser = await next.browser(path)
 
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxSource(browser)).toMatch(
           /You're importing a component that needs "?unstable_after"?\. That only works in a Server Component which is not supported in the pages\/ directory\./
         )

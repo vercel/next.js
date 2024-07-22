@@ -49,10 +49,12 @@ use crate::{
     next_shared::{
         resolve::{
             get_invalid_server_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
-            NextSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
+            NextSharedRuntimeResolvePlugin,
         },
         transforms::{
-            emotion::get_emotion_transform_rule, relay::get_relay_transform_rule,
+            emotion::get_emotion_transform_rule,
+            react_remove_properties::get_react_remove_properties_transform_rule,
+            relay::get_relay_transform_rule, remove_console::get_remove_console_transform_rule,
             styled_components::get_styled_components_transform_rule,
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
@@ -128,7 +130,7 @@ pub fn get_client_compile_time_info(
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub enum ClientContextType {
     Pages { pages_dir: Vc<FileSystemPath> },
     App { app_dir: Vc<FileSystemPath> },
@@ -158,13 +160,14 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
-        before_resolve_plugins: vec![Vc::upcast(NextFontLocalResolvePlugin::new(project_path))],
-        after_resolve_plugins: vec![
-            Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
-            Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
-            Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
+        before_resolve_plugins: vec![
             Vc::upcast(get_invalid_server_only_resolve_plugin(project_path)),
+            Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
+            Vc::upcast(NextFontLocalResolvePlugin::new(project_path)),
         ],
+        after_resolve_plugins: vec![Vc::upcast(NextSharedRuntimeResolvePlugin::new(
+            project_path,
+        ))],
         ..Default::default()
     };
     Ok(ResolveOptionsContext {
@@ -244,10 +247,12 @@ pub async fn get_client_module_options_context(
         get_next_client_transforms_rules(next_config, ty.into_value(), mode, true).await?;
     let additional_rules: Vec<ModuleRule> = vec![
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
-        get_relay_transform_rule(next_config).await?,
+        get_relay_transform_rule(next_config, project_path).await?,
         get_emotion_transform_rule(next_config).await?,
         get_styled_components_transform_rule(next_config).await?,
         get_styled_jsx_transform_rule(next_config, target_browsers).await?,
+        get_react_remove_properties_transform_rule(next_config).await?,
+        get_remove_console_transform_rule(next_config).await?,
     ]
     .into_iter()
     .flatten()

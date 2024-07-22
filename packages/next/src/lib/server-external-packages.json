@@ -50,6 +50,7 @@
   "shiki",
   "sqlite3",
   "ts-node",
+  "ts-morph",
   "typescript",
   "vscode-oniguruma",
   "webpack",

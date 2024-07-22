@@ -43,6 +43,7 @@ export type Feature =
   | 'skipMiddlewareUrlNormalize'
   | 'skipTrailingSlashRedirect'
   | 'modularizeImports'
+  | 'esmExternals'
 
 interface FeatureUsage {
   featureName: Feature
@@ -107,6 +108,7 @@ const BUILD_FEATURES: Array<Feature> = [
   'skipMiddlewareUrlNormalize',
   'skipTrailingSlashRedirect',
   'modularizeImports',
+  'esmExternals',
 ]
 
 const eliminatedPackages = new Set<string>()

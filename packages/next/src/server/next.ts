@@ -25,7 +25,7 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import { getNodeDebugType } from './lib/utils'
+import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
 
 let ServerImpl: typeof Server
 
@@ -63,6 +63,7 @@ export class NextServer {
   private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
 
+  protected cleanupListeners: (() => Promise<void>)[] = []
   protected standaloneMode?: boolean
 
   public options: NextServerOptions
@@ -140,7 +141,7 @@ export class NextServer {
     return server.render404(...args)
   }
 
-  async prepare(serverFields?: any) {
+  async prepare(serverFields?: ServerFields) {
     if (this.standaloneMode) return
 
     const server = await this.getServer()
@@ -156,8 +157,15 @@ export class NextServer {
   }
 
   async close() {
-    const server = await this.getServer()
-    return (server as any).close()
+    await Promise.all(
+      [
+        async () => {
+          const server = await this.getServer()
+          await (server as any).close()
+        },
+        ...this.cleanupListeners,
+      ].map((f) => f())
+    )
   }
 
   private async createServer(
@@ -275,15 +283,13 @@ class NextCustomServer extends NextServer {
     const { getRequestHandlers } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
-    const isNodeDebugging = typeof getNodeDebugType() === 'string'
-
     const initResult = await getRequestHandlers({
       dir: this.options.dir!,
       port: this.options.port || 3000,
       isDev: !!this.options.dev,
+      onCleanup: (listener) => this.cleanupListeners.push(listener),
       hostname: this.options.hostname || 'localhost',
       minimalMode: this.options.minimalMode,
-      isNodeDebugging,
       quiet: this.options.quiet,
     })
     this.requestHandler = initResult[0]

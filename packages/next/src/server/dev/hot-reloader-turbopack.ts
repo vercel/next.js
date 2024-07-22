@@ -41,7 +41,6 @@ import {
 } from '../lib/render-server'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 import { trace } from '../../trace'
-import type { VersionInfo } from './parse-version-info'
 import {
   AssetMapper,
   type ChangeSubscriptions,
@@ -63,7 +62,7 @@ import {
   type TopLevelIssuesMap,
   isWellKnownError,
   printNonFatalIssue,
-  normalizeAppMetadataRoutePage,
+  normalizedPageToTurbopackStructureRoute,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -81,6 +80,8 @@ import {
 } from './turbopack/entry-key'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils'
+import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -153,6 +154,7 @@ export async function createHotReloaderTurbopack(
       memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
     }
   )
+  opts.onCleanup(() => project.onExit())
   const entrypointsSubscription = project.entrypointsSubscribe()
 
   const currentEntrypoints: Entrypoints = {
@@ -462,7 +464,8 @@ export async function createHotReloaderTurbopack(
         currentEntryIssues,
         manifestLoader,
         nextConfig: opts.nextConfig,
-        rewrites: opts.fsChecker.rewrites,
+        devRewrites: opts.fsChecker.rewrites,
+        productionRewrites: undefined,
         logErrors: true,
 
         dev: {
@@ -504,7 +507,7 @@ export async function createHotReloaderTurbopack(
     )
   )
   const overlayMiddleware = getOverlayMiddleware(project)
-  const versionInfo: VersionInfo = await getVersionInfo(
+  const versionInfoPromise = getVersionInfo(
     isTestMode || opts.telemetry.isEnabled
   )
 
@@ -543,8 +546,9 @@ export async function createHotReloaderTurbopack(
     },
 
     // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
-    onHMR(req, socket: Socket, head) {
+    onHMR(req, socket: Socket, head, onUpgrade) {
       wsServer.handleUpgrade(req, socket, head, (client) => {
+        onUpgrade(client)
         const clientIssues: EntryIssuesMap = new Map()
         const subscriptions: Map<string, AsyncIterator<any>> = new Map()
 
@@ -666,15 +670,19 @@ export async function createHotReloaderTurbopack(
           }
         }
 
-        const sync: SyncAction = {
-          action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
-          errors,
-          warnings: [],
-          hash: '',
-          versionInfo,
-        }
+        ;(async function () {
+          const versionInfo = await versionInfoPromise
 
-        sendToClient(client, sync)
+          const sync: SyncAction = {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+            errors,
+            warnings: [],
+            hash: '',
+            versionInfo,
+          }
+
+          sendToClient(client, sync)
+        })()
       })
     },
 
@@ -759,7 +767,7 @@ export async function createHotReloaderTurbopack(
       page: inputPage,
       // Unused parameters
       // clientOnly,
-      // appPaths,
+      appPaths,
       definition,
       isApp,
       url: requestUrl,
@@ -778,7 +786,25 @@ export async function createHotReloaderTurbopack(
           opts.appDir
         ))
 
-      const page = routeDef.page
+      // If the route is actually an app page route, then we should have access
+      // to the app route definition, and therefore, the appPaths from it.
+      if (!appPaths && definition && isAppPageRouteDefinition(definition)) {
+        appPaths = definition.appPaths
+      }
+
+      let page = routeDef.page
+      if (appPaths) {
+        const normalizedPage = normalizeAppPath(page)
+
+        // filter out paths that are not exact matches (e.g. catchall)
+        const matchingAppPaths = appPaths.filter(
+          (path) => normalizeAppPath(path) === normalizedPage
+        )
+
+        // the last item in the array is the root page, if there are parallel routes
+        page = matchingAppPaths[matchingAppPaths.length - 1]
+      }
+
       const pathname = definition?.pathname ?? inputPage
 
       if (page === '/_error') {
@@ -788,7 +814,8 @@ export async function createHotReloaderTurbopack(
             currentEntryIssues,
             entrypoints: currentEntrypoints,
             manifestLoader,
-            rewrites: opts.fsChecker.rewrites,
+            devRewrites: opts.fsChecker.rewrites,
+            productionRewrites: undefined,
             logErrors: true,
 
             hooks: {
@@ -808,7 +835,7 @@ export async function createHotReloaderTurbopack(
       await currentEntriesHandling
 
       const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
-      const normalizedAppPage = normalizeAppMetadataRoutePage(
+      const normalizedAppPage = normalizedPageToTurbopackStructureRoute(
         page,
         extname(routeDef.filename)
       )
@@ -845,7 +872,8 @@ export async function createHotReloaderTurbopack(
           entrypoints: currentEntrypoints,
           manifestLoader,
           readyIds,
-          rewrites: opts.fsChecker.rewrites,
+          devRewrites: opts.fsChecker.rewrites,
+          productionRewrites: undefined,
           logErrors: true,
 
           hooks: {
@@ -870,8 +898,9 @@ export async function createHotReloaderTurbopack(
   // Write empty manifests
   await currentEntriesHandling
   await manifestLoader.writeManifests({
-    rewrites: opts.fsChecker.rewrites,
-    pageEntrypoints: currentEntrypoints.page,
+    devRewrites: opts.fsChecker.rewrites,
+    productionRewrites: undefined,
+    entrypoints: currentEntrypoints,
   })
 
   async function handleProjectUpdates() {

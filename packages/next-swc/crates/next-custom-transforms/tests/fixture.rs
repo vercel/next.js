@@ -27,7 +27,7 @@ use turbopack_binding::swc::{
     core::{
         common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
         ecma::{
-            parser::{EsConfig, Syntax},
+            parser::{EsSyntax, Syntax},
             transforms::{
                 base::resolver,
                 react::jsx,
@@ -40,7 +40,7 @@ use turbopack_binding::swc::{
 };
 
 fn syntax() -> Syntax {
-    Syntax::Es(EsConfig {
+    Syntax::Es(EsSyntax {
         jsx: true,
         ..Default::default()
     })
@@ -247,16 +247,18 @@ fn page_config_fixture(input: PathBuf) {
 #[fixture("tests/fixture/relay/**/input.ts*")]
 fn relay_no_artifact_dir_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    let config = turbopack_binding::swc::custom_transform::relay::Config {
-        language: RelayLanguageConfig::TypeScript,
-        artifact_directory: Some(PathBuf::from("__generated__")),
-        ..Default::default()
-    };
+
     test_fixture(
         syntax(),
         &|_tr| {
+            let config = turbopack_binding::swc::custom_transform::relay::Config {
+                language: RelayLanguageConfig::TypeScript,
+                artifact_directory: Some(PathBuf::from("__generated__")),
+                ..Default::default()
+            };
+
             relay(
-                &config,
+                config.into(),
                 FileName::Real(PathBuf::from("input.tsx")),
                 current_dir().unwrap(),
                 Some(PathBuf::from("src/pages")),

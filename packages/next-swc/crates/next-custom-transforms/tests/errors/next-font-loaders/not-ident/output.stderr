@@ -1,14 +1,12 @@
-
   x Font loader calls must be assigned to an identifier
-   ,-[input.js:2:1]
+   ,-[input.js:3:1]
  2 | 
  3 | const { a } = Inter({
    :       ^^^^^
  4 |   variant: '400',
    `----
-
   x Font loader calls must be assigned to an identifier
-   ,-[input.js:6:1]
+   ,-[input.js:7:1]
  6 | 
  7 | const [b] = Inter({
    :       ^^^

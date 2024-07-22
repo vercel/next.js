@@ -11,11 +11,12 @@ interface NotFoundBoundaryProps {
   notFoundStyles?: React.ReactNode
   asNotFound?: boolean
   children: React.ReactNode
+  missingSlots?: Set<string>
 }
 
 interface NotFoundErrorBoundaryProps extends NotFoundBoundaryProps {
   pathname: string
-  missingSlots: Set<string>
+  missingSlots?: Set<string>
 }
 
 interface NotFoundErrorBoundaryState {
@@ -38,6 +39,7 @@ class NotFoundErrorBoundary extends React.Component<
   componentDidCatch(): void {
     if (
       process.env.NODE_ENV === 'development' &&
+      this.props.missingSlots &&
       // A missing children slot is the typical not-found case, so no need to warn
       !this.props.missingSlots.has('children')
     ) {

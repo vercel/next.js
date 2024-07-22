@@ -19,6 +19,7 @@ import { hasNextSupport } from '../../telemetry/ci-info'
 import { lazyRenderAppPage } from '../../server/route-modules/app-page/module.render'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
+import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -113,6 +114,9 @@ export async function exportAppPage(
     }
 
     const headers: OutgoingHttpHeaders = { ...metadata.headers }
+
+    // If we're writing the file to disk, we know it's a prerender.
+    headers[NEXT_IS_PRERENDER_HEADER] = '1'
 
     if (fetchTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = fetchTags

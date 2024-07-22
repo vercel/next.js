@@ -677,6 +677,7 @@ export async function createEntrypoints(
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
+              flyingShuttle: config.experimental.flyingShuttle,
               nextConfigExperimentalUseEarlyImport: config.experimental
                 .useEarlyImport
                 ? true
@@ -742,6 +743,7 @@ export async function createEntrypoints(
                 basePath: config.basePath,
                 assetPrefix: config.assetPrefix,
                 nextConfigOutput: config.output,
+                flyingShuttle: config.experimental.flyingShuttle,
                 // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
                 // Still passing it here for consistency.
                 preferredRegion: staticInfo.preferredRegion,
@@ -838,8 +840,9 @@ export function finalizeEntrypoint({
     }
     case COMPILER_NAMES.edgeServer: {
       return {
-        layer:
-          isMiddlewareFilename(name) || isApi || isInstrumentation
+        layer: isApi
+          ? WEBPACK_LAYERS.api
+          : isMiddlewareFilename(name) || isInstrumentation
             ? WEBPACK_LAYERS.middleware
             : undefined,
         library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },

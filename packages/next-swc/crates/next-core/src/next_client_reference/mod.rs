@@ -8,6 +8,6 @@ pub use ecmascript_client_reference::{
     ecmascript_client_reference_transition::NextEcmascriptClientReferenceTransition,
 };
 pub use visit_client_reference::{
-    ClientReference, ClientReferenceGraph, ClientReferenceGraphResult, ClientReferenceType,
+    client_reference_graph, ClientReference, ClientReferenceGraphResult, ClientReferenceType,
     ClientReferenceTypes,
 };

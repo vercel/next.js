@@ -12,13 +12,13 @@ import {
   type RouteModuleOptions,
 } from '../route-module'
 import {
-  RequestAsyncStorageWrapper,
+  withRequestStore,
   type RequestContext,
-} from '../../async-storage/request-async-storage-wrapper'
+} from '../../async-storage/with-request-store'
 import {
-  StaticGenerationAsyncStorageWrapper,
+  withStaticGenerationStore,
   type StaticGenerationContext,
-} from '../../async-storage/static-generation-async-storage-wrapper'
+} from '../../async-storage/with-static-generation-store'
 import {
   handleBadRequestResponse,
   handleInternalServerErrorResponse,
@@ -56,6 +56,7 @@ import { StaticGenBailoutError } from '../../../client/components/static-generat
 import { isStaticGenEnabled } from './helpers/is-static-gen-enabled'
 import { trackDynamicDataAccessed } from '../../app-render/dynamic-rendering'
 import { ReflectAdapter } from '../../web/spec-extension/adapters/reflect'
+import type { RenderOptsPartial } from '../../app-render/types'
 
 /**
  * The AppRouteModule is the type of the module exported by the bundled App
@@ -68,7 +69,8 @@ export type AppRouteModule = typeof import('../../../build/templates/app-route')
  * handler for app routes.
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
-  renderOpts: StaticGenerationContext['renderOpts']
+  renderOpts: StaticGenerationContext['renderOpts'] &
+    Pick<RenderOptsPartial, 'onInstrumentationRequestError'>
   prerenderManifest: DeepReadonly<PrerenderManifest>
 }
 
@@ -284,11 +286,11 @@ export class AppRouteRouteModule extends RouteModule<
         isAction: getIsServerAction(rawRequest),
       },
       () =>
-        RequestAsyncStorageWrapper.wrap(
+        withRequestStore(
           this.requestAsyncStorage,
           requestContext,
           (requestStore) =>
-            StaticGenerationAsyncStorageWrapper.wrap(
+            withStaticGenerationStore(
               this.staticGenerationAsyncStorage,
               staticGenerationContext,
               (staticGenerationStore) => {
