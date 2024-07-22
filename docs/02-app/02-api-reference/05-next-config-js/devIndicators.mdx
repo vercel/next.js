@@ -7,7 +7,7 @@ description: Optimized pages include an indicator to let you know if it's being 
 
 <AppOnly>
 
-`devIndicators` is a `next.config.js` option that allows you to configure the on-screen indicators that help you understand what's happening to your application during development mode.
+`devIndicators` is a `next.config.js` option that allows you to configure the on-screen indicators that give context about the current route during development.
 
 ```ts filename="Types"
   devIndicators: {
@@ -22,11 +22,11 @@ description: Optimized pages include an indicator to let you know if it's being 
 
 ## `appIsrStatus` (Static Indicator)
 
-Next.js displays a static indicator in the bottom-left corner of the screen to signal if a route will be prerendered at build time. This makes it easier to understand whether a route is static or dynamic, and for you to identify if a route [silently opt-outs of static rendering](#static-route not-showing-the-indicator).
+Next.js displays a static indicator in the bottom-left corner of the screen that signals if a route will be prerendered at build time. This makes it easier to understand whether a route is static or dynamic, and for you to identify if a route [opts out of static rendering](#static-route-not-showing-the-indicator).
 
 {/* TODO: Add screenshot - waiting for design */}
 
-You can hide the indicator by closing it, or disable it for your whole application in `next.config.js`:
+You can disable the indicator by closing it, or using the config option `next.config.js`:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -83,7 +83,25 @@ module.exports = {
 
 ### Static route not showing the indicator
 
-TODO: need better title, but tldr what to do if there's a silent static opt-out
+If you expect a route to be static but the indicator is enabled but not showing, it's likely that the route has opted out of static rendering.
+
+You can confirm if a route is [static](/docs/app/building-your-application/rendering/server-components#static-rendering-default) or [dynamic](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) by building your application using `next build`, and checking the output in your terminal. Static (or prerendered) routes will display a `○` symbol, whereas dynamic routes will display a `ƒ` symbol. For example:
+
+```bash filename="Build Output"
+Route (app)                              Size     First Load JS
+┌ ○ /_not-found                          0 B               0 kB
+└ ƒ /products/[id]                       0 B               0 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+```
+
+There are two reasons a route might opt out of static rendering:
+
+- The presence of [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-functions) which rely on runtime information.
+- An [uncached data request](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#opting-out-of-data-caching) that relies on fresh data for each request.
+
+Check your route for any of these conditions, and if you are not able to statically render the route, then consider using [loading.js](/docs/app/api-reference/file-conventions/loading) or [`<Suspense />`](https://react.dev/reference/react/Suspense) to leverage [streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming#what-is-streaming).
 
 </AppOnly>
 
