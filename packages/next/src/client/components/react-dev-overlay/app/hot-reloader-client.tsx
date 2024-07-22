@@ -59,7 +59,6 @@ function onFastRefresh(
   updatedModules: ReadonlyArray<string>
 ) {
   dispatcher.onBuildOk()
-
   reportHmrLatency(sendMessage, updatedModules)
 
   dispatcher.onRefresh()
@@ -161,6 +160,7 @@ function tryApplyUpdates(
 ) {
   if (!isUpdateAvailable() || !canApplyUpdates()) {
     dispatcher.onBuildOk()
+    reportHmrLatency(sendMessage, [])
     return
   }
 
@@ -430,7 +430,6 @@ function processMessage(
         router.hmrRefresh()
         dispatcher.onRefresh()
       })
-      reportHmrLatency(sendMessage, [])
 
       if (process.env.__NEXT_TEST_MODE) {
         if (self.__NEXT_HMR_CB) {

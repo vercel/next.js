@@ -131,11 +131,14 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   describe('interrupted RSC renders', () => {
     it('runs callbacks if redirect() was called', async () => {
       await next.browser('/interrupted/calls-redirect')
-      expect(getLogs()).toContainEqual({
-        source: '[page] /interrupted/calls-redirect',
-      })
-      expect(getLogs()).toContainEqual({
-        source: '[page] /interrupted/redirect-target',
+
+      await retry(() => {
+        expect(getLogs()).toContainEqual({
+          source: '[page] /interrupted/calls-redirect',
+        })
+        expect(getLogs()).toContainEqual({
+          source: '[page] /interrupted/redirect-target',
+        })
       })
     })
 

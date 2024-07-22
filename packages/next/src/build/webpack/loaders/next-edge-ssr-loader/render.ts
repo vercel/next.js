@@ -13,14 +13,12 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
-import type { ManifestRewriteRoute, PrerenderManifest } from '../../..'
+import type { ManifestRewriteRoute } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import type { SizeLimit } from '../../../../types'
 import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
 import type { PAGE_TYPES } from '../../../../lib/page-types'
 import type { NextRequestHint } from '../../../../server/web/adapter'
-import type { DeepReadonly } from '../../../../shared/lib/deep-readonly'
-import { getEdgePreviewProps } from '../../../../server/web/get-edge-preview-props'
 
 export function getRender({
   dev,
@@ -32,7 +30,6 @@ export function getRender({
   pagesType,
   Document,
   buildManifest,
-  prerenderManifest,
   reactLoadableManifest,
   interceptionRouteRewrites,
   renderToHTML,
@@ -55,7 +52,6 @@ export function getRender({
   renderToHTML?: any
   Document: DocumentType
   buildManifest: BuildManifest
-  prerenderManifest: DeepReadonly<PrerenderManifest>
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
   interceptionRouteRewrites?: ManifestRewriteRoute[]
@@ -89,12 +85,6 @@ export function getRender({
       page,
       pathname: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
-      prerenderManifest: prerenderManifest
-        ? {
-            ...prerenderManifest,
-            preview: getEdgePreviewProps(),
-          }
-        : undefined,
       interceptionRouteRewrites,
       extendRenderOpts: {
         buildId,
@@ -172,6 +162,7 @@ export function getRender({
 
     handler(extendedReq, extendedRes)
     const result = await extendedRes.toResponse()
+    request.fetchMetrics = extendedReq.fetchMetrics
 
     if (event?.waitUntil) {
       // TODO(after):

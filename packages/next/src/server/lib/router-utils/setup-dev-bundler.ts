@@ -80,11 +80,15 @@ import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
-import { ModuleBuildError } from '../../dev/turbopack-utils'
+import {
+  ModuleBuildError,
+  TurbopackInternalError,
+} from '../../dev/turbopack-utils'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
+import { store as consoleStore } from '../../../build/output/store'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -171,6 +175,11 @@ async function startWatcher(opts: SetupOpts) {
   )
 
   const serverFields: ServerFields = {}
+
+  // Update logging state once based on next.config.js when initializing
+  consoleStore.setState({
+    logging: nextConfig.logging !== false,
+  })
 
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
     ? await createHotReloaderTurbopack(opts, serverFields, distDir)
@@ -1058,7 +1067,11 @@ function logError(
   type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
 ) {
   if (err instanceof ModuleBuildError) {
+    // Errors that may come from issues from the user's code
     Log.error(err.message)
+  } else if (err instanceof TurbopackInternalError) {
+    // An internal Turbopack error that has been handled by next-swc, written
+    // to disk and a simplified message shown to user on the Rust side.
   } else if (type === 'warning') {
     Log.warn(err)
   } else if (type === 'app-dir') {
