@@ -24,8 +24,10 @@ use turbopack_binding::{
 #[turbo_tasks::value(into = "shared")]
 pub enum ExternalPredicate {
     /// Mark all modules as external if they're not listed in the list.
+    /// Applies only to imports outside of node_modules.
     AllExcept(Vc<Vec<RcStr>>),
-    /// Only mark modules listed as external.
+    /// Only mark modules listed as external, whether inside node_modules or
+    /// not.
     Only(Vc<Vec<RcStr>>),
 }
 
@@ -101,6 +103,10 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let predicate = self.predicate.await?;
         let must_be_external = match &*predicate {
             ExternalPredicate::AllExcept(exceptions) => {
+                if *condition(self.root).matches(lookup_path).await? {
+                    return Ok(ResolveResultOption::none());
+                }
+
                 let exception_glob = packages_glob(*exceptions).await?;
 
                 if let Some(PackagesGlobs {
