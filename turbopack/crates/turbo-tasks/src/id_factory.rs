@@ -12,13 +12,19 @@ use concurrent_queue::ConcurrentQueue;
 /// For ids that may be re-used, see [`IdFactoryWithReuse`].
 pub struct IdFactory<T> {
     next_id: AtomicU64,
+    max_id: u64,
     _phantom_data: PhantomData<T>,
 }
 
 impl<T> IdFactory<T> {
     pub const fn new() -> Self {
+        Self::new_with_range(1, u32::MAX as u64)
+    }
+
+    pub const fn new_with_range(start: u64, max: u64) -> Self {
         Self {
-            next_id: AtomicU64::new(1),
+            next_id: AtomicU64::new(start as u64),
+            max_id: max as u64,
             _phantom_data: PhantomData,
         }
     }
@@ -38,10 +44,18 @@ where
     ///
     /// Panics (best-effort) if the id type overflows.
     pub fn get(&self) -> T {
+        let new_id = self.next_id.fetch_add(1, Ordering::Relaxed);
+
+        if new_id > self.max_id {
+            panic!(
+                "Max id limit hit while attempting to generate a unique {}",
+                type_name::<T>(),
+            )
+        }
+
         // Safety: u64 will not overflow. This is *very* unlikely to happen (would take
         // decades).
-        let new_id =
-            unsafe { NonZeroU64::new_unchecked(self.next_id.fetch_add(1, Ordering::Relaxed)) };
+        let new_id = unsafe { NonZeroU64::new_unchecked(new_id) };
 
         // Use the extra bits of the AtomicU64 as cheap overflow detection when the
         // value is less than 64 bits.
@@ -69,6 +83,13 @@ impl<T> IdFactoryWithReuse<T> {
             free_ids: ConcurrentQueue::unbounded(),
         }
     }
+
+    pub const fn new_with_range(start: u64, max: u64) -> Self {
+        Self {
+            factory: IdFactory::new_with_range(start, max),
+            free_ids: ConcurrentQueue::unbounded(),
+        }
+    }
 }
 
 impl<T> Default for IdFactoryWithReuse<T> {
@@ -93,7 +114,8 @@ where
     ///
     /// # Safety
     ///
-    /// It must be ensured that the id is no longer used
+    /// It must be ensured that the id is no longer used. Id must be a valid id
+    /// that was previously returned by `get`.
     pub unsafe fn reuse(&self, id: T) {
         let _ = self.free_ids.push(id);
     }

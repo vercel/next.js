@@ -247,7 +247,7 @@ impl MemoryBackend {
                 unsafe {
                     self.memory_tasks.remove(*new_id as usize);
                     let new_id = Unused::new_unchecked(new_id);
-                    turbo_tasks.reuse_task_id(new_id);
+                    turbo_tasks.reuse_persistent_task_id(new_id);
                 }
                 task_id
             }
@@ -668,7 +668,7 @@ impl Backend for MemoryBackend {
             let (task_type_hash, task_type) = PreHashed::into_parts(task_type);
             let task_type = Arc::new(PreHashed::new(task_type_hash, task_type));
             // slow pass with key lock
-            let id = turbo_tasks.get_fresh_task_id();
+            let id = turbo_tasks.get_fresh_persistent_task_id();
             let task = Task::new_persistent(
                 // Safety: That task will hold the value, but we are still in
                 // control of the task
@@ -715,7 +715,7 @@ impl Backend for MemoryBackend {
         task_type: TransientTaskType,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> TaskId {
-        let id = turbo_tasks.get_fresh_task_id();
+        let id = turbo_tasks.get_fresh_transient_task_id();
         let id = id.into();
         match task_type {
             TransientTaskType::Root(f) => {

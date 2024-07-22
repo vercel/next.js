@@ -30,7 +30,7 @@ use crate::{
     },
     capture_future::{self, CaptureFuture},
     event::{Event, EventListener},
-    id::{BackendJobId, ExecutionId, FunctionId, LocalCellId, TraitTypeId},
+    id::{BackendJobId, ExecutionId, FunctionId, LocalCellId, TraitTypeId, TRANSIENT_TASK_BIT},
     id_factory::{IdFactory, IdFactoryWithReuse},
     magic_any::MagicAny,
     raw_vc::{CellId, RawVc},
@@ -140,22 +140,6 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>;
 }
 
-pub trait TaskIdProvider {
-    fn get_fresh_task_id(&self) -> Unused<TaskId>;
-    fn reuse_task_id(&self, id: Unused<TaskId>);
-}
-
-impl TaskIdProvider for IdFactoryWithReuse<TaskId> {
-    fn get_fresh_task_id(&self) -> Unused<TaskId> {
-        // Safety: This is a fresh id from the factory
-        unsafe { Unused::new_unchecked(self.get()) }
-    }
-
-    fn reuse_task_id(&self, id: Unused<TaskId>) {
-        unsafe { self.reuse(id.into()) }
-    }
-}
-
 /// A wrapper around a value that is unused.
 pub struct Unused<T> {
     inner: T,
@@ -186,10 +170,13 @@ impl<T> Unused<T> {
     }
 }
 
-pub trait TurboTasksBackendApi<B: Backend + 'static>:
-    TaskIdProvider + TurboTasksCallApi + Sync + Send
-{
+pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync + Send {
     fn pin(&self) -> Arc<dyn TurboTasksBackendApi<B>>;
+
+    fn get_fresh_persistent_task_id(&self) -> Unused<TaskId>;
+    fn get_fresh_transient_task_id(&self) -> Unused<TaskId>;
+    unsafe fn reuse_persistent_task_id(&self, id: Unused<TaskId>);
+    unsafe fn reuse_transient_task_id(&self, id: Unused<TaskId>);
 
     fn schedule(&self, task: TaskId);
     fn schedule_backend_background_job(&self, id: BackendJobId);
@@ -214,26 +201,6 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>:
     fn backend(&self) -> &B;
 }
 
-impl<B: Backend + 'static> TaskIdProvider for &dyn TurboTasksBackendApi<B> {
-    fn get_fresh_task_id(&self) -> Unused<TaskId> {
-        (*self).get_fresh_task_id()
-    }
-
-    fn reuse_task_id(&self, id: Unused<TaskId>) {
-        (*self).reuse_task_id(id)
-    }
-}
-
-impl TaskIdProvider for &dyn TaskIdProvider {
-    fn get_fresh_task_id(&self) -> Unused<TaskId> {
-        (*self).get_fresh_task_id()
-    }
-
-    fn reuse_task_id(&self, id: Unused<TaskId>) {
-        (*self).reuse_task_id(id)
-    }
-}
-
 #[allow(clippy::manual_non_exhaustive)]
 pub struct UpdateInfo {
     pub duration: Duration,
@@ -247,6 +214,7 @@ pub struct TurboTasks<B: Backend + 'static> {
     this: Weak<Self>,
     backend: B,
     task_id_factory: IdFactoryWithReuse<TaskId>,
+    transient_task_id_factory: IdFactoryWithReuse<TaskId>,
     execution_id_factory: IdFactory<ExecutionId>,
     stopped: AtomicBool,
     currently_scheduled_tasks: AtomicUsize,
@@ -326,11 +294,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
     // so we probably want to make sure that all tasks are joined
     // when trying to drop turbo tasks
     pub fn new(backend: B) -> Arc<Self> {
-        let task_id_factory = IdFactoryWithReuse::new();
+        let task_id_factory =
+            IdFactoryWithReuse::new_with_range(1, (TRANSIENT_TASK_BIT - 1) as u64);
+        let transient_task_id_factory =
+            IdFactoryWithReuse::new_with_range(TRANSIENT_TASK_BIT as u64, u32::MAX as u64);
         let this = Arc::new_cyclic(|this| Self {
             this: this.clone(),
             backend,
             task_id_factory,
+            transient_task_id_factory,
             execution_id_factory: IdFactory::new(),
             stopped: AtomicBool::new(false),
             currently_scheduled_tasks: AtomicUsize::new(0),
@@ -1137,6 +1109,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
     fn backend(&self) -> &B {
         &self.backend
     }
+
     #[track_caller]
     fn schedule_backend_background_job(&self, id: BackendJobId) {
         self.schedule_background_job(move |this| async move {
@@ -1224,16 +1197,23 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
     fn program_duration_until(&self, instant: Instant) -> Duration {
         instant - self.program_start
     }
-}
 
-impl<B: Backend + 'static> TaskIdProvider for TurboTasks<B> {
-    fn get_fresh_task_id(&self) -> Unused<TaskId> {
-        // Safety: This is a fresh id from the factory
+    fn get_fresh_persistent_task_id(&self) -> Unused<TaskId> {
+        // SAFETY: This is a fresh id from the factory
         unsafe { Unused::new_unchecked(self.task_id_factory.get()) }
     }
 
-    fn reuse_task_id(&self, id: Unused<TaskId>) {
+    fn get_fresh_transient_task_id(&self) -> Unused<TaskId> {
+        // SAFETY: This is a fresh id from the factory
+        unsafe { Unused::new_unchecked(self.transient_task_id_factory.get()) }
+    }
+
+    unsafe fn reuse_persistent_task_id(&self, id: Unused<TaskId>) {
         unsafe { self.task_id_factory.reuse(id.into()) }
+    }
+
+    unsafe fn reuse_transient_task_id(&self, id: Unused<TaskId>) {
+        unsafe { self.transient_task_id_factory.reuse(id.into()) }
     }
 }
 
