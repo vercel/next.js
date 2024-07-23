@@ -12,13 +12,14 @@ import {
   PAGES_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../shared/lib/constants'
+import { getNextPublicEnvironmentVariables } from '../webpack/plugins/define-env-plugin'
 
 export function generateShuttleManifest(config: NextConfigComplete) {
   // NEXT_PUBLIC_ changes for now since they are inlined
   // and specific next config values that can impact the build
   const globalHash = crypto.createHash('sha256')
 
-  for (const key in process.env) {
+  for (const key in getNextPublicEnvironmentVariables()) {
     if (key.startsWith('NEXT_PUBLIC_')) {
       globalHash.update(`${key}=${process.env[key]}`)
     }
