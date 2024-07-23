@@ -9,6 +9,7 @@ const isSupportedMethod = (value: string) => value === 'get'
 const isSupportedTarget = (value: string) => value === '_self'
 
 type HTMLFormProps = HTMLProps<HTMLFormElement>
+
 export type FormProps = Omit<HTMLFormProps, 'action'> &
   Required<Pick<HTMLFormProps, 'action'>> & { replace?: boolean }
 
@@ -45,19 +46,30 @@ export default function Form({ replace, ...props }: FormProps) {
     let action = actionProp
 
     if (submitter) {
-      if (submitterHasUnsupportedProperty(submitter)) {
+      if (process.env.NODE_ENV === 'development') {
+        // the way server actions are encoded (e.g. `formMethod="post")
+        // causes some unnecessary dev-mode warnings from `hasUnsupportedSubmitterAttributes`.
+        // we'd bail out anyway, but we just do it silently.
+        if (hasReactServerActionAttributes(submitter)) {
+          return
+        }
+      }
+
+      if (hasUnsupportedSubmitterAttributes(submitter)) {
+        return
+      }
+
+      // client actions have `formAction="javascript:..."`. We obviously can't prefetch/navigate to that.
+      if (hasReactClientActionAttributes(submitter)) {
         return
       }
 
       // If the submitter specified an alternate formAction,
       // use that URL instead -- this is what a native form would do.
-      // TODO: ...but what if the formAction is a server action? will that still have a string prop after hydration?
       // NOTE: `submitter.formAction` is unreliable, because it will give us `location.href` if it *wasn't* set
       const submitterFormAction = submitter.getAttribute('formAction')
       if (submitterFormAction !== null) {
-        if (submitterFormAction !== action) {
-          action = submitterFormAction
-        }
+        action = submitterFormAction
       }
     }
 
@@ -109,7 +121,7 @@ export default function Form({ replace, ...props }: FormProps) {
   return <form {...props} onSubmit={onSubmit} />
 }
 
-function submitterHasUnsupportedProperty(submitter: HTMLElement): boolean {
+function hasUnsupportedSubmitterAttributes(submitter: HTMLElement): boolean {
   // A submitter can override `encType` for the form.
   const formEncType = submitter.getAttribute('formEncType')
   if (formEncType !== null && !isSupportedEncType(formEncType)) {
@@ -144,4 +156,19 @@ function submitterHasUnsupportedProperty(submitter: HTMLElement): boolean {
   }
 
   return false
+}
+
+function hasReactServerActionAttributes(submitter: HTMLElement) {
+  // https://github.com/facebook/react/blob/942eb80381b96f8410eab1bef1c539bed1ab0eb1/packages/react-client/src/ReactFlightReplyClient.js#L931-L934
+  const name = submitter.getAttribute('name')
+  return (
+    name && (name.startsWith('$ACTION_ID_') || name.startsWith('$ACTION_REF_'))
+  )
+}
+
+function hasReactClientActionAttributes(submitter: HTMLElement) {
+  // CSR: https://github.com/facebook/react/blob/942eb80381b96f8410eab1bef1c539bed1ab0eb1/packages/react-dom-bindings/src/client/ReactDOMComponent.js#L482-L487
+  // SSR: https://github.com/facebook/react/blob/942eb80381b96f8410eab1bef1c539bed1ab0eb1/packages/react-dom-bindings/src/client/ReactDOMComponent.js#L2401
+  const action = submitter.getAttribute('formAction')
+  return action && /\s*javascript:/i.test(action)
 }

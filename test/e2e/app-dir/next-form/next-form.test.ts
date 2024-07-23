@@ -53,6 +53,8 @@ describe('app dir - form', () => {
     expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
   })
 
+  it.todo('should not warn for submitters using client/server actions')
+
   it.todo(
     'should handle submitter with unsupported form{EncType,Method,Target}'
   )
