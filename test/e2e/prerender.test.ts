@@ -957,21 +957,18 @@ describe('Prerender', () => {
       })
     })
 
-    if (!isDeploy) {
-      // relies on runtime logs, which aren't currently captured by `next.cliOutput` in deploys
-      it('should show warning when large amount of page data is returned', async () => {
-        await renderViaHTTP(next.url, '/large-page-data')
-        await check(
-          () => next.cliOutput,
-          /Warning: data for page "\/large-page-data" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
-        )
-        await renderViaHTTP(next.url, '/blocking-fallback/lots-of-data')
-        await check(
-          () => next.cliOutput,
-          /Warning: data for page "\/blocking-fallback\/\[slug\]" \(path "\/blocking-fallback\/lots-of-data"\) is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
-        )
-      })
-    }
+    it('should show warning when large amount of page data is returned', async () => {
+      await renderViaHTTP(next.url, '/large-page-data')
+      await check(
+        () => next.cliOutput,
+        /Warning: data for page "\/large-page-data" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+      )
+      await renderViaHTTP(next.url, '/blocking-fallback/lots-of-data')
+      await check(
+        () => next.cliOutput,
+        /Warning: data for page "\/blocking-fallback\/\[slug\]" \(path "\/blocking-fallback\/lots-of-data"\) is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+      )
+    })
 
     if ((global as any).isNextDev) {
       it('should show warning every time page with large amount of page data is returned', async () => {
@@ -1008,9 +1005,8 @@ describe('Prerender', () => {
 
     if ((global as any).isNextDev) {
       it('should not show warning from url prop being returned', async () => {
-        const urlPropPage = 'pages/url-prop.js'
         await next.patchFile(
-          urlPropPage,
+          'pages/url-prop.js',
           `
         export async function getStaticProps() {
           return {
@@ -1021,15 +1017,16 @@ describe('Prerender', () => {
         }
 
         export default ({ url }) => <p>url: {url}</p>
-      `
+      `,
+          async () =>
+            retry(async () => {
+              const html = await renderViaHTTP(next.url, '/url-prop')
+              expect(next.cliOutput).not.toMatch(
+                /The prop `url` is a reserved prop in Next.js for legacy reasons and will be overridden on page \/url-prop/
+              )
+              expect(html).toMatch(/url:.*?something/)
+            })
         )
-
-        const html = await renderViaHTTP(next.url, '/url-prop')
-        await next.deleteFile(urlPropPage)
-        expect(next.cliOutput).not.toMatch(
-          /The prop `url` is a reserved prop in Next.js for legacy reasons and will be overridden on page \/url-prop/
-        )
-        expect(html).toMatch(/url:.*?something/)
       })
 
       it('should always show fallback for page not in getStaticPaths', async () => {
@@ -1083,33 +1080,30 @@ describe('Prerender', () => {
       })
 
       it('should log error in console and browser in development mode', async () => {
-        const indexPage = 'pages/index.js'
-        const origContent = await next.readFile(indexPage)
-
         const browser = await webdriver(next.url, '/')
         expect(await browser.elementByCss('p').text()).toMatch(/hello.*?world/)
 
         await next.patchFile(
-          indexPage,
-          origContent
-            .replace('// throw new', 'throw new')
-            .replace('{/* <div', '<div')
-            .replace('</div> */}', '</div>')
+          'pages/index.js',
+          (content) =>
+            content
+              .replace('// throw new', 'throw new')
+              .replace('{/* <div', '<div')
+              .replace('</div> */}', '</div>'),
+          async () => {
+            await browser.waitForElementByCss('#after-change')
+            // we need to reload the page to trigger getStaticProps
+            await browser.refresh()
+
+            return retry(async () => {
+              await assertHasRedbox(browser)
+              const errOverlayContent = await getRedboxHeader(browser)
+              const errorMsg = /oops from getStaticProps/
+              expect(next.cliOutput).toMatch(errorMsg)
+              expect(errOverlayContent).toMatch(errorMsg)
+            })
+          }
         )
-
-        try {
-          await browser.waitForElementByCss('#after-change')
-          // we need to reload the page to trigger getStaticProps
-          await browser.refresh()
-
-          await assertHasRedbox(browser)
-          const errOverlayContent = await getRedboxHeader(browser)
-          const errorMsg = /oops from getStaticProps/
-          expect(next.cliOutput).toMatch(errorMsg)
-          expect(errOverlayContent).toMatch(errorMsg)
-        } finally {
-          await next.patchFile(indexPage, origContent)
-        }
       })
 
       it('should always call getStaticProps without caching in dev', async () => {
@@ -1136,25 +1130,20 @@ describe('Prerender', () => {
       })
 
       it('should error on bad object from getStaticProps', async () => {
-        const indexPage = 'pages/index.js'
-        const origContent = await next.readFile(indexPage)
         await next.patchFile(
-          indexPage,
-          origContent.replace(/\/\/ bad-prop/, 'another: true,')
+          'pages/index.js',
+          (content) => content.replace(/\/\/ bad-prop/, 'another: true,'),
+          async () =>
+            retry(async () => {
+              const html = await renderViaHTTP(next.url, '/')
+              expect(html).toMatch(/Additional keys were returned/)
+            })
         )
-        await waitFor(1000)
-        try {
-          const html = await renderViaHTTP(next.url, '/')
-          expect(html).toMatch(/Additional keys were returned/)
-        } finally {
-          await next.patchFile(indexPage, origContent)
-        }
       })
 
       it('should error on dynamic page without getStaticPaths', async () => {
-        const curPage = 'pages/temp/[slug].js'
         await next.patchFile(
-          curPage,
+          'pages/temp/[slug].js',
           `
           export async function getStaticProps() {
             return {
@@ -1164,23 +1153,20 @@ describe('Prerender', () => {
             }
           }
           export default () => 'oops'
-        `
+        `,
+          async () =>
+            retry(async () => {
+              const html = await renderViaHTTP(next.url, '/temp/hello')
+              expect(html).toMatch(
+                /getStaticPaths is required for dynamic SSG pages and is missing for/
+              )
+            })
         )
-        await waitFor(1000)
-        try {
-          const html = await renderViaHTTP(next.url, '/temp/hello')
-          expect(html).toMatch(
-            /getStaticPaths is required for dynamic SSG pages and is missing for/
-          )
-        } finally {
-          await next.deleteFile(curPage)
-        }
       })
 
       it('should error on dynamic page without getStaticPaths returning fallback property', async () => {
-        const curPage = 'pages/temp2/[slug].js'
         await next.patchFile(
-          curPage,
+          'pages/temp2/[slug].js',
           `
           export async function getStaticPaths() {
             return {
@@ -1195,15 +1181,13 @@ describe('Prerender', () => {
             }
           }
           export default () => 'oops'
-        `
+        `,
+          async () =>
+            retry(async () => {
+              const html = await renderViaHTTP(next.url, '/temp2/hello')
+              expect(html).toMatch(/`fallback` key must be returned from/)
+            })
         )
-        await waitFor(1000)
-        try {
-          const html = await renderViaHTTP(next.url, '/temp2/hello')
-          expect(html).toMatch(/`fallback` key must be returned from/)
-        } finally {
-          await next.deleteFile(curPage)
-        }
       })
 
       it('should not re-call getStaticProps when updating query', async () => {
@@ -2199,26 +2183,23 @@ describe('Prerender', () => {
 
     if (!isDev && !isDeploy) {
       it('should automatically reset cache TTL when an error occurs and build cache was available', async () => {
-        await next.patchFile('error.txt', 'yes')
-        await waitFor(2000)
+        await next.patchFile('error.txt', 'yes', async () => {
+          await waitFor(2000)
 
-        for (let i = 0; i < 5; i++) {
-          const res = await fetchViaHTTP(
-            next.url,
-            '/blocking-fallback/test-errors-1'
-          )
-          expect(res.status).toBe(200)
-        }
-        await next.deleteFile('error.txt')
-        await check(
-          () =>
-            next.cliOutput.match(
+          for (let i = 0; i < 5; i++) {
+            const res = await fetchViaHTTP(
+              next.url,
+              '/blocking-fallback/test-errors-1'
+            )
+            expect(res.status).toBe(200)
+          }
+
+          return retry(async () => {
+            expect(next.cliOutput).toMatch(
               /throwing error for \/blocking-fallback\/test-errors-1/
-            ).length === 1
-              ? 'success'
-              : next.cliOutput,
-          'success'
-        )
+            )
+          })
+        })
       })
 
       it('should automatically reset cache TTL when an error occurs and runtime cache was available', async () => {
@@ -2229,26 +2210,22 @@ describe('Prerender', () => {
 
         expect(res.status).toBe(200)
         await waitFor(2000)
-        await next.patchFile('error.txt', 'yes')
 
-        for (let i = 0; i < 5; i++) {
-          const res = await fetchViaHTTP(
-            next.url,
-            '/blocking-fallback/test-errors-2'
-          )
-          expect(res.status).toBe(200)
-        }
-        await next.deleteFile('error.txt')
+        await next.patchFile('error.txt', 'yes', async () => {
+          for (let i = 0; i < 5; i++) {
+            const res = await fetchViaHTTP(
+              next.url,
+              '/blocking-fallback/test-errors-2'
+            )
+            expect(res.status).toBe(200)
+          }
 
-        await check(
-          () =>
-            next.cliOutput.match(
+          return retry(async () => {
+            expect(next.cliOutput).toMatch(
               /throwing error for \/blocking-fallback\/test-errors-2/
-            ).length === 1
-              ? 'success'
-              : next.cliOutput,
-          'success'
-        )
+            )
+          })
+        })
       })
 
       it('should not on-demand revalidate for fallback: blocking with onlyGenerated if not generated', async () => {
@@ -2294,15 +2271,17 @@ describe('Prerender', () => {
         expect($('p').text()).toMatch(/Post:.*?test-if-generated-2/)
         expect(res.headers.get('x-nextjs-cache')).toMatch(/MISS/)
 
-        const res2 = await fetchViaHTTP(
-          next.url,
-          '/blocking-fallback/test-if-generated-2'
-        )
-        const html2 = await res2.text()
-        const $2 = cheerio.load(html2)
+        await retry(async () => {
+          const res2 = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-if-generated-2'
+          )
+          const html2 = await res2.text()
+          const $2 = cheerio.load(html2)
 
-        expect(initialTime).toBe($2('#time').text())
-        expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
+          expect(initialTime).toBe($2('#time').text())
+          expect(res2.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
+        })
 
         const res3 = await fetchViaHTTP(
           next.url,
@@ -2318,14 +2297,16 @@ describe('Prerender', () => {
         const revalidateData = await res3.json()
         expect(revalidateData.revalidated).toBe(true)
 
-        const res4 = await fetchViaHTTP(
-          next.url,
-          '/blocking-fallback/test-if-generated-2'
-        )
-        const html4 = await res4.text()
-        const $4 = cheerio.load(html4)
-        expect($4('#time').text()).not.toBe(initialTime)
-        expect(res4.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
+        await retry(async () => {
+          const res4 = await fetchViaHTTP(
+            next.url,
+            '/blocking-fallback/test-if-generated-2'
+          )
+          const html4 = await res4.text()
+          const $4 = cheerio.load(html4)
+          expect($4('#time').text()).not.toBe(initialTime)
+          expect(res4.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
+        })
       })
 
       it('should on-demand revalidate for revalidate: false', async () => {

@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ant-design/cssinjs": "^1.16.1",
+    "@ant-design/cssinjs": ">=1.21.0",
     "@ant-design/icons": "^5.1.4",
     "antd": "^5.0.0",
     "next": "latest",

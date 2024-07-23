@@ -235,12 +235,13 @@ describe('app-dir - logging', () => {
           await next.patchFile(
             'app/default-cache/page.js',
             (content) => content.replace('Default Cache', 'Hello!'),
-            async () => {
-              headline = await browser.waitForElementByCss('h1').text()
-              expect(headline).toBe('Hello!')
-              const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-              expect(logs).not.toInclude(` │ GET `)
-            }
+            async () =>
+              retry(async () => {
+                headline = await browser.waitForElementByCss('h1').text()
+                expect(headline).toBe('Hello!')
+                const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+                expect(logs).not.toInclude(` │ GET `)
+              })
           )
         })
       }

@@ -17,39 +17,21 @@ export const hydrationErrorState: HydrationErrorState = {}
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 const htmlTagsWarnings = new Set([
-  'Warning: In HTML, %s cannot be a child of <%s>.%s\nThis will cause a hydration error.%s',
-  'Warning: In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s',
-  'Warning: In HTML, text nodes cannot be a child of <%s>.\nThis will cause a hydration error.',
-  "Warning: In HTML, whitespace text nodes cannot be a child of <%s>. Make sure you don't have any extra whitespace between tags on each line of your source code.\nThis will cause a hydration error.",
-  'Warning: Expected server HTML to contain a matching <%s> in <%s>.%s',
-  'Warning: Did not expect server HTML to contain a <%s> in <%s>.%s',
+  'In HTML, %s cannot be a child of <%s>.%s\nThis will cause a hydration error.%s',
+  'In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s',
+  'In HTML, text nodes cannot be a child of <%s>.\nThis will cause a hydration error.',
+  "In HTML, whitespace text nodes cannot be a child of <%s>. Make sure you don't have any extra whitespace between tags on each line of your source code.\nThis will cause a hydration error.",
 ])
-const textAndTagsMismatchWarnings = new Set([
-  'Warning: Expected server HTML to contain a matching text node for "%s" in <%s>.%s',
-  'Warning: Did not expect server HTML to contain the text node "%s" in <%s>.%s',
-])
-const textMismatchWarning =
-  'Warning: Text content did not match. Server: "%s" Client: "%s"%s'
 
-export const getHydrationWarningType = (
-  msg: NullableText
-): 'tag' | 'text' | 'text-in-tag' => {
+export const getHydrationWarningType = (msg: NullableText): 'tag' | 'text' => {
   if (isHtmlTagsWarning(msg)) return 'tag'
-  if (isTextInTagsMismatchWarning(msg)) return 'text-in-tag'
   return 'text'
 }
 
 const isHtmlTagsWarning = (msg: NullableText) =>
   Boolean(msg && htmlTagsWarnings.has(msg))
 
-const isTextMismatchWarning = (msg: NullableText) => textMismatchWarning === msg
-const isTextInTagsMismatchWarning = (msg: NullableText) =>
-  Boolean(msg && textAndTagsMismatchWarnings.has(msg))
-
-const isKnownHydrationWarning = (msg: NullableText) =>
-  isHtmlTagsWarning(msg) ||
-  isTextInTagsMismatchWarning(msg) ||
-  isTextMismatchWarning(msg)
+const isKnownHydrationWarning = (msg: NullableText) => isHtmlTagsWarning(msg)
 
 export const getReactHydrationDiffSegments = (msg: NullableText) => {
   if (msg) {
