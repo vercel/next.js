@@ -571,6 +571,90 @@ describe('config telemetry', () => {
           invocationCount: 1,
         })
       })
+
+      it('emits telemetry for default React Compiler options', async () => {
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          env: { NEXT_TELEMETRY_DEBUG: 1 },
+        })
+
+        try {
+          const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+            .exec(stderr)
+            .pop()
+
+          expect(event).toMatch(/"reactCompiler": false/)
+          expect(event).toMatch(/"reactCompilerCompilationMode": null/)
+          expect(event).toMatch(/"reactCompilerPanicThreshold": null/)
+        } catch (err) {
+          require('console').error('failing stderr', stderr, err)
+          throw err
+        }
+      })
+
+      it('emits telemetry for enabled React Compiler', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.reactCompiler-base'),
+          path.join(appDir, 'next.config.js')
+        )
+
+        let stderr
+        try {
+          const app = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+          stderr = app.stderr
+          const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+            .exec(stderr)
+            .pop()
+
+          expect(event).toMatch(/"reactCompiler": true/)
+          expect(event).toMatch(/"reactCompilerCompilationMode": null/)
+          expect(event).toMatch(/"reactCompilerPanicThreshold": null/)
+        } catch (err) {
+          require('console').error('failing stderr', stderr, err)
+          throw err
+        } finally {
+          await fs.rename(
+            path.join(appDir, 'next.config.js'),
+            path.join(appDir, 'next.config.reactCompiler-base')
+          )
+        }
+      })
+
+      it('emits telemetry for configured React Compiler options', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.reactCompiler-options'),
+          path.join(appDir, 'next.config.js')
+        )
+
+        let stderr
+        try {
+          const app = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+          stderr = app.stderr
+          const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+            .exec(stderr)
+            .pop()
+
+          expect(event).toMatch(/"reactCompiler": true/)
+          expect(event).toMatch(/"reactCompilerCompilationMode": "annotation"/)
+          expect(event).toMatch(
+            /"reactCompilerPanicThreshold": "CRITICAL_ERRORS"/
+          )
+        } catch (err) {
+          require('console').error('failing stderr', stderr, err)
+          throw err
+        } finally {
+          await fs.rename(
+            path.join(appDir, 'next.config.js'),
+            path.join(appDir, 'next.config.reactCompiler-options')
+          )
+        }
+      })
     }
   )
 })
