@@ -2484,6 +2484,7 @@ export default async function build(
           console.log('stitching builds...')
           const stitchResult = await stitchBuilds(
             {
+              config,
               buildId,
               distDir,
               shuttleDir,

@@ -13,10 +13,12 @@ import {
   ROUTES_MANIFEST,
 } from '../../shared/lib/constants'
 
-export function getShuttleManifest(config: NextConfigComplete) {
+export function generateShuttleManifest(config: NextConfigComplete) {
+  // NEXT_PUBLIC_ changes for now since they are inlined
+  // and specific next config values that can impact the build
   const globalHash = crypto.createHash('sha256')
 
-  for (const key of Object.keys(process.env || {})) {
+  for (const key in process.env) {
     if (key.startsWith('NEXT_PUBLIC_')) {
       globalHash.update(`${key}=${process.env[key]}`)
     }
@@ -24,7 +26,7 @@ export function getShuttleManifest(config: NextConfigComplete) {
 
   const omittedConfigKeys = ['headers', 'rewrites', 'redirects']
 
-  for (const key of Object.keys(config)) {
+  for (const key in config) {
     if (omittedConfigKeys.includes(key)) {
       continue
     }
@@ -38,7 +40,6 @@ export function getShuttleManifest(config: NextConfigComplete) {
 
   return {
     nextVersion,
-    // NEXT_PUBLIC_ changes for now and specific next config values
     globalHash: globalHash.digest('hex'),
   }
 }
@@ -57,7 +58,7 @@ export async function storeShuttle({
   await fs.promises.rm(shuttleDir, { force: true, recursive: true })
   await fs.promises.mkdir(shuttleDir, { recursive: true })
 
-  const shuttleManifest = getShuttleManifest(config)
+  const shuttleManifest = generateShuttleManifest(config)
   await fs.promises.writeFile(
     path.join(shuttleDir, 'shuttle-manifest.json'),
     JSON.stringify(shuttleManifest)
