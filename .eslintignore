@@ -34,7 +34,7 @@ test/production/emit-decorator-metadata/**/*.js
 !test/**/*.test.*
 test/e2e/app-dir/rsc-errors/app/swc/use-client/page.js
 test-timings.json
-packages/next-swc/crates/**
+crates/**
 bench/nested-deps/**
 bench/nested-deps-app-router/**
 bench/heavy-npm-deps/**

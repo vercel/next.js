@@ -123,6 +123,16 @@ function murmurhash3_32_gc(key, seed) {
     4294967295;
   return (h1 ^ (h1 >>> 16)) >>> 0;
 }
+var channel = new MessageChannel(),
+  taskQueue = [];
+channel.port1.onmessage = function () {
+  var task = taskQueue.shift();
+  task && task();
+};
+function scheduleWork(callback) {
+  taskQueue.push(callback);
+  channel.port2.postMessage(null);
+}
 var currentView = null,
   writtenBytes = 0;
 function writeChunk(destination, chunk) {
@@ -3665,7 +3675,7 @@ function defaultErrorHandler(error) {
   return null;
 }
 function noop() {}
-function createRequest(
+function RequestInstance(
   children,
   resumableState,
   renderState,
@@ -3681,50 +3691,46 @@ function createRequest(
 ) {
   var pingedTasks = [],
     abortSet = new Set();
-  resumableState = {
-    destination: null,
-    flushScheduled: !1,
-    resumableState: resumableState,
-    renderState: renderState,
-    rootFormatContext: rootFormatContext,
-    progressiveChunkSize:
-      void 0 === progressiveChunkSize ? 12800 : progressiveChunkSize,
-    status: 0,
-    fatalError: null,
-    nextSegmentId: 0,
-    allPendingTasks: 0,
-    pendingRootTasks: 0,
-    completedRootSegment: null,
-    abortableTasks: abortSet,
-    pingedTasks: pingedTasks,
-    clientRenderedBoundaries: [],
-    completedBoundaries: [],
-    partialBoundaries: [],
-    trackedPostpones: null,
-    onError: void 0 === onError ? defaultErrorHandler : onError,
-    onPostpone: void 0 === onPostpone ? noop : onPostpone,
-    onAllReady: void 0 === onAllReady ? noop : onAllReady,
-    onShellReady: void 0 === onShellReady ? noop : onShellReady,
-    onShellError: void 0 === onShellError ? noop : onShellError,
-    onFatalError: void 0 === onFatalError ? noop : onFatalError,
-    formState: void 0 === formState ? null : formState
-  };
-  renderState = createPendingSegment(
-    resumableState,
+  this.destination = null;
+  this.flushScheduled = !1;
+  this.resumableState = resumableState;
+  this.renderState = renderState;
+  this.rootFormatContext = rootFormatContext;
+  this.progressiveChunkSize =
+    void 0 === progressiveChunkSize ? 12800 : progressiveChunkSize;
+  this.status = 0;
+  this.fatalError = null;
+  this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
+  this.completedRootSegment = null;
+  this.abortableTasks = abortSet;
+  this.pingedTasks = pingedTasks;
+  this.clientRenderedBoundaries = [];
+  this.completedBoundaries = [];
+  this.partialBoundaries = [];
+  this.trackedPostpones = null;
+  this.onError = void 0 === onError ? defaultErrorHandler : onError;
+  this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
+  this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
+  this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
+  this.onShellError = void 0 === onShellError ? noop : onShellError;
+  this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
+  this.formState = void 0 === formState ? null : formState;
+  resumableState = createPendingSegment(
+    this,
     0,
     null,
     rootFormatContext,
     !1,
     !1
   );
-  renderState.parentFlushed = !0;
+  resumableState.parentFlushed = !0;
   children = createRenderTask(
-    resumableState,
+    this,
     null,
     children,
     -1,
     null,
-    renderState,
+    resumableState,
     null,
     abortSet,
     null,
@@ -3736,14 +3742,44 @@ function createRequest(
     !1
   );
   pingedTasks.push(children);
-  return resumableState;
+}
+function createRequest(
+  children,
+  resumableState,
+  renderState,
+  rootFormatContext,
+  progressiveChunkSize,
+  onError,
+  onAllReady,
+  onShellReady,
+  onShellError,
+  onFatalError,
+  onPostpone,
+  formState
+) {
+  return new RequestInstance(
+    children,
+    resumableState,
+    renderState,
+    rootFormatContext,
+    progressiveChunkSize,
+    onError,
+    onAllReady,
+    onShellReady,
+    onShellError,
+    onFatalError,
+    onPostpone,
+    formState
+  );
 }
 var currentRequest = null;
 function pingTask(request, task) {
   request.pingedTasks.push(task);
   1 === request.pingedTasks.length &&
     ((request.flushScheduled = null !== request.destination),
-    performWork(request));
+    scheduleWork(function () {
+      return performWork(request);
+    }));
 }
 function createSuspenseBoundary(request, fallbackAbortableTasks) {
   return {
@@ -5685,18 +5721,27 @@ function flushCompletedQueues(request, destination) {
       : completeWriting(destination);
   }
 }
+function startWork(request) {
+  request.flushScheduled = null !== request.destination;
+  scheduleWork(function () {
+    return performWork(request);
+  });
+  null === request.trackedPostpones &&
+    scheduleWork(function () {
+      safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
+    });
+}
 function enqueueFlush(request) {
-  if (
-    !1 === request.flushScheduled &&
+  !1 === request.flushScheduled &&
     0 === request.pingedTasks.length &&
-    null !== request.destination
-  ) {
-    request.flushScheduled = !0;
-    var destination = request.destination;
-    destination
-      ? flushCompletedQueues(request, destination)
-      : (request.flushScheduled = !1);
-  }
+    null !== request.destination &&
+    ((request.flushScheduled = !0),
+    scheduleWork(function () {
+      var destination = request.destination;
+      destination
+        ? flushCompletedQueues(request, destination)
+        : (request.flushScheduled = !1);
+    }));
 }
 function abort(request, reason) {
   try {
@@ -5715,16 +5760,16 @@ function abort(request, reason) {
     logRecoverableError(request, error$46, {}), fatalError(request, error$46);
   }
 }
-var isomorphicReactPackageVersion$jscomp$inline_728 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_720 = React.version;
 if (
-  "19.0.0-rc-6230622a1a-20240610" !==
-  isomorphicReactPackageVersion$jscomp$inline_728
+  "19.0.0-rc-dfd30974ab-20240613" !==
+  isomorphicReactPackageVersion$jscomp$inline_720
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_728,
-      "19.0.0-rc-6230622a1a-20240610"
+      isomorphicReactPackageVersion$jscomp$inline_720,
+      "19.0.0-rc-dfd30974ab-20240613"
     )
   );
 exports.renderToReadableStream = function (children, options) {
@@ -5810,10 +5855,7 @@ exports.renderToReadableStream = function (children, options) {
         signal.addEventListener("abort", listener);
       }
     }
-    request.flushScheduled = null !== request.destination;
-    performWork(request);
-    null === request.trackedPostpones &&
-      safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
+    startWork(request);
   });
 };
-exports.version = "19.0.0-rc-6230622a1a-20240610";
+exports.version = "19.0.0-rc-dfd30974ab-20240613";

@@ -3410,6 +3410,74 @@ function defaultErrorHandler(error) {
   return null;
 }
 function noop() {}
+function RequestInstance(
+  children,
+  resumableState,
+  renderState,
+  rootFormatContext,
+  progressiveChunkSize,
+  onError,
+  onAllReady,
+  onShellReady,
+  onShellError,
+  onFatalError,
+  onPostpone,
+  formState
+) {
+  var pingedTasks = [],
+    abortSet = new Set();
+  this.destination = null;
+  this.flushScheduled = !1;
+  this.resumableState = resumableState;
+  this.renderState = renderState;
+  this.rootFormatContext = rootFormatContext;
+  this.progressiveChunkSize =
+    void 0 === progressiveChunkSize ? 12800 : progressiveChunkSize;
+  this.status = 0;
+  this.fatalError = null;
+  this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
+  this.completedRootSegment = null;
+  this.abortableTasks = abortSet;
+  this.pingedTasks = pingedTasks;
+  this.clientRenderedBoundaries = [];
+  this.completedBoundaries = [];
+  this.partialBoundaries = [];
+  this.trackedPostpones = null;
+  this.onError = void 0 === onError ? defaultErrorHandler : onError;
+  this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
+  this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
+  this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
+  this.onShellError = void 0 === onShellError ? noop : onShellError;
+  this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
+  this.formState = void 0 === formState ? null : formState;
+  resumableState = createPendingSegment(
+    this,
+    0,
+    null,
+    rootFormatContext,
+    !1,
+    !1
+  );
+  resumableState.parentFlushed = !0;
+  children = createRenderTask(
+    this,
+    null,
+    children,
+    -1,
+    null,
+    resumableState,
+    null,
+    abortSet,
+    null,
+    rootFormatContext,
+    emptyContextObject,
+    null,
+    emptyTreeContext,
+    null,
+    !1
+  );
+  pingedTasks.push(children);
+}
 var currentRequest = null;
 function resolveRequest() {
   if (currentRequest) return currentRequest;
@@ -5456,13 +5524,13 @@ function abort(request, reason) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_751 = React.version;
 if (
-  "19.0.0-rc-6230622a1a-20240610" !==
+  "19.0.0-rc-dfd30974ab-20240613" !==
   isomorphicReactPackageVersion$jscomp$inline_751
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_751 +
-        "\n  - react-dom:  19.0.0-rc-6230622a1a-20240610\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.0.0-rc-dfd30974ab-20240613\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 function createDrainHandler(destination, request) {
   return function () {
@@ -5683,72 +5751,20 @@ function createRequestImpl(children, options) {
     null,
     0
   );
-  bootstrapModules = options ? options.progressiveChunkSize : void 0;
-  bootstrapScripts = options ? options.onError : void 0;
-  inlineScriptWithNonce = options ? options.onAllReady : void 0;
-  idPrefix = options ? options.onShellReady : void 0;
-  importMap = options ? options.onShellError : void 0;
-  maxHeadersLength = options ? options.onPostpone : void 0;
-  bootstrapScriptContent = options ? options.formState : void 0;
-  options = [];
-  bootstrapChunks = new Set();
-  JSCompiler_inline_result = {
-    destination: null,
-    flushScheduled: !1,
-    resumableState: JSCompiler_inline_result,
-    renderState: onHeaders,
-    rootFormatContext: nonce,
-    progressiveChunkSize:
-      void 0 === bootstrapModules ? 12800 : bootstrapModules,
-    status: 0,
-    fatalError: null,
-    nextSegmentId: 0,
-    allPendingTasks: 0,
-    pendingRootTasks: 0,
-    completedRootSegment: null,
-    abortableTasks: bootstrapChunks,
-    pingedTasks: options,
-    clientRenderedBoundaries: [],
-    completedBoundaries: [],
-    partialBoundaries: [],
-    trackedPostpones: null,
-    onError:
-      void 0 === bootstrapScripts ? defaultErrorHandler : bootstrapScripts,
-    onPostpone: void 0 === maxHeadersLength ? noop : maxHeadersLength,
-    onAllReady: void 0 === inlineScriptWithNonce ? noop : inlineScriptWithNonce,
-    onShellReady: void 0 === idPrefix ? noop : idPrefix,
-    onShellError: void 0 === importMap ? noop : importMap,
-    onFatalError: noop,
-    formState: void 0 === bootstrapScriptContent ? null : bootstrapScriptContent
-  };
-  onHeaders = createPendingSegment(
-    JSCompiler_inline_result,
-    0,
-    null,
-    nonce,
-    !1,
-    !1
-  );
-  onHeaders.parentFlushed = !0;
-  children = createRenderTask(
-    JSCompiler_inline_result,
-    null,
+  return new RequestInstance(
     children,
-    -1,
-    null,
+    JSCompiler_inline_result,
     onHeaders,
-    null,
-    bootstrapChunks,
-    null,
     nonce,
-    emptyContextObject,
-    null,
-    emptyTreeContext,
-    null,
-    !1
+    options ? options.progressiveChunkSize : void 0,
+    options ? options.onError : void 0,
+    options ? options.onAllReady : void 0,
+    options ? options.onShellReady : void 0,
+    options ? options.onShellError : void 0,
+    void 0,
+    options ? options.onPostpone : void 0,
+    options ? options.formState : void 0
   );
-  options.push(children);
-  return JSCompiler_inline_result;
 }
 exports.renderToPipeableStream = function (children, options) {
   var request = createRequestImpl(children, options),
@@ -5789,4 +5805,4 @@ exports.renderToPipeableStream = function (children, options) {
     }
   };
 };
-exports.version = "19.0.0-rc-6230622a1a-20240610";
+exports.version = "19.0.0-rc-dfd30974ab-20240613";

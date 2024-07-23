@@ -20,7 +20,6 @@ import {
   SUBRESOURCE_INTEGRITY_MANIFEST,
   NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
-  PRERENDER_MANIFEST,
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
 } from '../../../shared/lib/constants'
 import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
@@ -136,10 +135,6 @@ function getEntryFiles(
 
   if (hasInstrumentationHook) {
     files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
-  }
-
-  if (process.env.NODE_ENV === 'production') {
-    files.push(PRERENDER_MANIFEST.replace('json', 'js'))
   }
 
   files.push(
