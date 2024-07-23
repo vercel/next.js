@@ -137,7 +137,6 @@ async function createNextInstall({
           {
             ...packageJson,
             dependencies: combinedDependencies,
-            overrides: combinedDependencies,
             private: true,
             // Add resolutions if provided.
             ...(resolutions ? { resolutions } : {}),
