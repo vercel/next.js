@@ -97,6 +97,16 @@ fetch(`https://...`, { next: { tags: ['collection'] } })
 
 Set the cache tags of a resource. Data can then be revalidated on-demand using [`revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag). The max length for a custom tag is 256 characters and the max tag items is 64.
 
+## Troubleshooting
+
+## Fetch `cache: 'no-store'` not showing fresh data in development
+
+Next.js caches `fetch` responses in Server Components across Hot Module Replacement (HMR) in local development for faster responses and to reduce costs for billed API calls.
+
+By default, the [HMR cache](/docs/app/api-reference/next-config-js/servercomponentshmrcache) applies to all fetch requests, including those with the `cache: 'no-store'` option. This means uncached requests will not show fresh data between HMR refreshes. However, the cache will be cleared on navigation or full-page reloads.
+
+See the [`serverComponentsHmrCache`](/docs/app/api-reference/next-config-js/servercomponentshmrcache) docs for more.
+
 ## Version History
 
 | Version   | Changes                                                                 |
