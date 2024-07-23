@@ -3,14 +3,27 @@
 import { useEffect, type HTMLProps, type FormEvent } from 'react'
 import { useRouter } from './components/navigation'
 
+const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
+
 type HTMLFormProps = HTMLProps<HTMLFormElement>
-type DisallowedFormProps = 'method' | 'encType' | 'target'
+type DisallowedFormProps = (typeof DISALLOWED_FORM_PROPS)[number]
 
 export type FormProps = Omit<HTMLFormProps, 'action' | DisallowedFormProps> &
   Required<Pick<HTMLFormProps, 'action'>> & { replace?: boolean }
 
 export default function Form({ replace, ...props }: FormProps) {
+  for (const key of DISALLOWED_FORM_PROPS) {
+    if (key in props) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error(
+          `<Form> received an unsupported prop '${key}'. If you need this, use a native <form> instead.`
+        )
+      }
+      delete (props as Record<string, unknown>)[key]
+    }
+  }
   const actionProp = props.action
+
   const router = useRouter()
 
   useEffect(() => {
