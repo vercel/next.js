@@ -897,7 +897,7 @@ export default async function build(
           : []),
       ]
 
-      const rootPaths = (await getFilesInDir(rootDir))
+      const rootPaths = Array.from(await getFilesInDir(rootDir))
         .filter((file) => includes.some((include) => include.test(file)))
         .sort(sortByPageExts(config.pageExtensions))
         .map((file) => path.join(rootDir, file).replace(dir, ''))
