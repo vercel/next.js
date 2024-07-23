@@ -69,9 +69,8 @@ class NextRootCommand extends Command {
         }
       }
 
-      // @ts-ignore not readonly
-      process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
-      process.env.NEXT_RUNTIME = 'nodejs'
+      ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
+      ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
       if (event.getOptionValue('inspect') === true) {
         console.error(
