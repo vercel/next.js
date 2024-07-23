@@ -4,7 +4,7 @@ use swc_core::{
     ecma::{
         ast::{
             CallExpr, Callee, Expr, FnDecl, FnExpr, KeyValueProp, MemberProp, ObjectLit,
-            PropOrSpread,
+            PropOrSpread, VarDeclarator,
         },
         utils::ExprFactory,
         visit::{as_folder, Fold, VisitMut, VisitMutWith},
@@ -19,19 +19,16 @@ pub fn debug_fn_name() -> impl VisitMut + Fold {
 struct DebugFnName {
     path: Vec<String>,
     in_target: bool,
+    in_var_target: bool,
 }
 
 impl VisitMut for DebugFnName {
-    fn visit_mut_fn_decl(&mut self, n: &mut FnDecl) {
-        let orig_len = self.path.len();
-        self.path.push(n.ident.sym.to_string());
-
-        n.visit_mut_children_with(self);
-
-        self.path.truncate(orig_len);
-    }
-
     fn visit_mut_call_expr(&mut self, n: &mut CallExpr) {
+        if self.in_var_target {
+            n.visit_mut_children_with(self);
+            return;
+        }
+
         if let Some(target) = is_target_callee(&n.callee) {
             let old_in_target = self.in_target;
             self.in_target = true;
@@ -62,7 +59,7 @@ impl VisitMut for DebugFnName {
                     // ...}['MyComponent.useLayoutEffect']);
 
                     let orig = n.take();
-                    let key = Atom::from(format!("{}", self.path.join(".")));
+                    let key = Atom::from(self.path.join(".").to_string());
 
                     *n = Expr::Object(ObjectLit {
                         span: DUMMY_SP,
@@ -79,6 +76,45 @@ impl VisitMut for DebugFnName {
 
                 _ => {}
             }
+        }
+    }
+
+    fn visit_mut_fn_decl(&mut self, n: &mut FnDecl) {
+        let orig_len = self.path.len();
+        self.path.push(n.ident.sym.to_string());
+
+        n.visit_mut_children_with(self);
+
+        self.path.truncate(orig_len);
+    }
+
+    fn visit_mut_var_declarator(&mut self, n: &mut VarDeclarator) {
+        let target = match n.init.as_deref() {
+            Some(Expr::Call(call)) => is_target_callee(&call.callee).and_then(|target| {
+                let name = n.name.as_ident()?;
+
+                Some((name.sym.clone(), target))
+            }),
+
+            _ => None,
+        };
+
+        if let Some((name, target)) = target {
+            let old_in_var_target = self.in_var_target;
+            self.in_var_target = true;
+
+            let old_in_target = self.in_target;
+            self.in_target = true;
+            let orig_len = self.path.len();
+            self.path.push(format!("{target}({name})"));
+
+            n.visit_mut_children_with(self);
+
+            self.path.truncate(orig_len);
+            self.in_target = old_in_target;
+            self.in_var_target = old_in_var_target;
+        } else {
+            n.visit_mut_children_with(self);
         }
     }
 }
