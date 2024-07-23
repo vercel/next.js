@@ -30,6 +30,17 @@ export default function Form({ replace, ...props }: FormProps) {
   }
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    if (typeof props.onSubmit === 'function') {
+      const { onSubmit: onSubmitProp } = props
+      onSubmitProp(event)
+
+      // if the user called event.preventDefault(), do nothing.
+      // (this matches what Link does for `onClick`)
+      if (event.defaultPrevented) {
+        return
+      }
+    }
+
     const formElement = event.currentTarget
     const submitter = (event.nativeEvent as SubmitEvent).submitter
 
@@ -94,14 +105,6 @@ export default function Form({ replace, ...props }: FormProps) {
 
     // Finally, no more reasons for bailing out.
     event.preventDefault()
-
-    try {
-      // TODO: should probably call this even if bailing out?
-      const { onSubmit: userOnSubmit } = props
-      userOnSubmit?.(event)
-    } catch (err) {
-      console.error(err)
-    }
 
     const method = replace ? 'replace' : 'push'
 
