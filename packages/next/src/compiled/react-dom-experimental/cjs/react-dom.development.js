@@ -51,23 +51,23 @@
       return null === thing
         ? "`null`"
         : void 0 === thing
-        ? "`undefined`"
-        : "" === thing
-        ? "an empty string"
-        : 'something with type "' + typeof thing + '"';
+          ? "`undefined`"
+          : "" === thing
+            ? "an empty string"
+            : 'something with type "' + typeof thing + '"';
     }
     function getValueDescriptorExpectingEnumForWarning(thing) {
       return null === thing
         ? "`null`"
         : void 0 === thing
-        ? "`undefined`"
-        : "" === thing
-        ? "an empty string"
-        : "string" === typeof thing
-        ? JSON.stringify(thing)
-        : "number" === typeof thing
-        ? "`" + thing + "`"
-        : 'something with type "' + typeof thing + '"';
+          ? "`undefined`"
+          : "" === thing
+            ? "an empty string"
+            : "string" === typeof thing
+              ? JSON.stringify(thing)
+              : "number" === typeof thing
+                ? "`" + thing + "`"
+                : 'something with type "' + typeof thing + '"';
     }
     function resolveDispatcher() {
       var dispatcher = ReactSharedInternals.H;
@@ -416,7 +416,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.0.0-experimental-01172397-20240716";
+    exports.version = "19.0.0-experimental-f6cce072-20240723";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

@@ -71,8 +71,8 @@ function preloadModule(metadata) {
           return requireAsyncModule(metadata[0]);
         })
     : 0 < promises.length
-    ? Promise.all(promises)
-    : null;
+      ? Promise.all(promises)
+      : null;
 }
 var chunkMap = new Map(),
   webpackGetChunkFilename = __webpack_require__.u;
@@ -105,10 +105,10 @@ function serializeNumber(number) {
       ? "$-0"
       : number
     : Infinity === number
-    ? "$Infinity"
-    : -Infinity === number
-    ? "$-Infinity"
-    : "$NaN";
+      ? "$Infinity"
+      : -Infinity === number
+        ? "$-Infinity"
+        : "$NaN";
 }
 function processReply(
   root,
@@ -636,10 +636,10 @@ function initializeModuleChunk(chunk) {
       "*" === metadata[2]
         ? moduleExports
         : "" === metadata[2]
-        ? moduleExports.__esModule
-          ? moduleExports.default
-          : moduleExports
-        : moduleExports[metadata[2]];
+          ? moduleExports.__esModule
+            ? moduleExports.default
+            : moduleExports
+          : moduleExports[metadata[2]];
     chunk.status = "fulfilled";
     chunk.value = JSCompiler_inline_result;
   } catch (error) {
@@ -1400,10 +1400,10 @@ function startReadingFromStream(response, stream) {
             86 === rowState
               ? ((rowTag = rowState), (rowState = 2), i++)
               : (64 < rowState && 91 > rowState) ||
-                114 === rowState ||
-                120 === rowState
-              ? ((rowTag = rowState), (rowState = 3), i++)
-              : ((rowTag = 0), (rowState = 3));
+                  114 === rowState ||
+                  120 === rowState
+                ? ((rowTag = rowState), (rowState = 3), i++)
+                : ((rowTag = 0), (rowState = 3));
             continue;
           case 2:
             lastIdx = value[i++];

@@ -203,8 +203,8 @@
       return "number" === typeof owner.tag
         ? getComponentNameFromFiber(owner)
         : "string" === typeof owner.name
-        ? owner.name
-        : null;
+          ? owner.name
+          : null;
     }
     function getComponentNameFromFiber(fiber) {
       var type = fiber.type;
@@ -328,8 +328,8 @@
             -1 < x.stack.indexOf("\n    at")
               ? " (<anonymous>)"
               : -1 < x.stack.indexOf("@")
-              ? "@unknown:0:0"
-              : "";
+                ? "@unknown:0:0"
+                : "";
         }
       return "\n" + prefix + name + suffix;
     }
@@ -484,28 +484,6 @@
         : "";
       "function" === typeof fn && componentFrameCache.set(fn, sampleLines);
       return sampleLines;
-    }
-    function callComponentInDEV(Component, props, secondArg) {
-      var wasRendering = isRendering;
-      isRendering = !0;
-      try {
-        return Component(props, secondArg);
-      } finally {
-        isRendering = wasRendering;
-      }
-    }
-    function callRenderInDEV(instance) {
-      var wasRendering = isRendering;
-      isRendering = !0;
-      try {
-        return instance.render();
-      } finally {
-        isRendering = wasRendering;
-      }
-    }
-    function callLazyInitInDEV(lazy) {
-      var init = lazy._init;
-      return init(lazy._payload);
     }
     function describeFiber(fiber) {
       switch (fiber.tag) {
@@ -1092,14 +1070,15 @@
       return 0 === nextLanes
         ? 0
         : 0 !== wipLanes &&
-          wipLanes !== nextLanes &&
-          0 === (wipLanes & suspendedLanes) &&
-          ((suspendedLanes = nextLanes & -nextLanes),
-          (root = wipLanes & -wipLanes),
-          suspendedLanes >= root ||
-            (suspendedLanes === DefaultLane && 0 !== (root & TransitionLanes)))
-        ? wipLanes
-        : nextLanes;
+            wipLanes !== nextLanes &&
+            0 === (wipLanes & suspendedLanes) &&
+            ((suspendedLanes = nextLanes & -nextLanes),
+            (root = wipLanes & -wipLanes),
+            suspendedLanes >= root ||
+              (suspendedLanes === DefaultLane &&
+                0 !== (root & TransitionLanes)))
+          ? wipLanes
+          : nextLanes;
     }
     function computeExpirationTime(lane, currentTime) {
       switch (lane) {
@@ -1630,8 +1609,8 @@
       null != value
         ? setDefaultValue(element, type, getToStringValue(value))
         : null != defaultValue
-        ? setDefaultValue(element, type, getToStringValue(defaultValue))
-        : null != lastDefaultValue && element.removeAttribute("value");
+          ? setDefaultValue(element, type, getToStringValue(defaultValue))
+          : null != lastDefaultValue && element.removeAttribute("value");
       null == checked &&
         null != defaultChecked &&
         (element.defaultChecked = !!defaultChecked);
@@ -1885,10 +1864,10 @@
               : "{" + content.slice(0, maxLength - 7) + '..."}'
             : "{" + content + "}")
         : content.length > maxLength
-        ? 5 > maxLength
-          ? '{"..."}'
-          : content.slice(0, maxLength - 3) + "..."
-        : content;
+          ? 5 > maxLength
+            ? '{"..."}'
+            : content.slice(0, maxLength - 3) + "..."
+          : content;
     }
     function describeTextDiff(clientText, serverProps, indent) {
       var maxLength = 120 - 2 * indent;
@@ -1982,10 +1961,10 @@
       return "string" !== typeof value || needsEscaping.test(value)
         ? "{" + describeValue(value, maxLength - 2) + "}"
         : value.length > maxLength - 2
-        ? 5 > maxLength
-          ? '"..."'
-          : '"' + value.slice(0, maxLength - 5) + '..."'
-        : '"' + value + '"';
+          ? 5 > maxLength
+            ? '"..."'
+            : '"' + value.slice(0, maxLength - 5) + '..."'
+          : '"' + value + '"';
     }
     function describeExpandedElement(type, props, rowPrefix) {
       var remainingRowLength = 120 - rowPrefix.length - type.length,
@@ -2003,17 +1982,17 @@
       return 0 === properties.length
         ? rowPrefix + "<" + type + ">\n"
         : 0 < remainingRowLength
-        ? rowPrefix + "<" + type + " " + properties.join(" ") + ">\n"
-        : rowPrefix +
-          "<" +
-          type +
-          "\n" +
-          rowPrefix +
-          "  " +
-          properties.join("\n" + rowPrefix + "  ") +
-          "\n" +
-          rowPrefix +
-          ">\n";
+          ? rowPrefix + "<" + type + " " + properties.join(" ") + ">\n"
+          : rowPrefix +
+            "<" +
+            type +
+            "\n" +
+            rowPrefix +
+            "  " +
+            properties.join("\n" + rowPrefix + "  ") +
+            "\n" +
+            rowPrefix +
+            ">\n";
     }
     function describePropertiesDiff(clientObject, serverObject, indent) {
       var properties = "",
@@ -2236,16 +2215,16 @@
               )),
               indent++)
             : "string" === typeof node.serverProps
-            ? console.error(
-                "Should not have matched a non HostText fiber to a Text node. This is a bug in React."
-              )
-            : ((debugInfo = describeElementDiff(
-                serverComponentName,
-                i,
-                node.serverProps,
-                indent
-              )),
-              indent++);
+              ? console.error(
+                  "Should not have matched a non HostText fiber to a Text node. This is a bug in React."
+                )
+              : ((debugInfo = describeElementDiff(
+                  serverComponentName,
+                  i,
+                  node.serverProps,
+                  indent
+                )),
+                indent++);
       var propName = "";
       i = node.fiber.child;
       for (
@@ -2602,23 +2581,23 @@
               camelize(styleName.replace(msPattern, "ms-"))
             ))
           : badVendoredStyleNamePattern.test(styleName)
-          ? (warnedStyleNames.hasOwnProperty(styleName) &&
-              warnedStyleNames[styleName]) ||
-            ((warnedStyleNames[styleName] = !0),
-            console.error(
-              "Unsupported vendor-prefixed style property %s. Did you mean %s?",
-              styleName,
-              styleName.charAt(0).toUpperCase() + styleName.slice(1)
-            ))
-          : !badStyleValueWithSemicolonPattern.test(value) ||
-            (warnedStyleValues.hasOwnProperty(value) &&
-              warnedStyleValues[value]) ||
-            ((warnedStyleValues[value] = !0),
-            console.error(
-              'Style property values shouldn\'t contain a semicolon. Try "%s: %s" instead.',
-              styleName,
-              value.replace(badStyleValueWithSemicolonPattern, "")
-            )),
+            ? (warnedStyleNames.hasOwnProperty(styleName) &&
+                warnedStyleNames[styleName]) ||
+              ((warnedStyleNames[styleName] = !0),
+              console.error(
+                "Unsupported vendor-prefixed style property %s. Did you mean %s?",
+                styleName,
+                styleName.charAt(0).toUpperCase() + styleName.slice(1)
+              ))
+            : !badStyleValueWithSemicolonPattern.test(value) ||
+              (warnedStyleValues.hasOwnProperty(value) &&
+                warnedStyleValues[value]) ||
+              ((warnedStyleValues[value] = !0),
+              console.error(
+                'Style property values shouldn\'t contain a semicolon. Try "%s: %s" instead.',
+                styleName,
+                value.replace(badStyleValueWithSemicolonPattern, "")
+              )),
         "number" === typeof value &&
           (isNaN(value)
             ? warnedForNaNValue ||
@@ -2638,18 +2617,18 @@
         ? isCustomProperty
           ? style.setProperty(styleName, "")
           : "float" === styleName
-          ? (style.cssFloat = "")
-          : (style[styleName] = "")
+            ? (style.cssFloat = "")
+            : (style[styleName] = "")
         : isCustomProperty
-        ? style.setProperty(styleName, value)
-        : "number" !== typeof value ||
-          0 === value ||
-          unitlessNumbers.has(styleName)
-        ? "float" === styleName
-          ? (style.cssFloat = value)
-          : (checkCSSPropertyStringCoercion(value, styleName),
-            (style[styleName] = ("" + value).trim()))
-        : (style[styleName] = value + "px");
+          ? style.setProperty(styleName, value)
+          : "number" !== typeof value ||
+              0 === value ||
+              unitlessNumbers.has(styleName)
+            ? "float" === styleName
+              ? (style.cssFloat = value)
+              : (checkCSSPropertyStringCoercion(value, styleName),
+                (style[styleName] = ("" + value).trim()))
+            : (style[styleName] = value + "px");
     }
     function setValueForStyles(node, styles, prevStyles) {
       if (null != styles && "object" !== typeof styles)
@@ -2718,8 +2697,8 @@
             (0 === styleName.indexOf("--")
               ? node.setProperty(styleName, "")
               : "float" === styleName
-              ? (node.cssFloat = "")
-              : (node[styleName] = ""));
+                ? (node.cssFloat = "")
+                : (node[styleName] = ""));
         for (var _styleName in styles)
           (_key2 = styles[_styleName]),
             styles.hasOwnProperty(_styleName) &&
@@ -3326,8 +3305,8 @@
       return nativeEvent.getModifierState
         ? nativeEvent.getModifierState(keyArg)
         : (keyArg = modifierKeyToProp[keyArg])
-        ? !!nativeEvent[keyArg]
-        : !1;
+          ? !!nativeEvent[keyArg]
+          : !1;
     }
     function getEventModifierState() {
       return modifierStateGetter;
@@ -3412,8 +3391,8 @@
       return "input" === nodeName
         ? !!supportedInputTypes[elem.type]
         : "textarea" === nodeName
-        ? !0
-        : !1;
+          ? !0
+          : !1;
     }
     function isEventSupported(eventNameSuffix) {
       if (!canUseDOM) return !1;
@@ -3561,14 +3540,14 @@
         ? outerNode === innerNode
           ? !0
           : outerNode && 3 === outerNode.nodeType
-          ? !1
-          : innerNode && 3 === innerNode.nodeType
-          ? containsNode(outerNode, innerNode.parentNode)
-          : "contains" in outerNode
-          ? outerNode.contains(innerNode)
-          : outerNode.compareDocumentPosition
-          ? !!(outerNode.compareDocumentPosition(innerNode) & 16)
-          : !1
+            ? !1
+            : innerNode && 3 === innerNode.nodeType
+              ? containsNode(outerNode, innerNode.parentNode)
+              : "contains" in outerNode
+                ? outerNode.contains(innerNode)
+                : outerNode.compareDocumentPosition
+                  ? !!(outerNode.compareDocumentPosition(innerNode) & 16)
+                  : !1
         : !1;
     }
     function getActiveElementDeep() {
@@ -3711,8 +3690,8 @@
         nativeEventTarget.window === nativeEventTarget
           ? nativeEventTarget.document
           : 9 === nativeEventTarget.nodeType
-          ? nativeEventTarget
-          : nativeEventTarget.ownerDocument;
+            ? nativeEventTarget
+            : nativeEventTarget.ownerDocument;
       mouseDown ||
         null == activeElement ||
         activeElement !== getActiveElement(doc) ||
@@ -5809,8 +5788,8 @@
         null !== current && null !== current.memoizedState
           ? HooksDispatcherOnUpdateInDEV
           : null !== hookTypesDev
-          ? HooksDispatcherOnMountWithHookTypesInDEV
-          : HooksDispatcherOnMountInDEV;
+            ? HooksDispatcherOnMountWithHookTypesInDEV
+            : HooksDispatcherOnMountInDEV;
       shouldDoubleInvokeUserFnsInHooksDEV = nextRenderLanes =
         0 !== (workInProgress.mode & 8);
       var children = callComponentInDEV(Component, props, secondArg);
@@ -8053,12 +8032,12 @@
             void 0 === _instance
               ? " However, it is set to undefined. This can be caused by a typo or by mixing up named and default imports. This can also happen due to a circular dependency, so try moving the createContext() call to a separate file."
               : "object" !== typeof _instance
-              ? " However, it is set to a " + typeof _instance + "."
-              : _instance.$$typeof === REACT_CONSUMER_TYPE
-              ? " Did you accidentally pass the Context.Consumer instead?"
-              : " However, it is set to an object with keys {" +
-                Object.keys(_instance).join(", ") +
-                "}."),
+                ? " However, it is set to a " + typeof _instance + "."
+                : _instance.$$typeof === REACT_CONSUMER_TYPE
+                  ? " Did you accidentally pass the Context.Consumer instead?"
+                  : " However, it is set to an object with keys {" +
+                    Object.keys(_instance).join(", ") +
+                    "}."),
           console.error(
             "%s defines an invalid contextType. contextType should point to the Context object returned by React.createContext().%s",
             getComponentNameFromType(Component) || "Component",
@@ -8752,53 +8731,54 @@
                 renderLanes
               )))
             : null !== workInProgress.memoizedState
-            ? (reuseSuspenseHandlerOnStack(workInProgress),
-              (workInProgress.child = current.child),
-              (workInProgress.flags |= 128),
-              (workInProgress = null))
-            : (reuseSuspenseHandlerOnStack(workInProgress),
-              (JSCompiler_object_inline_componentStack_2312 =
-                JSCompiler_object_inline_stack_2311.fallback),
-              (JSCompiler_object_inline_message_2309 = workInProgress.mode),
-              (JSCompiler_object_inline_stack_2311 =
-                mountWorkInProgressOffscreenFiber(
-                  {
-                    mode: "visible",
-                    children: JSCompiler_object_inline_stack_2311.children
-                  },
-                  JSCompiler_object_inline_message_2309
-                )),
-              (JSCompiler_object_inline_componentStack_2312 =
-                createFiberFromFragment(
-                  JSCompiler_object_inline_componentStack_2312,
-                  JSCompiler_object_inline_message_2309,
-                  renderLanes,
-                  null
-                )),
-              (JSCompiler_object_inline_componentStack_2312.flags |= 2),
-              (JSCompiler_object_inline_stack_2311.return = workInProgress),
-              (JSCompiler_object_inline_componentStack_2312.return =
-                workInProgress),
-              (JSCompiler_object_inline_stack_2311.sibling =
-                JSCompiler_object_inline_componentStack_2312),
-              (workInProgress.child = JSCompiler_object_inline_stack_2311),
-              reconcileChildFibers(
-                workInProgress,
-                current.child,
-                null,
-                renderLanes
-              ),
-              (JSCompiler_object_inline_stack_2311 = workInProgress.child),
-              (JSCompiler_object_inline_stack_2311.memoizedState =
-                mountSuspenseOffscreenState(renderLanes)),
-              (JSCompiler_object_inline_stack_2311.childLanes =
-                getRemainingWorkInPrimaryTree(
-                  current,
-                  JSCompiler_object_inline_digest_2310,
+              ? (reuseSuspenseHandlerOnStack(workInProgress),
+                (workInProgress.child = current.child),
+                (workInProgress.flags |= 128),
+                (workInProgress = null))
+              : (reuseSuspenseHandlerOnStack(workInProgress),
+                (JSCompiler_object_inline_componentStack_2312 =
+                  JSCompiler_object_inline_stack_2311.fallback),
+                (JSCompiler_object_inline_message_2309 = workInProgress.mode),
+                (JSCompiler_object_inline_stack_2311 =
+                  mountWorkInProgressOffscreenFiber(
+                    {
+                      mode: "visible",
+                      children: JSCompiler_object_inline_stack_2311.children
+                    },
+                    JSCompiler_object_inline_message_2309
+                  )),
+                (JSCompiler_object_inline_componentStack_2312 =
+                  createFiberFromFragment(
+                    JSCompiler_object_inline_componentStack_2312,
+                    JSCompiler_object_inline_message_2309,
+                    renderLanes,
+                    null
+                  )),
+                (JSCompiler_object_inline_componentStack_2312.flags |= 2),
+                (JSCompiler_object_inline_stack_2311.return = workInProgress),
+                (JSCompiler_object_inline_componentStack_2312.return =
+                  workInProgress),
+                (JSCompiler_object_inline_stack_2311.sibling =
+                  JSCompiler_object_inline_componentStack_2312),
+                (workInProgress.child = JSCompiler_object_inline_stack_2311),
+                reconcileChildFibers(
+                  workInProgress,
+                  current.child,
+                  null,
                   renderLanes
-                )),
-              (workInProgress.memoizedState = SUSPENDED_MARKER),
-              (workInProgress = JSCompiler_object_inline_componentStack_2312));
+                ),
+                (JSCompiler_object_inline_stack_2311 = workInProgress.child),
+                (JSCompiler_object_inline_stack_2311.memoizedState =
+                  mountSuspenseOffscreenState(renderLanes)),
+                (JSCompiler_object_inline_stack_2311.childLanes =
+                  getRemainingWorkInPrimaryTree(
+                    current,
+                    JSCompiler_object_inline_digest_2310,
+                    renderLanes
+                  )),
+                (workInProgress.memoizedState = SUSPENDED_MARKER),
+                (workInProgress =
+                  JSCompiler_object_inline_componentStack_2312));
         else if (
           (pushPrimaryTreeSuspenseHandler(workInProgress),
           isHydrating &&
@@ -11035,20 +11015,20 @@
                 0 !== (effect.tag & Layout)
                   ? "useLayoutEffect"
                   : 0 !== (effect.tag & Insertion)
-                  ? "useInsertionEffect"
-                  : "useEffect"),
+                    ? "useInsertionEffect"
+                    : "useEffect"),
               console.error(
                 "%s must not return anything besides a function, which is used for clean-up.%s",
                 inst,
                 null === create
                   ? " You returned null. If your effect does not require clean up, return undefined (or nothing)."
                   : "function" === typeof create.then
-                  ? "\n\nIt looks like you wrote " +
-                    inst +
-                    "(async () => ...) or returned a Promise. Instead, write the async function inside your effect and call it immediately:\n\n" +
-                    inst +
-                    "(() => {\n  async function fetchData() {\n    // You can await here\n    const response = await MyAPI.getData(someId);\n    // ...\n  }\n  fetchData();\n}, [someId]); // Or [] if effect doesn't need props or state\n\nLearn more about data fetching with Hooks: https://react.dev/link/hooks-data-fetching"
-                  : " You returned: " + create
+                    ? "\n\nIt looks like you wrote " +
+                      inst +
+                      "(async () => ...) or returned a Promise. Instead, write the async function inside your effect and call it immediately:\n\n" +
+                      inst +
+                      "(() => {\n  async function fetchData() {\n    // You can await here\n    const response = await MyAPI.getData(someId);\n    // ...\n  }\n  fetchData();\n}, [someId]); // Or [] if effect doesn't need props or state\n\nLearn more about data fetching with Hooks: https://react.dev/link/hooks-data-fetching"
+                    : " You returned: " + create
               ));
           }
           effect = effect.next;
@@ -12699,20 +12679,20 @@
                   committedTransitions
                 )
             : _instance3._visibility & OffscreenPassiveEffectsConnected
-            ? recursivelyTraversePassiveMountEffects(
-                finishedRoot,
-                finishedWork,
-                committedLanes,
-                committedTransitions
-              )
-            : ((_instance3._visibility |= OffscreenPassiveEffectsConnected),
-              recursivelyTraverseReconnectPassiveEffects(
-                finishedRoot,
-                finishedWork,
-                committedLanes,
-                committedTransitions,
-                0 !== (finishedWork.subtreeFlags & 10256)
-              ));
+              ? recursivelyTraversePassiveMountEffects(
+                  finishedRoot,
+                  finishedWork,
+                  committedLanes,
+                  committedTransitions
+                )
+              : ((_instance3._visibility |= OffscreenPassiveEffectsConnected),
+                recursivelyTraverseReconnectPassiveEffects(
+                  finishedRoot,
+                  finishedWork,
+                  committedLanes,
+                  committedTransitions,
+                  0 !== (finishedWork.subtreeFlags & 10256)
+                ));
           flags & 2048 &&
             commitOffscreenPassiveMountEffects(
               finishedWork.alternate,
@@ -13270,8 +13250,8 @@
           (fiberTag = isHostHoistableType(type, pendingProps, fiberTag)
             ? 26
             : "html" === type || "head" === type || "body" === type
-            ? 27
-            : 5);
+              ? 27
+              : 5);
       else
         a: switch (type) {
           case REACT_FRAGMENT_TYPE:
@@ -13350,15 +13330,15 @@
             null === type
               ? (pendingProps = "null")
               : isArrayImpl(type)
-              ? (pendingProps = "array")
-              : void 0 !== type && type.$$typeof === REACT_ELEMENT_TYPE
-              ? ((pendingProps =
-                  "<" +
-                  (getComponentNameFromType(type.type) || "Unknown") +
-                  " />"),
-                (resolvedType =
-                  " Did you accidentally export a JSX literal instead of a component?"))
-              : (pendingProps = typeof type);
+                ? (pendingProps = "array")
+                : void 0 !== type && type.$$typeof === REACT_ELEMENT_TYPE
+                  ? ((pendingProps =
+                      "<" +
+                      (getComponentNameFromType(type.type) || "Unknown") +
+                      " />"),
+                    (resolvedType =
+                      " Did you accidentally export a JSX literal instead of a component?"))
+                  : (pendingProps = typeof type);
             (fiberTag = owner ? getComponentNameFromOwner(owner) : null) &&
               (resolvedType +=
                 "\n\nCheck the render method of `" + fiberTag + "`.");
@@ -13619,19 +13599,19 @@
                   : (bubbleProperties(workInProgress),
                     (workInProgress.flags &= -16777217)))
               : renderLanes
-              ? renderLanes !== current.memoizedState
-                ? (markUpdate(workInProgress),
+                ? renderLanes !== current.memoizedState
+                  ? (markUpdate(workInProgress),
+                    bubbleProperties(workInProgress),
+                    preloadResourceAndSuspendIfNeeded(
+                      workInProgress,
+                      renderLanes
+                    ))
+                  : (bubbleProperties(workInProgress),
+                    (workInProgress.flags &= -16777217))
+                : (current.memoizedProps !== newProps &&
+                    markUpdate(workInProgress),
                   bubbleProperties(workInProgress),
-                  preloadResourceAndSuspendIfNeeded(
-                    workInProgress,
-                    renderLanes
-                  ))
-                : (bubbleProperties(workInProgress),
-                  (workInProgress.flags &= -16777217))
-              : (current.memoizedProps !== newProps &&
-                  markUpdate(workInProgress),
-                bubbleProperties(workInProgress),
-                (workInProgress.flags &= -16777217)),
+                  (workInProgress.flags &= -16777217)),
             null
           );
         case 27:
@@ -14734,16 +14714,16 @@
               ? SuspendedOnData
               : SuspendedOnImmediate))
         : thrownValue === SuspenseyCommitException
-        ? ((thrownValue = getSuspendedThenable()),
-          (workInProgressSuspendedReason = SuspendedOnInstance))
-        : (workInProgressSuspendedReason =
-            thrownValue === SelectiveHydrationException
-              ? SuspendedOnHydration
-              : null !== thrownValue &&
-                "object" === typeof thrownValue &&
-                "function" === typeof thrownValue.then
-              ? SuspendedOnDeprecatedThrowPromise
-              : SuspendedOnError);
+          ? ((thrownValue = getSuspendedThenable()),
+            (workInProgressSuspendedReason = SuspendedOnInstance))
+          : (workInProgressSuspendedReason =
+              thrownValue === SelectiveHydrationException
+                ? SuspendedOnHydration
+                : null !== thrownValue &&
+                    "object" === typeof thrownValue &&
+                    "function" === typeof thrownValue.then
+                  ? SuspendedOnDeprecatedThrowPromise
+                  : SuspendedOnError);
       workInProgressThrownValue = thrownValue;
       var erroredWork = workInProgress;
       if (null === erroredWork)
@@ -14788,15 +14768,15 @@
       return null === handler
         ? !0
         : (workInProgressRootRenderLanes & TransitionLanes) ===
-          workInProgressRootRenderLanes
-        ? null === shellBoundary
-          ? !0
-          : !1
-        : (workInProgressRootRenderLanes & RetryLanes) ===
-            workInProgressRootRenderLanes ||
-          0 !== (workInProgressRootRenderLanes & OffscreenLane)
-        ? handler === shellBoundary
-        : !1;
+            workInProgressRootRenderLanes
+          ? null === shellBoundary
+            ? !0
+            : !1
+          : (workInProgressRootRenderLanes & RetryLanes) ===
+                workInProgressRootRenderLanes ||
+              0 !== (workInProgressRootRenderLanes & OffscreenLane)
+            ? handler === shellBoundary
+            : !1;
     }
     function pushDispatcher() {
       var prevDispatcher = ReactSharedInternals.H;
@@ -16216,10 +16196,14 @@
             })
           : targetContainer.addEventListener(domEventName, eventSystemFlags, !0)
         : void 0 !== listenerWrapper
-        ? targetContainer.addEventListener(domEventName, eventSystemFlags, {
-            passive: listenerWrapper
-          })
-        : targetContainer.addEventListener(domEventName, eventSystemFlags, !1);
+          ? targetContainer.addEventListener(domEventName, eventSystemFlags, {
+              passive: listenerWrapper
+            })
+          : targetContainer.addEventListener(
+              domEventName,
+              eventSystemFlags,
+              !1
+            );
     }
     function dispatchEventForPluginEventSystem(
       domEventName,
@@ -16433,8 +16417,8 @@
                 nativeEventTarget.window === nativeEventTarget
                   ? nativeEventTarget
                   : (reactName = nativeEventTarget.ownerDocument)
-                  ? reactName.defaultView || reactName.parentWindow
-                  : window;
+                    ? reactName.defaultView || reactName.parentWindow
+                    : window;
               if (SyntheticEventCtor) {
                 if (
                   ((reactEventType =
@@ -16980,50 +16964,53 @@
                       "Cannot specify a target for a form that specifies a function as the action. The function will always be executed in the same window."
                     )))
               : "input" === tag || "button" === tag
-              ? "action" === key
-                ? console.error(
-                    "You can only pass the action prop to <form>. Use the formAction prop on <input> or <button>."
-                  )
-                : "input" !== tag ||
-                  "submit" === props.type ||
-                  "image" === props.type ||
-                  didWarnFormActionType
-                ? "button" !== tag ||
-                  null == props.type ||
-                  "submit" === props.type ||
-                  didWarnFormActionType
-                  ? "function" === typeof value &&
-                    (null == props.name ||
-                      didWarnFormActionName ||
-                      ((didWarnFormActionName = !0),
+                ? "action" === key
+                  ? console.error(
+                      "You can only pass the action prop to <form>. Use the formAction prop on <input> or <button>."
+                    )
+                  : "input" !== tag ||
+                      "submit" === props.type ||
+                      "image" === props.type ||
+                      didWarnFormActionType
+                    ? "button" !== tag ||
+                      null == props.type ||
+                      "submit" === props.type ||
+                      didWarnFormActionType
+                      ? "function" === typeof value &&
+                        (null == props.name ||
+                          didWarnFormActionName ||
+                          ((didWarnFormActionName = !0),
+                          console.error(
+                            'Cannot specify a "name" prop for a button that specifies a function as a formAction. React needs it to encode which action should be invoked. It will get overridden.'
+                          )),
+                        (null == props.formEncType &&
+                          null == props.formMethod) ||
+                          didWarnFormActionMethod ||
+                          ((didWarnFormActionMethod = !0),
+                          console.error(
+                            "Cannot specify a formEncType or formMethod for a button that specifies a function as a formAction. React provides those automatically. They will get overridden."
+                          )),
+                        null == props.formTarget ||
+                          didWarnFormActionTarget ||
+                          ((didWarnFormActionTarget = !0),
+                          console.error(
+                            "Cannot specify a formTarget for a button that specifies a function as a formAction. The function will always be executed in the same window."
+                          )))
+                      : ((didWarnFormActionType = !0),
+                        console.error(
+                          'A button can only specify a formAction along with type="submit" or no type.'
+                        ))
+                    : ((didWarnFormActionType = !0),
                       console.error(
-                        'Cannot specify a "name" prop for a button that specifies a function as a formAction. React needs it to encode which action should be invoked. It will get overridden.'
-                      )),
-                    (null == props.formEncType && null == props.formMethod) ||
-                      didWarnFormActionMethod ||
-                      ((didWarnFormActionMethod = !0),
-                      console.error(
-                        "Cannot specify a formEncType or formMethod for a button that specifies a function as a formAction. React provides those automatically. They will get overridden."
-                      )),
-                    null == props.formTarget ||
-                      didWarnFormActionTarget ||
-                      ((didWarnFormActionTarget = !0),
-                      console.error(
-                        "Cannot specify a formTarget for a button that specifies a function as a formAction. The function will always be executed in the same window."
-                      )))
-                  : ((didWarnFormActionType = !0),
-                    console.error(
-                      'A button can only specify a formAction along with type="submit" or no type.'
-                    ))
-                : ((didWarnFormActionType = !0),
-                  console.error(
-                    'An input can only specify a formAction along with type="submit" or type="image".'
-                  ))
-              : "action" === key
-              ? console.error("You can only pass the action prop to <form>.")
-              : console.error(
-                  "You can only pass the formAction prop to <input> or <button>."
-                ));
+                        'An input can only specify a formAction along with type="submit" or type="image".'
+                      ))
+                : "action" === key
+                  ? console.error(
+                      "You can only pass the action prop to <form>."
+                    )
+                  : console.error(
+                      "You can only pass the formAction prop to <input> or <button>."
+                    ));
           if ("function" === typeof value) {
             domElement.setAttribute(
               key,
@@ -17207,12 +17194,12 @@
           !0 === value
             ? domElement.setAttribute(key, "")
             : !1 !== value &&
-              null != value &&
-              "function" !== typeof value &&
-              "symbol" !== typeof value
-            ? (checkAttributeStringCoercion(value, key),
-              domElement.setAttribute(key, value))
-            : domElement.removeAttribute(key);
+                null != value &&
+                "function" !== typeof value &&
+                "symbol" !== typeof value
+              ? (checkAttributeStringCoercion(value, key),
+                domElement.setAttribute(key, value))
+              : domElement.removeAttribute(key);
           break;
         case "cols":
         case "rows":
@@ -17435,8 +17422,8 @@
               key in domElement
                 ? (domElement[key] = value)
                 : !0 === value
-                ? domElement.setAttribute(key, "")
-                : setValueForAttribute(domElement, key, value);
+                  ? domElement.setAttribute(key, "")
+                  : setValueForAttribute(domElement, key, value);
             }
       }
     }
@@ -18120,26 +18107,26 @@
                   (clientValue +=
                     delimiter + styleName + ":" + ("" + value).trim()))
                 : "number" !== typeof value ||
-                  0 === value ||
-                  unitlessNumbers.has(styleName)
-                ? (checkCSSPropertyStringCoercion(value, styleName),
-                  (clientValue +=
-                    delimiter +
-                    styleName
-                      .replace(uppercasePattern, "-$1")
-                      .toLowerCase()
-                      .replace(msPattern$1, "-ms-") +
-                    ":" +
-                    ("" + value).trim()))
-                : (clientValue +=
-                    delimiter +
-                    styleName
-                      .replace(uppercasePattern, "-$1")
-                      .toLowerCase()
-                      .replace(msPattern$1, "-ms-") +
-                    ":" +
-                    value +
-                    "px"),
+                    0 === value ||
+                    unitlessNumbers.has(styleName)
+                  ? (checkCSSPropertyStringCoercion(value, styleName),
+                    (clientValue +=
+                      delimiter +
+                      styleName
+                        .replace(uppercasePattern, "-$1")
+                        .toLowerCase()
+                        .replace(msPattern$1, "-ms-") +
+                      ":" +
+                      ("" + value).trim()))
+                  : (clientValue +=
+                      delimiter +
+                      styleName
+                        .replace(uppercasePattern, "-$1")
+                        .toLowerCase()
+                        .replace(msPattern$1, "-ms-") +
+                      ":" +
+                      value +
+                      "px"),
               (delimiter = ";"));
           }
         clientValue = clientValue || null;
@@ -20821,23 +20808,23 @@
       return null === thing
         ? "`null`"
         : void 0 === thing
-        ? "`undefined`"
-        : "" === thing
-        ? "an empty string"
-        : 'something with type "' + typeof thing + '"';
+          ? "`undefined`"
+          : "" === thing
+            ? "an empty string"
+            : 'something with type "' + typeof thing + '"';
     }
     function getValueDescriptorExpectingEnumForWarning(thing) {
       return null === thing
         ? "`null`"
         : void 0 === thing
-        ? "`undefined`"
-        : "" === thing
-        ? "an empty string"
-        : "string" === typeof thing
-        ? JSON.stringify(thing)
-        : "number" === typeof thing
-        ? "`" + thing + "`"
-        : 'something with type "' + typeof thing + '"';
+          ? "`undefined`"
+          : "" === thing
+            ? "an empty string"
+            : "string" === typeof thing
+              ? JSON.stringify(thing)
+              : "number" === typeof thing
+                ? "`" + thing + "`"
+                : 'something with type "' + typeof thing + '"';
     }
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
@@ -21981,8 +21968,8 @@
             ? ((nativeEvent = getEventCharCode(nativeEvent)),
               13 === nativeEvent ? "Enter" : String.fromCharCode(nativeEvent))
             : "keydown" === nativeEvent.type || "keyup" === nativeEvent.type
-            ? translateToKey[nativeEvent.keyCode] || "Unidentified"
-            : "";
+              ? translateToKey[nativeEvent.keyCode] || "Unidentified"
+              : "";
         },
         code: 0,
         location: 0,
@@ -22005,8 +21992,8 @@
           return "keypress" === event.type
             ? getEventCharCode(event)
             : "keydown" === event.type || "keyup" === event.type
-            ? event.keyCode
-            : 0;
+              ? event.keyCode
+              : 0;
         }
       }),
       SyntheticKeyboardEvent = createSyntheticEvent(KeyboardEventInterface),
@@ -22045,17 +22032,17 @@
           return "deltaX" in event
             ? event.deltaX
             : "wheelDeltaX" in event
-            ? -event.wheelDeltaX
-            : 0;
+              ? -event.wheelDeltaX
+              : 0;
         },
         deltaY: function (event) {
           return "deltaY" in event
             ? event.deltaY
             : "wheelDeltaY" in event
-            ? -event.wheelDeltaY
-            : "wheelDelta" in event
-            ? -event.wheelDelta
-            : 0;
+              ? -event.wheelDeltaY
+              : "wheelDelta" in event
+                ? -event.wheelDelta
+                : 0;
         },
         deltaZ: 0,
         deltaMode: 0
@@ -22383,6 +22370,39 @@
       },
       suspendedThenable = null,
       needsToResetSuspendedThenableDEV = !1,
+      callComponent = {
+        "react-stack-bottom-frame": function (Component, props, secondArg) {
+          var wasRendering = isRendering;
+          isRendering = !0;
+          try {
+            return Component(props, secondArg);
+          } finally {
+            isRendering = wasRendering;
+          }
+        }
+      },
+      callComponentInDEV =
+        callComponent["react-stack-bottom-frame"].bind(callComponent),
+      callRender = {
+        "react-stack-bottom-frame": function (instance) {
+          var wasRendering = isRendering;
+          isRendering = !0;
+          try {
+            return instance.render();
+          } finally {
+            isRendering = wasRendering;
+          }
+        }
+      },
+      callRenderInDEV = callRender["react-stack-bottom-frame"].bind(callRender),
+      callLazyInit = {
+        "react-stack-bottom-frame": function (lazy) {
+          var init = lazy._init;
+          return init(lazy._payload);
+        }
+      },
+      callLazyInitInDEV =
+        callLazyInit["react-stack-bottom-frame"].bind(callLazyInit),
       thenableState$1 = null,
       thenableIndexCounter$1 = 0,
       currentDebugInfo = null,
@@ -23941,13 +23961,13 @@
         "function" === typeof queueMicrotask
           ? queueMicrotask
           : "undefined" !== typeof localPromise
-          ? function (callback) {
-              return localPromise
-                .resolve(null)
-                .then(callback)
-                .catch(handleErrorInNextTick);
-            }
-          : scheduleTimeout,
+            ? function (callback) {
+                return localPromise
+                  .resolve(null)
+                  .then(callback)
+                  .catch(handleErrorInNextTick);
+              }
+            : scheduleTimeout,
       NotLoaded = 0,
       Loaded = 1,
       Errored = 2,
@@ -24302,13 +24322,13 @@
               "does not support the second callback argument. To execute a side effect after rendering, declare it in a component body with useEffect()."
             )
           : isValidContainer(JSCompiler_OptimizeArgumentsArray_p2)
-          ? console.error(
-              "You passed a container to the second argument of root.render(...). You don't need to pass it again since you already passed it to create the root."
-            )
-          : "undefined" !== typeof JSCompiler_OptimizeArgumentsArray_p2 &&
-            console.error(
-              "You passed a second argument to root.render(...) but it only accepts one argument."
-            );
+            ? console.error(
+                "You passed a container to the second argument of root.render(...). You don't need to pass it again since you already passed it to create the root."
+              )
+            : "undefined" !== typeof JSCompiler_OptimizeArgumentsArray_p2 &&
+              console.error(
+                "You passed a second argument to root.render(...) but it only accepts one argument."
+              );
         JSCompiler_OptimizeArgumentsArray_p2 = root.current;
         var lane = requestUpdateLane(JSCompiler_OptimizeArgumentsArray_p2);
         updateContainerImpl(
@@ -24363,11 +24383,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-rc-01172397-20240716" !== isomorphicReactPackageVersion)
+      if ("19.0.0-rc-f6cce072-20240723" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-rc-01172397-20240716\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-rc-f6cce072-20240723\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -24422,12 +24442,12 @@
           scheduleRoot: scheduleRoot,
           setRefreshHandler: setRefreshHandler,
           getCurrentFiber: getCurrentFiberForDevTools,
-          reconcilerVersion: "19.0.0-rc-01172397-20240716"
+          reconcilerVersion: "19.0.0-rc-f6cce072-20240723"
         });
       })({
         findFiberByHostInstance: getClosestInstanceFromNode,
         bundleType: 1,
-        version: "19.0.0-rc-01172397-20240716",
+        version: "19.0.0-rc-f6cce072-20240723",
         rendererPackageName: "react-dom"
       }) &&
       canUseDOM &&
@@ -24887,7 +24907,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.0.0-rc-01172397-20240716";
+    exports.version = "19.0.0-rc-f6cce072-20240723";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

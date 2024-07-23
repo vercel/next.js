@@ -116,8 +116,8 @@
               return requireAsyncModule(metadata[0]);
             })
         : 0 < promises.length
-        ? Promise.all(promises)
-        : null;
+          ? Promise.all(promises)
+          : null;
     }
     function prepareDestinationWithChunks(
       moduleLoading,
@@ -207,8 +207,8 @@
           return value.$$typeof === CLIENT_REFERENCE_TAG
             ? "client"
             : (value = value.displayName || value.name)
-            ? "function " + value
-            : "function";
+              ? "function " + value
+              : "function";
         default:
           return String(value);
       }
@@ -251,8 +251,8 @@
               "string" === typeof value
                 ? value
                 : "object" === typeof value && null !== value
-                ? "{" + describeObjectForErrorMessage(value) + "}"
-                : "{" + describeValueForErrorMessage(value) + "}";
+                  ? "{" + describeObjectForErrorMessage(value) + "}"
+                  : "{" + describeValueForErrorMessage(value) + "}";
             "" + i === expandedName
               ? ((start = objKind.length),
                 (length = value.length),
@@ -338,9 +338,9 @@
       return void 0 === expandedName
         ? objKind
         : -1 < start && 0 < length
-        ? ((objectOrArray = " ".repeat(start) + "^".repeat(length)),
-          "\n  " + objKind + "\n  " + objectOrArray)
-        : "\n  " + objKind;
+          ? ((objectOrArray = " ".repeat(start) + "^".repeat(length)),
+            "\n  " + objKind + "\n  " + objectOrArray)
+          : "\n  " + objKind;
     }
     function serializeNumber(number) {
       return Number.isFinite(number)
@@ -348,10 +348,10 @@
           ? "$-0"
           : number
         : Infinity === number
-        ? "$Infinity"
-        : -Infinity === number
-        ? "$-Infinity"
-        : "$NaN";
+          ? "$Infinity"
+          : -Infinity === number
+            ? "$-Infinity"
+            : "$NaN";
     }
     function processReply(
       root,
@@ -663,24 +663,24 @@
                 describeObjectForErrorMessage(this, key)
               )
             : "Object" !== objectName(value)
-            ? console.error(
-                "Only plain objects can be passed to Server Functions from the Client. %s objects are not supported.%s",
-                objectName(value),
-                describeObjectForErrorMessage(this, key)
-              )
-            : isSimpleObject(value)
-            ? Object.getOwnPropertySymbols &&
-              ((parentReference = Object.getOwnPropertySymbols(value)),
-              0 < parentReference.length &&
-                console.error(
-                  "Only plain objects can be passed to Server Functions from the Client. Objects with symbol properties like %s are not supported.%s",
-                  parentReference[0].description,
+              ? console.error(
+                  "Only plain objects can be passed to Server Functions from the Client. %s objects are not supported.%s",
+                  objectName(value),
                   describeObjectForErrorMessage(this, key)
-                ))
-            : console.error(
-                "Only plain objects can be passed to Server Functions from the Client. Classes or other objects with methods are not supported.%s",
-                describeObjectForErrorMessage(this, key)
-              );
+                )
+              : isSimpleObject(value)
+                ? Object.getOwnPropertySymbols &&
+                  ((parentReference = Object.getOwnPropertySymbols(value)),
+                  0 < parentReference.length &&
+                    console.error(
+                      "Only plain objects can be passed to Server Functions from the Client. Objects with symbol properties like %s are not supported.%s",
+                      parentReference[0].description,
+                      describeObjectForErrorMessage(this, key)
+                    ))
+                : console.error(
+                    "Only plain objects can be passed to Server Functions from the Client. Classes or other objects with methods are not supported.%s",
+                    describeObjectForErrorMessage(this, key)
+                  );
           return value;
         }
         if ("string" === typeof value) {
@@ -1115,10 +1115,10 @@
           "*" === metadata[2]
             ? moduleExports
             : "" === metadata[2]
-            ? moduleExports.__esModule
-              ? moduleExports.default
-              : moduleExports
-            : moduleExports[metadata[2]];
+              ? moduleExports.__esModule
+                ? moduleExports.default
+                : moduleExports
+              : moduleExports[metadata[2]];
         chunk.status = "fulfilled";
         chunk.value = value;
       } catch (error) {
@@ -1216,8 +1216,8 @@
                 name: getComponentNameFromType(blockedValue.type) || "",
                 owner: blockedValue._owner
               };
-              erroredComponent.stack = blockedValue._debugStack;
-              erroredComponent.task = blockedValue._debugTask;
+              erroredComponent.debugStack = blockedValue._debugStack;
+              erroredComponent.debugTask = blockedValue._debugTask;
               (chunk._debugInfo || (chunk._debugInfo = [])).push(
                 erroredComponent
               );
@@ -1755,33 +1755,31 @@
       return fn;
     }
     function buildFakeCallStack(response, stack, innerCall) {
-      stack = stack.split("\n");
       for (var i = 0; i < stack.length; i++) {
         var frame = stack[i],
-          fn = fakeFunctionCache.get(frame);
+          frameKey = frame.join("-"),
+          fn = fakeFunctionCache.get(frameKey);
         if (void 0 === fn) {
-          var parsed = frameRegExp.exec(frame);
-          if (!parsed) continue;
-          fn = parsed[1] || "";
-          var filename = parsed[2] || parsed[5] || "",
-            line = +(parsed[3] || parsed[6]);
-          parsed = +(parsed[4] || parsed[7]);
+          fn = frame[0];
+          var filename = frame[1],
+            line = frame[2];
+          frame = frame[3];
           var sourceMap = response._debugFindSourceMapURL
             ? response._debugFindSourceMapURL(filename)
             : null;
-          fn = createFakeFunction(fn, filename, sourceMap, line, parsed);
-          fakeFunctionCache.set(frame, fn);
+          fn = createFakeFunction(fn, filename, sourceMap, line, frame);
+          fakeFunctionCache.set(frameKey, fn);
         }
         innerCall = fn.bind(null, innerCall);
       }
       return innerCall;
     }
     function initializeFakeTask(response, debugInfo) {
-      if (!supportsCreateTask || "string" !== typeof debugInfo.stack)
-        return null;
-      var stack = debugInfo.stack,
-        cachedEntry = debugInfo.task;
+      if (!supportsCreateTask) return null;
+      var cachedEntry = debugInfo.debugTask;
       if (void 0 !== cachedEntry) return cachedEntry;
+      if (null == debugInfo.stack) return null;
+      var stack = debugInfo.stack;
       cachedEntry =
         null == debugInfo.owner
           ? null
@@ -1795,7 +1793,20 @@
         ? ((response = response._debugRootTask),
           (response = null != response ? response.run(stack) : stack()))
         : (response = cachedEntry.run(stack));
-      return (debugInfo.task = response);
+      return (debugInfo.debugTask = response);
+    }
+    function fakeJSXCallSite() {
+      return Error("react-stack-top-frame");
+    }
+    function initializeFakeStack(response, debugInfo) {
+      void 0 === debugInfo.debugStack &&
+        (null != debugInfo.stack &&
+          (debugInfo.debugStack = createFakeJSXCallStackInDEV(
+            response,
+            debugInfo.stack
+          )),
+        null != debugInfo.owner &&
+          initializeFakeStack(response, debugInfo.owner));
     }
     function mergeBuffer(buffer, lastChunk) {
       for (
@@ -1969,6 +1980,7 @@
         case 68:
           row = JSON.parse(row, response._fromJSON);
           initializeFakeTask(response, row);
+          initializeFakeStack(response, row);
           response = getChunk(response, id);
           (response._debugInfo || (response._debugInfo = [])).push(row);
           break;
@@ -1987,9 +1999,11 @@
             );
             if (
               null != id &&
-              ((id = initializeFakeTask(response, id)), null !== id)
+              ((tag = initializeFakeTask(response, id)),
+              initializeFakeStack(response, id),
+              null !== tag)
             ) {
-              id.run(row);
+              tag.run(row);
               break a;
             }
             response = response._debugRootTask;
@@ -2015,10 +2029,14 @@
           break;
         case 80:
           row = JSON.parse(row);
-          tag = row.stack;
-          row = Error(row.reason || "");
+          row = buildFakeCallStack(
+            response,
+            row.stack,
+            Error.bind(null, row.reason || "")
+          );
+          tag = response._debugRootTask;
+          row = null != tag ? tag.run(row) : row();
           row.$$typeof = REACT_POSTPONE_TYPE;
-          row.stack = tag;
           tag = response._chunks;
           (errorInfo = tag.get(id))
             ? triggerErrorOnChunk(errorInfo, row)
@@ -2065,28 +2083,32 @@
               writable: !0,
               value: null
             });
+            validated = null;
+            null !== stack &&
+              (validated = createFakeJSXCallStackInDEV(response, stack));
             Object.defineProperty(value, "_debugStack", {
               configurable: !1,
               enumerable: !1,
               writable: !0,
-              value: stack
+              value: validated
             });
             validated = null;
             supportsCreateTask &&
               null !== stack &&
               ((type = console.createTask.bind(console, getTaskName(type))),
               (stack = buildFakeCallStack(response, stack, type)),
-              (key = null === key ? null : initializeFakeTask(response, key)),
-              null === key
-                ? ((key = response._debugRootTask),
-                  (validated = null != key ? key.run(stack) : stack()))
-                : (validated = key.run(stack)));
+              (type = null === key ? null : initializeFakeTask(response, key)),
+              null === type
+                ? ((type = response._debugRootTask),
+                  (validated = null != type ? type.run(stack) : stack()))
+                : (validated = type.run(stack)));
             Object.defineProperty(value, "_debugTask", {
               configurable: !1,
               enumerable: !1,
               writable: !0,
               value: validated
             });
+            null !== key && initializeFakeStack(response, key);
             null !== initializingHandler
               ? ((stack = initializingHandler),
                 (initializingHandler = stack.parent),
@@ -2096,8 +2118,8 @@
                       name: getComponentNameFromType(value.type) || "",
                       owner: value._owner
                     }),
-                    (stack.stack = value._debugStack),
-                    (stack.task = value._debugTask),
+                    (stack.debugStack = value._debugStack),
+                    (stack.debugTask = value._debugTask),
                     (key._debugInfo = [stack]),
                     (value = createLazyChunkWrapper(key)))
                   : 0 < stack.deps &&
@@ -2182,8 +2204,14 @@
       supportsCreateTask = !!console.createTask,
       fakeFunctionCache = new Map(),
       fakeFunctionIdx = 0,
-      frameRegExp =
-        /^ {3} at (?:(.+) \(([^\)]+):(\d+):(\d+)\)|(?:async )?([^\)]+):(\d+):(\d+))$/;
+      createFakeJSXCallStack = {
+        "react-stack-bottom-frame": function (response, stack) {
+          return buildFakeCallStack(response, stack, fakeJSXCallSite)();
+        }
+      },
+      createFakeJSXCallStackInDEV = createFakeJSXCallStack[
+        "react-stack-bottom-frame"
+      ].bind(createFakeJSXCallStack);
     exports.createFromNodeStream = function (stream, ssrManifest, options) {
       var response = new ResponseInstance(
         ssrManifest.moduleMap,
@@ -2236,10 +2264,10 @@
                 86 === rowState
                   ? ((rowTag = rowState), (rowState = 2), i++)
                   : (64 < rowState && 91 > rowState) ||
-                    114 === rowState ||
-                    120 === rowState
-                  ? ((rowTag = rowState), (rowState = 3), i++)
-                  : ((rowTag = 0), (rowState = 3));
+                      114 === rowState ||
+                      120 === rowState
+                    ? ((rowTag = rowState), (rowState = 3), i++)
+                    : ((rowTag = 0), (rowState = 3));
                 continue;
               case 2:
                 lastIdx = chunk.charCodeAt(i++);
@@ -2319,10 +2347,10 @@
                 86 === chunkLength
                   ? ((i = chunkLength), (chunkLength = 2), rowLength++)
                   : (64 < chunkLength && 91 > chunkLength) ||
-                    114 === chunkLength ||
-                    120 === chunkLength
-                  ? ((i = chunkLength), (chunkLength = 3), rowLength++)
-                  : ((i = 0), (chunkLength = 3));
+                      114 === chunkLength ||
+                      120 === chunkLength
+                    ? ((i = chunkLength), (chunkLength = 3), rowLength++)
+                    : ((i = 0), (chunkLength = 3));
                 continue;
               case 2:
                 lastIdx = chunk[rowLength++];

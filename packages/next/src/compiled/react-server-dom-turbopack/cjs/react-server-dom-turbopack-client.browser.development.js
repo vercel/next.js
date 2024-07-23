@@ -83,8 +83,8 @@
               return requireAsyncModule(metadata[0]);
             })
         : 0 < promises.length
-        ? Promise.all(promises)
-        : null;
+          ? Promise.all(promises)
+          : null;
     }
     function getIteratorFn(maybeIterable) {
       if (null === maybeIterable || "object" !== typeof maybeIterable)
@@ -149,8 +149,8 @@
           return value.$$typeof === CLIENT_REFERENCE_TAG
             ? "client"
             : (value = value.displayName || value.name)
-            ? "function " + value
-            : "function";
+              ? "function " + value
+              : "function";
         default:
           return String(value);
       }
@@ -193,8 +193,8 @@
               "string" === typeof value
                 ? value
                 : "object" === typeof value && null !== value
-                ? "{" + describeObjectForErrorMessage(value) + "}"
-                : "{" + describeValueForErrorMessage(value) + "}";
+                  ? "{" + describeObjectForErrorMessage(value) + "}"
+                  : "{" + describeValueForErrorMessage(value) + "}";
             "" + i === expandedName
               ? ((start = objKind.length),
                 (length = value.length),
@@ -280,9 +280,9 @@
       return void 0 === expandedName
         ? objKind
         : -1 < start && 0 < length
-        ? ((objectOrArray = " ".repeat(start) + "^".repeat(length)),
-          "\n  " + objKind + "\n  " + objectOrArray)
-        : "\n  " + objKind;
+          ? ((objectOrArray = " ".repeat(start) + "^".repeat(length)),
+            "\n  " + objKind + "\n  " + objectOrArray)
+          : "\n  " + objKind;
     }
     function serializeNumber(number) {
       return Number.isFinite(number)
@@ -290,10 +290,10 @@
           ? "$-0"
           : number
         : Infinity === number
-        ? "$Infinity"
-        : -Infinity === number
-        ? "$-Infinity"
-        : "$NaN";
+          ? "$Infinity"
+          : -Infinity === number
+            ? "$-Infinity"
+            : "$NaN";
     }
     function processReply(
       root,
@@ -605,24 +605,24 @@
                 describeObjectForErrorMessage(this, key)
               )
             : "Object" !== objectName(value)
-            ? console.error(
-                "Only plain objects can be passed to Server Functions from the Client. %s objects are not supported.%s",
-                objectName(value),
-                describeObjectForErrorMessage(this, key)
-              )
-            : isSimpleObject(value)
-            ? Object.getOwnPropertySymbols &&
-              ((parentReference = Object.getOwnPropertySymbols(value)),
-              0 < parentReference.length &&
-                console.error(
-                  "Only plain objects can be passed to Server Functions from the Client. Objects with symbol properties like %s are not supported.%s",
-                  parentReference[0].description,
+              ? console.error(
+                  "Only plain objects can be passed to Server Functions from the Client. %s objects are not supported.%s",
+                  objectName(value),
                   describeObjectForErrorMessage(this, key)
-                ))
-            : console.error(
-                "Only plain objects can be passed to Server Functions from the Client. Classes or other objects with methods are not supported.%s",
-                describeObjectForErrorMessage(this, key)
-              );
+                )
+              : isSimpleObject(value)
+                ? Object.getOwnPropertySymbols &&
+                  ((parentReference = Object.getOwnPropertySymbols(value)),
+                  0 < parentReference.length &&
+                    console.error(
+                      "Only plain objects can be passed to Server Functions from the Client. Objects with symbol properties like %s are not supported.%s",
+                      parentReference[0].description,
+                      describeObjectForErrorMessage(this, key)
+                    ))
+                : console.error(
+                    "Only plain objects can be passed to Server Functions from the Client. Classes or other objects with methods are not supported.%s",
+                    describeObjectForErrorMessage(this, key)
+                  );
           return value;
         }
         if ("string" === typeof value) {
@@ -907,10 +907,10 @@
           "*" === metadata[2]
             ? moduleExports
             : "" === metadata[2]
-            ? moduleExports.__esModule
-              ? moduleExports.default
-              : moduleExports
-            : moduleExports[metadata[2]];
+              ? moduleExports.__esModule
+                ? moduleExports.default
+                : moduleExports
+              : moduleExports[metadata[2]];
         chunk.status = "fulfilled";
         chunk.value = value;
       } catch (error) {
@@ -1479,6 +1479,56 @@
         }
       );
     }
+    function createFakeFunction(name, filename, sourceMap, line, col) {
+      name || (name = "(anonymous)");
+      var encodedName = JSON.stringify(name);
+      1 >= line
+        ? ((line = encodedName.length + 7),
+          (col =
+            "({" +
+            encodedName +
+            ":_=>" +
+            " ".repeat(col < line ? 0 : col - line) +
+            "_()})\n/* This module was rendered by a Server Component. Turn on Source Maps to see the server source. */"))
+        : (col =
+            "/* This module was rendered by a Server Component. Turn on Source Maps to see the server source. */" +
+            "\n".repeat(line - 2) +
+            "({" +
+            encodedName +
+            ":_=>\n" +
+            " ".repeat(1 > col ? 0 : col - 1) +
+            "_()})");
+      filename.startsWith("/") && (filename = "file://" + filename);
+      sourceMap
+        ? ((col +=
+            "\n//# sourceURL=rsc://React/" +
+            filename +
+            "?" +
+            fakeFunctionIdx++),
+          (col += "\n//# sourceMappingURL=" + sourceMap))
+        : filename && (col += "\n//# sourceURL=" + filename);
+      try {
+        var fn = (0, eval)(col)[name];
+      } catch (x) {
+        fn = function (_) {
+          return _();
+        };
+      }
+      return fn;
+    }
+    function fakeJSXCallSite() {
+      return Error("react-stack-top-frame");
+    }
+    function initializeFakeStack(response, debugInfo) {
+      void 0 === debugInfo.debugStack &&
+        (null != debugInfo.stack &&
+          (debugInfo.debugStack = createFakeJSXCallStackInDEV(
+            response,
+            debugInfo.stack
+          )),
+        null != debugInfo.owner &&
+          initializeFakeStack(response, debugInfo.owner));
+    }
     function mergeBuffer(buffer, lastChunk) {
       for (
         var l = buffer.length, byteLength = lastChunk.length, i = 0;
@@ -1618,16 +1668,38 @@
           }
           break;
         case 69:
-          tag = JSON.parse(buffer);
-          chunk = tag.digest;
-          stringDecoder = tag.env;
+          stringDecoder = JSON.parse(buffer);
+          tag = stringDecoder.digest;
+          chunk = stringDecoder.env;
           buffer = Error(
-            tag.message ||
+            stringDecoder.message ||
               "An error occurred in the Server Components render but no message was provided"
           );
-          buffer.stack = tag.stack;
-          buffer.digest = chunk;
-          buffer.environmentName = stringDecoder;
+          stringDecoder = stringDecoder.stack;
+          row = buffer.name + ": " + buffer.message;
+          if (stringDecoder)
+            for (i = 0; i < stringDecoder.length; i++) {
+              var frame = stringDecoder[i],
+                name = frame[0],
+                filename = frame[1],
+                line = frame[2];
+              frame = frame[3];
+              row = name
+                ? row +
+                  ("\n    at " +
+                    name +
+                    " (" +
+                    filename +
+                    ":" +
+                    line +
+                    ":" +
+                    frame +
+                    ")")
+                : row + ("\n    at " + filename + ":" + line + ":" + frame);
+            }
+          buffer.stack = row;
+          buffer.digest = tag;
+          buffer.environmentName = chunk;
           tag = response._chunks;
           (chunk = tag.get(id))
             ? triggerErrorOnChunk(chunk, buffer)
@@ -1641,6 +1713,7 @@
           break;
         case 68:
           buffer = JSON.parse(buffer, response._fromJSON);
+          initializeFakeStack(response, buffer);
           response = getChunk(response, id);
           (response._debugInfo || (response._debugInfo = [])).push(buffer);
           break;
@@ -1830,10 +1903,10 @@
                 86 === rowState
                   ? ((rowTag = rowState), (rowState = 2), i++)
                   : (64 < rowState && 91 > rowState) ||
-                    114 === rowState ||
-                    120 === rowState
-                  ? ((rowTag = rowState), (rowState = 3), i++)
-                  : ((rowTag = 0), (rowState = 3));
+                      114 === rowState ||
+                      120 === rowState
+                    ? ((rowTag = rowState), (rowState = 3), i++)
+                    : ((rowTag = 0), (rowState = 3));
                 continue;
               case 2:
                 lastIdx = value[i++];
@@ -1936,7 +2009,33 @@
           reject && reject(this.reason);
       }
     };
-    var initializingHandler = null;
+    var initializingHandler = null,
+      fakeFunctionCache = new Map(),
+      fakeFunctionIdx = 0;
+    ReactDOM = {
+      "react-stack-bottom-frame": function (response, stack) {
+        for (var callStack = fakeJSXCallSite, i = 0; i < stack.length; i++) {
+          var frame = stack[i],
+            frameKey = frame.join("-"),
+            fn = fakeFunctionCache.get(frameKey);
+          if (void 0 === fn) {
+            fn = frame[0];
+            var filename = frame[1],
+              line = frame[2];
+            frame = frame[3];
+            var sourceMap = response._debugFindSourceMapURL
+              ? response._debugFindSourceMapURL(filename)
+              : null;
+            fn = createFakeFunction(fn, filename, sourceMap, line, frame);
+            fakeFunctionCache.set(frameKey, fn);
+          }
+          callStack = fn.bind(null, callStack);
+        }
+        return callStack();
+      }
+    };
+    var createFakeJSXCallStackInDEV =
+      ReactDOM["react-stack-bottom-frame"].bind(ReactDOM);
     exports.createFromFetch = function (promiseForResponse, options) {
       var response = createResponseFromOptions(options);
       promiseForResponse.then(

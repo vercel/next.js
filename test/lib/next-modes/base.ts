@@ -163,7 +163,7 @@ export class NextInstance {
         )
 
         const reactVersion =
-          process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc-01172397-20240716'
+          process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc-f6cce072-20240723'
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
