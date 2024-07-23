@@ -94,6 +94,7 @@ export default function Form({ replace, ...props }: FormProps) {
     event.preventDefault()
 
     try {
+      // TODO: should probably call this even if bailing out?
       const { onSubmit: userOnSubmit } = props
       userOnSubmit?.(event)
     } catch (err) {
