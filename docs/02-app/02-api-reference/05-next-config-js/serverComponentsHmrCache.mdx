@@ -3,11 +3,11 @@ title: severComponentsHmrCache
 description: Configure whether fetch responses in Server Components are cached across HMR refresh requests.
 ---
 
-The experimental `serverComponentsHmrCache` option allows you to cache `fetch` responses in Server Components across HMR refresh requests, resulting in faster responses and reduced costs for billed API calls during local development.
+The experimental `serverComponentsHmrCache` option allows you to cache `fetch` responses in Server Components across Hot Module Replacement (HMR) in local development. This results in faster responses and reduced costs for billed API calls.
 
-This includes when using the `cache: 'no-store'` option.
+By default, the HMR cache applies to all `fetch` requests, including those with the `cache: 'no-store'` option. This means uncached requests will not show fresh data between HMR refreshes. However, the cache will be cleared on navigation or full-page reloads.
 
-The cache is enabled by default, and you can disable it by setting `serverComponentsHmrCache` to `false` in your `next.config.js` file.
+You can disable the HMR cache by setting `serverComponentsHmrCache` to `false` in your `next.config.js` file.
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -31,3 +31,5 @@ const nextConfig = {
 
 module.exports = nextConfig
 ```
+
+> **Good know:** We recommend using the [`logging.fetches`](/docs/app/api-reference/next-config-js/logging) option which logs fetch cache hits and misses in the console during development.
