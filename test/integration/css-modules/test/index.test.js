@@ -444,7 +444,6 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
       let code
       beforeAll(async () => {
         await remove(join(appDir, '.next'))
-        console.log({ appDir })
         ;({ code, stdout } = await nextBuild(appDir, [], {
           stdout: true,
         }))
