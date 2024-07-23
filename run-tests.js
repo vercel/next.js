@@ -416,7 +416,7 @@ ${ENDGROUP}`)
     // to avoid having to run yarn each time
     console.log(`${GROUP}Creating Next.js install for isolated tests`)
     const reactVersion =
-      process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc-01172397-20240716'
+      process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc-f6cce072-20240723'
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {

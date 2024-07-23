@@ -21,23 +21,23 @@
       return null === thing
         ? "`null`"
         : void 0 === thing
-        ? "`undefined`"
-        : "" === thing
-        ? "an empty string"
-        : 'something with type "' + typeof thing + '"';
+          ? "`undefined`"
+          : "" === thing
+            ? "an empty string"
+            : 'something with type "' + typeof thing + '"';
     }
     function getValueDescriptorExpectingEnumForWarning(thing) {
       return null === thing
         ? "`null`"
         : void 0 === thing
-        ? "`undefined`"
-        : "" === thing
-        ? "an empty string"
-        : "string" === typeof thing
-        ? JSON.stringify(thing)
-        : "number" === typeof thing
-        ? "`" + thing + "`"
-        : 'something with type "' + typeof thing + '"';
+          ? "`undefined`"
+          : "" === thing
+            ? "an empty string"
+            : "string" === typeof thing
+              ? JSON.stringify(thing)
+              : "number" === typeof thing
+                ? "`" + thing + "`"
+                : 'something with type "' + typeof thing + '"';
     }
     var React = require("next/dist/compiled/react-experimental"),
       Internals = {
@@ -336,5 +336,5 @@
             }))
           : Internals.d.m(href));
     };
-    exports.version = "19.0.0-experimental-01172397-20240716";
+    exports.version = "19.0.0-experimental-f6cce072-20240723";
   })();

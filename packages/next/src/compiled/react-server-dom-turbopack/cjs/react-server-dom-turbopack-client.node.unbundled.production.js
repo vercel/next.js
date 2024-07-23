@@ -101,10 +101,10 @@ function serializeNumber(number) {
       ? "$-0"
       : number
     : Infinity === number
-    ? "$Infinity"
-    : -Infinity === number
-    ? "$-Infinity"
-    : "$NaN";
+      ? "$Infinity"
+      : -Infinity === number
+        ? "$-Infinity"
+        : "$NaN";
 }
 function processReply(
   root,
@@ -772,8 +772,8 @@ function initializeModuleChunk(chunk) {
       "*" === metadata.name
         ? moduleExports
         : "" === metadata.name
-        ? moduleExports.default
-        : moduleExports[metadata.name];
+          ? moduleExports.default
+          : moduleExports[metadata.name];
     chunk.status = "fulfilled";
     chunk.value = JSCompiler_inline_result;
   } catch (error) {
@@ -1537,10 +1537,10 @@ exports.createFromNodeStream = function (stream, ssrManifest, options) {
           86 === rowState
             ? ((rowTag = rowState), (rowState = 2), i++)
             : (64 < rowState && 91 > rowState) ||
-              114 === rowState ||
-              120 === rowState
-            ? ((rowTag = rowState), (rowState = 3), i++)
-            : ((rowTag = 0), (rowState = 3));
+                114 === rowState ||
+                120 === rowState
+              ? ((rowTag = rowState), (rowState = 3), i++)
+              : ((rowTag = 0), (rowState = 3));
           continue;
         case 2:
           lastIdx = chunk[i++];

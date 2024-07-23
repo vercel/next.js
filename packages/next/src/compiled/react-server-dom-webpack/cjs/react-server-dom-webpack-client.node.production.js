@@ -71,8 +71,8 @@ function preloadModule(metadata) {
           return requireAsyncModule(metadata[0]);
         })
     : 0 < promises.length
-    ? Promise.all(promises)
-    : null;
+      ? Promise.all(promises)
+      : null;
 }
 function prepareDestinationWithChunks(moduleLoading, chunks, nonce$jscomp$0) {
   if (null !== moduleLoading)
@@ -118,10 +118,10 @@ function serializeNumber(number) {
       ? "$-0"
       : number
     : Infinity === number
-    ? "$Infinity"
-    : -Infinity === number
-    ? "$-Infinity"
-    : "$NaN";
+      ? "$Infinity"
+      : -Infinity === number
+        ? "$-Infinity"
+        : "$NaN";
 }
 function processReply(
   root,
@@ -791,10 +791,10 @@ function initializeModuleChunk(chunk) {
       "*" === metadata[2]
         ? moduleExports
         : "" === metadata[2]
-        ? moduleExports.__esModule
-          ? moduleExports.default
-          : moduleExports
-        : moduleExports[metadata[2]];
+          ? moduleExports.__esModule
+            ? moduleExports.default
+            : moduleExports
+          : moduleExports[metadata[2]];
     chunk.status = "fulfilled";
     chunk.value = JSCompiler_inline_result;
   } catch (error) {
@@ -1561,10 +1561,10 @@ exports.createFromNodeStream = function (stream, ssrManifest, options) {
             86 === rowState
               ? ((rowTag = rowState), (rowState = 2), i++)
               : (64 < rowState && 91 > rowState) ||
-                114 === rowState ||
-                120 === rowState
-              ? ((rowTag = rowState), (rowState = 3), i++)
-              : ((rowTag = 0), (rowState = 3));
+                  114 === rowState ||
+                  120 === rowState
+                ? ((rowTag = rowState), (rowState = 3), i++)
+                : ((rowTag = 0), (rowState = 3));
             continue;
           case 2:
             lastIdx = chunk.charCodeAt(i++);
@@ -1643,10 +1643,10 @@ exports.createFromNodeStream = function (stream, ssrManifest, options) {
             86 === chunkLength
               ? ((i = chunkLength), (chunkLength = 2), rowLength++)
               : (64 < chunkLength && 91 > chunkLength) ||
-                114 === chunkLength ||
-                120 === chunkLength
-              ? ((i = chunkLength), (chunkLength = 3), rowLength++)
-              : ((i = 0), (chunkLength = 3));
+                  114 === chunkLength ||
+                  120 === chunkLength
+                ? ((i = chunkLength), (chunkLength = 3), rowLength++)
+                : ((i = 0), (chunkLength = 3));
             continue;
           case 2:
             lastIdx = chunk[rowLength++];
