@@ -45,6 +45,12 @@ export function logStartInfo({
     }
   }
 
+  if (process.env.TURBOPACK) {
+    Log.warn(
+      '- Turbo: consider updating to the latest rc version of Next.js for better support'
+    )
+  }
+
   // New line after the bootstrap info
   Log.info('')
 }
