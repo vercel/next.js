@@ -71,6 +71,7 @@
       "packages/next-swc/**",
       "packages/next/**",
       "packages/react-refresh-utils/**"
-    ]
+    ],
+    "type: react-sync": [".github/.react-version"]
   }
 }
