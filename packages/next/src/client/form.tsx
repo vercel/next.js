@@ -3,14 +3,10 @@
 import { useEffect, type HTMLProps, type FormEvent } from 'react'
 import { useRouter } from './components/navigation'
 
-const isSupportedEncType = (value: string) =>
-  value === 'application/x-www-form-urlencoded'
-const isSupportedMethod = (value: string) => value === 'get'
-const isSupportedTarget = (value: string) => value === '_self'
-
 type HTMLFormProps = HTMLProps<HTMLFormElement>
+type DisallowedFormProps = 'method' | 'encType' | 'target'
 
-export type FormProps = Omit<HTMLFormProps, 'action'> &
+export type FormProps = Omit<HTMLFormProps, 'action' | DisallowedFormProps> &
   Required<Pick<HTMLFormProps, 'action'>> & { replace?: boolean }
 
 export default function Form({ replace, ...props }: FormProps) {
@@ -29,13 +25,7 @@ export default function Form({ replace, ...props }: FormProps) {
     }
   }, [actionProp, router])
 
-  if (
-    typeof actionProp !== 'string' ||
-    // TODO: should we warn here? or maybe just make these an error?
-    (props.encType && !isSupportedEncType(props.encType)) ||
-    (props.method && !isSupportedMethod(props.method)) ||
-    (props.target && !isSupportedTarget(props.target))
-  ) {
+  if (typeof actionProp !== 'string') {
     return <form {...props} />
   }
 
@@ -120,6 +110,11 @@ export default function Form({ replace, ...props }: FormProps) {
 
   return <form {...props} onSubmit={onSubmit} />
 }
+
+const isSupportedEncType = (value: string) =>
+  value === 'application/x-www-form-urlencoded'
+const isSupportedMethod = (value: string) => value === 'get'
+const isSupportedTarget = (value: string) => value === '_self'
 
 function hasUnsupportedSubmitterAttributes(submitter: HTMLElement): boolean {
   // A submitter can override `encType` for the form.
