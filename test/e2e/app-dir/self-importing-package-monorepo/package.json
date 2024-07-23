@@ -1,7 +1,19 @@
 {
-  "name": "turbo-self-referencing",
+  "name": "next-app",
+  "version": "0.1.0",
   "private": true,
-  "devDependencies": {
-    "@types/node": "^20"
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "internal-pkg": "link:./internal-pkg"
+  },
+  "exports": {
+    ".": {
+      "default": "./index.js"
+    }
   }
 }

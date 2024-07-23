@@ -1,25 +1,13 @@
 {
-  "name": "@repo/internal-pkg",
+  "name": "internal-pkg",
   "private": true,
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "default": "./src/index.js"
     },
     "./env": {
-      "types": "./dist/env.d.ts",
-      "import": "./dist/env.js",
-      "require": "./dist/env.cjs"
+      "default": "./src/env.js"
     }
-  },
-  "scripts": {
-    "build": "bunchee",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "bunchee": "^5.1.5",
-    "typescript": "5.4.2"
   }
 }

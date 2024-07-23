@@ -1,36 +1,13 @@
 {
-  "name": "@repo/internal-pkg",
+  "name": "internal-pkg",
   "private": true,
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "default": "./src/index.js"
     },
     "./env": {
-      "types": "./dist/env.d.ts",
-      "import": "./dist/env.js",
-      "require": "./dist/env.cjs"
+      "default": "./src/env.js"
     }
-  },
-  "scripts": {
-    "build": "bunchee",
-    "dev": "bunchee -w --no-clean",
-    "clean": "rm -rf .turbo dist node_modules",
-    "lint": "eslint src",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@aws-sdk/client-s3": "3.572.0",
-    "@aws-sdk/s3-presigned-post": "3.572.0",
-    "@aws-sdk/s3-request-presigner": "3.572.0",
-    "@t3-oss/env-core": "^0.9.2",
-    "zod": "^3.22.4"
-  },
-  "devDependencies": {
-    "bunchee": "^5.1.5",
-    "eslint": "^8.57.0",
-    "typescript": "5.4.2"
   }
 }

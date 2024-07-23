@@ -5,13 +5,12 @@ describe('self-importing-package', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      'my-package': `file:${path.join(__dirname, 'my-package.tar')}`,
-      '@repo/internal-pkg': `file:${path.join(__dirname, 'internal-pkg.tar')}`,
+      'internal-pkg': `file:${path.join(__dirname, 'internal-pkg.tar')}`,
     },
   })
 
-  it('should work using cheerio', async () => {
+  it('should resolve self-imports in an external package', async () => {
     const $ = await next.render$('/')
-    expect($('h1').text()).toBe('THIS IS THE OTHER FILE')
+    expect($('h1').text()).toBe('test abc')
   })
 })
