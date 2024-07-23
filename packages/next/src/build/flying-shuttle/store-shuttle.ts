@@ -20,9 +20,7 @@ export function generateShuttleManifest(config: NextConfigComplete) {
   const globalHash = crypto.createHash('sha256')
 
   for (const key in getNextPublicEnvironmentVariables()) {
-    if (key.startsWith('NEXT_PUBLIC_')) {
-      globalHash.update(`${key}=${process.env[key]}`)
-    }
+    globalHash.update(`${key}=${process.env[key]}`)
   }
 
   const omittedConfigKeys = ['headers', 'rewrites', 'redirects']
