@@ -1,5 +1,9 @@
 import fs from 'fs'
 import path from 'path'
+import crypto from 'crypto'
+import { recursiveCopy } from '../../lib/recursive-copy'
+import { version as nextVersion } from 'next/package.json'
+import type { NextConfigComplete } from '../../server/config-shared'
 import {
   BUILD_MANIFEST,
   APP_BUILD_MANIFEST,
@@ -8,19 +12,56 @@ import {
   PAGES_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../shared/lib/constants'
-import { recursiveCopy } from '../../lib/recursive-copy'
+import { getNextPublicEnvironmentVariables } from '../webpack/plugins/define-env-plugin'
+
+export function generateShuttleManifest(config: NextConfigComplete) {
+  // NEXT_PUBLIC_ changes for now since they are inlined
+  // and specific next config values that can impact the build
+  const globalHash = crypto.createHash('sha256')
+
+  for (const key in getNextPublicEnvironmentVariables()) {
+    globalHash.update(`${key}=${process.env[key]}`)
+  }
+
+  const omittedConfigKeys = ['headers', 'rewrites', 'redirects']
+
+  for (const key in config) {
+    if (omittedConfigKeys.includes(key)) {
+      continue
+    }
+    let serializedConfig =
+      typeof config[key] === 'function'
+        ? config[key].toString()
+        : JSON.stringify(config[key])
+
+    globalHash.update(`${key}=${serializedConfig}`)
+  }
+
+  return {
+    nextVersion,
+    globalHash: globalHash.digest('hex'),
+  }
+}
 
 // we can create a new shuttle with the outputs before env values have
 // been inlined, can be done after stitching takes place
 export async function storeShuttle({
+  config,
   distDir,
   shuttleDir,
 }: {
   distDir: string
   shuttleDir: string
+  config: NextConfigComplete
 }) {
   await fs.promises.rm(shuttleDir, { force: true, recursive: true })
   await fs.promises.mkdir(shuttleDir, { recursive: true })
+
+  const shuttleManifest = generateShuttleManifest(config)
+  await fs.promises.writeFile(
+    path.join(shuttleDir, 'shuttle-manifest.json'),
+    JSON.stringify(shuttleManifest)
+  )
 
   // copy all server entries
   await recursiveCopy(
