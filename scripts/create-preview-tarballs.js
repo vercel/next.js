@@ -36,10 +36,7 @@ async function main() {
   const version = `${semverStableVersion}-preview-${shortSha}-${dateString}`
   console.info(`Designated version: ${version}`)
 
-  const nativePackagesDir = path.join(
-    repoRoot,
-    'packages/next-swc/crates/napi/npm'
-  )
+  const nativePackagesDir = path.join(repoRoot, 'crates/napi/npm')
   const platforms = (await fs.readdir(nativePackagesDir)).filter(
     (name) => !name.startsWith('.')
   )
