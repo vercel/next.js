@@ -1,5 +1,5 @@
-import P from "../components/paragraph";
-import Post from "../components/post";
+import P from "./_components/paragraph";
+import Post from "./_components/post";
 
 export default function Home() {
   return (
@@ -23,7 +23,7 @@ export default function Home() {
         <P>C’est fin</P>
       </Post>
 
-      <style jsx>{`
+      <style>{`
         .main {
           margin: auto;
           max-width: 420px;

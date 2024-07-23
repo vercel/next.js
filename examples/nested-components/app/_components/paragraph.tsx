@@ -6,7 +6,7 @@ export default function Paragraph({ children }: ParagraphProps) {
   return (
     <p>
       {children}
-      <style jsx>{`
+      <style>{`
         p {
           font:
             13px Helvetica,

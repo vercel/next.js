@@ -8,7 +8,7 @@ export default function Post({ title, children }: PostProps) {
     <div className="main">
       <h1>{title}</h1>
       {children}
-      <style jsx>{`
+      <style>{`
         .main {
           font:
             15px Helvetica,
