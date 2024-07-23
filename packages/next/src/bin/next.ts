@@ -169,7 +169,7 @@ program
   )
   .option(
     '-H, --hostname <hostname>',
-    'Specify a hostname on which to start the application (default: localhost).'
+    'Specify a hostname on which to start the application (default: 0.0.0.0).'
   )
   .option(
     '--experimental-https',
