@@ -109,6 +109,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub optimize_server_react: Option<crate::transforms::optimize_server_react::Config>,
+
+    #[serde(default)]
+    pub debug_fn_name: bool,
 }
 
 pub fn custom_before_pass<'a, C>(
@@ -297,6 +300,7 @@ where
             },
             None => Either::Right(noop()),
         },
+        Optional::new(crate::transforms::debug_fn_name::debug_fn_name(), opts.debug_fn_name),
         as_folder(crate::transforms::pure::pure_magic(comments)),
     )
 }
