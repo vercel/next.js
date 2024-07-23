@@ -174,4 +174,46 @@ describe('create-next-app prompts', () => {
       `)
     })
   })
+
+  it('should not prompt user for choice and use defaults if --yes is defined', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'yes-we-can'
+      const childProcess = createNextApp(
+        [projectName, '--yes'],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: [
+              'app',
+              '.eslintrc.json',
+              'package.json',
+              'tailwind.config.ts',
+              'tsconfig.json',
+            ],
+          })
+          resolve()
+        })
+      })
+
+      const pkg = require(join(cwd, projectName, 'package.json'))
+      expect(pkg.name).toBe(projectName)
+      const tsConfig = require(join(cwd, projectName, 'tsconfig.json'))
+      expect(tsConfig.compilerOptions.paths).toMatchInlineSnapshot(`
+        {
+          "@/*": [
+            "./*",
+          ],
+        }
+      `)
+    })
+  })
 })

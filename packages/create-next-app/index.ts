@@ -73,7 +73,7 @@ const program = new Command(packageJson.name)
     '--eslint',
     `
 
-  Initialize with eslint config.
+  Initialize with ESLint config.
 `
   )
   .option(
@@ -170,6 +170,14 @@ const program = new Command(packageJson.name)
     `
 
   Explicitly tell the CLI to skip installing packages
+`
+  )
+  .option(
+    '--yes',
+    `
+
+  Use previous preferences or defaults for all options that were not
+  explicitly specified, without prompting.
 `
   )
   .allowUnknownOption()
@@ -271,10 +279,13 @@ async function run(): Promise<void> {
     string,
     boolean | string
   >
+
   /**
-   * If the user does not provide the necessary flags, prompt them for whether
-   * to use TS or JS.
+   * If the user does not provide the necessary flags, prompt them for their
+   * preferences, unless `--yes` option was specified, or when running in CI.
    */
+  const skipPrompt = ciInfo.isCI || program.yes
+
   if (!example) {
     const defaults: typeof preferences = {
       typescript: true,
@@ -291,7 +302,7 @@ async function run(): Promise<void> {
       preferences[field] ?? defaults[field]
 
     if (!program.typescript && !program.javascript) {
-      if (ciInfo.isCI) {
+      if (skipPrompt) {
         // default to TypeScript in CI as we can't prompt to
         // prevent breaking setup flows
         program.typescript = getPrefOrDefault('typescript')
@@ -330,7 +341,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--eslint') &&
       !process.argv.includes('--no-eslint')
     ) {
-      if (ciInfo.isCI) {
+      if (skipPrompt) {
         program.eslint = getPrefOrDefault('eslint')
       } else {
         const styledEslint = blue('ESLint')
@@ -352,7 +363,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--tailwind') &&
       !process.argv.includes('--no-tailwind')
     ) {
-      if (ciInfo.isCI) {
+      if (skipPrompt) {
         program.tailwind = getPrefOrDefault('tailwind')
       } else {
         const tw = blue('Tailwind CSS')
@@ -374,7 +385,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--src-dir') &&
       !process.argv.includes('--no-src-dir')
     ) {
-      if (ciInfo.isCI) {
+      if (skipPrompt) {
         program.srcDir = getPrefOrDefault('srcDir')
       } else {
         const styledSrcDir = blue('`src/` directory')
@@ -393,7 +404,7 @@ async function run(): Promise<void> {
     }
 
     if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
-      if (ciInfo.isCI) {
+      if (skipPrompt) {
         program.app = getPrefOrDefault('app')
       } else {
         const styledAppDir = blue('App Router')
@@ -407,11 +418,12 @@ async function run(): Promise<void> {
           inactive: 'No',
         })
         program.app = Boolean(appRouter)
+        preferences.app = Boolean(appRouter)
       }
     }
 
     if (!program.turbo && !process.argv.includes('--no-turbo')) {
-      if (ciInfo.isCI) {
+      if (skipPrompt) {
         program.turbo = getPrefOrDefault('turbo')
       } else {
         const styledTurbo = blue('Turbopack')
@@ -434,7 +446,7 @@ async function run(): Promise<void> {
       typeof program.importAlias !== 'string' ||
       !importAliasPattern.test(program.importAlias)
     ) {
-      if (ciInfo.isCI) {
+      if (skipPrompt) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
         program.importAlias = defaults.importAlias
       } else if (process.argv.includes('--no-import-alias')) {
