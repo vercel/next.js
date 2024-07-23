@@ -178,13 +178,23 @@ pub fn endpoint_server_changed_subscribe(
     )
 }
 
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
 #[derive(Debug)]
 struct EndpointIssuesAndDiags {
-    changed: Vc<Completion>,
+    changed: ReadRef<Completion>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
 }
+
+impl PartialEq for EndpointIssuesAndDiags {
+    fn eq(&self, other: &Self) -> bool {
+        ReadRef::ptr_eq(&self.changed, &other.changed)
+            && self.issues == other.issues
+            && self.diagnostics == other.diagnostics
+    }
+}
+
+impl Eq for EndpointIssuesAndDiags {}
 
 #[turbo_tasks::function]
 async fn subscribe_issues_and_diags(
@@ -192,20 +202,20 @@ async fn subscribe_issues_and_diags(
     should_include_issues: bool,
 ) -> Result<Vc<EndpointIssuesAndDiags>> {
     let changed = endpoint.server_changed();
-    changed.await?;
+    let changed_value = changed.strongly_consistent().await?;
 
     if should_include_issues {
         let issues = get_issues(changed).await?;
         let diagnostics = get_diagnostics(changed).await?;
         Ok(EndpointIssuesAndDiags {
-            changed,
+            changed: changed_value,
             issues,
             diagnostics,
         }
         .cell())
     } else {
         Ok(EndpointIssuesAndDiags {
-            changed,
+            changed: changed_value,
             issues: Arc::new(vec![]),
             diagnostics: Arc::new(vec![]),
         }
