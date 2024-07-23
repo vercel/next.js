@@ -173,6 +173,9 @@ export function getDefineEnv({
         ? 'nodejs'
         : '',
     'process.env.NEXT_MINIMAL': '',
+    'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
+      config.experimental.appNavFailHandling
+    ),
     'process.env.__NEXT_APP_ISR_INDICATOR': Boolean(
       config.devIndicators.appIsrStatus
     ),
@@ -197,6 +200,8 @@ export function getDefineEnv({
         ? 5 * 60 // 5 minutes
         : config.experimental.staleTimes?.static
     ),
+    'process.env.__NEXT_FLYING_SHUTTLE':
+      config.experimental.flyingShuttle ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
       config.experimental.clientRouterFilter ?? true,
     'process.env.__NEXT_CLIENT_ROUTER_S_FILTER':

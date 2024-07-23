@@ -23,6 +23,10 @@ export default function Layout({ children }) {
             /cache-revalidate
           </Link>
           <br />
+          <Link id="nav-many-requests" href={'/many-requests'}>
+            /many-requests
+          </Link>
+          <br />
         </header>
         <div>{children}</div>
       </body>

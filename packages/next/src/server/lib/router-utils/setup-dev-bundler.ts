@@ -88,6 +88,7 @@ import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
+import { store as consoleStore } from '../../../build/output/store'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -174,6 +175,11 @@ async function startWatcher(opts: SetupOpts) {
   )
 
   const serverFields: ServerFields = {}
+
+  // Update logging state once based on next.config.js when initializing
+  consoleStore.setState({
+    logging: nextConfig.logging !== false,
+  })
 
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
     ? await createHotReloaderTurbopack(opts, serverFields, distDir)

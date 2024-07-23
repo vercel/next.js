@@ -16,9 +16,9 @@ const unsupportedTurbopackNextConfigOptions = [
   // 'experimental.clientRouterFilter',
   // 'experimental.optimizePackageImports',
   // 'compiler.emotion',
-  'compiler.reactRemoveProperties',
+  // 'compiler.reactRemoveProperties',
   // 'compiler.relay',
-  'compiler.removeConsole',
+  // 'compiler.removeConsole',
   // 'compiler.styledComponents',
   'experimental.fetchCacheKeyPrefix',
 
@@ -50,10 +50,9 @@ const unsupportedTurbopackNextConfigOptions = [
 ]
 
 // The following will need to be supported by `next build --turbo`
-const unsupportedProductionSpecificTurbopackNextConfigOptions = [
+const unsupportedProductionSpecificTurbopackNextConfigOptions: string[] = [
   // TODO: Support disabling sourcemaps, currently they're always enabled.
   // 'productionBrowserSourceMaps',
-  'reactProductionProfiling',
 ]
 
 // check for babelrc, swc plugins

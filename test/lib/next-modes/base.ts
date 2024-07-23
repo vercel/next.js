@@ -1,6 +1,6 @@
 import os from 'os'
 import path from 'path'
-import { existsSync, promises as fs } from 'fs'
+import { existsSync, promises as fs, rmSync } from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef, isNextDeploy } from '../e2e-utils'
@@ -69,7 +69,7 @@ export class NextInstance {
   public env: Record<string, string>
   public forcedPort?: string
   public dirSuffix: string = ''
-  public serverReadyPattern?: RegExp = /^\s* ✓ Ready in /
+  public serverReadyPattern?: RegExp = / ✓ Ready in /
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
@@ -163,7 +163,7 @@ export class NextInstance {
         )
 
         const reactVersion =
-          process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc.0'
+          process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc-dfd30974ab-20240613'
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
@@ -416,6 +416,8 @@ export class NextInstance {
 
   public async destroy(): Promise<void> {
     try {
+      require('console').time('destroyed next instance')
+
       if (this.isDestroyed) {
         throw new Error(`next instance already destroyed`)
       }
@@ -446,9 +448,10 @@ export class NextInstance {
       }
 
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-        await fs.rm(this.testDir, { recursive: true, force: true })
+        // Faster than `await fs.rm`. Benchmark before change.
+        rmSync(this.testDir, { recursive: true, force: true })
       }
-      require('console').log(`destroyed next instance`)
+      require('console').timeEnd(`destroyed next instance`)
     } catch (err) {
       require('console').error('Error while destroying', err)
     }
@@ -487,18 +490,30 @@ export class NextInstance {
 
   public async patchFile(
     filename: string,
-    content: string | ((contents: string) => string)
+    content: string | ((content: string) => string),
+    runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
   ): Promise<{ newFile: boolean }> {
     const outputPath = path.join(this.testDir, filename)
     const newFile = !existsSync(outputPath)
     await fs.mkdir(path.dirname(outputPath), { recursive: true })
+    const previousContent = newFile ? undefined : await this.readFile(filename)
 
     await fs.writeFile(
       outputPath,
-      typeof content === 'function'
-        ? content(await this.readFile(filename))
-        : content
+      typeof content === 'function' ? content(previousContent) : content
     )
+
+    if (runWithTempContent) {
+      try {
+        await runWithTempContent({ newFile })
+      } finally {
+        if (previousContent === undefined) {
+          await fs.rm(outputPath)
+        } else {
+          await fs.writeFile(outputPath, previousContent)
+        }
+      }
+    }
 
     return { newFile }
   }

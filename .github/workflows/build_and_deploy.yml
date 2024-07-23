@@ -9,7 +9,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.16.2
-  TURBO_VERSION: 2.0.6-canary.0
+  TURBO_VERSION: 2.0.7
   NODE_LTS_VERSION: 20
   CARGO_PROFILE_RELEASE_LTO: 'true'
   TURBO_TEAM: 'vercel'
@@ -111,7 +111,7 @@ jobs:
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'i686-pc-windows-msvc' }}
           - settings:
-              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-pc-windows-msvc' }}
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-pc-windows-msvc' }}
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-unknown-linux-musl' }}
           - settings:
@@ -429,7 +429,7 @@ jobs:
         run: turbo run build-wasm -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }}
 
       - name: Add target to folder name
-        run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
+        run: '[[ -d "crates/wasm/pkg" ]] && mv crates/wasm/pkg crates/wasm/pkg-${{ matrix.target }} || ls crates/wasm'
 
       - name: Upload turbo summary artifact
         uses: actions/upload-artifact@v4
@@ -441,7 +441,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wasm-binaries-${{matrix.target}}
-          path: packages/next-swc/crates/wasm/pkg-*
+          path: crates/wasm/pkg-*
 
   deploy-tarball:
     if: ${{ needs.deploy-target.outputs.value != 'production' }}
@@ -486,7 +486,7 @@ jobs:
         with:
           pattern: wasm-binaries-*
           merge-multiple: true
-          path: packages/next-swc/crates/wasm
+          path: crates/wasm
 
       - name: Create tarballs
         run: node scripts/create-preview-tarballs.js "${{ github.sha }}" "${{ runner.temp }}/preview-tarballs"
@@ -546,7 +546,7 @@ jobs:
         with:
           pattern: wasm-binaries-*
           merge-multiple: true
-          path: packages/next-swc/crates/wasm
+          path: crates/wasm
 
       - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
