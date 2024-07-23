@@ -20,6 +20,8 @@ import { lazyRenderAppPage } from '../../server/route-modules/app-page/module.re
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
+import type { FetchMetrics } from '../../server/base-http'
+import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -186,18 +188,21 @@ export async function exportAppPage(
       throw err
     }
 
+    let fetchMetrics: FetchMetrics | undefined
+
     if (debugOutput) {
-      const { dynamicUsageDescription, dynamicUsageStack } = (renderOpts as any)
-        .store
+      const store = (renderOpts as any).store as StaticGenerationStore
+      const { dynamicUsageDescription, dynamicUsageStack } = store
+      fetchMetrics = store.fetchMetrics
 
       logDynamicUsageWarning({
         path,
-        description: dynamicUsageDescription,
+        description: dynamicUsageDescription ?? '',
         stack: dynamicUsageStack,
       })
     }
 
-    return { revalidate: 0 }
+    return { revalidate: 0, fetchMetrics }
   }
 }
 

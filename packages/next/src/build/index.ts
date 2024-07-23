@@ -2732,7 +2732,9 @@ export default async function build(
           // If there was no result, there's nothing more to do.
           if (!exportResult) return
 
-          recordFetchMetrics(exportResult)
+          if (debugOutput) {
+            recordFetchMetrics(exportResult)
+          }
 
           writeTurborepoAccessTraceResult({
             distDir: config.distDir,
