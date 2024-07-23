@@ -162,6 +162,7 @@ import { formatManifest } from './manifests/formatter/format-manifest'
 import {
   recordFrameworkVersion,
   updateBuildDiagnostics,
+  recordFetchMetrics,
 } from '../diagnostics/build-diagnostics'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
@@ -2734,6 +2735,10 @@ export default async function build(
 
           // If there was no result, there's nothing more to do.
           if (!exportResult) return
+
+          if (debugOutput) {
+            recordFetchMetrics(exportResult)
+          }
 
           writeTurborepoAccessTraceResult({
             distDir: config.distDir,

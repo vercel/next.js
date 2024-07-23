@@ -386,6 +386,7 @@ export default async function exportPage(
     hasEmptyPrelude: result.hasEmptyPrelude,
     hasPostponed: result.hasPostponed,
     turborepoAccessTraceResult: turborepoAccessTraceResult.serialize(),
+    fetchMetrics: result.fetchMetrics,
   }
 }
 
