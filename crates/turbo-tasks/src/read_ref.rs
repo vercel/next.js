@@ -15,6 +15,8 @@ use crate::{
     SharedReference, Vc, VcRead, VcValueType,
 };
 
+type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
+
 /// The read value of a value cell. The read value is immutable, while the cell
 /// itself might change over time. It's basically a snapshot of a value at a
 /// certain point in time.
@@ -32,7 +34,7 @@ impl<T> std::ops::Deref for ReadRef<T>
 where
     T: VcValueType,
 {
-    type Target = <T::Read as VcRead<T>>::Target;
+    type Target = VcReadTarget<T>;
 
     fn deref(&self) -> &Self::Target {
         T::Read::value_to_target_ref(&self.0)
@@ -42,7 +44,7 @@ where
 impl<T> Display for ReadRef<T>
 where
     T: VcValueType,
-    <T::Read as VcRead<T>>::Target: Display,
+    VcReadTarget<T>: Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&**self, f)
@@ -52,7 +54,7 @@ where
 impl<T> Debug for ReadRef<T>
 where
     T: VcValueType,
-    <T::Read as VcRead<T>>::Target: Debug,
+    VcReadTarget<T>: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Debug::fmt(&**self, f)
@@ -62,7 +64,7 @@ where
 impl<T> TraceRawVcs for ReadRef<T>
 where
     T: VcValueType,
-    <T::Read as VcRead<T>>::Target: TraceRawVcs,
+    VcReadTarget<T>: TraceRawVcs,
 {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         (**self).trace_raw_vcs(trace_context);
@@ -72,7 +74,7 @@ where
 impl<T> ValueDebugFormat for ReadRef<T>
 where
     T: VcValueType,
-    <T::Read as VcRead<T>>::Target: ValueDebugFormat + 'static,
+    VcReadTarget<T>: ValueDebugFormat + 'static,
 {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
         let value = &**self;
@@ -83,7 +85,7 @@ where
 impl<T> PartialEq for ReadRef<T>
 where
     T: VcValueType,
-    <T::Read as VcRead<T>>::Target: PartialEq,
+    VcReadTarget<T>: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         PartialEq::eq(&**self, &**other)
@@ -93,14 +95,14 @@ where
 impl<T> Eq for ReadRef<T>
 where
     T: VcValueType,
-    <T::Read as VcRead<T>>::Target: Eq,
+    VcReadTarget<T>: Eq,
 {
 }
 
 impl<T> PartialOrd for ReadRef<T>
 where
     T: VcValueType,
-    <T::Read as VcRead<T>>::Target: PartialOrd,
+    VcReadTarget<T>: PartialOrd,
 {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         PartialOrd::partial_cmp(&**self, &**other)
@@ -110,7 +112,7 @@ where
 impl<T> Ord for ReadRef<T>
 where
     T: VcValueType,
-    <T::Read as VcRead<T>>::Target: Ord,
+    VcReadTarget<T>: Ord,
 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         Ord::cmp(&**self, &**other)
@@ -120,7 +122,7 @@ where
 impl<T> Hash for ReadRef<T>
 where
     T: VcValueType,
-    <T::Read as VcRead<T>>::Target: Hash,
+    VcReadTarget<T>: Hash,
 {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         Hash::hash(&**self, state)
@@ -130,7 +132,7 @@ where
 impl<T> DeterministicHash for ReadRef<T>
 where
     T: VcValueType,
-    <T::Read as VcRead<T>>::Target: DeterministicHash,
+    VcReadTarget<T>: DeterministicHash,
 {
     fn deterministic_hash<H: turbo_tasks_hash::DeterministicHasher>(&self, state: &mut H) {
         let p = &**self;
@@ -141,7 +143,7 @@ where
 impl<'a, T, I, J: Iterator<Item = I>> IntoIterator for &'a ReadRef<T>
 where
     T: VcValueType,
-    &'a <T::Read as VcRead<T>>::Target: IntoIterator<Item = I, IntoIter = J>,
+    &'a VcReadTarget<T>: IntoIterator<Item = I, IntoIter = J>,
 {
     type Item = I;
 
@@ -155,7 +157,7 @@ where
 impl<T, I: 'static, J: Iterator<Item = I>> IntoIterator for ReadRef<T>
 where
     T: VcValueType,
-    &'static <T::Read as VcRead<T>>::Target: IntoIterator<Item = I, IntoIter = J>,
+    &'static VcReadTarget<T>: IntoIterator<Item = I, IntoIter = J>,
 {
     type Item = I;
 
@@ -165,12 +167,7 @@ where
         let r = &*self;
         // # Safety
         // The reference will we valid as long as the ReadRef is valid.
-        let r = unsafe {
-            transmute_copy::<
-                &'_ <T::Read as VcRead<T>>::Target,
-                &'static <T::Read as VcRead<T>>::Target,
-            >(&r)
-        };
+        let r = unsafe { transmute_copy::<&'_ VcReadTarget<T>, &'static VcReadTarget<T>>(&r) };
         ReadRefIter {
             read_ref: self,
             iter: r.into_iter(),
@@ -201,7 +198,7 @@ where
 impl<T> Serialize for ReadRef<T>
 where
     T: VcValueType,
-    <T::Read as VcRead<T>>::Target: Serialize,
+    VcReadTarget<T>: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -260,11 +257,11 @@ where
 impl<T> ReadRef<T>
 where
     T: VcValueType,
-    <T::Read as VcRead<T>>::Target: Clone,
+    VcReadTarget<T>: Clone,
 {
     /// This will clone the contained value instead of cloning the ReadRef.
     /// This clone is more expensive, but allows to get an mutable owned value.
-    pub fn clone_value(&self) -> <T::Read as VcRead<T>>::Target {
+    pub fn clone_value(&self) -> VcReadTarget<T> {
         (**self).clone()
     }
 }

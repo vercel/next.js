@@ -37,9 +37,7 @@ where
                 std::mem::transmute_copy::<
                     ManuallyDrop<ReadRef<<T::Read as VcRead<T>>::Repr>>,
                     Self::Output,
-                >(&ManuallyDrop::new(
-                    content.cast::<<T::Read as VcRead<T>>::Repr>()?,
-                ))
+                >(&ManuallyDrop::new(content.cast()?))
             },
         )
     }
