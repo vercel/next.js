@@ -536,6 +536,14 @@ const runTests = (isDev = false) => {
     })
   })
 
+  it('should allow params with empty name in query for redirect to external', async () => {
+    const res = await fetchViaHTTP(appPort, '/to-external?a=b&=', undefined, {
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(307)
+  })
+
   it('should have correct params for catchall rewrite', async () => {
     const html = await renderViaHTTP(
       appPort,
