@@ -179,7 +179,6 @@ pub fn endpoint_server_changed_subscribe(
 }
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
-#[derive(Debug)]
 struct EndpointIssuesAndDiags {
     changed: ReadRef<Completion>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
