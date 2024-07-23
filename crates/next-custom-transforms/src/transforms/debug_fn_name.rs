@@ -89,47 +89,45 @@ impl VisitMut for DebugFnName {
     }
 
     fn visit_mut_var_declarator(&mut self, n: &mut VarDeclarator) {
-        match n.init.as_deref() {
-            Some(Expr::Call(call)) => {
-                let name = is_target_callee(&call.callee).and_then(|target| {
-                    let name = n.name.as_ident()?;
+        if let Some(Expr::Call(call)) = n.init.as_deref() {
+            let name = is_target_callee(&call.callee).and_then(|target| {
+                let name = n.name.as_ident()?;
 
-                    Some((name.sym.clone(), target))
-                });
+                Some((name.sym.clone(), target))
+            });
 
-                if let Some((name, target)) = name {
-                    let old_in_var_target = self.in_var_target;
-                    self.in_var_target = true;
+            if let Some((name, target)) = name {
+                let old_in_var_target = self.in_var_target;
+                self.in_var_target = true;
 
-                    let old_in_target = self.in_target;
-                    self.in_target = true;
-                    let orig_len = self.path.len();
-                    self.path.push(format!("{target}({name})"));
+                let old_in_target = self.in_target;
+                self.in_target = true;
+                let orig_len = self.path.len();
+                self.path.push(format!("{target}({name})"));
 
-                    n.visit_mut_children_with(self);
+                n.visit_mut_children_with(self);
 
-                    self.path.truncate(orig_len);
-                    self.in_target = old_in_target;
-                    self.in_var_target = old_in_var_target;
-                    return;
-                }
+                self.path.truncate(orig_len);
+                self.in_target = old_in_target;
+                self.in_var_target = old_in_var_target;
+                return;
             }
+        }
 
-            Some(Expr::Arrow(..) | Expr::Fn(FnExpr { ident: None, .. })) => {
-                let name = n.name.as_ident();
+        if let Some(Expr::Arrow(..) | Expr::Fn(FnExpr { ident: None, .. }) | Expr::Call(..)) =
+            n.init.as_deref()
+        {
+            let name = n.name.as_ident();
 
-                if let Some(name) = name {
-                    let orig_len = self.path.len();
-                    self.path.push(name.sym.to_string());
+            if let Some(name) = name {
+                let orig_len = self.path.len();
+                self.path.push(name.sym.to_string());
 
-                    n.visit_mut_children_with(self);
+                n.visit_mut_children_with(self);
 
-                    self.path.truncate(orig_len);
-                    return;
-                }
+                self.path.truncate(orig_len);
+                return;
             }
-
-            _ => {}
         }
 
         n.visit_mut_children_with(self);
