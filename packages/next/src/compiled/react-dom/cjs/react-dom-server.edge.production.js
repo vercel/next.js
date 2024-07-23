@@ -454,8 +454,8 @@ function createRenderState(
             "string" === typeof scriptConfig || null == scriptConfig.crossOrigin
               ? void 0
               : "use-credentials" === scriptConfig.crossOrigin
-              ? "use-credentials"
-              : ""));
+                ? "use-credentials"
+                : ""));
       scriptConfig = resumableState;
       var href = maxHeadersLength;
       scriptConfig.scriptResources[href] = null;
@@ -509,8 +509,8 @@ function createRenderState(
               null == bootstrapScriptContent.crossOrigin
                 ? void 0
                 : "use-credentials" === bootstrapScriptContent.crossOrigin
-                ? "use-credentials"
-                : "")),
+                  ? "use-credentials"
+                  : "")),
         (bootstrapScriptContent = resumableState),
         (scriptConfig = importMap),
         (bootstrapScriptContent.scriptResources[scriptConfig] = null),
@@ -579,8 +579,8 @@ function createRootFormatContext(namespaceURI) {
     "http://www.w3.org/2000/svg" === namespaceURI
       ? 3
       : "http://www.w3.org/1998/Math/MathML" === namespaceURI
-      ? 4
-      : 0,
+        ? 4
+        : 0,
     null,
     0
   );
@@ -617,12 +617,12 @@ function getChildFormatContext(parentContext, type, props) {
   return 5 <= parentContext.insertionMode
     ? createFormatContext(2, null, parentContext.tagScope)
     : 0 === parentContext.insertionMode
-    ? "html" === type
-      ? createFormatContext(1, null, parentContext.tagScope)
-      : createFormatContext(2, null, parentContext.tagScope)
-    : 1 === parentContext.insertionMode
-    ? createFormatContext(2, null, parentContext.tagScope)
-    : parentContext;
+      ? "html" === type
+        ? createFormatContext(1, null, parentContext.tagScope)
+        : createFormatContext(2, null, parentContext.tagScope)
+      : 1 === parentContext.insertionMode
+        ? createFormatContext(2, null, parentContext.tagScope)
+        : parentContext;
 }
 var textSeparator = stringToPrecomputedChunk("\x3c!-- --\x3e");
 function pushTextInstance(target, text, renderState, textEmbedded) {
@@ -1944,10 +1944,10 @@ function pushStartInstance(
           (JSCompiler_inline_result$jscomp$7 = isFallback
             ? null
             : "string" === typeof props.charSet
-            ? pushSelfClosing(renderState.charsetChunks, props, "meta")
-            : "viewport" === props.name
-            ? pushSelfClosing(renderState.viewportChunks, props, "meta")
-            : pushSelfClosing(renderState.hoistableChunks, props, "meta"));
+              ? pushSelfClosing(renderState.charsetChunks, props, "meta")
+              : "viewport" === props.name
+                ? pushSelfClosing(renderState.viewportChunks, props, "meta")
+                : pushSelfClosing(renderState.hoistableChunks, props, "meta"));
       return JSCompiler_inline_result$jscomp$7;
     case "listing":
     case "pre":
@@ -2709,8 +2709,8 @@ function preconnect(href, crossOrigin) {
         "use-credentials" === crossOrigin
           ? "credentials"
           : "string" === typeof crossOrigin
-          ? "anonymous"
-          : "default";
+            ? "anonymous"
+            : "default";
       if (!resumableState.connectResources[bucket].hasOwnProperty(href)) {
         resumableState.connectResources[bucket][href] = null;
         resumableState = renderState.headers;
@@ -3179,12 +3179,12 @@ function switchContext(newSnapshot) {
     (null === prev
       ? pushAllNext(newSnapshot)
       : null === newSnapshot
-      ? popAllPrevious(prev)
-      : prev.depth === newSnapshot.depth
-      ? popToNearestCommonAncestor(prev, newSnapshot)
-      : prev.depth > newSnapshot.depth
-      ? popPreviousToCommonLevel(prev, newSnapshot)
-      : popNextToCommonLevel(prev, newSnapshot),
+        ? popAllPrevious(prev)
+        : prev.depth === newSnapshot.depth
+          ? popToNearestCommonAncestor(prev, newSnapshot)
+          : prev.depth > newSnapshot.depth
+            ? popPreviousToCommonLevel(prev, newSnapshot)
+            : popNextToCommonLevel(prev, newSnapshot),
     (currentActiveSnapshot = newSnapshot));
 }
 var classComponentUpdater = {
@@ -3331,9 +3331,9 @@ function createWorkInProgressHook() {
         (firstWorkInProgressHook = workInProgressHook = createHook()))
       : ((isReRender = !0), (workInProgressHook = firstWorkInProgressHook))
     : null === workInProgressHook.next
-    ? ((isReRender = !1),
-      (workInProgressHook = workInProgressHook.next = createHook()))
-    : ((isReRender = !0), (workInProgressHook = workInProgressHook.next));
+      ? ((isReRender = !1),
+        (workInProgressHook = workInProgressHook.next = createHook()))
+      : ((isReRender = !0), (workInProgressHook = workInProgressHook.next));
   return workInProgressHook;
 }
 function getThenableStateAfterSuspending() {
@@ -3380,8 +3380,8 @@ function useReducer(reducer, initialArg, init) {
         ? initialArg()
         : initialArg
       : void 0 !== init
-      ? init(initialArg)
-      : initialArg;
+        ? init(initialArg)
+        : initialArg;
   workInProgressHook.memoizedState = reducer;
   reducer = workInProgressHook.queue = { last: null, dispatch: null };
   reducer = reducer.dispatch = dispatchAction.bind(
@@ -3624,8 +3624,8 @@ function describeBuiltInComponentFrame(name) {
         -1 < x.stack.indexOf("\n    at")
           ? " (<anonymous>)"
           : -1 < x.stack.indexOf("@")
-          ? "@unknown:0:0"
-          : "";
+            ? "@unknown:0:0"
+            : "";
     }
   return "\n" + prefix + name + suffix;
 }
@@ -4166,8 +4166,8 @@ function finishFunctionComponent(
       renderNode(request, task, children, -1),
       (task.treeContext = keyPath))
     : didEmitActionStateMarkers
-    ? renderNode(request, task, children, -1)
-    : renderNodeDestructive(request, task, children, -1);
+      ? renderNode(request, task, children, -1)
+      : renderNodeDestructive(request, task, children, -1);
   task.keyPath = actionStateCount;
 }
 function renderElement(request, task, keyPath, type, props, ref) {
@@ -5559,13 +5559,13 @@ function flushCompletedBoundary(request, destination, boundary) {
       ? ((completedSegments.instructions |= 10),
         writeChunk(destination, completeBoundaryWithStylesScript1FullBoth))
       : 0 === (completedSegments.instructions & 8)
-      ? ((completedSegments.instructions |= 8),
-        writeChunk(destination, completeBoundaryWithStylesScript1FullPartial))
-      : writeChunk(destination, completeBoundaryWithStylesScript1Partial)
+        ? ((completedSegments.instructions |= 8),
+          writeChunk(destination, completeBoundaryWithStylesScript1FullPartial))
+        : writeChunk(destination, completeBoundaryWithStylesScript1Partial)
     : 0 === (completedSegments.instructions & 2)
-    ? ((completedSegments.instructions |= 2),
-      writeChunk(destination, completeBoundaryScript1Full))
-    : writeChunk(destination, completeBoundaryScript1Partial);
+      ? ((completedSegments.instructions |= 2),
+        writeChunk(destination, completeBoundaryScript1Full))
+      : writeChunk(destination, completeBoundaryScript1Partial);
   completedSegments = stringToChunk(i.toString(16));
   writeChunk(destination, request.boundaryPrefix);
   writeChunk(destination, completedSegments);
@@ -5885,13 +5885,13 @@ function abort(request, reason) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_744 = React.version;
 if (
-  "19.0.0-rc-01172397-20240716" !==
+  "19.0.0-rc-f6cce072-20240723" !==
   isomorphicReactPackageVersion$jscomp$inline_744
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_744 +
-        "\n  - react-dom:  19.0.0-rc-01172397-20240716\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.0.0-rc-f6cce072-20240723\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -5979,4 +5979,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.0.0-rc-01172397-20240716";
+exports.version = "19.0.0-rc-f6cce072-20240723";

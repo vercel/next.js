@@ -828,18 +828,18 @@
             "forwardRef requires a render function but received a `memo` component. Instead of forwardRef(memo(...)), use memo(forwardRef(...))."
           )
         : "function" !== typeof render
-        ? console.error(
-            "forwardRef requires a render function but was given %s.",
-            null === render ? "null" : typeof render
-          )
-        : 0 !== render.length &&
-          2 !== render.length &&
-          console.error(
-            "forwardRef render functions accept exactly two parameters: props and ref. %s",
-            1 === render.length
-              ? "Did you forget to use the ref parameter?"
-              : "Any additional parameter will be undefined."
-          );
+          ? console.error(
+              "forwardRef requires a render function but was given %s.",
+              null === render ? "null" : typeof render
+            )
+          : 0 !== render.length &&
+            2 !== render.length &&
+            console.error(
+              "forwardRef render functions accept exactly two parameters: props and ref. %s",
+              1 === render.length
+                ? "Did you forget to use the ref parameter?"
+                : "Any additional parameter will be undefined."
+            );
       null != render &&
         null != render.defaultProps &&
         console.error(
@@ -979,5 +979,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.0.0-experimental-01172397-20240716";
+    exports.version = "19.0.0-experimental-f6cce072-20240723";
   })();

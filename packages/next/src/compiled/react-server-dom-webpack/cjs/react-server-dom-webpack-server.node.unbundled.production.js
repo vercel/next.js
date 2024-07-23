@@ -342,8 +342,8 @@ function preinitStyle(href, precedence, options) {
             options
           ])
         : "string" === typeof precedence
-        ? emitHint(request, "S", [href, precedence])
-        : emitHint(request, "S", href);
+          ? emitHint(request, "S", [href, precedence])
+          : emitHint(request, "S", href);
     }
     previousDispatcher.S(href, precedence, options);
   }
@@ -630,8 +630,8 @@ function describeValueForErrorMessage(value) {
       return value.$$typeof === CLIENT_REFERENCE_TAG
         ? "client"
         : (value = value.displayName || value.name)
-        ? "function " + value
-        : "function";
+          ? "function " + value
+          : "function";
     default:
       return String(value);
   }
@@ -712,9 +712,9 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   return void 0 === expandedName
     ? str
     : -1 < objKind && 0 < length
-    ? ((objectOrArray = " ".repeat(objKind) + "^".repeat(length)),
-      "\n  " + str + "\n  " + objectOrArray)
-    : "\n  " + str;
+      ? ((objectOrArray = " ".repeat(objKind) + "^".repeat(length)),
+        "\n  " + str + "\n  " + objectOrArray)
+      : "\n  " + str;
 }
 var ObjectPrototype = Object.prototype,
   stringify = JSON.stringify,
@@ -1511,10 +1511,10 @@ function renderModelDestructive(
         ? "$-0"
         : value
       : Infinity === value
-      ? "$Infinity"
-      : -Infinity === value
-      ? "$-Infinity"
-      : "$NaN";
+        ? "$Infinity"
+        : -Infinity === value
+          ? "$-Infinity"
+          : "$NaN";
   if ("undefined" === typeof value) return "$undefined";
   if ("function" === typeof value) {
     if (value.$$typeof === CLIENT_REFERENCE_TAG$1)
@@ -1649,33 +1649,33 @@ function emitChunk(request, task, value) {
   "string" === typeof value && null !== byteLengthOfChunk
     ? emitTextChunk(request, id, value)
     : value instanceof ArrayBuffer
-    ? emitTypedArrayChunk(request, id, "A", new Uint8Array(value))
-    : value instanceof Int8Array
-    ? emitTypedArrayChunk(request, id, "O", value)
-    : value instanceof Uint8Array
-    ? emitTypedArrayChunk(request, id, "o", value)
-    : value instanceof Uint8ClampedArray
-    ? emitTypedArrayChunk(request, id, "U", value)
-    : value instanceof Int16Array
-    ? emitTypedArrayChunk(request, id, "S", value)
-    : value instanceof Uint16Array
-    ? emitTypedArrayChunk(request, id, "s", value)
-    : value instanceof Int32Array
-    ? emitTypedArrayChunk(request, id, "L", value)
-    : value instanceof Uint32Array
-    ? emitTypedArrayChunk(request, id, "l", value)
-    : value instanceof Float32Array
-    ? emitTypedArrayChunk(request, id, "G", value)
-    : value instanceof Float64Array
-    ? emitTypedArrayChunk(request, id, "g", value)
-    : value instanceof BigInt64Array
-    ? emitTypedArrayChunk(request, id, "M", value)
-    : value instanceof BigUint64Array
-    ? emitTypedArrayChunk(request, id, "m", value)
-    : value instanceof DataView
-    ? emitTypedArrayChunk(request, id, "V", value)
-    : ((value = stringify(value, task.toJSON)),
-      emitModelChunk(request, task.id, value));
+      ? emitTypedArrayChunk(request, id, "A", new Uint8Array(value))
+      : value instanceof Int8Array
+        ? emitTypedArrayChunk(request, id, "O", value)
+        : value instanceof Uint8Array
+          ? emitTypedArrayChunk(request, id, "o", value)
+          : value instanceof Uint8ClampedArray
+            ? emitTypedArrayChunk(request, id, "U", value)
+            : value instanceof Int16Array
+              ? emitTypedArrayChunk(request, id, "S", value)
+              : value instanceof Uint16Array
+                ? emitTypedArrayChunk(request, id, "s", value)
+                : value instanceof Int32Array
+                  ? emitTypedArrayChunk(request, id, "L", value)
+                  : value instanceof Uint32Array
+                    ? emitTypedArrayChunk(request, id, "l", value)
+                    : value instanceof Float32Array
+                      ? emitTypedArrayChunk(request, id, "G", value)
+                      : value instanceof Float64Array
+                        ? emitTypedArrayChunk(request, id, "g", value)
+                        : value instanceof BigInt64Array
+                          ? emitTypedArrayChunk(request, id, "M", value)
+                          : value instanceof BigUint64Array
+                            ? emitTypedArrayChunk(request, id, "m", value)
+                            : value instanceof DataView
+                              ? emitTypedArrayChunk(request, id, "V", value)
+                              : ((value = stringify(value, task.toJSON)),
+                                emitModelChunk(request, task.id, value));
 }
 var emptyRoot = {};
 function retryTask(request, task) {
@@ -1857,10 +1857,10 @@ function abort(request, reason) {
           void 0 === reason
             ? Error("The render was aborted by the server without a reason.")
             : "object" === typeof reason &&
-              null !== reason &&
-              "function" === typeof reason.then
-            ? Error("The render was aborted by the server with a promise.")
-            : reason,
+                null !== reason &&
+                "function" === typeof reason.then
+              ? Error("The render was aborted by the server with a promise.")
+              : reason,
         digest = logRecoverableError(request, error, null);
       emitErrorChunk(request, errorId, digest, error);
       abortableTasks.forEach(function (task) {
@@ -1879,10 +1879,10 @@ function abort(request, reason) {
         void 0 === reason
           ? Error("The render was aborted by the server without a reason.")
           : "object" === typeof reason &&
-            null !== reason &&
-            "function" === typeof reason.then
-          ? Error("The render was aborted by the server with a promise.")
-          : reason;
+              null !== reason &&
+              "function" === typeof reason.then
+            ? Error("The render was aborted by the server with a promise.")
+            : reason;
       abortListeners.forEach(function (callback) {
         return callback(error$26);
       });
@@ -1932,8 +1932,8 @@ function requireModule(metadata) {
   return "*" === metadata.name
     ? moduleExports
     : "" === metadata.name
-    ? moduleExports.default
-    : moduleExports[metadata.name];
+      ? moduleExports.default
+      : moduleExports[metadata.name];
 }
 var hasOwnProperty = Object.prototype.hasOwnProperty;
 function Chunk(status, value, reason, response) {
@@ -2567,10 +2567,10 @@ function loadServerReference(bundlerConfig, id, bound) {
         return fn.bind.apply(fn, [null].concat(_ref));
       })
     : bundlerConfig
-    ? Promise.resolve(bundlerConfig).then(function () {
-        return requireModule(serverReference);
-      })
-    : Promise.resolve(requireModule(serverReference));
+      ? Promise.resolve(bundlerConfig).then(function () {
+          return requireModule(serverReference);
+        })
+      : Promise.resolve(requireModule(serverReference));
 }
 function decodeBoundActionMetaData(body, serverManifest, formFieldPrefix) {
   body = createResponse(serverManifest, formFieldPrefix, void 0, body);

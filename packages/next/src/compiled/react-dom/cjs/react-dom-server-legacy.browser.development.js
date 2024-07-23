@@ -68,8 +68,8 @@
           return value.$$typeof === CLIENT_REFERENCE_TAG
             ? "client"
             : (value = value.displayName || value.name)
-            ? "function " + value
-            : "function";
+              ? "function " + value
+              : "function";
         default:
           return String(value);
       }
@@ -112,8 +112,8 @@
               "string" === typeof value
                 ? value
                 : "object" === typeof value && null !== value
-                ? "{" + describeObjectForErrorMessage(value) + "}"
-                : "{" + describeValueForErrorMessage(value) + "}";
+                  ? "{" + describeObjectForErrorMessage(value) + "}"
+                  : "{" + describeValueForErrorMessage(value) + "}";
             "" + i === expandedName
               ? ((start = objKind.length),
                 (length = value.length),
@@ -199,9 +199,9 @@
       return void 0 === expandedName
         ? objKind
         : -1 < start && 0 < length
-        ? ((objectOrArray = " ".repeat(start) + "^".repeat(length)),
-          "\n  " + objKind + "\n  " + objectOrArray)
-        : "\n  " + objKind;
+          ? ((objectOrArray = " ".repeat(start) + "^".repeat(length)),
+            "\n  " + objKind + "\n  " + objectOrArray)
+          : "\n  " + objKind;
     }
     function murmurhash3_32_gc(key, seed) {
       var remainder = key.length & 3;
@@ -821,12 +821,12 @@
       return parentContext.insertionMode >= HTML_TABLE_MODE
         ? createFormatContext(HTML_MODE, null, parentContext.tagScope)
         : parentContext.insertionMode === ROOT_HTML_MODE
-        ? "html" === type
-          ? createFormatContext(HTML_HTML_MODE, null, parentContext.tagScope)
-          : createFormatContext(HTML_MODE, null, parentContext.tagScope)
-        : parentContext.insertionMode === HTML_HTML_MODE
-        ? createFormatContext(HTML_MODE, null, parentContext.tagScope)
-        : parentContext;
+          ? "html" === type
+            ? createFormatContext(HTML_HTML_MODE, null, parentContext.tagScope)
+            : createFormatContext(HTML_MODE, null, parentContext.tagScope)
+          : parentContext.insertionMode === HTML_HTML_MODE
+            ? createFormatContext(HTML_MODE, null, parentContext.tagScope)
+            : parentContext;
     }
     function pushStyleAttribute(target, style) {
       if ("object" !== typeof style)
@@ -1442,8 +1442,8 @@
           "number" === typeof children
             ? "a number for children"
             : Array.isArray(children)
-            ? "an array for children"
-            : "something unexpected for children"),
+              ? "an array for children"
+              : "something unexpected for children"),
         console.error(
           "A script element was rendered with %s. If script element has children it must be a single string. Consider using dangerouslySetInnerHTML or passing a plain string as children.",
           props
@@ -2133,19 +2133,19 @@
                   children$jscomp$6.length
                 )
               : "function" === typeof child || "symbol" === typeof child
-              ? console.error(
-                  "React expect children of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found %s instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags to a single string value.",
-                  "function" === typeof child ? "a Function" : "a Sybmol"
-                )
-              : child &&
-                child.toString === {}.toString &&
-                (null != child.$$typeof
-                  ? console.error(
-                      "React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an object that appears to be a React element which never implements a suitable `toString` method. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags to a single string value which is why rendering React elements is not supported. If the `children` of <title> is a React Component try moving the <title> tag into that component. If the `children` of <title> is some HTML markup change it to be Text only to be valid HTML."
-                    )
-                  : console.error(
-                      "React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an object that does not implement a suitable `toString` method. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags to a single string value. Using the default `toString` method available on every object is almost certainly an error. Consider whether the `children` of this <title> is an object in error and change it to a string or number value if so. Otherwise implement a `toString` method that React can use to produce a valid <title>."
-                    ));
+                ? console.error(
+                    "React expect children of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found %s instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags to a single string value.",
+                    "function" === typeof child ? "a Function" : "a Sybmol"
+                  )
+                : child &&
+                  child.toString === {}.toString &&
+                  (null != child.$$typeof
+                    ? console.error(
+                        "React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an object that appears to be a React element which never implements a suitable `toString` method. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags to a single string value which is why rendering React elements is not supported. If the `children` of <title> is a React Component try moving the <title> tag into that component. If the `children` of <title> is some HTML markup change it to be Text only to be valid HTML."
+                      )
+                    : console.error(
+                        "React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an object that does not implement a suitable `toString` method. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags to a single string value. Using the default `toString` method available on every object is almost certainly an error. Consider whether the `children` of this <title> is an object in error and change it to a string or number value if so. Otherwise implement a `toString` method that React can use to produce a valid <title>."
+                      ));
           }
           if (
             insertionMode === SVG_MODE ||
@@ -2182,10 +2182,10 @@
                   null === href
                     ? "`null`"
                     : void 0 === href
-                    ? "`undefined`"
-                    : "" === href
-                    ? "an empty string"
-                    : 'something with type "' + typeof href + '"'
+                      ? "`undefined`"
+                      : "" === href
+                        ? "an empty string"
+                        : 'something with type "' + typeof href + '"'
                 ));
             pushLinkImpl(target$jscomp$0, props);
             var JSCompiler_inline_result$jscomp$5 = null;
@@ -2206,8 +2206,8 @@
                     props.onLoad && props.onError
                       ? "`onLoad` and `onError` props"
                       : props.onLoad
-                      ? "`onLoad` prop"
-                      : "`onError` prop";
+                        ? "`onLoad` prop"
+                        : "`onError` prop";
                   console.error(
                     'React encountered a `<link rel="stylesheet" .../>` with a `precedence` prop and %s. The presence of loading and error handlers indicates an intent to manage the stylesheet loading state from your from your Component code and React will not hoist or deduplicate this stylesheet. If your intent was to have React hoist and deduplciate this stylesheet using the `precedence` prop remove the %s, otherwise remove the `precedence` prop.',
                     propDescription,
@@ -2339,8 +2339,8 @@
                 "function" === typeof child$jscomp$0
                   ? "a Function"
                   : "symbol" === typeof child$jscomp$0
-                  ? "a Sybmol"
-                  : "an Array"
+                    ? "a Sybmol"
+                    : "an Array"
               );
           }
           var precedence$jscomp$0 = props.precedence,
@@ -2478,10 +2478,14 @@
               (JSCompiler_inline_result$jscomp$8 = isFallback
                 ? null
                 : "string" === typeof props.charSet
-                ? pushSelfClosing(renderState.charsetChunks, props, "meta")
-                : "viewport" === props.name
-                ? pushSelfClosing(renderState.viewportChunks, props, "meta")
-                : pushSelfClosing(renderState.hoistableChunks, props, "meta"));
+                  ? pushSelfClosing(renderState.charsetChunks, props, "meta")
+                  : "viewport" === props.name
+                    ? pushSelfClosing(renderState.viewportChunks, props, "meta")
+                    : pushSelfClosing(
+                        renderState.hoistableChunks,
+                        props,
+                        "meta"
+                      ));
           return JSCompiler_inline_result$jscomp$8;
         case "listing":
         case "pre":
@@ -3287,8 +3291,8 @@
                 null == scriptConfig.crossOrigin
                   ? void 0
                   : "use-credentials" === scriptConfig.crossOrigin
-                  ? "use-credentials"
-                  : ""));
+                    ? "use-credentials"
+                    : ""));
           preloadBootstrapScriptOrModule(resumableState, idPrefix, src, props);
           bootstrapChunks.push('<script src="', escapeTextForBrowser(src));
           "string" === typeof integrity &&
@@ -3328,8 +3332,8 @@
                   null == bootstrapScriptContent.crossOrigin
                     ? void 0
                     : "use-credentials" === bootstrapScriptContent.crossOrigin
-                    ? "use-credentials"
-                    : "")),
+                      ? "use-credentials"
+                      : "")),
             preloadBootstrapScriptOrModule(
               resumableState,
               idPrefix,
@@ -3503,12 +3507,12 @@
         (null === prev
           ? pushAllNext(newSnapshot)
           : null === newSnapshot
-          ? popAllPrevious(prev)
-          : prev.depth === newSnapshot.depth
-          ? popToNearestCommonAncestor(prev, newSnapshot)
-          : prev.depth > newSnapshot.depth
-          ? popPreviousToCommonLevel(prev, newSnapshot)
-          : popNextToCommonLevel(prev, newSnapshot),
+            ? popAllPrevious(prev)
+            : prev.depth === newSnapshot.depth
+              ? popToNearestCommonAncestor(prev, newSnapshot)
+              : prev.depth > newSnapshot.depth
+                ? popPreviousToCommonLevel(prev, newSnapshot)
+                : popNextToCommonLevel(prev, newSnapshot),
         (currentActiveSnapshot = newSnapshot));
     }
     function warnOnInvalidCallback(callback) {
@@ -3646,9 +3650,9 @@
             (firstWorkInProgressHook = workInProgressHook = createHook()))
           : ((isReRender = !0), (workInProgressHook = firstWorkInProgressHook))
         : null === workInProgressHook.next
-        ? ((isReRender = !1),
-          (workInProgressHook = workInProgressHook.next = createHook()))
-        : ((isReRender = !0), (workInProgressHook = workInProgressHook.next));
+          ? ((isReRender = !1),
+            (workInProgressHook = workInProgressHook.next = createHook()))
+          : ((isReRender = !0), (workInProgressHook = workInProgressHook.next));
       return workInProgressHook;
     }
     function getThenableStateAfterSuspending() {
@@ -3710,8 +3714,8 @@
             ? initialArg()
             : initialArg
           : void 0 !== init
-          ? init(initialArg)
-          : initialArg;
+            ? init(initialArg)
+            : initialArg;
       isInHookUserCodeInDev = !1;
       workInProgressHook.memoizedState = reducer;
       reducer = workInProgressHook.queue = { last: null, dispatch: null };
@@ -3927,8 +3931,8 @@
             -1 < x.stack.indexOf("\n    at")
               ? " (<anonymous>)"
               : -1 < x.stack.indexOf("@")
-              ? "@unknown:0:0"
-              : "";
+                ? "@unknown:0:0"
+                : "";
         }
       return "\n" + prefix + name + suffix;
     }
@@ -4083,16 +4087,6 @@
         : "";
       "function" === typeof fn && componentFrameCache.set(fn, sampleLines);
       return sampleLines;
-    }
-    function callComponentInDEV(Component, props, secondArg) {
-      return Component(props, secondArg);
-    }
-    function callRenderInDEV(instance) {
-      return instance.render();
-    }
-    function callLazyInitInDEV(lazy) {
-      var init = lazy._init;
-      return init(lazy._payload);
     }
     function describeComponentStackByType(type) {
       if ("string" === typeof type) return describeBuiltInComponentFrame(type);
@@ -4405,7 +4399,7 @@
               parent: task.componentStack,
               type: componentInfo,
               owner: componentInfo.owner,
-              stack: componentInfo.stack
+              stack: null
             });
         }
     }
@@ -4552,8 +4546,8 @@
           renderNode(request, task, children, -1),
           (task.treeContext = keyPath))
         : didEmitActionStateMarkers
-        ? renderNode(request, task, children, -1)
-        : renderNodeDestructive(request, task, children, -1);
+          ? renderNode(request, task, children, -1)
+          : renderNodeDestructive(request, task, children, -1);
       task.keyPath = actionStateCount;
     }
     function renderElement(request, task, keyPath, type, props, ref) {
@@ -4587,12 +4581,12 @@
               void 0 === contextType
                 ? " However, it is set to undefined. This can be caused by a typo or by mixing up named and default imports. This can also happen due to a circular dependency, so try moving the createContext() call to a separate file."
                 : "object" !== typeof contextType
-                ? " However, it is set to a " + typeof contextType + "."
-                : contextType.$$typeof === REACT_CONSUMER_TYPE
-                ? " Did you accidentally pass the Context.Consumer instead?"
-                : " However, it is set to an object with keys {" +
-                  Object.keys(contextType).join(", ") +
-                  "}.";
+                  ? " However, it is set to a " + typeof contextType + "."
+                  : contextType.$$typeof === REACT_CONSUMER_TYPE
+                    ? " Did you accidentally pass the Context.Consumer instead?"
+                    : " However, it is set to an object with keys {" +
+                      Object.keys(contextType).join(", ") +
+                      "}.";
             console.error(
               "%s defines an invalid contextType. contextType should point to the Context object returned by React.createContext().%s",
               getComponentNameFromType(type) || "Component",
@@ -5640,26 +5634,26 @@
                 childIndex.lastPushedText
               )))
           : "number" === typeof node || "bigint" === typeof node
-          ? ((childIndex = task.blockedSegment),
-            null !== childIndex &&
-              (childIndex.lastPushedText = pushTextInstance(
-                childIndex.chunks,
-                "" + node,
-                request.renderState,
-                childIndex.lastPushedText
-              )))
-          : ("function" === typeof node &&
-              ((childIndex = node.displayName || node.name || "Component"),
-              console.error(
-                "Functions are not valid as a React child. This may happen if you return %s instead of <%s /> from render. Or maybe you meant to call this function rather than return it.",
-                childIndex,
-                childIndex
-              )),
-            "symbol" === typeof node &&
-              console.error(
-                "Symbols are not valid as a React child.\n  %s",
-                String(node)
-              ));
+            ? ((childIndex = task.blockedSegment),
+              null !== childIndex &&
+                (childIndex.lastPushedText = pushTextInstance(
+                  childIndex.chunks,
+                  "" + node,
+                  request.renderState,
+                  childIndex.lastPushedText
+                )))
+            : ("function" === typeof node &&
+                ((childIndex = node.displayName || node.name || "Component"),
+                console.error(
+                  "Functions are not valid as a React child. This may happen if you return %s instead of <%s /> from render. Or maybe you meant to call this function rather than return it.",
+                  childIndex,
+                  childIndex
+                )),
+              "symbol" === typeof node &&
+                console.error(
+                  "Symbols are not valid as a React child.\n  %s",
+                  String(node)
+                ));
       }
     }
     function renderChildrenArray(request$jscomp$0, task, children, childIndex) {
@@ -6578,15 +6572,15 @@
               SentCompleteBoundaryFunction),
             destination.push(completeBoundaryWithStylesScript1FullBoth))
           : (completedSegments.instructions & SentStyleInsertionFunction) ===
-            NothingSent
-          ? ((completedSegments.instructions |= SentStyleInsertionFunction),
-            destination.push(completeBoundaryWithStylesScript1FullPartial))
-          : destination.push(completeBoundaryWithStylesScript1Partial)
+              NothingSent
+            ? ((completedSegments.instructions |= SentStyleInsertionFunction),
+              destination.push(completeBoundaryWithStylesScript1FullPartial))
+            : destination.push(completeBoundaryWithStylesScript1Partial)
         : (completedSegments.instructions & SentCompleteBoundaryFunction) ===
-          NothingSent
-        ? ((completedSegments.instructions |= SentCompleteBoundaryFunction),
-          destination.push(completeBoundaryScript1Full))
-        : destination.push(completeBoundaryScript1Partial);
+            NothingSent
+          ? ((completedSegments.instructions |= SentCompleteBoundaryFunction),
+            destination.push(completeBoundaryScript1Full))
+          : destination.push(completeBoundaryScript1Partial);
       completedSegments = i.toString(16);
       destination.push(request.boundaryPrefix);
       destination.push(completedSegments);
@@ -7764,8 +7758,8 @@
               "use-credentials" === crossOrigin
                 ? "credentials"
                 : "string" === typeof crossOrigin
-                ? "anonymous"
-                : "default";
+                  ? "anonymous"
+                  : "default";
             if (!resumableState.connectResources[bucket].hasOwnProperty(href)) {
               resumableState.connectResources[bucket][href] = EXISTS;
               resumableState = renderState.headers;
@@ -8397,7 +8391,28 @@
     var componentFrameCache = new (
       "function" === typeof WeakMap ? WeakMap : Map
     )();
-    var CLIENT_RENDERED = 4,
+    var callComponent = {
+        "react-stack-bottom-frame": function (Component, props, secondArg) {
+          return Component(props, secondArg);
+        }
+      },
+      callComponentInDEV =
+        callComponent["react-stack-bottom-frame"].bind(callComponent),
+      callRender = {
+        "react-stack-bottom-frame": function (instance) {
+          return instance.render();
+        }
+      },
+      callRenderInDEV = callRender["react-stack-bottom-frame"].bind(callRender),
+      callLazyInit = {
+        "react-stack-bottom-frame": function (lazy) {
+          var init = lazy._init;
+          return init(lazy._payload);
+        }
+      },
+      callLazyInitInDEV =
+        callLazyInit["react-stack-bottom-frame"].bind(callLazyInit),
+      CLIENT_RENDERED = 4,
       PENDING = 0,
       COMPLETED = 1,
       FLUSHED = 2,
@@ -8426,5 +8441,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.0.0-rc-01172397-20240716";
+    exports.version = "19.0.0-rc-f6cce072-20240723";
   })();

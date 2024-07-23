@@ -219,8 +219,8 @@
             -1 < x.stack.indexOf("\n    at")
               ? " (<anonymous>)"
               : -1 < x.stack.indexOf("@")
-              ? "@unknown:0:0"
-              : "";
+                ? "@unknown:0:0"
+                : "";
         }
       return "\n" + prefix + name + suffix;
     }
@@ -1268,13 +1268,13 @@
           isArrayImpl(type)
             ? (typeString = "array")
             : void 0 !== type && type.$$typeof === REACT_ELEMENT_TYPE
-            ? ((typeString =
-                "<" +
-                (getComponentNameFromType(type.type) || "Unknown") +
-                " />"),
-              (i =
-                " Did you accidentally export a JSX literal instead of a component?"))
-            : (typeString = typeof type);
+              ? ((typeString =
+                  "<" +
+                  (getComponentNameFromType(type.type) || "Unknown") +
+                  " />"),
+                (i =
+                  " Did you accidentally export a JSX literal instead of a component?"))
+              : (typeString = typeof type);
         console.error(
           "React.createElement: type is invalid -- expected a string (for built-in components) or a class/function (for composite components) but got: %s.%s",
           typeString,
@@ -1343,18 +1343,18 @@
             "forwardRef requires a render function but received a `memo` component. Instead of forwardRef(memo(...)), use memo(forwardRef(...))."
           )
         : "function" !== typeof render
-        ? console.error(
-            "forwardRef requires a render function but was given %s.",
-            null === render ? "null" : typeof render
-          )
-        : 0 !== render.length &&
-          2 !== render.length &&
-          console.error(
-            "forwardRef render functions accept exactly two parameters: props and ref. %s",
-            1 === render.length
-              ? "Did you forget to use the ref parameter?"
-              : "Any additional parameter will be undefined."
-          );
+          ? console.error(
+              "forwardRef requires a render function but was given %s.",
+              null === render ? "null" : typeof render
+            )
+          : 0 !== render.length &&
+            2 !== render.length &&
+            console.error(
+              "forwardRef render functions accept exactly two parameters: props and ref. %s",
+              1 === render.length
+                ? "Did you forget to use the ref parameter?"
+                : "Any additional parameter will be undefined."
+            );
       null != render &&
         null != render.defaultProps &&
         console.error(
@@ -1517,7 +1517,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.0.0-rc-01172397-20240716";
+    exports.version = "19.0.0-rc-f6cce072-20240723";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
