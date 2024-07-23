@@ -19,7 +19,7 @@ beforeAll(async () => {
   })
 })
 
-describe.skip('create-next-app with package manager npm', () => {
+describe('create-next-app with package manager npm', () => {
   it('should use npm for --use-npm flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-npm'

@@ -20,7 +20,7 @@ beforeAll(async () => {
   // ).get('next')
 })
 
-describe.skip('create-next-app --app (App Router)', () => {
+describe('create-next-app --app (App Router)', () => {
   it('should create JavaScript project with --js flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'app-js'
@@ -29,6 +29,7 @@ describe.skip('create-next-app --app (App Router)', () => {
           projectName,
           '--js',
           '--app',
+          '--no-turbo',
           '--eslint',
           '--no-src-dir',
           '--no-tailwind',
@@ -58,6 +59,7 @@ describe.skip('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
+          '--no-turbo',
           '--eslint',
           '--no-src-dir',
           '--no-tailwind',
@@ -85,6 +87,7 @@ describe.skip('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
+          '--no-turbo',
           '--eslint',
           '--src-dir',
           '--no-tailwind',
@@ -121,6 +124,7 @@ describe.skip('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
+          '--no-turbo',
           '--eslint',
           '--src-dir',
           '--tailwind',
@@ -156,6 +160,7 @@ describe.skip('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
+          '--no-turbo',
           '--eslint',
           '--src-dir',
           '--empty',
@@ -194,6 +199,7 @@ describe.skip('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
+          '--no-turbo',
           '--eslint',
           '--src-dir',
           '--tailwind',

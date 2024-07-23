@@ -27,7 +27,7 @@ beforeEach(async () => {
     .catch(() => command('npm', ['i', '-g', 'pnpm']))
 })
 
-describe.skip('create-next-app with package manager pnpm', () => {
+describe('create-next-app with package manager pnpm', () => {
   it('should use pnpm for --use-pnpm flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-pnpm'

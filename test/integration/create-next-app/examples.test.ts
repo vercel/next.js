@@ -11,7 +11,7 @@ import {
   useTempDir,
 } from './utils'
 
-describe.skip('create-next-app --example', () => {
+describe('create-next-app --example', () => {
   let nextInstall: Awaited<ReturnType<typeof createNextInstall>>
   beforeAll(async () => {
     nextInstall = await createNextInstall({

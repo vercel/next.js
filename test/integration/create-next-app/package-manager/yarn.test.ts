@@ -20,7 +20,7 @@ beforeEach(async () => {
     .catch(() => command('npm', ['i', '-g', 'yarn']))
 })
 
-describe.skip('create-next-app with package manager yarn', () => {
+describe('create-next-app with package manager yarn', () => {
   it('should use yarn for --use-yarn flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-yarn'
