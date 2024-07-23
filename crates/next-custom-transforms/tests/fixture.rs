@@ -6,6 +6,7 @@ use std::{
 use next_custom_transforms::transforms::{
     amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
+    debug_fn_name::debug_fn_name,
     dynamic::{next_dynamic, NextDynamicMode},
     fonts::{next_font_loaders, Config as FontLoaderConfig},
     named_import_transform::named_import_transform,
@@ -629,4 +630,25 @@ fn next_transform_strip_page_exports_fixture_default(output: PathBuf) {
     let input = output.parent().unwrap().join("input.js");
 
     run_stip_page_exports_test(&input, &output, ExportFilter::StripDataExports);
+}
+
+#[fixture("tests/fixture/debug-fn-name/**/input.js")]
+fn test_debug_name(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+
+    test_fixture(
+        syntax(),
+        &|tr| {
+            let top_level_mark = Mark::fresh(Mark::root());
+            let unresolved_mark = Mark::fresh(Mark::root());
+
+            chain!(
+                swc_core::ecma::transforms::base::resolver(unresolved_mark, top_level_mark, true),
+                debug_fn_name()
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
 }
