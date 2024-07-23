@@ -65,7 +65,13 @@ export function register() {
 You can optionally export an `onRequestError` function to track and send **server** errors to an observability tool.
 
 ```ts filename="instrumentation.ts" switcher
-export function onRequestError(err, request, context) {
+import { type Instrumentation } from 'next'
+
+export const onRequestError: Instrumentation.onRequestError = (
+  err,
+  request,
+  context
+) => {
   fetch('https://.../write-log', {
     method: 'POST',
     body: JSON.stringify({
