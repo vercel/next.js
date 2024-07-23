@@ -62,7 +62,13 @@ export async function exportAppPage(
     const html = result.toUnchunkedString()
 
     const { metadata } = result
-    const { flightData, revalidate = false, postponed, fetchTags } = metadata
+    const {
+      flightData,
+      revalidate = false,
+      postponed,
+      fetchTags,
+      fetchMetrics,
+    } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
     if (postponed && !renderOpts.experimental.isRoutePPREnabled) {
@@ -85,7 +91,7 @@ export async function exportAppPage(
         })
       }
 
-      return { revalidate: 0 }
+      return { revalidate: 0, fetchMetrics }
     }
     // If page data isn't available, it means that the page couldn't be rendered
     // properly.
@@ -167,6 +173,7 @@ export async function exportAppPage(
       hasEmptyPrelude: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
       revalidate,
+      fetchMetrics,
     }
   } catch (err) {
     if (!isDynamicUsageError(err)) {

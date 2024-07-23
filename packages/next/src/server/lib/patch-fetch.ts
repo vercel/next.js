@@ -170,7 +170,10 @@ function trackFetchMetric(
   if (
     !staticGenerationStore ||
     staticGenerationStore.requestEndedState?.ended ||
-    process.env.NODE_ENV !== 'development'
+    // We always want to track fetches during static generation.
+    // Otherwise, we only do it in development.
+    (process.env.NODE_ENV !== 'development' &&
+      !staticGenerationStore.isStaticGeneration)
   ) {
     return
   }
