@@ -869,6 +869,7 @@ export default async function build(
           pageExtensions: config.pageExtensions,
           distDir,
           shuttleDir,
+          config,
         })
         console.log({ changedPagePathsResult })
         pagesPaths = changedPagePathsResult.changed.pages
@@ -960,6 +961,7 @@ export default async function build(
             pageExtensions: config.pageExtensions,
             distDir,
             shuttleDir,
+            config,
           })
           console.log({ changedAppPathsResult })
           appPaths = changedAppPathsResult.changed.app
@@ -2518,6 +2520,7 @@ export default async function build(
 
           console.log('storing shuttle')
           await storeShuttle({
+            config,
             distDir,
             shuttleDir,
           })

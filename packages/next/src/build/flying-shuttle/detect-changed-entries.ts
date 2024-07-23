@@ -3,6 +3,8 @@ import path from 'path'
 import crypto from 'crypto'
 import { getPageFromPath } from '../entries'
 import { Sema } from 'next/dist/compiled/async-sema'
+import { getShuttleManifest } from './store-shuttle'
+import type { NextConfigComplete } from '../../server/config-shared'
 
 export interface DetectedEntriesResult {
   app: string[]
@@ -15,7 +17,7 @@ export async function hasShuttle(shuttleDir: string) {
     return _hasShuttle
   }
   _hasShuttle = await fs.promises
-    .access(path.join(shuttleDir, 'server'))
+    .access(path.join(shuttleDir, 'shuttle-manifest.json'))
     .then(() => true)
     .catch(() => false)
 
@@ -28,12 +30,14 @@ export async function detectChangedEntries({
   pageExtensions,
   distDir,
   shuttleDir,
+  config,
 }: {
   appPaths?: string[]
   pagesPaths?: string[]
   pageExtensions: string[]
   distDir: string
   shuttleDir: string
+  config: NextConfigComplete
 }): Promise<{
   changed: DetectedEntriesResult
   unchanged: DetectedEntriesResult
@@ -53,6 +57,45 @@ export async function detectChangedEntries({
   if (!(await hasShuttle(shuttleDir))) {
     // no shuttle so consider everything changed
     console.log(`no shuttle. can't detect changes`)
+    return {
+      changed: {
+        pages: pagesPaths || [],
+        app: appPaths || [],
+      },
+      unchanged: {
+        pages: [],
+        app: [],
+      },
+    }
+  }
+  const foundShuttleManifest: ReturnType<typeof getShuttleManifest> =
+    JSON.parse(
+      await fs.promises.readFile(
+        path.join(shuttleDir, 'shuttle-manifest.json'),
+        'utf8'
+      )
+    )
+  const currentShuttleManifest = getShuttleManifest(config)
+
+  if (currentShuttleManifest.nextVersion !== foundShuttleManifest.nextVersion) {
+    // we don't allow using shuttle from differing Next.js version
+    // as it could have internal changes
+    console.log(`shuttle has differing Next.js version, skipping.`)
+    return {
+      changed: {
+        pages: pagesPaths || [],
+        app: appPaths || [],
+      },
+      unchanged: {
+        pages: [],
+        app: [],
+      },
+    }
+  }
+
+  if (currentShuttleManifest.globalHash !== foundShuttleManifest.globalHash) {
+    // if the global hash was invalidated we bypass the cache to be safe
+    console.log(`shuttle has differing global hash, skipping.`)
     return {
       changed: {
         pages: pagesPaths || [],
