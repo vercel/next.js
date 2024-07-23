@@ -41,7 +41,7 @@ pub struct VcCellSharedMode<T> {
 impl<T> VcCellMode<T> for VcCellSharedMode<T>
 where
     T: VcValueType,
-    <<T as VcValueType>::Read as VcRead<T>>::Repr: PartialEq,
+    <T::Read as VcRead<T>>::Repr: PartialEq,
 {
     fn cell(inner: <T::Read as VcRead<T>>::Target) -> Vc<T> {
         let cell = find_cell_by_type(T::get_value_type_id());

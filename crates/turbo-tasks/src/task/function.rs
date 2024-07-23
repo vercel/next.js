@@ -244,7 +244,7 @@ macro_rules! task_fn_impl {
 
                 Ok(Box::pin(async move {
                     let recv = recv.await?;
-                    let recv = <<Recv as VcValueType>::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
+                    let recv = <Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
                     Output::try_into_raw_vc((task_fn)(recv, $($arg,)*))
                 }))
             }
@@ -306,7 +306,7 @@ macro_rules! task_fn_impl {
 
                 Ok(Box::pin(async move {
                     let recv = recv.await?;
-                    let recv = <<Recv as VcValueType>::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
+                    let recv = <Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
                     <F as $async_fn_trait<&Recv, $($arg,)*>>::Output::try_into_raw_vc((task_fn)(recv, $($arg,)*).await)
                 }))
             }
