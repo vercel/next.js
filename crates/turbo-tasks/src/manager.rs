@@ -518,10 +518,13 @@ impl<B: Backend + 'static> TurboTasks<B> {
                                 });
                                 this.backend.task_execution_result(task_id, result, &*this);
                                 let stateful = this.finish_current_task_state();
+                                let cell_counters =
+                                    CELL_COUNTERS.with(|cc| take(&mut *cc.borrow_mut()));
                                 let schedule_again = this.backend.task_execution_completed(
                                     task_id,
                                     duration,
                                     memory_usage,
+                                    cell_counters,
                                     stateful,
                                     &*this,
                                 );
