@@ -211,7 +211,13 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
 
     fn get_fresh_persistent_task_id(&self) -> Unused<TaskId>;
     fn get_fresh_transient_task_id(&self) -> Unused<TaskId>;
+    /// # Safety
+    ///
+    /// The caller must ensure that the task id is not used anymore.
     unsafe fn reuse_persistent_task_id(&self, id: Unused<TaskId>);
+    /// # Safety
+    ///
+    /// The caller must ensure that the task id is not used anymore.
     unsafe fn reuse_transient_task_id(&self, id: Unused<TaskId>);
 
     fn schedule(&self, task: TaskId);

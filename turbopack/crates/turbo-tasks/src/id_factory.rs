@@ -23,8 +23,8 @@ impl<T> IdFactory<T> {
 
     pub const fn new_with_range(start: u64, max: u64) -> Self {
         Self {
-            next_id: AtomicU64::new(start as u64),
-            max_id: max as u64,
+            next_id: AtomicU64::new(start),
+            max_id: max,
             _phantom_data: PhantomData,
         }
     }
