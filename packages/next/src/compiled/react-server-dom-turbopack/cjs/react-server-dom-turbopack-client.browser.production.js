@@ -478,6 +478,7 @@ Chunk.prototype.then = function (resolve, reject) {
       break;
     case "pending":
     case "blocked":
+    case "cyclic":
       resolve &&
         (null === this.value && (this.value = []), this.value.push(resolve));
       reject &&
@@ -500,6 +501,7 @@ function readChunk(chunk) {
       return chunk.value;
     case "pending":
     case "blocked":
+    case "cyclic":
       throw chunk;
     default:
       throw chunk.reason;
@@ -518,6 +520,7 @@ function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
       break;
     case "pending":
     case "blocked":
+    case "cyclic":
       if (chunk.value)
         for (var i = 0; i < resolveListeners.length; i++)
           chunk.value.push(resolveListeners[i]);
@@ -583,35 +586,35 @@ function resolveModuleChunk(chunk, value) {
       wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners));
   }
 }
-var initializingHandler = null;
+var initializingChunk = null,
+  initializingChunkBlockedModel = null;
 function initializeModelChunk(chunk) {
-  var prevHandler = initializingHandler;
-  initializingHandler = null;
+  var prevChunk = initializingChunk,
+    prevBlocked = initializingChunkBlockedModel;
+  initializingChunk = chunk;
+  initializingChunkBlockedModel = null;
   var resolvedModel = chunk.value;
-  chunk.status = "blocked";
+  chunk.status = "cyclic";
   chunk.value = null;
   chunk.reason = null;
   try {
-    var value = JSON.parse(resolvedModel, chunk._response._fromJSON),
-      resolveListeners = chunk.value;
-    null !== resolveListeners &&
-      ((chunk.value = null),
-      (chunk.reason = null),
-      wakeChunk(resolveListeners, value));
-    if (null !== initializingHandler) {
-      if (initializingHandler.errored) throw initializingHandler.value;
-      if (0 < initializingHandler.deps) {
-        initializingHandler.value = value;
-        initializingHandler.chunk = chunk;
-        return;
-      }
+    var value = JSON.parse(resolvedModel, chunk._response._fromJSON);
+    if (
+      null !== initializingChunkBlockedModel &&
+      0 < initializingChunkBlockedModel.deps
+    )
+      (initializingChunkBlockedModel.value = value), (chunk.status = "blocked");
+    else {
+      var resolveListeners = chunk.value;
+      chunk.status = "fulfilled";
+      chunk.value = value;
+      null !== resolveListeners && wakeChunk(resolveListeners, value);
     }
-    chunk.status = "fulfilled";
-    chunk.value = value;
   } catch (error) {
     (chunk.status = "rejected"), (chunk.reason = error);
   } finally {
-    initializingHandler = prevHandler;
+    (initializingChunk = prevChunk),
+      (initializingChunkBlockedModel = prevBlocked);
   }
 }
 function initializeModuleChunk(chunk) {
@@ -641,71 +644,46 @@ function reportGlobalError(response, error) {
     "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
   });
 }
-function createLazyChunkWrapper(chunk) {
-  return { $$typeof: REACT_LAZY_TYPE, _payload: chunk, _init: readChunk };
-}
 function getChunk(response, id) {
   var chunks = response._chunks,
     chunk = chunks.get(id);
   chunk || ((chunk = createPendingChunk(response)), chunks.set(id, chunk));
   return chunk;
 }
-function waitForReference(
-  referencedChunk,
+function createModelResolver(
+  chunk,
   parentObject,
   key,
+  cyclic,
   response,
   map,
   path
 ) {
-  function fulfill(value) {
-    for (var i = 1; i < path.length; i++) {
-      for (; value.$$typeof === REACT_LAZY_TYPE; )
-        if (((value = value._payload), value === handler.chunk))
-          value = handler.value;
-        else if ("fulfilled" === value.status) value = value.value;
-        else {
-          path.splice(0, i - 1);
-          value.then(fulfill, reject);
-          return;
-        }
-      value = value[path[i]];
-    }
-    parentObject[key] = map(response, value);
-    "" === key && null === handler.value && (handler.value = parentObject[key]);
-    handler.deps--;
-    0 === handler.deps &&
-      ((i = handler.chunk),
-      null !== i &&
-        "blocked" === i.status &&
-        ((value = i.value),
-        (i.status = "fulfilled"),
-        (i.value = handler.value),
-        null !== value && wakeChunk(value, handler.value)));
-  }
-  function reject(error) {
-    if (!handler.errored) {
-      handler.errored = !0;
-      handler.value = error;
-      var chunk = handler.chunk;
-      null !== chunk &&
-        "blocked" === chunk.status &&
-        triggerErrorOnChunk(chunk, error);
-    }
-  }
-  if (initializingHandler) {
-    var handler = initializingHandler;
-    handler.deps++;
+  if (initializingChunkBlockedModel) {
+    var blocked = initializingChunkBlockedModel;
+    cyclic || blocked.deps++;
   } else
-    handler = initializingHandler = {
-      parent: null,
-      chunk: null,
-      value: null,
-      deps: 1,
-      errored: !1
+    blocked = initializingChunkBlockedModel = {
+      deps: cyclic ? 0 : 1,
+      value: null
     };
-  referencedChunk.then(fulfill, reject);
-  return null;
+  return function (value) {
+    for (var i = 1; i < path.length; i++) value = value[path[i]];
+    parentObject[key] = map(response, value);
+    "" === key && null === blocked.value && (blocked.value = parentObject[key]);
+    blocked.deps--;
+    0 === blocked.deps &&
+      "blocked" === chunk.status &&
+      ((value = chunk.value),
+      (chunk.status = "fulfilled"),
+      (chunk.value = blocked.value),
+      null !== value && wakeChunk(value, blocked.value));
+  };
+}
+function createModelReject(chunk) {
+  return function (error) {
+    return triggerErrorOnChunk(chunk, error);
+  };
 }
 function createServerReferenceProxy(response, metaData) {
   function proxy() {
@@ -742,21 +720,23 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
       return map(response, parentObject);
     case "pending":
     case "blocked":
-      return waitForReference(id, parentObject, key, response, map, reference);
-    default:
-      return (
-        initializingHandler
-          ? ((initializingHandler.errored = !0),
-            (initializingHandler.value = id.reason))
-          : (initializingHandler = {
-              parent: null,
-              chunk: null,
-              value: id.reason,
-              deps: 0,
-              errored: !0
-            }),
-        null
+    case "cyclic":
+      var parentChunk = initializingChunk;
+      id.then(
+        createModelResolver(
+          parentChunk,
+          parentObject,
+          key,
+          "cyclic" === id.status,
+          response,
+          map,
+          reference
+        ),
+        createModelReject(parentChunk)
       );
+      return null;
+    default:
+      throw id.reason;
   }
 }
 function createMap(response, model) {
@@ -782,19 +762,7 @@ function createModel(response, model) {
 }
 function parseModelString(response, parentObject, key, value) {
   if ("$" === value[0]) {
-    if ("$" === value)
-      return (
-        null !== initializingHandler &&
-          "0" === key &&
-          (initializingHandler = {
-            parent: initializingHandler,
-            chunk: null,
-            value: null,
-            deps: 0,
-            errored: !1
-          }),
-        REACT_ELEMENT_TYPE
-      );
+    if ("$" === value) return REACT_ELEMENT_TYPE;
     switch (value[1]) {
       case "$":
         return value.slice(1);
@@ -802,7 +770,7 @@ function parseModelString(response, parentObject, key, value) {
         return (
           (parentObject = parseInt(value.slice(2), 16)),
           (response = getChunk(response, parentObject)),
-          createLazyChunkWrapper(response)
+          { $$typeof: REACT_LAZY_TYPE, _payload: response, _init: readChunk }
         );
       case "@":
         if (2 === value.length) return new Promise(function () {});
@@ -879,28 +847,6 @@ function missingCall() {
   throw Error(
     'Trying to call a function from "use server" but the callServer option was not implemented in your router runtime.'
   );
-}
-function ResponseInstance(
-  bundlerConfig,
-  moduleLoading,
-  callServer,
-  encodeFormAction,
-  nonce,
-  temporaryReferences
-) {
-  var chunks = new Map();
-  this._bundlerConfig = bundlerConfig;
-  this._moduleLoading = moduleLoading;
-  this._callServer = void 0 !== callServer ? callServer : missingCall;
-  this._encodeFormAction = encodeFormAction;
-  this._nonce = nonce;
-  this._chunks = chunks;
-  this._stringDecoder = new TextDecoder();
-  this._fromJSON = null;
-  this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
-  this._buffer = [];
-  this._tempRefs = temporaryReferences;
-  this._fromJSON = createFromJSONCallback(this);
 }
 function resolveBuffer(response, id, buffer) {
   var chunks = response._chunks,
@@ -983,8 +929,8 @@ function startReadableStream(response, id, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$52 = createPendingChunk(response);
-        chunk$52.then(
+        var chunk$51 = createPendingChunk(response);
+        chunk$51.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -992,10 +938,10 @@ function startReadableStream(response, id, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$52;
+        previousBlockedChunk = chunk$51;
         chunk.then(function () {
-          previousBlockedChunk === chunk$52 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$52, json);
+          previousBlockedChunk === chunk$51 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$51, json);
         });
       }
     },
@@ -1123,8 +1069,8 @@ function mergeBuffer(buffer, lastChunk) {
   for (var l = buffer.length, byteLength = lastChunk.length, i = 0; i < l; i++)
     byteLength += buffer[i].byteLength;
   byteLength = new Uint8Array(byteLength);
-  for (var i$53 = (i = 0); i$53 < l; i$53++) {
-    var chunk = buffer[i$53];
+  for (var i$52 = (i = 0); i$52 < l; i$52++) {
+    var chunk = buffer[i$52];
     byteLength.set(chunk, i);
     i += chunk.byteLength;
   }
@@ -1300,50 +1246,48 @@ function processFullRow(response, id, tag, buffer, chunk) {
 }
 function createFromJSONCallback(response) {
   return function (key, value) {
-    if ("string" === typeof value)
-      return parseModelString(response, this, key, value);
-    if ("object" === typeof value && null !== value) {
-      if (value[0] === REACT_ELEMENT_TYPE) {
-        if (
-          ((key = {
-            $$typeof: REACT_ELEMENT_TYPE,
-            type: value[1],
-            key: value[2],
-            ref: null,
-            props: value[3]
-          }),
-          null !== initializingHandler)
-        )
-          if (
-            ((value = initializingHandler),
-            (initializingHandler = value.parent),
-            value.errored)
-          )
-            (key = new Chunk("rejected", null, value.value, response)),
-              (key = createLazyChunkWrapper(key));
-          else if (0 < value.deps) {
-            var blockedChunk = new Chunk("blocked", null, null, response);
-            value.value = key;
-            value.chunk = blockedChunk;
-            key = createLazyChunkWrapper(blockedChunk);
-          }
-      } else key = value;
-      return key;
-    }
-    return value;
+    return "string" === typeof value
+      ? parseModelString(response, this, key, value)
+      : "object" === typeof value && null !== value
+      ? ((key =
+          value[0] === REACT_ELEMENT_TYPE
+            ? {
+                $$typeof: REACT_ELEMENT_TYPE,
+                type: value[1],
+                key: value[2],
+                ref: null,
+                props: value[3]
+              }
+            : value),
+        key)
+      : value;
   };
 }
 function createResponseFromOptions(options) {
-  return new ResponseInstance(
-    null,
-    null,
-    options && options.callServer ? options.callServer : void 0,
-    void 0,
-    void 0,
+  var callServer = options && options.callServer ? options.callServer : void 0;
+  options =
     options && options.temporaryReferences
       ? options.temporaryReferences
-      : void 0
-  );
+      : void 0;
+  var chunks = new Map();
+  callServer = {
+    _bundlerConfig: null,
+    _moduleLoading: null,
+    _callServer: void 0 !== callServer ? callServer : missingCall,
+    _encodeFormAction: void 0,
+    _nonce: void 0,
+    _chunks: chunks,
+    _stringDecoder: new TextDecoder(),
+    _fromJSON: null,
+    _rowState: 0,
+    _rowID: 0,
+    _rowTag: 0,
+    _rowLength: 0,
+    _buffer: [],
+    _tempRefs: options
+  };
+  callServer._fromJSON = createFromJSONCallback(callServer);
+  return callServer;
 }
 function startReadingFromStream(response, stream) {
   function progress(_ref) {

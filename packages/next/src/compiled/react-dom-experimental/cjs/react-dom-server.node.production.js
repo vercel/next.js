@@ -3782,7 +3782,7 @@ function defaultErrorHandler(error) {
   return null;
 }
 function noop() {}
-function RequestInstance(
+function createRequest(
   children,
   resumableState,
   renderState,
@@ -3798,46 +3798,50 @@ function RequestInstance(
 ) {
   var pingedTasks = [],
     abortSet = new Set();
-  this.destination = null;
-  this.flushScheduled = !1;
-  this.resumableState = resumableState;
-  this.renderState = renderState;
-  this.rootFormatContext = rootFormatContext;
-  this.progressiveChunkSize =
-    void 0 === progressiveChunkSize ? 12800 : progressiveChunkSize;
-  this.status = 0;
-  this.fatalError = null;
-  this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
-  this.completedRootSegment = null;
-  this.abortableTasks = abortSet;
-  this.pingedTasks = pingedTasks;
-  this.clientRenderedBoundaries = [];
-  this.completedBoundaries = [];
-  this.partialBoundaries = [];
-  this.trackedPostpones = null;
-  this.onError = void 0 === onError ? defaultErrorHandler : onError;
-  this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
-  this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
-  this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
-  this.onShellError = void 0 === onShellError ? noop : onShellError;
-  this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
-  this.formState = void 0 === formState ? null : formState;
-  resumableState = createPendingSegment(
-    this,
+  resumableState = {
+    destination: null,
+    flushScheduled: !1,
+    resumableState: resumableState,
+    renderState: renderState,
+    rootFormatContext: rootFormatContext,
+    progressiveChunkSize:
+      void 0 === progressiveChunkSize ? 12800 : progressiveChunkSize,
+    status: 0,
+    fatalError: null,
+    nextSegmentId: 0,
+    allPendingTasks: 0,
+    pendingRootTasks: 0,
+    completedRootSegment: null,
+    abortableTasks: abortSet,
+    pingedTasks: pingedTasks,
+    clientRenderedBoundaries: [],
+    completedBoundaries: [],
+    partialBoundaries: [],
+    trackedPostpones: null,
+    onError: void 0 === onError ? defaultErrorHandler : onError,
+    onPostpone: void 0 === onPostpone ? noop : onPostpone,
+    onAllReady: void 0 === onAllReady ? noop : onAllReady,
+    onShellReady: void 0 === onShellReady ? noop : onShellReady,
+    onShellError: void 0 === onShellError ? noop : onShellError,
+    onFatalError: void 0 === onFatalError ? noop : onFatalError,
+    formState: void 0 === formState ? null : formState
+  };
+  renderState = createPendingSegment(
+    resumableState,
     0,
     null,
     rootFormatContext,
     !1,
     !1
   );
-  resumableState.parentFlushed = !0;
+  renderState.parentFlushed = !0;
   children = createRenderTask(
-    this,
+    resumableState,
     null,
     children,
     -1,
     null,
-    resumableState,
+    renderState,
     null,
     abortSet,
     null,
@@ -3849,6 +3853,7 @@ function RequestInstance(
     !1
   );
   pingedTasks.push(children);
+  return resumableState;
 }
 function createPrerenderRequest(
   children,
@@ -3863,7 +3868,7 @@ function createPrerenderRequest(
   onFatalError,
   onPostpone
 ) {
-  children = new RequestInstance(
+  children = createRequest(
     children,
     resumableState,
     renderState,
@@ -6258,11 +6263,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.0.0-experimental-dfd30974ab-20240613" !== isomorphicReactPackageVersion)
+  if ("19.0.0-experimental-6230622a1a-20240610" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.0.0-experimental-dfd30974ab-20240613\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.0.0-experimental-6230622a1a-20240610\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6279,13 +6284,16 @@ function createCancelHandler(request, reason) {
 }
 function createRequestImpl(children, options) {
   var resumableState = createResumableState(
-      options ? options.identifierPrefix : void 0,
-      options ? options.unstable_externalRuntimeSrc : void 0,
-      options ? options.bootstrapScriptContent : void 0,
-      options ? options.bootstrapScripts : void 0,
-      options ? options.bootstrapModules : void 0
-    ),
-    renderState = createRenderState(
+    options ? options.identifierPrefix : void 0,
+    options ? options.unstable_externalRuntimeSrc : void 0,
+    options ? options.bootstrapScriptContent : void 0,
+    options ? options.bootstrapScripts : void 0,
+    options ? options.bootstrapModules : void 0
+  );
+  return createRequest(
+    children,
+    resumableState,
+    createRenderState(
       resumableState,
       options ? options.nonce : void 0,
       options ? options.unstable_externalRuntimeSrc : void 0,
@@ -6293,14 +6301,7 @@ function createRequestImpl(children, options) {
       options ? options.onHeaders : void 0,
       options ? options.maxHeadersLength : void 0
     ),
-    rootFormatContext = createRootFormatContext(
-      options ? options.namespaceURI : void 0
-    );
-  return new RequestInstance(
-    children,
-    resumableState,
-    renderState,
-    rootFormatContext,
+    createRootFormatContext(options ? options.namespaceURI : void 0),
     options ? options.progressiveChunkSize : void 0,
     options ? options.onError : void 0,
     options ? options.onAllReady : void 0,
@@ -6547,4 +6548,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.0.0-experimental-dfd30974ab-20240613";
+exports.version = "19.0.0-experimental-6230622a1a-20240610";
