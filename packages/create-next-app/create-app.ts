@@ -37,7 +37,7 @@ export async function createApp({
   skipInstall,
   empty,
   turbo,
-  api, // Add the api flag here
+  api,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -52,7 +52,7 @@ export async function createApp({
   skipInstall: boolean
   empty: boolean
   turbo: boolean
-  api: boolean // Add the api flag here
+  api: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
