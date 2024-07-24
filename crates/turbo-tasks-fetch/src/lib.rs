@@ -46,7 +46,7 @@ pub enum ProxyConfig {
 #[turbo_tasks::value(transparent)]
 pub struct OptionProxyConfig(Option<ProxyConfig>);
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(network)]
 pub async fn fetch(
     url: Vc<RcStr>,
     user_agent: Vc<Option<RcStr>>,

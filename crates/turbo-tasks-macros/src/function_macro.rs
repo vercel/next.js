@@ -6,6 +6,25 @@ use turbo_tasks_macros_shared::{get_native_function_id_ident, get_native_functio
 
 use crate::func::{DefinitionContext, NativeFn, TurboFn};
 
+/// This macro generates the virtual function that powers turbo tasks.
+/// An annotated task is replaced with a stub function that returns a
+/// lazy completion (Vc), and stamps out the concrete implementation
+/// of the task alongside that the Vc uses to resolve itself.
+///
+/// Functions support being tagged for informational purposes. This
+/// is currently only used in turbo-static for doing static analysis
+/// of tasks.
+///
+/// # Examples
+///
+/// ```rust
+/// use turbo_tasks::{Vc};
+///
+/// #[turbo_tasks::function(fs)]
+/// async fn my_task() -> Vc<usize> {
+///     // access filesystem
+/// }
+/// ```
 pub fn function(_args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as ItemFn);
 
