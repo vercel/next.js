@@ -3127,7 +3127,7 @@
       }
     };
     var frameRegExp =
-        /^ {3} at (?:(.+) \(([^\)]+):(\d+):(\d+)\)|(?:async )?([^\)]+):(\d+):(\d+))$/,
+        /^ {3} at (?:(.+) \((.+):(\d+):(\d+)\)|(?:async )?(.+):(\d+):(\d+))$/,
       supportsRequestStorage = "function" === typeof AsyncLocalStorage,
       requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null,
       supportsComponentStorage = supportsRequestStorage,
