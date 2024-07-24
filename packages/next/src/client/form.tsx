@@ -2,6 +2,7 @@
 
 import { useEffect, type HTMLProps, type FormEvent } from 'react'
 import { useRouter } from './components/navigation'
+import { addBasePath } from './add-base-path'
 
 const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
 
@@ -42,6 +43,8 @@ export default function Form({ replace, ...props }: FormProps) {
     return <form {...props} />
   }
 
+  const actionHref = addBasePath(actionProp)
+
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     if (typeof props.onSubmit === 'function') {
       const { onSubmit: onSubmitProp } = props
@@ -57,7 +60,7 @@ export default function Form({ replace, ...props }: FormProps) {
     const formElement = event.currentTarget
     const submitter = (event.nativeEvent as SubmitEvent).submitter
 
-    let action = actionProp
+    let action = actionHref
 
     if (submitter) {
       if (process.env.NODE_ENV === 'development') {
@@ -81,6 +84,7 @@ export default function Form({ replace, ...props }: FormProps) {
       // If the submitter specified an alternate formAction,
       // use that URL instead -- this is what a native form would do.
       // NOTE: `submitter.formAction` is unreliable, because it will give us `location.href` if it *wasn't* set
+      // NOTE: this should not have `basePath` added, because we can't add it before hydration
       const submitterFormAction = submitter.getAttribute('formAction')
       if (submitterFormAction !== null) {
         action = submitterFormAction
@@ -88,10 +92,7 @@ export default function Form({ replace, ...props }: FormProps) {
     }
 
     // TODO: is it a problem that we've got an absolute URL here?
-    // can that cause any problems with e.g. basePath?
-    // WHAT about <base>, is that something we're handling at all?
-
-    const targetUrl = new URL(action, window.location.origin)
+    const targetUrl = new URL(action, document.baseURI)
     if (targetUrl.searchParams.size) {
       // url-encoded HTML forms ignore any queryparams in the `action` url. We need to match that.
       // (note that all other parts of the URL, like `hash`, are preserved)
@@ -124,7 +125,7 @@ export default function Form({ replace, ...props }: FormProps) {
     router[method](targetUrl.href)
   }
 
-  return <form {...props} onSubmit={onSubmit} />
+  return <form {...props} action={actionHref} onSubmit={onSubmit} />
 }
 
 const isSupportedEncType = (value: string) =>
