@@ -3,7 +3,6 @@ import path from 'path'
 import { recursiveCopy } from '../../lib/recursive-copy'
 import { version as nextVersion } from 'next/package.json'
 import type { NextConfigComplete } from '../../server/config-shared'
-import { getNextPublicEnvironmentVariables } from '../webpack/plugins/define-env-plugin'
 import {
   BUILD_MANIFEST,
   APP_BUILD_MANIFEST,
@@ -15,14 +14,12 @@ import {
 
 export interface ShuttleManifest {
   nextVersion: string
-  nextPublicEnv: Record<string, string>
   config: Record<string, any>
 }
 
 export function generateShuttleManifest(config: NextConfigComplete) {
   return JSON.stringify({
     nextVersion,
-    nextPublicEnv: getNextPublicEnvironmentVariables() as Record<string, any>,
     config: {
       env: config.env,
       i18n: config.i18n,

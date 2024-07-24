@@ -71,16 +71,6 @@ export async function hasShuttle(
     _hasShuttle = false
   }
 
-  for (const key of Object.keys(currentShuttleManifest.nextPublicEnv || {})) {
-    if (
-      currentShuttleManifest.nextPublicEnv[key] !==
-      foundShuttleManifest.nextPublicEnv?.[key]
-    ) {
-      console.log(`Mismatching public env ${key}`)
-      _hasShuttle = false
-    }
-  }
-
   if (!deepEqual(currentShuttleManifest.config, foundShuttleManifest.config)) {
     _hasShuttle = false
     console.log(
