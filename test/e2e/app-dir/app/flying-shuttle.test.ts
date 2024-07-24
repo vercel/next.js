@@ -23,13 +23,15 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         NEXT_PRIVATE_FLYING_SHUTTLE: 'true',
       },
     })
-    let initialGlobalHash: string = ''
+    let initialNextPublic: Record<string, any> = {}
+    let initialConfig: Record<string, any> = {}
 
     beforeAll(async () => {
       const manifest = await next.readJSON(
         '.next/cache/shuttle/shuttle-manifest.json'
       )
-      initialGlobalHash = manifest.globalHash
+      initialNextPublic = manifest.nextPublicEnv
+      initialConfig = manifest.config
     })
 
     async function checkShuttleManifest() {
@@ -39,7 +41,8 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
 
       expect(manifest).toEqual({
         nextVersion,
-        globalHash: initialGlobalHash,
+        config: initialConfig,
+        nextPublicEnv: initialNextPublic,
       })
     }
 
@@ -91,17 +94,6 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
           expect(typeof traceFile.fileHashes[key]).toBe('string')
         }
       }
-    })
-
-    it('should have shuttle-manifest.json', async () => {
-      const manifest = await next.readJSON(
-        '.next/cache/shuttle/shuttle-manifest.json'
-      )
-
-      expect(manifest).toEqual({
-        nextVersion,
-        globalHash: expect.stringMatching(/[\w\d]{1,}/),
-      })
     })
 
     it('should hard navigate on chunk load failure', async () => {
