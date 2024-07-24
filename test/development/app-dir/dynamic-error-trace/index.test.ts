@@ -1,14 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,
-  getRedboxCallStack,
   shouldRunTurboDevTest,
-  expandCallStack,
   getRedboxSource,
 } from 'next-test-utils'
-
-const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-const gateNotReactExperimental = isPPREnabled ? it.failing : it
 
 describe('app dir - dynamic error trace', () => {
   const { next, skipped } = nextTestSetup({
@@ -30,17 +25,28 @@ describe('app dir - dynamic error trace', () => {
   })
   if (skipped) return
 
-  gateNotReactExperimental('should show the error trace', async () => {
+  it('should show the error trace', async () => {
     const browser = await next.browser('/')
-    await assertHasRedbox(browser)
-    await expandCallStack(browser)
-    const callStack = await getRedboxCallStack(browser)
 
-    // eslint-disable-next-line jest/no-standalone-expect -- this is a test
-    expect(callStack).toContain('node_modules/headers-lib/index.mjs')
+    await assertHasRedbox(browser)
+
+    await expect(
+      browser.hasElementByCssSelector(
+        '[data-nextjs-data-runtime-error-collapsed-action]'
+      )
+    ).resolves.toEqual(false)
+
+    const stackFrameElements = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+    const stackFrames = await Promise.all(
+      stackFrameElements.map((f) => f.innerText())
+    )
+    expect(stackFrames).toEqual([])
 
     const source = await getRedboxSource(browser)
     // eslint-disable-next-line jest/no-standalone-expect -- this is a test
-    expect(source).toContain('app/lib.js')
+    expect(source).toContain('app/lib.js (4:13) @ useHeaders')
+    expect(source).toContain(`useHeaders()`)
   })
 })
