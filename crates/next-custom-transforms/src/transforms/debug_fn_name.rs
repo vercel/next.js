@@ -35,6 +35,9 @@ impl VisitMut for DebugFnName {
             let old_in_target = self.in_target;
             self.in_target = true;
             let orig_len = self.path.len();
+            if !self.path.is_empty() {
+                self.path.push('.');
+            }
             self.path.push_str(&target);
 
             n.visit_mut_children_with(self);
@@ -108,7 +111,10 @@ impl VisitMut for DebugFnName {
                 let old_in_target = self.in_target;
                 self.in_target = true;
                 let orig_len = self.path.len();
-                let _ = write!(self.path, ".{target}({name})");
+                if !self.path.is_empty() {
+                    self.path.push('.');
+                }
+                let _ = write!(self.path, "{target}({name})");
 
                 n.visit_mut_children_with(self);
 
