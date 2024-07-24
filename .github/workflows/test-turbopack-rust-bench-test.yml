@@ -30,6 +30,8 @@ jobs:
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           save-cache: true
           github-token: "${{ secrets.GITHUB_TOKEN }}"
