@@ -79,7 +79,7 @@ impl Module for EcmascriptModuleFacadeModule {
                          ModulePart::Evaluation"
                     );
                 };
-                let result = module.failsafe_analyze().await?;
+                let result = module.analyze().await?;
                 let references = result.evaluation_references;
                 let mut references = references.await?.clone_value();
                 references.push(Vc::upcast(EcmascriptModulePartReference::new_part(
@@ -97,7 +97,7 @@ impl Module for EcmascriptModuleFacadeModule {
                          ModulePart::Evaluation"
                     );
                 };
-                let result = module.failsafe_analyze().await?;
+                let result = module.analyze().await?;
                 let references = result.reexport_references;
                 let mut references = references.await?.clone_value();
                 references.push(Vc::upcast(EcmascriptModulePartReference::new_part(

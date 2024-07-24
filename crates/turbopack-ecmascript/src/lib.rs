@@ -74,7 +74,7 @@ use turbopack_core::{
         FindContextFileResult, ModulePart,
     },
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
+    source_map::{GenerateSourceMap, OptionSourceMap},
 };
 // TODO remove this
 pub use turbopack_resolve::ecmascript as resolve;
@@ -181,18 +181,6 @@ fn modifier() -> Vc<RcStr> {
     Vc::cell("ecmascript".into())
 }
 
-#[derive(PartialEq, Eq, Clone, TraceRawVcs)]
-struct MemoizedSuccessfulAnalysis {
-    operation: Vc<AnalyzeEcmascriptModuleResult>,
-    references: ReadRef<ModuleReferences>,
-    local_references: ReadRef<ModuleReferences>,
-    reexport_references: ReadRef<ModuleReferences>,
-    evaluation_references: ReadRef<ModuleReferences>,
-    exports: ReadRef<EcmascriptExports>,
-    async_module: ReadRef<OptionAsyncModule>,
-    source_map: Option<ReadRef<SourceMap>>,
-}
-
 #[derive(Clone)]
 pub struct EcmascriptModuleAssetBuilder {
     source: Vc<Box<dyn Source>>,
@@ -256,7 +244,7 @@ pub struct EcmascriptModuleAsset {
     pub inner_assets: Option<Vc<InnerAssets>>,
     #[turbo_tasks(debug_ignore)]
     #[serde(skip)]
-    last_successful_analysis: turbo_tasks::State<Option<MemoizedSuccessfulAnalysis>>,
+    last_successful_parse: turbo_tasks::State<Option<ReadRef<ParseResult>>>,
 }
 
 /// An optional [EcmascriptModuleAsset]
@@ -335,7 +323,7 @@ impl EcmascriptModuleAsset {
             options,
             compile_time_info,
             inner_assets: None,
-            last_successful_analysis: Default::default(),
+            last_successful_parse: Default::default(),
         })
     }
 
@@ -357,7 +345,7 @@ impl EcmascriptModuleAsset {
             options,
             compile_time_info,
             inner_assets: Some(inner_assets),
-            last_successful_analysis: Default::default(),
+            last_successful_parse: Default::default(),
         })
     }
 
@@ -377,69 +365,24 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub async fn failsafe_analyze(self: Vc<Self>) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-        let this = self.await?;
-
-        let result = self.analyze();
-        let result_value = result.await?;
-
-        let successful = result_value.successful;
-        let current_memo = MemoizedSuccessfulAnalysis {
-            operation: result,
-            // We need to store the ReadRefs since we want to keep a snapshot.
-            references: result_value.references.await?,
-            local_references: result_value.local_references.await?,
-            reexport_references: result_value.reexport_references.await?,
-            evaluation_references: result_value.evaluation_references.await?,
-            exports: result_value.exports.await?,
-            async_module: result_value.async_module.await?,
-            source_map: if let Some(map) = *result_value.source_map.await? {
-                Some(map.await?)
-            } else {
-                None
-            },
-        };
-        let state_ref;
-        let best_value = if successful {
-            &current_memo
-        } else {
-            state_ref = this.last_successful_analysis.get();
-            state_ref.as_ref().unwrap_or(&current_memo)
-        };
-        let MemoizedSuccessfulAnalysis {
-            operation,
-            references,
-            local_references,
-            reexport_references,
-            evaluation_references,
-            exports,
-            async_module,
-            source_map,
-        } = best_value;
-        // It's important to connect to the last operation here to keep it active, so
-        // it's potentially recomputed when garbage collected
-        Vc::connect(*operation);
-        let result = AnalyzeEcmascriptModuleResult {
-            references: ReadRef::cell(references.clone()),
-            local_references: ReadRef::cell(local_references.clone()),
-            reexport_references: ReadRef::cell(reexport_references.clone()),
-            evaluation_references: ReadRef::cell(evaluation_references.clone()),
-            exports: ReadRef::cell(exports.clone()),
-            code_generation: result_value.code_generation,
-            async_module: ReadRef::cell(async_module.clone()),
-            source_map: Vc::cell(source_map.clone().map(ReadRef::cell)),
-            successful,
-        }
-        .cell();
-        if successful {
-            this.last_successful_analysis.set(Some(current_memo));
-        }
-        Ok(result)
+    pub fn parse(&self) -> Vc<ParseResult> {
+        parse(self.source, Value::new(self.ty), self.transforms)
     }
 
     #[turbo_tasks::function]
-    pub fn parse(&self) -> Vc<ParseResult> {
-        parse(self.source, Value::new(self.ty), self.transforms)
+    pub async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
+        let real_result = self.parse();
+        let real_result_value = real_result.await?;
+        let this = self.await?;
+        let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
+            this.last_successful_parse
+                .set(Some(real_result_value.clone()));
+            real_result_value
+        } else {
+            let state_ref = this.last_successful_parse.get();
+            state_ref.as_ref().unwrap_or(&real_result_value).clone()
+        };
+        Ok(ReadRef::cell(result_value))
     }
 
     #[turbo_tasks::function]
@@ -498,7 +441,7 @@ impl EcmascriptModuleAsset {
     ) -> Result<Vc<EcmascriptModuleContent>> {
         let this = self.await?;
 
-        let parsed = parse(this.source, Value::new(this.ty), this.transforms);
+        let parsed = self.parse();
 
         Ok(EcmascriptModuleContent::new_without_analysis(
             parsed,
@@ -513,11 +456,7 @@ impl EcmascriptModuleAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContent>> {
-        let this = self.await?;
-
-        let parsed = parse(this.source, Value::new(this.ty), this.transforms)
-            .resolve()
-            .await?;
+        let parsed = self.parse().resolve().await?;
 
         let analyze = self.analyze().await?;
 
@@ -561,7 +500,7 @@ impl Module for EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let analyze = self.failsafe_analyze().await?;
+        let analyze = self.analyze().await?;
         let references = analyze.references.await?.iter().copied().collect();
         Ok(Vc::cell(references))
     }
@@ -593,12 +532,12 @@ impl ChunkableModule for EcmascriptModuleAsset {
 impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
-        Ok(self.failsafe_analyze().await?.exports)
+        Ok(self.analyze().await?.exports)
     }
 
     #[turbo_tasks::function]
     async fn get_async_module(self: Vc<Self>) -> Result<Vc<OptionAsyncModule>> {
-        Ok(self.failsafe_analyze().await?.async_module)
+        Ok(self.analyze().await?.async_module)
     }
 }
 
@@ -669,7 +608,7 @@ impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     async fn is_self_async(&self) -> Result<Vc<bool>> {
         if let Some(async_module) = *self.module.get_async_module().await? {
-            Ok(async_module.is_self_async(self.module.failsafe_analyze().await?.references))
+            Ok(async_module.is_self_async(self.module.analyze().await?.references))
         } else {
             Ok(Vc::cell(false))
         }

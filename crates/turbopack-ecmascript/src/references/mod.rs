@@ -102,7 +102,7 @@ use super::{
         WellKnownObjectKind,
     },
     errors,
-    parse::{parse, ParseResult},
+    parse::ParseResult,
     special_cases::special_cases,
     utils::js_value_to_pattern,
     webpack::{
@@ -427,11 +427,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     };
 
     let parsed = if let Some(part) = part {
-        let parsed = parse(source, ty, transforms);
+        let parsed = module.failsafe_parse();
         let split_data = split(source.ident(), source, parsed);
         part_of_module(split_data, part)
     } else {
-        parse(source, ty, transforms)
+        module.failsafe_parse()
     };
 
     let ModuleTypeResult {
