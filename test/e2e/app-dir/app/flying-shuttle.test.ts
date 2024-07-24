@@ -25,6 +25,13 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
     })
     let initialGlobalHash: string = ''
 
+    beforeAll(async () => {
+      const manifest = await next.readJSON(
+        '.next/cache/shuttle/shuttle-manifest.json'
+      )
+      initialGlobalHash = manifest.globalHash
+    })
+
     async function checkShuttleManifest() {
       const manifest = await next.readJSON(
         '.next/cache/shuttle/shuttle-manifest.json'
@@ -90,7 +97,6 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
       const manifest = await next.readJSON(
         '.next/cache/shuttle/shuttle-manifest.json'
       )
-      initialGlobalHash = manifest.globalHash
 
       expect(manifest).toEqual({
         nextVersion,
