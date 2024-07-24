@@ -1119,8 +1119,8 @@ importers:
         specifier: 0.27.1
         version: 0.27.1(encoding@0.1.13)
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?aec341c374d6b079beb75d8c6f6d3169dcbf7439
-        version: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?aec341c374d6b079beb75d8c6f6d3169dcbf7439
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?5da0970661b6986d8976dbde4b47e67c7648157b
+        version: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?5da0970661b6986d8976dbde4b47e67c7648157b
       acorn:
         specifier: 8.11.3
         version: 8.11.3
@@ -5234,8 +5234,8 @@ packages:
     resolution: {integrity: sha512-OTe0KE37F5Y2eTys6eMnfopC+P4qr2ooXUTFyFPTplYSPwowmFk/HLD1FXtbKLjqsIH0SgekcJWad+C5uX4nkg==}
     engines: {node: '>=16'}
 
-  '@vercel/turbopack-ecmascript-runtime@https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?aec341c374d6b079beb75d8c6f6d3169dcbf7439':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?aec341c374d6b079beb75d8c6f6d3169dcbf7439}
+  '@vercel/turbopack-ecmascript-runtime@https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?5da0970661b6986d8976dbde4b47e67c7648157b':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?5da0970661b6986d8976dbde4b47e67c7648157b}
     version: 0.0.0
 
   '@webassemblyjs/ast@1.11.6':
@@ -19827,7 +19827,7 @@ snapshots:
       satori: 0.10.9
       yoga-wasm-web: 0.3.3
 
-  '@vercel/turbopack-ecmascript-runtime@https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?aec341c374d6b079beb75d8c6f6d3169dcbf7439':
+  '@vercel/turbopack-ecmascript-runtime@https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?5da0970661b6986d8976dbde4b47e67c7648157b':
     dependencies:
       '@types/node': 20.12.3
 
