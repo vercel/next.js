@@ -380,7 +380,7 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
             globals,
             eval_context,
             ..
-        } = &*ecmascript_asset.parse().await?
+        } = &*ecmascript_asset.failsafe_parse().await?
         {
             for item in &module_ast.body {
                 if let Some(decl) = item

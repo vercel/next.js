@@ -272,7 +272,7 @@ async fn build_dynamic_imports_map_for_module(
 
     // https://github.com/vercel/next.js/pull/56389#discussion_r1349336374
     // don't emit specific error as we expect there's a parse error already reported
-    let ParseResult::Ok { program, .. } = &*ecmascript_asset.parse().await? else {
+    let ParseResult::Ok { program, .. } = &*ecmascript_asset.failsafe_parse().await? else {
         return Ok(Vc::cell(None));
     };
 
