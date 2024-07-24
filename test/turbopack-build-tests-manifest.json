@@ -7646,9 +7646,7 @@
         "Multi Global Support production mode useLightnincsss(false) should compile successfully",
         "Multi Global Support production mode useLightnincsss(true) should compile successfully",
         "Nested @import() Global Support production mode useLightnincsss(false) should compile successfully",
-        "Nested @import() Global Support production mode useLightnincsss(true) should compile successfully"
-      ],
-      "failed": [
+        "Nested @import() Global Support production mode useLightnincsss(true) should compile successfully",
         "Basic Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
         "Basic Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
         "Basic Global Support with special characters in path production mode useLightnincsss(false) should've emitted a single CSS file",
@@ -7666,6 +7664,7 @@
         "Nested @import() Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
         "Nested @import() Global Support production mode useLightnincsss(true) should've emitted a single CSS file"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
