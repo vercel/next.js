@@ -206,6 +206,10 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         await next.patchFile(dataPath, JSON.stringify({ hello: 'again' }))
         await next.start()
 
+        expect(next.cliOutput).not.toContain('/catch-all')
+        expect(next.cliOutput).not.toContain('/blog/[slug]')
+        expect(next.cliOutput).toContain('/dashboard/deployments/[id]')
+
         await checkShuttleManifest()
         await checkAppPagesNavigation()
       } finally {
@@ -228,6 +232,10 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
           )
         )
         await next.start()
+
+        expect(next.cliOutput).toContain('/')
+        expect(next.cliOutput).not.toContain('/catch-all')
+        expect(next.cliOutput).not.toContain('/blog/[slug]')
 
         await checkShuttleManifest()
         await checkAppPagesNavigation()
@@ -254,6 +262,11 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         )
         await next.patchFile(dataPath, JSON.stringify({ hello: 'again' }))
         await next.start()
+
+        expect(next.cliOutput).toContain('/')
+        expect(next.cliOutput).toContain('/dashboard/deployments/[id]')
+        expect(next.cliOutput).not.toContain('/catch-all')
+        expect(next.cliOutput).not.toContain('/blog/[slug]')
 
         await checkShuttleManifest()
         await checkAppPagesNavigation()

@@ -214,7 +214,7 @@ export async function detectChangedEntries({
 
     if (changed || isGlobalEntry) {
       // if a global entry changed all entries are changed
-      if (!globalEntryChanged && isGlobalEntry) {
+      if (changed && !globalEntryChanged && isGlobalEntry) {
         console.log(`global entry ${entry} changed invalidating all entries`)
         globalEntryChanged = true
         // move unchanged to changed
