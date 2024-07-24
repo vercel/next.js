@@ -37,6 +37,7 @@ export async function createApp({
   skipInstall,
   empty,
   turbo,
+  api, // Add the api flag here
 }: {
   appPath: string
   packageManager: PackageManager
@@ -51,11 +52,17 @@ export async function createApp({
   skipInstall: boolean
   empty: boolean
   turbo: boolean
+  api: boolean // Add the api flag here
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = `${appRouter ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`
+  const template: TemplateType = api ? 'api' : `${appRouter ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}` // Modify template selection logic
 
+  if (api && template !== 'api') {
+    console.error(`Invalid template for api flag: ${red(template)}`)
+    process.exit(1)
+  }
+  
   if (example) {
     let repoUrl: URL | undefined
 
@@ -188,7 +195,7 @@ export async function createApp({
         isErrorLike(reason) ? reason.message : reason + ''
       )
     }
-    // Copy `.gitignore` if the application did not provide one
+     // Copy `.gitignore` if the application did not provide one
     const ignorePath = join(root, '.gitignore')
     if (!existsSync(ignorePath)) {
       copyFileSync(
