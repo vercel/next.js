@@ -412,6 +412,21 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 }
                 _ => {}
             }
+
+            // matching calls on strings like `"dayjs/locale/".concat(userLocale, ".js")`
+            if obj.is_string() == Some(true) {
+                if let Some(str) = prop.as_str() {
+                    // The String.prototype.concat method
+                    if str == "concat" {
+                        let mut values = vec![take(obj)];
+                        values.extend(take(args));
+
+                        *value = JsValue::concat(values);
+                        return true;
+                    }
+                }
+            }
+
             // without special handling, we convert it into a normal call like
             // `(obj.prop)(arg1, arg2, ...)`
             *value = JsValue::call(
