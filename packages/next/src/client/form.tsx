@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, type HTMLProps, type FormEvent } from 'react'
+import { useEffect, type HTMLProps, type FormEvent, useCallback } from 'react'
 import { useRouter } from './components/navigation'
 import { addBasePath } from './add-base-path'
+import { useIntersection } from './use-intersection'
 
 const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
 
@@ -12,7 +13,11 @@ type DisallowedFormProps = (typeof DISALLOWED_FORM_PROPS)[number]
 export type FormProps = Omit<HTMLFormProps, 'action' | DisallowedFormProps> &
   Required<Pick<HTMLFormProps, 'action'>> & { replace?: boolean }
 
-export default function Form({ replace, ...props }: FormProps) {
+export default function Form({
+  replace,
+  ref: externalRef,
+  ...props
+}: FormProps) {
   for (const key of DISALLOWED_FORM_PROPS) {
     if (key in props) {
       if (process.env.NODE_ENV === 'development') {
@@ -27,20 +32,53 @@ export default function Form({ replace, ...props }: FormProps) {
 
   const router = useRouter()
 
-  useEffect(() => {
-    if (typeof actionProp === 'string') {
-      try {
-        // TODO: do we need to take the current field values here?
-        // or are we assuming that queryparams can't affect this (but what about rewrites)?
-        router.prefetch(actionProp)
-      } catch (err) {
-        console.error(err)
+  const [setIntersectionRef, isVisible] = useIntersection({
+    rootMargin: '200px',
+    disabled: typeof actionProp !== 'string', // if we don't have an action path, we can't preload anything anyway.
+  })
+
+  const ownRef = useCallback(
+    (el: HTMLFormElement) => {
+      // TODO: Link does something like this, do we need it?
+      // check if visible state need to be reset
+      // if (previousActionProp.current !== actionProp) {
+      //   resetVisible()
+      //   previousActionProp.current = actionProp
+      // }
+      setIntersectionRef(el)
+
+      // TODO: replace with `useMergedRef` when https://github.com/vercel/next.js/pull/68123 lands
+      if (externalRef) {
+        if (typeof externalRef === 'function') {
+          return externalRef(el)
+        } else {
+          externalRef.current = el
+        }
       }
+    },
+    [setIntersectionRef, externalRef]
+  )
+
+  useEffect(() => {
+    if (typeof actionProp !== 'string') {
+      return
     }
-  }, [actionProp, router])
+
+    if (!isVisible) {
+      return
+    }
+
+    try {
+      // TODO: do we need to take the current field values here?
+      // or are we assuming that queryparams can't affect this (but what about rewrites)?
+      router.prefetch(actionProp)
+    } catch (err) {
+      console.error(err)
+    }
+  }, [isVisible, actionProp, router])
 
   if (typeof actionProp !== 'string') {
-    return <form {...props} />
+    return <form {...props} ref={ownRef} />
   }
 
   const actionHref = addBasePath(actionProp)
@@ -48,6 +86,7 @@ export default function Form({ replace, ...props }: FormProps) {
   return (
     <form
       {...props}
+      ref={ownRef}
       action={actionHref}
       onSubmit={(event) =>
         onFormSubmit(event, {
