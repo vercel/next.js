@@ -83,7 +83,9 @@ impl VisitMut for DebugFnName {
 
     fn visit_mut_fn_decl(&mut self, n: &mut FnDecl) {
         let orig_len = self.path.len();
-        self.path.push('.');
+        if !self.path.is_empty() {
+            self.path.push('.');
+        }
         self.path.push_str(n.ident.sym.as_str());
 
         n.visit_mut_children_with(self);
@@ -124,7 +126,9 @@ impl VisitMut for DebugFnName {
 
             if let Some(name) = name {
                 let orig_len = self.path.len();
-                self.path.push('.');
+                if !self.path.is_empty() {
+                    self.path.push('.');
+                }
                 self.path.push_str(name.sym.as_str());
 
                 n.visit_mut_children_with(self);
