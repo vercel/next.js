@@ -23,14 +23,12 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         NEXT_PRIVATE_FLYING_SHUTTLE: 'true',
       },
     })
-    let initialNextPublic: Record<string, any> = {}
     let initialConfig: Record<string, any> = {}
 
     beforeAll(async () => {
       const manifest = await next.readJSON(
         '.next/cache/shuttle/shuttle-manifest.json'
       )
-      initialNextPublic = manifest.nextPublicEnv
       initialConfig = manifest.config
     })
 
@@ -42,7 +40,6 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
       expect(manifest).toEqual({
         nextVersion,
         config: initialConfig,
-        nextPublicEnv: initialNextPublic,
       })
     }
 
