@@ -5,8 +5,8 @@ use swc_core::{
     common::{util::take::Take, DUMMY_SP},
     ecma::{
         ast::{
-            CallExpr, Callee, Expr, FnDecl, FnExpr, KeyValueProp, MemberProp, ObjectLit,
-            PropOrSpread, VarDeclarator,
+            CallExpr, Callee, ExportDefaultExpr, Expr, FnDecl, FnExpr, KeyValueProp, MemberProp,
+            ObjectLit, PropOrSpread, VarDeclarator,
         },
         utils::ExprFactory,
         visit::{as_folder, Fold, VisitMut, VisitMutWith},
@@ -22,11 +22,12 @@ struct DebugFnName {
     path: String,
     in_target: bool,
     in_var_target: bool,
+    in_default_export: bool,
 }
 
 impl VisitMut for DebugFnName {
     fn visit_mut_call_expr(&mut self, n: &mut CallExpr) {
-        if self.in_var_target {
+        if self.in_var_target || (self.path.is_empty() && !self.in_default_export) {
             n.visit_mut_children_with(self);
             return;
         }
@@ -47,6 +48,15 @@ impl VisitMut for DebugFnName {
         } else {
             n.visit_mut_children_with(self);
         }
+    }
+
+    fn visit_mut_export_default_expr(&mut self, n: &mut ExportDefaultExpr) {
+        let old_in_default_export = self.in_default_export;
+        self.in_default_export = true;
+
+        n.visit_mut_children_with(self);
+
+        self.in_default_export = old_in_default_export;
     }
 
     fn visit_mut_expr(&mut self, n: &mut Expr) {
