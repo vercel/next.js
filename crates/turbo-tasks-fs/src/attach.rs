@@ -121,17 +121,17 @@ impl AttachedFileSystem {
 
 #[turbo_tasks::value_impl]
 impl FileSystem for AttachedFileSystem {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(fs)]
     fn read(self: Vc<Self>, path: Vc<FileSystemPath>) -> Vc<FileContent> {
         self.get_inner_fs_path(path).read()
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(fs)]
     fn read_link(self: Vc<Self>, path: Vc<FileSystemPath>) -> Vc<LinkContent> {
         self.get_inner_fs_path(path).read_link()
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(fs)]
     async fn read_dir(self: Vc<Self>, path: Vc<FileSystemPath>) -> Result<Vc<DirectoryContent>> {
         let dir_content = self.get_inner_fs_path(path).read_dir().await?;
         let entries = match &*dir_content {
@@ -157,17 +157,17 @@ impl FileSystem for AttachedFileSystem {
         Ok(DirectoryContent::new(converted_entries))
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(fs)]
     fn track(self: Vc<Self>, path: Vc<FileSystemPath>) -> Vc<Completion> {
         self.get_inner_fs_path(path).track()
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(fs)]
     fn write(self: Vc<Self>, path: Vc<FileSystemPath>, content: Vc<FileContent>) -> Vc<Completion> {
         self.get_inner_fs_path(path).write(content)
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(fs)]
     fn write_link(
         self: Vc<Self>,
         path: Vc<FileSystemPath>,

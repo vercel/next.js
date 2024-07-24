@@ -16,7 +16,7 @@ pub struct ReadGlobResult {
 ///
 /// DETERMINISM: Result is in random order. Either sort result or do not depend
 /// on the order.
-#[turbo_tasks::function]
+#[turbo_tasks::function(fs)]
 pub async fn read_glob(
     directory: Vc<FileSystemPath>,
     glob: Vc<Glob>,
@@ -25,7 +25,7 @@ pub async fn read_glob(
     read_glob_internal("", directory, glob, include_dot_files).await
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(fs)]
 async fn read_glob_inner(
     prefix: RcStr,
     directory: Vc<FileSystemPath>,
