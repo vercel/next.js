@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import { version as nextVersion } from 'next/package.json'
 import type { Route } from 'playwright'
 import { retry } from 'next-test-utils'
 import { nextTestSetup, isNextStart } from 'e2e-utils'
@@ -22,6 +23,18 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         NEXT_PRIVATE_FLYING_SHUTTLE: 'true',
       },
     })
+    let initialGlobalHash: string = ''
+
+    async function checkShuttleManifest() {
+      const manifest = await next.readJSON(
+        '.next/cache/shuttle/shuttle-manifest.json'
+      )
+
+      expect(manifest).toEqual({
+        nextVersion,
+        globalHash: initialGlobalHash,
+      })
+    }
 
     it('should have file hashes in trace files', async () => {
       const deploymentsTracePath = path.join(
@@ -71,6 +84,18 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
           expect(typeof traceFile.fileHashes[key]).toBe('string')
         }
       }
+    })
+
+    it('should have shuttle-manifest.json', async () => {
+      const manifest = await next.readJSON(
+        '.next/cache/shuttle/shuttle-manifest.json'
+      )
+      initialGlobalHash = manifest.globalHash
+
+      expect(manifest).toEqual({
+        nextVersion,
+        globalHash: expect.stringMatching(/[\w\d]{1,}/),
+      })
     })
 
     it('should hard navigate on chunk load failure', async () => {
@@ -181,6 +206,7 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         await next.patchFile(dataPath, JSON.stringify({ hello: 'again' }))
         await next.start()
 
+        await checkShuttleManifest()
         await checkAppPagesNavigation()
       } finally {
         await next.patchFile(dataPath, originalContent)
@@ -203,6 +229,7 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         )
         await next.start()
 
+        await checkShuttleManifest()
         await checkAppPagesNavigation()
       } finally {
         await next.patchFile(pagePath, originalContent)
@@ -228,6 +255,7 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         await next.patchFile(dataPath, JSON.stringify({ hello: 'again' }))
         await next.start()
 
+        await checkShuttleManifest()
         await checkAppPagesNavigation()
       } finally {
         await next.patchFile(pagePath, originalPageContent)
