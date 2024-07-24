@@ -429,6 +429,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         duration: Duration,
         memory_usage: usize,
+        cell_counters: AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool;

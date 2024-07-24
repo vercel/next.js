@@ -201,9 +201,42 @@ impl Cell {
         }
     }
 
+    pub fn empty(
+        &mut self,
+        clean: bool,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) -> Option<CellContent> {
+        let content = match replace(&mut self.state, CellState::Empty) {
+            CellState::TrackedValueless | CellState::Empty => None,
+            CellState::Computing { event } => {
+                event.notify(usize::MAX);
+                if clean {
+                    // We can assume that the task is deterministic and produces the same content
+                    // again. No need to notify dependent tasks.
+                    return None;
+                }
+                None
+            }
+            CellState::Value { content } => Some(content),
+        };
+        // Assigning to a cell will invalidate all dependent tasks as the content might
+        // have changed.
+        if !self.dependent_tasks.is_empty() {
+            turbo_tasks.schedule_notify_tasks_set(&self.dependent_tasks);
+            self.dependent_tasks.clear();
+        }
+        content
+    }
+
     /// Reduces memory needs to the minimum.
     pub fn shrink_to_fit(&mut self) {
         self.dependent_tasks.shrink_to_fit();
+    }
+
+    /// Returns true if the cell is current not used and could be dropped from
+    /// the array.
+    pub fn is_unused(&self) -> bool {
+        self.dependent_tasks.is_empty() && matches!(self.state, CellState::Empty)
     }
 
     /// Takes the content out of the cell. Make sure to drop the content outside
