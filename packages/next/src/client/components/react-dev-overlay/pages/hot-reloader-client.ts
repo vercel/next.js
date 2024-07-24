@@ -316,7 +316,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       return handleSuccess()
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
-      if (hasCompileErrors) {
+      if (hasCompileErrors || RuntimeErrorHandler.hadRuntimeError) {
         window.location.reload()
       }
       return
