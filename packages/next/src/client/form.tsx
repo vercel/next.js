@@ -45,87 +45,111 @@ export default function Form({ replace, ...props }: FormProps) {
 
   const actionHref = addBasePath(actionProp)
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    if (typeof props.onSubmit === 'function') {
-      const { onSubmit: onSubmitProp } = props
-      onSubmitProp(event)
-
-      // if the user called event.preventDefault(), do nothing.
-      // (this matches what Link does for `onClick`)
-      if (event.defaultPrevented) {
-        return
+  return (
+    <form
+      {...props}
+      action={actionHref}
+      onSubmit={(event) =>
+        onFormSubmit(event, {
+          router,
+          actionHref,
+          replace,
+          onSubmit: props.onSubmit,
+        })
       }
+    />
+  )
+}
+
+function onFormSubmit(
+  event: FormEvent<HTMLFormElement>,
+  {
+    actionHref,
+    onSubmit,
+    replace,
+    router,
+  }: {
+    actionHref: string
+    onSubmit: FormProps['onSubmit']
+    replace: FormProps['replace']
+    router: any
+  }
+) {
+  if (typeof onSubmit === 'function') {
+    onSubmit(event)
+
+    // if the user called event.preventDefault(), do nothing.
+    // (this matches what Link does for `onClick`)
+    if (event.defaultPrevented) {
+      return
     }
-
-    const formElement = event.currentTarget
-    const submitter = (event.nativeEvent as SubmitEvent).submitter
-
-    let action = actionHref
-
-    if (submitter) {
-      if (process.env.NODE_ENV === 'development') {
-        // the way server actions are encoded (e.g. `formMethod="post")
-        // causes some unnecessary dev-mode warnings from `hasUnsupportedSubmitterAttributes`.
-        // we'd bail out anyway, but we just do it silently.
-        if (hasReactServerActionAttributes(submitter)) {
-          return
-        }
-      }
-
-      if (hasUnsupportedSubmitterAttributes(submitter)) {
-        return
-      }
-
-      // client actions have `formAction="javascript:..."`. We obviously can't prefetch/navigate to that.
-      if (hasReactClientActionAttributes(submitter)) {
-        return
-      }
-
-      // If the submitter specified an alternate formAction,
-      // use that URL instead -- this is what a native form would do.
-      // NOTE: `submitter.formAction` is unreliable, because it will give us `location.href` if it *wasn't* set
-      // NOTE: this should not have `basePath` added, because we can't add it before hydration
-      const submitterFormAction = submitter.getAttribute('formAction')
-      if (submitterFormAction !== null) {
-        action = submitterFormAction
-      }
-    }
-
-    // TODO: is it a problem that we've got an absolute URL here?
-    const targetUrl = new URL(action, document.baseURI)
-    if (targetUrl.searchParams.size) {
-      // url-encoded HTML forms ignore any queryparams in the `action` url. We need to match that.
-      // (note that all other parts of the URL, like `hash`, are preserved)
-      targetUrl.search = ''
-    }
-
-    const formData = new FormData(formElement)
-
-    for (const [name, value] of formData) {
-      if (typeof value !== 'string') {
-        // if it's not a string, then it was a file input.
-        // we can't do anything with those.
-        if (process.env.NODE_ENV === 'development') {
-          console.error(
-            'next/form does not support file inputs. Use a native <form> instead.'
-          )
-        }
-
-        return
-      }
-
-      targetUrl.searchParams.append(name, value)
-    }
-
-    // Finally, no more reasons for bailing out.
-    event.preventDefault()
-
-    const method = replace ? 'replace' : 'push'
-
-    router[method](targetUrl.href)
   }
 
-  return <form {...props} action={actionHref} onSubmit={onSubmit} />
+  const formElement = event.currentTarget
+  const submitter = (event.nativeEvent as SubmitEvent).submitter
+
+  let action = actionHref
+
+  if (submitter) {
+    if (process.env.NODE_ENV === 'development') {
+      // the way server actions are encoded (e.g. `formMethod="post")
+      // causes some unnecessary dev-mode warnings from `hasUnsupportedSubmitterAttributes`.
+      // we'd bail out anyway, but we just do it silently.
+      if (hasReactServerActionAttributes(submitter)) {
+        return
+      }
+    }
+
+    if (hasUnsupportedSubmitterAttributes(submitter)) {
+      return
+    }
+
+    // client actions have `formAction="javascript:..."`. We obviously can't prefetch/navigate to that.
+    if (hasReactClientActionAttributes(submitter)) {
+      return
+    }
+
+    // If the submitter specified an alternate formAction,
+    // use that URL instead -- this is what a native form would do.
+    // NOTE: `submitter.formAction` is unreliable, because it will give us `location.href` if it *wasn't* set
+    // NOTE: this should not have `basePath` added, because we can't add it before hydration
+    const submitterFormAction = submitter.getAttribute('formAction')
+    if (submitterFormAction !== null) {
+      action = submitterFormAction
+    }
+  }
+
+  // TODO: is it a problem that we've got an absolute URL here?
+  const targetUrl = new URL(action, document.baseURI)
+  if (targetUrl.searchParams.size) {
+    // url-encoded HTML forms ignore any queryparams in the `action` url. We need to match that.
+    // (note that all other parts of the URL, like `hash`, are preserved)
+    targetUrl.search = ''
+  }
+
+  const formData = new FormData(formElement)
+
+  for (const [name, value] of formData) {
+    if (typeof value !== 'string') {
+      // if it's not a string, then it was a file input.
+      // we can't do anything with those.
+      if (process.env.NODE_ENV === 'development') {
+        console.error(
+          'next/form does not support file inputs. Use a native <form> instead.'
+        )
+      }
+
+      return
+    }
+
+    targetUrl.searchParams.append(name, value)
+  }
+
+  // Finally, no more reasons for bailing out.
+  event.preventDefault()
+
+  const method = replace ? 'replace' : 'push'
+  router[method](targetUrl.href)
 }
 
 const isSupportedEncType = (value: string) =>
