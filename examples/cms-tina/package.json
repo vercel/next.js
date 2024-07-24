@@ -19,7 +19,7 @@
     "remark": "14.0.2",
     "remark-html": "15.0.1",
     "styled-components": "^5.3.3",
-    "tinacms": "^0.68.4"
+    "tinacms": "^2.0.0"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.2",
