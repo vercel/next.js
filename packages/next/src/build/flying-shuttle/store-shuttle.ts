@@ -19,20 +19,43 @@ export function generateShuttleManifest(config: NextConfigComplete) {
   // and specific next config values that can impact the build
   const globalHash = crypto.createHash('sha256')
   const nextPublicEnv = getNextPublicEnvironmentVariables()
-  for (const key in nextPublicEnv) {
+  // sort for deterministic order
+  const publicEnvKeys = Object.keys(nextPublicEnv).sort()
+
+  for (const key of publicEnvKeys) {
     globalHash.update(`${key}=${nextPublicEnv[key]}`)
   }
 
-  const omittedConfigKeys = ['headers', 'rewrites', 'redirects']
+  // TODO: make this opt-out list instead?
+  // also ensure this list is complete this is minimal set
+  const configsToInvalidateOn = [
+    'basePath',
+    'env',
+    'i18n',
+    'images',
+    'productionBrowserSourceMaps',
+    'webpack',
+    'sassOptions',
+    'trailingSlash',
+    'experimental.flyingShuttle',
+    'experimental.ppr',
+    'experimental.reactCompiler',
+  ].sort()
 
-  for (const key in config) {
-    if (omittedConfigKeys.includes(key)) {
-      continue
+  for (const key of configsToInvalidateOn) {
+    let value = config[key]
+
+    if (key.includes('.')) {
+      value = config
+
+      const keyParts = key.split('.')
+      for (let i = 0; i < keyParts.length; i++) {
+        value = value[keyParts[i]]
+      }
     }
+
     let serializedConfig =
-      typeof config[key] === 'function'
-        ? config[key].toString()
-        : JSON.stringify(config[key])
+      typeof value === 'function' ? value.toString() : JSON.stringify(value)
 
     globalHash.update(`${key}=${serializedConfig}`)
   }

@@ -29,6 +29,7 @@ export async function hasShuttle(
         .readFile(path.join(shuttleDir, 'shuttle-manifest.json'), 'utf8')
         .catch(() => '{}')
     )
+    _hasShuttle = true
   } catch (err: unknown) {
     _hasShuttle = false
     return _hasShuttle
@@ -36,12 +37,13 @@ export async function hasShuttle(
   const currentShuttleManifest = generateShuttleManifest(config)
 
   if (
-    _hasShuttle !== false &&
     currentShuttleManifest.nextVersion !== foundShuttleManifest?.nextVersion
   ) {
     // we don't allow using shuttle from differing Next.js version
     // as it could have internal changes
-    console.log(`shuttle has differing Next.js version, skipping.`)
+    console.log(
+      `shuttle has differing Next.js version ${foundShuttleManifest?.nextVersion} versus current ${currentShuttleManifest.nextVersion}, skipping.`
+    )
     _hasShuttle = false
   }
 
@@ -50,7 +52,9 @@ export async function hasShuttle(
     currentShuttleManifest.globalHash !== foundShuttleManifest?.globalHash
   ) {
     // if the global hash was invalidated we bypass the cache to be safe
-    console.log(`shuttle has differing global hash, skipping.`)
+    console.log(
+      `shuttle has differing global hash ${foundShuttleManifest?.globalHash} versus current ${currentShuttleManifest.globalHash}, skipping.`
+    )
     _hasShuttle = false
   }
   return _hasShuttle
@@ -210,7 +214,7 @@ export async function detectChangedEntries({
 
     if (changed || isGlobalEntry) {
       // if a global entry changed all entries are changed
-      if (!globalEntryChanged && isGlobalEntry) {
+      if (changed && !globalEntryChanged && isGlobalEntry) {
         console.log(`global entry ${entry} changed invalidating all entries`)
         globalEntryChanged = true
         // move unchanged to changed
@@ -237,18 +241,6 @@ export async function detectChangedEntries({
     const normalizedEntry = getPageFromPath(entry, pageExtensions)
     await detectChange({ entry, normalizedEntry, type: 'app' })
   }
-
-  console.log(
-    'changed entries',
-    JSON.stringify(
-      {
-        changedEntries,
-        unchangedEntries,
-      },
-      null,
-      2
-    )
-  )
 
   return {
     changed: changedEntries,

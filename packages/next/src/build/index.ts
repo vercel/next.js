@@ -872,7 +872,15 @@ export default async function build(
           shuttleDir,
           config,
         })
-        console.log({ changedPagePathsResult })
+        console.log(
+          JSON.stringify(
+            {
+              changedPagePathsResult: changedPagePathsResult.changed.pages,
+            },
+            null,
+            2
+          )
+        )
         pagesPaths = changedPagePathsResult.changed.pages
       }
 
@@ -964,7 +972,15 @@ export default async function build(
             shuttleDir,
             config,
           })
-          console.log({ changedAppPathsResult })
+          console.log(
+            JSON.stringify(
+              {
+                changedAppPathsResult: changedAppPathsResult.changed.app,
+              },
+              null,
+              2
+            )
+          )
           appPaths = changedAppPathsResult.changed.app
         }
 
