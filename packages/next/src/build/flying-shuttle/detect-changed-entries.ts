@@ -3,6 +3,8 @@ import path from 'path'
 import crypto from 'crypto'
 import { getPageFromPath } from '../entries'
 import { Sema } from 'next/dist/compiled/async-sema'
+import { generateShuttleManifest } from './store-shuttle'
+import type { NextConfigComplete } from '../../server/config-shared'
 
 export interface DetectedEntriesResult {
   app: string[]
@@ -10,15 +12,51 @@ export interface DetectedEntriesResult {
 }
 
 let _hasShuttle: undefined | boolean = undefined
-export async function hasShuttle(shuttleDir: string) {
+export async function hasShuttle(
+  config: NextConfigComplete,
+  shuttleDir: string
+) {
   if (typeof _hasShuttle === 'boolean') {
     return _hasShuttle
   }
-  _hasShuttle = await fs.promises
-    .access(path.join(shuttleDir, 'server'))
-    .then(() => true)
-    .catch(() => false)
+  let foundShuttleManifest:
+    | ReturnType<typeof generateShuttleManifest>
+    | undefined
 
+  try {
+    foundShuttleManifest = JSON.parse(
+      await fs.promises
+        .readFile(path.join(shuttleDir, 'shuttle-manifest.json'), 'utf8')
+        .catch(() => '{}')
+    )
+    _hasShuttle = true
+  } catch (err: unknown) {
+    _hasShuttle = false
+    return _hasShuttle
+  }
+  const currentShuttleManifest = generateShuttleManifest(config)
+
+  if (
+    currentShuttleManifest.nextVersion !== foundShuttleManifest?.nextVersion
+  ) {
+    // we don't allow using shuttle from differing Next.js version
+    // as it could have internal changes
+    console.log(
+      `shuttle has differing Next.js version ${foundShuttleManifest?.nextVersion} versus current ${currentShuttleManifest.nextVersion}, skipping.`
+    )
+    _hasShuttle = false
+  }
+
+  if (
+    _hasShuttle !== false &&
+    currentShuttleManifest.globalHash !== foundShuttleManifest?.globalHash
+  ) {
+    // if the global hash was invalidated we bypass the cache to be safe
+    console.log(
+      `shuttle has differing global hash ${foundShuttleManifest?.globalHash} versus current ${currentShuttleManifest.globalHash}, skipping.`
+    )
+    _hasShuttle = false
+  }
   return _hasShuttle
 }
 
@@ -28,12 +66,14 @@ export async function detectChangedEntries({
   pageExtensions,
   distDir,
   shuttleDir,
+  config,
 }: {
   appPaths?: string[]
   pagesPaths?: string[]
   pageExtensions: string[]
   distDir: string
   shuttleDir: string
+  config: NextConfigComplete
 }): Promise<{
   changed: DetectedEntriesResult
   unchanged: DetectedEntriesResult
@@ -50,7 +90,7 @@ export async function detectChangedEntries({
     pages: [],
   }
 
-  if (!(await hasShuttle(shuttleDir))) {
+  if (!(await hasShuttle(config, shuttleDir))) {
     // no shuttle so consider everything changed
     console.log(`no shuttle. can't detect changes`)
     return {
@@ -174,7 +214,7 @@ export async function detectChangedEntries({
 
     if (changed || isGlobalEntry) {
       // if a global entry changed all entries are changed
-      if (!globalEntryChanged && isGlobalEntry) {
+      if (changed && !globalEntryChanged && isGlobalEntry) {
         console.log(`global entry ${entry} changed invalidating all entries`)
         globalEntryChanged = true
         // move unchanged to changed
@@ -201,18 +241,6 @@ export async function detectChangedEntries({
     const normalizedEntry = getPageFromPath(entry, pageExtensions)
     await detectChange({ entry, normalizedEntry, type: 'app' })
   }
-
-  console.log(
-    'changed entries',
-    JSON.stringify(
-      {
-        changedEntries,
-        unchangedEntries,
-      },
-      null,
-      2
-    )
-  )
 
   return {
     changed: changedEntries,

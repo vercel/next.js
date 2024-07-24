@@ -19,10 +19,7 @@ import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
-
-type Params = {
-  [key: string]: string | string[]
-}
+import type { Params } from '../../client/components/params'
 
 /**
  * Use the provided loader tree to create the React Component tree.
