@@ -251,6 +251,13 @@ describe('no-html-link-for-pages', function () {
     assert.deepEqual(report, [])
   })
 
+  it('valid link element with app linter', function () {
+    const report = withAppLinter.verify(validCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
   it('valid link element with multiple directories', function () {
     const report = withCustomPagesLinter.verify(
       validCode,
@@ -319,6 +326,21 @@ describe('no-html-link-for-pages', function () {
 
   it('invalid static route', function () {
     const [report] = withCustomPagesLinter.verify(
+      invalidStaticCode,
+      linterConfigWithCustomDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+
+  it('invalid static route with app directory linter', function () {
+    const [report] = withAppLinter.verify(
       invalidStaticCode,
       linterConfigWithCustomDirectory,
       {
