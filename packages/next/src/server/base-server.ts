@@ -374,7 +374,7 @@ export default abstract class Server<
     req: ServerRequest,
     parsedUrl: NextUrlWithParsedQuery
   ): void
-  protected abstract getFallback(page: string): Promise<string>
+  protected abstract getFallback(page: string): Promise<RenderResult>
   protected abstract hasPage(pathname: string): Promise<boolean>
 
   protected abstract sendRenderResult(
@@ -2688,9 +2688,9 @@ export default abstract class Server<
         value: {
           kind: 'PAGE',
           html: result,
-          pageData: metadata.pageData ?? metadata.flightData,
+          pageData: metadata.pageData,
           headers,
-          status: isAppPath ? res.statusCode : undefined,
+          status: undefined,
         } satisfies CachedPageValue,
         revalidate: metadata.revalidate,
       }
@@ -2796,18 +2796,19 @@ export default abstract class Server<
         if (!isNextDataRequest) {
           // Production already emitted the fallback as static HTML.
           if (isProduction) {
-            const html = await this.getFallback(
+            const result = await this.getFallback(
               locale ? `/${locale}${pathname}` : pathname
             )
 
             return {
               value: {
                 kind: 'PAGE',
-                html: RenderResult.fromStatic(html),
+                html: result,
+                pageData: Object.create(null),
+                headers: result.metadata.headers,
                 status: undefined,
-                headers: undefined,
-                pageData: {},
-              },
+              } satisfies CachedPageValue,
+              revalidate: result.metadata.revalidate,
             }
           }
           // We need to generate the fallback on-demand for development.

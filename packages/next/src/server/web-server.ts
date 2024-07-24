@@ -1,5 +1,5 @@
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
-import type RenderResult from './render-result'
+import RenderResult from './render-result'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../client/components/params'
 import type { LoadComponentsReturnType } from './load-components'
@@ -358,7 +358,7 @@ export default class NextWebServer extends BaseServer<
   }
 
   protected async getFallback() {
-    return ''
+    return RenderResult.fromStatic('')
   }
 
   protected getFontManifest() {

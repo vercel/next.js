@@ -9,7 +9,7 @@ import {
   MiddlewareNotFoundError,
 } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
-import type RenderResult from './render-result'
+import RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -794,13 +794,14 @@ export default class NextNodeServer extends BaseServer<
     ) as NextFontManifest
   }
 
-  protected getFallback(page: string): Promise<string> {
+  protected async getFallback(page: string): Promise<RenderResult> {
     page = normalizePagePath(page)
     const cacheFs = this.getCacheFilesystem()
-    return cacheFs.readFile(
-      join(this.serverDistDir, 'pages', `${page}.html`),
-      'utf8'
-    )
+
+    // For Pages, we just have to return the fallback HTML.
+    const filename = join(this.serverDistDir, 'pages', page)
+    const html = await cacheFs.readFile(`${filename}.html`, 'utf8')
+    return RenderResult.fromStatic(html)
   }
 
   protected handleNextImageRequest: NodeRouteHandler = async (
