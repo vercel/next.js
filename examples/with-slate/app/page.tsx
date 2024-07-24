@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import { createEditor, Descendant } from "slate";
 import { Slate, Editable, withReact } from "slate-react";
@@ -10,6 +11,7 @@ const initialValue: Descendant[] = [
     ],
   },
 ];
+
 async function saveEditorState(edtorState: Descendant[]) {
   const response = await fetch("/api/editor-state/", {
     method: "POST",
