@@ -638,7 +638,7 @@ fn test_debug_name(input: PathBuf) {
 
     test_fixture(
         syntax(),
-        &|tr| {
+        &|_| {
             let top_level_mark = Mark::fresh(Mark::root());
             let unresolved_mark = Mark::fresh(Mark::root());
 
