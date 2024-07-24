@@ -11,7 +11,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
 
-type NextBuildOptions = {
+export type NextBuildOptions = {
   debug?: boolean
   profile?: boolean
   lint: boolean
@@ -67,7 +67,6 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
 
   const dir = getProjectDir(directory)
 
-  // Check if the provided directory exists
   if (!existsSync(dir)) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }

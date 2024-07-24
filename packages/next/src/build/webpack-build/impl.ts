@@ -188,7 +188,7 @@ export async function webpackBuildImpl(
   await runWebpackSpan.traceAsyncFn(async () => {
     if (config.experimental.webpackMemoryOptimizations) {
       stringBufferUtils.disableDualStringBufferCaching()
-      stringBufferUtils.enableStringInterning()
+      stringBufferUtils.enterStringInterningRange()
     }
 
     // Run the server compilers first and then the client
@@ -261,7 +261,7 @@ export async function webpackBuildImpl(
     }
 
     if (config.experimental.webpackMemoryOptimizations) {
-      stringBufferUtils.disableStringInterning()
+      stringBufferUtils.exitStringInterningRange()
     }
     inputFileSystem?.purge?.()
 

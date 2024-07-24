@@ -35,6 +35,7 @@ import {
 import { getFilesInDir } from '../../../lib/get-files-in-dir'
 import type { PageExtensions } from '../../page-extensions-type'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../client/components/parallel-route-default'
+import type { Compilation } from 'webpack'
 
 export type AppLoaderOptions = {
   name: string
@@ -521,6 +522,10 @@ function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
   )
 }
 
+const filesInDirMapMap: WeakMap<
+  Compilation,
+  Map<string, Promise<Set<string>>>
+> = new WeakMap()
 const nextAppLoader: AppLoader = async function nextAppLoader() {
   const loaderOptions = this.getOptions()
   const {
@@ -634,20 +639,30 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   // This can be more efficient than checking them with `fs.stat` one by one
   // because all the thousands of files are likely in a few possible directories.
   // Note that it should only be cached for this compilation, not globally.
-  const filesInDir = new Map<string, Set<string>>()
   const fileExistsInDirectory = async (dirname: string, fileName: string) => {
-    const existingFiles = filesInDir.get(dirname)
-    if (existingFiles) {
-      return existingFiles.has(fileName)
+    // I don't think we should ever hit this code path, but if we do we should handle it gracefully.
+    if (this._compilation === undefined) {
+      try {
+        return (await getFilesInDir(dirname).catch(() => new Set())).has(
+          fileName
+        )
+      } catch (e) {
+        return false
+      }
     }
-    try {
-      const files = await getFilesInDir(dirname)
-      const fileNames = new Set<string>(files)
-      filesInDir.set(dirname, fileNames)
-      return fileNames.has(fileName)
-    } catch (err) {
-      return false
+    const map =
+      filesInDirMapMap.get(this._compilation) ||
+      new Map<string, Promise<Set<string>>>()
+    if (!filesInDirMapMap.has(this._compilation)) {
+      filesInDirMapMap.set(this._compilation, map)
     }
+    if (!map.has(dirname)) {
+      map.set(
+        dirname,
+        getFilesInDir(dirname).catch(() => new Set())
+      )
+    }
+    return ((await map.get(dirname)) || new Set()).has(fileName)
   }
 
   const resolver: PathResolver = async (pathname) => {
@@ -761,7 +776,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       }
 
       // Clear fs cache, get the new result with the created root layout.
-      filesInDir.clear()
+      if (this._compilation) filesInDirMapMap.get(this._compilation)?.clear()
       treeCodeResult = await createTreeCodeFromPath(pagePath, {
         page,
         resolveDir,
