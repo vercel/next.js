@@ -2091,6 +2091,41 @@ describe('app-dir static/dynamic handling', () => {
       )
     })
 
+    it('should log fetch metrics to the diagnostics directory', async () => {
+      const fetchMetrics = JSON.parse(
+        await next.readFile('.next/diagnostics/fetch-metrics.json')
+      )
+
+      const indexFetchMetrics = fetchMetrics['/']
+
+      expect(indexFetchMetrics).toHaveLength(1)
+      expect(indexFetchMetrics[0]).toMatchObject({
+        url: 'https://next-data-api-endpoint.vercel.app/api/random?page',
+        status: 200,
+        cacheStatus: 'skip',
+        start: expect.any(Number),
+        end: expect.any(Number),
+        cacheReason: 'auto no cache',
+      })
+
+      const otherPageMetrics =
+        fetchMetrics['/variable-revalidate/headers-instance']
+
+      expect(otherPageMetrics).toHaveLength(4)
+      expect(otherPageMetrics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            url: 'https://next-data-api-endpoint.vercel.app/api/random?layout',
+            status: 200,
+            cacheStatus: 'hit',
+            start: expect.any(Number),
+            end: expect.any(Number),
+            cacheReason: 'revalidate: 10',
+          }),
+        ])
+      )
+    })
+
     // build cache not leveraged for custom cache handler so not seeded
     if (!process.env.CUSTOM_CACHE_HANDLER) {
       it('should correctly error and not update cache for ISR', async () => {

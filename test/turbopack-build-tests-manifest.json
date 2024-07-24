@@ -7604,22 +7604,22 @@
         "Has CSS Module in computed styles in Development should have CSS for page",
         "Has CSS Module in computed styles in Production production mode should have CSS for page",
         "Has CSS Module in computed styles in Production production mode should have compiled successfully",
-        "Valid CSS Module Usage from within node_modules production mode should have compiled successfully"
-      ],
-      "failed": [
+        "Valid CSS Module Usage from within node_modules production mode should have compiled successfully",
         "3rd Party CSS Module Support production mode should've emitted a single CSS file",
         "3rd Party CSS Module Support production mode should've injected the CSS on server render",
         "Basic CSS Module Support production mode should've emitted a single CSS file",
-        "Basic CSS Module Support production mode should've injected the CSS on server render",
         "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
-        "CSS Module Composes Usage (External) production mode should have compiled successfully",
-        "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
+        "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
         "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
         "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file",
-        "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
-        "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data",
-        "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
+        "Basic CSS Module Support production mode should've injected the CSS on server render",
+        "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
+      ],
+      "failed": [
+        "CSS Module Composes Usage (External) production mode should have compiled successfully",
+        "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
         "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
+        "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
         "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
       ],
       "pending": [

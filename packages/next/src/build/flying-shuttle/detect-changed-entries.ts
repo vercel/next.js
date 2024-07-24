@@ -3,6 +3,8 @@ import path from 'path'
 import crypto from 'crypto'
 import { getPageFromPath } from '../entries'
 import { Sema } from 'next/dist/compiled/async-sema'
+import { generateShuttleManifest } from './store-shuttle'
+import type { NextConfigComplete } from '../../server/config-shared'
 
 export interface DetectedEntriesResult {
   app: string[]
@@ -10,15 +12,47 @@ export interface DetectedEntriesResult {
 }
 
 let _hasShuttle: undefined | boolean = undefined
-export async function hasShuttle(shuttleDir: string) {
+export async function hasShuttle(
+  config: NextConfigComplete,
+  shuttleDir: string
+) {
   if (typeof _hasShuttle === 'boolean') {
     return _hasShuttle
   }
-  _hasShuttle = await fs.promises
-    .access(path.join(shuttleDir, 'server'))
-    .then(() => true)
-    .catch(() => false)
+  let foundShuttleManifest:
+    | ReturnType<typeof generateShuttleManifest>
+    | undefined
 
+  try {
+    foundShuttleManifest = JSON.parse(
+      await fs.promises
+        .readFile(path.join(shuttleDir, 'shuttle-manifest.json'), 'utf8')
+        .catch(() => '{}')
+    )
+  } catch (err: unknown) {
+    _hasShuttle = false
+    return _hasShuttle
+  }
+  const currentShuttleManifest = generateShuttleManifest(config)
+
+  if (
+    _hasShuttle !== false &&
+    currentShuttleManifest.nextVersion !== foundShuttleManifest?.nextVersion
+  ) {
+    // we don't allow using shuttle from differing Next.js version
+    // as it could have internal changes
+    console.log(`shuttle has differing Next.js version, skipping.`)
+    _hasShuttle = false
+  }
+
+  if (
+    _hasShuttle !== false &&
+    currentShuttleManifest.globalHash !== foundShuttleManifest?.globalHash
+  ) {
+    // if the global hash was invalidated we bypass the cache to be safe
+    console.log(`shuttle has differing global hash, skipping.`)
+    _hasShuttle = false
+  }
   return _hasShuttle
 }
 
@@ -28,12 +62,14 @@ export async function detectChangedEntries({
   pageExtensions,
   distDir,
   shuttleDir,
+  config,
 }: {
   appPaths?: string[]
   pagesPaths?: string[]
   pageExtensions: string[]
   distDir: string
   shuttleDir: string
+  config: NextConfigComplete
 }): Promise<{
   changed: DetectedEntriesResult
   unchanged: DetectedEntriesResult
@@ -50,7 +86,7 @@ export async function detectChangedEntries({
     pages: [],
   }
 
-  if (!(await hasShuttle(shuttleDir))) {
+  if (!(await hasShuttle(config, shuttleDir))) {
     // no shuttle so consider everything changed
     console.log(`no shuttle. can't detect changes`)
     return {

@@ -29,6 +29,7 @@ import {
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
+import { waitForWebpackRuntimeHotUpdate } from '../react-dev-overlay/app/hot-reloader-client'
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
@@ -178,6 +179,14 @@ export async function fetchServerResponse(
       }
 
       return doMpaNavigation(responseUrl.toString())
+    }
+
+    // We may navigate to a page that requires a different Webpack runtime.
+    // In prod, every page will have the same Webpack runtime.
+    // In dev, the Webpack runtime is minimal for each page.
+    // We need to ensure the Webpack runtime is updated before executing client-side JS of the new page.
+    if (process.env.NODE_ENV !== 'production' && !process.env.TURBOPACK) {
+      await waitForWebpackRuntimeHotUpdate()
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
