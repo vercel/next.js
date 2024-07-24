@@ -36,7 +36,7 @@ import {
 import os from 'os'
 import { once } from 'node:events'
 
-type NextDevOptions = {
+export type NextDevOptions = {
   turbo?: boolean
   port: number
   hostname?: string

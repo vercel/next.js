@@ -31,9 +31,11 @@ import {
   ROUTES_MANIFEST,
 } from '../../shared/lib/constants'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import type { NextConfigComplete } from '../../server/config-shared'
 
 export async function stitchBuilds(
   {
+    config,
     distDir,
     shuttleDir,
     buildId,
@@ -43,6 +45,7 @@ export async function stitchBuilds(
     encryptionKey,
     edgePreviewProps,
   }: {
+    config: NextConfigComplete
     buildId: string
     distDir: string
     shuttleDir: string
@@ -64,7 +67,7 @@ export async function stitchBuilds(
 ): Promise<{
   pagesManifest?: PagesManifest
 }> {
-  if (!(await hasShuttle(shuttleDir))) {
+  if (!(await hasShuttle(config, shuttleDir))) {
     // no shuttle directory nothing to stitch
     return {}
   }

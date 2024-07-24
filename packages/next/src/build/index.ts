@@ -162,6 +162,7 @@ import { formatManifest } from './manifests/formatter/format-manifest'
 import {
   recordFrameworkVersion,
   updateBuildDiagnostics,
+  recordFetchMetrics,
 } from '../diagnostics/build-diagnostics'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
@@ -869,6 +870,7 @@ export default async function build(
           pageExtensions: config.pageExtensions,
           distDir,
           shuttleDir,
+          config,
         })
         console.log({ changedPagePathsResult })
         pagesPaths = changedPagePathsResult.changed.pages
@@ -896,7 +898,7 @@ export default async function build(
           : []),
       ]
 
-      const rootPaths = (await getFilesInDir(rootDir))
+      const rootPaths = Array.from(await getFilesInDir(rootDir))
         .filter((file) => includes.some((include) => include.test(file)))
         .sort(sortByPageExts(config.pageExtensions))
         .map((file) => path.join(rootDir, file).replace(dir, ''))
@@ -960,6 +962,7 @@ export default async function build(
             pageExtensions: config.pageExtensions,
             distDir,
             shuttleDir,
+            config,
           })
           console.log({ changedAppPathsResult })
           appPaths = changedAppPathsResult.changed.app
@@ -2482,6 +2485,7 @@ export default async function build(
           console.log('stitching builds...')
           const stitchResult = await stitchBuilds(
             {
+              config,
               buildId,
               distDir,
               shuttleDir,
@@ -2518,6 +2522,7 @@ export default async function build(
 
           console.log('storing shuttle')
           await storeShuttle({
+            config,
             distDir,
             shuttleDir,
           })
@@ -2730,6 +2735,10 @@ export default async function build(
 
           // If there was no result, there's nothing more to do.
           if (!exportResult) return
+
+          if (debugOutput) {
+            recordFetchMetrics(exportResult)
+          }
 
           writeTurborepoAccessTraceResult({
             distDir: config.distDir,

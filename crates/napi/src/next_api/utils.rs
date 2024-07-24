@@ -88,15 +88,16 @@ pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainI
 /// not consume any Diagnostics held by the source.
 pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
     let captured_diags = source.peek_diagnostics().await?;
+    let mut diags = captured_diags
+        .diagnostics
+        .iter()
+        .map(|d| d.into_plain())
+        .try_join()
+        .await?;
 
-    Ok(Arc::new(
-        captured_diags
-            .diagnostics
-            .iter()
-            .map(|d| d.into_plain())
-            .try_join()
-            .await?,
-    ))
+    diags.sort();
+
+    Ok(Arc::new(diags))
 }
 
 #[napi(object)]
