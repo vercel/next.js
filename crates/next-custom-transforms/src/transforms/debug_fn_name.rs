@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use swc_core::{
     atoms::Atom,
     common::{util::take::Take, DUMMY_SP},
@@ -17,7 +19,7 @@ pub fn debug_fn_name() -> impl VisitMut + Fold {
 
 #[derive(Default)]
 struct DebugFnName {
-    path: Vec<String>,
+    path: String,
     in_target: bool,
     in_var_target: bool,
 }
@@ -33,7 +35,7 @@ impl VisitMut for DebugFnName {
             let old_in_target = self.in_target;
             self.in_target = true;
             let orig_len = self.path.len();
-            self.path.push(target.to_string());
+            self.path.push_str(&target);
 
             n.visit_mut_children_with(self);
 
@@ -59,7 +61,7 @@ impl VisitMut for DebugFnName {
                     // ...}['MyComponent.useLayoutEffect']);
 
                     let orig = n.take();
-                    let key = Atom::from(self.path.join(".").to_string());
+                    let key = Atom::from(&*self.path);
 
                     *n = Expr::Object(ObjectLit {
                         span: DUMMY_SP,
@@ -81,7 +83,8 @@ impl VisitMut for DebugFnName {
 
     fn visit_mut_fn_decl(&mut self, n: &mut FnDecl) {
         let orig_len = self.path.len();
-        self.path.push(n.ident.sym.to_string());
+        self.path.push('.');
+        self.path.push_str(n.ident.sym.as_str());
 
         n.visit_mut_children_with(self);
 
@@ -103,7 +106,7 @@ impl VisitMut for DebugFnName {
                 let old_in_target = self.in_target;
                 self.in_target = true;
                 let orig_len = self.path.len();
-                self.path.push(format!("{target}({name})"));
+                let _ = write!(self.path, ".{target}({name})");
 
                 n.visit_mut_children_with(self);
 
@@ -121,7 +124,8 @@ impl VisitMut for DebugFnName {
 
             if let Some(name) = name {
                 let orig_len = self.path.len();
-                self.path.push(name.sym.to_string());
+                self.path.push('.');
+                self.path.push_str(name.sym.as_str());
 
                 n.visit_mut_children_with(self);
 
