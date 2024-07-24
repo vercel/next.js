@@ -21,7 +21,7 @@ use tokio::task_local;
 use tracing::Span;
 use turbo_prehash::PreHashed;
 use turbo_tasks::{
-    backend::{PersistentTaskType, TaskCollectiblesMap, TaskExecutionSpec},
+    backend::{CellContent, PersistentTaskType, TaskCollectiblesMap, TaskExecutionSpec},
     event::{Event, EventListener},
     get_invalidator, registry, CellId, Invalidator, RawVc, TaskId, TaskIdSet, TraitTypeId,
     TurboTasksBackendApi, ValueTypeId,
@@ -32,7 +32,7 @@ use crate::{
         aggregation_data, handle_new_edge, prepare_aggregation_data, query_root_info,
         AggregationDataGuard, PreparedOperation,
     },
-    cell::Cell,
+    cell::{Cell, ReadContentError},
     edges_set::{TaskEdge, TaskEdgesList, TaskEdgesSet},
     gc::{GcQueue, GcTaskState},
     output::{Output, OutputContent},
@@ -76,6 +76,7 @@ enum TaskType {
     },
 }
 
+#[derive(Clone)]
 enum TaskTypeForDescription {
     Root,
     Once,
@@ -182,11 +183,17 @@ impl TaskState {
         }
     }
 
-    fn new_scheduled(description: impl Fn() -> String + Send + Sync + 'static) -> Self {
+    fn new_scheduled(description: impl Fn() -> String + Send + Sync + Clone + 'static) -> Self {
+        let description2 = description.clone();
         Self {
             aggregation_node: TaskAggregationNode::new(),
             state_type: Scheduled {
-                event: Event::new(move || format!("TaskState({})::event", description())),
+                start_event: Event::new(move || {
+                    format!("TaskState({})::start_event", description())
+                }),
+                done_event: Event::new(move || {
+                    format!("TaskState({})::done_event", description2())
+                }),
                 outdated_edges: Default::default(),
                 clean: true,
             },
@@ -311,7 +318,7 @@ impl MaybeCollectibles {
 
 struct InProgressState {
     /// Event is fired when the task is Done.
-    event: Event,
+    done_event: Event,
     /// true, when the task was marked as finished.
     count_as_finished: bool,
     /// true, when the task wasn't changed since the last execution
@@ -356,7 +363,10 @@ enum TaskStateType {
     ///
     /// on start this will move to InProgress or Dirty depending on active flag
     Scheduled {
-        event: Event,
+        /// Event is fired when the task is IsProgress.
+        start_event: Event,
+        /// Event is fired when the task is Done.
+        done_event: Event,
         outdated_edges: Box<TaskEdgesSet>,
         /// true, when the task wasn't changed since the last execution
         clean: bool,
@@ -441,6 +451,11 @@ pub enum GcResult {
     /// from the graph and only makes sense when the task isn't currently
     /// active.
     Unloaded,
+}
+
+pub enum ReadCellError {
+    CellRemoved,
+    Recomputing(EventListener),
 }
 
 impl Task {
@@ -617,12 +632,12 @@ impl Task {
     fn get_event_description_static(
         id: TaskId,
         ty: &TaskType,
-    ) -> impl Fn() -> String + Send + Sync {
+    ) -> impl Fn() -> String + Send + Sync + Clone {
         let ty = TaskTypeForDescription::from(ty);
         move || Self::format_description(&ty, id)
     }
 
-    fn get_event_description(&self) -> impl Fn() -> String + Send + Sync {
+    fn get_event_description(&self) -> impl Fn() -> String + Send + Sync + Clone {
         Self::get_event_description_static(self.id, &self.ty)
     }
 
@@ -635,14 +650,14 @@ impl Task {
         match dep {
             TaskEdge::Output(task) => {
                 backend.with_task(task, |task| {
-                    task.with_output_mut_if_available(|output| {
+                    task.access_output_for_removing_dependents(|output| {
                         output.dependent_tasks.remove(&reader);
                     });
                 });
             }
             TaskEdge::Cell(task, index) => {
                 backend.with_task(task, |task| {
-                    task.with_cell_mut_if_available(index, |cell| {
+                    task.access_cell_for_removing_dependents(index, |cell| {
                         cell.remove_dependent_task(reader);
                     });
                 });
@@ -704,15 +719,17 @@ impl Task {
                     return None;
                 }
                 Scheduled {
-                    ref mut event,
+                    ref mut done_event,
+                    ref mut start_event,
                     ref mut outdated_edges,
                     clean,
                 } => {
-                    let event = event.take();
+                    start_event.notify(usize::MAX);
+                    let done_event = done_event.take();
                     let outdated_edges = *take(outdated_edges);
                     let outdated_collectibles = take(&mut state.collectibles);
                     state.state_type = InProgress(Box::new(InProgressState {
-                        event,
+                        done_event,
                         count_as_finished: false,
                         clean,
                         stale: false,
@@ -939,8 +956,9 @@ impl Task {
                 state
                     .gc
                     .execution_completed(duration, memory_usage, generation);
+
                 let InProgress(box InProgressState {
-                    ref mut event,
+                    ref mut done_event,
                     count_as_finished,
                     ref mut outdated_edges,
                     ref mut outdated_collectibles,
@@ -954,7 +972,7 @@ impl Task {
                         Task::state_string(&state)
                     )
                 };
-                let event = event.take();
+                let done_event = done_event.take();
                 let outdated_collectibles = outdated_collectibles.take_collectibles();
                 let mut outdated_edges = take(outdated_edges);
                 let mut new_edges = dependencies;
@@ -976,8 +994,12 @@ impl Task {
                             .aggregation_node
                             .apply_change(&aggregation_context, change);
                     }
+                    let description = self.get_event_description();
+                    let start_event =
+                        Event::new(move || format!("TaskState({})::start_event", description()));
                     state.state_type = Scheduled {
-                        event,
+                        start_event,
+                        done_event,
                         outdated_edges: Box::new(outdated_edges),
                         clean: false,
                     };
@@ -1033,7 +1055,7 @@ impl Task {
                             outdated_children,
                         );
                     }
-                    event.notify(usize::MAX);
+                    done_event.notify(usize::MAX);
                     drop(state);
                     self.clear_dependencies(outdated_edges, backend, turbo_tasks);
                 }
@@ -1079,7 +1101,6 @@ impl Task {
                 Done { ref mut edges, .. } => {
                     let outdated_edges = take(edges).into_set();
                     // add to dirty lists and potentially schedule
-                    let description = self.get_event_description();
                     if should_schedule {
                         let change_job = state.aggregation_node.apply_change(
                             &aggregation_context,
@@ -1090,9 +1111,14 @@ impl Task {
                                 ..Default::default()
                             },
                         );
+                        let description = self.get_event_description();
+                        let description2 = description.clone();
                         state.state_type = Scheduled {
-                            event: Event::new(move || {
-                                format!("TaskState({})::event", description())
+                            done_event: Event::new(move || {
+                                format!("TaskState({})::done_event", description())
+                            }),
+                            start_event: Event::new(move || {
+                                format!("TaskState({})::start_event", description2())
                             }),
                             outdated_edges: Box::new(outdated_edges),
                             clean: false,
@@ -1183,8 +1209,14 @@ impl Task {
                 ref mut outdated_edges,
             } => {
                 let description = self.get_event_description();
+                let description2 = description.clone();
                 state.state_type = Scheduled {
-                    event: Event::new(move || format!("TaskState({})::event", description())),
+                    start_event: Event::new(move || {
+                        format!("TaskState({})::start_event", description())
+                    }),
+                    done_event: Event::new(move || {
+                        format!("TaskState({})::done_event", description2())
+                    }),
                     outdated_edges: take(outdated_edges),
                     clean: false,
                 };
@@ -1202,7 +1234,6 @@ impl Task {
             Done { ref mut edges, .. } => {
                 let outdated_edges = take(edges).into_set();
                 // add to dirty lists and potentially schedule
-                let description = self.get_event_description();
                 let change_job = state.aggregation_node.apply_change(
                     &aggregation_context,
                     TaskChange {
@@ -1212,8 +1243,15 @@ impl Task {
                         ..Default::default()
                     },
                 );
+                let description = self.get_event_description();
+                let description2 = description.clone();
                 state.state_type = Scheduled {
-                    event: Event::new(move || format!("TaskState({})::event", description())),
+                    start_event: Event::new(move || {
+                        format!("TaskState({})::start_event", description())
+                    }),
+                    done_event: Event::new(move || {
+                        format!("TaskState({})::done_event", description2())
+                    }),
                     outdated_edges: Box::new(outdated_edges),
                     clean: true,
                 };
@@ -1238,8 +1276,14 @@ impl Task {
         {
             let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
             let description = self.get_event_description();
+            let description2 = description.clone();
             state.state_type = Scheduled {
-                event: Event::new(move || format!("TaskState({})::event", description())),
+                start_event: Event::new(move || {
+                    format!("TaskState({})::start_event", description())
+                }),
+                done_event: Event::new(move || {
+                    format!("TaskState({})::done_event", description2())
+                }),
                 outdated_edges: take(outdated_edges),
                 clean: false,
             };
@@ -1281,7 +1325,7 @@ impl Task {
     }
 
     /// Access to the output cell.
-    pub(crate) fn with_output_mut_if_available<T>(
+    pub(crate) fn access_output_for_removing_dependents<T>(
         &self,
         func: impl FnOnce(&mut Output) -> T,
     ) -> Option<T> {
@@ -1292,13 +1336,17 @@ impl Task {
         }
     }
 
-    /// Access to a cell.
-    pub(crate) fn with_cell_mut<T>(
+    /// Read a cell.
+    pub(crate) fn read_cell(
         &self,
         index: CellId,
         gc_queue: Option<&GcQueue>,
-        func: impl FnOnce(&mut Cell, bool) -> T,
-    ) -> T {
+        note: impl Fn() -> String + Sync + Send + 'static,
+        reader: Option<TaskId>,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) -> Result<CellContent, ReadCellError> {
+        let task_id = self.id;
         let mut state = self.full_state_mut();
         if let Some(gc_queue) = gc_queue {
             let generation = gc_queue.generation();
@@ -1306,6 +1354,78 @@ impl Task {
                 let _ = gc_queue.task_accessed(self.id);
             }
         }
+        match state.state_type {
+            Done { .. } | InProgress(..) => {
+                let is_done = matches!(state.state_type, Done { .. });
+                let list = state.cells.entry(index.type_id).or_default();
+                let i = index.index as usize;
+                if list.len() <= i {
+                    list.resize_with(i + 1, Default::default);
+                }
+                let cell = &mut list[i];
+                let description = move || format!("{task_id} {index}");
+                let read_result = if let Some(reader) = reader {
+                    cell.read_content(reader, is_done, description, note)
+                } else {
+                    cell.read_content_untracked(is_done, description, note)
+                };
+                drop(state);
+                match read_result {
+                    Ok(content) => Ok(content),
+                    Err(ReadContentError::Computing { listener, schedule }) => {
+                        if schedule {
+                            self.recompute(backend, turbo_tasks);
+                        }
+                        Err(ReadCellError::Recomputing(listener))
+                    }
+                    Err(ReadContentError::Unused) => Err(ReadCellError::CellRemoved),
+                }
+            }
+            Dirty {
+                ref mut outdated_edges,
+            } => {
+                let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
+                let description = self.get_event_description();
+                let description2 = description.clone();
+                let start_event =
+                    Event::new(move || format!("TaskState({})::start_event", description()));
+                let listener = start_event.listen_with_note(note);
+                state.state_type = Scheduled {
+                    start_event,
+                    done_event: Event::new(move || {
+                        format!("TaskState({})::done_event", description2())
+                    }),
+                    outdated_edges: take(outdated_edges),
+                    clean: false,
+                };
+                let change_job = state.aggregation_node.apply_change(
+                    &aggregation_context,
+                    TaskChange {
+                        dirty_tasks_update: vec![(self.id, -1)],
+                        ..Default::default()
+                    },
+                );
+                drop(state);
+                turbo_tasks.schedule(self.id);
+                change_job.apply(&aggregation_context);
+                aggregation_context.apply_queued_updates();
+                Err(ReadCellError::Recomputing(listener))
+            }
+            Scheduled {
+                ref start_event, ..
+            } => Err(ReadCellError::Recomputing(
+                start_event.listen_with_note(note),
+            )),
+        }
+    }
+
+    /// Access to a cell.
+    pub(crate) fn access_cell_for_write<T>(
+        &self,
+        index: CellId,
+        func: impl FnOnce(&mut Cell, bool) -> T,
+    ) -> T {
+        let mut state = self.full_state_mut();
         let clean = match state.state_type {
             InProgress(box InProgressState { clean, .. }) => clean,
             _ => false,
@@ -1319,7 +1439,7 @@ impl Task {
     }
 
     /// Access to a cell.
-    pub(crate) fn with_cell_mut_if_available<T>(
+    pub(crate) fn access_cell_for_removing_dependents<T>(
         &self,
         index: CellId,
         func: impl FnOnce(&mut Cell) -> T,
@@ -1506,10 +1626,15 @@ impl Task {
             } => {
                 turbo_tasks.schedule(self.id);
                 let description = self.get_event_description();
-                let event = Event::new(move || format!("TaskState({})::event", description()));
-                let listener = event.listen_with_note(note);
+                let description2 = description.clone();
+                let done_event =
+                    Event::new(move || format!("TaskState({})::done_event", description()));
+                let listener = done_event.listen_with_note(note);
                 state.state_type = Scheduled {
-                    event,
+                    start_event: Event::new(move || {
+                        format!("TaskState({})::start_event", description2())
+                    }),
+                    done_event,
                     outdated_edges: take(outdated_edges),
                     clean: false,
                 };
@@ -1524,7 +1649,14 @@ impl Task {
                 change_job.apply(&aggregation_context);
                 Ok(Err(listener))
             }
-            Scheduled { ref event, .. } | InProgress(box InProgressState { ref event, .. }) => {
+            Scheduled {
+                done_event: ref event,
+                ..
+            }
+            | InProgress(box InProgressState {
+                done_event: ref event,
+                ..
+            }) => {
                 let listener = event.listen_with_note(note);
                 drop(state);
                 Ok(Err(listener))
