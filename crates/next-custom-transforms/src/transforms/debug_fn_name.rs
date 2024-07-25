@@ -124,7 +124,7 @@ impl VisitMut for DebugFnName {
                 if !self.path.is_empty() {
                     self.path.push('.');
                 }
-                let _ = write!(self.path, "{target}({name})");
+                let _ = write!(self.path, "{target}[{name}]");
 
                 n.visit_mut_children_with(self);
 
