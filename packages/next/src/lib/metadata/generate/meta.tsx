@@ -100,6 +100,9 @@ export function MultiMeta({
   if (typeof contents === 'undefined' || contents === null) {
     return null
   }
+  if (!Array.isArray(contents)) {
+    contents = [contents]
+  }
 
   return MetaFilter(
     contents.map((content) => {

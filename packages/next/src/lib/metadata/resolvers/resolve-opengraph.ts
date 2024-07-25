@@ -166,6 +166,11 @@ export const resolveOpenGraph: FieldResolverExtraArgs<
     )
   }
 
+  /* 
+  warning: force type assertion maybe merge authors of openGraph with string type from Metadata into ResolvedOpenGraph, 
+  but it's not support a string type for authors of openGraph.
+  is there any other field that has the same issue?
+   */
   const resolved = {
     ...openGraph,
     title: resolveTitle(openGraph.title, titleTemplate),
