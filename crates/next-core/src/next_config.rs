@@ -1121,13 +1121,22 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn tree_shaking_mode(self: Vc<Self>) -> Result<Vc<OptionTreeShaking>> {
-        let tree_shaking = self.await?.experimental.tree_shaking.unwrap_or(true);
-        if !tree_shaking {
+    pub async fn tree_shaking_mode(
+        self: Vc<Self>,
+        is_development: Vc<bool>,
+    ) -> Result<Vc<OptionTreeShaking>> {
+        let tree_shaking = self.await?.experimental.tree_shaking;
+
+        if let Some(false) = tree_shaking {
+            // The user has explicitly disabled tree shaking.
             return Ok(OptionTreeShaking(None).cell());
         }
-
-        Ok(OptionTreeShaking(Some(TreeShakingMode::ModuleFragments)).cell())
+        Ok(OptionTreeShaking(Some(if *is_development.await? {
+            TreeShakingMode::ReexportsOnly
+        } else {
+            TreeShakingMode::ModuleFragments
+        }))
+        .cell())
     }
 }
 

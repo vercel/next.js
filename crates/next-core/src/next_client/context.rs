@@ -18,7 +18,6 @@ use turbopack_binding::{
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
-        ecmascript::TreeShakingMode,
         node::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -204,6 +203,8 @@ pub async fn get_client_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
+    let next_mode = mode.await?;
+
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, mode, next_config, execution_context);
 
@@ -239,6 +240,9 @@ pub async fn get_client_module_options_context(
     let enable_webpack_loaders =
         webpack_loader_options(project_path, next_config, false, conditions).await?;
 
+    let tree_shaking_mode = *next_config
+        .tree_shaking_mode(Vc::cell(next_mode.is_development()))
+        .await?;
     let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
 
@@ -279,7 +283,7 @@ pub async fn get_client_module_options_context(
         enable_typeof_window_inlining: Some(TypeofWindow::Object),
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
-        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        tree_shaking_mode,
         special_exports: Some(next_js_special_exports()),
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
