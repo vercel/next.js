@@ -13,6 +13,7 @@ use turbo_tasks::RcStr;
 use super::{
     alias_map::{AliasMap, AliasMapIter, AliasPattern, AliasTemplate},
     options::ConditionValue,
+    pattern::Pattern,
 };
 
 /// A small helper type to differentiate parsing exports and imports fields.
@@ -62,11 +63,15 @@ pub enum SubpathValue {
 impl AliasTemplate for SubpathValue {
     type Output<'a> = Result<Self> where Self: 'a;
 
-    fn replace(&self, capture: &str) -> Result<Self> {
+    fn convert<'a>(&'a self) -> Self::Output<'a> {
+        todo!()
+    }
+
+    fn replace(&self, capture: &Pattern) -> Result<Self> {
         Ok(match self {
             SubpathValue::Alternatives(list) => SubpathValue::Alternatives(
                 list.iter()
-                    .map(|value| value.replace(capture))
+                    .map(|value: &SubpathValue| value.replace(capture))
                     .collect::<Result<Vec<_>>>()?,
             ),
             SubpathValue::Conditional(list) => SubpathValue::Conditional(

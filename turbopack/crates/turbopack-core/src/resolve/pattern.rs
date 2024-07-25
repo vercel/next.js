@@ -77,6 +77,35 @@ fn longest_common_prefix<'a>(strings: &[&'a str]) -> &'a str {
     &strings[0][..len]
 }
 
+fn longest_common_suffix<'a>(strings: &[&'a str]) -> &'a str {
+    if strings.is_empty() {
+        return "";
+    }
+    let first = strings[0];
+    let mut start = 0;
+    for str in &strings[1..] {
+        start = std::cmp::max(
+            start,
+            // TODO these are Unicode Scalar Values, not graphemes
+            str.chars()
+                .rev()
+                .zip(first.chars().rev())
+                .take_while(|&(a, b)| a == b)
+                .count(),
+        );
+    }
+    &strings[0][(start - 1)..]
+}
+
+mod test2 {
+    use crate::resolve::pattern::longest_common_suffix;
+
+    #[test]
+    fn suffix() {
+        assert_eq!(longest_common_suffix(&["1ab", "23ab", "456ab"]), "ab")
+    }
+}
+
 impl Pattern {
     // TODO this should be removed in favor of pattern resolving
     pub fn into_string(self) -> Option<RcStr> {
@@ -140,6 +169,105 @@ impl Pattern {
         longest_common_prefix(&strings)
     }
 
+    pub fn constant_suffix(&self) -> &str {
+        // The normalized pattern is a Alternative of maximally merged
+        // Concatenations, so extracting the first/only Concatenation child
+        // elements is enough.
+
+        fn collect_constant_suffix<'a: 'b, 'b>(pattern: &'a Pattern, result: &mut Vec<&'b str>) {
+            match pattern {
+                Pattern::Constant(c) => {
+                    result.push(c.as_str());
+                }
+                Pattern::Concatenation(list) => {
+                    if let Some(Pattern::Constant(first)) = list.last() {
+                        result.push(first.as_str());
+                    }
+                }
+                Pattern::Alternatives(_) => {
+                    panic!("for constant_suffix a Pattern must be normalized");
+                }
+                Pattern::Dynamic => {}
+            }
+        }
+
+        let mut strings: Vec<&str> = vec![];
+        match self {
+            c @ Pattern::Constant(_) | c @ Pattern::Concatenation(_) => {
+                collect_constant_suffix(c, &mut strings);
+            }
+            Pattern::Alternatives(list) => {
+                for c in list {
+                    collect_constant_suffix(c, &mut strings);
+                }
+            }
+            Pattern::Dynamic => {}
+        }
+        longest_common_suffix(&strings)
+    }
+
+    pub fn strip_prefix(&mut self, len: usize) {
+        fn strip_prefix_internal(pattern: &mut Pattern, len: usize) {
+            match pattern {
+                Pattern::Constant(c) => {
+                    *c = (&c[len..]).into();
+                }
+                Pattern::Concatenation(list) => {
+                    if let Some(c) = list.first_mut() {
+                        strip_prefix_internal(c, len);
+                    }
+                }
+                Pattern::Alternatives(_) => {
+                    panic!("for strip_prefix a Pattern must be normalized");
+                }
+                Pattern::Dynamic => {}
+            }
+        }
+
+        match self {
+            c @ Pattern::Constant(_) | c @ Pattern::Concatenation(_) => {
+                strip_prefix_internal(c, len);
+            }
+            Pattern::Alternatives(list) => {
+                for c in list {
+                    strip_prefix_internal(c, len);
+                }
+            }
+            Pattern::Dynamic => {}
+        }
+    }
+
+    pub fn strip_suffix(&mut self, len: usize) {
+        fn strip_suffix_internal(pattern: &mut Pattern, len: usize) {
+            match pattern {
+                Pattern::Constant(c) => {
+                    *c = (&c[(c.len() - len)..]).into();
+                }
+                Pattern::Concatenation(list) => {
+                    if let Some(c) = list.last_mut() {
+                        strip_suffix_internal(c, len);
+                    }
+                }
+                Pattern::Alternatives(_) => {
+                    panic!("for strip_suffix a Pattern must be normalized");
+                }
+                Pattern::Dynamic => {}
+            }
+        }
+
+        match self {
+            c @ Pattern::Constant(_) | c @ Pattern::Concatenation(_) => {
+                strip_suffix_internal(c, len);
+            }
+            Pattern::Alternatives(list) => {
+                for c in list {
+                    strip_suffix_internal(c, len);
+                }
+            }
+            Pattern::Dynamic => {}
+        }
+    }
+
     // Replace `*` in `template` with self.
     pub fn spread_into_star(&self, template: &str) -> Pattern {
         if template.contains("*") {
@@ -152,9 +280,9 @@ impl Pattern {
             }
 
             let mut result = Pattern::Concatenation(vec![
-                Pattern::Constant(prefix.clone().into()),
+                Pattern::Constant(prefix.into()),
                 self.clone(),
-                Pattern::Constant(suffix.clone().into()),
+                Pattern::Constant(suffix.into()),
             ]);
             result.normalize();
             result

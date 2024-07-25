@@ -9,6 +9,7 @@ use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
 use super::{
     alias_map::{AliasMap, AliasTemplate},
+    pattern::Pattern,
     plugin::BeforeResolvePlugin,
     AliasPattern, ExternalType, ResolveResult, ResolveResultItem,
 };
@@ -101,6 +102,22 @@ pub enum ImportMapping {
     Dynamic(Vc<Box<dyn ImportMappingReplacement>>),
 }
 
+#[turbo_tasks::value(shared)]
+#[derive(Clone)]
+pub enum ReplacedImportMapping {
+    External(Option<RcStr>, ExternalType),
+    /// An already resolved result that will be returned directly.
+    Direct(Vc<ResolveResult>),
+    /// A request alias that will be resolved first, and fall back to resolving
+    /// the original request if it fails. Useful for the tsconfig.json
+    /// `compilerOptions.paths` option and Next aliases.
+    PrimaryAlternative(Pattern, Option<Vc<FileSystemPath>>),
+    Ignore,
+    Empty,
+    Alternatives(Vec<Vc<ReplacedImportMapping>>),
+    Dynamic(Vc<Box<dyn ImportMappingReplacement>>),
+}
+
 impl ImportMapping {
     pub fn primary_alternatives(
         list: Vec<RcStr>,
@@ -121,32 +138,33 @@ impl ImportMapping {
 }
 
 impl AliasTemplate for Vc<ImportMapping> {
-    type Output<'a> = Pin<Box<dyn Future<Output = Result<Vc<ImportMapping>>> + Send + 'a>>;
+    type Output<'a> = Pin<Box<dyn Future<Output = Result<Vc<ReplacedImportMapping>>> + Send + 'a>>;
 
-    fn replace<'a>(&'a self, capture: &'a str) -> Self::Output<'a> {
+    fn replace<'a>(&'a self, capture: &'a Pattern) -> Self::Output<'a> {
         Box::pin(async move {
             let this = &*self.await?;
             Ok(match this {
+                // _ => ImportMapping::Ignore
                 ImportMapping::External(name, ty) => {
                     if let Some(name) = name {
-                        ImportMapping::External(
-                            Some(name.clone().replace('*', capture).into()),
+                        ReplacedImportMapping::External(
+                            capture.spread_into_star(name).as_string().map(|s| s.into()),
                             *ty,
                         )
                     } else {
-                        ImportMapping::External(None, *ty)
+                        ReplacedImportMapping::External(None, *ty)
                     }
                 }
                 ImportMapping::PrimaryAlternative(name, context) => {
-                    ImportMapping::PrimaryAlternative(
-                        name.clone().replace('*', capture).into(),
+                    ReplacedImportMapping::PrimaryAlternative(
+                        capture.spread_into_star(name),
                         *context,
                     )
                 }
-                ImportMapping::Direct(_) | ImportMapping::Ignore | ImportMapping::Empty => {
-                    this.clone()
-                }
-                ImportMapping::Alternatives(alternatives) => ImportMapping::Alternatives(
+                ImportMapping::Direct(v) => ReplacedImportMapping::Direct(v.clone()),
+                ImportMapping::Ignore => ReplacedImportMapping::Ignore,
+                ImportMapping::Empty => ReplacedImportMapping::Empty,
+                ImportMapping::Alternatives(alternatives) => ReplacedImportMapping::Alternatives(
                     alternatives
                         .iter()
                         .map(|mapping| mapping.replace(capture))
@@ -154,11 +172,15 @@ impl AliasTemplate for Vc<ImportMapping> {
                         .await?,
                 ),
                 ImportMapping::Dynamic(replacement) => {
-                    (*replacement.replace(capture.into()).await?).clone()
+                    (*replacement.replace(capture.clone().cell()).await?).clone()
                 }
             }
             .cell())
         })
+    }
+
+    fn convert<'a>(&'a self) -> Self::Output<'a> {
+        todo!()
     }
 }
 
@@ -364,27 +386,51 @@ impl ImportMap {
     ) -> Result<ImportMapResult> {
         // TODO lookup pattern
         // relative requests must not match global wildcard aliases.
-        if let Some(request_string) = request.await?.request() {
-            let mut lookup = if request_string.starts_with("./") {
+
+        // match &*request.await? {
+        //     Request::Raw { path, .. } => todo!(),
+        //     Request::Relative { path, .. } => todo!(),
+        //     Request::Module { module, path, .. } => todo!(),
+        //     Request::ServerRelative { path, .. } => todo!(),
+        //     Request::Windows { path, .. } => todo!(),
+        //     Request::Empty => todo!(),
+        //     Request::PackageInternal { path } => todo!(),
+        //     Request::Uri {
+        //         protocol,
+        //         remainder,
+        //         ..
+        //     } => todo!(),
+        //     Request::Unknown { path } => todo!(),
+        //     Request::Dynamic => todo!(),
+        //     Request::Alternatives { requests } => todo!(),
+        // }
+        use turbo_tasks::debug::ValueDebug;
+        println!("lookup 1 {:?}", request.dbg().await?);
+        if let Some(request_pattern) = request.await?.request_pattern() {
+            println!(
+                "lookup 2 {:?} {:?}",
+                request_pattern,
+                request_pattern.constant_prefix()
+            );
+            let mut lookup = if request_pattern.must_match("./") {
                 self.map
-                    .lookup_with_prefix_predicate(&request_string, |prefix| {
+                    .lookup_with_prefix_predicate(&request_pattern, |prefix| {
                         prefix.starts_with("./")
                     })
-            } else if request_string.starts_with("../") {
+            } else if request_pattern.must_match("../") {
                 self.map
-                    .lookup_with_prefix_predicate(&request_string, |prefix| {
+                    .lookup_with_prefix_predicate(&request_pattern, |prefix| {
                         prefix.starts_with("../")
                     })
             } else {
-                self.map.lookup(&request_string)
+                self.map.lookup(&request_pattern)
             };
             if let Some(result) = lookup.next() {
-                return import_mapping_to_result(
-                    result.try_join_into_self().await?.into_owned(),
-                    lookup_path,
-                    request,
-                )
-                .await;
+                let x = result.try_join_into_self().await?.into_owned();
+                println!("lookup 3 {:?} : {:?}", request_pattern, x.dbg().await?);
+                return import_mapping_to_result(x, lookup_path, request).await;
+            } else {
+                println!("lookup 3 {:?} : {:?}", request_pattern, "None");
             }
         }
         Ok(ImportMapResult::NoEntry)
@@ -526,7 +572,7 @@ pub async fn resolve_modules_options(
 
 #[turbo_tasks::value_trait]
 pub trait ImportMappingReplacement {
-    fn replace(self: Vc<Self>, capture: RcStr) -> Vc<ImportMapping>;
+    fn replace(self: Vc<Self>, capture: Vc<Pattern>) -> Vc<ReplacedImportMapping>;
     fn result(
         self: Vc<Self>,
         lookup_path: Vc<FileSystemPath>,

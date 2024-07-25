@@ -1505,13 +1505,26 @@ async fn handle_after_resolve_plugins(
     .cell())
 }
 
+use turbo_tasks::debug::ValueDebug;
 #[turbo_tasks::function]
 async fn resolve_internal(
     lookup_path: Vc<FileSystemPath>,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
-    resolve_internal_inline(lookup_path, request, options).await
+    let x = resolve_internal_inline(lookup_path, request, options).await?;
+    // match &*request.await? {
+    //     Request::Module { module, .. } if module == "@" => {
+    println!(
+        "resolve_internal {:?} {:?} {:?}",
+        lookup_path.await?.path,
+        request.dbg().await?,
+        x.dbg().await?
+    );
+    //     }
+    //     _ => {}
+    // }
+    Ok(x)
 }
 
 fn resolve_internal_boxed(
@@ -1546,6 +1559,17 @@ async fn resolve_internal_inline(
         // Apply import mappings if provided
         if let Some(import_map) = &options_value.import_map {
             let result = import_map.await?.lookup(lookup_path, request).await?;
+            // match &*request.await? {
+            //     Request::Module { module, .. } if module == "@" => {
+            println!(
+                "resolve_internal_inline import_map {:?} {:?} {:?}",
+                lookup_path.await?.path,
+                request.dbg().await?,
+                result.clone().cell().dbg().await?
+            );
+            //     }
+            //     _ => {}
+            // }
             if !matches!(result, ImportMapResult::NoEntry) {
                 has_alias = true;
                 let resolved_result = resolve_import_map_result(
@@ -2241,6 +2265,15 @@ async fn resolve_module_request(
     query: Vc<RcStr>,
     fragment: Vc<RcStr>,
 ) -> Result<Vc<ResolveResult>> {
+    if module == "@" {
+        println!(
+            "resolve_module_request {:?} {:?} {:?}",
+            lookup_path.await?.path,
+            module,
+            path
+        );
+    }
+
     // Check alias field for module aliases first
     if let Some(result) = apply_in_package(
         lookup_path,
@@ -2573,7 +2606,7 @@ async fn handle_exports_imports_field(
 
     let query_str = query.await?;
 
-    let req = format!("{}{}", path, query_str);
+    let req = Pattern::Constant(format!("{}{}", path, query_str).into());
     let values = exports_imports_field
         .lookup(&req)
         .map(AliasMatch::try_into_self)
