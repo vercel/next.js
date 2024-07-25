@@ -41,7 +41,12 @@ const program = new Command(packageJson.name)
   .argument('[project-directory]')
   .usage(`${green('[project-directory]')} [options]`)
   .action((name) => {
-    projectPath = name
+    // Commander does not implicitly support negated options. When they are used
+    // by the user they will be interpreted as the positional argument (name) in
+    // the action handler. See https://github.com/tj/commander.js/pull/1355
+    if (name && !name.startsWith('--no-')) {
+      projectPath = name
+    }
   })
   .option(
     '--ts, --typescript',
