@@ -183,8 +183,10 @@ impl ProjectContainer {
     #[turbo_tasks::function]
     pub fn new(options: ProjectOptions) -> Vc<Self> {
         ProjectContainer {
+            // we only need to enable versioning in dev mode, since build
+            // is assumed to be operating over a static snapshot
+            versioned_content_map: VersionedContentMap::new(options.dev),
             options_state: State::new(options),
-            versioned_content_map: VersionedContentMap::new(),
         }
         .cell()
     }

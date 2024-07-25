@@ -10,10 +10,10 @@ use turbo_tasks::{
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::core::{
-        asset::Asset,
+        asset::{Asset, AssetContent},
         output::{OutputAsset, OutputAssets},
         source_map::{GenerateSourceMap, OptionSourceMap},
-        version::VersionedContent,
+        version::{Version, VersionedContent},
     },
 };
 
@@ -198,21 +198,28 @@ impl ContentMap {
     }
 }
 
-/// A version of `ContentMap` that also tracks version data.
+/// A [ContentMap] that computes a contents' version.
+///
+/// For convenience, it is possible to opt-out of versioning entirely,
+/// rather than having to conditionally use a ContentMap or VersionedContentMap.
+/// For some operations (builds), we don't care about version data, so, in that
+/// case, rather than query the asset for its verion, we wrap it in a dummy
+/// struct that always reports the same version.
 #[turbo_tasks::value]
-pub struct VersionedContentMap(Vc<ContentMap>);
-
-impl ValueDefault for VersionedContentMap {
-    fn value_default() -> Vc<Self> {
-        VersionedContentMap(ContentMap::value_default()).cell()
-    }
+pub struct VersionedContentMap {
+    inner: Vc<ContentMap>,
+    enable_versioning: bool,
 }
 
 impl VersionedContentMap {
     // NOTE(alexkirsz) This must not be a `#[turbo_tasks::function]` because it
     // should be a singleton for each project.
-    pub fn new() -> Vc<Self> {
-        Self::value_default()
+    pub fn new(enable_versioning: bool) -> Vc<Self> {
+        VersionedContentMap {
+            inner: ContentMap::value_default(),
+            enable_versioning,
+        }
+        .cell()
     }
 }
 
@@ -225,7 +232,7 @@ impl VersionedContentMap {
         client_relative_path: Vc<FileSystemPath>,
         client_output_path: Vc<FileSystemPath>,
     ) -> Result<Vc<Completion>> {
-        Ok(self.await?.0.insert_output_assets(
+        Ok(self.await?.inner.insert_output_assets(
             assets_operation,
             client_relative_path,
             client_output_path,
@@ -238,7 +245,7 @@ impl VersionedContentMap {
         path: Vc<FileSystemPath>,
         section: Option<RcStr>,
     ) -> Result<Vc<OptionSourceMap>> {
-        Ok(self.await?.0.get_source_map(path, section))
+        Ok(self.await?.inner.get_source_map(path, section))
     }
 
     #[turbo_tasks::function]
@@ -246,11 +253,60 @@ impl VersionedContentMap {
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
     ) -> Result<Vc<Box<dyn VersionedContent>>> {
-        Ok(self.await?.0.get_asset(path).versioned_content())
+        let _self = self.await?;
+        let asset = _self.inner.get_asset(path);
+        Ok(if _self.enable_versioning {
+            asset.versioned_content()
+        } else {
+            Vc::upcast(Dummy::new(asset))
+        })
     }
 
     #[turbo_tasks::function]
     pub async fn keys_in_path(&self, root: Vc<FileSystemPath>) -> Result<Vc<Vec<RcStr>>> {
-        Ok(self.0.keys_in_path(root))
+        Ok(self.inner.keys_in_path(root))
+    }
+}
+
+#[turbo_tasks::value]
+struct Dummy {
+    content: Vc<AssetContent>,
+}
+
+#[turbo_tasks::value]
+struct DummyVersion;
+
+#[turbo_tasks::value_impl]
+impl Version for DummyVersion {
+    #[turbo_tasks::function]
+    async fn id(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell("dummy".into()))
+    }
+}
+
+impl Dummy {
+    pub fn new(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Self> {
+        Dummy {
+            content: asset.content(),
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    fn content(&self) -> Result<Vc<AssetContent>> {
+        Ok(self.await?.content)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl VersionedContent for Dummy {
+    #[turbo_tasks::function]
+    fn content(self: Vc<Self>) -> Vc<AssetContent> {
+        self.content()
+    }
+
+    #[turbo_tasks::function]
+    fn version(self: Vc<Self>) -> Vc<Box<dyn Version>> {
+        Vc::upcast(DummyVersion.cell())
     }
 }
