@@ -400,8 +400,7 @@ ${ENDGROUP}`)
 
   const hasIsolatedTests = tests.some((test) => {
     return configuredTestTypes.some(
-      (type) =>
-        type !== testFilters.unit && test.file.startsWith(`test/${type}`)
+      (type) => typeof type === 'string' && test.file.startsWith(type)
     )
   })
 
