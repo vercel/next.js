@@ -1,29 +1,31 @@
 import { join } from 'node:path'
 import {
-  createNextApp,
   projectShouldHaveNoGitChanges,
+  run,
   shouldBeTemplateProject,
-  spawnExitPromise,
   tryNextDev,
   useTempDir,
 } from '../utils'
 
-let testVersion: string
-beforeAll(async () => {
-  // TODO: investigate moving this post publish or create deployed GH#57025
-  // tarballs to avoid these failing while a publish is in progress
-  testVersion = 'canary'
-  // const span = new Span({ name: 'parent' })
-  // testVersion = (
-  //   await createNextInstall({ onlyPackages: true, parentSpan: span })
-  // ).get('next')
-})
-
 describe('create-next-app --no-app (Pages Router)', () => {
+  let nextTgzFilename: string
+
+  beforeAll(() => {
+    if (!process.env.NEXT_TEST_PKG_PATHS) {
+      throw new Error('This test needs to be run with `node run-tests.js`.')
+    }
+
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
+
+    nextTgzFilename = pkgPaths.get('next')
+  })
+
   it('should create JavaScript project with --js flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'pages-js'
-      const childProcess = createNextApp(
+      const { exitCode } = await run(
         [
           projectName,
           '--js',
@@ -34,12 +36,11 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--no-tailwind',
           '--no-import-alias',
         ],
+        nextTgzFilename,
         {
           cwd,
-        },
-        testVersion
+        }
       )
-      const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({
         cwd,
@@ -58,7 +59,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
   it('should create TypeScript project with --ts flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'pages-ts'
-      const childProcess = createNextApp(
+      const { exitCode } = await run(
         [
           projectName,
           '--ts',
@@ -69,12 +70,11 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--no-tailwind',
           '--no-import-alias',
         ],
+        nextTgzFilename,
         {
           cwd,
-        },
-        testVersion
+        }
       )
-      const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({
         cwd,
@@ -90,7 +90,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
   it('should create project inside "src" directory with --src-dir flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'pages-src-dir'
-      const childProcess = createNextApp(
+      const { exitCode } = await run(
         [
           projectName,
           '--ts',
@@ -101,12 +101,11 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--no-tailwind',
           '--no-import-alias',
         ],
+        nextTgzFilename,
         {
           cwd,
-        },
-        testVersion
+        }
       )
-      const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({
         cwd,
@@ -126,7 +125,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
   it('should create TailwindCSS project with --tailwind flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'pages-tw'
-      const childProcess = createNextApp(
+      const { exitCode } = await run(
         [
           projectName,
           '--ts',
@@ -137,13 +136,12 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--tailwind',
           '--no-import-alias',
         ],
+        nextTgzFilename,
         {
           cwd,
-        },
-        testVersion
+        }
       )
 
-      const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({
         cwd,
@@ -163,7 +161,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
   it('should create an empty project with --empty flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'pages-empty'
-      const childProcess = createNextApp(
+      const { exitCode } = await run(
         [
           projectName,
           '--ts',
@@ -175,13 +173,12 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--empty',
           '--no-import-alias',
         ],
+        nextTgzFilename,
         {
           cwd,
-        },
-        testVersion
+        }
       )
 
-      const exitCode = await spawnExitPromise(childProcess)
       const isEmpty = true
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({
@@ -203,7 +200,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
   it('should create an empty TailwindCSS project with --empty flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'pages-tw-empty'
-      const childProcess = createNextApp(
+      const { exitCode } = await run(
         [
           projectName,
           '--ts',
@@ -215,13 +212,12 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--empty',
           '--no-import-alias',
         ],
+        nextTgzFilename,
         {
           cwd,
-        },
-        testVersion
+        }
       )
 
-      const exitCode = await spawnExitPromise(childProcess)
       const isEmpty = true
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({
@@ -243,7 +239,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
   it('should enable turbopack dev with --turbo flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'pages-turbo'
-      const childProcess = createNextApp(
+      const { exitCode } = await run(
         [
           projectName,
           '--ts',
@@ -254,13 +250,12 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--no-tailwind',
           '--no-import-alias',
         ],
+        nextTgzFilename,
         {
           cwd,
-        },
-        testVersion
+        }
       )
 
-      const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
       const projectRoot = join(cwd, projectName)
       const pkgJson = require(join(projectRoot, 'package.json'))

@@ -6,18 +6,22 @@ import {
   projectFilesShouldExist,
   projectFilesShouldNotExist,
 } from './utils'
-import { createNextInstall } from '../../lib/create-next-install'
-import { trace } from 'next/dist/trace'
-
-let nextInstall: Awaited<ReturnType<typeof createNextInstall>>
-beforeAll(async () => {
-  nextInstall = await createNextInstall({
-    parentSpan: trace('test'),
-    keepRepoDir: Boolean(process.env.NEXT_TEST_SKIP_CLEANUP),
-  })
-})
 
 describe('create-next-app', () => {
+  let nextTgzFilename: string
+
+  beforeAll(() => {
+    if (!process.env.NEXT_TEST_PKG_PATHS) {
+      throw new Error('This test needs to be run with `node run-tests.js`.')
+    }
+
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
+
+    nextTgzFilename = pkgPaths.get('next')
+  })
+
   it('should not create if the target directory is not empty', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'non-empty-dir'
@@ -36,7 +40,7 @@ describe('create-next-app', () => {
           '--no-src-dir',
           '--no-import-alias',
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
           reject: false,
@@ -77,7 +81,7 @@ describe('create-next-app', () => {
           '--no-src-dir',
           '--no-import-alias',
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
           reject: false,
@@ -108,7 +112,7 @@ describe('create-next-app', () => {
           '--no-import-alias',
           '--skip-install',
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
         }
