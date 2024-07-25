@@ -80,8 +80,18 @@ type PageProps = {
   searchParams: { [key: string]: any }
 }
 
-const isFavicon = (icon: IconDescriptor) =>
-  !!icon && icon.url === '/favicon.ico' && icon.type === 'image/x-icon'
+function isFavicon(icon: IconDescriptor | undefined): boolean {
+  if (!icon) {
+    return false
+  }
+
+  // turbopack appends a hash to all images
+  return (
+    (icon.url === '/favicon.ico' ||
+      icon.url.toString().startsWith('/favicon.ico?')) &&
+    icon.type === 'image/x-icon'
+  )
+}
 
 function mergeStaticMetadata(
   source: Metadata | null,
