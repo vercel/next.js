@@ -445,7 +445,7 @@ impl<T> Extend<(AliasPattern, T)> for AliasMap<T> {
 ///
 /// The items are returned in the order defined by [PATTERN_KEY_COMPARE].
 ///
-/// [PATTERN_KEY_COMPARE]: https://nodejs.org/api/esm.html#resolver-algorithm-specification
+/// [PATTERN_KEY_COMPARE]: https://nodejs.org/api/esm.html#resolution-algorithm-specification
 pub struct AliasMapLookupIterator<'a, T> {
     request: &'a str,
     prefixes_stack: Vec<(&'a [u8], &'a BTreeMap<AliasKey, T>)>,
