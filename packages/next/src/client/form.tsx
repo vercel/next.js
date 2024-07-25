@@ -176,17 +176,16 @@ function onFormSubmit(
 
   const formData = new FormData(formElement)
 
-  for (const [name, value] of formData) {
+  for (let [name, value] of formData) {
     if (typeof value !== 'string') {
-      // if it's not a string, then it was a file input.
-      // we can't do anything with those.
+      // if the value is not a string, then it's a file input.
+      // the native browser behavior is to use the filename as the value instead.
       if (process.env.NODE_ENV === 'development') {
         console.error(
           'next/form does not support file inputs. Use a native <form> instead.'
         )
       }
-
-      return
+      value = value.name
     }
 
     targetUrl.searchParams.append(name, value)
