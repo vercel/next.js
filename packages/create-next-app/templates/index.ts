@@ -40,6 +40,7 @@ export const installTemplate = async ({
   importAlias,
   skipInstall,
   turbo,
+  api,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -184,12 +185,18 @@ export const installTemplate = async ({
      * Default dependencies.
      */
     dependencies: {
-      react: "19.0.0-rc.0",
-      "react-dom": "19.0.0-rc.0",
       next: version,
     },
     devDependencies: {},
   };
+
+  if (!api) {
+    packageJson.dependencies = {
+      ...packageJson.dependencies,
+      react: "19.0.0-rc.0",
+      "react-dom": "19.0.0-rc.0",
+    };
+  }
 
   /**
    * TypeScript projects will have type definitions and other devDependencies.
@@ -198,14 +205,20 @@ export const installTemplate = async ({
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
       typescript: "^5",
-      "@types/node": "^20",
-      "@types/react": "^18",
-      "@types/react-dom": "^18",
     };
+
+    if (!api) {
+      packageJson.devDependencies = {
+        ...packageJson.devDependencies,
+        "@types/node": "^20",
+        "@types/react": "^18",
+        "@types/react-dom": "^18",
+      };
+    }
   }
 
   /* Add Tailwind CSS dependencies. */
-  if (tailwind) {
+  if (tailwind && !api) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
       postcss: "^8",

@@ -64,6 +64,7 @@ const program = new Command(packageJson.name)
   Initialize with Tailwind CSS config. (default)
 `
   )
+
   .option(
     '--eslint',
     `
@@ -97,6 +98,13 @@ const program = new Command(packageJson.name)
     `
 
   Specify import alias to use (default "@/*").
+`
+  )
+  .option(
+    '--api',
+    `
+
+  Initialize a Headless API App
 `
   )
   .option(
@@ -345,7 +353,8 @@ async function run(): Promise<void> {
 
     if (
       !process.argv.includes('--tailwind') &&
-      !process.argv.includes('--no-tailwind')
+      !process.argv.includes('--no-tailwind') &&
+      !program.api
     ) {
       if (ciInfo.isCI) {
         program.tailwind = getPrefOrDefault('tailwind')
@@ -387,7 +396,11 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
+    if (
+      !process.argv.includes('--app') &&
+      !process.argv.includes('--no-app') &&
+      !program.api
+    ) {
       if (ciInfo.isCI) {
         program.app = getPrefOrDefault('app')
       } else {
@@ -405,7 +418,11 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!program.turbo && !process.argv.includes('--no-turbo')) {
+    if (
+      !program.turbo &&
+      !process.argv.includes('--no-turbo') &&
+      !program.api
+    ) {
       if (ciInfo.isCI) {
         program.turbo = getPrefOrDefault('turbo')
       } else {
@@ -484,6 +501,7 @@ async function run(): Promise<void> {
       skipInstall: program.skipInstall,
       empty: program.empty,
       turbo: program.turbo,
+      api: program.api,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -515,6 +533,7 @@ async function run(): Promise<void> {
       skipInstall: program.skipInstall,
       empty: program.empty,
       turbo: program.turbo,
+      api: program.api,
     })
   }
   conf.set('preferences', preferences)
