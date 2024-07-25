@@ -3,17 +3,5 @@ type ParagraphProps = {
 };
 
 export default function Paragraph({ children }: ParagraphProps) {
-  return (
-    <p>
-      {children}
-      <style>{`
-        p {
-          font:
-            13px Helvetica,
-            Arial;
-          margin: 10px 0;
-        }
-      `}</style>
-    </p>
-  );
+  return <p>{children}</p>;
 }
