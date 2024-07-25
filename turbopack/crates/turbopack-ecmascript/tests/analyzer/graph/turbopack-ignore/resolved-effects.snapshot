@@ -1,0 +1,15 @@
+0 -> 1 call = import*0*("w_i")
+- *0* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
+
+0 -> 2 call = import*0*("t_i")
+- *0* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
+
+0 -> 3 free var = FreeVar(require)
+
+0 -> 4 call = require*0*("w_r")
+- *0* require: The require method from CommonJS
+
+0 -> 5 free var = FreeVar(require)
+
+0 -> 6 call = require*0*("t_r")
+- *0* require: The require method from CommonJS

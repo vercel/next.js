@@ -1,0 +1,268 @@
+[
+    Call {
+        func: FreeVar(
+            "import",
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Word(
+                            "w_i",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 13..52#0,
+        in_try: false,
+    },
+    Call {
+        func: FreeVar(
+            "import",
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Word(
+                            "t_i",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 66..107#0,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "require",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 121..128#1,
+        in_try: false,
+    },
+    Call {
+        func: FreeVar(
+            "require",
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Word(
+                            "w_r",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 121..161#0,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "require",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 175..182#1,
+        in_try: false,
+    },
+    Call {
+        func: FreeVar(
+            "require",
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Word(
+                            "t_r",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 175..217#0,
+        in_try: false,
+    },
+]
