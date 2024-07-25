@@ -100,6 +100,12 @@ const program = new Command(packageJson.name)
 `
   )
   .option(
+    '--api',
+    `
+  Initialize a Headless API.
+`
+  )
+  .option(
     '--empty',
     `
 
@@ -484,6 +490,7 @@ async function run(): Promise<void> {
       skipInstall: program.skipInstall,
       empty: program.empty,
       turbo: program.turbo,
+      api: program.api,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
