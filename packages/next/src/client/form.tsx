@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, type HTMLProps, type FormEvent, useCallback } from 'react'
+import { useEffect, type HTMLProps, type FormEvent } from 'react'
 import { useRouter } from './components/navigation'
 import { addBasePath } from './add-base-path'
 import { useIntersection } from './use-intersection'
+import { useMergedRef } from './use-merged-ref'
 
 const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
 
@@ -37,26 +38,15 @@ export default function Form({
     disabled: typeof actionProp !== 'string', // if we don't have an action path, we can't preload anything anyway.
   })
 
-  const ownRef = useCallback(
-    (el: HTMLFormElement) => {
-      // TODO: Link does something like this, do we need it?
-      // check if visible state need to be reset
-      // if (previousActionProp.current !== actionProp) {
-      //   resetVisible()
-      //   previousActionProp.current = actionProp
-      // }
-      setIntersectionRef(el)
-
-      // TODO: replace with `useMergedRef` when https://github.com/vercel/next.js/pull/68123 lands
-      if (externalRef) {
-        if (typeof externalRef === 'function') {
-          return externalRef(el)
-        } else {
-          externalRef.current = el
-        }
-      }
-    },
-    [setIntersectionRef, externalRef]
+  // TODO: Link does something like this in addition, do we need it?
+  // check if visible state need to be reset
+  // if (previousActionProp.current !== actionProp) {
+  //   resetVisible()
+  //   previousActionProp.current = actionProp
+  // }
+  const ownRef = useMergedRef<HTMLFormElement>(
+    setIntersectionRef,
+    externalRef ?? null
   )
 
   useEffect(() => {
