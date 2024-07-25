@@ -1,7 +1,7 @@
 use turbo_tasks::debug::ValueDebugFormat;
-use turbo_tasks_testing::{register, run};
+use turbo_tasks_testing::{register, run, Registration};
 
-register!();
+static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn ignored_indexes() {
@@ -17,11 +17,16 @@ async fn ignored_indexes() {
         i32,
     );
 
-    run! {
+    run(&REGISTRATION, async {
         let input = IgnoredIndexes(-1, 2, -3);
-        let debug = input.value_debug_format(usize::MAX).try_to_string().await?;
+        let debug = input
+            .value_debug_format(usize::MAX)
+            .try_to_string()
+            .await
+            .unwrap();
         assert!(!debug.contains("-1"));
         assert!(debug.contains('2'));
         assert!(!debug.contains("-3"));
-    }
+    })
+    .await;
 }

@@ -6,12 +6,13 @@ use anyhow::Result;
 use auto_hash_map::AutoSet;
 use tokio::time::sleep;
 use turbo_tasks::{emit, CollectiblesSource, RcStr, ValueToString, Vc};
-use turbo_tasks_testing::{register, run};
-register!();
+use turbo_tasks_testing::{register, run, Registration};
+
+static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn transitive_emitting() {
-    run! {
+    run(&REGISTRATION, async {
         let result = my_transitive_emitting_function("".into(), "".into());
         result.strongly_consistent().await?;
         let list = result.peek_collectibles::<Box<dyn ValueToString>>();
@@ -21,12 +22,15 @@ async fn transitive_emitting() {
             assert!(expected.remove(collectible.to_string().await?.as_str()))
         }
         assert_eq!(result.await?.0, 0);
-    }
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
 }
 
 #[tokio::test]
 async fn transitive_emitting_indirect() {
-    run! {
+    run(&REGISTRATION, async {
         let result = my_transitive_emitting_function("".into(), "".into());
         let collectibles = my_transitive_emitting_function_collectibles("".into(), "".into());
         let list = collectibles.strongly_consistent().await?;
@@ -36,12 +40,15 @@ async fn transitive_emitting_indirect() {
             assert!(expected.remove(collectible.to_string().await?.as_str()))
         }
         assert_eq!(result.await?.0, 0);
-    }
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
 }
 
 #[tokio::test]
 async fn multi_emitting() {
-    run! {
+    run(&REGISTRATION, async {
         let result = my_multi_emitting_function();
         result.strongly_consistent().await?;
         let list = result.peek_collectibles::<Box<dyn ValueToString>>();
@@ -51,24 +58,30 @@ async fn multi_emitting() {
             assert!(expected.remove(collectible.to_string().await?.as_str()))
         }
         assert_eq!(result.await?.0, 0);
-    }
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
 }
 
 #[tokio::test]
 async fn taking_collectibles() {
-    run! {
+    run(&REGISTRATION, async {
         let result = my_collecting_function();
         let list = result.take_collectibles::<Box<dyn ValueToString>>();
         // my_collecting_function already processed the collectibles so the list should
         // be empty
         assert!(list.is_empty());
         assert_eq!(result.await?.0, 0);
-    }
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
 }
 
 #[tokio::test]
 async fn taking_collectibles_extra_layer() {
-    run! {
+    run(&REGISTRATION, async {
         let result = my_collecting_function_indirect();
         result.strongly_consistent().await?;
         let list = result.take_collectibles::<Box<dyn ValueToString>>();
@@ -76,12 +89,15 @@ async fn taking_collectibles_extra_layer() {
         // be empty
         assert!(list.is_empty());
         assert_eq!(result.await?.0, 0);
-    }
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
 }
 
 #[tokio::test]
 async fn taking_collectibles_parallel() {
-    run! {
+    run(&REGISTRATION, async {
         let result = my_transitive_emitting_function("".into(), "a".into());
         result.strongly_consistent().await?;
         let list = result.take_collectibles::<Box<dyn ValueToString>>();
@@ -94,24 +110,31 @@ async fn taking_collectibles_parallel() {
         assert_eq!(list.len(), 2);
         assert_eq!(result.await?.0, 0);
 
-        let result = my_transitive_emitting_function_with_child_scope("".into(), "b".into(), "1".into());
+        let result =
+            my_transitive_emitting_function_with_child_scope("".into(), "b".into(), "1".into());
         result.strongly_consistent().await?;
         let list = result.take_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result.await?.0, 0);
 
-        let result = my_transitive_emitting_function_with_child_scope("".into(), "b".into(), "2".into());
+        let result =
+            my_transitive_emitting_function_with_child_scope("".into(), "b".into(), "2".into());
         result.strongly_consistent().await?;
         let list = result.take_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result.await?.0, 0);
 
-        let result = my_transitive_emitting_function_with_child_scope("".into(), "c".into(), "3".into());
+        let result =
+            my_transitive_emitting_function_with_child_scope("".into(), "c".into(), "3".into());
         result.strongly_consistent().await?;
         let list = result.take_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result.await?.0, 0);
-    }
+
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
 }
 
 #[turbo_tasks::value(transparent)]

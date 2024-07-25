@@ -3,14 +3,13 @@
 use anyhow::Result;
 use turbo_tasks::{Completion, TryJoinIterExt, TurboTasks, Vc};
 use turbo_tasks_memory::MemoryBackend;
-use turbo_tasks_testing::register;
+use turbo_tasks_testing::{register, Registration};
 
-register!();
+static REGISTRATION: Registration = register!();
 
-#[allow(clippy::no_effect)] // for *REGISTER
 #[test]
 fn rectangle_stress() {
-    *REGISTER;
+    REGISTRATION.ensure_registered();
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()

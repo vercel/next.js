@@ -11,9 +11,9 @@ use regex::Regex;
 use serde_json::json;
 use turbo_tasks::{TurboTasks, Vc};
 use turbo_tasks_memory::MemoryBackend;
-use turbo_tasks_testing::register;
+use turbo_tasks_testing::{register, Registration};
 
-register!();
+static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn test_simple_task() {
@@ -239,7 +239,7 @@ async fn run_with_tt<Fut>(func: impl FnOnce(Arc<TurboTasks<MemoryBackend>>) -> F
 where
     Fut: Future<Output = ()> + Send + 'static,
 {
-    *REGISTER;
+    REGISTRATION.ensure_registered();
     let tt = TurboTasks::new(MemoryBackend::default());
     tt.backend().task_statistics().enable();
     let fut = func(Arc::clone(&tt));

@@ -3,10 +3,10 @@
 //! macro and the `#[turbo_tasks::function]` macro.
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{Completion, TaskInput, Vc};
-use turbo_tasks_testing::{register, run};
+use turbo_tasks::{Completion, ReadRef, TaskInput, Vc};
+use turbo_tasks_testing::{register, run, Registration};
 
-register!();
+static REGISTRATION: Registration = register!();
 
 #[derive(Clone, TaskInput, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 struct OneUnnamedField(u32);
@@ -19,7 +19,11 @@ async fn one_unnamed_field(input: OneUnnamedField) -> Vc<Completion> {
 
 #[tokio::test]
 async fn tests() {
-    run! {
-        one_unnamed_field(OneUnnamedField(42)).await?;
-    }
+    run(&REGISTRATION, async {
+        assert!(ReadRef::ptr_eq(
+            &one_unnamed_field(OneUnnamedField(42)).await.unwrap(),
+            &Completion::immutable().await.unwrap(),
+        ))
+    })
+    .await
 }

@@ -4,13 +4,13 @@ use std::time::Duration;
 
 use anyhow::{bail, Result};
 use turbo_tasks::{emit, CollectiblesSource, RcStr, State, ValueToString, Vc};
-use turbo_tasks_testing::{register, run};
+use turbo_tasks_testing::{register, run, Registration};
 
-register!();
+static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn dirty_in_progress() {
-    run! {
+    run(&REGISTRATION, async {
         let cases = [
             (1, 3, 2, 2, ""),
             (11, 13, 12, 42, "12"),
@@ -23,20 +23,22 @@ async fn dirty_in_progress() {
             println!("{} -> {} -> {} = {} {}", a, b, c, value, collectible);
             let input = ChangingInput {
                 state: State::new(a),
-            }.cell();
-            let input_val = input.await?;
+            }
+            .cell();
+            let input_val = input.await.unwrap();
             let output = compute(input);
-            output.await?;
+            output.await.unwrap();
             println!("update to {}", b);
             input_val.state.set(b);
             tokio::time::sleep(Duration::from_millis(100)).await;
             println!("update to {}", c);
             input_val.state.set(c);
-            let read = output.strongly_consistent().await?;
+            let read = output.strongly_consistent().await.unwrap();
             assert_eq!(read.value, value);
             assert_eq!(read.collectible, collectible);
         }
-    }
+    })
+    .await
 }
 
 #[turbo_tasks::value]

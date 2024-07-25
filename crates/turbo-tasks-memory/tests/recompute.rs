@@ -2,19 +2,21 @@
 
 use anyhow::Result;
 use turbo_tasks::{State, Vc};
-use turbo_tasks_testing::{register, run};
+use turbo_tasks_testing::{register, run, Registration};
 
-register!();
+static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn recompute() {
-    run! {
+    run(&REGISTRATION, async {
         let input = ChangingInput {
             state: State::new(1),
-        }.cell();
+        }
+        .cell();
         let input2 = ChangingInput {
             state: State::new(10),
-        }.cell();
+        }
+        .cell();
         let output = compute(input, input2);
         let read = output.await?;
         assert_eq!(read.state_value, 1);
@@ -47,7 +49,11 @@ async fn recompute() {
         input2.await?.state.set(30);
         let read = output.strongly_consistent().await?;
         assert_eq!(read.random_value, random_value);
-    }
+
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
 }
 
 #[turbo_tasks::value]

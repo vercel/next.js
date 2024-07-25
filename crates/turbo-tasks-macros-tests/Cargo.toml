@@ -9,12 +9,9 @@ edition = "2021"
 anyhow = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
-turbo-tasks = { workspace = true }
-turbo-tasks-memory = { workspace = true }
-turbo-tasks-testing = { workspace = true }
-# TODO: turbo-tasks-testing uses a macro that requires us to depend on lazy-static.
-lazy_static = { workspace = true }
 trybuild = { version = "1.0.97" }
+turbo-tasks = { workspace = true }
+turbo-tasks-testing = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
