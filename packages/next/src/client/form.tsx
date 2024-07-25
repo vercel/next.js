@@ -155,6 +155,8 @@ function onFormSubmit(
     }
   }
 
+  // TODO: do we need to do something for native form validation?
+
   const formElement = event.currentTarget
   const submitter = (event.nativeEvent as SubmitEvent).submitter
 
@@ -190,6 +192,7 @@ function onFormSubmit(
   }
 
   // TODO: is it a problem that we've got an absolute URL here?
+  // TODO: how should we handle invalid URLs here?
   const targetUrl = new URL(action, document.baseURI)
   if (targetUrl.searchParams.size) {
     // url-encoded HTML forms ignore any queryparams in the `action` url. We need to match that.
