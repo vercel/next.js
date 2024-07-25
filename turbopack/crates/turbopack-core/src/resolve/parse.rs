@@ -82,6 +82,10 @@ fn split_off_query_fragment(raw: RcStr) -> (Pattern, Vc<RcStr>, Vc<RcStr>) {
 }
 
 impl Request {
+    /// Turns the request into a string.
+    ///
+    /// Note that this is only returns something for the most basic and
+    /// fully constant patterns.
     pub fn request(&self) -> Option<RcStr> {
         Some(match self {
             Request::Raw {
@@ -120,6 +124,28 @@ impl Request {
             } => path.clone(),
             _ => return None,
         })
+    }
+
+    /// Turns the request into a pattern, similar to [Request::request()] but
+    /// more complete.
+    pub fn request_pattern(&self) -> Option<Pattern> {
+        match self {
+            Request::Raw { path, .. } => Some(path.clone()),
+            Request::Relative { path, .. } => Some(path.clone()),
+            Request::Module { module, path, .. } => {
+                let mut path = path.clone();
+                path.push_front(Pattern::Constant(module.clone()));
+                Some(path)
+            }
+            Request::ServerRelative { path, .. } => Some(path.clone()),
+            Request::Windows { path, .. } => Some(path.clone()),
+            Request::Empty => Some(Pattern::Constant("".into())),
+            Request::PackageInternal { path } => Some(path.clone()),
+            Request::Uri { .. } => None,
+            Request::Unknown { path } => Some(path.clone()),
+            Request::Dynamic => Some(Pattern::Dynamic),
+            Request::Alternatives { .. } => None,
+        }
     }
 
     pub fn parse_ref(mut request: Pattern) -> Self {
