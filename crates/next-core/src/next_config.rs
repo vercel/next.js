@@ -1125,13 +1125,20 @@ impl NextConfig {
         self: Vc<Self>,
         is_development: Vc<bool>,
     ) -> Result<Vc<OptionTreeShaking>> {
+        let is_development = *is_development.await?;
         let tree_shaking = self.await?.experimental.tree_shaking;
 
         if let Some(false) = tree_shaking {
             // The user has explicitly disabled tree shaking.
-            return Ok(OptionTreeShaking(None).cell());
+
+            return Ok(OptionTreeShaking(if is_development {
+                None
+            } else {
+                Some(TreeShakingMode::ReexportsOnly)
+            })
+            .cell());
         }
-        Ok(OptionTreeShaking(Some(if *is_development.await? {
+        Ok(OptionTreeShaking(Some(if is_development {
             TreeShakingMode::ReexportsOnly
         } else {
             TreeShakingMode::ModuleFragments
