@@ -398,21 +398,16 @@ ${tests.map((t) => t.file).join('\n')}
 ${ENDGROUP}`)
   console.log(`total: ${tests.length}`)
 
-  const hasIsolatedTests = tests.some((test) => {
-    return configuredTestTypes.some(
-      (type) => typeof type === 'string' && test.file.startsWith(type)
-    )
-  })
-
   if (
     !options.dry &&
     process.env.NEXT_TEST_MODE !== 'deploy' &&
-    ((options.type && options.type !== 'unit') || hasIsolatedTests)
+    ((options.type && options.type !== 'unit') ||
+      tests.some((test) => !testFilters.unit.test(test.file)))
   ) {
-    // for isolated next tests: e2e, dev, prod we create
-    // a starter Next.js install to re-use to speed up tests
-    // to avoid having to run yarn each time
-    console.log(`${GROUP}Creating Next.js install for isolated tests`)
+    // For isolated next tests (e2e, dev, prod) and integration tests we create
+    // a starter Next.js install to re-use to speed up tests to avoid having to
+    // run `pnpm install` each time.
+    console.log(`${GROUP}Creating shared Next.js install`)
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc.0'
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
