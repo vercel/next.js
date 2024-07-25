@@ -136,7 +136,7 @@ function navigateReducer_noPPR(
   prefetchQueue.bump(data)
 
   return data.then(
-    ([flightData, canonicalUrlOverride]) => {
+    ({ f: flightData, c: canonicalUrlOverride }) => {
       let isFirstRead = false
       // we only want to mark this once
       if (!prefetchValues.lastUsedTime) {
@@ -172,10 +172,10 @@ function navigateReducer_noPPR(
       for (const flightDataPath of flightData) {
         const flightSegmentPath = flightDataPath.slice(
           0,
-          -5
+          -4
         ) as unknown as FlightSegmentPath
         // The one before last item is the router state tree patch
-        const treePatch = flightDataPath.slice(-4)[0] as FlightRouterState
+        const treePatch = flightDataPath.slice(-3)[0] as FlightRouterState
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
@@ -324,7 +324,7 @@ function navigateReducer_PPR(
   prefetchQueue.bump(data)
 
   return data.then(
-    ([flightData, canonicalUrlOverride, _postponed]) => {
+    ({ f: flightData, c: canonicalUrlOverride }) => {
       let isFirstRead = false
       // we only want to mark this once
       if (!prefetchValues.lastUsedTime) {
@@ -364,10 +364,10 @@ function navigateReducer_PPR(
       for (const flightDataPath of flightData) {
         const flightSegmentPath = flightDataPath.slice(
           0,
-          -5
+          -4
         ) as unknown as FlightSegmentPath
         // The one before last item is the router state tree patch
-        const treePatch = flightDataPath.slice(-4)[0] as FlightRouterState
+        const treePatch = flightDataPath.slice(-3)[0] as FlightRouterState
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
@@ -406,12 +406,11 @@ function navigateReducer_PPR(
             // TODO: We should get rid of the else branch and do all navigations
             // via updateCacheNodeOnNavigation. The current structure is just
             // an incremental step.
-            flightDataPath.length === 4
+            flightDataPath.length === 3
           ) {
             const prefetchedTree: FlightRouterState = flightDataPath[0]
             const seedData = flightDataPath[1]
             const head = flightDataPath[2]
-            const layerAssets = flightDataPath[3]
 
             const task = updateCacheNodeOnNavigation(
               currentCache,
@@ -419,9 +418,9 @@ function navigateReducer_PPR(
               prefetchedTree,
               seedData,
               head,
-              layerAssets
+              mutable.onlyHashChange
             )
-            if (task !== null && task.node !== null) {
+            if (task !== null) {
               // We've created a new Cache Node tree that contains a prefetched
               // version of the next page. This can be rendered instantly.
 
@@ -432,32 +431,36 @@ function navigateReducer_PPR(
               const patchedRouterState: FlightRouterState = task.route
               newTree = patchedRouterState
 
-              const newCache = task.node
+              // It's possible that `updateCacheNodeOnNavigation` only spawned tasks to reuse the existing cache,
+              // in which case `task.node` will be null, signaling we don't need to wait for a dynamic request
+              // and can simply apply the patched `FlightRouterState`.
+              if (task.node !== null) {
+                const newCache = task.node
 
-              // The prefetched tree has dynamic holes in it. We initiate a
-              // dynamic request to fill them in.
-              //
-              // Do not block on the result. We'll immediately render the Cache
-              // Node tree and suspend on the dynamic parts. When the request
-              // comes in, we'll fill in missing data and ping React to
-              // re-render. Unlike the lazy fetching model in the non-PPR
-              // implementation, this is modeled as a single React update +
-              // streaming, rather than multiple top-level updates. (However,
-              // even in the new model, we'll still need to sometimes update the
-              // root multiple times per navigation, like if the server sends us
-              // a different response than we expected. For now, we revert back
-              // to the lazy fetching mechanism in that case.)
-              listenForDynamicRequest(
-                task,
-                fetchServerResponse(
-                  url,
-                  currentTree,
-                  state.nextUrl,
-                  state.buildId
+                // The prefetched tree has dynamic holes in it. We initiate a
+                // dynamic request to fill them in.
+                //
+                // Do not block on the result. We'll immediately render the Cache
+                // Node tree and suspend on the dynamic parts. When the request
+                // comes in, we'll fill in missing data and ping React to
+                // re-render. Unlike the lazy fetching model in the non-PPR
+                // implementation, this is modeled as a single React update +
+                // streaming, rather than multiple top-level updates. (However,
+                // even in the new model, we'll still need to sometimes update the
+                // root multiple times per navigation, like if the server sends us
+                // a different response than we expected. For now, we revert back
+                // to the lazy fetching mechanism in that case.)
+                listenForDynamicRequest(
+                  task,
+                  fetchServerResponse(url, {
+                    flightRouterState: currentTree,
+                    nextUrl: state.nextUrl,
+                    buildId: state.buildId,
+                  })
                 )
-              )
 
-              mutable.cache = newCache
+                mutable.cache = newCache
+              }
             } else {
               // Nothing changed, so reuse the old cache.
               // TODO: What if the head changed but not any of the segment data?

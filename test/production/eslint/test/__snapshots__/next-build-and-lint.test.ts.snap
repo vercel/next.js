@@ -223,7 +223,6 @@ exports[`Next Build production mode first time setup with TypeScript 1`] = `
     },
     "requireConfigFile": false,
     "sourceType": "module",
-    "warnOnUnsupportedTypeScriptVersion": true,
   },
   "plugins": [
     "react-hooks",
@@ -231,6 +230,7 @@ exports[`Next Build production mode first time setup with TypeScript 1`] = `
     "react",
     "import",
     "@next/next",
+    "@typescript-eslint",
   ],
   "rules": {
     "@next/next/google-font-display": [
@@ -296,6 +296,63 @@ exports[`Next Build production mode first time setup with TypeScript 1`] = `
     "@next/next/no-unwanted-polyfillio": [
       "warn",
     ],
+    "@typescript-eslint/ban-ts-comment": [
+      "error",
+    ],
+    "@typescript-eslint/ban-types": [
+      "error",
+    ],
+    "@typescript-eslint/no-array-constructor": [
+      "error",
+    ],
+    "@typescript-eslint/no-duplicate-enum-values": [
+      "error",
+    ],
+    "@typescript-eslint/no-explicit-any": [
+      "error",
+    ],
+    "@typescript-eslint/no-extra-non-null-assertion": [
+      "error",
+    ],
+    "@typescript-eslint/no-loss-of-precision": [
+      "error",
+    ],
+    "@typescript-eslint/no-misused-new": [
+      "error",
+    ],
+    "@typescript-eslint/no-namespace": [
+      "error",
+    ],
+    "@typescript-eslint/no-non-null-asserted-optional-chain": [
+      "error",
+    ],
+    "@typescript-eslint/no-this-alias": [
+      "error",
+    ],
+    "@typescript-eslint/no-unnecessary-type-constraint": [
+      "error",
+    ],
+    "@typescript-eslint/no-unsafe-declaration-merging": [
+      "error",
+    ],
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+    ],
+    "@typescript-eslint/no-var-requires": [
+      "error",
+    ],
+    "@typescript-eslint/prefer-as-const": [
+      "error",
+    ],
+    "@typescript-eslint/triple-slash-reference": [
+      "error",
+    ],
+    "constructor-super": [
+      "off",
+    ],
+    "getter-return": [
+      "off",
+    ],
     "import/no-anonymous-default-export": [
       "warn",
     ],
@@ -324,6 +381,72 @@ exports[`Next Build production mode first time setup with TypeScript 1`] = `
     ],
     "jsx-a11y/role-supports-aria-props": [
       "warn",
+    ],
+    "no-array-constructor": [
+      "off",
+    ],
+    "no-const-assign": [
+      "off",
+    ],
+    "no-dupe-args": [
+      "off",
+    ],
+    "no-dupe-class-members": [
+      "off",
+    ],
+    "no-dupe-keys": [
+      "off",
+    ],
+    "no-func-assign": [
+      "off",
+    ],
+    "no-import-assign": [
+      "off",
+    ],
+    "no-loss-of-precision": [
+      "off",
+    ],
+    "no-new-native-nonconstructor": [
+      "off",
+    ],
+    "no-new-symbol": [
+      "off",
+    ],
+    "no-obj-calls": [
+      "off",
+    ],
+    "no-redeclare": [
+      "off",
+    ],
+    "no-setter-return": [
+      "off",
+    ],
+    "no-this-before-super": [
+      "off",
+    ],
+    "no-undef": [
+      "off",
+    ],
+    "no-unreachable": [
+      "off",
+    ],
+    "no-unsafe-negation": [
+      "off",
+    ],
+    "no-unused-vars": [
+      "off",
+    ],
+    "no-var": [
+      "error",
+    ],
+    "prefer-const": [
+      "error",
+    ],
+    "prefer-rest-params": [
+      "error",
+    ],
+    "prefer-spread": [
+      "error",
     ],
     "react-hooks/exhaustive-deps": [
       "warn",

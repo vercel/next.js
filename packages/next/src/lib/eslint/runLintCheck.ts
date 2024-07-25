@@ -12,7 +12,6 @@ import { writeDefaultConfig } from './writeDefaultConfig'
 import { hasEslintConfiguration } from './hasEslintConfiguration'
 import { writeOutputFile } from './writeOutputFile'
 
-import { ESLINT_PROMPT_VALUES } from '../constants'
 import { findPagesDir } from '../find-pages-dir'
 import { installDependencies } from '../install-dependencies'
 import { hasNecessaryDependencies } from '../has-necessary-dependencies'
@@ -21,6 +20,10 @@ import * as Log from '../../build/output/log'
 import type { EventLintCheckCompleted } from '../../telemetry/events/build'
 import isError, { getProperError } from '../is-error'
 import { getPkgManager } from '../helpers/get-pkg-manager'
+import {
+  getESLintStrictValue,
+  getESLintPromptValues,
+} from './getESLintPromptValues'
 
 type Config = {
   plugins: string[]
@@ -44,7 +47,7 @@ const requiredPackages = [
   },
 ]
 
-async function cliPrompt(): Promise<{ config?: any }> {
+async function cliPrompt(cwd: string): Promise<{ config?: any }> {
   console.log(
     bold(
       `${cyan(
@@ -58,7 +61,7 @@ async function cliPrompt(): Promise<{ config?: any }> {
       await Promise.resolve(require('next/dist/compiled/cli-select'))
     ).default
     const { value } = await cliSelect({
-      values: ESLINT_PROMPT_VALUES,
+      values: await getESLintPromptValues(cwd),
       valueRenderer: (
         {
           title,
@@ -226,7 +229,7 @@ async function lint(
     if (reportErrorsOnly) results = await ESLint.getErrorResults(results) // Only return errors if --quiet flag is used
 
     if (formatter) selectedFormatter = await eslint.loadFormatter(formatter)
-    const formattedResult = formatResults(
+    const formattedResult = await formatResults(
       baseDir,
       results,
       selectedFormatter?.format
@@ -356,10 +359,8 @@ export async function runLintCheck(
       } else {
         // Ask user what config they would like to start with for first time "next lint" setup
         const { config: selectedConfig } = strict
-          ? ESLINT_PROMPT_VALUES.find(
-              (opt: { title: string }) => opt.title === 'Strict'
-            )!
-          : await cliPrompt()
+          ? await getESLintStrictValue(baseDir)
+          : await cliPrompt(baseDir)
 
         if (selectedConfig == null) {
           // Show a warning if no option is selected in prompt

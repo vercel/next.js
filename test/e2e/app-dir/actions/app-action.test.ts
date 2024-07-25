@@ -7,7 +7,7 @@ import {
   waitFor,
   getRedboxSource,
 } from 'next-test-utils'
-import type { Request, Response, Route } from 'playwright'
+import type { Page, Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import { join } from 'path'
 
@@ -19,7 +19,7 @@ describe('app-dir action handling', () => {
     nextTestSetup({
       files: __dirname,
       dependencies: {
-        nanoid: 'latest',
+        nanoid: '4.0.1',
         'server-only': 'latest',
       },
     })
@@ -89,6 +89,56 @@ describe('app-dir action handling', () => {
         )
       )
     ).toBe(true)
+  })
+
+  it('should propagate errors from a `text/plain` response to an error boundary', async () => {
+    const customErrorText = 'Custom error!'
+    const browser = await next.browser('/error-handling', {
+      beforePageLoad(page: Page) {
+        page.route('**/error-handling', async (route: Route) => {
+          const requestHeaders = await route.request().allHeaders()
+          if (requestHeaders['next-action']) {
+            await route.fulfill({
+              status: 500,
+              contentType: 'text/plain',
+              body: customErrorText,
+            })
+          } else {
+            await route.continue()
+          }
+        })
+      },
+    })
+
+    await browser.elementById('submit-transition').click()
+    const error = await browser.waitForElementByCss('#error-text')
+    expect(await error.text()).toBe(customErrorText)
+  })
+
+  it('should trigger an error boundary for action responses with an invalid content-type', async () => {
+    const customErrorText = 'Custom error!'
+    const browser = await next.browser('/error-handling', {
+      beforePageLoad(page: Page) {
+        page.route('**/error-handling', async (route: Route) => {
+          const requestHeaders = await route.request().allHeaders()
+          if (requestHeaders['next-action']) {
+            await route.fulfill({
+              status: 500,
+              contentType: 'application/json',
+              body: JSON.stringify({ error: customErrorText }),
+            })
+          } else {
+            await route.continue()
+          }
+        })
+      },
+    })
+
+    await browser.elementById('submit-transition').click()
+    const error = await browser.waitForElementByCss('#error-text')
+    expect(await error.text()).toBe(
+      'An unexpected response was received from the server.'
+    )
   })
 
   it('should support headers and cookies', async () => {

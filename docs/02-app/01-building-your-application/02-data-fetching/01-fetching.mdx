@@ -36,7 +36,7 @@ export default async function Page() {
     res.json()
   )
 
-  return <></>
+  return '...'
 }
 ```
 
@@ -46,7 +46,7 @@ export default async function Page() {
     res.json()
   )
 
-  return <></>
+  return '...'
 }
 ```
 
@@ -67,13 +67,13 @@ import { Suspense } from 'react'
 export default async function Cart() {
   const res = await fetch('https://api.example.com/...')
 
-  return <></>
+  return '...'
 }
 
 export default function Navigation() {
   return (
     <>
-      <Suspense loading={<LoadingIcon />}>
+      <Suspense fallback={<LoadingIcon />}>
         <Cart />
       </Suspense>
     <>
@@ -179,7 +179,7 @@ export default function PollingComponent {
   // Polling interval set to 2000 milliseconds
   const { data } = useSWR('/api/data', fetcher, { refreshInterval: 2000 });
 
-  return <></>
+  return '...'
 }
 ```
 
@@ -193,7 +193,7 @@ export default function PollingComponent {
   // Polling interval set to 2000 milliseconds
   const { data } = useSWR('/api/data', fetcher, { refreshInterval: 2000 });
 
-  return <></>
+  return '...'
 }
 ```
 
@@ -212,7 +212,7 @@ import fetcher from '@/utils/fetcher'
 export default function Message() {
   const { data } = useSWR('/api/messages', fetcher)
 
-  return <></>
+  return '...'
 }
 ```
 
@@ -225,7 +225,7 @@ import fetcher from '@/utils/fetcher'
 export default function Message() {
   const { data } = useSWR('/api/messages', fetcher)
 
-  return <></>
+  return '...'
 }
 ```
 

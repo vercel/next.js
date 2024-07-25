@@ -25,6 +25,7 @@ import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
 import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
 import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../telemetry/ci-info'
+import { transpileConfig } from '../build/next-config-ts/transpile-config'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -156,6 +157,32 @@ export function warnOptionHasBeenMovedOutOfExperimental(
   }
 
   return config
+}
+
+function warnCustomizedOption(
+  config: NextConfig,
+  key: string,
+  defaultValue: any,
+  customMessage: string,
+  configFileName: string,
+  silent: boolean
+) {
+  const segs = key.split('.')
+  let current = config
+
+  while (segs.length >= 1) {
+    const seg = segs.shift()!
+    if (!(seg in current)) {
+      return
+    }
+    current = current[seg]
+  }
+
+  if (!silent && current !== defaultValue) {
+    Log.warn(
+      `The "${key}" option has been modified. ${customMessage ? customMessage + '. ' : ''}Please update your ${configFileName}.`
+    )
+  }
 }
 
 function assignDefaults(
@@ -453,6 +480,15 @@ function assignDefaults(
       images.loaderFile = absolutePath
     }
   }
+
+  warnCustomizedOption(
+    result,
+    'experimental.esmExternals',
+    true,
+    'experimental.esmExternals is not recommended to be modified as it may disrupt module resolution',
+    configFileName,
+    silent
+  )
 
   warnOptionHasBeenMovedOutOfExperimental(
     result,
@@ -887,11 +923,13 @@ export default async function loadConfig(
     rawConfig,
     silent = true,
     onLoadUserConfig,
+    reactProductionProfiling,
   }: {
     customConfig?: object | null
     rawConfig?: boolean
     silent?: boolean
     onLoadUserConfig?: (conf: NextConfig) => void
+    reactProductionProfiling?: boolean
   } = {}
 ): Promise<NextConfigComplete> {
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
@@ -949,8 +987,8 @@ export default async function loadConfig(
   // If config file was found
   if (path?.length) {
     configFileName = basename(path)
-    let userConfigModule: any
 
+    let userConfigModule: any
     try {
       const envBefore = Object.assign({}, process.env)
 
@@ -962,6 +1000,14 @@ export default async function loadConfig(
         // jest relies on so we fall back to require for this case
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
+      } else if (configFileName === 'next.config.ts') {
+        userConfigModule = await transpileConfig({
+          nextConfigPath: path,
+          cwd: dir,
+        })
+        curLog.warn(
+          `Configuration with ${configFileName} is currently an experimental feature, use with caution.`
+        )
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
@@ -978,11 +1024,13 @@ export default async function loadConfig(
         return userConfigModule
       }
     } catch (err) {
+      // TODO: Modify docs to add cases of failing next.config.ts transformation
       curLog.error(
         `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
       )
       throw err
     }
+
     const userConfig = await normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
@@ -1038,6 +1086,10 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
+    if (reactProductionProfiling) {
+      userConfig.reactProductionProfiling = reactProductionProfiling
+    }
+
     if (
       userConfig.experimental?.turbo?.loaders &&
       !userConfig.experimental?.turbo?.rules
@@ -1085,20 +1137,19 @@ export default async function loadConfig(
     return completeConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
-    const nonJsPath = findUp.sync(
+    const unsupportedConfig = findUp.sync(
       [
         `${configBaseName}.jsx`,
-        `${configBaseName}.ts`,
         `${configBaseName}.tsx`,
         `${configBaseName}.json`,
       ],
       { cwd: dir }
     )
-    if (nonJsPath?.length) {
+    if (unsupportedConfig?.length) {
       throw new Error(
         `Configuring Next.js via '${basename(
-          nonJsPath
-        )}' is not supported. Please replace the file with 'next.config.js' or 'next.config.mjs'.`
+          unsupportedConfig
+        )}' is not supported. Please replace the file with 'next.config.js', 'next.config.mjs', or 'next.config.ts'.`
       )
     }
   }

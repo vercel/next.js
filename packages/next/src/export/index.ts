@@ -674,6 +674,10 @@ export async function exportAppImpl(
         info.hasPostponed = result.hasPostponed
       }
 
+      if (typeof result.fetchMetrics !== 'undefined') {
+        info.fetchMetrics = result.fetchMetrics
+      }
+
       collector.byPath.set(path, info)
 
       // Update not found.
