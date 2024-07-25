@@ -172,6 +172,13 @@ function onFormSubmit(
     // url-encoded HTML forms ignore any queryparams in the `action` url. We need to match that.
     // (note that all other parts of the URL, like `hash`, are preserved)
     targetUrl.search = ''
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error(
+        `next/form received an \`action\` that contains search params: "${action}". This is not supported, and they will be ignored.` +
+          `If you need to pass in additional search params, use an \`<input type="hidden" />\` instead.`
+      )
+    }
   }
 
   const formData = new FormData(formElement)
