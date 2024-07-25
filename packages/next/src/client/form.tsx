@@ -42,17 +42,22 @@ export default function Form({
   ref: externalRef,
   ...props
 }: FormProps) {
+  const actionProp = props.action
+
   for (const key of DISALLOWED_FORM_PROPS) {
     if (key in props) {
       if (process.env.NODE_ENV === 'development') {
         console.error(
-          `next/form received an unsupported prop '${key}'. If you need to use it, use a native <form> instead.`
+          `next/form does not support changing \`${key}\`. ` +
+            (typeof actionProp === 'string'
+              ? `If you'd like to use it to perform a mutation, consider making \`action\` a function instead.\n` +
+                `Learn more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations`
+              : '')
         )
       }
       delete (props as Record<string, unknown>)[key]
     }
   }
-  const actionProp = props.action
 
   const router = useRouter()
 
