@@ -243,10 +243,7 @@ where
     /// reference.
     pub fn cell(read_ref: ReadRef<T>) -> Vc<T> {
         let local_cell = find_cell_by_type(T::get_value_type_id());
-        local_cell.update_shared_reference(SharedReference::new(
-            Some(T::get_value_type_id()),
-            read_ref.0,
-        ));
+        local_cell.update_shared_reference(SharedReference::new(read_ref.0));
         Vc {
             node: local_cell.into(),
             _t: PhantomData,

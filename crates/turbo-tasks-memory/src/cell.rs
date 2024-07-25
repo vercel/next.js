@@ -151,7 +151,7 @@ impl Cell {
             CellState::Empty | CellState::Computing { .. } | CellState::TrackedValueless => {
                 CellContent(None)
             }
-            CellState::Value { content } => content.clone(),
+            CellState::Value { content } => content.to_owned(),
         }
     }
 
@@ -159,6 +159,10 @@ impl Cell {
     /// content has changed.
     /// If clean = true, the task inputs weren't changes since the last
     /// execution and can be assumed to produce the same content again.
+    ///
+    /// Safety: This funtion does not check if the type of the content is the
+    /// same as the type of the cell. It is the caller's responsibility to
+    /// ensure that the content is of the correct type.
     pub fn assign(
         &mut self,
         content: CellContent,

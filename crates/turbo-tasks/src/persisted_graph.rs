@@ -1,12 +1,13 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::{ser::SerializeSeq, Deserialize, Serialize};
 
 use crate::{
     backend::{CellContent, PersistentTaskType},
+    task::shared_reference::TypedSharedReference,
     CellId, RawVc, TaskId,
 };
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum TaskCell {
     Content(CellContent),
     NeedComputation,
@@ -22,9 +23,63 @@ impl Default for TaskCell {
 pub struct TaskData {
     pub children: Vec<TaskId>,
     pub dependencies: Vec<RawVc>,
-    pub cells: Vec<(CellId, TaskCell)>,
+    pub cells: TaskCells,
     pub output: RawVc,
 }
+
+/// A newtype struct that intercepts serde. This is required
+/// because for safety reasons, TaskCell<()> is not allowed to
+/// be deserialized. We augment it with type data then write
+/// it. This is inefficient on disk but could be alleviated later.
+#[derive(Debug)]
+pub struct TaskCells(pub Vec<(CellId, TaskCell)>);
+
+// the on-disk representation of a task cell. it is local to this impl
+// to prevent users accidentally ser/de the untyped data
+#[derive(Serialize, Deserialize)]
+struct SerializableTaskCell(Option<Option<TypedSharedReference>>);
+impl From<SerializableTaskCell> for TaskCell {
+    fn from(val: SerializableTaskCell) -> Self {
+        match val.0 {
+            Some(d) => TaskCell::Content(CellContent(d.map(|d| d.untyped().1))),
+            None => TaskCell::NeedComputation,
+        }
+    }
+}
+
+impl Serialize for TaskCells {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(self.0.len()))?;
+        for (cell_id, cell) in &self.0 {
+            let task_cell = SerializableTaskCell(match cell {
+                TaskCell::Content(CellContent(opt)) => {
+                    Some(opt.as_ref().map(|d| d.typed(cell_id.type_id)))
+                }
+                TaskCell::NeedComputation => None,
+            });
+            seq.serialize_element(&(cell_id, task_cell))?;
+        }
+        seq.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for TaskCells {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let data: Vec<(CellId, SerializableTaskCell)> = Vec::deserialize(deserializer)?;
+        Ok(TaskCells(
+            data.into_iter()
+                .map(|(id, cell)| (id, cell.into()))
+                .collect(),
+        ))
+    }
+}
+
 pub struct ReadTaskState {
     pub clean: bool,
     pub keeps_external_active: bool,

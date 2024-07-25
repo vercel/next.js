@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     manager::find_cell_by_type,
+    task::shared_reference::TypedSharedReference,
     vc::{cast::VcCast, ReadVcFuture, VcValueTraitCast},
-    RawVc, SharedReference, Vc, VcValueTrait,
+    RawVc, Vc, VcValueTrait,
 };
 
 /// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait
@@ -19,7 +20,7 @@ pub struct TraitRef<T>
 where
     T: ?Sized,
 {
-    shared_reference: SharedReference,
+    shared_reference: TypedSharedReference,
     _t: PhantomData<T>,
 }
 
@@ -63,7 +64,7 @@ impl<T> Serialize for TraitRef<T> {
 impl<'de, T> Deserialize<'de> for TraitRef<T> {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         Ok(Self {
-            shared_reference: SharedReference::deserialize(deserializer)?,
+            shared_reference: TypedSharedReference::deserialize(deserializer)?,
             _t: PhantomData,
         })
     }
@@ -83,7 +84,7 @@ impl<T> TraitRef<T>
 where
     T: ?Sized,
 {
-    pub(crate) fn new(shared_reference: SharedReference) -> Self {
+    pub(crate) fn new(shared_reference: TypedSharedReference) -> Self {
         Self {
             shared_reference,
             _t: PhantomData,
@@ -99,10 +100,9 @@ where
     /// trait `T`.
     pub fn cell(trait_ref: TraitRef<T>) -> Vc<T> {
         // See Safety clause above.
-        let SharedReference(ty, _) = trait_ref.shared_reference;
-        let ty = ty.unwrap();
+        let TypedSharedReference(ty, shared_ref) = trait_ref.shared_reference;
         let local_cell = find_cell_by_type(ty);
-        local_cell.update_shared_reference(trait_ref.shared_reference);
+        local_cell.update_shared_reference(shared_ref);
         let raw_vc: RawVc = local_cell.into();
         raw_vc.into()
     }

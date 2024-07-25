@@ -13,14 +13,11 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    backend::CellContent,
+    backend::{CellContent, TypedCellContent},
     event::EventListener,
     manager::{read_task_cell, read_task_output, TurboTasksApi},
-    registry::{
-        get_value_type, {self},
-    },
-    turbo_tasks, CollectiblesSource, SharedReference, TaskId, TraitTypeId, ValueTypeId, Vc,
-    VcValueTrait,
+    registry::{self, get_value_type},
+    turbo_tasks, CollectiblesSource, TaskId, TraitTypeId, ValueTypeId, Vc, VcValueTrait,
 };
 
 #[derive(Error, Debug)]
@@ -113,15 +110,11 @@ impl RawVc {
                     let content = read_task_cell(&*tt, task, index)
                         .await
                         .map_err(|source| ResolveTypeError::ReadError { source })?;
-                    if let CellContent(Some(shared_reference)) = content {
-                        if let SharedReference(Some(value_type), _) = shared_reference {
-                            if get_value_type(value_type).has_trait(&trait_type) {
-                                return Ok(Some(RawVc::TaskCell(task, index)));
-                            } else {
-                                return Ok(None);
-                            }
+                    if let TypedCellContent(value_type, CellContent(Some(_))) = content {
+                        if get_value_type(value_type).has_trait(&trait_type) {
+                            return Ok(Some(RawVc::TaskCell(task, index)));
                         } else {
-                            return Err(ResolveTypeError::UntypedContent);
+                            return Ok(None);
                         }
                     } else {
                         return Err(ResolveTypeError::NoContent);
@@ -149,15 +142,11 @@ impl RawVc {
                     let content = read_task_cell(&*tt, task, index)
                         .await
                         .map_err(|source| ResolveTypeError::ReadError { source })?;
-                    if let CellContent(Some(shared_reference)) = content {
-                        if let SharedReference(Some(cell_value_type), _) = shared_reference {
-                            if cell_value_type == value_type {
-                                return Ok(Some(RawVc::TaskCell(task, index)));
-                            } else {
-                                return Ok(None);
-                            }
+                    if let TypedCellContent(cell_value_type, CellContent(Some(_))) = content {
+                        if cell_value_type == value_type {
+                            return Ok(Some(RawVc::TaskCell(task, index)));
                         } else {
-                            return Err(ResolveTypeError::UntypedContent);
+                            return Ok(None);
                         }
                     } else {
                         return Err(ResolveTypeError::NoContent);
@@ -317,7 +306,7 @@ impl ReadRawVcFuture {
 }
 
 impl Future for ReadRawVcFuture {
-    type Output = Result<CellContent>;
+    type Output = Result<TypedCellContent>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         self.turbo_tasks.notify_scheduled_tasks();
