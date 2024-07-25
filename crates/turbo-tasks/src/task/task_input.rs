@@ -5,8 +5,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    magic_any::MagicAny, vc::ResolvedVc, RcStr, TaskId, TransientInstance, TransientValue, Value,
-    ValueTypeId, Vc,
+    MagicAny, RcStr, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
 };
 
 /// Trait to implement in order for a type to be accepted as a

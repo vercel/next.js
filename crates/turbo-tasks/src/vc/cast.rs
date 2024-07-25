@@ -2,7 +2,7 @@ use std::{marker::PhantomData, mem::ManuallyDrop};
 
 use anyhow::Result;
 
-use crate::{backend::CellContent, ReadRef, TraitRef, VcRead, VcValueTrait, VcValueType};
+use crate::{backend::TypedCellContent, ReadRef, TraitRef, VcRead, VcValueTrait, VcValueType};
 
 /// Trait defined to share behavior between values and traits within
 /// [`ReadRawVcFuture`][crate::ReadRawVcFuture]. See [`VcValueTypeCast`] and
@@ -12,7 +12,7 @@ use crate::{backend::CellContent, ReadRef, TraitRef, VcRead, VcValueTrait, VcVal
 pub trait VcCast: private::Sealed {
     type Output;
 
-    fn cast(content: CellContent) -> Result<Self::Output>;
+    fn cast(content: TypedCellContent) -> Result<Self::Output>;
 }
 
 /// Casts an arbitrary cell content into a [`ReadRef<T>`].
@@ -26,7 +26,7 @@ where
 {
     type Output = ReadRef<T>;
 
-    fn cast(content: CellContent) -> Result<Self::Output> {
+    fn cast(content: TypedCellContent) -> Result<Self::Output> {
         Ok(
             // Safety: the `VcValueType` implementor must guarantee that both `T` and
             // `Repr` are #[repr(transparent)].
@@ -57,7 +57,7 @@ where
 {
     type Output = TraitRef<T>;
 
-    fn cast(content: CellContent) -> Result<Self::Output> {
+    fn cast(content: TypedCellContent) -> Result<Self::Output> {
         // Safety: Constructor ensures the cell content points to a value that
         // implements T
         content.cast_trait::<T>()

@@ -15,7 +15,7 @@ use std::{
 use anyhow::{anyhow, Result};
 use futures::FutureExt;
 use turbo_tasks::{
-    backend::{CellContent, TaskCollectiblesMap},
+    backend::{CellContent, TaskCollectiblesMap, TypedCellContent},
     event::{Event, EventListener},
     registry,
     test_helpers::with_turbo_tasks_for_testing,
@@ -189,33 +189,35 @@ impl TurboTasksApi for VcStorage {
         &self,
         task: TaskId,
         index: CellId,
-    ) -> Result<Result<CellContent, EventListener>> {
+    ) -> Result<Result<TypedCellContent, EventListener>> {
         let map = self.cells.lock().unwrap();
-        if let Some(cell) = map.get(&(task, index)) {
-            Ok(Ok(cell.clone()))
+        Ok(Ok(if let Some(cell) = map.get(&(task, index)) {
+            cell.clone()
         } else {
-            Ok(Ok(CellContent::default()))
+            Default::default()
         }
+        .into_typed(index.type_id)))
     }
 
     fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: CellId,
-    ) -> Result<Result<CellContent, EventListener>> {
+    ) -> Result<Result<TypedCellContent, EventListener>> {
         let map = self.cells.lock().unwrap();
-        if let Some(cell) = map.get(&(task, index)) {
-            Ok(Ok(cell.clone()))
+        Ok(Ok(if let Some(cell) = map.get(&(task, index)) {
+            cell.to_owned()
         } else {
-            Ok(Ok(CellContent::default()))
+            Default::default()
         }
+        .into_typed(index.type_id)))
     }
 
     fn try_read_own_task_cell_untracked(
         &self,
         current_task: TaskId,
         index: CellId,
-    ) -> Result<CellContent> {
+    ) -> Result<TypedCellContent> {
         self.read_own_task_cell(current_task, index)
     }
 
@@ -244,13 +246,14 @@ impl TurboTasksApi for VcStorage {
         unimplemented!()
     }
 
-    fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<CellContent> {
+    fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent> {
         let map = self.cells.lock().unwrap();
-        if let Some(cell) = map.get(&(task, index)) {
-            Ok(cell.clone())
+        Ok(if let Some(cell) = map.get(&(task, index)) {
+            cell.to_owned()
         } else {
-            Ok(CellContent::default())
+            Default::default()
         }
+        .into_typed(index.type_id))
     }
 
     fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent) {

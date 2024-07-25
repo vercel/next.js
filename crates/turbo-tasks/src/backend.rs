@@ -9,10 +9,9 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
-use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 pub use crate::id::{BackendJobId, ExecutionId};
@@ -333,10 +332,10 @@ pub struct TaskExecutionSpec<'a> {
     pub span: Span,
 }
 
-// TODO technically CellContent is already indexed by the ValueTypeId, so we
-// don't need to store it here
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
 pub struct CellContent(pub Option<SharedReference>);
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TypedCellContent(pub ValueTypeId, pub CellContent);
 
 impl Display for CellContent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -347,9 +346,9 @@ impl Display for CellContent {
     }
 }
 
-impl CellContent {
+impl TypedCellContent {
     pub fn cast<T: Any + VcValueType>(self) -> Result<ReadRef<T>> {
-        let data = self.0.ok_or_else(|| anyhow!("Cell is empty"))?;
+        let data = self.1 .0.ok_or_else(|| anyhow!("Cell is empty"))?;
         let data = data
             .downcast()
             .map_err(|_err| anyhow!("Unexpected type in cell"))?;
@@ -358,24 +357,35 @@ impl CellContent {
 
     /// # Safety
     ///
-    /// The caller must ensure that the CellContent contains a vc that
-    /// implements T.
+    /// The caller must ensure that the TypedCellContent contains a vc
+    /// that implements T.
     pub fn cast_trait<T>(self) -> Result<TraitRef<T>>
     where
         T: VcValueTrait + ?Sized,
     {
-        let shared_reference = self.0.ok_or_else(|| anyhow!("Cell is empty"))?;
-        if shared_reference.0.is_none() {
-            bail!("Cell content is untyped");
-        }
+        let shared_reference = self
+            .1
+             .0
+            .ok_or_else(|| anyhow!("Cell is empty"))?
+            .typed(self.0);
         Ok(
-            // Safety: We just checked that the content is typed.
+            // Safety: It is a TypedSharedReference
             TraitRef::new(shared_reference),
         )
     }
 
     pub fn try_cast<T: Any + VcValueType>(self) -> Option<ReadRef<T>> {
-        Some(ReadRef::new_arc(self.0?.downcast().ok()?))
+        Some(ReadRef::new_arc(self.1 .0?.downcast().ok()?))
+    }
+
+    pub fn into_untyped(self) -> CellContent {
+        self.1
+    }
+}
+
+impl CellContent {
+    pub fn into_typed(self, type_id: ValueTypeId) -> TypedCellContent {
+        TypedCellContent(type_id, self)
     }
 }
 
@@ -463,7 +473,7 @@ pub trait Backend: Sync + Send {
         index: CellId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<CellContent, EventListener>>;
+    ) -> Result<Result<TypedCellContent, EventListener>>;
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
@@ -472,7 +482,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         index: CellId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<CellContent, EventListener>>;
+    ) -> Result<Result<TypedCellContent, EventListener>>;
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
@@ -481,10 +491,10 @@ pub trait Backend: Sync + Send {
         current_task: TaskId,
         index: CellId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<CellContent> {
+    ) -> Result<TypedCellContent> {
         match self.try_read_task_cell_untracked(current_task, index, turbo_tasks)? {
             Ok(content) => Ok(content),
-            Err(_) => Ok(CellContent(None)),
+            Err(_) => Ok(TypedCellContent(index.type_id, CellContent(None))),
         }
     }
 
@@ -575,10 +585,7 @@ impl PersistentTaskType {
         name: Cow<'static, str>,
         this: RawVc,
     ) -> Result<FunctionId> {
-        let CellContent(Some(SharedReference(Some(value_type), _))) = this.into_read().await?
-        else {
-            bail!("Cell is empty or untyped");
-        };
+        let TypedCellContent(value_type, _) = this.into_read().await?;
         Self::resolve_trait_method_from_value(trait_type, value_type, name)
     }
 
@@ -590,12 +597,7 @@ impl PersistentTaskType {
         turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
     ) -> Result<RawVc> {
         let this = this.resolve().await?;
-        let CellContent(Some(SharedReference(this_ty, _))) = this.into_read().await? else {
-            bail!("Cell is empty");
-        };
-        let Some(this_ty) = this_ty else {
-            bail!("Cell is untyped");
-        };
+        let TypedCellContent(this_ty, _) = this.into_read().await?;
 
         let native_fn = Self::resolve_trait_method_from_value(trait_type, this_ty, name)?;
         let arg = registry::get_function(native_fn)
