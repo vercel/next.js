@@ -6,9 +6,9 @@ const Component = ()=>{
         "Component.useEffect": ()=>{}
     }["Component.useEffect"]);
     const onClick = useCallback({
-        "Component.useCallback(onClick)": ()=>[]
-    }["Component.useCallback(onClick)"]);
+        "Component.useCallback[onClick]": ()=>[]
+    }["Component.useCallback[onClick]"]);
     const computed = useMemo({
-        "Component.useMemo(computed)": ()=>{}
-    }["Component.useMemo(computed)"]);
+        "Component.useMemo[computed]": ()=>{}
+    }["Component.useMemo[computed]"]);
 };

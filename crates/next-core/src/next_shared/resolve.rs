@@ -232,7 +232,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
     async fn after_resolve(
         &self,
         fs_path: Vc<FileSystemPath>,
-        _context: Vc<FileSystemPath>,
+        _lookup_path: Vc<FileSystemPath>,
         _reference_type: Value<ReferenceType>,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
@@ -282,7 +282,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
     async fn after_resolve(
         &self,
         fs_path: Vc<FileSystemPath>,
-        _context: Vc<FileSystemPath>,
+        _lookup_path: Vc<FileSystemPath>,
         _reference_type: Value<ReferenceType>,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
@@ -406,7 +406,7 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     async fn after_resolve(
         &self,
         fs_path: Vc<FileSystemPath>,
-        _context: Vc<FileSystemPath>,
+        _lookup_path: Vc<FileSystemPath>,
         _reference_type: Value<ReferenceType>,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
