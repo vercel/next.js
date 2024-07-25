@@ -28,6 +28,7 @@
   "isolated-vm",
   "jest",
   "jsdom",
+  "keyv",
   "libsql",
   "mdx-bundler",
   "mongodb",

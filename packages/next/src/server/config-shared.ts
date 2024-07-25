@@ -200,6 +200,7 @@ export interface ReactCompilerOptions {
 }
 
 export interface ExperimentalConfig {
+  appNavFailHandling?: boolean
   flyingShuttle?: boolean
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
@@ -496,6 +497,11 @@ export interface ExperimentalConfig {
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
+
+  /**
+   * Allows previously fetched data to be re-used when editing server components.
+   */
+  serverComponentsHmrCache?: boolean
 }
 
 export type ExportPathMap = {
@@ -847,11 +853,13 @@ export interface NextConfig extends Record<string, any> {
     }
   >
 
-  logging?: {
-    fetches?: {
-      fullUrl?: boolean
-    }
-  }
+  logging?:
+    | {
+        fetches?: {
+          fullUrl?: boolean
+        }
+      }
+    | false
 
   /**
    * period (in seconds) where the server allow to serve stale cache
@@ -926,11 +934,13 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
+  logging: {},
   swrDelta: undefined,
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
     flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
     prerenderEarlyExit: true,
     serverMinification: true,
@@ -1002,6 +1012,7 @@ export const defaultConfig: NextConfig = {
     reactCompiler: undefined,
     after: false,
     staticGenerationRetryCount: undefined,
+    serverComponentsHmrCache: true,
   },
   bundlePagesRouterDependencies: false,
 }

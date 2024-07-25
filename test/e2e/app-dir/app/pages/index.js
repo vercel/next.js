@@ -1,6 +1,11 @@
 import React from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import styles from '../styles/shared.module.css'
+
+const Button = dynamic(() =>
+  import('../components/button/button').then((mod) => mod.Button)
+)
 
 export default function Page() {
   return (
@@ -10,6 +15,7 @@ export default function Page() {
       </p>
       <Link href="/dashboard">Dashboard</Link>
       <p id="react-version">{React.version}</p>
+      <Button>Click me!</Button>
     </>
   )
 }

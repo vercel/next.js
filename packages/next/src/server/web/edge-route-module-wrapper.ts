@@ -3,7 +3,6 @@ import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
 } from '../route-modules/app-route/module'
-import type { PrerenderManifest } from '../../build'
 
 import './globals'
 
@@ -16,6 +15,7 @@ import { getUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 import type { RequestLifecycleOpts } from '../base-server'
 import { CloseController, trackStreamConsumed } from './web-on-close'
+import { getEdgePreviewProps } from './get-edge-preview-props'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -84,11 +84,6 @@ export class EdgeRouteModuleWrapper {
       searchParamsToUrlQuery(request.nextUrl.searchParams)
     )
 
-    const prerenderManifest: PrerenderManifest | undefined =
-      typeof self.__PRERENDER_MANIFEST === 'string'
-        ? JSON.parse(self.__PRERENDER_MANIFEST)
-        : undefined
-
     const isAfterEnabled = !!process.env.__NEXT_AFTER
 
     let waitUntil: RequestLifecycleOpts['waitUntil'] = undefined
@@ -99,6 +94,8 @@ export class EdgeRouteModuleWrapper {
       closeController = new CloseController()
     }
 
+    const previewProps = getEdgePreviewProps()
+
     // Create the context for the handler. This contains the params from the
     // match (if any).
     const context: AppRouteRouteHandlerContext = {
@@ -107,11 +104,7 @@ export class EdgeRouteModuleWrapper {
         version: 4,
         routes: {},
         dynamicRoutes: {},
-        preview: prerenderManifest?.preview || {
-          previewModeEncryptionKey: '',
-          previewModeId: 'development-id',
-          previewModeSigningKey: '',
-        },
+        preview: previewProps,
         notFoundRoutes: [],
       },
       renderOpts: {

@@ -22,6 +22,7 @@ import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
 import { AfterContext } from '../after/after-context'
 import type { RequestLifecycleOpts } from '../base-server'
+import type { ServerComponentsHmrCache } from '../response-cache'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -75,13 +76,51 @@ export type RequestContext = {
   }
   res?: ServerResponse | BaseNextResponse
   renderOpts?: WrapperRenderOpts
+  isHmrRefresh?: boolean
+  serverComponentsHmrCache?: ServerComponentsHmrCache
+}
+
+/**
+ * If middleware set cookies in this request (indicated by `x-middleware-set-cookie`),
+ * then merge those into the existing cookie object, so that when `cookies()` is accessed
+ * it's able to read the newly set cookies.
+ */
+function mergeMiddlewareCookies(
+  req: RequestContext['req'],
+  existingCookies: RequestCookies | ResponseCookies
+) {
+  if (
+    'x-middleware-set-cookie' in req.headers &&
+    typeof req.headers['x-middleware-set-cookie'] === 'string'
+  ) {
+    const setCookieValue = req.headers['x-middleware-set-cookie']
+    const responseHeaders = new Headers()
+
+    for (const cookie of splitCookiesString(setCookieValue)) {
+      responseHeaders.append('set-cookie', cookie)
+    }
+
+    const responseCookies = new ResponseCookies(responseHeaders)
+
+    // Transfer cookies from ResponseCookies to RequestCookies
+    for (const cookie of responseCookies.getAll()) {
+      existingCookies.set(cookie)
+    }
+  }
 }
 
 export const withRequestStore: WithStore<RequestStore, RequestContext> = <
   Result,
 >(
   storage: AsyncLocalStorage<RequestStore>,
-  { req, url, res, renderOpts }: RequestContext,
+  {
+    req,
+    url,
+    res,
+    renderOpts,
+    isHmrRefresh,
+    serverComponentsHmrCache,
+  }: RequestContext,
   callback: (store: RequestStore) => Result
 ): Result => {
   function defaultOnUpdateCookies(cookies: string[]) {
@@ -119,24 +158,7 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
           HeadersAdapter.from(req.headers)
         )
 
-        if (
-          'x-middleware-set-cookie' in req.headers &&
-          typeof req.headers['x-middleware-set-cookie'] === 'string'
-        ) {
-          const setCookieValue = req.headers['x-middleware-set-cookie']
-          const responseHeaders = new Headers()
-
-          for (const cookie of splitCookiesString(setCookieValue)) {
-            responseHeaders.append('set-cookie', cookie)
-          }
-
-          const responseCookies = new ResponseCookies(responseHeaders)
-
-          // Transfer cookies from ResponseCookies to RequestCookies
-          for (const cookie of responseCookies.getAll()) {
-            requestCookies.set(cookie.name, cookie.value ?? '')
-          }
-        }
+        mergeMiddlewareCookies(req, requestCookies)
 
         // Seal the cookies object that'll freeze out any methods that could
         // mutate the underlying data.
@@ -147,11 +169,15 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
     },
     get mutableCookies() {
       if (!cache.mutableCookies) {
-        cache.mutableCookies = getMutableCookies(
+        const mutableCookies = getMutableCookies(
           req.headers,
           renderOpts?.onUpdateCookies ||
             (res ? defaultOnUpdateCookies : undefined)
         )
+
+        mergeMiddlewareCookies(req, mutableCookies)
+
+        cache.mutableCookies = mutableCookies
       }
       return cache.mutableCookies
     },
@@ -171,6 +197,10 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
     afterContext: createAfterContext(renderOpts),
+    isHmrRefresh,
+    serverComponentsHmrCache:
+      serverComponentsHmrCache ||
+      (globalThis as any).__serverComponentsHmrCache,
   }
 
   if (store.afterContext) {
