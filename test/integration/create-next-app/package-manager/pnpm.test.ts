@@ -1,5 +1,4 @@
 import {
-  command,
   DEFAULT_FILES,
   FULL_EXAMPLE_PATH,
   projectFilesShouldExist,
@@ -23,13 +22,6 @@ describe('create-next-app with package manager pnpm', () => {
     )
 
     nextTgzFilename = pkgPaths.get('next')
-
-    await command('pnpm', ['--version'])
-      // install pnpm if not available
-      .catch(() =>
-        command('corepack', ['prepare', '--activate', 'pnpm@latest'])
-      )
-      .catch(() => command('npm', ['i', '-g', 'pnpm']))
   })
 
   it('should use pnpm for --use-pnpm flag', async () => {
