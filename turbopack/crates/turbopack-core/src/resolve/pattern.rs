@@ -10,7 +10,7 @@ use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, LinkContent, LinkType,
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(Hash, Clone, Debug, Default)]
 pub enum Pattern {
     Constant(RcStr),
@@ -57,6 +57,25 @@ fn concatenation_extend_or_merge_items(
     }
 }
 
+fn longest_common_prefix<'a>(strings: &[&'a str]) -> &'a str {
+    if strings.is_empty() {
+        return "";
+    }
+    let first = strings[0];
+    let mut len = first.len();
+    for str in &strings[1..] {
+        len = std::cmp::min(
+            len,
+            // TODO these are Unicode Scalar Values, not graphemes
+            str.chars()
+                .zip(first.chars())
+                .take_while(|&(a, b)| a == b)
+                .count(),
+        );
+    }
+    &strings[0][..len]
+}
+
 impl Pattern {
     // TODO this should be removed in favor of pattern resolving
     pub fn into_string(self) -> Option<RcStr> {
@@ -83,6 +102,67 @@ impl Pattern {
         }
     }
 
+    pub fn constant_prefix(&self) -> &str {
+        // The normalized pattern is a Alternative of maximally merged
+        // Concatenations, so extracting the first/only Concatenation child
+        // elements is enough.
+
+        fn collect_constant_prefix<'a: 'b, 'b>(pattern: &'a Pattern, result: &mut Vec<&'b str>) {
+            match pattern {
+                Pattern::Constant(c) => {
+                    result.push(c.as_str());
+                }
+                Pattern::Concatenation(list) => {
+                    if let Some(Pattern::Constant(first)) = list.first() {
+                        result.push(first.as_str());
+                    }
+                }
+                Pattern::Alternatives(_) => {
+                    panic!("for constant_prefix a Pattern must be normalized");
+                }
+                Pattern::Dynamic => {}
+            }
+        }
+
+        let mut strings: Vec<&str> = vec![];
+        match self {
+            c @ Pattern::Constant(_) | c @ Pattern::Concatenation(_) => {
+                collect_constant_prefix(c, &mut strings);
+            }
+            Pattern::Alternatives(list) => {
+                for c in list {
+                    collect_constant_prefix(c, &mut strings);
+                }
+            }
+            Pattern::Dynamic => {}
+        }
+        longest_common_prefix(&strings)
+    }
+
+    // Replace `*` in `template` with self.
+    pub fn spread_into_star(&self, template: &str) -> Pattern {
+        if template.contains("*") {
+            let mut split = template.split("*");
+            let (Some(prefix), Some(suffix)) = (split.next(), split.next()) else {
+                panic!("Invalid template in spread_into_star: '{}'", template);
+            };
+            if split.next().is_some() {
+                panic!("Invalid template in spread_into_star: '{}'", template);
+            }
+
+            let mut result = Pattern::Concatenation(vec![
+                Pattern::Constant(prefix.clone().into()),
+                self.clone(),
+                Pattern::Constant(suffix.clone().into()),
+            ]);
+            result.normalize();
+            result
+        } else {
+            self.clone()
+        }
+    }
+
+    /// Appends something to end the pattern.
     pub fn extend(&mut self, concatenated: impl Iterator<Item = Self>) {
         if let Pattern::Concatenation(list) = self {
             concatenation_extend_or_merge_items(list, concatenated);
@@ -99,6 +179,7 @@ impl Pattern {
         }
     }
 
+    /// Appends something to end the pattern.
     pub fn push(&mut self, pat: Pattern) {
         match (self, pat) {
             (Pattern::Concatenation(list), Pattern::Concatenation(more)) => {
@@ -122,6 +203,7 @@ impl Pattern {
         }
     }
 
+    /// Prepends something to front of the pattern.
     pub fn push_front(&mut self, pat: Pattern) {
         match (self, pat) {
             (Pattern::Concatenation(list), Pattern::Concatenation(mut more)) => {
@@ -407,6 +489,16 @@ impl Pattern {
                 .any(|alt| alt.match_internal(value, None, false).could_match_others())
         } else {
             self.match_internal(value, None, false).could_match_others()
+        }
+    }
+
+    /// Returns true if all matches of the the pattern start with `value`.
+    pub fn must_match(&self, value: &str) -> bool {
+        if let Pattern::Alternatives(list) = self {
+            list.iter()
+                .all(|alt| alt.match_internal(value, None, false).could_match())
+        } else {
+            self.match_internal(value, None, false).could_match()
         }
     }
 
@@ -1222,6 +1314,50 @@ mod tests {
         assert!(!pat.could_match("./inner/../"));
         assert!(!pat.could_match("./inner/./"));
         assert!(!pat.could_match("./inner/.git/"));
+    }
+
+    #[test]
+    fn constant_prefix() {
+        let pat = Pattern::Alternatives(vec![
+            Pattern::Constant("a/b/x".into()),
+            Pattern::Constant("a/b/y".into()),
+            Pattern::Concatenation(vec![Pattern::Constant("a/b/c/".into()), Pattern::Dynamic]),
+        ]);
+        assert_eq!(pat.constant_prefix(), "a/b/");
+    }
+
+    #[test]
+    fn spread_into_star() {
+        let pat =
+            Pattern::Concatenation(vec![Pattern::Constant("a/b/c/".into()), Pattern::Dynamic]);
+        assert_eq!(
+            pat.spread_into_star("before/*/after"),
+            Pattern::Concatenation(vec![
+                Pattern::Constant("before/a/b/c/".into()),
+                Pattern::Dynamic,
+                Pattern::Constant("/after".into())
+            ])
+        );
+
+        let pat = Pattern::Alternatives(vec![
+            Pattern::Concatenation(vec![Pattern::Constant("a/".into()), Pattern::Dynamic]),
+            Pattern::Concatenation(vec![Pattern::Constant("b/".into()), Pattern::Dynamic]),
+        ]);
+        assert_eq!(
+            pat.spread_into_star("before/*/after"),
+            Pattern::Alternatives(vec![
+                Pattern::Concatenation(vec![
+                    Pattern::Constant("before/a/".into()),
+                    Pattern::Dynamic,
+                    Pattern::Constant("/after".into())
+                ]),
+                Pattern::Concatenation(vec![
+                    Pattern::Constant("before/b/".into()),
+                    Pattern::Dynamic,
+                    Pattern::Constant("/after".into())
+                ]),
+            ])
+        );
     }
 
     #[rstest]
