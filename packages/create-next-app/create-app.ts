@@ -56,7 +56,10 @@ export async function createApp({
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = api ? 'api' : `${appRouter ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}` // Modify template selection logic
+  const template: TemplateType = api 
+    ? 'api' 
+    : `${appRouter ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`;
+
 
   if (api && template !== 'api') {
     console.error(`Invalid template for api flag: ${red(template)}`)
