@@ -83,6 +83,16 @@ export default function Form({
   }, [isVisible, actionProp, router])
 
   if (typeof actionProp !== 'string') {
+    if (process.env.NODE_ENV === 'development') {
+      if (replace || scroll) {
+        console.error(
+          'Passing `replace` or `scroll` to a next/form whose `action` is a function has no effect.\n' +
+            'See the relevant docs to learn how to control this behavior for navigations triggered from actions:\n' +
+            '  `redirect()`       - https://nextjs.org/docs/app/api-reference/functions/redirect#parameters\n' +
+            '  `router.replace()` - https://nextjs.org/docs/app/api-reference/functions/use-router#userouter\n'
+        )
+      }
+    }
     return <form {...props} ref={ownRef} />
   }
 
