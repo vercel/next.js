@@ -90,7 +90,7 @@ export async function validateTurboNextConfig({
       await loadConfig(phase, dir, {
         rawConfig: true,
       })
-    ) as NextConfig
+    )
 
     if (typeof rawNextConfig === 'function') {
       rawNextConfig = (rawNextConfig as any)(phase, {

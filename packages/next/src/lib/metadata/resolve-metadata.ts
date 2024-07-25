@@ -377,8 +377,9 @@ async function collectStaticImagesFiles(
   if (!metadata?.[type]) return undefined
 
   const iconPromises = metadata[type as 'icon' | 'apple'].map(
-    async (imageModule: (p: any) => Promise<MetadataImageModule[]>) =>
-      interopDefault(await imageModule(props))
+    async (imageModule: (p: any) => Promise<MetadataImageModule[]>) => {
+      return interopDefault(await imageModule(props))
+    }
   )
 
   return iconPromises?.length > 0
@@ -579,7 +580,7 @@ function inheritFromMetadata(
 const commonOgKeys = ['title', 'description', 'images'] as const
 function postProcessMetadata(
   metadata: ResolvedMetadata,
-  favicon: any,
+  favicon: IconDescriptor | undefined,
   titleTemplates: TitleTemplates,
   metadataContext: MetadataContext
 ): ResolvedMetadata {
@@ -767,7 +768,7 @@ export async function accumulateMetadata(
     warnings: new Set<string>(),
   }
 
-  let favicon
+  let favicon: IconDescriptor | undefined
   for (let i = 0; i < metadataItems.length; i++) {
     const staticFilesMetadata = metadataItems[i][1]
 

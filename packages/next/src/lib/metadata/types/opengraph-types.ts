@@ -122,7 +122,7 @@ type OpenGraphVideoOther = OpenGraphMetadata & {
   type: 'video.other'
 }
 
-type OGImage = string | OGImageDescriptor | URL
+export type OGImage = string | OGImageDescriptor | URL
 type OGImageDescriptor = {
   url: string | URL
   secureUrl?: string | URL

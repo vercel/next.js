@@ -130,8 +130,8 @@ async function loadComponentsImpl<N = any>({
   page: string
   isAppPath: boolean
 }): Promise<LoadComponentsReturnType<N>> {
-  let DocumentMod = {}
-  let AppMod = {}
+  let DocumentMod: DocumentType = {} as any
+  let AppMod: AppType = {} as any
   if (!isAppPath) {
     ;[DocumentMod, AppMod] = await Promise.all([
       requirePage('/_document', distDir, false),
