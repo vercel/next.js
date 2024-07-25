@@ -736,10 +736,23 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
   }
   switch (id.status) {
     case "fulfilled":
-      parentObject = id.value;
-      for (key = 1; key < reference.length; key++)
-        parentObject = parentObject[reference[key]];
-      return map(response, parentObject);
+      var value = id.value;
+      for (id = 1; id < reference.length; id++)
+        if (
+          ((value = value[reference[id]]), value.$$typeof === REACT_LAZY_TYPE)
+        )
+          if (((value = value._payload), "fulfilled" === value.status))
+            value = value.value;
+          else
+            return waitForReference(
+              value,
+              parentObject,
+              key,
+              response,
+              map,
+              reference.slice(id)
+            );
+      return map(response, value);
     case "pending":
     case "blocked":
       return waitForReference(id, parentObject, key, response, map, reference);

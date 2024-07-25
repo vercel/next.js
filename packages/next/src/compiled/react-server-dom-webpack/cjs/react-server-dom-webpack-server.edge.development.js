@@ -798,12 +798,15 @@
         task.environmentName = componentEnv;
       }
       prepareToUseHooksForComponent(prevThenableState, componentDebugInfo);
-      props = callComponentInDEV(
-        Component,
-        props,
-        componentDebugInfo,
-        task.debugTask
-      );
+      props = supportsComponentStorage
+        ? componentStorage.run(
+            componentDebugInfo,
+            callComponentInDEV,
+            Component,
+            props,
+            componentDebugInfo
+          )
+        : callComponentInDEV(Component, props, componentDebugInfo);
       if (1 === request.status) throw AbortSigil;
       if (
         "object" === typeof props &&
@@ -3132,7 +3135,7 @@
       }
     };
     var frameRegExp =
-        /^ {3} at (?:(.+) \(([^\)]+):(\d+):(\d+)\)|(?:async )?([^\)]+):(\d+):(\d+))$/,
+        /^ {3} at (?:(.+) \((.+):(\d+):(\d+)\)|(?:async )?(.+):(\d+):(\d+))$/,
       supportsRequestStorage = "function" === typeof AsyncLocalStorage,
       requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null,
       supportsComponentStorage = supportsRequestStorage,
@@ -3302,14 +3305,7 @@
         ) {
           currentOwner = componentDebugInfo;
           try {
-            return supportsComponentStorage
-              ? componentStorage.run(
-                  componentDebugInfo,
-                  Component,
-                  props,
-                  void 0
-                )
-              : Component(props, void 0);
+            return Component(props, void 0);
           } finally {
             currentOwner = null;
           }

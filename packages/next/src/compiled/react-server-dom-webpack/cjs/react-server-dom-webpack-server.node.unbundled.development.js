@@ -821,11 +821,12 @@
         task.environmentName = componentEnv;
       }
       prepareToUseHooksForComponent(prevThenableState, componentDebugInfo);
-      props = callComponentInDEV(
+      props = componentStorage.run(
+        componentDebugInfo,
+        callComponentInDEV,
         Component,
         props,
-        componentDebugInfo,
-        task.debugTask
+        componentDebugInfo
       );
       if (1 === request.status) throw AbortSigil;
       if (
@@ -3129,7 +3130,7 @@
       }
     };
     var frameRegExp =
-        /^ {3} at (?:(.+) \(([^\)]+):(\d+):(\d+)\)|(?:async )?([^\)]+):(\d+):(\d+))$/,
+        /^ {3} at (?:(.+) \((.+):(\d+):(\d+)\)|(?:async )?(.+):(\d+):(\d+))$/,
       requestStorage = new async_hooks.AsyncLocalStorage(),
       componentStorage = new async_hooks.AsyncLocalStorage(),
       TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference"),
@@ -3286,12 +3287,7 @@
         ) {
           currentOwner = componentDebugInfo;
           try {
-            return componentStorage.run(
-              componentDebugInfo,
-              Component,
-              props,
-              void 0
-            );
+            return Component(props, void 0);
           } finally {
             currentOwner = null;
           }

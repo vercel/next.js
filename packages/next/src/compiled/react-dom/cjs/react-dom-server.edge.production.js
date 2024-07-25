@@ -5885,13 +5885,13 @@ function abort(request, reason) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_744 = React.version;
 if (
-  "19.0.0-rc-f6cce072-20240723" !==
+  "19.0.0-rc-76002254-20240724" !==
   isomorphicReactPackageVersion$jscomp$inline_744
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_744 +
-        "\n  - react-dom:  19.0.0-rc-f6cce072-20240723\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.0.0-rc-76002254-20240724\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -5979,4 +5979,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.0.0-rc-f6cce072-20240723";
+exports.version = "19.0.0-rc-76002254-20240724";

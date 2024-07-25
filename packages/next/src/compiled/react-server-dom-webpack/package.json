@@ -46,8 +46,8 @@
     "neo-async": "^2.6.1"
   },
   "peerDependencies": {
-    "react": "19.0.0-rc-f6cce072-20240723",
-    "react-dom": "19.0.0-rc-f6cce072-20240723",
+    "react": "19.0.0-rc-76002254-20240724",
+    "react-dom": "19.0.0-rc-76002254-20240724",
     "webpack": "^5.59.0"
   }
 }

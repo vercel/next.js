@@ -4389,18 +4389,26 @@
       "function" === typeof fn && componentFrameCache.set(fn, sampleLines);
       return sampleLines;
     }
-    function isNotExternal(stackFrame) {
-      return !externalRegExp.test(stackFrame);
-    }
-    function filterDebugStack(error) {
+    function formatOwnerStack(error) {
+      var prevPrepareStackTrace = Error.prepareStackTrace;
+      Error.prepareStackTrace = void 0;
       error = error.stack;
+      Error.prepareStackTrace = prevPrepareStackTrace;
       error.startsWith("Error: react-stack-top-frame\n") &&
         (error = error.slice(29));
-      var idx = error.indexOf("react-stack-bottom-frame");
-      -1 !== idx && (idx = error.lastIndexOf("\n", idx));
-      if (-1 !== idx) error = error.slice(0, idx);
+      prevPrepareStackTrace = error.indexOf("\n");
+      -1 !== prevPrepareStackTrace &&
+        (error = error.slice(prevPrepareStackTrace + 1));
+      prevPrepareStackTrace = error.indexOf("react-stack-bottom-frame");
+      -1 !== prevPrepareStackTrace &&
+        (prevPrepareStackTrace = error.lastIndexOf(
+          "\n",
+          prevPrepareStackTrace
+        ));
+      if (-1 !== prevPrepareStackTrace)
+        error = error.slice(0, prevPrepareStackTrace);
       else return "";
-      return error.split("\n").slice(1).filter(isNotExternal).join("\n");
+      return error;
     }
     function describeComponentStackByType(type) {
       if ("string" === typeof type) return describeBuiltInComponentFrame(type);
@@ -4869,14 +4877,14 @@
         for (; componentStack; )
           (JSCompiler_temp_const = null),
             null != componentStack.debugStack
-              ? (JSCompiler_temp_const = filterDebugStack(
+              ? (JSCompiler_temp_const = formatOwnerStack(
                   componentStack.debugStack
                 ))
               : ((JSCompiler_inline_result = componentStack),
                 null != JSCompiler_inline_result.stack &&
                   (JSCompiler_temp_const =
                     "string" !== typeof JSCompiler_inline_result.stack
-                      ? (JSCompiler_inline_result.stack = filterDebugStack(
+                      ? (JSCompiler_inline_result.stack = formatOwnerStack(
                           JSCompiler_inline_result.stack
                         ))
                       : JSCompiler_inline_result.stack)),
@@ -7972,11 +7980,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-experimental-f6cce072-20240723" !== isomorphicReactPackageVersion)
+      if ("19.0.0-experimental-76002254-20240724" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-experimental-f6cce072-20240723\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-experimental-76002254-20240724\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -9457,8 +9465,7 @@
     var componentFrameCache = new (
       "function" === typeof WeakMap ? WeakMap : Map
     )();
-    var externalRegExp = /\/node_modules\/|\(<anonymous>/,
-      callComponent = {
+    var callComponent = {
         "react-stack-bottom-frame": function (Component, props, secondArg) {
           return Component(props, secondArg);
         }
@@ -9696,5 +9703,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.0.0-experimental-f6cce072-20240723";
+    exports.version = "19.0.0-experimental-76002254-20240724";
   })();
