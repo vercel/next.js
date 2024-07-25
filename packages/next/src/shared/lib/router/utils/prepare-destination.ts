@@ -176,7 +176,9 @@ export function prepareDestination(args: {
   let escapedDestination = args.destination
 
   for (const param of Object.keys({ ...args.params, ...query })) {
-    escapedDestination = escapeSegment(escapedDestination, param)
+    escapedDestination = param
+      ? escapeSegment(escapedDestination, param)
+      : escapedDestination
   }
 
   const parsedDestination = parseUrl(escapedDestination)
