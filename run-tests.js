@@ -407,7 +407,6 @@ ${ENDGROUP}`)
 
   if (
     !options.dry &&
-    process.platform !== 'win32' &&
     process.env.NEXT_TEST_MODE !== 'deploy' &&
     ((options.type && options.type !== 'unit') || hasIsolatedTests)
   ) {
