@@ -12,21 +12,29 @@ const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
 type HTMLFormProps = HTMLProps<HTMLFormElement>
 type DisallowedFormProps = (typeof DISALLOWED_FORM_PROPS)[number]
 
-export type FormProps = Omit<HTMLFormProps, 'action' | DisallowedFormProps> &
-  Required<Pick<HTMLFormProps, 'action'>> & {
-    /**
-     * Replace the current `history` state instead of adding a new url into the stack.
-     *
-     * @defaultValue `false`
-     */
-    replace?: boolean
-    /**
-     * Whether to override the default scroll behavior
-     *
-     * @defaultValue `true`
-     */
-    scroll?: boolean
-  }
+export type FormProps = {
+  /**
+   * `action` can be either a `string` or a function.
+   * - If `action` is a string, it will be interpreted as a path or URL to navigate to when the form is submitted.
+   *   The path will be prefetched when the form becomes visible.
+   * - If `action` is a function, it will be called when the form is submitted. See the [React docs](https://react.dev/reference/react-dom/components/form#props) for more.
+   */
+  action: NonNullable<HTMLFormProps['action']>
+  /**
+   * Whether submitting the form should replace the current `history` state instead of adding a new url into the stack.
+   * Only valid if `action` is a string.
+   *
+   * @defaultValue `false`
+   */
+  replace?: boolean
+  /**
+   * Override the default scroll behavior when navigating.
+   * Only valid if `action` is a string.
+   *
+   * @defaultValue `true`
+   */
+  scroll?: boolean
+} & Omit<HTMLFormProps, 'action' | DisallowedFormProps>
 
 export default function Form({
   replace,
