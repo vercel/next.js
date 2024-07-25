@@ -72,18 +72,24 @@ const MAX_TASKS_PER_OLD_GENERATION: usize = 200_000;
 const PERCENTAGE_TO_COLLECT: usize = 30;
 const TASK_BASE_MEMORY_USAGE: usize = 1_000;
 const TASK_BASE_COMPUTE_DURATION_IN_MICROS: u64 = 1_000;
-pub const PERCENTAGE_TARGET_MEMORY: usize = 88;
-pub const PERCENTAGE_IDLE_TARGET_MEMORY: usize = 75;
+pub const PERCENTAGE_MIN_TARGET_MEMORY: usize = 70;
+pub const PERCENTAGE_MAX_TARGET_MEMORY: usize = 75;
+pub const PERCENTAGE_MIN_IDLE_TARGET_MEMORY: usize = 55;
+pub const PERCENTAGE_MAX_IDLE_TARGET_MEMORY: usize = 60;
+pub const MAX_GC_STEPS: usize = 100;
 
 struct OldGeneration {
     tasks: Vec<TaskId>,
     generation: NonZeroU32,
 }
 
+#[derive(Default)]
 struct ProcessGenerationResult {
+    old_generations: usize,
     priority: Option<GcPriority>,
     content_dropped_count: usize,
     unloaded_count: usize,
+    already_unloaded_count: usize,
 }
 
 struct ProcessDeactivationsResult {
@@ -222,22 +228,22 @@ impl GcQueue {
         &self,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
-    ) -> ProcessGenerationResult {
-        let old_generation = {
+    ) -> Option<ProcessGenerationResult> {
+        let old_generation_info = {
             let guard = &mut self.generations.lock();
-            guard.pop_back()
+            let len = guard.len();
+            guard.pop_back().map(|g| (g, len))
         };
-        let Some(OldGeneration {
-            mut tasks,
-            generation,
-        }) = old_generation
+        let Some((
+            OldGeneration {
+                mut tasks,
+                generation,
+            },
+            old_generations,
+        )) = old_generation_info
         else {
             // No old generation to process
-            return ProcessGenerationResult {
-                priority: None,
-                content_dropped_count: 0,
-                unloaded_count: 0,
-            };
+            return None;
         };
         // Check all tasks for the correct generation
         let mut indices = Vec::with_capacity(tasks.len());
@@ -256,11 +262,10 @@ impl GcQueue {
 
         if indices.is_empty() {
             // No valid tasks in old generation to process
-            return ProcessGenerationResult {
-                priority: None,
-                content_dropped_count: 0,
-                unloaded_count: 0,
-            };
+            return Some(ProcessGenerationResult {
+                old_generations,
+                ..ProcessGenerationResult::default()
+            });
         }
 
         // Sorting based on sort_by_cached_key from std lib
@@ -316,6 +321,7 @@ impl GcQueue {
         // GC the tasks
         let mut content_dropped_count = 0;
         let mut unloaded_count = 0;
+        let mut already_unloaded_count = 0;
         for task in tasks[..tasks_to_collect].iter() {
             backend.with_task(*task, |task| {
                 match task.run_gc(generation, self, backend, turbo_tasks) {
@@ -327,26 +333,31 @@ impl GcQueue {
                     GcResult::Unloaded => {
                         unloaded_count += 1;
                     }
+                    GcResult::AlreadyUnloaded => {
+                        already_unloaded_count += 1;
+                    }
                 }
             });
         }
 
-        ProcessGenerationResult {
+        Some(ProcessGenerationResult {
+            old_generations,
             priority: Some(max_priority),
             content_dropped_count,
             unloaded_count,
-        }
+            already_unloaded_count,
+        })
     }
 
-    /// Run garbage collection on the queue.
+    /// Run garbage collection on the queue. Returns true, if some progress has
+    /// been made. Returns the number of old generations.
     pub fn run_gc(
         &self,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
-    ) -> Option<(GcPriority, usize)> {
+    ) -> Option<usize> {
         let span = tracing::trace_span!(
-            parent: None,
-            "garbage collection",
+            "garbage collection step",
             priority = Empty,
             deactivations_count = Empty,
             content_dropped_count = Empty,
@@ -359,21 +370,27 @@ impl GcQueue {
             count: deactivations_count,
         } = self.process_deactivations(backend, turbo_tasks);
 
-        let ProcessGenerationResult {
+        if let Some(ProcessGenerationResult {
+            old_generations,
             priority,
             content_dropped_count,
             unloaded_count,
-        } = self.process_old_generation(backend, turbo_tasks);
+            already_unloaded_count,
+        }) = self.process_old_generation(backend, turbo_tasks)
+        {
+            span.record("deactivations_count", deactivations_count);
+            span.record("content_dropped_count", content_dropped_count);
+            span.record("unloaded_count", unloaded_count);
+            span.record("already_unloaded_count", already_unloaded_count);
+            if let Some(priority) = &priority {
+                span.record("priority", debug(priority));
+            } else {
+                span.record("priority", "");
+            }
 
-        span.record("deactivations_count", deactivations_count);
-        span.record("content_dropped_count", content_dropped_count);
-        span.record("unloaded_count", unloaded_count);
-        if let Some(priority) = &priority {
-            span.record("priority", debug(priority));
+            Some(old_generations)
         } else {
-            span.record("priority", "");
+            (deactivations_count > 0).then_some(0)
         }
-
-        priority.map(|p| (p, content_dropped_count))
     }
 }
