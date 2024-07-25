@@ -5,6 +5,7 @@ import { useRouter } from './components/navigation'
 import { addBasePath } from './add-base-path'
 import { useIntersection } from './use-intersection'
 import { useMergedRef } from './use-merged-ref'
+import type { AppRouterInstance } from '../shared/lib/app-router-context.shared-runtime'
 
 const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
 
@@ -12,10 +13,24 @@ type HTMLFormProps = HTMLProps<HTMLFormElement>
 type DisallowedFormProps = (typeof DISALLOWED_FORM_PROPS)[number]
 
 export type FormProps = Omit<HTMLFormProps, 'action' | DisallowedFormProps> &
-  Required<Pick<HTMLFormProps, 'action'>> & { replace?: boolean }
+  Required<Pick<HTMLFormProps, 'action'>> & {
+    /**
+     * Replace the current `history` state instead of adding a new url into the stack.
+     *
+     * @defaultValue `false`
+     */
+    replace?: boolean
+    /**
+     * Whether to override the default scroll behavior
+     *
+     * @defaultValue `true`
+     */
+    scroll?: boolean
+  }
 
 export default function Form({
   replace,
+  scroll,
   ref: externalRef,
   ...props
 }: FormProps) {
@@ -83,6 +98,7 @@ export default function Form({
           router,
           actionHref,
           replace,
+          scroll,
           onSubmit: props.onSubmit,
         })
       }
@@ -96,12 +112,14 @@ function onFormSubmit(
     actionHref,
     onSubmit,
     replace,
+    scroll,
     router,
   }: {
     actionHref: string
     onSubmit: FormProps['onSubmit']
     replace: FormProps['replace']
-    router: any
+    scroll: FormProps['scroll']
+    router: AppRouterInstance
   }
 ) {
   if (typeof onSubmit === 'function') {
@@ -178,7 +196,7 @@ function onFormSubmit(
   event.preventDefault()
 
   const method = replace ? 'replace' : 'push'
-  router[method](targetUrl.href)
+  router[method](targetUrl.href, { scroll })
 }
 
 const isSupportedEncType = (value: string) =>
