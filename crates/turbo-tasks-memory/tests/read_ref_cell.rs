@@ -4,14 +4,16 @@ use std::sync::Mutex;
 
 use anyhow::Result;
 use turbo_tasks::{get_invalidator, Invalidator, ReadRef, Vc};
-use turbo_tasks_testing::{register, run};
+use turbo_tasks_testing::{register, run, Registration};
 
-register!();
+static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn read_ref() {
-    run! {
-        let counter = Counter::cell(Counter { value: Mutex::new((0, None))});
+    run(&REGISTRATION, async {
+        let counter = Counter::cell(Counter {
+            value: Mutex::new((0, None)),
+        });
 
         let counter_value = counter.get_value();
 
@@ -28,7 +30,8 @@ async fn read_ref() {
         let ref_counter_value = ref_counter.get_value();
 
         // However, `local_counter_value` will point to the value of `counter_value`
-        // at the time it was turned into a trait reference (just like a `ReadRef` would).
+        // at the time it was turned into a trait reference (just like a `ReadRef`
+        // would).
         let local_counter_value = ReadRef::cell(counter_value.await?).get_value();
 
         counter.await?.incr();
@@ -37,7 +40,11 @@ async fn read_ref() {
         assert_eq!(*counter_value.strongly_consistent().await?, 2);
         assert_eq!(*ref_counter_value.strongly_consistent().await?, 2);
         assert_eq!(*local_counter_value.strongly_consistent().await?, 1);
-    }
+
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
 }
 
 #[turbo_tasks::value(transparent)]

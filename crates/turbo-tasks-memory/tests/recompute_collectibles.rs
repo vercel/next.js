@@ -2,28 +2,30 @@
 
 use anyhow::{bail, Result};
 use turbo_tasks::{emit, CollectiblesSource, RcStr, State, ValueToString, Vc};
-use turbo_tasks_testing::{register, run};
+use turbo_tasks_testing::{register, run, Registration};
 
-register!();
+static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn recompute() {
-    run! {
+    run(&REGISTRATION, async {
         let input = ChangingInput {
             state: State::new(1),
-        }.cell();
+        }
+        .cell();
         let output = compute(input, 100);
-        let read = output.await?;
+        let read = output.await.unwrap();
         assert_eq!(read.value, 42);
         assert_eq!(read.collectible, "1");
 
         for i in 2..100 {
-            input.await?.state.set(i);
-            let read = output.strongly_consistent().await?;
+            input.await.unwrap().state.set(i);
+            let read = output.strongly_consistent().await.unwrap();
             assert_eq!(read.value, 42);
             assert_eq!(read.collectible, i.to_string());
         }
-    }
+    })
+    .await
 }
 
 #[turbo_tasks::value]

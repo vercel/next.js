@@ -20,7 +20,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-lazy_static = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
@@ -31,7 +30,6 @@ turbopack-core = { workspace = true }
 [dev-dependencies]
 httpmock = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-turbo-tasks-memory = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 
 [build-dependencies]

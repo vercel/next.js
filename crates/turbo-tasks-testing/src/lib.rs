@@ -1,7 +1,7 @@
 //! Testing utilities and macros for turbo-tasks and applications based on it.
 
-mod macros;
 pub mod retry;
+mod run;
 
 use std::{
     borrow::Cow,
@@ -23,6 +23,8 @@ use turbo_tasks::{
     CellId, InvalidationReason, MagicAny, RawVc, TaskId, TraitTypeId, TurboTasksApi,
     TurboTasksCallApi,
 };
+
+pub use crate::run::{run, Registration};
 
 enum Task {
     Spawned(Event),
