@@ -1,13 +1,16 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt::Write};
 
 use anyhow::{bail, Result};
 use indexmap::IndexSet;
 use rustc_hash::FxHashMap;
 use swc_core::{
     common::{util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
-    ecma::ast::{
-        ExportNamedSpecifier, Id, Ident, ImportDecl, Module, ModuleDecl, ModuleExportName,
-        ModuleItem, NamedExport, Program,
+    ecma::{
+        ast::{
+            ExportAll, ExportNamedSpecifier, Id, Ident, ImportDecl, Module, ModuleDecl,
+            ModuleExportName, ModuleItem, NamedExport, Program,
+        },
+        codegen::{text_writer::JsWriter, Emitter},
     },
 };
 use turbo_tasks::{RcStr, ValueToString, Vc};
@@ -21,7 +24,6 @@ use crate::{analyzer::graph::EvalContext, parse::ParseResult, EcmascriptModuleAs
 
 pub mod asset;
 pub mod chunk_item;
-mod cjs_finder;
 mod graph;
 pub mod merge;
 #[cfg(test)]
@@ -110,6 +112,10 @@ impl Analyzer<'_> {
                 for id in item.var_decls.iter() {
                     let state = self.vars.entry(id.clone()).or_default();
 
+                    if state.declarator.is_none() {
+                        state.declarator = Some(item_id.clone());
+                    }
+
                     if item.is_hoisted {
                         state.last_writes.push(item_id.clone());
                     } else {
@@ -171,7 +177,7 @@ impl Analyzer<'_> {
                     if let Some(declarator) = &state.declarator {
                         if declarator != item_id {
                             // A write also depends on the declaration.
-                            self.g.add_weak_deps(item_id, [declarator].iter().copied());
+                            self.g.add_strong_deps(item_id, [declarator]);
                         }
                     }
                 }
@@ -256,6 +262,13 @@ impl Analyzer<'_> {
 
                     let state = get_var(&self.vars, id);
                     self.g.add_strong_deps(item_id, state.last_writes.iter());
+
+                    if let Some(declarator) = &state.declarator {
+                        if declarator != item_id {
+                            // A read also depends on the declaration.
+                            self.g.add_strong_deps(item_id, [declarator]);
+                        }
+                    }
                 }
 
                 // For each var in EVENTUAL_WRITE_VARS:
@@ -266,6 +279,13 @@ impl Analyzer<'_> {
                     let state = get_var(&self.vars, id);
 
                     self.g.add_weak_deps(item_id, state.last_reads.iter());
+
+                    if let Some(declarator) = &state.declarator {
+                        if declarator != item_id {
+                            // A write also depends on the declaration.
+                            self.g.add_strong_deps(item_id, [declarator]);
+                        }
+                    }
                 }
 
                 // (no state update happens, since this is only triggered by
@@ -302,6 +322,7 @@ impl Analyzer<'_> {
 pub(crate) enum Key {
     ModuleEvaluation,
     Export(RcStr),
+    Exports,
 }
 
 /// Converts [Vc<ModulePart>] to the index.
@@ -312,9 +333,9 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
     let key = match &*part {
         ModulePart::Evaluation => Key::ModuleEvaluation,
         ModulePart::Export(export) => Key::Export(export.await?.as_str().into()),
+        ModulePart::Exports => Key::Exports,
         ModulePart::Internal(part_id) => return Ok(*part_id),
         ModulePart::Locals
-        | ModulePart::Exports
         | ModulePart::Facade
         | ModulePart::RenamedExport { .. }
         | ModulePart::RenamedNamespace { .. } => {
@@ -322,23 +343,64 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
         }
     };
 
-    let entrypoints = match &result {
-        SplitResult::Ok { entrypoints, .. } => entrypoints,
-        _ => bail!("split failed"),
+    let SplitResult::Ok {
+        entrypoints,
+        modules,
+        ..
+    } = &result
+    else {
+        bail!("split failed")
     };
 
-    let part_id = match entrypoints.get(&key) {
-        Some(id) => *id,
-        None => {
-            bail!(
-                "could not find part id for module part {:?} in {:?}",
-                key,
-                entrypoints
-            )
+    if let Some(id) = entrypoints.get(&key) {
+        return Ok(*id);
+    }
+
+    // This is required to handle `export * from 'foo'`
+    if let ModulePart::Export(..) = &*part {
+        if let Some(&v) = entrypoints.get(&Key::Exports) {
+            return Ok(v);
         }
-    };
+    }
 
-    Ok(part_id)
+    let mut dump = String::new();
+
+    for (idx, m) in modules.iter().enumerate() {
+        let ParseResult::Ok {
+            program,
+            source_map,
+            ..
+        } = &*m.await?
+        else {
+            bail!("failed to get module")
+        };
+
+        {
+            let mut buf = vec![];
+
+            {
+                let wr = JsWriter::new(Default::default(), "\n", &mut buf, None);
+
+                let mut emitter = Emitter {
+                    cfg: Default::default(),
+                    comments: None,
+                    cm: source_map.clone(),
+                    wr,
+                };
+
+                emitter.emit_program(program).unwrap();
+            }
+            let code = String::from_utf8(buf).unwrap();
+
+            writeln!(dump, "# Module #{idx}:\n{code}\n\n\n")?;
+        }
+    }
+
+    bail!(
+        "could not find part id for module part {:?} in {:?}\n\nModule dump:\n{dump}",
+        key,
+        entrypoints
+    )
 }
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
@@ -355,6 +417,9 @@ pub(crate) enum SplitResult {
 
         #[turbo_tasks(trace_ignore)]
         deps: FxHashMap<u32, Vec<u32>>,
+
+        #[turbo_tasks(debug_ignore, trace_ignore)]
+        star_reexports: Vec<ExportAll>,
     },
     Failed {
         parse_result: Vc<ParseResult>,
@@ -372,7 +437,12 @@ impl PartialEq for SplitResult {
 
 #[turbo_tasks::function]
 pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<SplitResult>> {
-    Ok(split(asset.source().ident(), asset.source(), asset.parse()))
+    Ok(split(
+        asset.source().ident(),
+        asset.source(),
+        asset.parse(),
+        asset.options().await?.special_exports,
+    ))
 }
 
 #[turbo_tasks::function]
@@ -380,6 +450,7 @@ pub(super) async fn split(
     ident: Vc<AssetIdent>,
     source: Vc<Box<dyn Source>>,
     parsed: Vc<ParseResult>,
+    special_exports: Vc<Vec<RcStr>>,
 ) -> Result<Vc<SplitResult>> {
     let parse_result = parsed.await?;
 
@@ -393,7 +464,7 @@ pub(super) async fn split(
             ..
         } => {
             // If the script file is a common js file, we cannot split the module
-            if cjs_finder::contains_cjs(program) {
+            if util::should_skip_tree_shaking(program, &special_exports.await?) {
                 return Ok(SplitResult::Failed {
                     parse_result: parsed,
                 }
@@ -419,6 +490,7 @@ pub(super) async fn split(
                 entrypoints,
                 part_deps,
                 modules,
+                star_reexports,
             } = dep_graph.split_module(&items);
 
             assert_ne!(modules.len(), 0, "modules.len() == 0;\nModule: {module:?}",);
@@ -431,7 +503,6 @@ pub(super) async fn split(
                     modules.len()
                 );
             }
-
             let modules = modules
                 .into_iter()
                 .map(|module| {
@@ -440,7 +511,6 @@ pub(super) async fn split(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
-                        false,
                         Some(source),
                     );
 
@@ -459,6 +529,7 @@ pub(super) async fn split(
                 entrypoints,
                 deps: part_deps,
                 modules,
+                star_reexports,
             }
             .cell())
         }
@@ -483,6 +554,7 @@ pub(super) async fn part_of_module(
             modules,
             entrypoints,
             deps,
+            star_reexports,
             ..
         } => {
             debug_assert_ne!(modules.len(), 0, "modules.len() == 0");
@@ -552,14 +624,18 @@ pub(super) async fn part_of_module(
                             },
                         )));
 
+                    module.body.extend(star_reexports.iter().map(|export_all| {
+                        ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export_all.clone()))
+                    }));
+
                     let program = Program::Module(module);
                     let eval_context = EvalContext::new(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
-                        true,
                         None,
                     );
+
                     return Ok(ParseResult::Ok {
                         program,
                         comments: comments.clone(),
@@ -624,12 +700,15 @@ pub(super) async fn part_of_module(
                             )));
                     }
 
+                    module.body.extend(star_reexports.iter().map(|export_all| {
+                        ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export_all.clone()))
+                    }));
+
                     let program = Program::Module(module);
                     let eval_context = EvalContext::new(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
-                        true,
                         None,
                     );
                     return Ok(ParseResult::Ok {

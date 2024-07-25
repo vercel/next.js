@@ -78,12 +78,14 @@ impl ModuleOptions {
             execution_context,
             ref rules,
             esm_url_rewrite_behavior,
+            special_exports,
             import_externals,
             ignore_dynamic_requests,
             use_swc_css,
             ref enable_typeof_window_inlining,
             ..
         } = *module_options_context.await?;
+        let special_exports = special_exports.unwrap_or_default();
 
         if !rules.is_empty() {
             let path_value = path.await?;
@@ -122,6 +124,7 @@ impl ModuleOptions {
             tree_shaking_mode,
             url_rewrite_behavior: esm_url_rewrite_behavior,
             import_externals,
+            special_exports,
             ignore_dynamic_requests,
             refresh,
             ..Default::default()

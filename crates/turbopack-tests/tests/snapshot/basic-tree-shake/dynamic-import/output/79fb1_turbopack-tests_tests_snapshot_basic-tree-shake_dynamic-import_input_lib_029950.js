@@ -4,7 +4,7 @@
 
 __turbopack_export_value__((__turbopack_import__) => {
     return Promise.all([
-  "output/79fb1_turbopack-tests_tests_snapshot_basic-tree-shake_dynamic-import_input_lib_05eac0.js"
+  "output/79fb1_turbopack-tests_tests_snapshot_basic-tree-shake_dynamic-import_input_lib_f28c6f.js"
 ].map((chunk) => __turbopack_load__(chunk))).then(() => {
         return __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import/input/lib.js [test] (ecmascript) <facade>");
     });
