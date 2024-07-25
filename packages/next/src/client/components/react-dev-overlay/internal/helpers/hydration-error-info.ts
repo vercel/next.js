@@ -17,10 +17,10 @@ export const hydrationErrorState: HydrationErrorState = {}
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 const htmlTagsWarnings = new Set([
-  'In HTML, %s cannot be a child of <%s>.%s\nThis will cause a hydration error.%s',
-  'In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s',
-  'In HTML, text nodes cannot be a child of <%s>.\nThis will cause a hydration error.',
-  "In HTML, whitespace text nodes cannot be a child of <%s>. Make sure you don't have any extra whitespace between tags on each line of your source code.\nThis will cause a hydration error.",
+  'Warning: In HTML, %s cannot be a child of <%s>.%s\nThis will cause a hydration error.%s',
+  'Warning: In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s',
+  'Warning: In HTML, text nodes cannot be a child of <%s>.\nThis will cause a hydration error.',
+  "Warning: In HTML, whitespace text nodes cannot be a child of <%s>. Make sure you don't have any extra whitespace between tags on each line of your source code.\nThis will cause a hydration error.",
 ])
 
 export const getHydrationWarningType = (msg: NullableText): 'tag' | 'text' => {

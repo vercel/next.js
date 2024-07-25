@@ -7,9 +7,6 @@ import {
   getRedboxSource,
 } from 'next-test-utils'
 
-const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-const gateNotReactExperimental = isPPREnabled ? it.failing : it
-
 describe('app dir - dynamic error trace', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
@@ -30,17 +27,15 @@ describe('app dir - dynamic error trace', () => {
   })
   if (skipped) return
 
-  gateNotReactExperimental('should show the error trace', async () => {
+  it('should show the error trace', async () => {
     const browser = await next.browser('/')
     await assertHasRedbox(browser)
     await expandCallStack(browser)
     const callStack = await getRedboxCallStack(browser)
 
-    // eslint-disable-next-line jest/no-standalone-expect -- this is a test
     expect(callStack).toContain('node_modules/headers-lib/index.mjs')
 
     const source = await getRedboxSource(browser)
-    // eslint-disable-next-line jest/no-standalone-expect -- this is a test
     expect(source).toContain('app/lib.js')
   })
 })

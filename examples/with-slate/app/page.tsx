@@ -1,39 +1,32 @@
+"use client";
+
 import { useState } from "react";
 import { createEditor, Descendant } from "slate";
 import { Slate, Editable, withReact } from "slate-react";
-import { withHistory } from "slate-history";
-import { InferGetServerSidePropsType } from "next";
 
-export async function getServerSideProps() {
-  return {
-    props: {
-      editorState: [
-        {
-          children: [
-            { text: "This is editable plain text, just like a <textarea>!" },
-          ],
-        },
-      ],
-    },
-  };
-}
+const initialValue: Descendant[] = [
+  {
+    children: [
+      { text: "This is editable plain text, just like a <textarea>!" },
+    ],
+  },
+];
 
 async function saveEditorState(edtorState: Descendant[]) {
-  const response = await fetch("/api/editor-state", {
+  const response = await fetch("/api/editor-state/", {
     method: "POST",
     body: JSON.stringify(edtorState),
   });
   return response.json();
 }
 
-export default function IndexPage({
-  editorState,
-}: InferGetServerSidePropsType<typeof getServerSideProps>) {
-  const [editor] = useState(() => withReact(withHistory(createEditor())));
+export default function IndexPage() {
+  const [editor] = useState(() => withReact(createEditor()));
+
   return (
     <Slate
       editor={editor}
-      value={editorState}
+      initialValue={initialValue}
       onChange={async (value) => {
         const isAstChange = editor.operations.some(
           (op) => "set_selection" !== op.type,
