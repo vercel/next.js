@@ -485,18 +485,26 @@
       "function" === typeof fn && componentFrameCache.set(fn, sampleLines);
       return sampleLines;
     }
-    function isNotExternal(stackFrame) {
-      return !externalRegExp.test(stackFrame);
-    }
-    function filterDebugStack(error) {
+    function formatOwnerStack(error) {
+      var prevPrepareStackTrace = Error.prepareStackTrace;
+      Error.prepareStackTrace = void 0;
       error = error.stack;
+      Error.prepareStackTrace = prevPrepareStackTrace;
       error.startsWith("Error: react-stack-top-frame\n") &&
         (error = error.slice(29));
-      var idx = error.indexOf("react-stack-bottom-frame");
-      -1 !== idx && (idx = error.lastIndexOf("\n", idx));
-      if (-1 !== idx) error = error.slice(0, idx);
+      prevPrepareStackTrace = error.indexOf("\n");
+      -1 !== prevPrepareStackTrace &&
+        (error = error.slice(prevPrepareStackTrace + 1));
+      prevPrepareStackTrace = error.indexOf("react-stack-bottom-frame");
+      -1 !== prevPrepareStackTrace &&
+        (prevPrepareStackTrace = error.lastIndexOf(
+          "\n",
+          prevPrepareStackTrace
+        ));
+      if (-1 !== prevPrepareStackTrace)
+        error = error.slice(0, prevPrepareStackTrace);
       else return "";
-      return error.split("\n").slice(1).filter(isNotExternal).join("\n");
+      return error;
     }
     function describeFiber(fiber) {
       switch (fiber.tag) {
@@ -600,13 +608,13 @@
             workInProgress &&
               debugStack &&
               ("string" !== typeof debugStack &&
-                (fiber._debugStack = debugStack = filterDebugStack(debugStack)),
+                (fiber._debugStack = debugStack = formatOwnerStack(debugStack)),
               "" !== debugStack && (info += "\n" + debugStack));
           } else if (null != workInProgress.debugStack) {
             var ownerStack = workInProgress.debugStack;
             (workInProgress = workInProgress.owner) &&
               ownerStack &&
-              (info += "\n" + filterDebugStack(ownerStack));
+              (info += "\n" + formatOwnerStack(ownerStack));
           } else break;
         var JSCompiler_inline_result = info;
       } catch (x) {
@@ -7649,10 +7657,7 @@
             (null === legacyErrorBoundariesThatAlreadyFailed
               ? (legacyErrorBoundariesThatAlreadyFailed = new Set([this]))
               : legacyErrorBoundariesThatAlreadyFailed.add(this));
-          var stack = errorInfo.stack;
-          this.componentDidCatch(errorInfo.value, {
-            componentStack: null !== stack ? stack : ""
-          });
+          callComponentDidCatchInDEV(this, errorInfo);
           "function" === typeof getDerivedStateFromError ||
             (0 === (fiber.lanes & SyncLane) &&
               console.error(
@@ -9787,6 +9792,7 @@
               current.$$typeof === REACT_LAZY_TYPE &&
               (workInProgress =
                 " Did you wrap a component in React.lazy() more than once?");
+            current = getComponentNameFromType(current) || current;
             throw Error(
               "Element type is invalid. Received a promise that resolves to: " +
                 current +
@@ -10903,19 +10909,29 @@
         (executionContext & CommitContext) !== NoContext
       );
     }
-    function callComponentWillUnmountWithTimer(current, instance) {
+    function safelyCallComponentWillUnmount(
+      current,
+      nearestMountedAncestor,
+      instance
+    ) {
       instance.props = resolveClassComponentProps(
         current.type,
         current.memoizedProps
       );
       instance.state = current.memoizedState;
-      if (shouldProfile(current))
-        try {
-          startLayoutEffectTimer(), instance.componentWillUnmount();
-        } finally {
-          recordLayoutEffectDuration(current);
-        }
-      else instance.componentWillUnmount();
+      shouldProfile(current)
+        ? (startLayoutEffectTimer(),
+          callComponentWillUnmountInDEV(
+            current,
+            nearestMountedAncestor,
+            instance
+          ),
+          recordLayoutEffectDuration(current))
+        : callComponentWillUnmountInDEV(
+            current,
+            nearestMountedAncestor,
+            instance
+          );
     }
     function safelyAttachRef(current, nearestMountedAncestor) {
       try {
@@ -10987,13 +11003,6 @@
             captureCommitPhaseError(current, nearestMountedAncestor, error$6);
           }
         else ref.current = null;
-    }
-    function safelyCallDestroy(current, nearestMountedAncestor, destroy) {
-      try {
-        destroy();
-      } catch (error) {
-        captureCommitPhaseError(current, nearestMountedAncestor, error);
-      }
     }
     function commitBeforeMutationEffects(root, firstChild) {
       eventsEnabled = _enabled;
@@ -11209,7 +11218,7 @@
                   markComponentLayoutEffectUnmountStarted(finishedWork),
               (flags & Insertion) !== NoFlags &&
                 (isRunningInsertionEffect = !0),
-              safelyCallDestroy(finishedWork, nearestMountedAncestor, destroy),
+              callDestroyInDEV(finishedWork, nearestMountedAncestor, destroy),
               (flags & Insertion) !== NoFlags &&
                 (isRunningInsertionEffect = !1),
               (flags & Passive) !== NoFlags
@@ -11245,11 +11254,8 @@
                 injectedProfilingHooks.markComponentLayoutEffectMountStarted(
                   finishedWork
                 );
-            var create = effect.create;
             (flags & Insertion) !== NoFlags && (isRunningInsertionEffect = !0);
-            var inst = effect.inst;
-            create = create();
-            inst.destroy = create;
+            var destroy = callCreateInDEV(effect);
             (flags & Insertion) !== NoFlags && (isRunningInsertionEffect = !1);
             (flags & Passive) !== NoFlags
               ? null !== injectedProfilingHooks &&
@@ -11261,27 +11267,27 @@
                 "function" ===
                   typeof injectedProfilingHooks.markComponentLayoutEffectMountStopped &&
                 injectedProfilingHooks.markComponentLayoutEffectMountStopped();
-            void 0 !== create &&
-              "function" !== typeof create &&
-              ((inst =
+            if (void 0 !== destroy && "function" !== typeof destroy) {
+              var hookName =
                 0 !== (effect.tag & Layout)
                   ? "useLayoutEffect"
                   : 0 !== (effect.tag & Insertion)
                     ? "useInsertionEffect"
-                    : "useEffect"),
+                    : "useEffect";
               console.error(
                 "%s must not return anything besides a function, which is used for clean-up.%s",
-                inst,
-                null === create
+                hookName,
+                null === destroy
                   ? " You returned null. If your effect does not require clean up, return undefined (or nothing)."
-                  : "function" === typeof create.then
+                  : "function" === typeof destroy.then
                     ? "\n\nIt looks like you wrote " +
-                      inst +
+                      hookName +
                       "(async () => ...) or returned a Promise. Instead, write the async function inside your effect and call it immediately:\n\n" +
-                      inst +
+                      hookName +
                       "(() => {\n  async function fetchData() {\n    // You can await here\n    const response = await MyAPI.getData(someId);\n    // ...\n  }\n  fetchData();\n}, [someId]); // Or [] if effect doesn't need props or state\n\nLearn more about data fetching with Hooks: https://react.dev/link/hooks-data-fetching"
-                    : " You returned: " + create
-              ));
+                    : " You returned: " + destroy
+              );
+            }
           }
           effect = effect.next;
         } while (effect !== updateQueue);
@@ -11416,42 +11422,24 @@
           );
           if (flags & 4)
             if (((finishedRoot = finishedWork.stateNode), null === current))
-              if (
-                (finishedWork.type.defaultProps ||
-                  "ref" in finishedWork.memoizedProps ||
-                  didWarnAboutReassigningProps ||
-                  (finishedRoot.props !== finishedWork.memoizedProps &&
-                    console.error(
-                      "Expected %s props to match memoized props before componentDidMount. This might either be because of a bug in React, or because a component reassigns its own `this.props`. Please file an issue.",
-                      getComponentNameFromFiber(finishedWork) || "instance"
-                    ),
-                  finishedRoot.state !== finishedWork.memoizedState &&
-                    console.error(
-                      "Expected %s state to match memoized state before componentDidMount. This might either be because of a bug in React, or because a component reassigns its own `this.state`. Please file an issue.",
-                      getComponentNameFromFiber(finishedWork) || "instance"
-                    )),
-                shouldProfile(finishedWork))
-              ) {
-                try {
-                  startLayoutEffectTimer(), finishedRoot.componentDidMount();
-                } catch (error) {
-                  captureCommitPhaseError(
-                    finishedWork,
-                    finishedWork.return,
-                    error
-                  );
-                }
-                recordLayoutEffectDuration(finishedWork);
-              } else
-                try {
-                  finishedRoot.componentDidMount();
-                } catch (error$8) {
-                  captureCommitPhaseError(
-                    finishedWork,
-                    finishedWork.return,
-                    error$8
-                  );
-                }
+              finishedWork.type.defaultProps ||
+                "ref" in finishedWork.memoizedProps ||
+                didWarnAboutReassigningProps ||
+                (finishedRoot.props !== finishedWork.memoizedProps &&
+                  console.error(
+                    "Expected %s props to match memoized props before componentDidMount. This might either be because of a bug in React, or because a component reassigns its own `this.props`. Please file an issue.",
+                    getComponentNameFromFiber(finishedWork) || "instance"
+                  ),
+                finishedRoot.state !== finishedWork.memoizedState &&
+                  console.error(
+                    "Expected %s state to match memoized state before componentDidMount. This might either be because of a bug in React, or because a component reassigns its own `this.state`. Please file an issue.",
+                    getComponentNameFromFiber(finishedWork) || "instance"
+                  )),
+                shouldProfile(finishedWork)
+                  ? (startLayoutEffectTimer(),
+                    callComponentDidMountInDEV(finishedWork, finishedRoot),
+                    recordLayoutEffectDuration(finishedWork))
+                  : callComponentDidMountInDEV(finishedWork, finishedRoot);
             else {
               committedLanes = resolveClassComponentProps(
                 finishedWork.type,
@@ -11471,36 +11459,23 @@
                     "Expected %s state to match memoized state before componentDidUpdate. This might either be because of a bug in React, or because a component reassigns its own `this.state`. Please file an issue.",
                     getComponentNameFromFiber(finishedWork) || "instance"
                   ));
-              if (shouldProfile(finishedWork)) {
-                try {
-                  startLayoutEffectTimer(),
-                    finishedRoot.componentDidUpdate(
-                      committedLanes,
-                      prevState,
-                      finishedRoot.__reactInternalSnapshotBeforeUpdate
-                    );
-                } catch (error$9) {
-                  captureCommitPhaseError(
+              shouldProfile(finishedWork)
+                ? (startLayoutEffectTimer(),
+                  callComponentDidUpdateInDEV(
                     finishedWork,
-                    finishedWork.return,
-                    error$9
-                  );
-                }
-                recordLayoutEffectDuration(finishedWork);
-              } else
-                try {
-                  finishedRoot.componentDidUpdate(
+                    finishedRoot,
+                    committedLanes,
+                    prevState,
+                    finishedRoot.__reactInternalSnapshotBeforeUpdate
+                  ),
+                  recordLayoutEffectDuration(finishedWork))
+                : callComponentDidUpdateInDEV(
+                    finishedWork,
+                    finishedRoot,
                     committedLanes,
                     prevState,
                     finishedRoot.__reactInternalSnapshotBeforeUpdate
                   );
-                } catch (error$10) {
-                  captureCommitPhaseError(
-                    finishedWork,
-                    finishedWork.return,
-                    error$10
-                  );
-                }
             }
           flags & 64 && commitClassCallbacks(finishedWork);
           flags & 512 && safelyAttachRef(finishedWork, finishedWork.return);
@@ -11831,7 +11806,7 @@
               void 0 !== destroy &&
                 ((tag & Insertion) !== NoFlags
                   ? ((inst.destroy = void 0),
-                    safelyCallDestroy(
+                    callDestroyInDEV(
                       deletedFiber,
                       nearestMountedAncestor,
                       destroy
@@ -11841,14 +11816,14 @@
                     shouldProfile(deletedFiber)
                       ? (startLayoutEffectTimer(),
                         (inst.destroy = void 0),
-                        safelyCallDestroy(
+                        callDestroyInDEV(
                           deletedFiber,
                           nearestMountedAncestor,
                           destroy
                         ),
                         recordLayoutEffectDuration(deletedFiber))
                       : ((inst.destroy = void 0),
-                        safelyCallDestroy(
+                        callDestroyInDEV(
                           deletedFiber,
                           nearestMountedAncestor,
                           destroy
@@ -11864,21 +11839,15 @@
           );
           break;
         case 1:
-          if (
-            !offscreenSubtreeWasHidden &&
+          offscreenSubtreeWasHidden ||
             (safelyDetachRef(deletedFiber, nearestMountedAncestor),
             (prevHostParent = deletedFiber.stateNode),
-            "function" === typeof prevHostParent.componentWillUnmount)
-          )
-            try {
-              callComponentWillUnmountWithTimer(deletedFiber, prevHostParent);
-            } catch (error) {
-              captureCommitPhaseError(
+            "function" === typeof prevHostParent.componentWillUnmount &&
+              safelyCallComponentWillUnmount(
                 deletedFiber,
                 nearestMountedAncestor,
-                error
-              );
-            }
+                prevHostParent
+              ));
           recursivelyTraverseDeletionEffects(
             finishedRoot,
             nearestMountedAncestor,
@@ -12067,11 +12036,11 @@
                     finishedWork,
                     finishedWork.return
                   );
-              } catch (error$12) {
+              } catch (error$9) {
                 captureCommitPhaseError(
                   finishedWork,
                   finishedWork.return,
-                  error$12
+                  error$9
                 );
               }
               recordLayoutEffectDuration(finishedWork);
@@ -12082,11 +12051,11 @@
                   finishedWork,
                   finishedWork.return
                 );
-              } catch (error$13) {
+              } catch (error$10) {
                 captureCommitPhaseError(
                   finishedWork,
                   finishedWork.return,
-                  error$13
+                  error$10
                 );
               }
           }
@@ -12272,11 +12241,11 @@
                   newProps
                 );
                 domElement[internalPropsKey] = newProps;
-              } catch (error$14) {
+              } catch (error$11) {
                 captureCommitPhaseError(
                   finishedWork,
                   finishedWork.return,
-                  error$14
+                  error$11
                 );
               }
           break;
@@ -12332,11 +12301,11 @@
             root = finishedWork.stateNode;
             try {
               setTextContent(root, "");
-            } catch (error$15) {
+            } catch (error$12) {
               captureCommitPhaseError(
                 finishedWork,
                 finishedWork.return,
-                error$15
+                error$12
               );
             }
           }
@@ -12347,11 +12316,11 @@
             try {
               updateProperties(root, hoistableRoot, current, lanes),
                 (root[internalPropsKey] = lanes);
-            } catch (error$16) {
+            } catch (error$13) {
               captureCommitPhaseError(
                 finishedWork,
                 finishedWork.return,
-                error$16
+                error$13
               );
             }
           }
@@ -12374,11 +12343,11 @@
             current = finishedWork.memoizedProps;
             try {
               flags.nodeValue = current;
-            } catch (error$17) {
+            } catch (error$14) {
               captureCommitPhaseError(
                 finishedWork,
                 finishedWork.return,
-                error$17
+                error$14
               );
             }
           }
@@ -12397,11 +12366,11 @@
           )
             try {
               retryIfBlockedOn(root.containerInfo);
-            } catch (error$18) {
+            } catch (error$15) {
               captureCommitPhaseError(
                 finishedWork,
                 finishedWork.return,
-                error$18
+                error$15
               );
             }
           needsFormReset &&
@@ -12498,11 +12467,11 @@
                     root.stateNode.nodeValue = domElement
                       ? ""
                       : root.memoizedProps;
-                  } catch (error$11) {
+                  } catch (error$8) {
                     captureCommitPhaseError(
                       finishedWork,
                       finishedWork.return,
-                      error$11
+                      error$8
                     );
                   }
               } else if (
@@ -12670,18 +12639,12 @@
         case 1:
           safelyDetachRef(finishedWork, finishedWork.return);
           var instance = finishedWork.stateNode;
-          if ("function" === typeof instance.componentWillUnmount) {
-            var nearestMountedAncestor = finishedWork.return;
-            try {
-              callComponentWillUnmountWithTimer(finishedWork, instance);
-            } catch (error) {
-              captureCommitPhaseError(
-                finishedWork,
-                nearestMountedAncestor,
-                error
-              );
-            }
-          }
+          "function" === typeof instance.componentWillUnmount &&
+            safelyCallComponentWillUnmount(
+              finishedWork,
+              finishedWork.return,
+              instance
+            );
           recursivelyTraverseDisappearLayoutEffects(finishedWork);
           break;
         case 26:
@@ -12832,8 +12795,8 @@
       } else
         try {
           commitHookEffectListMount(hookFlags, finishedWork);
-        } catch (error$20) {
-          captureCommitPhaseError(finishedWork, finishedWork.return, error$20);
+        } catch (error$17) {
+          captureCommitPhaseError(finishedWork, finishedWork.return, error$17);
         }
     }
     function commitOffscreenPassiveMountEffects(current, finishedWork) {
@@ -15111,8 +15074,8 @@
           }
           workLoopSync();
           break;
-        } catch (thrownValue$22) {
-          handleThrow(root, thrownValue$22);
+        } catch (thrownValue$19) {
+          handleThrow(root, thrownValue$19);
         }
       while (1);
       lanes && root.shellSuspendCounter++;
@@ -15252,8 +15215,8 @@
             ? workLoopSync()
             : workLoopConcurrent();
           break;
-        } catch (thrownValue$23) {
-          handleThrow(root, thrownValue$23);
+        } catch (thrownValue$20) {
+          handleThrow(root, thrownValue$20);
         }
       while (1);
       resetContextDependencies();
@@ -21119,8 +21082,7 @@
     var componentFrameCache = new (
       "function" === typeof WeakMap ? WeakMap : Map
     )();
-    var externalRegExp = /\/node_modules\/|\(<anonymous>/,
-      current = null,
+    var current = null,
       isRendering = !1,
       isArrayImpl = Array.isArray,
       ReactDOMSharedInternals =
@@ -22642,6 +22604,87 @@
         }
       },
       callRenderInDEV = callRender["react-stack-bottom-frame"].bind(callRender),
+      callComponentDidMount = {
+        "react-stack-bottom-frame": function (finishedWork, instance) {
+          try {
+            instance.componentDidMount();
+          } catch (error) {
+            captureCommitPhaseError(finishedWork, finishedWork.return, error);
+          }
+        }
+      },
+      callComponentDidMountInDEV = callComponentDidMount[
+        "react-stack-bottom-frame"
+      ].bind(callComponentDidMount),
+      callComponentDidUpdate = {
+        "react-stack-bottom-frame": function (
+          finishedWork,
+          instance,
+          prevProps,
+          prevState,
+          snapshot
+        ) {
+          try {
+            instance.componentDidUpdate(prevProps, prevState, snapshot);
+          } catch (error) {
+            captureCommitPhaseError(finishedWork, finishedWork.return, error);
+          }
+        }
+      },
+      callComponentDidUpdateInDEV = callComponentDidUpdate[
+        "react-stack-bottom-frame"
+      ].bind(callComponentDidUpdate),
+      callComponentDidCatch = {
+        "react-stack-bottom-frame": function (instance, errorInfo) {
+          var stack = errorInfo.stack;
+          instance.componentDidCatch(errorInfo.value, {
+            componentStack: null !== stack ? stack : ""
+          });
+        }
+      },
+      callComponentDidCatchInDEV = callComponentDidCatch[
+        "react-stack-bottom-frame"
+      ].bind(callComponentDidCatch),
+      callComponentWillUnmount = {
+        "react-stack-bottom-frame": function (
+          current,
+          nearestMountedAncestor,
+          instance
+        ) {
+          try {
+            instance.componentWillUnmount();
+          } catch (error) {
+            captureCommitPhaseError(current, nearestMountedAncestor, error);
+          }
+        }
+      },
+      callComponentWillUnmountInDEV = callComponentWillUnmount[
+        "react-stack-bottom-frame"
+      ].bind(callComponentWillUnmount),
+      callCreate = {
+        "react-stack-bottom-frame": function (effect) {
+          var create = effect.create;
+          effect = effect.inst;
+          create = create();
+          return (effect.destroy = create);
+        }
+      },
+      callCreateInDEV = callCreate["react-stack-bottom-frame"].bind(callCreate),
+      callDestroy = {
+        "react-stack-bottom-frame": function (
+          current,
+          nearestMountedAncestor,
+          destroy
+        ) {
+          try {
+            destroy();
+          } catch (error) {
+            captureCommitPhaseError(current, nearestMountedAncestor, error);
+          }
+        }
+      },
+      callDestroyInDEV =
+        callDestroy["react-stack-bottom-frame"].bind(callDestroy),
       callLazyInit = {
         "react-stack-bottom-frame": function (lazy) {
           var init = lazy._init;
@@ -24053,7 +24096,7 @@
       var nonExtensibleObject = Object.preventExtensions({});
       new Map([[nonExtensibleObject, null]]);
       new Set([nonExtensibleObject]);
-    } catch (e$21) {
+    } catch (e$18) {
       hasBadMapPolyfill = !0;
     }
     var DefaultAsyncDispatcher = {
@@ -24671,11 +24714,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-experimental-f6cce072-20240723" !== isomorphicReactPackageVersion)
+      if ("19.0.0-experimental-76002254-20240724" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-experimental-f6cce072-20240723\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-experimental-76002254-20240724\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -24730,12 +24773,12 @@
           scheduleRoot: scheduleRoot,
           setRefreshHandler: setRefreshHandler,
           getCurrentFiber: getCurrentFiberForDevTools,
-          reconcilerVersion: "19.0.0-experimental-f6cce072-20240723"
+          reconcilerVersion: "19.0.0-experimental-76002254-20240724"
         });
       })({
         findFiberByHostInstance: getClosestInstanceFromNode,
         bundleType: 1,
-        version: "19.0.0-experimental-f6cce072-20240723",
+        version: "19.0.0-experimental-76002254-20240724",
         rendererPackageName: "react-dom"
       }) &&
       canUseDOM &&
@@ -25195,7 +25238,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.0.0-experimental-f6cce072-20240723";
+    exports.version = "19.0.0-experimental-76002254-20240724";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

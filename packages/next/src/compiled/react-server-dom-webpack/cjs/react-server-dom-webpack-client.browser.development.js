@@ -1043,10 +1043,23 @@
       }
       switch (id.status) {
         case "fulfilled":
-          parentObject = id.value;
-          for (key = 1; key < reference.length; key++)
-            parentObject = parentObject[reference[key]];
-          response = map(response, parentObject);
+          for (var value = id.value, i = 1; i < reference.length; i++)
+            if (
+              ((value = value[reference[i]]),
+              value.$$typeof === REACT_LAZY_TYPE)
+            )
+              if (((value = value._payload), "fulfilled" === value.status))
+                value = value.value;
+              else
+                return waitForReference(
+                  value,
+                  parentObject,
+                  key,
+                  response,
+                  map,
+                  reference.slice(i)
+                );
+          response = map(response, value);
           id._debugInfo &&
             ("object" !== typeof response ||
               null === response ||
@@ -1485,7 +1498,7 @@
       );
     }
     function createFakeFunction(name, filename, sourceMap, line, col) {
-      name || (name = "(anonymous)");
+      name || (name = "<anonymous>");
       var encodedName = JSON.stringify(name);
       1 >= line
         ? ((line = encodedName.length + 7),

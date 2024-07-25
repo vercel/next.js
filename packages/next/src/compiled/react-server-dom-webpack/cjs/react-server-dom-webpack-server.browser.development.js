@@ -794,12 +794,7 @@
         task.environmentName = componentEnv;
       }
       prepareToUseHooksForComponent(prevThenableState, componentDebugInfo);
-      props = callComponentInDEV(
-        Component,
-        props,
-        componentDebugInfo,
-        task.debugTask
-      );
+      props = callComponentInDEV(Component, props, componentDebugInfo);
       if (1 === request.status) throw AbortSigil;
       if (
         "object" === typeof props &&
@@ -3124,7 +3119,7 @@
       }
     };
     var frameRegExp =
-        /^ {3} at (?:(.+) \(([^\)]+):(\d+):(\d+)\)|(?:async )?([^\)]+):(\d+):(\d+))$/,
+        /^ {3} at (?:(.+) \((.+):(\d+):(\d+)\)|(?:async )?(.+):(\d+):(\d+))$/,
       TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference"),
       proxyHandlers = {
         get: function (target, name) {

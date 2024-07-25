@@ -286,9 +286,6 @@
       }
       return null;
     }
-    function isNotExternal$1(stackFrame) {
-      return !externalRegExp$1.test(stackFrame);
-    }
     function isObjectPrototype(object) {
       if (!object) return !1;
       var ObjectPrototype = Object.prototype;
@@ -558,18 +555,20 @@
             var ownerStack = owner.debugStack;
             if (null != ownerStack) {
               if ((owner = owner.owner)) {
-                var JSCompiler_temp_const = info,
-                  stack = ownerStack.stack;
+                var JSCompiler_temp_const = info;
+                var error = ownerStack,
+                  prevPrepareStackTrace = Error.prepareStackTrace;
+                Error.prepareStackTrace = void 0;
+                var stack = error.stack;
+                Error.prepareStackTrace = prevPrepareStackTrace;
                 stack.startsWith("Error: react-stack-top-frame\n") &&
                   (stack = stack.slice(29));
-                var idx = stack.indexOf("react-stack-bottom-frame");
+                var idx = stack.indexOf("\n");
+                -1 !== idx && (stack = stack.slice(idx + 1));
+                idx = stack.indexOf("react-stack-bottom-frame");
                 -1 !== idx && (idx = stack.lastIndexOf("\n", idx));
-                -1 !== idx && (stack = stack.slice(0, idx));
-                var JSCompiler_inline_result = stack
-                  .split("\n")
-                  .slice(1)
-                  .filter(isNotExternal$1)
-                  .join("\n");
+                var JSCompiler_inline_result =
+                  -1 !== idx ? (stack = stack.slice(0, idx)) : "";
                 info =
                   JSCompiler_temp_const + ("\n" + JSCompiler_inline_result);
               }
@@ -582,14 +581,15 @@
             try {
               throw Error();
             } catch (x) {
-              var match = x.stack.trim().match(/\n( *(at )?)/);
-              prefix = (match && match[1]) || "";
-              suffix =
-                -1 < x.stack.indexOf("\n    at")
-                  ? " (<anonymous>)"
-                  : -1 < x.stack.indexOf("@")
-                    ? "@unknown:0:0"
-                    : "";
+              (prefix =
+                ((error = x.stack.trim().match(/\n( *(at )?)/)) && error[1]) ||
+                ""),
+                (suffix =
+                  -1 < x.stack.indexOf("\n    at")
+                    ? " (<anonymous>)"
+                    : -1 < x.stack.indexOf("@")
+                      ? "@unknown:0:0"
+                      : "");
             }
           JSCompiler_inline_result$jscomp$0 =
             "\n" + prefix + JSCompiler_temp_const + suffix;
@@ -1011,12 +1011,35 @@
         );
       }
       prepareToUseHooksForComponent(prevThenableState, componentDebugInfo);
-      props = callComponentInDEV(
-        Component,
-        props,
-        componentDebugInfo,
-        task.debugTask
-      );
+      props = supportsComponentStorage
+        ? task.debugTask
+          ? task.debugTask.run(
+              componentStorage.run.bind(
+                componentStorage,
+                componentDebugInfo,
+                callComponentInDEV,
+                Component,
+                props,
+                componentDebugInfo
+              )
+            )
+          : componentStorage.run(
+              componentDebugInfo,
+              callComponentInDEV,
+              Component,
+              props,
+              componentDebugInfo
+            )
+        : task.debugTask
+          ? task.debugTask.run(
+              callComponentInDEV.bind(
+                null,
+                Component,
+                props,
+                componentDebugInfo
+              )
+            )
+          : callComponentInDEV(Component, props, componentDebugInfo);
       if (request.status === ABORTING) throw AbortSigil;
       if (
         "object" === typeof props &&
@@ -1105,18 +1128,37 @@
           if (key.has(request)) return;
           key.add(request);
         }
-        callComponentInDEV(
-          function () {
-            console.error(
-              'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
-              "",
-              ""
-            );
-          },
-          null,
-          componentDebugInfo,
-          debugTask
-        );
+        request = function () {
+          console.error(
+            'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
+            "",
+            ""
+          );
+        };
+        supportsComponentStorage
+          ? debugTask
+            ? debugTask.run(
+                componentStorage.run.bind(
+                  componentStorage,
+                  componentDebugInfo,
+                  callComponentInDEV,
+                  request,
+                  null,
+                  componentDebugInfo
+                )
+              )
+            : componentStorage.run(
+                componentDebugInfo,
+                callComponentInDEV,
+                request,
+                null,
+                componentDebugInfo
+              )
+          : debugTask
+            ? debugTask.run(
+                callComponentInDEV.bind(null, request, null, componentDebugInfo)
+              )
+            : callComponentInDEV(request, null, componentDebugInfo);
       }
     }
     function renderFragment(request, task, children) {
@@ -3515,7 +3557,7 @@
       }
     };
     var frameRegExp =
-        /^ {3} at (?:(.+) \(([^\)]+):(\d+):(\d+)\)|(?:async )?([^\)]+):(\d+):(\d+))$/,
+        /^ {3} at (?:(.+) \((.+):(\d+):(\d+)\)|(?:async )?(.+):(\d+):(\d+))$/,
       supportsRequestStorage = "function" === typeof AsyncLocalStorage,
       requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null,
       supportsComponentStorage = supportsRequestStorage,
@@ -3673,36 +3715,15 @@
       );
     var prefix, suffix;
     new ("function" === typeof WeakMap ? WeakMap : Map)();
-    var externalRegExp$1 = /\/node_modules\/| \(node:| node:|\(<anonymous>/,
-      callComponent = {
+    var callComponent = {
         "react-stack-bottom-frame": function (
           Component,
           props,
-          componentDebugInfo,
-          debugTask
+          componentDebugInfo
         ) {
           currentOwner = componentDebugInfo;
           try {
-            return supportsComponentStorage
-              ? debugTask
-                ? debugTask.run(
-                    componentStorage.run.bind(
-                      componentStorage,
-                      componentDebugInfo,
-                      Component,
-                      props,
-                      void 0
-                    )
-                  )
-                : componentStorage.run(
-                    componentDebugInfo,
-                    Component,
-                    props,
-                    void 0
-                  )
-              : debugTask
-                ? debugTask.run(Component.bind(null, props, void 0))
-                : Component(props, void 0);
+            return Component(props, void 0);
           } finally {
             currentOwner = null;
           }
