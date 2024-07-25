@@ -6,7 +6,7 @@ use std::{
     num::NonZeroU32,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
     },
     time::Duration,
@@ -31,7 +31,10 @@ use turbo_tasks::{
 
 use crate::{
     edges_set::{TaskEdge, TaskEdgesSet},
-    gc::{GcQueue, PERCENTAGE_IDLE_TARGET_MEMORY, PERCENTAGE_TARGET_MEMORY},
+    gc::{
+        GcQueue, MAX_GC_STEPS, PERCENTAGE_MAX_IDLE_TARGET_MEMORY, PERCENTAGE_MAX_TARGET_MEMORY,
+        PERCENTAGE_MIN_IDLE_TARGET_MEMORY, PERCENTAGE_MIN_TARGET_MEMORY,
+    },
     output::Output,
     task::{ReadCellError, Task, DEPENDENCIES_TO_TRACK},
     task_statistics::TaskStatisticsApi,
@@ -47,7 +50,7 @@ pub struct MemoryBackend {
     backend_job_id_factory: IdFactoryWithReuse<BackendJobId>,
     task_cache:
         DashMap<Arc<PreHashed<PersistentTaskType>>, TaskId, BuildHasherDefault<PassThroughHash>>,
-    memory_limit: usize,
+    memory_limit: AtomicUsize,
     gc_queue: Option<GcQueue>,
     idle_gc_active: AtomicBool,
     task_statistics: TaskStatisticsApi,
@@ -70,7 +73,7 @@ impl MemoryBackend {
                 (std::thread::available_parallelism().map_or(1, usize::from) * 32)
                     .next_power_of_two(),
             ),
-            memory_limit,
+            memory_limit: AtomicUsize::new(memory_limit),
             gc_queue: (memory_limit != usize::MAX).then(GcQueue::new),
             idle_gc_active: AtomicBool::new(false),
             task_statistics: TaskStatisticsApi::default(),
@@ -141,27 +144,78 @@ impl MemoryBackend {
     ) -> bool {
         if let Some(gc_queue) = &self.gc_queue {
             let mut did_something = false;
-            loop {
-                let mem_limit = self.memory_limit;
-
-                let usage = turbo_tasks_malloc::TurboMalloc::memory_usage();
-                let target = if idle {
-                    mem_limit * PERCENTAGE_IDLE_TARGET_MEMORY / 100
+            let mut remaining_generations = 0;
+            let mut mem_limit = self.memory_limit.load(Ordering::Relaxed);
+            let mut span = None;
+            'outer: loop {
+                let mut collected_generations = 0;
+                let (min, max) = if idle {
+                    (
+                        mem_limit * PERCENTAGE_MIN_IDLE_TARGET_MEMORY / 100,
+                        mem_limit * PERCENTAGE_MAX_IDLE_TARGET_MEMORY / 100,
+                    )
                 } else {
-                    mem_limit * PERCENTAGE_TARGET_MEMORY / 100
+                    (
+                        mem_limit * PERCENTAGE_MIN_TARGET_MEMORY / 100,
+                        mem_limit * PERCENTAGE_MAX_TARGET_MEMORY / 100,
+                    )
                 };
-                if usage < target {
-                    return did_something;
+                let mut target = max;
+                let mut counter = 0;
+                loop {
+                    let usage = turbo_tasks_malloc::TurboMalloc::memory_usage();
+                    if usage < target {
+                        return did_something;
+                    }
+                    target = min;
+                    if span.is_none() {
+                        span =
+                            Some(tracing::trace_span!(parent: None, "garbage collection", usage));
+                    }
+
+                    let progress = gc_queue.run_gc(self, turbo_tasks);
+
+                    if progress.is_some() {
+                        did_something = true;
+                    }
+
+                    if let Some(g) = progress {
+                        remaining_generations = g;
+                        if g > 0 {
+                            collected_generations += 1;
+                        }
+                    }
+
+                    counter += 1;
+                    if counter > MAX_GC_STEPS
+                        || collected_generations > remaining_generations
+                        || progress.is_none()
+                    {
+                        let new_mem_limit = mem_limit * 4 / 3;
+                        if self
+                            .memory_limit
+                            .compare_exchange(
+                                mem_limit,
+                                new_mem_limit,
+                                Ordering::Relaxed,
+                                Ordering::Relaxed,
+                            )
+                            .is_ok()
+                        {
+                            println!(
+                                "Ineffective GC, increasing memory limit {} MB -> {} MB",
+                                mem_limit / 1024 / 1024,
+                                new_mem_limit / 1024 / 1024
+                            );
+                            mem_limit = new_mem_limit;
+                        } else {
+                            mem_limit = self.memory_limit.load(Ordering::Relaxed);
+                        }
+                        continue 'outer;
+                    }
+
+                    did_something = true;
                 }
-
-                let collected = gc_queue.run_gc(self, turbo_tasks);
-
-                // Collecting less than 100 tasks is not worth it
-                if !collected.map_or(false, |(_, count)| count > 100) {
-                    return true;
-                }
-
-                did_something = true;
             }
         }
         false
