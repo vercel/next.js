@@ -14,7 +14,7 @@ import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../client/components/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -1117,24 +1117,16 @@ export default class NextNodeServer extends BaseServer<
       const normalizedReq = this.normalizeReq(req)
       const normalizedRes = this.normalizeRes(res)
 
-      let logging = this.nextConfig.logging
-      let isLoggingDisabled = false
-      if (typeof logging === 'boolean') {
-        if (logging === false) {
-          // disable all logging options if logging === false
-          logging = {}
-          isLoggingDisabled = true
-        }
-        // explicit check value for better readability
-        if (logging === true) {
-          // enable all logging options if logging === true
-          logging = { fetches: { fullUrl: true } }
-        }
-      }
+      const logConfig = this.nextConfig.logging
+      const isLoggingDisabled = logConfig === false
+      const fetchesLoggingConfig = isLoggingDisabled
+        ? false
+        : logConfig?.fetches
 
-      const loggingFetchesConfig = logging?.fetches
-      const enabledVerboseLogging = !!loggingFetchesConfig
-      const shouldTruncateUrl = !loggingFetchesConfig?.fullUrl
+      const enabledVerboseLogging = !!fetchesLoggingConfig
+      const shouldTruncateUrl =
+        typeof fetchesLoggingConfig === 'object' &&
+        !fetchesLoggingConfig.fullUrl
 
       if (this.renderOpts.dev) {
         const { blue, green, yellow, red, gray, white, bold } =

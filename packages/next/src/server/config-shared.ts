@@ -859,7 +859,7 @@ export interface NextConfig extends Record<string, any> {
           fullUrl?: boolean
         }
       }
-    | boolean
+    | false
 
   /**
    * period (in seconds) where the server allow to serve stale cache
@@ -934,6 +934,7 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
+  logging: {},
   swrDelta: undefined,
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,

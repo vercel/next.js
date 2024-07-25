@@ -48,19 +48,27 @@ type InternalLinkProps = {
    */
   scroll?: boolean
   /**
-   * Update the path of the current page without rerunning [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props), [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props) or [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props).
+   * Update the path of the current page without rerunning [`getStaticProps`](https://nextjs.org/docs/pages/building-your-application/data-fetching/get-static-props), [`getServerSideProps`](https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props) or [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props).
    *
    * @defaultValue `false`
    */
   shallow?: boolean
   /**
    * Prefetch the page in the background.
-   * Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded.
-   * Prefetch can be disabled by passing `prefetch={false}`. When `prefetch` is set to `false`, prefetching will still occur on hover in pages router but not in app router. Pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md) will preload `JSON` files with the data for faster page transitions. Prefetching is only enabled in production.
+   * Any `<Link />` that is in the viewport (initially or through scroll) will be prefetched.
+   * Prefetch can be disabled by passing `prefetch={false}`. Prefetching is only enabled in production.
    *
-   * @defaultValue `true`
+   * In App Router:
+   * - `null` (default): For statically generated pages, this will prefetch the full React Server Component data. For dynamic pages, this will prefetch up to the nearest route segment with a [`loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading) file. If there is no loading file, it will not fetch the full tree to avoid fetching too much data.
+   * - `true`: This will prefetch the full React Server Component data for all route segments, regardless of whether they contain a segment with `loading.js`.
+   * - `false`: This will not prefetch any data, even on hover.
+   *
+   * In Pages Router:
+   * - `true` (default): The full route & its data will be prefetched.
+   * - `false`: Prefetching will not happen when entering the viewport, but will still happen on hover.
+   * @defaultValue `true` (pages router) or `null` (app router)
    */
-  prefetch?: boolean
+  prefetch?: boolean | null
   /**
    * The active locale is automatically prepended. `locale` allows for providing a different locale.
    * When `false` `href` has to include the locale as the default behavior is disabled.
@@ -472,15 +480,11 @@ const Link = React.forwardRef<HTMLAnchorElement, RealLinksProps>(
     const mergedRef = React.useCallback(
       (el: HTMLAnchorElement) => {
         setIntersectionRef(el)
-        if (childRef) {
-          if (typeof childRef === 'function') childRef(el)
-          else if (typeof childRef === 'object') {
-            childRef.current = el
-          }
-        }
       },
       [childRef, setIntersectionRef]
     )
+
+    const setRef = useMergedRef(setIntersectionWithResetRef, childRef)
 
     // Prefetch the URL if we haven't already and it's visible.
     if (router && isVisible) {

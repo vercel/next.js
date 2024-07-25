@@ -3,7 +3,7 @@
 import { bold, cyan, green, red, yellow } from '../lib/picocolors'
 import { Telemetry } from '../telemetry/storage'
 
-type NextTelemetryOptions = {
+export type NextTelemetryOptions = {
   enable?: boolean
   disable?: boolean
 }

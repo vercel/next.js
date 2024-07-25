@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import { version as nextVersion } from 'next/package.json'
 import type { Route } from 'playwright'
 import { retry } from 'next-test-utils'
 import { nextTestSetup, isNextStart } from 'e2e-utils'
@@ -22,6 +23,25 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         NEXT_PRIVATE_FLYING_SHUTTLE: 'true',
       },
     })
+    let initialConfig: Record<string, any> = {}
+
+    beforeAll(async () => {
+      const manifest = await next.readJSON(
+        '.next/cache/shuttle/shuttle-manifest.json'
+      )
+      initialConfig = manifest.config
+    })
+
+    async function checkShuttleManifest() {
+      const manifest = await next.readJSON(
+        '.next/cache/shuttle/shuttle-manifest.json'
+      )
+
+      expect(manifest).toEqual({
+        nextVersion,
+        config: initialConfig,
+      })
+    }
 
     it('should have file hashes in trace files', async () => {
       const deploymentsTracePath = path.join(
@@ -181,6 +201,11 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         await next.patchFile(dataPath, JSON.stringify({ hello: 'again' }))
         await next.start()
 
+        expect(next.cliOutput).not.toContain('/catch-all')
+        expect(next.cliOutput).not.toContain('/blog/[slug]')
+        expect(next.cliOutput).toContain('/dashboard/deployments/[id]')
+
+        await checkShuttleManifest()
         await checkAppPagesNavigation()
       } finally {
         await next.patchFile(dataPath, originalContent)
@@ -203,6 +228,11 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         )
         await next.start()
 
+        expect(next.cliOutput).toContain('/')
+        expect(next.cliOutput).not.toContain('/catch-all')
+        expect(next.cliOutput).not.toContain('/blog/[slug]')
+
+        await checkShuttleManifest()
         await checkAppPagesNavigation()
       } finally {
         await next.patchFile(pagePath, originalContent)
@@ -228,6 +258,12 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         await next.patchFile(dataPath, JSON.stringify({ hello: 'again' }))
         await next.start()
 
+        expect(next.cliOutput).toContain('/')
+        expect(next.cliOutput).toContain('/dashboard/deployments/[id]')
+        expect(next.cliOutput).not.toContain('/catch-all')
+        expect(next.cliOutput).not.toContain('/blog/[slug]')
+
+        await checkShuttleManifest()
         await checkAppPagesNavigation()
       } finally {
         await next.patchFile(pagePath, originalPageContent)

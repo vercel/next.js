@@ -1,4 +1,4 @@
 packages:
   - 'packages/*'
   - 'bench/*'
-  - 'packages/next-swc/crates/next-core/js'
+  - 'crates/next-core/js'

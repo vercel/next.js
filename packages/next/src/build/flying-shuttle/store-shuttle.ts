@@ -1,5 +1,8 @@
 import fs from 'fs'
 import path from 'path'
+import { recursiveCopy } from '../../lib/recursive-copy'
+import { version as nextVersion } from 'next/package.json'
+import type { NextConfigComplete } from '../../server/config-shared'
 import {
   BUILD_MANIFEST,
   APP_BUILD_MANIFEST,
@@ -8,19 +11,51 @@ import {
   PAGES_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../shared/lib/constants'
-import { recursiveCopy } from '../../lib/recursive-copy'
+
+export interface ShuttleManifest {
+  nextVersion: string
+  config: Record<string, any>
+}
+
+export function generateShuttleManifest(config: NextConfigComplete) {
+  return JSON.stringify({
+    nextVersion,
+    config: {
+      env: config.env,
+      i18n: config.i18n,
+      basePath: config.basePath,
+      sassOptions: config.sassOptions,
+      trailingSlash: config.trailingSlash,
+      productionBrowserSourceMaps: config.productionBrowserSourceMaps,
+
+      experimental: {
+        ppr: config.experimental.ppr,
+        reactCompiler: config.experimental.reactCompiler,
+        serverSourceMaps: config.experimental.serverSourceMaps,
+        serverMinification: config.experimental.serverMinification,
+      },
+    },
+  } satisfies ShuttleManifest)
+}
 
 // we can create a new shuttle with the outputs before env values have
 // been inlined, can be done after stitching takes place
 export async function storeShuttle({
+  config,
   distDir,
   shuttleDir,
 }: {
   distDir: string
   shuttleDir: string
+  config: NextConfigComplete
 }) {
   await fs.promises.rm(shuttleDir, { force: true, recursive: true })
   await fs.promises.mkdir(shuttleDir, { recursive: true })
+
+  await fs.promises.writeFile(
+    path.join(shuttleDir, 'shuttle-manifest.json'),
+    generateShuttleManifest(config)
+  )
 
   // copy all server entries
   await recursiveCopy(
