@@ -12,7 +12,7 @@ use next_api::{
         DefineEnv, DraftModeOptions, Instrumentation, Middleware, PartialProjectOptions, Project,
         ProjectContainer, ProjectOptions,
     },
-    route::{Endpoint, Route},
+    route::{Endpoint, Route, WrittenEndpoint},
 };
 use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
@@ -48,7 +48,11 @@ use turbopack_binding::{
 use url::Url;
 
 use super::{
-    endpoint::ExternalEndpoint,
+    endpoint::{
+        get_written_endpoint_with_issues, AnnotatedWrittenRoute, ExternalEndpoint,
+        NapiAnnotatedWrittenRoute, NapiWrittenEndpoint, NapiWrittenGlobalEndpoints,
+        WrittenEndpointWithIssues,
+    },
     utils::{
         get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue, RootTask,
         TurbopackResult, VcArc,
@@ -1083,6 +1087,175 @@ pub async fn project_trace_source(
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(traced_frame)
+}
+
+#[napi]
+pub async fn project_build_global(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<TurbopackResult<NapiWrittenGlobalEndpoints>> {
+    let container = project.container;
+    let turbo_tasks = project.turbo_tasks.clone();
+
+    let (
+        annotated_written_routes,
+        app_endpoint,
+        document_endpoint,
+        error_endpoint,
+        issues_global,
+        diagnostics_global,
+    ) = turbo_tasks
+        .run_once(async move {
+            let entrypoints = container.entrypoints().await?;
+
+            let mut annotated_written_routes: Vec<AnnotatedWrittenRoute> = vec![];
+            let mut issues_global = vec![];
+            let mut diagnostics_global = vec![];
+
+            for (path, route) in entrypoints.routes.iter() {
+                match route {
+                    Route::Page {
+                        ref html_endpoint,
+                        data_endpoint: _,
+                    } => {
+                        let WrittenEndpointWithIssues {
+                            written,
+                            issues,
+                            diagnostics,
+                        } = &*get_written_endpoint_with_issues(*html_endpoint)
+                            .strongly_consistent()
+                            .await?;
+                        annotated_written_routes.push(AnnotatedWrittenRoute {
+                            written_route: written.clone_value(),
+                            route_type: "page".to_string(),
+                            page: path.to_string(),
+                        });
+                        issues_global.extend(issues.iter().cloned());
+                        diagnostics_global.extend(diagnostics.iter().cloned());
+                    }
+                    Route::PageApi { ref endpoint } => {
+                        let WrittenEndpointWithIssues {
+                            written,
+                            issues,
+                            diagnostics,
+                        } = &*get_written_endpoint_with_issues(*endpoint)
+                            .strongly_consistent()
+                            .await?;
+                        annotated_written_routes.push(AnnotatedWrittenRoute {
+                            written_route: written.clone_value(),
+                            route_type: "page-api".to_string(),
+                            page: path.to_string(),
+                        });
+                        issues_global.extend(issues.iter().cloned());
+                        diagnostics_global.extend(diagnostics.iter().cloned());
+                    }
+                    Route::AppPage(routes) => {
+                        // TODO: Look at this... probably have to ask
+                        for module in routes {
+                            let html_endpoint: Vc<Box<dyn Endpoint>> = module.html_endpoint;
+                            let WrittenEndpointWithIssues {
+                                written,
+                                issues,
+                                diagnostics,
+                            } = &*get_written_endpoint_with_issues(html_endpoint)
+                                .strongly_consistent()
+                                .await?;
+                            annotated_written_routes.push(AnnotatedWrittenRoute {
+                                written_route: written.clone_value(),
+                                route_type: "app-page".to_string(),
+                                page: module.original_name.to_string(),
+                            });
+                            issues_global.extend(issues.iter().cloned());
+                            diagnostics_global.extend(diagnostics.iter().cloned());
+                        }
+                    }
+                    Route::AppRoute {
+                        original_name,
+                        ref endpoint,
+                    } => {
+                        let WrittenEndpointWithIssues {
+                            written,
+                            issues,
+                            diagnostics,
+                        } = &*get_written_endpoint_with_issues(*endpoint)
+                            .strongly_consistent()
+                            .await?;
+                        annotated_written_routes.push(AnnotatedWrittenRoute {
+                            written_route: written.clone_value(),
+                            route_type: "app-route".to_string(),
+                            page: original_name.to_string(),
+                        });
+                        issues_global.extend(issues.iter().cloned());
+                        diagnostics_global.extend(diagnostics.iter().cloned());
+                    }
+                    Route::Conflict => {}
+                };
+            }
+
+            let WrittenEndpointWithIssues {
+                written: app_endpoint,
+                issues: issues_global_app,
+                diagnostics: diagnostics_global_app,
+            } = &*get_written_endpoint_with_issues(entrypoints.pages_app_endpoint)
+                .strongly_consistent()
+                .await?;
+            issues_global.extend(issues_global_app.iter().cloned());
+            diagnostics_global.extend(diagnostics_global_app.iter().cloned());
+
+            let WrittenEndpointWithIssues {
+                written: document_endpoint,
+                issues: issues_global_document,
+                diagnostics: diagnostics_global_document,
+            } = &*get_written_endpoint_with_issues(entrypoints.pages_document_endpoint)
+                .strongly_consistent()
+                .await?;
+            issues_global.extend(issues_global_document.iter().cloned());
+            diagnostics_global.extend(diagnostics_global_document.iter().cloned());
+
+            let WrittenEndpointWithIssues {
+                written: error_endpoint,
+                issues: issues_global_error,
+                diagnostics: diagnostics_global_error,
+            } = &*get_written_endpoint_with_issues(entrypoints.pages_error_endpoint)
+                .strongly_consistent()
+                .await?;
+            issues_global.extend(issues_global_error.iter().cloned());
+            diagnostics_global.extend(diagnostics_global_error.iter().cloned());
+
+            Ok((
+                annotated_written_routes,
+                app_endpoint.clone(),
+                document_endpoint.clone(),
+                error_endpoint.clone(),
+                issues_global,
+                diagnostics_global,
+            ))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    let napi_written_global_endpoints = NapiWrittenGlobalEndpoints {
+        annotated_written_routes: annotated_written_routes
+            .iter()
+            .map(|annotated_written_route| {
+                NapiAnnotatedWrittenRoute::from(annotated_written_route.to_owned())
+            })
+            .collect(),
+        app_endpoint: NapiWrittenEndpoint::from(app_endpoint.clone_value()),
+        document_endpoint: NapiWrittenEndpoint::from(document_endpoint.clone_value()),
+        error_endpoint: NapiWrittenEndpoint::from(error_endpoint.clone_value()),
+    };
+
+    Ok(TurbopackResult {
+        result: napi_written_global_endpoints,
+        issues: issues_global
+            .iter()
+            .map(|i| NapiIssue::from(&**i))
+            .collect(),
+        diagnostics: diagnostics_global
+            .iter()
+            .map(|d| NapiDiagnostic::from(d))
+            .collect(),
+    })
 }
 
 #[napi]

@@ -171,11 +171,18 @@ import {
   getTurbopackJsConfig,
   handleEntrypoints,
   type EntryIssuesMap,
-  handleRouteType,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   handlePagesErrorRoute,
   formatIssue,
   isRelevantWarning,
+  processIssues,
 } from '../server/dev/turbopack-utils'
+import {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  handleRouteType as handleRouteTypeBuild,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  handlePagesErrorRoute as handlePagesErrorRouteBuild,
+} from './turbopack-utils'
 import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
 import type { Entrypoints } from '../server/dev/turbopack/types'
 import { buildCustomRoute } from '../lib/build-custom-route'
@@ -194,6 +201,7 @@ import {
 } from './flying-shuttle/detect-changed-entries'
 import { storeShuttle } from './flying-shuttle/store-shuttle'
 import { stitchBuilds } from './flying-shuttle/stitch-builds'
+import { getEntryKey } from '../server/dev/turbopack/entry-key'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -1508,51 +1516,41 @@ export default async function build(
           )
         }
 
-        for (const [page, route] of currentEntrypoints.page) {
-          enqueue(() =>
-            handleRouteType({
-              dev,
-              page,
-              pathname: page,
-              route,
+        const writtenEndpoints = await project.buildGlobal()
 
-              currentEntryIssues,
+        /*
+          NOTE (LichuAcu): As project.buildGlobal() returns one TurbopacckResult
+          for all entrypoints, the key cannot be representative of the exact page/route
+          where the issue occurred, as there might be issues from multiple pages.
+          For the moment (draft) I use this key, but the ideal is for project.buildGlobal()
+          to return multiple TurbopacckResult objects, one for each page/route.
+        */
+        const key = getEntryKey('root', 'client', '_app')
+        processIssues(currentEntryIssues, key, writtenEndpoints, false, false)
+
+        for (const annotatedWrittenRoute of writtenEndpoints.annotatedWrittenRoutes) {
+          enqueue(() =>
+            handleRouteTypeBuild({
+              page: annotatedWrittenRoute.page,
+              writtenEndpoint: annotatedWrittenRoute.writtenRoute,
+              routeType: annotatedWrittenRoute.routeType,
               entrypoints: currentEntrypoints,
               manifestLoader,
               devRewrites: undefined,
               productionRewrites: customRoutes.rewrites,
-              logErrors: false,
-            })
-          )
-        }
-
-        for (const [page, route] of currentEntrypoints.app) {
-          enqueue(() =>
-            handleRouteType({
-              page,
-              dev: false,
-              pathname: normalizeAppPath(page),
-              route,
-              currentEntryIssues,
-              entrypoints: currentEntrypoints,
-              manifestLoader,
-              devRewrites: undefined,
-              productionRewrites: customRoutes.rewrites,
-              logErrors: false,
             })
           )
         }
 
         enqueue(() =>
-          handlePagesErrorRoute({
-            currentEntryIssues,
+          handlePagesErrorRouteBuild({
             entrypoints: currentEntrypoints,
             manifestLoader,
             devRewrites: undefined,
             productionRewrites: customRoutes.rewrites,
-            logErrors: false,
           })
         )
+
         await Promise.all(promises)
 
         await manifestLoader.writeManifests({

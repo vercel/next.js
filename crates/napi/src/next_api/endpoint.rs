@@ -74,6 +74,40 @@ impl From<WrittenEndpoint> for NapiWrittenEndpoint {
     }
 }
 
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone)]
+pub struct AnnotatedWrittenRoute {
+    pub written_route: WrittenEndpoint,
+    pub route_type: String,
+    pub page: String,
+}
+
+#[napi(object)]
+pub struct NapiAnnotatedWrittenRoute {
+    pub written_route: NapiWrittenEndpoint,
+    pub route_type: String,
+    pub page: String,
+}
+
+impl From<AnnotatedWrittenRoute> for NapiAnnotatedWrittenRoute {
+    fn from(annotated_written_route: AnnotatedWrittenRoute) -> Self {
+        Self {
+            written_route: NapiWrittenEndpoint::from(annotated_written_route.written_route),
+            route_type: annotated_written_route.route_type,
+            page: annotated_written_route.page,
+        }
+    }
+}
+
+#[napi(object)]
+pub struct NapiWrittenGlobalEndpoints {
+    pub annotated_written_routes: Vec<NapiAnnotatedWrittenRoute>,
+
+    pub app_endpoint: NapiWrittenEndpoint,
+    pub document_endpoint: NapiWrittenEndpoint,
+    pub error_endpoint: NapiWrittenEndpoint,
+}
+
 // NOTE(alexkirsz) We go through an extra layer of indirection here because of
 // two factors:
 // 1. rustc currently has a bug where using a dyn trait as a type argument to
@@ -91,14 +125,14 @@ impl Deref for ExternalEndpoint {
 }
 
 #[turbo_tasks::value(serialization = "none")]
-struct WrittenEndpointWithIssues {
-    written: ReadRef<WrittenEndpoint>,
-    issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+pub struct WrittenEndpointWithIssues {
+    pub written: ReadRef<WrittenEndpoint>,
+    pub issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    pub diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
 }
 
 #[turbo_tasks::function]
-async fn get_written_endpoint_with_issues(
+pub async fn get_written_endpoint_with_issues(
     endpoint: Vc<Box<dyn Endpoint>>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
     let write_to_disk = endpoint.write_to_disk();
