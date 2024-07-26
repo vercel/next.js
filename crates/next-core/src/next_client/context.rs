@@ -240,8 +240,11 @@ pub async fn get_client_module_options_context(
     let enable_webpack_loaders =
         webpack_loader_options(project_path, next_config, false, conditions).await?;
 
-    let tree_shaking_mode = *next_config
-        .tree_shaking_mode(Vc::cell(next_mode.is_development()))
+    let tree_shaking_mode_for_user_code = *next_config
+        .tree_shaking_mode_for_user_code(Vc::cell(next_mode.is_development()))
+        .await?;
+    let tree_shaking_mode_for_foreign_code = *next_config
+        .tree_shaking_mode_for_foreign_code(Vc::cell(next_mode.is_development()))
         .await?;
     let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
@@ -283,7 +286,7 @@ pub async fn get_client_module_options_context(
         enable_typeof_window_inlining: Some(TypeofWindow::Object),
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
-        tree_shaking_mode,
+        tree_shaking_mode: tree_shaking_mode_for_user_code,
         special_exports: Some(next_js_special_exports()),
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
@@ -296,6 +299,7 @@ pub async fn get_client_module_options_context(
         enable_webpack_loaders: foreign_enable_webpack_loaders,
         enable_postcss_transform: enable_foreign_postcss_transform,
         custom_rules: foreign_next_client_rules,
+        tree_shaking_mode: tree_shaking_mode_for_foreign_code,
         // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
         ..module_options_context.clone()
     };

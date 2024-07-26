@@ -1121,29 +1121,39 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn tree_shaking_mode(
+    pub async fn tree_shaking_mode_for_foreign_code(
         self: Vc<Self>,
         is_development: Vc<bool>,
     ) -> Result<Vc<OptionTreeShaking>> {
         let is_development = *is_development.await?;
         let tree_shaking = self.await?.experimental.tree_shaking;
 
-        if let Some(false) = tree_shaking {
-            // The user has explicitly disabled tree shaking.
-
-            return Ok(OptionTreeShaking(if is_development {
-                None
-            } else {
-                Some(TreeShakingMode::ReexportsOnly)
-            })
-            .cell());
-        }
-        Ok(OptionTreeShaking(Some(if is_development {
-            TreeShakingMode::ReexportsOnly
-        } else {
-            TreeShakingMode::ModuleFragments
-        }))
+        Ok(OptionTreeShaking(match tree_shaking {
+            Some(false) => Some(TreeShakingMode::ReexportsOnly),
+            Some(true) => {
+                if is_development {
+                    Some(TreeShakingMode::ModuleFragments)
+                } else {
+                    Some(TreeShakingMode::ReexportsOnly)
+                }
+            }
+            None => {
+                if is_development {
+                    Some(TreeShakingMode::ReexportsOnly)
+                } else {
+                    Some(TreeShakingMode::ModuleFragments)
+                }
+            }
+        })
         .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn tree_shaking_mode_for_user_code(
+        self: Vc<Self>,
+        _is_development: Vc<bool>,
+    ) -> Result<Vc<OptionTreeShaking>> {
+        Ok(OptionTreeShaking(Some(TreeShakingMode::ReexportsOnly)).cell())
     }
 }
 
