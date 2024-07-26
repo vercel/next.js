@@ -74,7 +74,7 @@ fn longest_common_prefix<'a>(strings: &[&'a str]) -> &'a str {
                 .count(),
         );
     }
-    &strings[0][..len]
+    &first[..len]
 }
 
 fn longest_common_suffix<'a>(strings: &[&'a str]) -> &'a str {
@@ -82,10 +82,10 @@ fn longest_common_suffix<'a>(strings: &[&'a str]) -> &'a str {
         return "";
     }
     let first = strings[0];
-    let mut start = 0;
+    let mut len = 0;
     for str in &strings[1..] {
-        start = std::cmp::max(
-            start,
+        len = std::cmp::max(
+            len,
             // TODO these are Unicode Scalar Values, not graphemes
             str.chars()
                 .rev()
@@ -94,15 +94,25 @@ fn longest_common_suffix<'a>(strings: &[&'a str]) -> &'a str {
                 .count(),
         );
     }
-    &strings[0][(start - 1)..]
+    &first[(first.len() - len)..]
 }
 
+#[cfg(test)]
 mod test2 {
-    use crate::resolve::pattern::longest_common_suffix;
+    use super::{longest_common_prefix, longest_common_suffix};
+
+    #[test]
+    fn prefix() {
+        assert_eq!(longest_common_prefix(&["ab", "cd", "ef"]), "");
+        assert_eq!(longest_common_prefix(&["ab1", "ab23", "ab456"]), "ab");
+        assert_eq!(longest_common_prefix(&["abc", "abc", "abc"]), "abc");
+    }
 
     #[test]
     fn suffix() {
-        assert_eq!(longest_common_suffix(&["1ab", "23ab", "456ab"]), "ab")
+        assert_eq!(longest_common_suffix(&["ab", "cd", "ef"]), "");
+        assert_eq!(longest_common_suffix(&["1ab", "23ab", "456ab"]), "ab");
+        assert_eq!(longest_common_suffix(&["abc", "abc", "abc"]), "abc");
     }
 }
 
