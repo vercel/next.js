@@ -53,6 +53,41 @@ describe('app dir - form', () => {
     expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
   })
 
+  describe('functions passed to action', () => {
+    it.each([
+      {
+        name: 'client action',
+        path: '/forms/with-function/action-client',
+      },
+      {
+        name: 'server action',
+        path: '/forms/with-function/action-server',
+      },
+      {
+        name: 'server action (closure)',
+        path: '/forms/with-function/action-server-closure',
+      },
+    ])('runs $name', async ({ path }) => {
+      const session = await next.browser(path)
+
+      const start = Date.now()
+      await session.eval(`window.__MPA_NAV_ID = ${start}`) // actions should not MPA-navigate either.
+
+      const searchInput = await session.elementByCss('input[name="query"]')
+      await searchInput.fill('will not be a search')
+
+      const submitButton = await session.elementByCss('[type="submit"]')
+      await submitButton.click()
+
+      const result = await session
+        .waitForElementByCss('#redirected-results')
+        .text()
+      expect(result).toMatch(/query: "will not be a search"/)
+
+      expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
+    })
+  })
+
   describe('functions passed to formAction', () => {
     it.each([
       {
