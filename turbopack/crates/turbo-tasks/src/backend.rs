@@ -27,16 +27,6 @@ use crate::{
     ValueTypeId, VcRead, VcValueTrait, VcValueType,
 };
 
-pub enum TaskType {
-    /// Tasks that only exist for a certain operation and
-    /// won't persist between sessions
-    Transient(TransientTaskType),
-
-    /// Tasks that can persist between sessions and potentially
-    /// shared globally
-    Persistent(CachedTaskType),
-}
-
 type TransientTaskRoot =
     Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> + Send + Sync>;
 
