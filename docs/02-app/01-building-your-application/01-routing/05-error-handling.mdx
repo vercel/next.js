@@ -211,6 +211,8 @@ export default function Error({ error, reset }) {
 }
 ```
 
+You can bubble up errors to the next parent error boundary by throwing while rendering the `Error` component.
+
 ### Handling Errors in Nested Routes
 
 Errors will bubble up to the nearest parent error boundary. This allows for granular error handling by placing `error.tsx` files at different levels in the [route hierarchy](/docs/app/building-your-application/routing#component-hierarchy).
