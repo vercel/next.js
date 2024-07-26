@@ -89,6 +89,7 @@ import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
+import { NEXT_PATCH_SYMBOL } from '../patch-fetch'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -185,6 +186,8 @@ async function startWatcher(opts: SetupOpts) {
   const originalFetch = global.fetch
   const resetFetch = () => {
     global.fetch = originalFetch
+    // @ts-ignore
+    global[NEXT_PATCH_SYMBOL] = false
   }
 
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
