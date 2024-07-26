@@ -120,19 +120,16 @@ async function fetchServerAction(
 
     if (location) {
       // if it was a redirection, then result is just a regular RSC payload
-      const [, actionFlightData] = (response as any) ?? []
       return {
-        actionFlightData: actionFlightData,
+        actionFlightData: response.f,
         redirectLocation,
         revalidatedParts,
       }
     }
 
-    // otherwise it's a tuple of [actionResult, actionFlightData]
-    const [actionResult, [, actionFlightData]] = (response as any) ?? []
     return {
-      actionResult,
-      actionFlightData,
+      actionResult: response.a,
+      actionFlightData: response.f,
       redirectLocation,
       revalidatedParts,
     }

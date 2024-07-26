@@ -37,15 +37,19 @@ export function refreshReducer(
 
   // TODO-APP: verify that `href` is not an external url.
   // Fetch data from the root of the tree.
-  cache.lazyData = fetchServerResponse(
-    new URL(href, origin),
-    [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
-    includeNextUrl ? state.nextUrl : null,
-    state.buildId
-  )
+  cache.lazyData = fetchServerResponse(new URL(href, origin), {
+    flightRouterState: [
+      currentTree[0],
+      currentTree[1],
+      currentTree[2],
+      'refetch',
+    ],
+    nextUrl: includeNextUrl ? state.nextUrl : null,
+    buildId: state.buildId,
+  })
 
   return cache.lazyData.then(
-    async ([flightData, canonicalUrlOverride]) => {
+    async ({ f: flightData, c: canonicalUrlOverride }) => {
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
         return handleExternalUrl(

@@ -47,12 +47,8 @@ describe('getFilesInDir', () => {
     await fs.remove(testDir)
     await setupTestDir()
 
-    expect(await getFilesInDir(srcDir)).toIncludeAllMembers([
-      '.hidden',
-      'file',
-      'link',
-      'link-level-2',
-      'link-level-3',
-    ])
+    expect(await getFilesInDir(srcDir)).toEqual(
+      new Set(['.hidden', 'file', 'link', 'link-level-2', 'link-level-3'])
+    )
   })
 })

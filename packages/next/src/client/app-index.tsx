@@ -10,12 +10,16 @@ import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-ru
 import { onRecoverableError } from './on-recoverable-error'
 import { callServer } from './app-call-server'
 import {
-  ActionQueueContext,
+  type AppRouterActionQueue,
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 import { isNextRouterError } from './components/is-next-router-error'
 import { handleClientError } from './components/react-dev-overlay/internal/helpers/use-error-handler'
+import AppRouter from './components/app-router'
+import type { InitialRSCPayload } from '../server/app-render/types'
+import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
+import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 
 // Patch console.error to collect information about hydration errors
 const origConsoleError = window.console.error
@@ -169,8 +173,55 @@ const initialServerResponse = createFromReadableStream(readable, {
   callServer,
 })
 
+// React overrides `.then` and doesn't return a new promise chain,
+// so we wrap the action queue in a promise to ensure that its value
+// is defined when the promise resolves.
+// https://github.com/facebook/react/blob/163365a07872337e04826c4f501565d43dbd2fd4/packages/react-client/src/ReactFlightClient.js#L189-L190
+const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
+  (resolve, reject) => {
+    initialServerResponse.then(
+      (initialRSCPayload: InitialRSCPayload) => {
+        resolve(
+          createMutableActionQueue(
+            createInitialRouterState({
+              buildId: initialRSCPayload.b,
+              initialFlightData: initialRSCPayload.f,
+              initialCanonicalUrl: initialRSCPayload.c,
+              initialParallelRoutes: new Map(),
+              location: window.location,
+              couldBeIntercepted: initialRSCPayload.i,
+            })
+          )
+        )
+      },
+      (err: Error) => reject(err)
+    )
+  }
+)
+
 function ServerRoot(): React.ReactNode {
-  return use(initialServerResponse)
+  const initialRSCPayload = use<InitialRSCPayload>(initialServerResponse)
+  const actionQueue = use<AppRouterActionQueue>(pendingActionQueue)
+
+  const router = (
+    <AppRouter
+      actionQueue={actionQueue}
+      globalErrorComponent={initialRSCPayload.G}
+      assetPrefix={initialRSCPayload.p}
+    />
+  )
+
+  if (process.env.NODE_ENV === 'development' && initialRSCPayload.m) {
+    // We provide missing slot information in a context provider only during development
+    // as we log some additional information about the missing slots in the console.
+    return (
+      <MissingSlotContext value={initialRSCPayload.m}>
+        {router}
+      </MissingSlotContext>
+    )
+  }
+
+  return router
 }
 
 const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
@@ -190,16 +241,12 @@ function Root({ children }: React.PropsWithChildren<{}>) {
 }
 
 export function hydrate() {
-  const actionQueue = createMutableActionQueue()
-
   const reactEl = (
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider value={{ appDir: true }}>
-        <ActionQueueContext.Provider value={actionQueue}>
-          <Root>
-            <ServerRoot />
-          </Root>
-        </ActionQueueContext.Provider>
+        <Root>
+          <ServerRoot />
+        </Root>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
   )
