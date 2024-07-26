@@ -521,7 +521,9 @@
         "app-dir with middleware Mutate request headers for next/headers Supports draft mode",
         "app-dir with middleware Mutate request headers for next/headers Updates headers",
         "app-dir with middleware should be possible to modify cookies & read them in an RSC in a single request",
-        "app-dir with middleware should filter correctly after middleware rewrite"
+        "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
+        "app-dir with middleware should filter correctly after middleware rewrite",
+        "app-dir with middleware should respect cookie options of merged middleware cookies"
       ],
       "failed": [],
       "pending": [],
@@ -1043,6 +1045,7 @@
         "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
         "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
         "app dir - basic next/script should support next/script and render in correct order",
+        "app dir - basic outputs correct build-diagnostics.json",
         "app dir - basic rewrites should support rewrites on client-side navigation",
         "app dir - basic rewrites should support rewrites on client-side navigation from pages to app with existing pages path",
         "app dir - basic rewrites should support rewrites on initial load",
@@ -1076,6 +1079,7 @@
         "app dir - basic server components should serve client component should serve client-side",
         "app dir - basic server components should serve client component should serve server-side",
         "app dir - basic server components should serve shared component",
+        "app dir - basic should contain framework.json",
         "app dir - basic should ensure the </body></html> suffix is at the end of the stream",
         "app dir - basic should handle hash in initial url",
         "app dir - basic should have correct searchParams and params (client)",
@@ -1130,7 +1134,11 @@
       "passed": [],
       "failed": [],
       "pending": [
-        "should output updated trace files should have file hashes in trace files"
+        "should output updated trace files should hard navigate on chunk load failure",
+        "should output updated trace files should have file hashes in trace files",
+        "should output updated trace files should only rebuild a changed app and pages route correctly",
+        "should output updated trace files should only rebuild just a changed app route correctly",
+        "should output updated trace files should only rebuild just a changed pages route correctly"
       ],
       "flakey": [],
       "runtimeError": false
@@ -1169,6 +1177,7 @@
         "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
         "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
         "app dir - basic next/script should support next/script and render in correct order",
+        "app dir - basic outputs correct build-diagnostics.json",
         "app dir - basic rewrites should support rewrites on client-side navigation",
         "app dir - basic rewrites should support rewrites on client-side navigation from pages to app with existing pages path",
         "app dir - basic rewrites should support rewrites on initial load",
@@ -1202,6 +1211,7 @@
         "app dir - basic server components should serve client component should serve client-side",
         "app dir - basic server components should serve client component should serve server-side",
         "app dir - basic server components should serve shared component",
+        "app dir - basic should contain framework.json",
         "app dir - basic should ensure the </body></html> suffix is at the end of the stream",
         "app dir - basic should handle hash in initial url",
         "app dir - basic should have correct preferredRegion values in manifest",
@@ -1214,7 +1224,6 @@
         "app dir - basic should match redirects in pages correctly $path",
         "app dir - basic should not apply client router filter on shallow",
         "app dir - basic should not create new root layout when nested (optional)",
-        "app dir - basic should not have entire prerender-manifest for edge",
         "app dir - basic should not include parent when not in parent directory",
         "app dir - basic should not rerender layout when navigating between routes in the same layout",
         "app dir - basic should not serve when layout is provided but no folder index",
@@ -1243,9 +1252,7 @@
       "failed": [
         "app dir - basic should encode chunk path correctly",
         "app dir - basic should generate build traces correctly",
-        "app dir - basic should not have loader generated function for edge runtime",
-        "app dir - basic should contain framework.json",
-        "app dir - basic outputs correct build-diagnostics.json"
+        "app dir - basic should not have loader generated function for edge runtime"
       ],
       "pending": [
         "app dir - basic known bugs should support React fetch instrumentation client component",
@@ -1254,15 +1261,6 @@
         "app dir - basic should match partial parameters",
         "app dir - basic should not include parent when not in parent directory with route in directory"
       ],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/e2e/app-dir/app/provide-paths.test.ts": {
-      "passed": [],
-      "failed": [
-        "Provided page/app paths should only build the provided paths"
-      ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -1536,6 +1534,15 @@
         "dedupe-rsc-error-log should only log RSC error once for nodejs runtime",
         "dedupe-rsc-error-log should only log SSR error once for edge runtime",
         "dedupe-rsc-error-log should only log SSR error once for nodejs runtime"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/disable-logging-route/disable-logging-route.test.ts": {
+      "passed": [
+        "app-dir - disable-logging-route should not log if disabled logging"
       ],
       "failed": [],
       "pending": [],
@@ -2001,7 +2008,7 @@
         "app-dir - logging with default logging should not log fetch requests at all",
         "app-dir - logging with fetches default logging should only log requests in development mode",
         "app-dir - logging with fetches verbose logging should only log requests in development mode",
-        "app-dir - logging with verbose logging for edge runtime should not log fetch requests at all"
+        "app-dir - logging with verbose logging for edge runtime should only log requests in development mode"
       ],
       "failed": [],
       "pending": [],
@@ -2010,9 +2017,7 @@
     },
     "test/e2e/app-dir/logging/fetch-warning.test.ts": {
       "passed": [
-        "app-dir - fetch warnings should log when request input is a Request instance",
-        "app-dir - fetch warnings should log when request input is a string",
-        "app-dir - fetch warnings should not log when overriding cache within the Request object"
+        "app-dir - fetch warnings should not log fetch warnings in production"
       ],
       "failed": [],
       "pending": [],
@@ -3272,6 +3277,13 @@
       "passed": [
         "react-owner-stacks-svgr renders an SVG that is transformed by @svgr/webpack into a React component"
       ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/remove-console/remove-console.test.ts": {
+      "passed": ["remove-console should remove console.log"],
       "failed": [],
       "pending": [],
       "flakey": [],
@@ -4961,6 +4973,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/instrumentation-hook/register-once/register-once.test.ts": {
+      "passed": [
+        "instrumentation-hook - register-once should only register once"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/link-with-api-rewrite/index.test.ts": {
       "passed": [
         "link-with-api-rewrite should perform hard navigation for direct urls",
@@ -5665,6 +5686,31 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/on-request-error/dynamic-routes/dynamic-routes.test.ts": {
+      "passed": [
+        "on-request-error - dynamic-routes app router should catch app router dynamic page error with search params",
+        "on-request-error - dynamic-routes app router should catch app router dynamic routes error with search params",
+        "on-request-error - dynamic-routes app router should catch suspense rendering page error in node runtime",
+        "on-request-error - dynamic-routes pages router should catch pages router dynamic API route error with search params",
+        "on-request-error - dynamic-routes pages router should catch pages router dynamic page error with search params"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/on-request-error/server-action-error/server-action-error.test.ts": {
+      "passed": [
+        "on-request-error - server-action-error should catch server action error in listener callback in edge runtime",
+        "on-request-error - server-action-error should catch server action error in listener callback in nodejs runtime",
+        "on-request-error - server-action-error should catch the server action form error in edge runtime",
+        "on-request-error - server-action-error should catch the server action form error in nodejs runtime"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/on-request-error/skip-next-internal-error/skip-next-internal-error.test.ts": {
       "passed": [
         "on-request-error - skip-next-internal-error app router API should not catch server component not-found errors",
@@ -5673,6 +5719,8 @@
         "on-request-error - skip-next-internal-error app router render should not catch client component not-found errors",
         "on-request-error - skip-next-internal-error app router render should not catch client component redirect errors",
         "on-request-error - skip-next-internal-error app router render should not catch next dynamic no-ssr errors",
+        "on-request-error - skip-next-internal-error app router render should not catch server action not-found errors",
+        "on-request-error - skip-next-internal-error app router render should not catch server action redirect errors",
         "on-request-error - skip-next-internal-error app router render should not catch server component dynamic usage errors",
         "on-request-error - skip-next-internal-error app router render should not catch server component not-found errors",
         "on-request-error - skip-next-internal-error app router render should not catch server component redirect errors"
@@ -6470,8 +6518,18 @@
       "passed": [],
       "failed": [],
       "pending": [
-        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
-        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
+        "AMP Usage AMP dev no-warn should not warn on valid amp",
+        "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
+        "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
+        "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
+        "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
+        "AMP Usage AMP development mode should detect changes and refresh an AMP page",
+        "AMP Usage AMP development mode should detect changes and refresh an AMP page at root pages/",
+        "AMP Usage AMP development mode should detect changes to component and refresh an AMP page",
+        "AMP Usage AMP development mode should detect the changes and display it",
+        "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
+        "AMP Usage AMP development mode should not contain missing files warning",
+        "AMP Usage AMP development mode should not reload unless the page is edited for an AMP page",
         "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
         "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
         "AMP Usage production mode With AMP context should render the AMP page that uses the AMP hook",
@@ -6479,6 +6537,8 @@
         "AMP Usage production mode With basic AMP usage should auto import extensions",
         "AMP Usage production mode With basic AMP usage should drop custom scripts",
         "AMP Usage production mode With basic AMP usage should not drop custom amp scripts",
+        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
+        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
         "AMP Usage production mode With basic AMP usage should optimize clean",
         "AMP Usage production mode With basic AMP usage should render the page as valid AMP",
         "AMP Usage production mode With basic AMP usage should render the page without leaving render target",
@@ -6495,19 +6555,7 @@
         "AMP Usage production mode combined styles should combine style tags",
         "AMP Usage production mode combined styles should remove sourceMaps from styles",
         "AMP Usage production mode should have amp optimizer in trace",
-        "AMP Usage production mode should not contain missing files warning",
-        "AMP Usage AMP dev no-warn should not warn on valid amp",
-        "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
-        "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
-        "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
-        "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
-        "AMP Usage AMP development mode should not contain missing files warning",
-        "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
-        "AMP Usage AMP development mode should detect changes and refresh an AMP page",
-        "AMP Usage AMP development mode should detect changes and refresh an AMP page at root pages/",
-        "AMP Usage AMP development mode should detect changes to component and refresh an AMP page",
-        "AMP Usage AMP development mode should detect the changes and display it",
-        "AMP Usage AMP development mode should not reload unless the page is edited for an AMP page"
+        "AMP Usage production mode should not contain missing files warning"
       ],
       "flakey": [],
       "runtimeError": false
@@ -7604,22 +7652,22 @@
         "Has CSS Module in computed styles in Development should have CSS for page",
         "Has CSS Module in computed styles in Production production mode should have CSS for page",
         "Has CSS Module in computed styles in Production production mode should have compiled successfully",
-        "Valid CSS Module Usage from within node_modules production mode should have compiled successfully"
-      ],
-      "failed": [
+        "Valid CSS Module Usage from within node_modules production mode should have compiled successfully",
         "3rd Party CSS Module Support production mode should've emitted a single CSS file",
         "3rd Party CSS Module Support production mode should've injected the CSS on server render",
         "Basic CSS Module Support production mode should've emitted a single CSS file",
-        "Basic CSS Module Support production mode should've injected the CSS on server render",
         "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
-        "CSS Module Composes Usage (External) production mode should have compiled successfully",
-        "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
+        "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
         "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
         "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file",
-        "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
-        "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data",
-        "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
+        "Basic CSS Module Support production mode should've injected the CSS on server render",
+        "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
+      ],
+      "failed": [
+        "CSS Module Composes Usage (External) production mode should have compiled successfully",
+        "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
         "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
+        "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
         "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
       ],
       "pending": [
@@ -7646,9 +7694,7 @@
         "Multi Global Support production mode useLightnincsss(false) should compile successfully",
         "Multi Global Support production mode useLightnincsss(true) should compile successfully",
         "Nested @import() Global Support production mode useLightnincsss(false) should compile successfully",
-        "Nested @import() Global Support production mode useLightnincsss(true) should compile successfully"
-      ],
-      "failed": [
+        "Nested @import() Global Support production mode useLightnincsss(true) should compile successfully",
         "Basic Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
         "Basic Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
         "Basic Global Support with special characters in path production mode useLightnincsss(false) should've emitted a single CSS file",
@@ -7666,6 +7712,7 @@
         "Nested @import() Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
         "Nested @import() Global Support production mode useLightnincsss(true) should've emitted a single CSS file"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -12757,14 +12804,14 @@
     },
     "test/integration/next-image-legacy/base-path/test/static.test.ts": {
       "passed": [
+        "Build Error Tests for basePath production mode should throw build error when import statement is used with missing file",
         "Static Image Component Tests for basePath production mode Should add a blur placeholder to statically imported jpg",
         "Static Image Component Tests for basePath production mode Should add a blur placeholder to statically imported png",
         "Static Image Component Tests for basePath production mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests for basePath production mode Should allow provided width and height to override intrinsic",
         "Static Image Component Tests for basePath production mode Should automatically provide an image height and width",
         "Static Image Component Tests for basePath production mode Should use immutable cache-control header even when unoptimized",
-        "Static Image Component Tests for basePath production mode Should use immutable cache-control header for static import",
-        "Build Error Tests for basePath production mode should throw build error when import statement is used with missing file"
+        "Static Image Component Tests for basePath production mode Should use immutable cache-control header for static import"
       ],
       "failed": [],
       "pending": [
@@ -15518,6 +15565,16 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/ssg-single-pass/ssg-single-pass.test.ts": {
+      "passed": [
+        "ssg-single-pass should only render the page once during an ISR revalidation",
+        "ssg-single-pass should only render the page once during build"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/subresource-integrity/subresource-integrity.test.ts": {
       "passed": [],
       "failed": [],
@@ -15901,7 +15958,7 @@
       "failed": [],
       "pending": [],
       "flakey": [],
-      "runtimeError": true
+      "runtimeError": false
     },
     "test/production/jest/new-link-behavior.test.ts": {
       "passed": ["next/jest newLinkBehavior should use new link behavior"],
@@ -15929,7 +15986,7 @@
       "failed": [],
       "pending": [],
       "flakey": [],
-      "runtimeError": true
+      "runtimeError": false
     },
     "test/production/jest/rsc/lib/utils.test.js": {
       "passed": ["works with server-only code"],
@@ -16065,6 +16122,7 @@
         "Production Usage should handle query/hash correctly during query updating #hello? $search",
         "Production Usage should handle query/hash correctly during query updating #hello?world $search",
         "Production Usage should have defer on all script tags",
+        "Production Usage should navigate through history after query update",
         "Production Usage should navigate to external site and back",
         "Production Usage should navigate to external site and back (with query)",
         "Production Usage should navigate to page with CSS and back",
@@ -16084,7 +16142,6 @@
       "failed": [
         "Production Usage process.browser should eliminate client only code on the server",
         "Production Usage process.browser should eliminate server only code on the client",
-        "Production Usage should navigate through history after query update",
         "Production Usage should output traces"
       ],
       "pending": [

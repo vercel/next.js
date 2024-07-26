@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use indexmap::IndexMap;
 use turbo_tasks::RcStr;
 use turbopack_binding::{
     turbo::tasks::Vc,
@@ -39,7 +38,7 @@ impl Diagnostic for NextFeatureTelemetry {
 
     #[turbo_tasks::function]
     fn payload(&self) -> Vc<DiagnosticPayload> {
-        Vc::cell(HashMap::from([(
+        Vc::cell(IndexMap::from([(
             self.feature_name.clone(),
             self.enabled.to_string().into(),
         )]))
@@ -79,7 +78,7 @@ impl Diagnostic for ModuleFeatureTelemetry {
 
     #[turbo_tasks::function]
     fn payload(&self) -> Vc<DiagnosticPayload> {
-        Vc::cell(HashMap::from([(
+        Vc::cell(IndexMap::from([(
             self.feature_name.clone(),
             self.invocation_count.to_string().into(),
         )]))

@@ -7,7 +7,7 @@ use next_api::{
     route::{Endpoint, WrittenEndpoint},
 };
 use tracing::Instrument;
-use turbo_tasks::{ReadRef, Vc};
+use turbo_tasks::{Completion, ReadRef, Vc};
 use turbopack_binding::turbopack::core::{
     diagnostics::PlainDiagnostic, error::PrettyPrintError, issue::PlainIssue,
 };
@@ -153,27 +153,73 @@ pub fn endpoint_server_changed_subscribe(
         func,
         move || {
             async move {
-                let changed = endpoint.server_changed();
-                changed.strongly_consistent().await?;
-                if issues {
-                    let issues = get_issues(changed).await?;
-                    let diags = get_diagnostics(changed).await?;
-                    Ok((issues, diags))
-                } else {
-                    Ok((Arc::new(vec![]), Arc::new(vec![])))
-                }
+                subscribe_issues_and_diags(endpoint, issues)
+                    .strongly_consistent()
+                    .await
             }
             .instrument(tracing::info_span!("server changes subscription"))
         },
         |ctx| {
-            let (issues, diags) = ctx.value;
+            let EndpointIssuesAndDiags {
+                changed: _,
+                issues,
+                diagnostics,
+            } = &*ctx.value;
+
             Ok(vec![TurbopackResult {
                 result: (),
                 issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+                diagnostics: diagnostics
+                    .iter()
+                    .map(|d| NapiDiagnostic::from(d))
+                    .collect(),
             }])
         },
     )
+}
+
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+struct EndpointIssuesAndDiags {
+    changed: ReadRef<Completion>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+}
+
+impl PartialEq for EndpointIssuesAndDiags {
+    fn eq(&self, other: &Self) -> bool {
+        ReadRef::ptr_eq(&self.changed, &other.changed)
+            && self.issues == other.issues
+            && self.diagnostics == other.diagnostics
+    }
+}
+
+impl Eq for EndpointIssuesAndDiags {}
+
+#[turbo_tasks::function]
+async fn subscribe_issues_and_diags(
+    endpoint: Vc<Box<dyn Endpoint>>,
+    should_include_issues: bool,
+) -> Result<Vc<EndpointIssuesAndDiags>> {
+    let changed = endpoint.server_changed();
+    let changed_value = changed.strongly_consistent().await?;
+
+    if should_include_issues {
+        let issues = get_issues(changed).await?;
+        let diagnostics = get_diagnostics(changed).await?;
+        Ok(EndpointIssuesAndDiags {
+            changed: changed_value,
+            issues,
+            diagnostics,
+        }
+        .cell())
+    } else {
+        Ok(EndpointIssuesAndDiags {
+            changed: changed_value,
+            issues: Arc::new(vec![]),
+            diagnostics: Arc::new(vec![]),
+        }
+        .cell())
+    }
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]

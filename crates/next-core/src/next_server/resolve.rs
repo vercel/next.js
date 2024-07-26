@@ -24,8 +24,10 @@ use turbopack_binding::{
 #[turbo_tasks::value(into = "shared")]
 pub enum ExternalPredicate {
     /// Mark all modules as external if they're not listed in the list.
+    /// Applies only to imports outside of node_modules.
     AllExcept(Vc<Vec<RcStr>>),
-    /// Only mark modules listed as external.
+    /// Only mark modules listed as external, whether inside node_modules or
+    /// not.
     Only(Vc<Vec<RcStr>>),
 }
 
@@ -76,13 +78,10 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
     async fn after_resolve(
         &self,
         fs_path: Vc<FileSystemPath>,
-        context: Vc<FileSystemPath>,
+        lookup_path: Vc<FileSystemPath>,
         reference_type: Value<ReferenceType>,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
-        if *condition(self.root).matches(context).await? {
-            return Ok(ResolveResultOption::none());
-        }
         let request_value = &*request.await?;
         if !matches!(request_value, Request::Module { .. }) {
             return Ok(ResolveResultOption::none());
@@ -104,6 +103,10 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let predicate = self.predicate.await?;
         let must_be_external = match &*predicate {
             ExternalPredicate::AllExcept(exceptions) => {
+                if *condition(self.root).matches(lookup_path).await? {
+                    return Ok(ResolveResultOption::none());
+                }
+
                 let exception_glob = packages_glob(*exceptions).await?;
 
                 if let Some(PackagesGlobs {
@@ -205,13 +208,13 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let mut request = request;
 
         let node_resolve_options = if is_esm {
-            node_esm_resolve_options(context.root())
+            node_esm_resolve_options(lookup_path.root())
         } else {
-            node_cjs_resolve_options(context.root())
+            node_cjs_resolve_options(lookup_path.root())
         };
         let result_from_original_location = loop {
             let node_resolved_from_original_location = resolve(
-                context,
+                lookup_path,
                 reference_type.clone(),
                 request,
                 node_resolve_options,
@@ -367,7 +370,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // It would be more efficient to use an CJS external instead of an ESM external,
                 // but we need to verify if that would be correct (as in resolves to the same
                 // file).
-                let node_resolve_options = node_cjs_resolve_options(context.root());
+                let node_resolve_options = node_cjs_resolve_options(lookup_path.root());
                 let node_resolved = resolve(
                     self.project_path,
                     reference_type.clone(),
