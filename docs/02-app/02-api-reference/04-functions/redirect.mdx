@@ -36,7 +36,7 @@ The `type` parameter has no effect when used in Server Components.
 
 ## Returns
 
-`redirect` does not return any value. Instead, it throws a NEXT_REDIRECT error internally. When using `redirect` within a `try/catch` block, you must invoke it in the `finally` block to ensure proper execution.
+`redirect` does not return any value. Instead, it throws a `NEXT_REDIRECT` error. When invoking the `redirect()` function within a `try/catch` block, you must invoke it in the `finally` block to ensure proper execution.
 
 ```tsx filename="app/actions.ts"
 'use server'
