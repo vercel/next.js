@@ -411,23 +411,6 @@ impl ImportMap {
         // TODO lookup pattern
         // relative requests must not match global wildcard aliases.
 
-        // match &*request.await? {
-        //     Request::Raw { path, .. } => todo!(),
-        //     Request::Relative { path, .. } => todo!(),
-        //     Request::Module { module, path, .. } => todo!(),
-        //     Request::ServerRelative { path, .. } => todo!(),
-        //     Request::Windows { path, .. } => todo!(),
-        //     Request::Empty => todo!(),
-        //     Request::PackageInternal { path } => todo!(),
-        //     Request::Uri {
-        //         protocol,
-        //         remainder,
-        //         ..
-        //     } => todo!(),
-        //     Request::Unknown { path } => todo!(),
-        //     Request::Dynamic => todo!(),
-        //     Request::Alternatives { requests } => todo!(),
-        // }
         use turbo_tasks::debug::ValueDebug;
         println!("lookup 1 {:?}", request.dbg().await?);
         if let Some(request_pattern) = request.await?.request_pattern() {
