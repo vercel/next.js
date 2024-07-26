@@ -8,6 +8,10 @@ on:
       # If not specified, will use latest release version including canary.
       version:
         type: string
+      nodeVersion:
+        required: false
+        description: 'version of Node.js to use'
+        type: string
 
 jobs:
   build_nextjs:
@@ -16,6 +20,11 @@ jobs:
     outputs:
       output1: ${{ steps.build-next-swc-turbopack-patch.outputs.success }}
     steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+          check-latest: true
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores

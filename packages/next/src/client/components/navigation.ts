@@ -13,6 +13,7 @@ import {
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import { ReadonlyURLSearchParams } from './navigation.react-server'
+import type { Params } from './params'
 
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
@@ -118,10 +119,6 @@ export function useRouter(): AppRouterInstance {
   }
 
   return router
-}
-
-interface Params {
-  [key: string]: string | string[]
 }
 
 /**

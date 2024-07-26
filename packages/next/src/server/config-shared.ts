@@ -200,6 +200,7 @@ export interface ReactCompilerOptions {
 }
 
 export interface ExperimentalConfig {
+  appNavFailHandling?: boolean
   flyingShuttle?: boolean
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
@@ -338,6 +339,13 @@ export interface ExperimentalConfig {
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
    */
   typedRoutes?: boolean
+
+  /**
+   * Enable type-checking and autocompletion for environment variables.
+   *
+   * @default false
+   */
+  typedEnv?: boolean
 
   /**
    * Runs the compilations for server and edge in parallel instead of in serial.
@@ -489,6 +497,11 @@ export interface ExperimentalConfig {
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
+
+  /**
+   * Allows previously fetched data to be re-used when editing server components.
+   */
+  serverComponentsHmrCache?: boolean
 }
 
 export type ExportPathMap = {
@@ -676,6 +689,8 @@ export interface NextConfig extends Record<string, any> {
       | 'bottom-left'
       | 'top-right'
       | 'top-left'
+
+    appIsrStatus?: boolean
   }
 
   /**
@@ -838,11 +853,13 @@ export interface NextConfig extends Record<string, any> {
     }
   >
 
-  logging?: {
-    fetches?: {
-      fullUrl?: boolean
-    }
-  }
+  logging?:
+    | {
+        fetches?: {
+          fullUrl?: boolean
+        }
+      }
+    | false
 
   /**
    * period (in seconds) where the server allow to serve stale cache
@@ -892,6 +909,7 @@ export const defaultConfig: NextConfig = {
   compress: true,
   images: imageConfigDefault,
   devIndicators: {
+    appIsrStatus: true,
     buildActivity: true,
     buildActivityPosition: 'bottom-right',
   },
@@ -916,12 +934,14 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
+  logging: {},
   swrDelta: undefined,
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    flyingShuttle: false,
+    appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
+    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
     prerenderEarlyExit: true,
     serverMinification: true,
     serverSourceMaps: false,
@@ -966,6 +986,7 @@ export const defaultConfig: NextConfig = {
     turbo: undefined,
     turbotrace: undefined,
     typedRoutes: false,
+    typedEnv: false,
     instrumentationHook: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
@@ -991,6 +1012,7 @@ export const defaultConfig: NextConfig = {
     reactCompiler: undefined,
     after: false,
     staticGenerationRetryCount: undefined,
+    serverComponentsHmrCache: true,
   },
   bundlePagesRouterDependencies: false,
 }

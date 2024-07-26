@@ -1,5 +1,9 @@
-import type { FlightSegmentPath, CacheNodeSeedData } from './types'
-import React, { type ReactNode } from 'react'
+import type {
+  FlightSegmentPath,
+  CacheNodeSeedData,
+  PreloadCallbacks,
+} from './types'
+import React from 'react'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
@@ -15,15 +19,7 @@ import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
-
-type ComponentTree = {
-  seedData: CacheNodeSeedData
-  styles: ReactNode
-}
-
-type Params = {
-  [key: string]: string | string[]
-}
+import type { Params } from '../../client/components/params'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -41,13 +37,20 @@ export function createComponentTree(props: {
   metadataOutlet?: React.ReactNode
   ctx: AppRenderContext
   missingSlots?: Set<string>
-}): Promise<ComponentTree> {
+  preloadCallbacks: PreloadCallbacks
+}): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
     {
       spanName: 'build component tree',
     },
     () => createComponentTreeInternal(props)
+  )
+}
+
+function errorMissingDefaultExport(pagePath: string, convention: string) {
+  throw new Error(
+    `The default export is not a React Component in "${pagePath}/${convention}"`
   )
 }
 
@@ -64,6 +67,7 @@ async function createComponentTreeInternal({
   metadataOutlet,
   ctx,
   missingSlots,
+  preloadCallbacks,
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
@@ -77,7 +81,8 @@ async function createComponentTreeInternal({
   metadataOutlet?: React.ReactNode
   ctx: AppRenderContext
   missingSlots?: Set<string>
-}): Promise<ComponentTree> {
+  preloadCallbacks: PreloadCallbacks
+}): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
     staticGenerationStore,
@@ -117,6 +122,7 @@ async function createComponentTreeInternal({
   )
 
   const layerAssets = getLayerAssets({
+    preloadCallbacks,
     ctx,
     layoutOrPagePath,
     injectedCSS: injectedCSSWithCurrentLayout,
@@ -280,7 +286,7 @@ async function createComponentTreeInternal({
   }
 
   const LayoutOrPage: React.ComponentType<any> | undefined = layoutOrPageMod
-    ? await interopDefault(layoutOrPageMod)
+    ? interopDefault(layoutOrPageMod)
     : undefined
 
   /**
@@ -348,30 +354,22 @@ async function createComponentTreeInternal({
       (isPage || typeof Component !== 'undefined') &&
       !isValidElementType(Component)
     ) {
-      throw new Error(
-        `The default export is not a React Component in page: "${pagePath}"`
-      )
+      errorMissingDefaultExport(pagePath, 'page')
     }
 
     if (
       typeof ErrorComponent !== 'undefined' &&
       !isValidElementType(ErrorComponent)
     ) {
-      throw new Error(
-        `The default export of error is not a React Component in page: ${segment}`
-      )
+      errorMissingDefaultExport(pagePath, 'error')
     }
 
     if (typeof Loading !== 'undefined' && !isValidElementType(Loading)) {
-      throw new Error(
-        `The default export of loading is not a React Component in ${segment}`
-      )
+      errorMissingDefaultExport(pagePath, 'loading')
     }
 
     if (typeof NotFound !== 'undefined' && !isValidElementType(NotFound)) {
-      throw new Error(
-        `The default export of notFound is not a React Component in ${segment}`
-      )
+      errorMissingDefaultExport(pagePath, 'not-found')
     }
 
     if (typeof Forbidden !== 'undefined' && !isValidElementType(Forbidden)) {
@@ -422,7 +420,6 @@ async function createComponentTreeInternal({
         // if we're prefetching and that there's a Loading component, we bail out
         // otherwise we keep rendering for the prefetch.
         // We also want to bail out if there's no Loading component in the tree.
-        let currentStyles = undefined
         let childCacheNodeSeedData: CacheNodeSeedData | null = null
 
         if (
@@ -474,27 +471,26 @@ async function createComponentTreeInternal({
             }
           }
 
-          const { seedData, styles: childComponentStyles } =
-            await createComponentTreeInternal({
-              createSegmentPath: (child) => {
-                return createSegmentPath([...currentSegmentPath, ...child])
-              },
-              loaderTree: parallelRoute,
-              parentParams: currentParams,
-              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-              injectedCSS: injectedCSSWithCurrentLayout,
-              injectedJS: injectedJSWithCurrentLayout,
-              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-              asNotFound,
-              // The metadataOutlet is responsible for throwing any errors that were caught during metadata resolution.
-              // We only want to render an outlet once per segment, as otherwise the error will be triggered
-              // multiple times causing an uncaught error.
-              metadataOutlet: isChildrenRouteKey ? metadataOutlet : undefined,
-              ctx,
-              missingSlots,
-            })
+          const seedData = await createComponentTreeInternal({
+            createSegmentPath: (child) => {
+              return createSegmentPath([...currentSegmentPath, ...child])
+            },
+            loaderTree: parallelRoute,
+            parentParams: currentParams,
+            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+            injectedCSS: injectedCSSWithCurrentLayout,
+            injectedJS: injectedJSWithCurrentLayout,
+            injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+            asNotFound,
+            // The metadataOutlet is responsible for throwing any errors that were caught during metadata resolution.
+            // We only want to render an outlet once per segment, as otherwise the error will be triggered
+            // multiple times causing an uncaught error.
+            metadataOutlet: isChildrenRouteKey ? metadataOutlet : undefined,
+            ctx,
+            missingSlots,
+            preloadCallbacks,
+          })
 
-          currentStyles = childComponentStyles
           childCacheNodeSeedData = seedData
         }
 
@@ -519,7 +515,6 @@ async function createComponentTreeInternal({
             notFoundStyles={notFoundStyles}
             forbidden={forbiddenComponent}
             forbiddenStyles={forbiddenStyles}
-            styles={currentStyles}
           />,
           childCacheNodeSeedData,
         ]
@@ -544,20 +539,20 @@ async function createComponentTreeInternal({
 
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!Component) {
-    return {
-      seedData: [
-        actualSegment,
-        parallelRouteCacheNodeSeedData,
-        // TODO: I don't think the extra fragment is necessary. React treats top
-        // level fragments as transparent, i.e. the runtime behavior should be
-        // identical even without it. But maybe there's some findDOMNode-related
-        // reason that I'm not aware of, so I'm leaving it as-is out of extreme
-        // caution, for now.
-        <>{parallelRouteProps.children}</>,
-        loadingData,
-      ],
-      styles: layerAssets,
-    }
+    return [
+      actualSegment,
+      parallelRouteCacheNodeSeedData,
+      // TODO: I don't think the extra fragment is necessary. React treats top
+      // level fragments as transparent, i.e. the runtime behavior should be
+      // identical even without it. But maybe there's some findDOMNode-related
+      // reason that I'm not aware of, so I'm leaving it as-is out of extreme
+      // caution, for now.
+      <>
+        {layerAssets}
+        {parallelRouteProps.children}
+      </>,
+      loadingData,
+    ]
   }
 
   // If force-dynamic is used and the current render supports postponing, we
@@ -575,19 +570,19 @@ async function createComponentTreeInternal({
     staticGenerationStore.forceDynamic &&
     staticGenerationStore.prerenderState
   ) {
-    return {
-      seedData: [
-        actualSegment,
-        parallelRouteCacheNodeSeedData,
+    return [
+      actualSegment,
+      parallelRouteCacheNodeSeedData,
+      <>
         <Postpone
           prerenderState={staticGenerationStore.prerenderState}
           reason='dynamic = "force-dynamic" was used'
           route={staticGenerationStore.route}
-        />,
-        loadingData,
-      ],
-      styles: layerAssets,
-    }
+        />
+        {layerAssets}
+      </>,
+      loadingData,
+    ]
   }
 
   const isClientComponent = isClientReference(layoutOrPageMod)
@@ -642,6 +637,7 @@ async function createComponentTreeInternal({
         <>
           {metadataOutlet}
           <ClientPageRoot props={props} Component={Component} />
+          {layerAssets}
         </>
       )
     } else {
@@ -652,21 +648,26 @@ async function createComponentTreeInternal({
         <>
           {metadataOutlet}
           <Component {...props} />
+          {layerAssets}
         </>
       )
     }
   } else {
     // For layouts we just render the component
-    segmentElement = <Component {...props} />
+    segmentElement = (
+      <>
+        {layerAssets}
+        <Component {...props} />
+      </>
+    )
   }
 
-  return {
-    seedData: [
-      actualSegment,
-      parallelRouteCacheNodeSeedData,
-      <>
-        {segmentElement}
-        {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
+  return [
+    actualSegment,
+    parallelRouteCacheNodeSeedData,
+    <>
+      {segmentElement}
+      {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
             surrounding it this would look like a pending tree data state on the client which will cause an error
             and break the app. Long-term we need to move away from using null as a partial tree identifier since it
             is a valid return type for the components we wrap. Once we make this change we can safely remove the
@@ -674,10 +675,8 @@ async function createComponentTreeInternal({
             If the Component above renders null the actual tree data will look like `[null, null]`. If we remove the extra
             null it will look like `null` (the array is elided) and this is what confuses the client router.
             TODO-APP update router to use a Symbol for partial tree detection */}
-        {null}
-      </>,
-      loadingData,
-    ],
-    styles: layerAssets,
-  }
+      {null}
+    </>,
+    loadingData,
+  ]
 }

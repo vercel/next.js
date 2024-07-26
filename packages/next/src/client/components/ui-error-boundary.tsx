@@ -13,7 +13,7 @@ interface UIErrorBoundaryProps {
   children: React.ReactNode
   pathname: string
   matcher: (error: unknown) => boolean
-  missingSlots: Set<string>
+  missingSlots?: Set<string>
   nextError: UIErrorFileType
 }
 
@@ -38,6 +38,7 @@ class UIErrorBoundary extends React.Component<
   componentDidCatch(): void {
     if (
       process.env.NODE_ENV === 'development' &&
+      this.props.missingSlots &&
       // A missing children slot is the typical not-found case, so no need to warn
       !this.props.missingSlots.has('children')
     ) {

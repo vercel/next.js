@@ -11,7 +11,7 @@ import { parseVersionInfo } from '../server/dev/parse-version-info'
 import { getStaleness } from '../client/components/react-dev-overlay/internal/components/VersionStalenessInfo/VersionStalenessInfo'
 import { warn } from '../build/output/log'
 
-type NextInfoOptions = {
+export type NextInfoOptions = {
   verbose?: boolean
 }
 

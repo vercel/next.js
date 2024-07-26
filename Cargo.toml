@@ -3,13 +3,13 @@ resolver = "2"
 
 members = [
   "scripts/send-trace-to-jaeger",
-  "packages/next-swc/crates/napi",
-  "packages/next-swc/crates/wasm",
-  "packages/next-swc/crates/next-api",
-  "packages/next-swc/crates/next-build-test",
-  "packages/next-swc/crates/next-build",
-  "packages/next-swc/crates/next-core",
-  "packages/next-swc/crates/next-custom-transforms",
+  "crates/napi",
+  "crates/wasm",
+  "crates/next-api",
+  "crates/next-build-test",
+  "crates/next-build",
+  "crates/next-core",
+  "crates/next-custom-transforms",
 ]
 
 [workspace.lints.clippy]
@@ -25,24 +25,24 @@ opt-level = 3
 
 [workspace.dependencies]
 # Workspace crates
-next-api = { path = "packages/next-swc/crates/next-api" }
-next-build = { path = "packages/next-swc/crates/next-build" }
-next-core = { path = "packages/next-swc/crates/next-core" }
-next-custom-transforms = { path = "packages/next-swc/crates/next-custom-transforms" }
+next-api = { path = "crates/next-api" }
+next-build = { path = "crates/next-build" }
+next-core = { path = "crates/next-core" }
+next-custom-transforms = { path = "crates/next-custom-transforms" }
 
 # SWC crates
-swc_core = { version = "0.95.2", features = [
+swc_core = { version = "0.96.9", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "0.35.25" }
+testing = { version = "0.36.0" }
 
 # Turbo crates
-turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240617.2" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240724.2" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240617.2" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240724.2" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240617.2" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240724.2" }
 
 # General Deps
 

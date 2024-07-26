@@ -3,12 +3,21 @@
 import { nextTestSetup } from 'e2e-utils'
 import { colorToRgb, retry } from 'next-test-utils'
 
-describe('SCSS Support', () => {
+describe.each([
+  { dependencies: { sass: '1.54.0' }, nextConfig: undefined },
+  {
+    dependencies: { 'sass-embedded': '1.75.0' },
+    nextConfig: {
+      sassOptions: {
+        implementation: 'sass-embedded',
+      },
+    },
+  },
+])('SCSS Support ($dependencies)', ({ dependencies, nextConfig }) => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      sass: '1.54.0',
-    },
+    dependencies,
+    nextConfig,
   })
   describe('Has CSS in computed styles in Production', () => {
     it('should have CSS for page', async () => {

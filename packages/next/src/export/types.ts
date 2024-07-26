@@ -6,7 +6,6 @@ import type { OutgoingHttpHeaders } from 'http'
 import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import type { FontConfig } from '../server/font-utils'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
-import type { Span } from '../trace'
 import type { Revalidate } from '../server/lib/revalidate'
 import type {
   NextEnabledDirectories,
@@ -16,6 +15,7 @@ import type {
   SerializableTurborepoAccessTraceResult,
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
+import type { FetchMetrics } from '../server/base-http'
 
 export interface AmpValidation {
   page: string
@@ -85,6 +85,7 @@ export type ExportRouteResult =
       ssgNotFound?: boolean
       hasEmptyPrelude?: boolean
       hasPostponed?: boolean
+      fetchMetrics?: FetchMetrics
     }
   | {
       error: boolean
@@ -156,6 +157,8 @@ export type ExportAppResult = {
        * If the page has postponed when using PPR.
        */
       hasPostponed?: boolean
+
+      fetchMetrics?: FetchMetrics
     }
   >
 
@@ -174,9 +177,3 @@ export type ExportAppResult = {
    */
   turborepoAccessTraceResults: Map<string, TurborepoAccessTraceResult>
 }
-
-export type ExportAppWorker = (
-  dir: string,
-  options: ExportAppOptions,
-  span: Span
-) => Promise<ExportAppResult | null>
