@@ -122,6 +122,7 @@ export type ServerFields = {
     typeof import('./filesystem').buildCustomRoute
   >[]
   setAppIsrStatus?: (key: string, value: false | number | null) => void
+  resetFetch?: () => void
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
@@ -181,8 +182,13 @@ async function startWatcher(opts: SetupOpts) {
     logging: nextConfig.logging !== false,
   })
 
+  const originalFetch = global.fetch
+  const resetFetch = () => {
+    global.fetch = originalFetch
+  }
+
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
-    ? await createHotReloaderTurbopack(opts, serverFields, distDir)
+    ? await createHotReloaderTurbopack(opts, serverFields, distDir, resetFetch)
     : new HotReloaderWebpack(opts.dir, {
         appDir,
         pagesDir,
@@ -193,6 +199,7 @@ async function startWatcher(opts: SetupOpts) {
         telemetry: opts.telemetry,
         rewrites: opts.fsChecker.rewrites,
         previewProps: opts.fsChecker.prerenderManifest.preview,
+        resetFetch: resetFetch,
       })
 
   await hotReloader.start()
