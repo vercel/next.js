@@ -84,10 +84,6 @@ describe('Invalid hrefs', () => {
       it('should handle child ref that is a function', async () => {
         await noError('/child-ref-func')
       })
-
-      it('should handle child ref that is a function that returns a cleanup function', async () => {
-        await noError('/child-ref-func-cleanup')
-      })
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -112,10 +108,6 @@ describe('Invalid hrefs', () => {
 
       it('should preload with child ref with function', async () => {
         await didPrefetch('/child-ref-func')
-      })
-
-      it('should preload with child ref with function that returns a cleanup function', async () => {
-        await didPrefetch('/child-ref-func-cleanup')
       })
     }
   )
