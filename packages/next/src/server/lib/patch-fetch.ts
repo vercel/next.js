@@ -34,7 +34,12 @@ type PatchedFetcher = Fetcher & {
   readonly _nextOriginalFetch: Fetcher
 }
 
-let isFetchPatched = false
+const nextPatchSymbol = Symbol.for('next-patch')
+
+function isFetchPatched() {
+  // @ts-ignore
+  return globalThis[nextPatchSymbol] === true
+}
 
 export function validateRevalidate(
   revalidateVal: unknown,
@@ -806,20 +811,21 @@ export function createPatchedFetcher(
   patched.__nextPatched = true as const
   patched.__nextGetStaticStore = () => staticGenerationAsyncStorage
   patched._nextOriginalFetch = originFetch
-  isFetchPatched = true
+  // @ts-ignore
+  globalThis[nextPatchSymbol] = true
 
   return patched
 }
-
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 export function patchFetch(options: PatchableModule) {
   // If we've already patched fetch, we should not patch it again.
-  if (isFetchPatched) return
+  if (isFetchPatched()) return
 
   // Grab the original fetch function. We'll attach this so we can use it in
   // the patched fetch function.
   const original = createDedupeFetch(globalThis.fetch)
+
   // Set the global fetch to the patched fetch.
   globalThis.fetch = createPatchedFetcher(original, options)
 }
