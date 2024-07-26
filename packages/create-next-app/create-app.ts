@@ -198,7 +198,7 @@ export async function createApp({
         isErrorLike(reason) ? reason.message : reason + ''
       )
     }
-     // Copy `.gitignore` if the application did not provide one
+    // Copy `.gitignore` if the application did not provide one
     const ignorePath = join(root, '.gitignore')
     if (!existsSync(ignorePath)) {
       copyFileSync(
