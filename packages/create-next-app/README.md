@@ -31,7 +31,7 @@ You can also pass command line arguments to set up a new project
 non-interactively. See `create-next-app --help`:
 
 ```bash
-Usage: create-next-app <project-directory> [options]
+Usage: create-next-app [project-directory] [options]
 
 Options:
   -V, --version                        output the version number
@@ -67,26 +67,30 @@ Options:
 
     Specify import alias to use (default "@/*").
 
+  --empty
+
+    Initialize an empty project.
+
   --use-npm
 
-    Explicitly tell the CLI to bootstrap the app using npm
+    Explicitly tell the CLI to bootstrap the application using npm
 
   --use-pnpm
 
-    Explicitly tell the CLI to bootstrap the app using pnpm
+    Explicitly tell the CLI to bootstrap the application using pnpm
 
   --use-yarn
 
-    Explicitly tell the CLI to bootstrap the app using Yarn
+    Explicitly tell the CLI to bootstrap the application using Yarn
 
   --use-bun
 
-    Explicitly tell the CLI to bootstrap the app using Bun
+    Explicitly tell the CLI to bootstrap the application using Bun
 
   -e, --example [name]|[github-url]
 
     An example to bootstrap the app with. You can use an example name
-    from the official Next.js repo or a public GitHub URL. The URL can use
+    from the official Next.js repo or a GitHub URL. The URL can use
     any branch and/or subdirectory
 
   --example-path <path-to-example>
@@ -100,7 +104,16 @@ Options:
 
     Explicitly tell the CLI to reset any stored preferences
 
-  -h, --help                           output usage information
+  --skip-install
+
+    Explicitly tell the CLI to skip installing packages
+
+  --yes
+
+    Use previous preferences or defaults for all options that were not
+    explicitly specified, without prompting.
+
+  -h, --help                           display help for command
 ```
 
 ### Why use Create Next App?
