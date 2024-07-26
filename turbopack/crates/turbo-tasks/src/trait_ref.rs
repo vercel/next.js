@@ -102,7 +102,7 @@ where
         // See Safety clause above.
         let TypedSharedReference(ty, shared_ref) = trait_ref.shared_reference;
         let local_cell = find_cell_by_type(ty);
-        local_cell.update_shared_reference(shared_ref);
+        local_cell.update_with_shared_reference(shared_ref);
         let raw_vc: RawVc = local_cell.into();
         raw_vc.into()
     }

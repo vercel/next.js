@@ -1,16 +1,25 @@
-use std::marker::PhantomData;
+use std::{any::type_name, marker::PhantomData};
 
 use super::{read::VcRead, traits::VcValueType};
-use crate::{manager::find_cell_by_type, Vc};
+use crate::{manager::find_cell_by_type, task::shared_reference::TypedSharedReference, RawVc, Vc};
 
-/// Trait that controls the behavior of `Vc::cell` on a value type basis.
+type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
+type VcReadRepr<T> = <<T as VcValueType>::Read as VcRead<T>>::Repr;
+
+/// Trait that controls the behavior of [`Vc::cell`] based on the value type's
+/// [`VcValueType::CellMode`].
 ///
 /// This trait must remain sealed within this crate.
 pub trait VcCellMode<T>
 where
     T: VcValueType,
 {
-    fn cell(value: <T::Read as VcRead<T>>::Target) -> Vc<T>;
+    /// Create a new cell.
+    fn cell(value: VcReadTarget<T>) -> Vc<T>;
+
+    /// Create a type-erased `RawVc` cell given a pre-existing type-erased
+    /// `SharedReference`. In some cases, we will re-use the shared value.
+    fn raw_cell(value: TypedSharedReference) -> RawVc;
 }
 
 /// Mode that always updates the cell's content.
@@ -22,13 +31,20 @@ impl<T> VcCellMode<T> for VcCellNewMode<T>
 where
     T: VcValueType,
 {
-    fn cell(inner: <T::Read as VcRead<T>>::Target) -> Vc<T> {
+    fn cell(inner: VcReadTarget<T>) -> Vc<T> {
         let cell = find_cell_by_type(T::get_value_type_id());
-        cell.update_shared(<T::Read as VcRead<T>>::target_to_repr(inner));
+        cell.update(<T::Read as VcRead<T>>::target_to_value(inner));
         Vc {
             node: cell.into(),
             _t: PhantomData,
         }
+    }
+
+    fn raw_cell(content: TypedSharedReference) -> RawVc {
+        debug_assert_repr::<T>(&content);
+        let cell = find_cell_by_type(content.0);
+        cell.update_with_shared_reference(content.1);
+        cell.into()
     }
 }
 
@@ -40,15 +56,30 @@ pub struct VcCellSharedMode<T> {
 
 impl<T> VcCellMode<T> for VcCellSharedMode<T>
 where
-    T: VcValueType,
-    <T::Read as VcRead<T>>::Repr: PartialEq,
+    T: VcValueType + PartialEq,
 {
-    fn cell(inner: <T::Read as VcRead<T>>::Target) -> Vc<T> {
+    fn cell(inner: VcReadTarget<T>) -> Vc<T> {
         let cell = find_cell_by_type(T::get_value_type_id());
-        cell.compare_and_update_shared(<T::Read as VcRead<T>>::target_to_repr(inner));
+        cell.compare_and_update(<T::Read as VcRead<T>>::target_to_value(inner));
         Vc {
             node: cell.into(),
             _t: PhantomData,
         }
     }
+
+    fn raw_cell(content: TypedSharedReference) -> RawVc {
+        debug_assert_repr::<T>(&content);
+        let cell = find_cell_by_type(content.0);
+        cell.compare_and_update_with_shared_reference::<T>(content.1);
+        cell.into()
+    }
+}
+
+fn debug_assert_repr<T: VcValueType>(content: &TypedSharedReference) {
+    debug_assert!(
+        (*content.1 .0).is::<VcReadRepr<T>>(),
+        "SharedReference for type {} must use representation type {}",
+        type_name::<T>(),
+        type_name::<VcReadRepr<T>>(),
+    );
 }
