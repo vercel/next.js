@@ -4,6 +4,8 @@ import { ReactNode } from 'react'
 const magicNumber = Math.random()
 const originalFetch = globalThis.fetch
 
+console.log('monkey patching fetch')
+
 // @ts-ignore
 globalThis.fetch = async (
   resource: URL | RequestInfo,
@@ -16,12 +18,12 @@ globalThis.fetch = async (
     url = resource instanceof URL ? resource.href : resource.url
   }
 
-  if (url === 'secret') {
-    return 'monkey patching is fun'
+  if (url === 'http://fake.url/secret') {
+    return new Response('monkey patching is fun')
   }
 
-  if (url === 'magic-number') {
-    return magicNumber
+  if (url === 'http://fake.url/magic-number') {
+    return new Response(magicNumber.toString())
   }
 
   return originalFetch(resource, options)
