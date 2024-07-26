@@ -136,9 +136,54 @@ describe('app dir - form', () => {
     )
   })
 
-  it.todo(
-    'should handle submitter with unsupported form{EncType,Method,Target}'
-  )
+  describe('unsupported attributes on submitter', () => {
+    it.each([
+      { name: 'formEncType', baseName: 'encType' },
+      { name: 'formMethod', baseName: 'method' },
+      { name: 'formTarget', baseName: 'target' },
+    ])(
+      'should warn if submitter sets "$name" to an unsupported value and fall back to default submit behavior',
+      async ({ name: attributeName, baseName: attributeBaseName }) => {
+        const session = await next.browser(
+          `/forms/button-formaction-unsupported?attribute=${attributeName}`
+        )
+
+        const submitButton = await session.elementByCss('[type="submit"]')
+        await submitButton.click()
+
+        const logs = await session.log()
+
+        if (isNextDev) {
+          expect(logs).toContainEqual(
+            expect.objectContaining({
+              source: 'error',
+              message: expect.stringContaining(
+                `next/form's \`${attributeBaseName}\` was set to an unsupported value`
+              ),
+            })
+          )
+        }
+
+        expect(logs).toContainEqual(
+          expect.objectContaining({
+            source: 'log',
+            message: expect.stringContaining(
+              'correct: default submit behavior was not prevented'
+            ),
+          })
+        )
+        expect(logs).not.toContainEqual(
+          expect.objectContaining({
+            source: 'log',
+            message: expect.stringContaining(
+              'incorrect: default submit behavior was prevented'
+            ),
+          })
+        )
+      }
+    )
+  })
+
   it.todo('should handle file inputs')
   it.todo('should handle `replace`')
 })
