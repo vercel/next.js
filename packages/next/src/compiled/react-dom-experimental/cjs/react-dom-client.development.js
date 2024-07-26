@@ -26,64 +26,6 @@ var ReactDOM = require('react-dom');
 
 var ReactSharedInternals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 
-var suppressWarning = false;
-function setSuppressWarning(newSuppressWarning) {
-  {
-    suppressWarning = newSuppressWarning;
-  }
-} // In DEV, calls to console.warn and console.error get replaced
-// by calls to these methods by a Babel plugin.
-//
-// In PROD (or in packages without access to React internals),
-// they are left as they are instead.
-
-function warn(format) {
-  {
-    if (!suppressWarning) {
-      for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-        args[_key - 1] = arguments[_key];
-      }
-
-      printWarning('warn', format, args);
-    }
-  }
-}
-function error(format) {
-  {
-    if (!suppressWarning) {
-      for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-        args[_key2 - 1] = arguments[_key2];
-      }
-
-      printWarning('error', format, args);
-    }
-  }
-}
-
-function printWarning(level, format, args) {
-  // When changing this logic, you might want to also
-  // update consoleWithStackDev.www.js as well.
-  {
-    var stack = ReactSharedInternals.getStackAddendum();
-
-    if (stack !== '') {
-      format += '%s';
-      args = args.concat([stack]);
-    } // eslint-disable-next-line react-internal/safe-string-coercion
-
-
-    var argsWithFormat = args.map(function (item) {
-      return String(item);
-    }); // Careful: RN currently depends on this prefix
-
-    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
-    // breaks IE9: https://github.com/facebook/react/issues/13610
-    // eslint-disable-next-line react-internal/no-production-logging
-
-    Function.prototype.apply.call(console[level], console, argsWithFormat);
-  }
-}
-
 // -----------------------------------------------------------------------------
 // Killswitch
 //
@@ -122,6 +64,7 @@ var enableLazyContextPropagation = false; // FB-only usage. The new API has diff
 
 var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
 var alwaysThrottleRetries = true;
+var enableOwnerStacks = true;
 var syncLaneExpirationMs = 250;
 var transitionLaneExpirationMs = 5000; // -----------------------------------------------------------------------------
 // Remove IE and MsApp specific workarounds for innerHTML
@@ -130,7 +73,7 @@ var disableIEWorkarounds = true; // Filter certain DOM attributes (e.g. src, hre
 // This allows us to land breaking changes to remove legacy mode APIs in experimental builds
 // before removing them in stable in the next Major
 
-var disableLegacyMode = true;
+var disableLegacyMode = true; // Make <Context> equivalent to <Context.Provider> instead of <Context.Consumer>
 // React DOM Chopping Block
 //
 // Similar to main Chopping Block but only flags related to React DOM. These are
@@ -152,6 +95,82 @@ var enableProfilerTimer = true; // Record durations for commit and passive effec
 var enableProfilerCommitHooks = true; // Phase param passed to onRender callback differentiates between an "update" and a "cascading-update".
 
 var enableProfilerNestedUpdatePhase = true; // Adds verbose console logging for e.g. state updates, suspense, and work loop
+
+var suppressWarning = false;
+function setSuppressWarning(newSuppressWarning) {
+  {
+    suppressWarning = newSuppressWarning;
+  }
+} // In DEV, calls to console.warn and console.error get replaced
+// by calls to these methods by a Babel plugin.
+//
+// In PROD (or in packages without access to React internals),
+// they are left as they are instead.
+
+function warn(format) {
+  {
+    if (!suppressWarning) {
+      for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+        args[_key - 1] = arguments[_key];
+      }
+
+      printWarning('warn', format, args, new Error('react-stack-top-frame'));
+    }
+  }
+}
+function error(format) {
+  {
+    if (!suppressWarning) {
+      for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+        args[_key2 - 1] = arguments[_key2];
+      }
+
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
+    }
+  }
+} // eslint-disable-next-line react-internal/no-production-logging
+
+var supportsCreateTask = !!console.createTask;
+
+function printWarning(level, format, args, currentStack) {
+  // When changing this logic, you might want to also
+  // update consoleWithStackDev.www.js as well.
+  {
+    var isErrorLogger = format === '%s\n\n%s\n' || format === '%o\n\n%s\n\n%s\n';
+
+    if (!supportsCreateTask && ReactSharedInternals.getCurrentStack) {
+      // We only add the current stack to the console when createTask is not supported.
+      // Since createTask requires DevTools to be open to work, this means that stacks
+      // can be lost while DevTools isn't open but we can't detect this.
+      var stack = ReactSharedInternals.getCurrentStack(currentStack);
+
+      if (stack !== '') {
+        format += '%s';
+        args = args.concat([stack]);
+      }
+    }
+
+    if (isErrorLogger) {
+      // Don't prefix our default logging formatting in ReactFiberErrorLoggger.
+      // Don't toString the arguments.
+      args.unshift(format);
+    } else {
+      // TODO: Remove this prefix and stop toStringing in the wrapper and
+      // instead do it at each callsite as needed.
+      // Careful: RN currently depends on this prefix
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      args = args.map(function (item) {
+        return String(item);
+      });
+      args.unshift('Warning: ' + format);
+    } // We intentionally don't use spread (or .apply) directly because it
+    // breaks IE9: https://github.com/facebook/react/issues/13610
+    // eslint-disable-next-line react-internal/no-production-logging
+
+
+    Function.prototype.apply.call(console[level], console, args);
+  }
+}
 
 /**
  * HTML nodeType values that represent the type of the node
@@ -610,9 +629,801 @@ var PassiveMask = Passive$1 | Visibility | ChildDeletion; // Union of tags that 
 
 var StaticMask = LayoutStatic | PassiveStatic | RefStatic | MaySuspendCommit;
 
-var currentOwner = null;
-function setCurrentOwner(fiber) {
-  currentOwner = fiber;
+var assign = Object.assign;
+
+// Helpers to patch console.logs to avoid logging during side-effect free
+// replaying on render function. This currently only patches the object
+// lazily which won't cover if the log function was extracted eagerly.
+// We could also eagerly patch the method.
+var disabledDepth = 0;
+var prevLog;
+var prevInfo;
+var prevWarn;
+var prevError;
+var prevGroup;
+var prevGroupCollapsed;
+var prevGroupEnd;
+
+function disabledLog() {}
+
+disabledLog.__reactDisabledLog = true;
+function disableLogs() {
+  {
+    if (disabledDepth === 0) {
+      /* eslint-disable react-internal/no-production-logging */
+      prevLog = console.log;
+      prevInfo = console.info;
+      prevWarn = console.warn;
+      prevError = console.error;
+      prevGroup = console.group;
+      prevGroupCollapsed = console.groupCollapsed;
+      prevGroupEnd = console.groupEnd; // https://github.com/facebook/react/issues/19099
+
+      var props = {
+        configurable: true,
+        enumerable: true,
+        value: disabledLog,
+        writable: true
+      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
+
+      Object.defineProperties(console, {
+        info: props,
+        log: props,
+        warn: props,
+        error: props,
+        group: props,
+        groupCollapsed: props,
+        groupEnd: props
+      });
+      /* eslint-enable react-internal/no-production-logging */
+    }
+
+    disabledDepth++;
+  }
+}
+function reenableLogs() {
+  {
+    disabledDepth--;
+
+    if (disabledDepth === 0) {
+      /* eslint-disable react-internal/no-production-logging */
+      var props = {
+        configurable: true,
+        enumerable: true,
+        writable: true
+      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
+
+      Object.defineProperties(console, {
+        log: assign({}, props, {
+          value: prevLog
+        }),
+        info: assign({}, props, {
+          value: prevInfo
+        }),
+        warn: assign({}, props, {
+          value: prevWarn
+        }),
+        error: assign({}, props, {
+          value: prevError
+        }),
+        group: assign({}, props, {
+          value: prevGroup
+        }),
+        groupCollapsed: assign({}, props, {
+          value: prevGroupCollapsed
+        }),
+        groupEnd: assign({}, props, {
+          value: prevGroupEnd
+        })
+      });
+      /* eslint-enable react-internal/no-production-logging */
+    }
+
+    if (disabledDepth < 0) {
+      error('disabledDepth fell below zero. ' + 'This is a bug in React. Please file an issue.');
+    }
+  }
+}
+
+var prefix;
+function describeBuiltInComponentFrame(name) {
+  {
+    if (prefix === undefined) {
+      // Extract the VM specific prefix used by each line.
+      try {
+        throw Error();
+      } catch (x) {
+        var match = x.stack.trim().match(/\n( *(at )?)/);
+        prefix = match && match[1] || '';
+      }
+    } // We use the prefix to ensure our stacks line up with native stack frames.
+
+
+    return '\n' + prefix + name;
+  }
+}
+function describeDebugInfoFrame(name, env) {
+  return describeBuiltInComponentFrame(name + (env ? ' (' + env + ')' : ''));
+}
+var reentry = false;
+var componentFrameCache;
+
+{
+  var PossiblyWeakMap$1 = typeof WeakMap === 'function' ? WeakMap : Map;
+  componentFrameCache = new PossiblyWeakMap$1();
+}
+/**
+ * Leverages native browser/VM stack frames to get proper details (e.g.
+ * filename, line + col number) for a single component in a component stack. We
+ * do this by:
+ *   (1) throwing and catching an error in the function - this will be our
+ *       control error.
+ *   (2) calling the component which will eventually throw an error that we'll
+ *       catch - this will be our sample error.
+ *   (3) diffing the control and sample error stacks to find the stack frame
+ *       which represents our component.
+ */
+
+
+function describeNativeComponentFrame(fn, construct) {
+  // If something asked for a stack inside a fake render, it should get ignored.
+  if (!fn || reentry) {
+    return '';
+  }
+
+  {
+    var frame = componentFrameCache.get(fn);
+
+    if (frame !== undefined) {
+      return frame;
+    }
+  }
+
+  reentry = true;
+  var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe[incompatible-type] It does accept undefined.
+
+  Error.prepareStackTrace = undefined;
+  var previousDispatcher = null;
+
+  {
+    previousDispatcher = ReactSharedInternals.H; // Set the dispatcher in DEV because this might be call in the render function
+    // for warnings.
+
+    ReactSharedInternals.H = null;
+    disableLogs();
+  }
+  /**
+   * Finding a common stack frame between sample and control errors can be
+   * tricky given the different types and levels of stack trace truncation from
+   * different JS VMs. So instead we'll attempt to control what that common
+   * frame should be through this object method:
+   * Having both the sample and control errors be in the function under the
+   * `DescribeNativeComponentFrameRoot` property, + setting the `name` and
+   * `displayName` properties of the function ensures that a stack
+   * frame exists that has the method name `DescribeNativeComponentFrameRoot` in
+   * it for both control and sample stacks.
+   */
+
+
+  var RunInRootFrame = {
+    DetermineComponentFrameRoot: function () {
+      var control;
+
+      try {
+        // This should throw.
+        if (construct) {
+          // Something should be setting the props in the constructor.
+          var Fake = function () {
+            throw Error();
+          }; // $FlowFixMe[prop-missing]
+
+
+          Object.defineProperty(Fake.prototype, 'props', {
+            set: function () {
+              // We use a throwing setter instead of frozen or non-writable props
+              // because that won't throw in a non-strict mode function.
+              throw Error();
+            }
+          });
+
+          if (typeof Reflect === 'object' && Reflect.construct) {
+            // We construct a different control for this case to include any extra
+            // frames added by the construct call.
+            try {
+              Reflect.construct(Fake, []);
+            } catch (x) {
+              control = x;
+            }
+
+            Reflect.construct(fn, [], Fake);
+          } else {
+            try {
+              Fake.call();
+            } catch (x) {
+              control = x;
+            } // $FlowFixMe[prop-missing] found when upgrading Flow
+
+
+            fn.call(Fake.prototype);
+          }
+        } else {
+          try {
+            throw Error();
+          } catch (x) {
+            control = x;
+          } // TODO(luna): This will currently only throw if the function component
+          // tries to access React/ReactDOM/props. We should probably make this throw
+          // in simple components too
+
+
+          var maybePromise = fn(); // If the function component returns a promise, it's likely an async
+          // component, which we don't yet support. Attach a noop catch handler to
+          // silence the error.
+          // TODO: Implement component stacks for async client components?
+
+          if (maybePromise && typeof maybePromise.catch === 'function') {
+            maybePromise.catch(function () {});
+          }
+        }
+      } catch (sample) {
+        // This is inlined manually because closure doesn't do it for us.
+        if (sample && control && typeof sample.stack === 'string') {
+          return [sample.stack, control.stack];
+        }
+      }
+
+      return [null, null];
+    }
+  }; // $FlowFixMe[prop-missing]
+
+  RunInRootFrame.DetermineComponentFrameRoot.displayName = 'DetermineComponentFrameRoot';
+  var namePropDescriptor = Object.getOwnPropertyDescriptor(RunInRootFrame.DetermineComponentFrameRoot, 'name'); // Before ES6, the `name` property was not configurable.
+
+  if (namePropDescriptor && namePropDescriptor.configurable) {
+    // V8 utilizes a function's `name` property when generating a stack trace.
+    Object.defineProperty(RunInRootFrame.DetermineComponentFrameRoot, // Configurable properties can be updated even if its writable descriptor
+    // is set to `false`.
+    // $FlowFixMe[cannot-write]
+    'name', {
+      value: 'DetermineComponentFrameRoot'
+    });
+  }
+
+  try {
+    var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(),
+        sampleStack = _RunInRootFrame$Deter[0],
+        controlStack = _RunInRootFrame$Deter[1];
+
+    if (sampleStack && controlStack) {
+      // This extracts the first frame from the sample that isn't also in the control.
+      // Skipping one frame that we assume is the frame that calls the two.
+      var sampleLines = sampleStack.split('\n');
+      var controlLines = controlStack.split('\n');
+      var s = 0;
+      var c = 0;
+
+      while (s < sampleLines.length && !sampleLines[s].includes('DetermineComponentFrameRoot')) {
+        s++;
+      }
+
+      while (c < controlLines.length && !controlLines[c].includes('DetermineComponentFrameRoot')) {
+        c++;
+      } // We couldn't find our intentionally injected common root frame, attempt
+      // to find another common root frame by search from the bottom of the
+      // control stack...
+
+
+      if (s === sampleLines.length || c === controlLines.length) {
+        s = sampleLines.length - 1;
+        c = controlLines.length - 1;
+
+        while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
+          // We expect at least one stack frame to be shared.
+          // Typically this will be the root most one. However, stack frames may be
+          // cut off due to maximum stack limits. In this case, one maybe cut off
+          // earlier than the other. We assume that the sample is longer or the same
+          // and there for cut off earlier. So we should find the root most frame in
+          // the sample somewhere in the control.
+          c--;
+        }
+      }
+
+      for (; s >= 1 && c >= 0; s--, c--) {
+        // Next we find the first one that isn't the same which should be the
+        // frame that called our sample function and the control.
+        if (sampleLines[s] !== controlLines[c]) {
+          // In V8, the first line is describing the message but other VMs don't.
+          // If we're about to return the first line, and the control is also on the same
+          // line, that's a pretty good indicator that our sample threw at same line as
+          // the control. I.e. before we entered the sample frame. So we ignore this result.
+          // This can happen if you passed a class to function component, or non-function.
+          if (s !== 1 || c !== 1) {
+            do {
+              s--;
+              c--; // We may still have similar intermediate frames from the construct call.
+              // The next one that isn't the same should be our match though.
+
+              if (c < 0 || sampleLines[s] !== controlLines[c]) {
+                // V8 adds a "new" prefix for native classes. Let's remove it to make it prettier.
+                var _frame = '\n' + sampleLines[s].replace(' at new ', ' at '); // If our component frame is labeled "<anonymous>"
+                // but we have a user-provided "displayName"
+                // splice it in to make the stack more readable.
+
+
+                if (fn.displayName && _frame.includes('<anonymous>')) {
+                  _frame = _frame.replace('<anonymous>', fn.displayName);
+                }
+
+                if (true) {
+                  if (typeof fn === 'function') {
+                    componentFrameCache.set(fn, _frame);
+                  }
+                } // Return the line we found.
+
+
+                return _frame;
+              }
+            } while (s >= 1 && c >= 0);
+          }
+
+          break;
+        }
+      }
+    }
+  } finally {
+    reentry = false;
+
+    {
+      ReactSharedInternals.H = previousDispatcher;
+      reenableLogs();
+    }
+
+    Error.prepareStackTrace = previousPrepareStackTrace;
+  } // Fallback to just using the name if we couldn't make it throw.
+
+
+  var name = fn ? fn.displayName || fn.name : '';
+  var syntheticFrame = name ? describeBuiltInComponentFrame(name) : '';
+
+  {
+    if (typeof fn === 'function') {
+      componentFrameCache.set(fn, syntheticFrame);
+    }
+  }
+
+  return syntheticFrame;
+}
+
+function describeClassComponentFrame(ctor) {
+  {
+    return describeNativeComponentFrame(ctor, true);
+  }
+}
+function describeFunctionComponentFrame(fn) {
+  {
+    return describeNativeComponentFrame(fn, false);
+  }
+}
+
+// TODO: Consider marking the whole bundle instead of these boundaries.
+
+/** @noinline */
+
+function callComponentInDEV(Component, props, secondArg) {
+  var wasRendering = isRendering;
+  setIsRendering(true);
+
+  try {
+    var result = Component(props, secondArg);
+    return result;
+  } finally {
+    setIsRendering(wasRendering);
+  }
+}
+/** @noinline */
+
+function callRenderInDEV(instance) {
+  var wasRendering = isRendering;
+  setIsRendering(true);
+
+  try {
+    var result = instance.render();
+    return result;
+  } finally {
+    setIsRendering(wasRendering);
+  }
+}
+/** @noinline */
+
+function callLazyInitInDEV(lazy) {
+  var payload = lazy._payload;
+  var init = lazy._init;
+  return init(payload);
+}
+
+var externalRegExp = /\/node\_modules\/|\(\<anonymous\>\)/;
+var callComponentFrame = null;
+var callIteratorFrame = null;
+var callLazyInitFrame = null;
+
+function isNotExternal(stackFrame) {
+  return !externalRegExp.test(stackFrame);
+}
+
+function initCallComponentFrame() {
+  // Extract the stack frame of the callComponentInDEV function.
+  var error = callComponentInDEV(Error, 'react-stack-top-frame', {});
+  var stack = error.stack;
+  var startIdx = stack.startsWith('Error: react-stack-top-frame\n') ? 29 : 0;
+  var endIdx = stack.indexOf('\n', startIdx);
+
+  if (endIdx === -1) {
+    return stack.slice(startIdx);
+  }
+
+  return stack.slice(startIdx, endIdx);
+}
+
+function initCallRenderFrame() {
+  // Extract the stack frame of the callRenderInDEV function.
+  try {
+    callRenderInDEV({
+      render: null
+    });
+    return '';
+  } catch (error) {
+    var stack = error.stack;
+    var startIdx = stack.startsWith('TypeError: ') ? stack.indexOf('\n') + 1 : 0;
+    var endIdx = stack.indexOf('\n', startIdx);
+
+    if (endIdx === -1) {
+      return stack.slice(startIdx);
+    }
+
+    return stack.slice(startIdx, endIdx);
+  }
+}
+
+function initCallLazyInitFrame() {
+  // Extract the stack frame of the callLazyInitInDEV function.
+  var error = callLazyInitInDEV({
+    $$typeof: REACT_LAZY_TYPE,
+    _init: Error,
+    _payload: 'react-stack-top-frame'
+  });
+  var stack = error.stack;
+  var startIdx = stack.startsWith('Error: react-stack-top-frame\n') ? 29 : 0;
+  var endIdx = stack.indexOf('\n', startIdx);
+
+  if (endIdx === -1) {
+    return stack.slice(startIdx);
+  }
+
+  return stack.slice(startIdx, endIdx);
+}
+
+function filterDebugStack(error) {
+  // Since stacks can be quite large and we pass a lot of them, we filter them out eagerly
+  // to save bandwidth even in DEV. We'll also replay these stacks on the client so by
+  // stripping them early we avoid that overhead. Otherwise we'd normally just rely on
+  // the DevTools or framework's ignore lists to filter them out.
+  var stack = error.stack;
+
+  if (stack.startsWith('Error: react-stack-top-frame\n')) {
+    // V8's default formatting prefixes with the error message which we
+    // don't want/need.
+    stack = stack.slice(29);
+  }
+
+  var frames = stack.split('\n').slice(1);
+
+  if (callComponentFrame === null) {
+    callComponentFrame = initCallComponentFrame();
+  }
+
+  var lastFrameIdx = frames.indexOf(callComponentFrame);
+
+  if (lastFrameIdx === -1) {
+    if (callLazyInitFrame === null) {
+      callLazyInitFrame = initCallLazyInitFrame();
+    }
+
+    lastFrameIdx = frames.indexOf(callLazyInitFrame);
+
+    if (lastFrameIdx === -1) {
+      if (callIteratorFrame === null) {
+        callIteratorFrame = initCallRenderFrame();
+      }
+
+      lastFrameIdx = frames.indexOf(callIteratorFrame);
+    }
+  }
+
+  if (lastFrameIdx !== -1) {
+    // Cut off everything after our "callComponent" slot since it'll be Fiber internals.
+    frames.length = lastFrameIdx;
+  } else {
+    // We didn't find any internal callsite out to user space.
+    // This means that this was called outside an owner or the owner is fully internal.
+    // To keep things light we exclude the entire trace in this case.
+    return '';
+  }
+
+  return frames.filter(isNotExternal).join('\n');
+}
+
+function formatOwnerStack(ownerStackTrace) {
+  return filterDebugStack(ownerStackTrace);
+}
+
+function describeFiber(fiber) {
+  switch (fiber.tag) {
+    case HostHoistable:
+    case HostSingleton:
+    case HostComponent:
+      return describeBuiltInComponentFrame(fiber.type);
+
+    case LazyComponent:
+      return describeBuiltInComponentFrame('Lazy');
+
+    case SuspenseComponent:
+      return describeBuiltInComponentFrame('Suspense');
+
+    case SuspenseListComponent:
+      return describeBuiltInComponentFrame('SuspenseList');
+
+    case FunctionComponent:
+    case SimpleMemoComponent:
+      return describeFunctionComponentFrame(fiber.type);
+
+    case ForwardRef:
+      return describeFunctionComponentFrame(fiber.type.render);
+
+    case ClassComponent:
+      return describeClassComponentFrame(fiber.type);
+
+    default:
+      return '';
+  }
+}
+
+function getStackByFiberInDevAndProd(workInProgress) {
+  try {
+    var info = '';
+    var node = workInProgress;
+
+    do {
+      info += describeFiber(node);
+
+      if (true) {
+        // Add any Server Component stack frames in reverse order.
+        var debugInfo = node._debugInfo;
+
+        if (debugInfo) {
+          for (var i = debugInfo.length - 1; i >= 0; i--) {
+            var entry = debugInfo[i];
+
+            if (typeof entry.name === 'string') {
+              info += describeDebugInfoFrame(entry.name, entry.env);
+            }
+          }
+        }
+      } // $FlowFixMe[incompatible-type] we bail out when we get a null
+
+
+      node = node.return;
+    } while (node);
+
+    return info;
+  } catch (x) {
+    return '\nError generating stack: ' + x.message + '\n' + x.stack;
+  }
+}
+
+function describeFunctionComponentFrameWithoutLineNumber(fn) {
+  // We use this because we don't actually want to describe the line of the component
+  // but just the component name.
+  var name = fn ? fn.displayName || fn.name : '';
+  return name ? describeBuiltInComponentFrame(name) : '';
+}
+
+function getOwnerStackByFiberInDev(workInProgress, topStack) {
+
+  try {
+    var info = '';
+
+    if (topStack) {
+      // Prefix with a filtered version of the currently executing
+      // stack. This information will be available in the native
+      // stack regardless but it's hidden since we're reprinting
+      // the stack on top of it.
+      var formattedTopStack = formatOwnerStack(topStack);
+
+      if (formattedTopStack !== '') {
+        info += '\n' + formattedTopStack;
+      }
+    }
+
+    if (workInProgress.tag === HostText) {
+      // Text nodes never have an owner/stack because they're not created through JSX.
+      // We use the parent since text nodes are always created through a host parent.
+      workInProgress = workInProgress.return;
+    } // The owner stack of the current fiber will be where it was created, i.e. inside its owner.
+    // There's no actual name of the currently executing component. Instead, that is available
+    // on the regular stack that's currently executing. However, for built-ins there is no such
+    // named stack frame and it would be ignored as being internal anyway. Therefore we add
+    // add one extra frame just to describe the "current" built-in component by name.
+    // Similarly, if there is no owner at all, then there's no stack frame so we add the name
+    // of the root component to the stack to know which component is currently executing.
+
+
+    switch (workInProgress.tag) {
+      case HostHoistable:
+      case HostSingleton:
+      case HostComponent:
+        info += describeBuiltInComponentFrame(workInProgress.type);
+        break;
+
+      case SuspenseComponent:
+        info += describeBuiltInComponentFrame('Suspense');
+        break;
+
+      case SuspenseListComponent:
+        info += describeBuiltInComponentFrame('SuspenseList');
+        break;
+
+      case FunctionComponent:
+      case SimpleMemoComponent:
+      case ClassComponent:
+        if (!workInProgress._debugOwner && info === '') {
+          // Only if we have no other data about the callsite do we add
+          // the component name as the single stack frame.
+          info += describeFunctionComponentFrameWithoutLineNumber(workInProgress.type);
+        }
+
+        break;
+
+      case ForwardRef:
+        if (!workInProgress._debugOwner && info === '') {
+          info += describeFunctionComponentFrameWithoutLineNumber(workInProgress.type.render);
+        }
+
+        break;
+    }
+
+    var owner = workInProgress;
+
+    while (owner) {
+      if (typeof owner.tag === 'number') {
+        var fiber = owner;
+        owner = fiber._debugOwner;
+        var debugStack = fiber._debugStack; // If we don't actually print the stack if there is no owner of this JSX element.
+        // In a real app it's typically not useful since the root app is always controlled
+        // by the framework. These also tend to have noisy stacks because they're not rooted
+        // in a React render but in some imperative bootstrapping code. It could be useful
+        // if the element was created in module scope. E.g. hoisted. We could add a a single
+        // stack frame for context for example but it doesn't say much if that's a wrapper.
+
+        if (owner && debugStack) {
+          if (typeof debugStack !== 'string') {
+            // Stash the formatted stack so that we can avoid redoing the filtering.
+            fiber._debugStack = debugStack = formatOwnerStack(debugStack);
+          }
+
+          if (debugStack !== '') {
+            info += '\n' + debugStack;
+          }
+        }
+      } else if (typeof owner.stack === 'string') {
+        // Server Component
+        // The Server Component stack can come from a different VM that formats it different.
+        // Likely V8. Since Chrome based browsers support createTask which is going to use
+        // another code path anyway. I.e. this is likely NOT a V8 based browser.
+        // This will cause some of the stack to have different formatting.
+        // TODO: Normalize server component stacks to the client formatting.
+        if (owner.stack !== '') {
+          info += '\n' + owner.stack;
+        }
+
+        var componentInfo = owner;
+        owner = componentInfo.owner;
+      } else {
+        break;
+      }
+    }
+
+    return info;
+  } catch (x) {
+    return '\nError generating stack: ' + x.message + '\n' + x.stack;
+  }
+}
+
+var current = null;
+var isRendering = false;
+function getCurrentFiberOwnerNameInDevOrNull() {
+  {
+    if (current === null) {
+      return null;
+    }
+
+    var owner = current._debugOwner;
+
+    if (owner != null) {
+      return getComponentNameFromOwner(owner);
+    }
+  }
+
+  return null;
+}
+function getCurrentParentStackInDev() {
+  // This is used to get the parent stack even with owner stacks turned on.
+  {
+    if (current === null) {
+      return '';
+    }
+
+    return getStackByFiberInDevAndProd(current);
+  }
+}
+
+function getCurrentFiberStackInDev(stack) {
+  {
+    if (current === null) {
+      return '';
+    } // Safe because if current fiber exists, we are reconciling,
+    // and it is guaranteed to be the work-in-progress version.
+    // TODO: The above comment is not actually true. We might be
+    // in a commit phase or preemptive set state callback.
+
+
+    {
+      return getOwnerStackByFiberInDev(current, stack);
+    }
+  }
+}
+
+function runWithFiberInDEV(fiber, callback, arg0, arg1, arg2, arg3, arg4) {
+  {
+    var previousFiber = current;
+    setCurrentFiber(fiber);
+
+    try {
+      if (enableOwnerStacks) {
+        if (fiber !== null && fiber._debugTask) {
+          return fiber._debugTask.run(callback.bind(null, arg0, arg1, arg2, arg3, arg4));
+        }
+      }
+
+      return callback(arg0, arg1, arg2, arg3, arg4);
+    } finally {
+      current = previousFiber;
+    }
+  } // These errors should never make it into a build so we don't need to encode them in codes.json
+  // eslint-disable-next-line react-internal/prod-error-codes
+
+
+  throw new Error('runWithFiberInDEV should never be called in production. This is a bug in React.');
+}
+function resetCurrentFiber() {
+  {
+    ReactSharedInternals.getCurrentStack = null;
+    isRendering = false;
+  }
+
+  current = null;
+}
+function setCurrentFiber(fiber) {
+  {
+    ReactSharedInternals.getCurrentStack = fiber === null ? null : getCurrentFiberStackInDev;
+    isRendering = false;
+  }
+
+  current = fiber;
+}
+function setIsRendering(rendering) {
+  {
+    isRendering = rendering;
+  }
 }
 
 function getNearestMountedFiber(fiber) {
@@ -677,9 +1488,9 @@ function getContainerFromFiber(fiber) {
 }
 function isMounted(component) {
   {
-    var owner = currentOwner;
+    var owner = current;
 
-    if (owner !== null && owner.tag === ClassComponent) {
+    if (owner !== null && isRendering && owner.tag === ClassComponent) {
       var ownerFiber = owner;
       var instance = ownerFiber.stateNode;
 
@@ -891,8 +1702,6 @@ function findCurrentHostFiberImpl(node) {
 
   return null;
 }
-
-var assign = Object.assign;
 
 var LegacyRoot = 0;
 var ConcurrentRoot = 1;
@@ -1203,100 +2012,6 @@ var IdlePriority = Scheduler.unstable_IdlePriority; // this doesn't actually exi
 
 var log$1 = Scheduler.log;
 var unstable_setDisableYieldValue = Scheduler.unstable_setDisableYieldValue;
-
-// Helpers to patch console.logs to avoid logging during side-effect free
-// replaying on render function. This currently only patches the object
-// lazily which won't cover if the log function was extracted eagerly.
-// We could also eagerly patch the method.
-var disabledDepth = 0;
-var prevLog;
-var prevInfo;
-var prevWarn;
-var prevError;
-var prevGroup;
-var prevGroupCollapsed;
-var prevGroupEnd;
-
-function disabledLog() {}
-
-disabledLog.__reactDisabledLog = true;
-function disableLogs() {
-  {
-    if (disabledDepth === 0) {
-      /* eslint-disable react-internal/no-production-logging */
-      prevLog = console.log;
-      prevInfo = console.info;
-      prevWarn = console.warn;
-      prevError = console.error;
-      prevGroup = console.group;
-      prevGroupCollapsed = console.groupCollapsed;
-      prevGroupEnd = console.groupEnd; // https://github.com/facebook/react/issues/19099
-
-      var props = {
-        configurable: true,
-        enumerable: true,
-        value: disabledLog,
-        writable: true
-      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
-
-      Object.defineProperties(console, {
-        info: props,
-        log: props,
-        warn: props,
-        error: props,
-        group: props,
-        groupCollapsed: props,
-        groupEnd: props
-      });
-      /* eslint-enable react-internal/no-production-logging */
-    }
-
-    disabledDepth++;
-  }
-}
-function reenableLogs() {
-  {
-    disabledDepth--;
-
-    if (disabledDepth === 0) {
-      /* eslint-disable react-internal/no-production-logging */
-      var props = {
-        configurable: true,
-        enumerable: true,
-        writable: true
-      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
-
-      Object.defineProperties(console, {
-        log: assign({}, props, {
-          value: prevLog
-        }),
-        info: assign({}, props, {
-          value: prevInfo
-        }),
-        warn: assign({}, props, {
-          value: prevWarn
-        }),
-        error: assign({}, props, {
-          value: prevError
-        }),
-        group: assign({}, props, {
-          value: prevGroup
-        }),
-        groupCollapsed: assign({}, props, {
-          value: prevGroupCollapsed
-        }),
-        groupEnd: assign({}, props, {
-          value: prevGroupEnd
-        })
-      });
-      /* eslint-enable react-internal/no-production-logging */
-    }
-
-    if (disabledDepth < 0) {
-      error('disabledDepth fell below zero. ' + 'This is a bug in React. Please file an issue.');
-    }
-  }
-}
 
 var rendererID = null;
 var injectedHook = null;
@@ -3180,405 +3895,6 @@ function setValueForPropertyOnCustomComponent(node, name, value) {
   setValueForAttribute(node, name, value);
 }
 
-var prefix;
-function describeBuiltInComponentFrame(name) {
-  {
-    if (prefix === undefined) {
-      // Extract the VM specific prefix used by each line.
-      try {
-        throw Error();
-      } catch (x) {
-        var match = x.stack.trim().match(/\n( *(at )?)/);
-        prefix = match && match[1] || '';
-      }
-    } // We use the prefix to ensure our stacks line up with native stack frames.
-
-
-    return '\n' + prefix + name;
-  }
-}
-function describeDebugInfoFrame(name, env) {
-  return describeBuiltInComponentFrame(name + (env ? ' (' + env + ')' : ''));
-}
-var reentry = false;
-var componentFrameCache;
-
-{
-  var PossiblyWeakMap$1 = typeof WeakMap === 'function' ? WeakMap : Map;
-  componentFrameCache = new PossiblyWeakMap$1();
-}
-/**
- * Leverages native browser/VM stack frames to get proper details (e.g.
- * filename, line + col number) for a single component in a component stack. We
- * do this by:
- *   (1) throwing and catching an error in the function - this will be our
- *       control error.
- *   (2) calling the component which will eventually throw an error that we'll
- *       catch - this will be our sample error.
- *   (3) diffing the control and sample error stacks to find the stack frame
- *       which represents our component.
- */
-
-
-function describeNativeComponentFrame(fn, construct) {
-  // If something asked for a stack inside a fake render, it should get ignored.
-  if (!fn || reentry) {
-    return '';
-  }
-
-  {
-    var frame = componentFrameCache.get(fn);
-
-    if (frame !== undefined) {
-      return frame;
-    }
-  }
-
-  reentry = true;
-  var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe[incompatible-type] It does accept undefined.
-
-  Error.prepareStackTrace = undefined;
-  var previousDispatcher = null;
-
-  {
-    previousDispatcher = ReactSharedInternals.H; // Set the dispatcher in DEV because this might be call in the render function
-    // for warnings.
-
-    ReactSharedInternals.H = null;
-    disableLogs();
-  }
-  /**
-   * Finding a common stack frame between sample and control errors can be
-   * tricky given the different types and levels of stack trace truncation from
-   * different JS VMs. So instead we'll attempt to control what that common
-   * frame should be through this object method:
-   * Having both the sample and control errors be in the function under the
-   * `DescribeNativeComponentFrameRoot` property, + setting the `name` and
-   * `displayName` properties of the function ensures that a stack
-   * frame exists that has the method name `DescribeNativeComponentFrameRoot` in
-   * it for both control and sample stacks.
-   */
-
-
-  var RunInRootFrame = {
-    DetermineComponentFrameRoot: function () {
-      var control;
-
-      try {
-        // This should throw.
-        if (construct) {
-          // Something should be setting the props in the constructor.
-          var Fake = function () {
-            throw Error();
-          }; // $FlowFixMe[prop-missing]
-
-
-          Object.defineProperty(Fake.prototype, 'props', {
-            set: function () {
-              // We use a throwing setter instead of frozen or non-writable props
-              // because that won't throw in a non-strict mode function.
-              throw Error();
-            }
-          });
-
-          if (typeof Reflect === 'object' && Reflect.construct) {
-            // We construct a different control for this case to include any extra
-            // frames added by the construct call.
-            try {
-              Reflect.construct(Fake, []);
-            } catch (x) {
-              control = x;
-            }
-
-            Reflect.construct(fn, [], Fake);
-          } else {
-            try {
-              Fake.call();
-            } catch (x) {
-              control = x;
-            } // $FlowFixMe[prop-missing] found when upgrading Flow
-
-
-            fn.call(Fake.prototype);
-          }
-        } else {
-          try {
-            throw Error();
-          } catch (x) {
-            control = x;
-          } // TODO(luna): This will currently only throw if the function component
-          // tries to access React/ReactDOM/props. We should probably make this throw
-          // in simple components too
-
-
-          var maybePromise = fn(); // If the function component returns a promise, it's likely an async
-          // component, which we don't yet support. Attach a noop catch handler to
-          // silence the error.
-          // TODO: Implement component stacks for async client components?
-
-          if (maybePromise && typeof maybePromise.catch === 'function') {
-            maybePromise.catch(function () {});
-          }
-        }
-      } catch (sample) {
-        // This is inlined manually because closure doesn't do it for us.
-        if (sample && control && typeof sample.stack === 'string') {
-          return [sample.stack, control.stack];
-        }
-      }
-
-      return [null, null];
-    }
-  }; // $FlowFixMe[prop-missing]
-
-  RunInRootFrame.DetermineComponentFrameRoot.displayName = 'DetermineComponentFrameRoot';
-  var namePropDescriptor = Object.getOwnPropertyDescriptor(RunInRootFrame.DetermineComponentFrameRoot, 'name'); // Before ES6, the `name` property was not configurable.
-
-  if (namePropDescriptor && namePropDescriptor.configurable) {
-    // V8 utilizes a function's `name` property when generating a stack trace.
-    Object.defineProperty(RunInRootFrame.DetermineComponentFrameRoot, // Configurable properties can be updated even if its writable descriptor
-    // is set to `false`.
-    // $FlowFixMe[cannot-write]
-    'name', {
-      value: 'DetermineComponentFrameRoot'
-    });
-  }
-
-  try {
-    var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(),
-        sampleStack = _RunInRootFrame$Deter[0],
-        controlStack = _RunInRootFrame$Deter[1];
-
-    if (sampleStack && controlStack) {
-      // This extracts the first frame from the sample that isn't also in the control.
-      // Skipping one frame that we assume is the frame that calls the two.
-      var sampleLines = sampleStack.split('\n');
-      var controlLines = controlStack.split('\n');
-      var s = 0;
-      var c = 0;
-
-      while (s < sampleLines.length && !sampleLines[s].includes('DetermineComponentFrameRoot')) {
-        s++;
-      }
-
-      while (c < controlLines.length && !controlLines[c].includes('DetermineComponentFrameRoot')) {
-        c++;
-      } // We couldn't find our intentionally injected common root frame, attempt
-      // to find another common root frame by search from the bottom of the
-      // control stack...
-
-
-      if (s === sampleLines.length || c === controlLines.length) {
-        s = sampleLines.length - 1;
-        c = controlLines.length - 1;
-
-        while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
-          // We expect at least one stack frame to be shared.
-          // Typically this will be the root most one. However, stack frames may be
-          // cut off due to maximum stack limits. In this case, one maybe cut off
-          // earlier than the other. We assume that the sample is longer or the same
-          // and there for cut off earlier. So we should find the root most frame in
-          // the sample somewhere in the control.
-          c--;
-        }
-      }
-
-      for (; s >= 1 && c >= 0; s--, c--) {
-        // Next we find the first one that isn't the same which should be the
-        // frame that called our sample function and the control.
-        if (sampleLines[s] !== controlLines[c]) {
-          // In V8, the first line is describing the message but other VMs don't.
-          // If we're about to return the first line, and the control is also on the same
-          // line, that's a pretty good indicator that our sample threw at same line as
-          // the control. I.e. before we entered the sample frame. So we ignore this result.
-          // This can happen if you passed a class to function component, or non-function.
-          if (s !== 1 || c !== 1) {
-            do {
-              s--;
-              c--; // We may still have similar intermediate frames from the construct call.
-              // The next one that isn't the same should be our match though.
-
-              if (c < 0 || sampleLines[s] !== controlLines[c]) {
-                // V8 adds a "new" prefix for native classes. Let's remove it to make it prettier.
-                var _frame = '\n' + sampleLines[s].replace(' at new ', ' at '); // If our component frame is labeled "<anonymous>"
-                // but we have a user-provided "displayName"
-                // splice it in to make the stack more readable.
-
-
-                if (fn.displayName && _frame.includes('<anonymous>')) {
-                  _frame = _frame.replace('<anonymous>', fn.displayName);
-                }
-
-                if (true) {
-                  if (typeof fn === 'function') {
-                    componentFrameCache.set(fn, _frame);
-                  }
-                } // Return the line we found.
-
-
-                return _frame;
-              }
-            } while (s >= 1 && c >= 0);
-          }
-
-          break;
-        }
-      }
-    }
-  } finally {
-    reentry = false;
-
-    {
-      ReactSharedInternals.H = previousDispatcher;
-      reenableLogs();
-    }
-
-    Error.prepareStackTrace = previousPrepareStackTrace;
-  } // Fallback to just using the name if we couldn't make it throw.
-
-
-  var name = fn ? fn.displayName || fn.name : '';
-  var syntheticFrame = name ? describeBuiltInComponentFrame(name) : '';
-
-  {
-    if (typeof fn === 'function') {
-      componentFrameCache.set(fn, syntheticFrame);
-    }
-  }
-
-  return syntheticFrame;
-}
-
-function describeClassComponentFrame(ctor) {
-  {
-    return describeNativeComponentFrame(ctor, true);
-  }
-}
-function describeFunctionComponentFrame(fn) {
-  {
-    return describeNativeComponentFrame(fn, false);
-  }
-}
-
-function describeFiber(fiber) {
-  switch (fiber.tag) {
-    case HostHoistable:
-    case HostSingleton:
-    case HostComponent:
-      return describeBuiltInComponentFrame(fiber.type);
-
-    case LazyComponent:
-      return describeBuiltInComponentFrame('Lazy');
-
-    case SuspenseComponent:
-      return describeBuiltInComponentFrame('Suspense');
-
-    case SuspenseListComponent:
-      return describeBuiltInComponentFrame('SuspenseList');
-
-    case FunctionComponent:
-    case SimpleMemoComponent:
-      return describeFunctionComponentFrame(fiber.type);
-
-    case ForwardRef:
-      return describeFunctionComponentFrame(fiber.type.render);
-
-    case ClassComponent:
-      return describeClassComponentFrame(fiber.type);
-
-    default:
-      return '';
-  }
-}
-
-function getStackByFiberInDevAndProd(workInProgress) {
-  try {
-    var info = '';
-    var node = workInProgress;
-
-    do {
-      info += describeFiber(node);
-
-      if (true) {
-        // Add any Server Component stack frames in reverse order.
-        var debugInfo = node._debugInfo;
-
-        if (debugInfo) {
-          for (var i = debugInfo.length - 1; i >= 0; i--) {
-            var entry = debugInfo[i];
-
-            if (typeof entry.name === 'string') {
-              info += describeDebugInfoFrame(entry.name, entry.env);
-            }
-          }
-        }
-      } // $FlowFixMe[incompatible-type] we bail out when we get a null
-
-
-      node = node.return;
-    } while (node);
-
-    return info;
-  } catch (x) {
-    return '\nError generating stack: ' + x.message + '\n' + x.stack;
-  }
-}
-
-var current = null;
-var isRendering = false;
-function getCurrentFiberOwnerNameInDevOrNull() {
-  {
-    if (current === null) {
-      return null;
-    }
-
-    var owner = current._debugOwner;
-
-    if (owner != null) {
-      return getComponentNameFromOwner(owner);
-    }
-  }
-
-  return null;
-}
-
-function getCurrentFiberStackInDev() {
-  {
-    if (current === null) {
-      return '';
-    } // Safe because if current fiber exists, we are reconciling,
-    // and it is guaranteed to be the work-in-progress version.
-
-
-    return getStackByFiberInDevAndProd(current);
-  }
-}
-
-function resetCurrentFiber() {
-  {
-    ReactSharedInternals.getCurrentStack = null;
-    current = null;
-    isRendering = false;
-  }
-}
-function setCurrentFiber(fiber) {
-  {
-    ReactSharedInternals.getCurrentStack = fiber === null ? null : getCurrentFiberStackInDev;
-    current = fiber;
-    isRendering = false;
-  }
-}
-function getCurrentFiber() {
-  {
-    return current;
-  }
-}
-function setIsRendering(rendering) {
-  {
-    isRendering = rendering;
-  }
-}
-
 // around this limitation, we use an opaque type that can only be obtained by
 // passing the value through getToStringValue first.
 
@@ -4338,7 +4654,6 @@ function restoreControlledTextareaState(element, props) {
   updateTextarea(element, props.value, props.defaultValue);
 }
 
-// This validation code was written based on the HTML5 parsing spec:
 // https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-scope
 //
 // Note: this does not catch all invalid nesting, nor does it try to (as it's
@@ -4349,6 +4664,7 @@ function restoreControlledTextareaState(element, props) {
 // <p> tags where the beginning of the second element implicitly closes the
 // first, causing a confusing mess.
 // https://html.spec.whatwg.org/multipage/syntax.html#special
+
 var specialTags = ['address', 'applet', 'area', 'article', 'aside', 'base', 'basefont', 'bgsound', 'blockquote', 'body', 'br', 'button', 'caption', 'center', 'col', 'colgroup', 'dd', 'details', 'dir', 'div', 'dl', 'dt', 'embed', 'fieldset', 'figcaption', 'figure', 'footer', 'form', 'frame', 'frameset', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'header', 'hgroup', 'hr', 'html', 'iframe', 'img', 'input', 'isindex', 'li', 'link', 'listing', 'main', 'marquee', 'menu', 'menuitem', 'meta', 'nav', 'noembed', 'noframes', 'noscript', 'object', 'ol', 'p', 'param', 'plaintext', 'pre', 'script', 'section', 'select', 'source', 'style', 'summary', 'table', 'tbody', 'td', 'template', 'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'track', 'ul', 'wbr', 'xmp']; // https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-scope
 
 var inScopeTags = ['applet', 'caption', 'html', 'table', 'td', 'th', 'marquee', 'object', 'template', // https://html.spec.whatwg.org/multipage/syntax.html#html-integration-point
@@ -4631,11 +4947,21 @@ function validateDOMNesting(childTag, ancestorInfo) {
 
       if (ancestorTag === 'table' && childTag === 'tr') {
         info += ' Add a <tbody>, <thead> or <tfoot> to your code to match the DOM tree generated by ' + 'the browser.';
-      }
+      } // Don't transform into consoleWithStackDev here because we add a manual stack.
+      // We use the parent stack here instead of the owner stack because the parent
+      // stack has more useful context for nesting.
+      // TODO: Format this as a linkified "diff view" with props instead of
+      // a stack trace since the stack trace format is now for owner stacks.
 
-      error('In HTML, %s cannot be a child of <%s>.%s\n' + 'This will cause a hydration error.', tagDisplayName, ancestorTag, info);
+
+      console['error']('Warning: In HTML, %s cannot be a child of <%s>.%s\n' + 'This will cause a hydration error.%s', tagDisplayName, ancestorTag, info, getCurrentParentStackInDev());
     } else {
-      error('In HTML, %s cannot be a descendant of <%s>.\n' + 'This will cause a hydration error.', tagDisplayName, ancestorTag);
+      // Don't transform into consoleWithStackDev here because we add a manual stack.
+      // We use the parent stack here instead of the owner stack because the parent
+      // stack has more useful context for nesting.
+      // TODO: Format this as a linkified "diff view" with props instead of
+      // a stack trace since the stack trace format is now for owner stacks.
+      console['error']('Warning: In HTML, %s cannot be a descendant of <%s>.\n' + 'This will cause a hydration error.%s', tagDisplayName, ancestorTag, getCurrentParentStackInDev());
     }
 
     return false;
@@ -4658,9 +4984,19 @@ function validateTextNesting(childText, parentTag) {
     didWarn[warnKey] = true;
 
     if (/\S/.test(childText)) {
-      error('In HTML, text nodes cannot be a child of <%s>.\n' + 'This will cause a hydration error.', parentTag);
+      // Don't transform into consoleWithStackDev here because we add a manual stack.
+      // We use the parent stack here instead of the owner stack because the parent
+      // stack has more useful context for nesting.
+      // TODO: Format this as a linkified "diff view" with props instead of
+      // a stack trace since the stack trace format is now for owner stacks.
+      console['error']('Warning: In HTML, text nodes cannot be a child of <%s>.\n' + 'This will cause a hydration error.%s', parentTag, getCurrentParentStackInDev());
     } else {
-      error('In HTML, whitespace text nodes cannot be a child of <%s>. ' + "Make sure you don't have any extra whitespace between tags on " + 'each line of your source code.\n' + 'This will cause a hydration error.', parentTag);
+      // Don't transform into consoleWithStackDev here because we add a manual stack.
+      // We use the parent stack here instead of the owner stack because the parent
+      // stack has more useful context for nesting.
+      // TODO: Format this as a linkified "diff view" with props instead of
+      // a stack trace since the stack trace format is now for owner stacks.
+      console['error']('Warning: In HTML, whitespace text nodes cannot be a child of <%s>. ' + "Make sure you don't have any extra whitespace between tags on " + 'each line of your source code.\n' + 'This will cause a hydration error.%s', parentTag, getCurrentParentStackInDev());
     }
 
     return false;
@@ -9606,14 +9942,9 @@ var ReactStrictModeWarnings = {
         didWarnAboutLegacyContext.add(fiber.type);
       });
       var sortedNames = setToSortedString(uniqueNames);
-
-      try {
-        setCurrentFiber(firstFiber);
-
+      runWithFiberInDEV(firstFiber, function () {
         error('Legacy context API has been detected within a strict-mode tree.' + '\n\nThe old API will be supported in all 16.x releases, but applications ' + 'using it should migrate to the new version.' + '\n\nPlease update the following components: %s' + '\n\nLearn more about this warning here: https://react.dev/link/legacy-context', sortedNames);
-      } finally {
-        resetCurrentFiber();
-      }
+      });
     });
   };
 
@@ -11224,7 +11555,7 @@ var warnForMissingKey = function (child, returnFiber) {};
       return;
     }
 
-    if (!child._store || child._store.validated || child.key != null) {
+    if (!child._store || (child._store.validated || child.key != null) && child._store.validated !== 2) {
       return;
     }
 
@@ -11233,17 +11564,90 @@ var warnForMissingKey = function (child, returnFiber) {};
     } // $FlowFixMe[cannot-write] unable to narrow type from mixed to writable object
 
 
-    child._store.validated = true;
-    var componentName = getComponentNameFromFiber(returnFiber) || 'Component';
+    child._store.validated = 1;
+    var componentName = getComponentNameFromFiber(returnFiber);
+    var componentKey = componentName || 'null';
 
-    if (ownerHasKeyUseWarning[componentName]) {
+    if (ownerHasKeyUseWarning[componentKey]) {
       return;
     }
 
-    ownerHasKeyUseWarning[componentName] = true;
+    ownerHasKeyUseWarning[componentKey] = true;
+    var childOwner = child._owner;
+    var parentOwner = returnFiber._debugOwner;
+    var currentComponentErrorInfo = '';
 
-    error('Each child in a list should have a unique ' + '"key" prop. See https://react.dev/link/warning-keys for ' + 'more information.');
+    if (parentOwner && typeof parentOwner.tag === 'number') {
+      var name = getComponentNameFromFiber(parentOwner);
+
+      if (name) {
+        currentComponentErrorInfo = '\n\nCheck the render method of `' + name + '`.';
+      }
+    }
+
+    if (!currentComponentErrorInfo) {
+      if (componentName) {
+        currentComponentErrorInfo = "\n\nCheck the top-level render call using <" + componentName + ">.";
+      }
+    } // Usually the current owner is the offender, but if it accepts children as a
+    // property, it may be the creator of the child that's responsible for
+    // assigning it a key.
+
+
+    var childOwnerAppendix = '';
+
+    if (childOwner != null && parentOwner !== childOwner) {
+      var ownerName = null;
+
+      if (typeof childOwner.tag === 'number') {
+        ownerName = getComponentNameFromFiber(childOwner);
+      } else if (typeof childOwner.name === 'string') {
+        ownerName = childOwner.name;
+      }
+
+      if (ownerName) {
+        // Give the component that originally created this child.
+        childOwnerAppendix = " It was passed a child from " + ownerName + ".";
+      }
+    } // We create a fake Fiber for the child to log the stack trace from.
+    // TODO: Refactor the warnForMissingKey calls to happen after fiber creation
+    // so that we can get access to the fiber that will eventually be created.
+    // That way the log can show up associated with the right instance in DevTools.
+
+
+    var fiber = createFiberFromElement(child, returnFiber.mode, 0);
+    fiber.return = returnFiber;
+    runWithFiberInDEV(fiber, function () {
+      error('Each child in a list should have a unique "key" prop.' + '%s%s See https://react.dev/link/warning-keys for more information.', currentComponentErrorInfo, childOwnerAppendix);
+    });
   };
+} // Given a fragment, validate that it can only be provided with fragment props
+// We do this here instead of BeginWork because the Fragment fiber doesn't have
+// the whole props object, only the children and is shared with arrays.
+
+
+function validateFragmentProps(element, fiber, returnFiber) {
+  {
+    var keys = Object.keys(element.props);
+
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+
+      if (key !== 'children' && key !== 'key') {
+        if (fiber === null) {
+          // For unkeyed root fragments there's no Fiber. We create a fake one just for
+          // error stack handling.
+          fiber = createFiberFromElement(element, returnFiber.mode, 0);
+          fiber.return = returnFiber;
+        }
+
+        runWithFiberInDEV(fiber, function (erroredKey) {
+          error('Invalid prop `%s` supplied to `React.Fragment`. ' + 'React.Fragment can only have `key` and `children` props.', erroredKey);
+        }, key);
+        break;
+      }
+    }
+  }
 }
 
 function unwrapThenable(thenable) {
@@ -11323,9 +11727,9 @@ function warnOnSymbolType(returnFiber, invalidChild) {
 }
 
 function resolveLazy(lazyType) {
-  var payload = lazyType._payload;
-  var init = lazyType._init;
-  return init(payload);
+  {
+    return callLazyInitInDEV(lazyType);
+  }
 } // This wrapper function exists because I expect to clone the code in each path
 // to be able to optimize each path individually by branching early. This needs
 // a compiler or we can do it manually. Helpers that don't need this branching
@@ -11464,7 +11868,9 @@ function createChildReconciler(shouldTrackSideEffects) {
     var elementType = element.type;
 
     if (elementType === REACT_FRAGMENT_TYPE) {
-      return updateFragment(returnFiber, current, element.props.children, lanes, element.key, debugInfo);
+      var updated = updateFragment(returnFiber, current, element.props.children, lanes, element.key, debugInfo);
+      validateFragmentProps(element, updated, returnFiber);
+      return updated;
     }
 
     if (current !== null) {
@@ -11595,9 +12001,13 @@ function createChildReconciler(shouldTrackSideEffects) {
 
         case REACT_LAZY_TYPE:
           {
-            var payload = newChild._payload;
-            var init = newChild._init;
-            return createChild(returnFiber, init(payload), lanes, mergeDebugInfo(debugInfo, newChild._debugInfo) // call merge after init
+            var resolvedChild;
+
+            {
+              resolvedChild = callLazyInitInDEV(newChild);
+            }
+
+            return createChild(returnFiber, resolvedChild, lanes, mergeDebugInfo(debugInfo, newChild._debugInfo) // call merge after init
             );
           }
       }
@@ -11681,9 +12091,13 @@ function createChildReconciler(shouldTrackSideEffects) {
 
         case REACT_LAZY_TYPE:
           {
-            var payload = newChild._payload;
-            var init = newChild._init;
-            return updateSlot(returnFiber, oldFiber, init(payload), lanes, mergeDebugInfo(debugInfo, newChild._debugInfo));
+            var resolvedChild;
+
+            {
+              resolvedChild = callLazyInitInDEV(newChild);
+            }
+
+            return updateSlot(returnFiber, oldFiber, resolvedChild, lanes, mergeDebugInfo(debugInfo, newChild._debugInfo));
           }
       }
 
@@ -11750,9 +12164,15 @@ function createChildReconciler(shouldTrackSideEffects) {
           }
 
         case REACT_LAZY_TYPE:
-          var payload = newChild._payload;
-          var init = newChild._init;
-          return updateFromMap(existingChildren, returnFiber, newIdx, init(payload), lanes, mergeDebugInfo(debugInfo, newChild._debugInfo));
+          {
+            var resolvedChild;
+
+            {
+              resolvedChild = callLazyInitInDEV(newChild);
+            }
+
+            return updateFromMap(existingChildren, returnFiber, newIdx, resolvedChild, lanes, mergeDebugInfo(debugInfo, newChild._debugInfo));
+          }
       }
 
       if (isArray(newChild) || getIteratorFn(newChild) || typeof newChild[ASYNC_ITERATOR] === 'function') {
@@ -11826,10 +12246,16 @@ function createChildReconciler(shouldTrackSideEffects) {
           break;
 
         case REACT_LAZY_TYPE:
-          var payload = child._payload;
-          var init = child._init;
-          warnOnInvalidKey(init(payload), knownKeys, returnFiber);
-          break;
+          {
+            var resolvedChild;
+
+            {
+              resolvedChild = callLazyInitInDEV(child);
+            }
+
+            warnOnInvalidKey(resolvedChild, knownKeys, returnFiber);
+            break;
+          }
       }
     }
 
@@ -12275,6 +12701,7 @@ function createChildReconciler(shouldTrackSideEffects) {
               existing._debugInfo = debugInfo;
             }
 
+            validateFragmentProps(element, existing, returnFiber);
             return existing;
           }
         } else {
@@ -12318,6 +12745,7 @@ function createChildReconciler(shouldTrackSideEffects) {
         created._debugInfo = debugInfo;
       }
 
+      validateFragmentProps(element, created, returnFiber);
       return created;
     } else {
       var _created4 = createFiberFromElement(element, returnFiber.mode, lanes);
@@ -12380,6 +12808,7 @@ function createChildReconciler(shouldTrackSideEffects) {
     var isUnkeyedTopLevelFragment = typeof newChild === 'object' && newChild !== null && newChild.type === REACT_FRAGMENT_TYPE && newChild.key === null;
 
     if (isUnkeyedTopLevelFragment) {
+      validateFragmentProps(newChild, null, returnFiber);
       newChild = newChild.props.children;
     } // Handle object types
 
@@ -12936,30 +13365,42 @@ function peekEntangledActionThenable() {
   return currentEntangledActionThenable;
 }
 
-function requestCurrentTransition() {
-  var transition = ReactSharedInternals.T;
+// the shared internals object. This is used by the isomorphic implementation of
+// startTransition to compose all the startTransitions together.
+//
+//   function startTransition(fn) {
+//     return startTransitionDOM(() => {
+//       return startTransitionART(() => {
+//         return startTransitionThreeFiber(() => {
+//           // and so on...
+//           return fn();
+//         });
+//       });
+//     });
+//   }
+//
+// Currently we only compose together the code that runs at the end of each
+// startTransition, because for now that's sufficient — the part that sets
+// isTransition=true on the stack uses a separate shared internal field. But
+// really we should delete the shared field and track isTransition per
+// reconciler. Leaving this for a future PR.
 
-  if (transition !== null) {
-    // Whenever a transition update is scheduled, register a callback on the
-    // transition object so we can get the return value of the scope function.
-    transition._callbacks.add(handleAsyncAction);
-  }
+var prevOnStartTransitionFinish = ReactSharedInternals.S;
 
-  return transition;
-}
-
-function handleAsyncAction(transition, thenable) {
-  {
-    // This is an async action.
+ReactSharedInternals.S = function onStartTransitionFinishForReconciler(transition, returnValue) {
+  if (typeof returnValue === 'object' && returnValue !== null && typeof returnValue.then === 'function') {
+    // This is an async action
+    var thenable = returnValue;
     entangleAsyncAction(transition, thenable);
   }
-}
 
-function notifyTransitionCallbacks(transition, returnValue) {
-  var callbacks = transition._callbacks;
-  callbacks.forEach(function (callback) {
-    return callback(transition, returnValue);
-  });
+  if (prevOnStartTransitionFinish !== null) {
+    prevOnStartTransitionFinish(transition, returnValue);
+  }
+};
+
+function requestCurrentTransition() {
+  return ReactSharedInternals.T;
 } // When retrying a Suspense/Offscreen boundary, we restore the cache that was
 // used during the previous render by placing it here, on the stack.
 
@@ -13350,7 +13791,7 @@ function renderWithHooks(current, workInProgress, Component, props, secondArg, n
 
   var shouldDoubleRenderDEV = (workInProgress.mode & StrictLegacyMode) !== NoMode;
   shouldDoubleInvokeUserFnsInHooksDEV = shouldDoubleRenderDEV;
-  var children = Component(props, secondArg);
+  var children = callComponentInDEV(Component, props, secondArg) ;
   shouldDoubleInvokeUserFnsInHooksDEV = false; // Check if there was a render phase update
 
   if (didScheduleRenderPhaseUpdateDuringThisPass) {
@@ -13501,7 +13942,7 @@ function renderWithHooksAgain(workInProgress, Component, props, secondArg) {
     }
 
     ReactSharedInternals.H = HooksDispatcherOnRerenderInDEV ;
-    children = Component(props, secondArg);
+    children = callComponentInDEV(Component, props, secondArg) ;
   } while (didScheduleRenderPhaseUpdateDuringThisPass);
 
   return children;
@@ -13729,15 +14170,39 @@ function useThenable(thenable) {
     thenableState = createThenableState();
   }
 
-  var result = trackUsedThenable(thenableState, thenable, index);
+  var result = trackUsedThenable(thenableState, thenable, index); // When something suspends with `use`, we replay the component with the
+  // "re-render" dispatcher instead of the "mount" or "update" dispatcher.
+  //
+  // But if there are additional hooks that occur after the `use` invocation
+  // that suspended, they wouldn't have been processed during the previous
+  // attempt. So after we invoke `use` again, we may need to switch from the
+  // "re-render" dispatcher back to the "mount" or "update" dispatcher. That's
+  // what the following logic accounts for.
+  //
+  // TODO: Theoretically this logic only needs to go into the rerender
+  // dispatcher. Could optimize, but probably not be worth it.
+  // This is the same logic as in updateWorkInProgressHook.
 
-  if (currentlyRenderingFiber$1.alternate === null && (workInProgressHook === null ? currentlyRenderingFiber$1.memoizedState === null : workInProgressHook.next === null)) {
-    // Initial render, and either this is the first time the component is
-    // called, or there were no Hooks called after this use() the previous
-    // time (perhaps because it threw). Subsequent Hook calls should use the
-    // mount dispatcher.
+  var workInProgressFiber = currentlyRenderingFiber$1;
+  var nextWorkInProgressHook = workInProgressHook === null ? // We're at the beginning of the list, so read from the first hook from
+  // the fiber.
+  workInProgressFiber.memoizedState : workInProgressHook.next;
+
+  if (nextWorkInProgressHook !== null) ; else {
+    // There are no remaining hooks from the previous attempt. We're no longer
+    // in "re-render" mode. Switch to the normal mount or update dispatcher.
+    //
+    // This is the same as the logic in renderWithHooks, except we don't bother
+    // to track the hook types debug information in this case (sufficient to
+    // only do that when nothing suspends).
+    var currentFiber = workInProgressFiber.alternate;
+
     {
-      ReactSharedInternals.H = HooksDispatcherOnMountInDEV;
+      if (currentFiber !== null && currentFiber.memoizedState !== null) {
+        ReactSharedInternals.H = HooksDispatcherOnUpdateInDEV;
+      } else {
+        ReactSharedInternals.H = HooksDispatcherOnMountInDEV;
+      }
     }
   }
 
@@ -13891,7 +14356,7 @@ function updateReducerImpl(hook, current, reducer) {
   var queue = hook.queue;
 
   if (queue === null) {
-    throw new Error('Should have a queue. This is likely a bug in React. Please file an issue.');
+    throw new Error('Should have a queue. You are likely calling Hooks conditionally, ' + 'which is not allowed. (https://react.dev/link/invalid-hook-call)');
   }
 
   queue.lastRenderedReducer = reducer; // The last rebase update that is NOT part of the base state.
@@ -14126,7 +14591,7 @@ function rerenderReducer(reducer, initialArg, init) {
   var queue = hook.queue;
 
   if (queue === null) {
-    throw new Error('Should have a queue. This is likely a bug in React. Please file an issue.');
+    throw new Error('Should have a queue. You are likely calling Hooks conditionally, ' + 'which is not allowed. (https://react.dev/link/invalid-hook-call)');
   }
 
   queue.lastRenderedReducer = reducer; // This is a re-render. Apply the new render phase updates to the previous
@@ -14499,101 +14964,155 @@ function dispatchActionState(fiber, actionQueue, setPendingState, setState, payl
     throw new Error('Cannot update form state while rendering.');
   }
 
+  var currentAction = actionQueue.action;
+
+  if (currentAction === null) {
+    // An earlier action errored. Subsequent actions should not run.
+    return;
+  }
+
+  var actionNode = {
+    payload: payload,
+    action: currentAction,
+    next: null,
+    // circular
+    isTransition: true,
+    status: 'pending',
+    value: null,
+    reason: null,
+    listeners: [],
+    then: function (listener) {
+      // We know the only thing that subscribes to these promises is `use` so
+      // this implementation is simpler than a generic thenable. E.g. we don't
+      // bother to check if the thenable is still pending because `use` already
+      // does that.
+      actionNode.listeners.push(listener);
+    }
+  }; // Check if we're inside a transition. If so, we'll need to restore the
+  // transition context when the action is run.
+
+  var prevTransition = ReactSharedInternals.T;
+
+  if (prevTransition !== null) {
+    // Optimistically update the pending state, similar to useTransition.
+    // This will be reverted automatically when all actions are finished.
+    setPendingState(true); // `actionNode` is a thenable that resolves to the return value of
+    // the action.
+
+    setState(actionNode);
+  } else {
+    // This is not a transition.
+    actionNode.isTransition = false;
+    setState(actionNode);
+  }
+
   var last = actionQueue.pending;
 
   if (last === null) {
     // There are no pending actions; this is the first one. We can run
     // it immediately.
-    var newLast = {
-      payload: payload,
-      next: null // circular
-
-    };
-    newLast.next = actionQueue.pending = newLast;
-    runActionStateAction(actionQueue, setPendingState, setState, payload);
+    actionNode.next = actionQueue.pending = actionNode;
+    runActionStateAction(actionQueue, actionNode);
   } else {
     // There's already an action running. Add to the queue.
     var first = last.next;
-    var _newLast = {
-      payload: payload,
-      next: first
-    };
-    actionQueue.pending = last.next = _newLast;
+    actionNode.next = first;
+    actionQueue.pending = last.next = actionNode;
   }
 }
 
-function runActionStateAction(actionQueue, setPendingState, setState, payload) {
-  var action = actionQueue.action;
-  var prevState = actionQueue.state; // This is a fork of startTransition
+function runActionStateAction(actionQueue, node) {
+  // `node.action` represents the action function at the time it was dispatched.
+  // If this action was queued, it might be stale, i.e. it's not necessarily the
+  // most current implementation of the action, stored on `actionQueue`. This is
+  // intentional. The conceptual model for queued actions is that they are
+  // queued in a remote worker; the dispatch happens immediately, only the
+  // execution is delayed.
+  var action = node.action;
+  var payload = node.payload;
+  var prevState = actionQueue.state;
 
-  var prevTransition = ReactSharedInternals.T;
-  var currentTransition = {
-    _callbacks: new Set()
-  };
-  ReactSharedInternals.T = currentTransition;
-
-  {
-    ReactSharedInternals.T._updatedFibers = new Set();
-  } // Optimistically update the pending state, similar to useTransition.
-  // This will be reverted automatically when all actions are finished.
-
-
-  setPendingState(true);
-
-  try {
-    var returnValue = action(prevState, payload);
-
-    if (returnValue !== null && typeof returnValue === 'object' && // $FlowFixMe[method-unbinding]
-    typeof returnValue.then === 'function') {
-      var thenable = returnValue;
-      notifyTransitionCallbacks(currentTransition, thenable); // Attach a listener to read the return state of the action. As soon as
-      // this resolves, we can run the next action in the sequence.
-
-      thenable.then(function (nextState) {
-        actionQueue.state = nextState;
-        finishRunningActionStateAction(actionQueue, setPendingState, setState);
-      }, function () {
-        return finishRunningActionStateAction(actionQueue, setPendingState, setState);
-      });
-      setState(thenable);
-    } else {
-      setState(returnValue);
-      var nextState = returnValue;
-      actionQueue.state = nextState;
-      finishRunningActionStateAction(actionQueue, setPendingState, setState);
-    }
-  } catch (error) {
-    // This is a trick to get the `useActionState` hook to rethrow the error.
-    // When it unwraps the thenable with the `use` algorithm, the error
-    // will be thrown.
-    var rejectedThenable = {
-      then: function () {},
-      status: 'rejected',
-      reason: error // $FlowFixMe: Not sure why this doesn't work
-
-    };
-    setState(rejectedThenable);
-    finishRunningActionStateAction(actionQueue, setPendingState, setState);
-  } finally {
-    ReactSharedInternals.T = prevTransition;
+  if (node.isTransition) {
+    // The original dispatch was part of a transition. We restore its
+    // transition context here.
+    // This is a fork of startTransition
+    var prevTransition = ReactSharedInternals.T;
+    var currentTransition = {};
+    ReactSharedInternals.T = currentTransition;
 
     {
-      if (prevTransition === null && currentTransition._updatedFibers) {
-        var updatedFibersCount = currentTransition._updatedFibers.size;
+      ReactSharedInternals.T._updatedFibers = new Set();
+    }
 
-        currentTransition._updatedFibers.clear();
+    try {
+      var returnValue = action(prevState, payload);
+      var onStartTransitionFinish = ReactSharedInternals.S;
 
-        if (updatedFibersCount > 10) {
-          warn('Detected a large number of updates inside startTransition. ' + 'If this is due to a subscription please re-write it to use React provided hooks. ' + 'Otherwise concurrent mode guarantees are off the table.');
+      if (onStartTransitionFinish !== null) {
+        onStartTransitionFinish(currentTransition, returnValue);
+      }
+
+      handleActionReturnValue(actionQueue, node, returnValue);
+    } catch (error) {
+      onActionError(actionQueue, node, error);
+    } finally {
+      ReactSharedInternals.T = prevTransition;
+
+      {
+        if (prevTransition === null && currentTransition._updatedFibers) {
+          var updatedFibersCount = currentTransition._updatedFibers.size;
+
+          currentTransition._updatedFibers.clear();
+
+          if (updatedFibersCount > 10) {
+            warn('Detected a large number of updates inside startTransition. ' + 'If this is due to a subscription please re-write it to use React provided hooks. ' + 'Otherwise concurrent mode guarantees are off the table.');
+          }
         }
       }
     }
+  } else {
+    // The original dispatch was not part of a transition.
+    try {
+      var _returnValue = action(prevState, payload);
+
+      handleActionReturnValue(actionQueue, node, _returnValue);
+    } catch (error) {
+      onActionError(actionQueue, node, error);
+    }
   }
 }
 
-function finishRunningActionStateAction(actionQueue, setPendingState, setState) {
-  // The action finished running. Pop it from the queue and run the next pending
-  // action, if there are any.
+function handleActionReturnValue(actionQueue, node, returnValue) {
+  if (returnValue !== null && typeof returnValue === 'object' && // $FlowFixMe[method-unbinding]
+  typeof returnValue.then === 'function') {
+    var thenable = returnValue; // Attach a listener to read the return state of the action. As soon as
+    // this resolves, we can run the next action in the sequence.
+
+    thenable.then(function (nextState) {
+      onActionSuccess(actionQueue, node, nextState);
+    }, function (error) {
+      return onActionError(actionQueue, node, error);
+    });
+
+    {
+      if (!node.isTransition) {
+        error('An async function was passed to useActionState, but it was ' + 'dispatched outside of an action context. This is likely not ' + 'what you intended. Either pass the dispatch function to an ' + '`action` prop, or dispatch manually inside `startTransition`');
+      }
+    }
+  } else {
+    var nextState = returnValue;
+    onActionSuccess(actionQueue, node, nextState);
+  }
+}
+
+function onActionSuccess(actionQueue, actionNode, nextState) {
+  // The action finished running.
+  actionNode.status = 'fulfilled';
+  actionNode.value = nextState;
+  notifyActionListeners(actionNode);
+  actionQueue.state = nextState; // Pop the action from the queue and run the next pending action, if there
+  // are any.
+
   var last = actionQueue.pending;
 
   if (last !== null) {
@@ -14607,8 +15126,40 @@ function finishRunningActionStateAction(actionQueue, setPendingState, setState) 
       var next = first.next;
       last.next = next; // Run the next action.
 
-      runActionStateAction(actionQueue, setPendingState, setState, next.payload);
+      runActionStateAction(actionQueue, next);
     }
+  }
+}
+
+function onActionError(actionQueue, actionNode, error) {
+  // Mark all the following actions as rejected.
+  var last = actionQueue.pending;
+  actionQueue.pending = null;
+
+  if (last !== null) {
+    var first = last.next;
+
+    do {
+      actionNode.status = 'rejected';
+      actionNode.reason = error;
+      notifyActionListeners(actionNode);
+      actionNode = actionNode.next;
+    } while (actionNode !== first);
+  } // Prevent subsequent actions from being dispatched.
+
+
+  actionQueue.action = null;
+}
+
+function notifyActionListeners(actionNode) {
+  // Notify React that the action has finished.
+  var listeners = actionNode.listeners;
+
+  for (var i = 0; i < listeners.length; i++) {
+    // This is always a React internal listener, so we don't need to worry
+    // about it throwing.
+    var listener = listeners[i];
+    listener();
   }
 }
 
@@ -15131,9 +15682,7 @@ function startTransition(fiber, queue, pendingState, finishedState, callback, op
   var previousPriority = getCurrentUpdatePriority();
   setCurrentUpdatePriority(higherEventPriority(previousPriority, ContinuousEventPriority));
   var prevTransition = ReactSharedInternals.T;
-  var currentTransition = {
-    _callbacks: new Set()
-  };
+  var currentTransition = {};
 
   {
     // We don't really need to use an optimistic update here, because we
@@ -15152,7 +15701,12 @@ function startTransition(fiber, queue, pendingState, finishedState, callback, op
 
   try {
     if (enableAsyncActions) {
-      var returnValue = callback(); // Check if we're inside an async action scope. If so, we'll entangle
+      var returnValue = callback();
+      var onStartTransitionFinish = ReactSharedInternals.S;
+
+      if (onStartTransitionFinish !== null) {
+        onStartTransitionFinish(currentTransition, returnValue);
+      } // Check if we're inside an async action scope. If so, we'll entangle
       // this new action with the existing scope.
       //
       // If we're not already inside an async action scope, and this action is
@@ -15161,9 +15715,9 @@ function startTransition(fiber, queue, pendingState, finishedState, callback, op
       // In the async case, the resulting render will suspend until the async
       // action scope has finished.
 
+
       if (returnValue !== null && typeof returnValue === 'object' && typeof returnValue.then === 'function') {
-        var thenable = returnValue;
-        notifyTransitionCallbacks(currentTransition, thenable); // Create a thenable that resolves to `finishedState` once the async
+        var thenable = returnValue; // Create a thenable that resolves to `finishedState` once the async
         // action has completed.
 
         var thenableForFinishedState = chainThenableValue(thenable, finishedState);
@@ -17070,22 +17624,29 @@ function defaultOnUncaughtError(error, errorInfo) {
   reportGlobalError(error);
 
   {
-    var componentStack = errorInfo.componentStack != null ? errorInfo.componentStack : '';
-    var componentNameMessage = componentName ? "An error occurred in the <" + componentName + "> component:" : 'An error occurred in one of your React components:';
-    console['warn']('%s\n%s\n\n%s', componentNameMessage, componentStack || '', 'Consider adding an error boundary to your tree to customize error handling behavior.\n' + 'Visit https://react.dev/link/error-boundaries to learn more about error boundaries.');
+    var componentNameMessage = componentName ? "An error occurred in the <" + componentName + "> component." : 'An error occurred in one of your React components.';
+    var errorBoundaryMessage = 'Consider adding an error boundary to your tree to customize error handling behavior.\n' + 'Visit https://react.dev/link/error-boundaries to learn more about error boundaries.';
+
+    {
+      warn('%s\n\n%s\n', componentNameMessage, errorBoundaryMessage // We let our console.error wrapper add the component stack to the end.
+      );
+    }
   }
 }
-function defaultOnCaughtError(error, errorInfo) {
+function defaultOnCaughtError(error$1, errorInfo) {
   // Overriding this can silence these warnings e.g. for tests.
   // See https://github.com/facebook/react/pull/13384
   // Caught by error boundary
   {
-    var componentStack = errorInfo.componentStack != null ? errorInfo.componentStack : '';
-    var componentNameMessage = componentName ? "The above error occurred in the <" + componentName + "> component:" : 'The above error occurred in one of your React components:'; // In development, we provide our own message which includes the component stack
+    var componentNameMessage = componentName ? "The above error occurred in the <" + componentName + "> component." : 'The above error occurred in one of your React components.'; // In development, we provide our own message which includes the component stack
     // in addition to the error.
-    // Don't transform to our wrapper
 
-    console['error']('%o\n\n%s\n%s\n\n%s', error, componentNameMessage, componentStack, "React will try to recreate this component tree from scratch " + ("using the error boundary you provided, " + (errorBoundaryName || 'Anonymous') + "."));
+    var recreateMessage = "React will try to recreate this component tree from scratch " + ("using the error boundary you provided, " + (errorBoundaryName || 'Anonymous') + ".");
+
+    {
+      error('%o\n\n%s\n\n%s\n', error$1, componentNameMessage, recreateMessage // We let our consoleWithStackDev wrapper add the component stack to the end.
+      );
+    }
   }
 }
 function defaultOnRecoverableError(error, errorInfo) {
@@ -17157,7 +17718,9 @@ function createRootErrorUpdate(root, errorInfo, lane) {
   };
 
   update.callback = function () {
-    logUncaughtError(root, errorInfo);
+    {
+      runWithFiberInDEV(errorInfo.source, logUncaughtError, root, errorInfo);
+    }
   };
 
   return update;
@@ -17184,7 +17747,9 @@ function initializeClassErrorUpdate(update, root, fiber, errorInfo) {
         markFailedErrorBoundaryForHotReloading(fiber);
       }
 
-      logCaughtError(root, fiber, errorInfo);
+      {
+        runWithFiberInDEV(errorInfo.source, logCaughtError, root, fiber, errorInfo);
+      }
     };
   }
 
@@ -17197,7 +17762,9 @@ function initializeClassErrorUpdate(update, root, fiber, errorInfo) {
         markFailedErrorBoundaryForHotReloading(fiber);
       }
 
-      logCaughtError(root, fiber, errorInfo);
+      {
+        runWithFiberInDEV(errorInfo.source, logCaughtError, root, fiber, errorInfo);
+      }
 
       if (typeof getDerivedStateFromError !== 'function') {
         // To preserve the preexisting retry behavior of error boundaries,
@@ -17654,11 +18221,8 @@ function updateForwardRef(current, workInProgress, Component, nextProps, renderL
   }
 
   {
-    setCurrentOwner(workInProgress);
-    setIsRendering(true);
     nextChildren = renderWithHooks(current, workInProgress, render, propsWithoutRef, ref, renderLanes);
     hasId = checkDidRenderIdHook();
-    setIsRendering(false);
   }
 
   {
@@ -18090,11 +18654,8 @@ function updateFunctionComponent(current, workInProgress, Component, nextProps, 
   }
 
   {
-    setCurrentOwner(workInProgress);
-    setIsRendering(true);
     nextChildren = renderWithHooks(current, workInProgress, Component, nextProps, context, renderLanes);
     hasId = checkDidRenderIdHook();
-    setIsRendering(false);
   }
 
   {
@@ -18246,7 +18807,7 @@ function finishClassComponent(current, workInProgress, Component, shouldUpdate, 
   var instance = workInProgress.stateNode; // Rerender
 
   {
-    setCurrentOwner(workInProgress);
+    setCurrentFiber(workInProgress);
   }
 
   var nextChildren;
@@ -18268,20 +18829,17 @@ function finishClassComponent(current, workInProgress, Component, shouldUpdate, 
     }
 
     {
-      setIsRendering(true);
-      nextChildren = instance.render();
+      nextChildren = callRenderInDEV(instance);
 
       if (workInProgress.mode & StrictLegacyMode) {
         setIsStrictModeForDevtools(true);
 
         try {
-          instance.render();
+          callRenderInDEV(instance);
         } finally {
           setIsStrictModeForDevtools(false);
         }
       }
-
-      setIsRendering(false);
     }
 
     {
@@ -18486,14 +19044,22 @@ function updateHostComponent$1(current, workInProgress, renderLanes) {
 
 function updateHostHoistable(current, workInProgress, renderLanes) {
   markRef(current, workInProgress);
-  var currentProps = current === null ? null : current.memoizedProps;
-  var resource = workInProgress.memoizedState = getResource(workInProgress.type, currentProps, workInProgress.pendingProps);
 
   if (current === null) {
-    if (!getIsHydrating() && resource === null) {
-      // This is not a Resource Hoistable and we aren't hydrating so we construct the instance.
-      workInProgress.stateNode = createHoistableInstance(workInProgress.type, workInProgress.pendingProps, getRootHostContainer(), workInProgress);
+    var resource = getResource(workInProgress.type, null, workInProgress.pendingProps, null);
+
+    if (resource) {
+      workInProgress.memoizedState = resource;
+    } else {
+      if (!getIsHydrating()) {
+        // This is not a Resource Hoistable and we aren't hydrating so we construct the instance.
+        workInProgress.stateNode = createHoistableInstance(workInProgress.type, workInProgress.pendingProps, getRootHostContainer(), workInProgress);
+      }
     }
+  } else {
+    // Get Resource may or may not return a resource. either way we stash the result
+    // on memoized state.
+    workInProgress.memoizedState = getResource(workInProgress.type, current.memoizedProps, workInProgress.pendingProps, current.memoizedState);
   } // Resources never have reconciler managed children. It is possible for
   // the host implementation of getResource to consider children in the
   // resource construction but they will otherwise be discarded. In practice
@@ -18540,9 +19106,12 @@ function updateHostText$1(current, workInProgress) {
 function mountLazyComponent(_current, workInProgress, elementType, renderLanes) {
   var props = workInProgress.pendingProps;
   var lazyComponent = elementType;
-  var payload = lazyComponent._payload;
-  var init = lazyComponent._init;
-  var Component = init(payload); // Store the unwrapped component in the type.
+  var Component;
+
+  {
+    Component = callLazyInitInDEV(lazyComponent);
+  } // Store the unwrapped component in the type.
+
 
   workInProgress.type = Component;
 
@@ -19620,10 +20189,7 @@ function updateContextConsumer(current, workInProgress, renderLanes) {
   var newChildren;
 
   {
-    setCurrentOwner(workInProgress);
-    setIsRendering(true);
-    newChildren = render(newValue);
-    setIsRendering(false);
+    newChildren = callComponentInDEV(render, newValue, undefined);
   }
 
   {
@@ -19945,7 +20511,14 @@ function beginWork(current, workInProgress, renderLanes) {
   {
     if (workInProgress._debugNeedsRemount && current !== null) {
       // This will restart the begin phase with a new fiber.
-      return remountFiber(current, workInProgress, createFiberFromTypeAndProps(workInProgress.type, workInProgress.key, workInProgress.pendingProps, workInProgress._debugOwner || null, workInProgress.mode, workInProgress.lanes));
+      var copiedFiber = createFiberFromTypeAndProps(workInProgress.type, workInProgress.key, workInProgress.pendingProps, workInProgress._debugOwner || null, workInProgress.mode, workInProgress.lanes);
+
+      {
+        copiedFiber._debugStack = workInProgress._debugStack;
+        copiedFiber._debugTask = workInProgress._debugTask;
+      }
+
+      return remountFiber(current, workInProgress, copiedFiber);
     }
   }
 
@@ -21977,15 +22550,15 @@ function commitBeforeMutationEffects_begin() {
 function commitBeforeMutationEffects_complete() {
   while (nextEffect !== null) {
     var fiber = nextEffect;
-    setCurrentFiber(fiber);
 
     try {
-      commitBeforeMutationEffectsOnFiber(fiber);
+      if (true) {
+        runWithFiberInDEV(fiber, commitBeforeMutationEffectsOnFiber, fiber);
+      }
     } catch (error) {
       captureCommitPhaseError(fiber, fiber.return, error);
     }
 
-    resetCurrentFiber();
     var sibling = fiber.sibling;
 
     if (sibling !== null) {
@@ -22001,10 +22574,6 @@ function commitBeforeMutationEffects_complete() {
 function commitBeforeMutationEffectsOnFiber(finishedWork) {
   var current = finishedWork.alternate;
   var flags = finishedWork.flags;
-
-  if ((flags & Snapshot) !== NoFlags$1) {
-    setCurrentFiber(finishedWork);
-  }
 
   switch (finishedWork.tag) {
     case FunctionComponent:
@@ -22092,10 +22661,6 @@ function commitBeforeMutationEffectsOnFiber(finishedWork) {
           throw new Error('This unit of work tag should not have side-effects. This error is ' + 'likely caused by a bug in React. Please file an issue.');
         }
       }
-  }
-
-  if ((flags & Snapshot) !== NoFlags$1) {
-    resetCurrentFiber();
   }
 }
 
@@ -22500,7 +23065,7 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork, committe
     case ForwardRef:
     case SimpleMemoComponent:
       {
-        recursivelyTraverseLayoutEffects(finishedRoot, finishedWork);
+        recursivelyTraverseLayoutEffects(finishedRoot, finishedWork, committedLanes);
 
         if (flags & Update) {
           commitHookLayoutEffects(finishedWork, Layout | HasEffect);
@@ -22511,7 +23076,7 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork, committe
 
     case ClassComponent:
       {
-        recursivelyTraverseLayoutEffects(finishedRoot, finishedWork);
+        recursivelyTraverseLayoutEffects(finishedRoot, finishedWork, committedLanes);
 
         if (flags & Update) {
           commitClassLayoutLifecycles(finishedWork, current);
@@ -22530,7 +23095,7 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork, committe
 
     case HostRoot:
       {
-        recursivelyTraverseLayoutEffects(finishedRoot, finishedWork);
+        recursivelyTraverseLayoutEffects(finishedRoot, finishedWork, committedLanes);
 
         if (flags & Callback) {
           // TODO: I think this is now always non-null by the time it reaches the
@@ -22567,7 +23132,7 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork, committe
     case HostHoistable:
       {
         {
-          recursivelyTraverseLayoutEffects(finishedRoot, finishedWork);
+          recursivelyTraverseLayoutEffects(finishedRoot, finishedWork, committedLanes);
 
           if (flags & Ref) {
             safelyAttachRef(finishedWork, finishedWork.return);
@@ -22581,7 +23146,7 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork, committe
     case HostSingleton:
     case HostComponent:
       {
-        recursivelyTraverseLayoutEffects(finishedRoot, finishedWork); // Renderers may schedule work to be done after host components are mounted
+        recursivelyTraverseLayoutEffects(finishedRoot, finishedWork, committedLanes); // Renderers may schedule work to be done after host components are mounted
         // (eg DOM renderer may schedule auto-focus for inputs and form controls).
         // These effects should only be committed when components are first mounted,
         // aka when there is no current/alternate.
@@ -22599,7 +23164,7 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork, committe
 
     case Profiler:
       {
-        recursivelyTraverseLayoutEffects(finishedRoot, finishedWork); // TODO: Should this fire inside an offscreen tree? Or should it wait to
+        recursivelyTraverseLayoutEffects(finishedRoot, finishedWork, committedLanes); // TODO: Should this fire inside an offscreen tree? Or should it wait to
         // fire when the tree becomes visible again.
 
         if (flags & Update) {
@@ -22611,7 +23176,7 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork, committe
 
     case SuspenseComponent:
       {
-        recursivelyTraverseLayoutEffects(finishedRoot, finishedWork);
+        recursivelyTraverseLayoutEffects(finishedRoot, finishedWork, committedLanes);
 
         if (flags & Update) {
           commitSuspenseHydrationCallbacks(finishedRoot, finishedWork);
@@ -22645,14 +23210,14 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork, committe
               var includeWorkInProgressEffects = (finishedWork.subtreeFlags & LayoutMask) !== NoFlags$1;
               recursivelyTraverseReappearLayoutEffects(finishedRoot, finishedWork, includeWorkInProgressEffects);
             } else {
-              recursivelyTraverseLayoutEffects(finishedRoot, finishedWork);
+              recursivelyTraverseLayoutEffects(finishedRoot, finishedWork, committedLanes);
             }
 
             offscreenSubtreeIsHidden = prevOffscreenSubtreeIsHidden;
             offscreenSubtreeWasHidden = prevOffscreenSubtreeWasHidden;
           }
         } else {
-          recursivelyTraverseLayoutEffects(finishedRoot, finishedWork);
+          recursivelyTraverseLayoutEffects(finishedRoot, finishedWork, committedLanes);
         }
 
         if (flags & Ref) {
@@ -22670,7 +23235,7 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork, committe
 
     default:
       {
-        recursivelyTraverseLayoutEffects(finishedRoot, finishedWork);
+        recursivelyTraverseLayoutEffects(finishedRoot, finishedWork, committedLanes);
         break;
       }
   }
@@ -23491,9 +24056,11 @@ function attachSuspenseRetryListeners(finishedWork, wakeables) {
 function commitMutationEffects(root, finishedWork, committedLanes) {
   inProgressLanes = committedLanes;
   inProgressRoot = root;
-  setCurrentFiber(finishedWork);
-  commitMutationEffectsOnFiber(finishedWork, root);
-  setCurrentFiber(finishedWork);
+
+  {
+    runWithFiberInDEV(finishedWork, commitMutationEffectsOnFiber, finishedWork, root, committedLanes);
+  }
+
   inProgressLanes = null;
   inProgressRoot = null;
 }
@@ -23515,19 +24082,17 @@ function recursivelyTraverseMutationEffects(root, parentFiber, lanes) {
     }
   }
 
-  var prevDebugFiber = getCurrentFiber();
-
   if (parentFiber.subtreeFlags & MutationMask) {
     var child = parentFiber.child;
 
     while (child !== null) {
-      setCurrentFiber(child);
-      commitMutationEffectsOnFiber(child, root);
+      {
+        runWithFiberInDEV(child, commitMutationEffectsOnFiber, child, root, lanes);
+      }
+
       child = child.sibling;
     }
   }
-
-  setCurrentFiber(prevDebugFiber);
 }
 
 var currentHoistableRoot = null;
@@ -23544,7 +24109,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
     case MemoComponent:
     case SimpleMemoComponent:
       {
-        recursivelyTraverseMutationEffects(root, finishedWork);
+        recursivelyTraverseMutationEffects(root, finishedWork, lanes);
         commitReconciliationEffects(finishedWork);
 
         if (flags & Update) {
@@ -23583,7 +24148,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
 
     case ClassComponent:
       {
-        recursivelyTraverseMutationEffects(root, finishedWork);
+        recursivelyTraverseMutationEffects(root, finishedWork, lanes);
         commitReconciliationEffects(finishedWork);
 
         if (flags & Ref) {
@@ -23609,7 +24174,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
           // We cast because we always set the root at the React root and so it cannot be
           // null while we are processing mutation effects
           var hoistableRoot = currentHoistableRoot;
-          recursivelyTraverseMutationEffects(root, finishedWork);
+          recursivelyTraverseMutationEffects(root, finishedWork, lanes);
           commitReconciliationEffects(finishedWork);
 
           if (flags & Ref) {
@@ -23684,7 +24249,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
 
     case HostComponent:
       {
-        recursivelyTraverseMutationEffects(root, finishedWork);
+        recursivelyTraverseMutationEffects(root, finishedWork, lanes);
         commitReconciliationEffects(finishedWork);
 
         if (flags & Ref) {
@@ -23748,7 +24313,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
 
     case HostText:
       {
-        recursivelyTraverseMutationEffects(root, finishedWork);
+        recursivelyTraverseMutationEffects(root, finishedWork, lanes);
         commitReconciliationEffects(finishedWork);
 
         if (flags & Update) {
@@ -23781,7 +24346,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
           prepareToCommitHoistables();
           var previousHoistableRoot = currentHoistableRoot;
           currentHoistableRoot = getHoistableRoot(root.containerInfo);
-          recursivelyTraverseMutationEffects(root, finishedWork);
+          recursivelyTraverseMutationEffects(root, finishedWork, lanes);
           currentHoistableRoot = previousHoistableRoot;
           commitReconciliationEffects(finishedWork);
         }
@@ -23824,7 +24389,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
         {
           var _previousHoistableRoot = currentHoistableRoot;
           currentHoistableRoot = getHoistableRoot(finishedWork.stateNode.containerInfo);
-          recursivelyTraverseMutationEffects(root, finishedWork);
+          recursivelyTraverseMutationEffects(root, finishedWork, lanes);
           commitReconciliationEffects(finishedWork);
           currentHoistableRoot = _previousHoistableRoot;
         }
@@ -23834,7 +24399,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
 
     case SuspenseComponent:
       {
-        recursivelyTraverseMutationEffects(root, finishedWork);
+        recursivelyTraverseMutationEffects(root, finishedWork, lanes);
         commitReconciliationEffects(finishedWork); // TODO: We should mark a flag on the Suspense fiber itself, rather than
         // relying on the Offscreen fiber having a flag also being marked. The
         // reason is that this offscreen fiber might not be part of the work-in-
@@ -23900,7 +24465,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
           var prevOffscreenSubtreeWasHidden = offscreenSubtreeWasHidden;
           offscreenSubtreeIsHidden = prevOffscreenSubtreeIsHidden || isHidden;
           offscreenSubtreeWasHidden = prevOffscreenSubtreeWasHidden || wasHidden;
-          recursivelyTraverseMutationEffects(root, finishedWork);
+          recursivelyTraverseMutationEffects(root, finishedWork, lanes);
           offscreenSubtreeWasHidden = prevOffscreenSubtreeWasHidden;
           offscreenSubtreeIsHidden = prevOffscreenSubtreeIsHidden;
         }
@@ -23965,7 +24530,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
 
     case SuspenseListComponent:
       {
-        recursivelyTraverseMutationEffects(root, finishedWork);
+        recursivelyTraverseMutationEffects(root, finishedWork, lanes);
         commitReconciliationEffects(finishedWork);
 
         if (flags & Update) {
@@ -23988,7 +24553,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
 
     default:
       {
-        recursivelyTraverseMutationEffects(root, finishedWork);
+        recursivelyTraverseMutationEffects(root, finishedWork, lanes);
         commitReconciliationEffects(finishedWork);
         return;
       }
@@ -24044,26 +24609,29 @@ function commitLayoutEffects(finishedWork, root, committedLanes) {
   inProgressLanes = committedLanes;
   inProgressRoot = root;
   var current = finishedWork.alternate;
-  commitLayoutEffectOnFiber(root, current, finishedWork);
+
+  {
+    runWithFiberInDEV(finishedWork, commitLayoutEffectOnFiber, root, current, finishedWork, committedLanes);
+  }
+
   inProgressLanes = null;
   inProgressRoot = null;
 }
 
 function recursivelyTraverseLayoutEffects(root, parentFiber, lanes) {
-  var prevDebugFiber = getCurrentFiber();
-
   if (parentFiber.subtreeFlags & LayoutMask) {
     var child = parentFiber.child;
 
     while (child !== null) {
-      setCurrentFiber(child);
       var current = child.alternate;
-      commitLayoutEffectOnFiber(root, current, child);
+
+      {
+        runWithFiberInDEV(child, commitLayoutEffectOnFiber, root, current, child, lanes);
+      }
+
       child = child.sibling;
     }
   }
-
-  setCurrentFiber(prevDebugFiber);
 }
 
 function disappearLayoutEffects(finishedWork) {
@@ -24269,16 +24837,17 @@ function recursivelyTraverseReappearLayoutEffects(finishedRoot, parentFiber, inc
   // node was reused.
   var childShouldIncludeWorkInProgressEffects = includeWorkInProgressEffects && (parentFiber.subtreeFlags & LayoutMask) !== NoFlags$1; // TODO (Offscreen) Check: flags & (RefStatic | LayoutStatic)
 
-  var prevDebugFiber = getCurrentFiber();
   var child = parentFiber.child;
 
   while (child !== null) {
     var current = child.alternate;
-    reappearLayoutEffects(finishedRoot, current, child, childShouldIncludeWorkInProgressEffects);
+
+    {
+      runWithFiberInDEV(child, reappearLayoutEffects, finishedRoot, current, child, childShouldIncludeWorkInProgressEffects);
+    }
+
     child = child.sibling;
   }
-
-  setCurrentFiber(prevDebugFiber);
 }
 
 function commitHookPassiveMountEffects(finishedWork, hookFlags) {
@@ -24356,25 +24925,23 @@ function commitCachePassiveMountEffect(current, finishedWork) {
 }
 
 function commitPassiveMountEffects(root, finishedWork, committedLanes, committedTransitions) {
-  setCurrentFiber(finishedWork);
-  commitPassiveMountOnFiber(root, finishedWork, committedLanes, committedTransitions);
-  resetCurrentFiber();
+  {
+    runWithFiberInDEV(finishedWork, commitPassiveMountOnFiber, root, finishedWork, committedLanes, committedTransitions);
+  }
 }
 
 function recursivelyTraversePassiveMountEffects(root, parentFiber, committedLanes, committedTransitions) {
-  var prevDebugFiber = getCurrentFiber();
-
   if (parentFiber.subtreeFlags & PassiveMask) {
     var child = parentFiber.child;
 
     while (child !== null) {
-      setCurrentFiber(child);
-      commitPassiveMountOnFiber(root, child, committedLanes, committedTransitions);
+      {
+        runWithFiberInDEV(child, commitPassiveMountOnFiber, root, child, committedLanes, committedTransitions);
+      }
+
       child = child.sibling;
     }
   }
-
-  setCurrentFiber(prevDebugFiber);
 }
 
 function commitPassiveMountOnFiber(finishedRoot, finishedWork, committedLanes, committedTransitions) {
@@ -24454,7 +25021,7 @@ function commitPassiveMountOnFiber(finishedRoot, finishedWork, committedLanes, c
                 // "Atomic" effects are ones that need to fire on every commit,
                 // even during pre-rendering. An example is updating the reference
                 // count on cache instances.
-                recursivelyTraverseAtomicPassiveEffects(finishedRoot, finishedWork);
+                recursivelyTraverseAtomicPassiveEffects(finishedRoot, finishedWork, committedLanes, committedTransitions);
               }
             }
           }
@@ -24510,15 +25077,15 @@ function recursivelyTraverseReconnectPassiveEffects(finishedRoot, parentFiber, c
   // node was reused.
   var childShouldIncludeWorkInProgressEffects = includeWorkInProgressEffects && (parentFiber.subtreeFlags & PassiveMask) !== NoFlags$1; // TODO (Offscreen) Check: flags & (RefStatic | LayoutStatic)
 
-  var prevDebugFiber = getCurrentFiber();
   var child = parentFiber.child;
 
   while (child !== null) {
-    reconnectPassiveEffects(finishedRoot, child, committedLanes, committedTransitions, childShouldIncludeWorkInProgressEffects);
+    {
+      runWithFiberInDEV(child, reconnectPassiveEffects, finishedRoot, child, committedLanes, committedTransitions, childShouldIncludeWorkInProgressEffects);
+    }
+
     child = child.sibling;
   }
-
-  setCurrentFiber(prevDebugFiber);
 }
 
 function reconnectPassiveEffects(finishedRoot, finishedWork, committedLanes, committedTransitions, // This function visits both newly finished work and nodes that were re-used
@@ -24568,7 +25135,7 @@ includeWorkInProgressEffects) {
                 // "Atomic" effects are ones that need to fire on every commit,
                 // even during pre-rendering. An example is updating the reference
                 // count on cache instances.
-                recursivelyTraverseAtomicPassiveEffects(finishedRoot, finishedWork);
+                recursivelyTraverseAtomicPassiveEffects(finishedRoot, finishedWork, committedLanes, committedTransitions);
               }
             }
           }
@@ -24619,19 +25186,18 @@ function recursivelyTraverseAtomicPassiveEffects(finishedRoot, parentFiber, comm
   // "Atomic" effects are ones that need to fire on every commit, even during
   // pre-rendering. We call this function when traversing a hidden tree whose
   // regular effects are currently disconnected.
-  var prevDebugFiber = getCurrentFiber(); // TODO: Add special flag for atomic effects
-
+  // TODO: Add special flag for atomic effects
   if (parentFiber.subtreeFlags & PassiveMask) {
     var child = parentFiber.child;
 
     while (child !== null) {
-      setCurrentFiber(child);
-      commitAtomicPassiveEffects(finishedRoot, child);
+      {
+        runWithFiberInDEV(child, commitAtomicPassiveEffects, finishedRoot, child, committedLanes, committedTransitions);
+      }
+
       child = child.sibling;
     }
   }
-
-  setCurrentFiber(prevDebugFiber);
 }
 
 function commitAtomicPassiveEffects(finishedRoot, finishedWork, committedLanes, committedTransitions) {
@@ -24643,7 +25209,7 @@ function commitAtomicPassiveEffects(finishedRoot, finishedWork, committedLanes, 
   switch (finishedWork.tag) {
     case OffscreenComponent:
       {
-        recursivelyTraverseAtomicPassiveEffects(finishedRoot, finishedWork);
+        recursivelyTraverseAtomicPassiveEffects(finishedRoot, finishedWork, committedLanes, committedTransitions);
 
         if (flags & Passive$1) {
           // TODO: Pass `current` as argument to this function
@@ -24656,7 +25222,7 @@ function commitAtomicPassiveEffects(finishedRoot, finishedWork, committedLanes, 
 
     case CacheComponent:
       {
-        recursivelyTraverseAtomicPassiveEffects(finishedRoot, finishedWork);
+        recursivelyTraverseAtomicPassiveEffects(finishedRoot, finishedWork, committedLanes, committedTransitions);
 
         if (flags & Passive$1) {
           // TODO: Pass `current` as argument to this function
@@ -24669,16 +25235,16 @@ function commitAtomicPassiveEffects(finishedRoot, finishedWork, committedLanes, 
 
     default:
       {
-        recursivelyTraverseAtomicPassiveEffects(finishedRoot, finishedWork);
+        recursivelyTraverseAtomicPassiveEffects(finishedRoot, finishedWork, committedLanes, committedTransitions);
         break;
       }
   }
 }
 
 function commitPassiveUnmountEffects(finishedWork) {
-  setCurrentFiber(finishedWork);
-  commitPassiveUnmountOnFiber(finishedWork);
-  resetCurrentFiber();
+  {
+    runWithFiberInDEV(finishedWork, commitPassiveUnmountOnFiber, finishedWork);
+  }
 } // If we're inside a brand new tree, or a tree that was already visible, then we
 // should only suspend host components that have a ShouldSuspendCommit flag.
 // Components without it haven't changed since the last commit, so we can skip
@@ -24829,21 +25395,20 @@ function recursivelyTraversePassiveUnmountEffects(parentFiber) {
     }
 
     detachAlternateSiblings(parentFiber);
-  }
+  } // TODO: Split PassiveMask into separate masks for mount and unmount?
 
-  var prevDebugFiber = getCurrentFiber(); // TODO: Split PassiveMask into separate masks for mount and unmount?
 
   if (parentFiber.subtreeFlags & PassiveMask) {
     var child = parentFiber.child;
 
     while (child !== null) {
-      setCurrentFiber(child);
-      commitPassiveUnmountOnFiber(child);
+      {
+        runWithFiberInDEV(child, commitPassiveUnmountOnFiber, child);
+      }
+
       child = child.sibling;
     }
   }
-
-  setCurrentFiber(prevDebugFiber);
 }
 
 function commitPassiveUnmountOnFiber(finishedWork) {
@@ -24907,19 +25472,18 @@ function recursivelyTraverseDisconnectPassiveEffects(parentFiber) {
     }
 
     detachAlternateSiblings(parentFiber);
-  }
+  } // TODO: Check PassiveStatic flag
 
-  var prevDebugFiber = getCurrentFiber(); // TODO: Check PassiveStatic flag
 
   var child = parentFiber.child;
 
   while (child !== null) {
-    setCurrentFiber(child);
-    disconnectPassiveEffect(child);
+    {
+      runWithFiberInDEV(child, disconnectPassiveEffect, child);
+    }
+
     child = child.sibling;
   }
-
-  setCurrentFiber(prevDebugFiber);
 }
 
 function disconnectPassiveEffect(finishedWork) {
@@ -24961,9 +25525,10 @@ function commitPassiveUnmountEffectsInsideOfDeletedTree_begin(deletedSubtreeRoot
     var fiber = nextEffect; // Deletion effects fire in parent -> child order
     // TODO: Check if fiber has a PassiveStatic flag
 
-    setCurrentFiber(fiber);
-    commitPassiveUnmountInsideDeletedTreeOnFiber(fiber, nearestMountedAncestor);
-    resetCurrentFiber();
+    {
+      runWithFiberInDEV(fiber, commitPassiveUnmountInsideDeletedTreeOnFiber, fiber, nearestMountedAncestor);
+    }
+
     var child = fiber.child; // TODO: Only traverse subtree if it has a PassiveStatic flag.
 
     if (child !== null) {
@@ -25134,6 +25699,12 @@ function FiberNode(tag, pendingProps, key, mode) {
     // This isn't directly used but is handy for debugging internals:
     this._debugInfo = null;
     this._debugOwner = null;
+
+    {
+      this._debugStack = null;
+      this._debugTask = null;
+    }
+
     this._debugNeedsRemount = false;
     this._debugHookTypes = null;
 
@@ -25190,6 +25761,12 @@ function createWorkInProgress(current, pendingProps) {
     {
       // DEV-only fields
       workInProgress._debugOwner = current._debugOwner;
+
+      {
+        workInProgress._debugStack = current._debugStack;
+        workInProgress._debugTask = current._debugTask;
+      }
+
       workInProgress._debugHookTypes = current._debugHookTypes;
     }
 
@@ -25457,10 +26034,22 @@ key, pendingProps, owner, mode, lanes) {
           }
 
           var info = '';
+          var typeString;
 
           {
             if (type === undefined || typeof type === 'object' && type !== null && Object.keys(type).length === 0) {
-              info += ' You likely forgot to export your component from the file ' + "it's defined in, or you might have mixed up default and " + 'named imports.';
+              info += ' You likely forgot to export your component from the file ' + "it's defined in, or you might have mixed up default and named imports.";
+            }
+
+            if (type === null) {
+              typeString = 'null';
+            } else if (isArray(type)) {
+              typeString = 'array';
+            } else if (type !== undefined && type.$$typeof === REACT_ELEMENT_TYPE) {
+              typeString = "<" + (getComponentNameFromType(type.type) || 'Unknown') + " />";
+              info = ' Did you accidentally export a JSX literal instead of a component?';
+            } else {
+              typeString = typeof type;
             }
 
             var ownerName = owner ? getComponentNameFromOwner(owner) : null;
@@ -25470,7 +26059,7 @@ key, pendingProps, owner, mode, lanes) {
             }
           }
 
-          throw new Error('Element type is invalid: expected a string (for built-in ' + 'components) or a class/function (for composite components) ' + ("but got: " + (type == null ? type : typeof type) + "." + info));
+          throw new Error('Element type is invalid: expected a string (for built-in ' + 'components) or a class/function (for composite components) ' + ("but got: " + typeString + "." + info));
         }
     }
   }
@@ -25500,6 +26089,11 @@ function createFiberFromElement(element, mode, lanes) {
 
   {
     fiber._debugOwner = element._owner;
+
+    {
+      fiber._debugStack = element._debugStack;
+      fiber._debugTask = element._debugTask;
+    }
   }
 
   return fiber;
@@ -26113,29 +26707,28 @@ function completeWork(current, workInProgress, renderLanes) {
               return null;
             }
           } else {
-            // We are updating.
-            var currentResource = current.memoizedState;
+            // This is an update.
+            if (nextResource) {
+              // This is a Resource
+              if (nextResource !== current.memoizedState) {
+                // we have a new Resource. we need to update
+                markUpdate(workInProgress); // This must come at the very end of the complete phase.
 
-            if (nextResource !== currentResource) {
-              // We are transitioning to, from, or between Hoistable Resources
-              // and require an update
-              markUpdate(workInProgress);
-            }
+                bubbleProperties(workInProgress); // This must come at the very end of the complete phase, because it might
+                // throw to suspend, and if the resource immediately loads, the work loop
+                // will resume rendering as if the work-in-progress completed. So it must
+                // fully complete.
 
-            if (nextResource !== null) {
-              // This is a Hoistable Resource
-              // This must come at the very end of the complete phase.
-              bubbleProperties(workInProgress);
-
-              if (nextResource === currentResource) {
-                workInProgress.flags &= ~MaySuspendCommit;
-              } else {
                 preloadResourceAndSuspendIfNeeded(workInProgress, nextResource);
+                return null;
+              } else {
+                // This must come at the very end of the complete phase.
+                bubbleProperties(workInProgress);
+                workInProgress.flags &= ~MaySuspendCommit;
+                return null;
               }
-
-              return null;
             } else {
-              // This is a Hoistable Instance
+              // This is an Instance
               // We may have props to update on the Hoistable instance.
               {
                 var oldProps = current.memoizedProps;
@@ -26960,7 +27553,7 @@ var DefaultAsyncDispatcher = {
 
 {
   DefaultAsyncDispatcher.getOwner = function () {
-    return currentOwner;
+    return current;
   };
 }
 
@@ -27571,7 +28164,10 @@ function finishConcurrentRender(root, exitStatus, finishedWork, lanes) {
 function commitRootWhenReady(root, finishedWork, recoverableErrors, transitions, didIncludeRenderPhaseUpdate, lanes, spawnedLane) {
   // TODO: Combine retry throttling with Suspensey commits. Right now they run
   // one after the other.
-  if (finishedWork.subtreeFlags & ShouldSuspendCommit) {
+  var BothVisibilityAndMaySuspendCommit = Visibility | MaySuspendCommit;
+  var subtreeFlags = finishedWork.subtreeFlags;
+
+  if (subtreeFlags & ShouldSuspendCommit || (subtreeFlags & BothVisibilityAndMaySuspendCommit) === BothVisibilityAndMaySuspendCommit) {
     // Before committing, ask the renderer whether the host tree is ready.
     // If it's not, we'll wait until it notifies us.
     startSuspendingCommit(); // This will walk the completed fiber tree and attach listeners to all
@@ -27934,10 +28530,9 @@ function handleThrow(root, thrownValue) {
   // These should be reset immediately because they're only supposed to be set
   // when React is executing user code.
   resetHooksAfterThrow();
-  resetCurrentFiber();
 
   {
-    setCurrentOwner(null);
+    resetCurrentFiber();
   }
 
   if (thrownValue === SuspenseException) {
@@ -28568,18 +29163,22 @@ function performUnitOfWork(unitOfWork) {
   // nothing should rely on this, but relying on it here means that we don't
   // need an additional field on the work in progress.
   var current = unitOfWork.alternate;
-  setCurrentFiber(unitOfWork);
   var next;
 
   if ((unitOfWork.mode & ProfileMode) !== NoMode) {
     startProfilerTimer(unitOfWork);
-    next = beginWork(current, unitOfWork, entangledRenderLanes);
+
+    {
+      next = runWithFiberInDEV(unitOfWork, beginWork, current, unitOfWork, entangledRenderLanes);
+    }
+
     stopProfilerTimerIfRunningAndRecordDelta(unitOfWork, true);
   } else {
-    next = beginWork(current, unitOfWork, entangledRenderLanes);
+    {
+      next = runWithFiberInDEV(unitOfWork, beginWork, current, unitOfWork, entangledRenderLanes);
+    }
   }
 
-  resetCurrentFiber();
   unitOfWork.memoizedProps = unitOfWork.pendingProps;
 
   if (next === null) {
@@ -28588,20 +29187,32 @@ function performUnitOfWork(unitOfWork) {
   } else {
     workInProgress = next;
   }
-
-  {
-    setCurrentOwner(null);
-  }
 }
 
 function replaySuspendedUnitOfWork(unitOfWork) {
   // This is a fork of performUnitOfWork specifcally for replaying a fiber that
   // just suspended.
-  //
-  var current = unitOfWork.alternate;
-  setCurrentFiber(unitOfWork);
   var next;
-  setCurrentFiber(unitOfWork);
+
+  {
+    next = runWithFiberInDEV(unitOfWork, replayBeginWork, unitOfWork);
+  } // The begin phase finished successfully without suspending. Return to the
+
+  unitOfWork.memoizedProps = unitOfWork.pendingProps;
+
+  if (next === null) {
+    // If this doesn't spawn new work, complete the current work.
+    completeUnitOfWork(unitOfWork);
+  } else {
+    workInProgress = next;
+  }
+}
+
+function replayBeginWork(unitOfWork) {
+  // This is a fork of beginWork specifcally for replaying a fiber that
+  // just suspended.
+  var current = unitOfWork.alternate;
+  var next;
   var isProfilingMode = (unitOfWork.mode & ProfileMode) !== NoMode;
 
   if (isProfilingMode) {
@@ -28670,23 +29281,9 @@ function replaySuspendedUnitOfWork(unitOfWork) {
 
   if (isProfilingMode) {
     stopProfilerTimerIfRunningAndRecordDelta(unitOfWork, true);
-  } // The begin phase finished successfully without suspending. Return to the
-  // normal work loop.
-
-
-  resetCurrentFiber();
-  unitOfWork.memoizedProps = unitOfWork.pendingProps;
-
-  if (next === null) {
-    // If this doesn't spawn new work, complete the current work.
-    completeUnitOfWork(unitOfWork);
-  } else {
-    workInProgress = next;
   }
 
-  {
-    setCurrentOwner(null);
-  }
+  return next;
 }
 
 function throwAndUnwindWorkLoop(root, unitOfWork, thrownValue) {
@@ -28773,19 +29370,22 @@ function completeUnitOfWork(unitOfWork) {
 
     var current = completedWork.alternate;
     var returnFiber = completedWork.return;
-    setCurrentFiber(completedWork);
     var next = void 0;
 
     if ((completedWork.mode & ProfileMode) === NoMode) {
-      next = completeWork(current, completedWork, entangledRenderLanes);
+      {
+        next = runWithFiberInDEV(completedWork, completeWork, current, completedWork, entangledRenderLanes);
+      }
     } else {
       startProfilerTimer(completedWork);
-      next = completeWork(current, completedWork, entangledRenderLanes); // Update render duration assuming we didn't error.
+
+      {
+        next = runWithFiberInDEV(completedWork, completeWork, current, completedWork, entangledRenderLanes);
+      } // Update render duration assuming we didn't error.
+
 
       stopProfilerTimerIfRunningAndRecordDelta(completedWork, false);
     }
-
-    resetCurrentFiber();
 
     if (next !== null) {
       // Completing this fiber spawned new work. Work on that next.
@@ -29012,17 +29612,12 @@ function commitRootImpl(root, recoverableErrors, transitions, didIncludeRenderPh
     var previousPriority = getCurrentUpdatePriority();
     setCurrentUpdatePriority(DiscreteEventPriority);
     var prevExecutionContext = executionContext;
-    executionContext |= CommitContext; // Reset this to null before calling lifecycles
-
-    {
-      setCurrentOwner(null);
-    } // The commit phase is broken into several sub-phases. We do a separate pass
+    executionContext |= CommitContext; // The commit phase is broken into several sub-phases. We do a separate pass
     // of the effect list for each phase: all mutation effects come before all
     // layout effects, and so on.
     // The first phase a "before mutation" phase. We use this phase to read the
     // state of the host tree right before we mutate it. This is where
     // getSnapshotBeforeUpdate is called.
-
 
     commitBeforeMutationEffects(root, finishedWork);
 
@@ -29137,7 +29732,10 @@ function commitRootImpl(root, recoverableErrors, transitions, didIncludeRenderPh
     for (var i = 0; i < recoverableErrors.length; i++) {
       var recoverableError = recoverableErrors[i];
       var errorInfo = makeErrorInfo(recoverableError.stack);
-      onRecoverableError(recoverableError.value, errorInfo);
+
+      {
+        runWithFiberInDEV(recoverableError.source, onRecoverableError, recoverableError.value, errorInfo);
+      }
     }
   } // If the passive effects are the result of a discrete render, flush them
   // synchronously at the end of the current task so that the result is
@@ -29655,13 +30253,9 @@ function doubleInvokeEffectsInDEVIfNecessary(root, fiber, parentIsInStrictMode) 
 
   if (fiber.tag !== OffscreenComponent) {
     if (fiber.flags & PlacementDEV) {
-      setCurrentFiber(fiber);
-
       if (isInStrictMode) {
-        doubleInvokeEffectsOnFiber(root, fiber, (fiber.mode & NoStrictPassiveEffectsMode) === NoMode);
+        runWithFiberInDEV(fiber, doubleInvokeEffectsOnFiber, root, fiber, (fiber.mode & NoStrictPassiveEffectsMode) === NoMode);
       }
-
-      resetCurrentFiber();
     } else {
       recursivelyTraverseAndDoubleInvokeEffectsInDEV(root, fiber, isInStrictMode);
     }
@@ -29674,19 +30268,15 @@ function doubleInvokeEffectsInDEVIfNecessary(root, fiber, parentIsInStrictMode) 
   if (fiber.memoizedState === null) {
     // Only consider Offscreen that is visible.
     // TODO (Offscreen) Handle manual mode.
-    setCurrentFiber(fiber);
-
     if (isInStrictMode && fiber.flags & Visibility) {
       // Double invoke effects on Offscreen's subtree only
       // if it is visible and its visibility has changed.
-      doubleInvokeEffectsOnFiber(root, fiber);
+      runWithFiberInDEV(fiber, doubleInvokeEffectsOnFiber, root, fiber);
     } else if (fiber.subtreeFlags & PlacementDEV) {
       // Something in the subtree could have been suspended.
       // We need to continue traversal and find newly inserted fibers.
-      recursivelyTraverseAndDoubleInvokeEffectsInDEV(root, fiber, isInStrictMode);
+      runWithFiberInDEV(fiber, recursivelyTraverseAndDoubleInvokeEffectsInDEV, root, fiber, isInStrictMode);
     }
-
-    resetCurrentFiber();
   }
 }
 
@@ -29734,19 +30324,9 @@ function warnAboutUpdateOnNotYetMountedFiberInDEV(fiber) {
       didWarnStateUpdateForNotYetMountedComponent = new Set([componentName]);
     }
 
-    var previousFiber = current;
-
-    try {
-      setCurrentFiber(fiber);
-
+    runWithFiberInDEV(fiber, function () {
       error("Can't perform a React state update on a component that hasn't mounted yet. " + 'This indicates that you have a side-effect in your render function that ' + 'asynchronously later calls tries to update the component. Move this work to ' + 'useEffect instead.');
-    } finally {
-      if (previousFiber) {
-        setCurrentFiber(fiber);
-      } else {
-        resetCurrentFiber();
-      }
-    }
+    });
   }
 }
 var didWarnAboutUpdateInRender = false;
@@ -29837,19 +30417,9 @@ function warnIfUpdatesNotWrappedWithActDEV(fiber) {
     }
 
     if (ReactSharedInternals.actQueue === null) {
-      var previousFiber = current;
-
-      try {
-        setCurrentFiber(fiber);
-
+      runWithFiberInDEV(fiber, function () {
         error('An update to %s inside a test was not wrapped in act(...).\n\n' + 'When testing, code that causes React state updates should be ' + 'wrapped into act(...):\n\n' + 'act(() => {\n' + '  /* fire events that update state */\n' + '});\n' + '/* assert on the output */\n\n' + "This ensures that you're testing the behavior the user would see " + 'in the browser.' + ' Learn more at https://react.dev/link/wrap-tests-with-act', getComponentNameFromFiber(fiber));
-      } finally {
-        if (previousFiber) {
-          setCurrentFiber(fiber);
-        } else {
-          resetCurrentFiber();
-        }
-      }
+      });
     }
   }
 }
@@ -35210,7 +35780,7 @@ function preinitModuleScript(src, options) {
 } // This function is called in begin work and we should always have a currentDocument set
 
 
-function getResource(type, currentProps, pendingProps) {
+function getResource(type, currentProps, pendingProps, currentResource) {
   var resourceRoot = getCurrentResourceRoot();
 
   if (!resourceRoot) {
@@ -35278,15 +35848,56 @@ function getResource(type, currentProps, pendingProps) {
 
             _styles.set(_key, _resource);
 
+            var instance = ownerDocument.querySelector(getStylesheetSelectorFromKey(_key));
+
+            if (instance) {
+              var loadingState = instance._p;
+
+              if (loadingState) ; else {
+                // This instance is already loaded
+                _resource.instance = instance;
+                _resource.state.loading = Loaded | Inserted;
+              }
+            }
+
             if (!preloadPropsMap.has(_key)) {
-              preloadStylesheet(ownerDocument, _key, preloadPropsFromStylesheet(qualifiedProps), _resource.state);
+              var preloadProps = preloadPropsFromStylesheet(qualifiedProps);
+              preloadPropsMap.set(_key, preloadProps);
+
+              if (!instance) {
+                preloadStylesheet(ownerDocument, _key, preloadProps, _resource.state);
+              }
             }
           }
 
-          return _resource;
-        }
+          if (currentProps && currentResource === null) {
+            // This node was previously an Instance type and is becoming a Resource type
+            // For now we error because we don't support flavor changes
+            var diff = '';
 
-        return null;
+            {
+              diff = "\n\n  - " + describeLinkForResourceErrorDEV(currentProps) + "\n  + " + describeLinkForResourceErrorDEV(pendingProps);
+            }
+
+            throw new Error('Expected <link> not to update to be updated to a stylesheet with precedence.' + ' Check the `rel`, `href`, and `precedence` props of this component.' + ' Alternatively, check whether two different <link> components render in the same slot or share the same key.' + diff);
+          }
+
+          return _resource;
+        } else {
+          if (currentProps && currentResource !== null) {
+            // This node was previously a Resource type and is becoming an Instance type
+            // For now we error because we don't support flavor changes
+            var _diff = '';
+
+            {
+              _diff = "\n\n  - " + describeLinkForResourceErrorDEV(currentProps) + "\n  + " + describeLinkForResourceErrorDEV(pendingProps);
+            }
+
+            throw new Error('Expected stylesheet with precedence to not be updated to a different kind of <link>.' + ' Check the `rel`, `href`, and `precedence` props of this component.' + ' Alternatively, check whether two different <link> components render in the same slot or share the same key.' + _diff);
+          }
+
+          return null;
+        }
       }
 
     case 'script':
@@ -35329,6 +35940,44 @@ function getResource(type, currentProps, pendingProps) {
   }
 }
 
+function describeLinkForResourceErrorDEV(props) {
+  {
+    var describedProps = 0;
+    var description = '<link';
+
+    if (typeof props.rel === 'string') {
+      describedProps++;
+      description += " rel=\"" + props.rel + "\"";
+    } else if (hasOwnProperty.call(props, 'rel')) {
+      describedProps++;
+      description += " rel=\"" + (props.rel === null ? 'null' : 'invalid type ' + typeof props.rel) + "\"";
+    }
+
+    if (typeof props.href === 'string') {
+      describedProps++;
+      description += " href=\"" + props.href + "\"";
+    } else if (hasOwnProperty.call(props, 'href')) {
+      describedProps++;
+      description += " href=\"" + (props.href === null ? 'null' : 'invalid type ' + typeof props.href) + "\"";
+    }
+
+    if (typeof props.precedence === 'string') {
+      describedProps++;
+      description += " precedence=\"" + props.precedence + "\"";
+    } else if (hasOwnProperty.call(props, 'precedence')) {
+      describedProps++;
+      description += " precedence={" + (props.precedence === null ? 'null' : 'invalid type ' + typeof props.precedence) + "}";
+    }
+
+    if (Object.getOwnPropertyNames(props).length > describedProps) {
+      description += ' ...';
+    }
+
+    description += ' />';
+    return description;
+  }
+}
+
 function styleTagPropsFromRawProps(rawProps) {
   return assign({}, rawProps, {
     'data-href': rawProps.href,
@@ -35364,31 +36013,24 @@ function stylesheetPropsFromRawProps(rawProps) {
 }
 
 function preloadStylesheet(ownerDocument, key, preloadProps, state) {
-  preloadPropsMap.set(key, preloadProps);
+  var preloadEl = ownerDocument.querySelector(getPreloadStylesheetSelectorFromKey(key));
 
-  if (!ownerDocument.querySelector(getStylesheetSelectorFromKey(key))) {
-    // There is no matching stylesheet instance in the Document.
-    // We will insert a preload now to kick off loading because
-    // we expect this stylesheet to commit
-    var preloadEl = ownerDocument.querySelector(getPreloadStylesheetSelectorFromKey(key));
-
-    if (preloadEl) {
-      // If we find a preload already it was SSR'd and we won't have an actual
-      // loading state to track. For now we will just assume it is loaded
-      state.loading = Loaded;
-    } else {
-      var instance = ownerDocument.createElement('link');
-      state.preload = instance;
-      instance.addEventListener('load', function () {
-        return state.loading |= Loaded;
-      });
-      instance.addEventListener('error', function () {
-        return state.loading |= Errored;
-      });
-      setInitialProperties(instance, 'link', preloadProps);
-      markNodeAsHoistable(instance);
-      ownerDocument.head.appendChild(instance);
-    }
+  if (preloadEl) {
+    // If we find a preload already it was SSR'd and we won't have an actual
+    // loading state to track. For now we will just assume it is loaded
+    state.loading = Loaded;
+  } else {
+    var instance = ownerDocument.createElement('link');
+    state.preload = instance;
+    instance.addEventListener('load', function () {
+      return state.loading |= Loaded;
+    });
+    instance.addEventListener('error', function () {
+      return state.loading |= Errored;
+    });
+    setInitialProperties(instance, 'link', preloadProps);
+    markNodeAsHoistable(instance);
+    ownerDocument.head.appendChild(instance);
   }
 }
 
@@ -36256,7 +36898,7 @@ identifierPrefix, onUncaughtError, onCaughtError, onRecoverableError, transition
   return root;
 }
 
-var ReactVersion = '19.0.0-experimental-f994737d14-20240522';
+var ReactVersion = '19.0.0-experimental-6230622a1a-20240610';
 
 // Might add PROFILE later.
 
@@ -37718,6 +38360,16 @@ function warnIfReactDOMContainerInDEV(container) {
     }
   }
 }
+
+function ensureCorrectIsomorphicReactVersion() {
+  var isomorphicReactPackageVersion = React.version;
+
+  if (isomorphicReactPackageVersion !== ReactVersion) {
+    throw new Error('Incompatible React versions: The "react" and "react-dom" packages must ' + 'have the exact same version. Instead got:\n' + ("  - react:      " + isomorphicReactPackageVersion + "\n") + ("  - react-dom:  " + ReactVersion + "\n") + 'Learn more: https://react.dev/warnings/version-mismatch');
+  }
+}
+
+ensureCorrectIsomorphicReactVersion();
 
 {
   if (typeof Map !== 'function' || // $FlowFixMe[prop-missing] Flow incorrectly thinks Map has no prototype

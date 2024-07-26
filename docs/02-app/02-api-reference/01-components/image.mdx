@@ -63,7 +63,7 @@ Here's a summary of the props available for the Image Component:
 
 ## Required Props
 
-The Image Component requires the following properties: `src`, `width`, `height`, and `alt`.
+The Image Component requires the following properties: `src`, `alt`, `width` and `height` (or `fill`).
 
 ```jsx filename="app/page.js"
 import Image from 'next/image'
@@ -93,15 +93,21 @@ When using an external URL, you must add it to [remotePatterns](#remotepatterns)
 
 ### `width`
 
-The `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
+The `width` property represents the _intrisic_ image width in pixels.
 
 Required, except for [statically imported images](/docs/app/building-your-application/optimizing/images#local-images) or images with the [`fill` property](#fill).
 
 ### `height`
 
-The `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
+The `height` property represents the _intrisic_ image height in pixels.
 
 Required, except for [statically imported images](/docs/app/building-your-application/optimizing/images#local-images) or images with the [`fill` property](#fill).
+
+> **Good to know:**
+>
+> - Combined, both `width` and `height` properties are used to determine the aspect ratio of the image which used by browsers to reserve space for the image before it loads.
+> - The intrinsic size does not always mean the rendered size in the browser, which will be determined by the parent container. For example, if the parent container is smaller than the intrinsic size, the image will be scaled down to fit the container.
+> - You can use the [`fill`](#fill) property when the width and height are unknown.
 
 ### `alt`
 
@@ -197,7 +203,7 @@ By default, the img element will automatically be assigned the `position: "absol
 
 If no styles are applied to the image, the image will stretch to fit the container. You may prefer to set `object-fit: "contain"` for an image which is letterboxed to fit the container and preserve aspect ratio.
 
-Alternatively, `object-fit: "cover"` will cause the image to fill the entire container and be cropped to preserve aspect ratio. For this to look correct, the `overflow: "hidden"` style should be assigned to the parent element.
+Alternatively, `object-fit: "cover"` will cause the image to fill the entire container and be cropped to preserve aspect ratio.
 
 For more information, see also:
 

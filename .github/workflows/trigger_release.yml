@@ -22,6 +22,11 @@ on:
           - minor
           - major
 
+      force:
+        description: create a new release even if there are no new commits
+        default: false
+        type: boolean
+
     secrets:
       RELEASE_BOT_GITHUB_TOKEN:
         required: true
@@ -30,7 +35,7 @@ name: Trigger Release
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.13.3-canary.2
+  TURBO_VERSION: 2.0.7
   NODE_LTS_VERSION: 20
 
 jobs:
@@ -66,7 +71,7 @@ jobs:
         run: echo "LATEST_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
       - name: Check if new commits since last tag
-        if: ${{ github.event.inputs.releaseType != 'stable' }}
+        if: ${{ github.event.inputs.releaseType != 'stable' && github.event.inputs.force != true }}
         run: |
           if [ "$LATEST_TAG_COMMIT" = "$LATEST_COMMIT" ]; then
             echo "No new commits. Exiting..."

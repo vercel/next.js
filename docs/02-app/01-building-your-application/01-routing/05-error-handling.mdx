@@ -1,30 +1,158 @@
 ---
 title: Error Handling
-description: Handle runtime errors by automatically wrapping route segments and their nested children in a React Error Boundary.
+description: Learn how to display expected errors and handle uncaught exceptions.
 related:
   links:
     - app/api-reference/file-conventions/error
 ---
 
-The `error.js` file convention allows you to gracefully handle unexpected runtime errors in [nested routes](/docs/app/building-your-application/routing#nested-routes).
+Errors can be divided into two categories: **expected errors** and **uncaught exceptions**:
 
-- Automatically wrap a route segment and its nested children in a [React Error Boundary](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary).
-- Create error UI tailored to specific segments using the file-system hierarchy to adjust granularity.
-- Isolate errors to affected segments while keeping the rest of the application functional.
-- Add functionality to attempt to recover from an error without a full page reload.
+- **Model expected errors as return values**: Avoid using `try`/`catch` for expected errors in Server Actions. Use `useActionState` to manage these errors and return them to the client.
+- **Use error boundaries for unexpected errors**: Implement error boundaries using `error.tsx` and `global-error.tsx` files to handle unexpected errors and provide a fallback UI.
 
-Create error UI by adding an `error.js` file inside a route segment and exporting a React component:
+## Handling Expected Errors
 
-<Image
-  alt="error.js special file"
-  srcLight="/docs/light/error-special-file.png"
-  srcDark="/docs/dark/error-special-file.png"
-  width="1600"
-  height="606"
-/>
+Expected errors are those that can occur during the normal operation of the application, such as those from [server-side form validation](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#server-side-form-validation) or failed requests. These errors should be handled explicitly and returned to the client.
+
+### Handling Expected Errors from Server Actions
+
+Use the `useActionState` hook (previously `useFormState`) to manage the state of Server Actions, including handling errors. This approach avoids `try`/`catch` blocks for expected errors, which should be modeled as return values rather than thrown exceptions.
+
+```tsx filename="app/actions.ts" switcher
+'use server'
+
+import { redirect } from 'next/navigation'
+
+export async function createUser(prevState: any, formData: FormData) {
+  const res = await fetch('https://...')
+  const json = await res.json()
+
+  if (!res.ok) {
+    return { message: 'Please enter a valid email' }
+  }
+
+  redirect('/dashboard')
+}
+```
+
+```jsx filename="app/actions.js" switcher
+'use server'
+
+import { redirect } from 'next/navigation'
+
+export async function createUser(prevState, formData) {
+  const res = await fetch('https://...')
+  const json = await res.json()
+
+  if (!res.ok) {
+    return { message: 'Please enter a valid email' }
+  }
+
+  redirect('/dashboard')
+}
+```
+
+Then, you can pass your action to the `useActionState` hook and use the returned `state` to display an error message.
+
+```tsx filename="app/ui/signup.tsx" highlight={11,18-20} switcher
+'use client'
+
+import { useActionState } from 'react'
+import { createUser } from '@/app/actions'
+
+const initialState = {
+  message: '',
+}
+
+export function Signup() {
+  const [state, formAction] = useActionState(createUser, initialState)
+
+  return (
+    <form action={formAction}>
+      <label htmlFor="email">Email</label>
+      <input type="text" id="email" name="email" required />
+      {/* ... */}
+      <p aria-live="polite">{state?.message}</p>
+      <button>Sign up</button>
+    </form>
+  )
+}
+```
+
+```jsx filename="app/ui/signup.js" highlight={11,18-20} switcher
+'use client'
+
+import { useActionState } from 'react'
+import { createUser } from '@/app/actions'
+
+const initialState = {
+  message: '',
+}
+
+export function Signup() {
+  const [state, formAction] = useActionState(createUser, initialState)
+
+  return (
+    <form action={formAction}>
+      <label htmlFor="email">Email</label>
+      <input type="text" id="email" name="email" required />
+      {/* ... */}
+      <p aria-live="polite">{state?.message}</p>
+      <button>Sign up</button>
+    </form>
+  )
+}
+```
+
+You could also use the returned state to display a toast message from the client component.
+
+### Handling Expected Errors from Server Components
+
+When fetching data inside of a Server Component, you can use the response to conditionally render an error message or [`redirect`](/docs/app/building-your-application/routing/redirecting#redirect-function).
+
+```tsx filename="app/page.tsx" switcher
+export default async function Page() {
+  const res = await fetch(`https://...`)
+  const data = await res.json()
+
+  if (!res.ok) {
+    return 'There was an error.'
+  }
+
+  return '...'
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default async function Page() {
+  const res = await fetch(`https://...`)
+  const data = await res.json()
+
+  if (!res.ok) {
+    return 'There was an error.'
+  }
+
+  return '...'
+}
+```
+
+## Uncaught Exceptions
+
+Uncaught exceptions are unexpected errors that indicate bugs or issues that should not occur during the normal flow of your application. These should be handled by throwing errors, which will then be caught by error boundaries.
+
+- **Common:** Handle uncaught errors below the root layout with `error.js`.
+- **Optional:** Handle granular uncaught errors with nested `error.js` files (e.g. `app/dashboard/error.js`)
+- **Uncommon:** Handle uncaught errors in the root layout with `global-error.js`.
+
+### Using Error Boundaries
+
+Next.js uses error boundaries to handle uncaught exceptions. Error boundaries catch errors in their child components and display a fallback UI instead of the component tree that crashed.
+
+Create an error boundary by adding an `error.tsx` file inside a route segment and exporting a React component:
 
 ```tsx filename="app/dashboard/error.tsx" switcher
-'use client' // Error components must be Client Components
+'use client' // Error boundaries must be Client Components
 
 import { useEffect } from 'react'
 
@@ -57,7 +185,7 @@ export default function Error({
 ```
 
 ```jsx filename="app/dashboard/error.js" switcher
-'use client' // Error components must be Client Components
+'use client' // Error boundaries must be Client Components
 
 import { useEffect } from 'react'
 
@@ -83,64 +211,9 @@ export default function Error({ error, reset }) {
 }
 ```
 
-### How `error.js` Works
+### Handling Errors in Nested Routes
 
-<Image
-  alt="How error.js works"
-  srcLight="/docs/light/error-overview.png"
-  srcDark="/docs/dark/error-overview.png"
-  width="1600"
-  height="903"
-/>
-
-- `error.js` automatically creates a [React Error Boundary](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary) that **wraps** a nested child segment or `page.js` component.
-- The React component exported from the `error.js` file is used as the **fallback** component.
-- If an error is thrown within the error boundary, the error is **contained**, and the fallback component is **rendered**.
-- When the fallback error component is active, layouts **above** the error boundary **maintain** their state and **remain** interactive, and the error component can display functionality to recover from the error.
-
-### Recovering From Errors
-
-The cause of an error can sometimes be temporary. In these cases, simply trying again might resolve the issue.
-
-An error component can use the `reset()` function to prompt the user to attempt to recover from the error. When executed, the function will try to re-render the Error boundary's contents. If successful, the fallback error component is replaced with the result of the re-render.
-
-```tsx filename="app/dashboard/error.tsx" switcher
-'use client'
-
-export default function Error({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string }
-  reset: () => void
-}) {
-  return (
-    <div>
-      <h2>Something went wrong!</h2>
-      <button onClick={() => reset()}>Try again</button>
-    </div>
-  )
-}
-```
-
-```jsx filename="app/dashboard/error.js" switcher
-'use client'
-
-export default function Error({ error, reset }) {
-  return (
-    <div>
-      <h2>Something went wrong!</h2>
-      <button onClick={() => reset()}>Try again</button>
-    </div>
-  )
-}
-```
-
-### Nested Routes
-
-React components created through [special files](/docs/app/building-your-application/routing#file-conventions) are rendered in a [specific nested hierarchy](/docs/app/building-your-application/routing#component-hierarchy).
-
-For example, a nested route with two segments that both include `layout.js` and `error.js` files are rendered in the following _simplified_ component hierarchy:
+Errors will bubble up to the nearest parent error boundary. This allows for granular error handling by placing `error.tsx` files at different levels in the [route hierarchy](/docs/app/building-your-application/routing#component-hierarchy).
 
 <Image
   alt="Nested Error Component Hierarchy"
@@ -150,33 +223,12 @@ For example, a nested route with two segments that both include `layout.js` and 
   height="687"
 />
 
-The nested component hierarchy has implications for the behavior of `error.js` files across a nested route:
+### Handling Global Errors
 
-- Errors bubble up to the nearest parent error boundary. This means an `error.js` file will handle errors for all its nested child segments. More or less granular error UI can be achieved by placing `error.js` files at different levels in the nested folders of a route.
-- An `error.js` boundary will **not** handle errors thrown in a `layout.js` component in the **same** segment because the error boundary is nested **inside** that layout's component.
-
-### Handling Errors in Layouts
-
-`error.js` boundaries do **not** catch errors thrown in `layout.js` or `template.js` components of the **same segment**. This [intentional hierarchy](#nested-routes) keeps important UI that is shared between sibling routes (such as navigation) visible and functional when an error occurs.
-
-To handle errors within a specific layout or template, place an `error.js` file in the layout's parent segment.
-
-To handle errors within the root layout or template, use a variation of `error.js` called `global-error.js`.
-
-### Handling Errors in Root Layouts
-
-The root `app/error.js` boundary does **not** catch errors thrown in the root `app/layout.js` or `app/template.js` component.
-
-To specifically handle errors in these root components, use a variation of `error.js` called `app/global-error.js` located in the root `app` directory.
-
-Unlike the root `error.js`, the `global-error.js` error boundary wraps the **entire** application, and its fallback component replaces the root layout when active. Because of this, it is important to note that `global-error.js` **must** define its own `<html>` and `<body>` tags.
-
-`global-error.js` is the least granular error UI and can be considered "catch-all" error handling for the whole application. It is unlikely to be triggered often as root components are typically less dynamic, and other `error.js` boundaries will catch most errors.
-
-Even if a `global-error.js` is defined, it is still recommended to define a root `error.js` whose fallback component will be rendered **within** the root layout, which includes globally shared UI and branding.
+While less common, you can handle errors in the root layout using `app/global-error.js`, located in the root app directory, even when leveraging [internationalization](/docs/app/building-your-application/routing/internationalization). Global error UI must define its own `<html>` and `<body>` tags, since it is replacing the root layout or template when active.
 
 ```tsx filename="app/global-error.tsx" switcher
-'use client'
+'use client' // Error boundaries must be Client Components
 
 export default function GlobalError({
   error,
@@ -186,6 +238,7 @@ export default function GlobalError({
   reset: () => void
 }) {
   return (
+    // global-error must include html and body tags
     <html>
       <body>
         <h2>Something went wrong!</h2>
@@ -197,10 +250,11 @@ export default function GlobalError({
 ```
 
 ```jsx filename="app/global-error.js" switcher
-'use client'
+'use client' // Error boundaries must be Client Components
 
 export default function GlobalError({ error, reset }) {
   return (
+    // global-error must include html and body tags
     <html>
       <body>
         <h2>Something went wrong!</h2>
@@ -210,21 +264,3 @@ export default function GlobalError({ error, reset }) {
   )
 }
 ```
-
-> **Good to know**:
->
-> - `global-error.js` is only enabled in production. In development, our error overlay will show instead.
-
-### Handling Server Errors
-
-If an error is thrown inside a Server Component, Next.js will forward an `Error` object (stripped of sensitive error information in production) to the nearest `error.js` file as the `error` prop.
-
-#### Securing Sensitive Error Information
-
-During production, the `Error` object forwarded to the client only includes a generic `message` and `digest` property.
-
-This is a security precaution to avoid leaking potentially sensitive details included in the error to the client.
-
-The `message` property contains a generic message about the error and the `digest` property contains an automatically generated hash of the error that can be used to match the corresponding error in server-side logs.
-
-During development, the `Error` object forwarded to the client will be serialized and include the `message` of the original error for easier debugging.

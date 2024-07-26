@@ -1,8 +1,5 @@
 import { createHrefFromUrl } from './create-href-from-url'
-import {
-  fetchServerResponse,
-  type FetchServerResponseResult,
-} from './fetch-server-response'
+import { fetchServerResponse } from './fetch-server-response'
 import {
   PrefetchCacheEntryStatus,
   type PrefetchCacheEntry,
@@ -10,6 +7,7 @@ import {
   type ReadonlyReducerState,
 } from './router-reducer-types'
 import { prefetchQueue } from './reducers/prefetch-reducer'
+import type { FetchServerResponseResult } from '../../../server/app-render/types'
 
 /**
  * Creates a cache key for the router prefetch cache
@@ -135,6 +133,8 @@ function prefixExistingPrefetchCacheEntry({
   const newCacheKey = createPrefetchCacheKey(url, nextUrl)
   prefetchCache.set(newCacheKey, existingCacheEntry)
   prefetchCache.delete(existingCacheKey)
+
+  return newCacheKey
 }
 
 /**
@@ -152,9 +152,8 @@ export function createPrefetchCacheEntryForInitialLoad({
   kind: PrefetchKind
   data: FetchServerResponseResult
 }) {
-  const [, , , intercept] = data
   // if the prefetch corresponds with an interception route, we use the nextUrl to prefix the cache key
-  const prefetchCacheKey = intercept
+  const prefetchCacheKey = data.i
     ? createPrefetchCacheKey(url, nextUrl)
     : createPrefetchCacheKey(url)
 
@@ -195,19 +194,41 @@ function createLazyPrefetchEntry({
   // initiates the fetch request for the prefetch and attaches a listener
   // to the promise to update the prefetch cache entry when the promise resolves (if necessary)
   const data = prefetchQueue.enqueue(() =>
-    fetchServerResponse(url, tree, nextUrl, buildId, kind).then(
-      (prefetchResponse) => {
-        // TODO: `fetchServerResponse` should be more tighly coupled to these prefetch cache operations
-        // to avoid drift between this cache key prefixing logic
-        // (which is currently directly influenced by the server response)
-        const [, , , intercepted] = prefetchResponse
-        if (intercepted) {
-          prefixExistingPrefetchCacheEntry({ url, nextUrl, prefetchCache })
-        }
+    fetchServerResponse(url, {
+      flightRouterState: tree,
+      nextUrl,
+      buildId,
+      prefetchKind: kind,
+    }).then((prefetchResponse) => {
+      // TODO: `fetchServerResponse` should be more tighly coupled to these prefetch cache operations
+      // to avoid drift between this cache key prefixing logic
+      // (which is currently directly influenced by the server response)
+      let newCacheKey
 
-        return prefetchResponse
+      if (prefetchResponse.i) {
+        // Determine if we need to prefix the cache key with the nextUrl
+        newCacheKey = prefixExistingPrefetchCacheEntry({
+          url,
+          nextUrl,
+          prefetchCache,
+        })
       }
-    )
+
+      // If the prefetch was a cache hit, we want to update the existing cache entry to reflect that it was a full prefetch.
+      // This is because we know that a static response will contain the full RSC payload, and can be updated to respect the `static`
+      // staleTime.
+      if (prefetchResponse.p) {
+        const existingCacheEntry = prefetchCache.get(
+          // if we prefixed the cache key due to route interception, we want to use the new key. Otherwise we use the original key
+          newCacheKey ?? prefetchCacheKey
+        )
+        if (existingCacheEntry) {
+          existingCacheEntry.kind = PrefetchKind.FULL
+        }
+      }
+
+      return prefetchResponse
+    })
   )
 
   const prefetchEntry = {

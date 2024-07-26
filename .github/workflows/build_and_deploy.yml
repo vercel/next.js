@@ -1,19 +1,56 @@
+# Update all mentions of this name in vercel-packages when changing.
 name: build-and-deploy
 
 on:
   push:
-    branches: ['canary']
+    # TODO: Run only on canary pushes but PR syncs.
+    # Requires checking if CI is approved
   workflow_dispatch:
 
 env:
   NAPI_CLI_VERSION: 2.16.2
-  TURBO_VERSION: 1.13.3-canary.2
+  TURBO_VERSION: 2.0.7
   NODE_LTS_VERSION: 20
   CARGO_PROFILE_RELEASE_LTO: 'true'
   TURBO_TEAM: 'vercel'
   TURBO_REMOTE_ONLY: 'true'
 
 jobs:
+  deploy-target:
+    runs-on: ubuntu-latest
+    outputs:
+      value: ${{ steps.deploy-target.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+      - run: corepack enable
+      - name: Determine deploy target
+        # 'force-preview' performs a full preview build but only if acknowledged i.e. workflow_dispatch
+        # 'automated-preview' for pushes on branches other than 'canary' for integration testing.
+        # 'staging' for canary branch since that will eventually be published i.e. become the production build.
+        id: deploy-target
+        run: |
+          if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = v* ]];
+          then
+            echo "value=production" >> $GITHUB_OUTPUT
+          elif [ '${{ github.ref }}' == 'refs/heads/canary' ]
+          then
+            echo "value=staging" >> $GITHUB_OUTPUT
+          elif [ '${{ github.event_name }}' == 'workflow_dispatch' ]
+          then
+            echo "value=force-preview" >> $GITHUB_OUTPUT
+          else
+            echo "value=automated-preview" >> $GITHUB_OUTPUT
+          fi
+      - name: Print deploy target
+        run: echo "Deploy target is '${{ steps.deploy-target.outputs.value }}'"
+
   build:
     runs-on: ubuntu-latest
     env:
@@ -21,8 +58,6 @@ jobs:
       # we build a dev binary for use in CI so skip downloading
       # canary next-swc binaries in the monorepo
       NEXT_SKIP_NATIVE_POSTINSTALL: 1
-    outputs:
-      isRelease: ${{ github.event_name != 'workflow_dispatch' && steps.check-release.outputs.IS_RELEASE }}
     steps:
       - name: Setup node
         uses: actions/setup-node@v4
@@ -52,24 +87,17 @@ jobs:
 
       - run: pnpm run build
 
-      - id: check-release
-        run: |
-          if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = v* ]];
-            then
-              echo "IS_RELEASE=true" >> $GITHUB_OUTPUT
-            else
-              echo "IS_RELEASE=false" >> $GITHUB_OUTPUT
-          fi
-
       - uses: actions/cache@v4
         timeout-minutes: 5
         id: cache-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
   # Build binaries for publishing
   build-native:
+    needs:
+      - deploy-target
     defaults:
       run:
         shell: bash -leo pipefail {0}
@@ -77,6 +105,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        exclude:
+          # Exclude slow builds for automated previews
+          # These are rarely needed for the standard preview usage (e.g. Front sync)
+          - settings:
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'i686-pc-windows-msvc' }}
+          - settings:
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-pc-windows-msvc' }}
+          - settings:
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-unknown-linux-musl' }}
+          - settings:
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-unknown-linux-musl' }}
         settings:
           - host:
               - 'self-hosted'
@@ -84,9 +123,11 @@ jobs:
               - 'arm64'
 
             target: 'x86_64-apple-darwin'
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
-              turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin
+              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host:
@@ -95,13 +136,15 @@ jobs:
               - 'arm64'
 
             target: 'aarch64-apple-darwin'
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               export CC=$(xcrun -f clang);
               export CXX=$(xcrun -f clang++);
               SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
               export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
-              turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
+              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host:
@@ -109,10 +152,12 @@ jobs:
               - 'windows'
               - 'x64'
 
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
+              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
             target: 'x86_64-pc-windows-msvc'
 
           - host:
@@ -120,10 +165,12 @@ jobs:
               - 'windows'
               - 'x64'
 
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-no-plugin-release -vvv --remote-cache-timeout 90 --summarize -- --target i686-pc-windows-msvc
+              turbo run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target i686-pc-windows-msvc
             target: 'i686-pc-windows-msvc'
 
           - host:
@@ -132,10 +179,12 @@ jobs:
               - 'x64'
 
             target: 'aarch64-pc-windows-msvc'
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-no-plugin-release -vvv --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
+              turbo run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
 
           - host:
               - 'self-hosted'
@@ -153,7 +202,7 @@ jobs:
             #   environment.
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-x64
             build: >-
-              set -e &&
+              set -ex &&
               apt update &&
               apt install -y pkg-config xz-utils dav1d libdav1d-dev &&
               rustup show &&
@@ -173,7 +222,7 @@ jobs:
             target: 'x86_64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-alpine
             build: >-
-              set -e &&
+              set -ex &&
               apk update &&
               apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev &&
               rustup show &&
@@ -191,15 +240,16 @@ jobs:
             target: 'aarch64-unknown-linux-gnu'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-aarch64
             build: >-
-              set -e &&
+              set -ex &&
               apt update &&
               apt install -y pkg-config xz-utils dav1d libdav1d-dev &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
               rustup show &&
               rustup target add aarch64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
-              export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
-              cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-gnu --features plugin,tracing/release_max_level_info &&
+              export CC_aarch64_unknown_linux_gnu=/usr/bin/clang &&
+              export CFLAGS_aarch64_unknown_linux_gnu=\"--target=aarch64-unknown-linux-gnu --sysroot=/usr/aarch64-unknown-linux-gnu\" &&
+              cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-gnu &&
               llvm-strip -x native/next-swc.*.node &&
               objdump -T native/next-swc.*.node | grep GLIBC_
 
@@ -212,7 +262,7 @@ jobs:
             target: 'aarch64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-alpine
             build: >-
-              set -e &&
+              set -ex &&
               apk update &&
               apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
@@ -279,7 +329,7 @@ jobs:
       # issues with turbo caching
       - name: pull build cache
         if: ${{ matrix.settings.docker }}
-        run: node ./scripts/pull-turbo-cache.js ${{ matrix.settings.target }}
+        run: npm i -g turbo@${{ env.TURBO_VERSION }} && node ./scripts/pull-turbo-cache.js ${{ matrix.settings.target }}
 
       - name: check build exists
         if: ${{ matrix.settings.docker }}
@@ -374,10 +424,12 @@ jobs:
         run: node scripts/normalize-version-bump.js
 
       - name: Build
-        run: turbo run build-wasm -vvv --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }}
+        # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+        # TODO: we should add the relevant envs later to to switch to strict mode
+        run: turbo run build-wasm -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }}
 
       - name: Add target to folder name
-        run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
+        run: '[[ -d "crates/wasm/pkg" ]] && mv crates/wasm/pkg crates/wasm/pkg-${{ matrix.target }} || ls crates/wasm'
 
       - name: Upload turbo summary artifact
         uses: actions/upload-artifact@v4
@@ -389,19 +441,17 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wasm-binaries-${{matrix.target}}
-          path: packages/next-swc/crates/wasm/pkg-*
+          path: crates/wasm/pkg-*
 
-  deployTarball:
-    if: ${{ needs.build.outputs.isRelease != 'true' }}
-    name: Deploy tarball
+  deploy-tarball:
+    if: ${{ needs.deploy-target.outputs.value != 'production' }}
+    name: Deploy preview tarball
     runs-on: ubuntu-latest
     needs:
+      - deploy-target
       - build
       - build-wasm
       - build-native
-    env:
-      VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
-      VERCEL_TEST_TEAM: vtest314-next-e2e-tests
     steps:
       - name: Setup node
         uses: actions/setup-node@v4
@@ -419,7 +469,12 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          # Cache includes repo checkout which is required for later scripts
+          fail-on-cache-miss: true
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ github.sha }}-${{ github.run_number }}
+            ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
       - uses: actions/download-artifact@v4
         with:
@@ -431,17 +486,24 @@ jobs:
         with:
           pattern: wasm-binaries-*
           merge-multiple: true
-          path: packages/next-swc/crates/wasm
+          path: crates/wasm
 
-      - run: npm i -g vercel@latest
+      - name: Create tarballs
+        run: node scripts/create-preview-tarballs.js "${{ github.sha }}" "${{ runner.temp }}/preview-tarballs"
 
-      - run: node ./scripts/deploy-tarball.js
+      - name: Upload tarballs
+        uses: actions/upload-artifact@v4
+        with:
+          # Update all mentions of this name in vercel-packages when changing.
+          name: preview-tarballs
+          path: ${{ runner.temp }}/preview-tarballs/*
 
   publishRelease:
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.deploy-target.outputs.value == 'production' }}
     name: Potentially publish release
     runs-on: ubuntu-latest
     needs:
+      - deploy-target
       - build
       - build-wasm
       - build-native
@@ -467,7 +529,12 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          # Cache includes repo checkout which is required for later scripts
+          fail-on-cache-miss: true
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ github.sha }}-${{ github.run_number }}
+            ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
       - uses: actions/download-artifact@v4
         with:
@@ -479,7 +546,7 @@ jobs:
         with:
           pattern: wasm-binaries-*
           merge-multiple: true
-          path: packages/next-swc/crates/wasm
+          path: crates/wasm
 
       - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
@@ -496,23 +563,25 @@ jobs:
           path: /home/runner/.npm/_logs/*
 
   deployExamples:
+    if: ${{ needs.deploy-target.outputs.value != 'automated-preview' }}
     name: Deploy examples
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [build, deploy-target]
     steps:
+      - run: echo '${{ needs.deploy-target.outputs.value }}'
       - uses: actions/checkout@v4
         with:
           fetch-depth: 25
       - name: Install Vercel CLI
         run: npm i -g vercel@latest
       - name: Deploy preview examples
-        if: ${{ needs.build.outputs.isRelease != 'true' }}
+        if: ${{ needs.deploy-target.outputs.value != 'production' }}
         run: ./scripts/deploy-examples.sh
         env:
           VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
           DEPLOY_ENVIRONMENT: preview
       - name: Deploy production examples
-        if: ${{ needs.build.outputs.isRelease == 'true' }}
+        if: ${{ needs.deploy-target.outputs.value == 'production' }}
         run: ./scripts/deploy-examples.sh
         env:
           VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
@@ -547,9 +616,10 @@ jobs:
           NEXT_SKIP_NATIVE_POSTINSTALL: 1
 
   upload_turbopack_bytesize:
+    if: ${{ needs.deploy-target.outputs.value != 'automated-preview'}}
     name: Upload Turbopack Bytesize metrics to Datadog
     runs-on: ubuntu-latest
-    needs: [build-native]
+    needs: [build-native, deploy-target]
     env:
       DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
     steps:

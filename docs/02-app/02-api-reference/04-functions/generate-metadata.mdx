@@ -495,6 +495,13 @@ export const metadata = {
         alt: 'My custom alt',
       },
     ],
+    videos: [
+      {
+        url: 'https://nextjs.org/video.mp4', // Must be an absolute URL
+        width: 800,
+        height: 600,
+      },
+    ],
     locale: 'en_US',
     type: 'website',
   },
@@ -544,7 +551,7 @@ export const metadata = {
 
 ### `robots`
 
-```tsx
+```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -926,6 +933,51 @@ export const metadata = {
 <meta name="category" content="technology" />
 ```
 
+### `facebook`
+
+You can connect a Facebook app or Facebook account to you webpage for certain Facebook Social Plugins [Facebook Documentation](https://developers.facebook.com/docs/plugins/comments/#moderation-setup-instructions)
+
+> **Good to know**: You can specify either appId or admins, but not both.
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  facebook: {
+    appId: '12345678',
+  },
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta property="fb:app_id" content="12345678" />
+```
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  facebook: {
+    admins: '12345678',
+  },
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta property="fb:admins" content="12345678" />
+```
+
+If you want to generate multiple fb:admins meta tags you can use array value.
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  facebook: {
+    admins: ['12345678', '87654321'],
+  },
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta property="fb:admins" content="12345678" />
+<meta property="fb:admins" content="87654321" />
+```
+
 ### `other`
 
 All metadata options should be covered using the built-in support. However, there may be custom metadata tags specific to your site, or brand new metadata tags just released. You can use the `other` option to render any custom metadata tag.
@@ -965,7 +1017,7 @@ The following metadata types do not currently have built-in support. However, th
 | `<meta http-equiv="...">`     | Use appropriate HTTP Headers via [`redirect()`](/docs/app/api-reference/functions/redirect), [Middleware](/docs/app/building-your-application/routing/middleware#nextresponse), [Security Headers](/docs/app/api-reference/next-config-js/headers) |
 | `<base>`                      | Render the tag in the layout or page itself.                                                                                                                                                                                                       |
 | `<noscript>`                  | Render the tag in the layout or page itself.                                                                                                                                                                                                       |
-| `<style>`                     | Learn more about [styling in Next.js](/docs/app/building-your-application/styling/css-modules).                                                                                                                                                    |
+| `<style>`                     | Learn more about [styling in Next.js](/docs/app/building-your-application/styling/stylesheets).                                                                                                                                                    |
 | `<script>`                    | Learn more about [using scripts](/docs/app/building-your-application/optimizing/scripts).                                                                                                                                                          |
 | `<link rel="stylesheet" />`   | `import` stylesheets directly in the layout or page itself.                                                                                                                                                                                        |
 | `<link rel="preload />`       | Use [ReactDOM preload method](#link-relpreload)                                                                                                                                                                                                    |
@@ -988,7 +1040,7 @@ export function PreloadResources() {
   ReactDOM.preconnect('...', { crossOrigin: '...' })
   ReactDOM.prefetchDNS('...')
 
-  return null
+  return '...'
 }
 ```
 
@@ -1002,7 +1054,7 @@ export function PreloadResources() {
   ReactDOM.preconnect('...', { crossOrigin: '...' })
   ReactDOM.prefetchDNS('...')
 
-  return null
+  return '...'
 }
 ```
 
@@ -1053,7 +1105,7 @@ You can add type safety to your metadata by using the `Metadata` type. If you ar
 
 ### `metadata` object
 
-```tsx
+```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -1065,7 +1117,7 @@ export const metadata: Metadata = {
 
 #### Regular function
 
-```tsx
+```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
 
 export function generateMetadata(): Metadata {
@@ -1077,7 +1129,7 @@ export function generateMetadata(): Metadata {
 
 #### Async function
 
-```tsx
+```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -1089,7 +1141,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 #### With segment props
 
-```tsx
+```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
 
 type Props = {
@@ -1108,7 +1160,7 @@ export default function Page({ params, searchParams }: Props) {}
 
 #### With parent metadata
 
-```tsx
+```tsx filename="layout.tsx | page.tsx"
 import type { Metadata, ResolvingMetadata } from 'next'
 
 export async function generateMetadata(
@@ -1125,7 +1177,7 @@ export async function generateMetadata(
 
 For JavaScript projects, you can use JSDoc to add type safety.
 
-```js
+```js filename="layout.js | page.js"
 /** @type {import("next").Metadata} */
 export const metadata = {
   title: 'Next.js',

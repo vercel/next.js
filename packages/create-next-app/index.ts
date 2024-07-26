@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /* eslint-disable import/no-extraneous-dependencies */
+import { basename, resolve } from 'node:path'
+import { existsSync } from 'node:fs'
 import { cyan, green, red, yellow, bold, blue } from 'picocolors'
-import Commander from 'commander'
+import { Command } from 'commander'
 import Conf from 'conf'
-import path from 'path'
 import prompts from 'prompts'
 import type { InitialReturnValue } from 'prompts'
 import checkForUpdate from 'update-check'
@@ -13,7 +14,6 @@ import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
 import ciInfo from 'ci-info'
 import { isFolderEmpty } from './helpers/is-folder-empty'
-import fs from 'fs'
 
 let projectPath: string = ''
 
@@ -36,12 +36,17 @@ const onPromptState = (state: {
   }
 }
 
-const program = new Commander.Command(packageJson.name)
+const program = new Command(packageJson.name)
   .version(packageJson.version)
-  .arguments('<project-directory>')
-  .usage(`${green('<project-directory>')} [options]`)
+  .argument('[project-directory]')
+  .usage(`${green('[project-directory]')} [options]`)
   .action((name) => {
-    projectPath = name
+    // Commander does not implicitly support negated options. When they are used
+    // by the user they will be interpreted as the positional argument (name) in
+    // the action handler. See https://github.com/tj/commander.js/pull/1355
+    if (name && !name.startsWith('--no-')) {
+      projectPath = name
+    }
   })
   .option(
     '--ts, --typescript',
@@ -68,7 +73,7 @@ const program = new Commander.Command(packageJson.name)
     '--eslint',
     `
 
-  Initialize with eslint config.
+  Initialize with ESLint config.
 `
   )
   .option(
@@ -167,8 +172,17 @@ const program = new Commander.Command(packageJson.name)
   Explicitly tell the CLI to skip installing packages
 `
   )
+  .option(
+    '--yes',
+    `
+
+  Use previous preferences or defaults for all options that were not
+  explicitly specified, without prompting.
+`
+  )
   .allowUnknownOption()
   .parse(process.argv)
+  .opts()
 
 const packageManager = !!program.useNpm
   ? 'npm'
@@ -201,7 +215,7 @@ async function run(): Promise<void> {
       message: 'What is your project named?',
       initial: 'my-app',
       validate: (name) => {
-        const validation = validateNpmName(path.basename(path.resolve(name)))
+        const validation = validateNpmName(basename(resolve(name)))
         if (validation.valid) {
           return true
         }
@@ -225,8 +239,8 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  const resolvedProjectPath = path.resolve(projectPath)
-  const projectName = path.basename(resolvedProjectPath)
+  const resolvedProjectPath = resolve(projectPath)
+  const projectName = basename(resolvedProjectPath)
 
   const validation = validateNpmName(projectName)
   if (!validation.valid) {
@@ -252,9 +266,9 @@ async function run(): Promise<void> {
   /**
    * Verify the project dir is empty or doesn't exist
    */
-  const root = path.resolve(resolvedProjectPath)
-  const appName = path.basename(root)
-  const folderExists = fs.existsSync(root)
+  const root = resolve(resolvedProjectPath)
+  const appName = basename(root)
+  const folderExists = existsSync(root)
 
   if (folderExists && !isFolderEmpty(root, appName)) {
     process.exit(1)
@@ -265,10 +279,13 @@ async function run(): Promise<void> {
     string,
     boolean | string
   >
+
   /**
-   * If the user does not provide the necessary flags, prompt them for whether
-   * to use TS or JS.
+   * If the user does not provide the necessary flags, prompt them for their
+   * preferences, unless `--yes` option was specified, or when running in CI.
    */
+  const skipPrompt = ciInfo.isCI || program.yes
+
   if (!example) {
     const defaults: typeof preferences = {
       typescript: true,
@@ -285,7 +302,7 @@ async function run(): Promise<void> {
       preferences[field] ?? defaults[field]
 
     if (!program.typescript && !program.javascript) {
-      if (ciInfo.isCI) {
+      if (skipPrompt) {
         // default to TypeScript in CI as we can't prompt to
         // prevent breaking setup flows
         program.typescript = getPrefOrDefault('typescript')
@@ -324,7 +341,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--eslint') &&
       !process.argv.includes('--no-eslint')
     ) {
-      if (ciInfo.isCI) {
+      if (skipPrompt) {
         program.eslint = getPrefOrDefault('eslint')
       } else {
         const styledEslint = blue('ESLint')
@@ -346,7 +363,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--tailwind') &&
       !process.argv.includes('--no-tailwind')
     ) {
-      if (ciInfo.isCI) {
+      if (skipPrompt) {
         program.tailwind = getPrefOrDefault('tailwind')
       } else {
         const tw = blue('Tailwind CSS')
@@ -368,7 +385,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--src-dir') &&
       !process.argv.includes('--no-src-dir')
     ) {
-      if (ciInfo.isCI) {
+      if (skipPrompt) {
         program.srcDir = getPrefOrDefault('srcDir')
       } else {
         const styledSrcDir = blue('`src/` directory')
@@ -387,7 +404,7 @@ async function run(): Promise<void> {
     }
 
     if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
-      if (ciInfo.isCI) {
+      if (skipPrompt) {
         program.app = getPrefOrDefault('app')
       } else {
         const styledAppDir = blue('App Router')
@@ -401,11 +418,12 @@ async function run(): Promise<void> {
           inactive: 'No',
         })
         program.app = Boolean(appRouter)
+        preferences.app = Boolean(appRouter)
       }
     }
 
     if (!program.turbo && !process.argv.includes('--no-turbo')) {
-      if (ciInfo.isCI) {
+      if (skipPrompt) {
         program.turbo = getPrefOrDefault('turbo')
       } else {
         const styledTurbo = blue('Turbopack')
@@ -428,7 +446,7 @@ async function run(): Promise<void> {
       typeof program.importAlias !== 'string' ||
       !importAliasPattern.test(program.importAlias)
     ) {
-      if (ciInfo.isCI) {
+      if (skipPrompt) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
         program.importAlias = defaults.importAlias
       } else if (process.argv.includes('--no-import-alias')) {

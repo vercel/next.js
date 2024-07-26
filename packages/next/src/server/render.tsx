@@ -34,14 +34,14 @@ import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import type { PagesModule } from './future/route-modules/pages/module'
+import type { PagesModule } from './route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { Revalidate, SwrDelta } from './lib/revalidate'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
 import React, { type JSX } from 'react'
-import ReactDOMServer from 'react-dom/server.browser'
+import ReactDOMServerEdge from 'react-dom/server.edge'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -128,7 +128,7 @@ function noRouter() {
 }
 
 async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  const renderStream = await ReactDOMServerEdge.renderToReadableStream(element)
   await renderStream.allReady
   return streamToString(renderStream)
 }
@@ -1320,7 +1320,7 @@ export async function renderToHTMLImpl(
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
       return await renderToInitialFizzStream({
-        ReactDOMServer,
+        ReactDOMServer: ReactDOMServerEdge,
         element: content,
       })
     }

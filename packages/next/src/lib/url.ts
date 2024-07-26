@@ -1,14 +1,6 @@
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 
-export const DUMMY_ORIGIN = 'http://n'
-
-function getUrlWithoutHost(url: string) {
-  return new URL(url, DUMMY_ORIGIN)
-}
-
-export function getPathname(url: string) {
-  return getUrlWithoutHost(url).pathname
-}
+const DUMMY_ORIGIN = 'http://n'
 
 export function isFullStringUrl(url: string) {
   return /https?:\/\//.test(url)

@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
+  assertHasRedbox,
   getRedboxCallStack,
-  hasRedbox,
   shouldRunTurboDevTest,
   expandCallStack,
   getRedboxSource,
@@ -29,7 +29,7 @@ describe('app dir - dynamic error trace', () => {
 
   it('should show the error trace', async () => {
     const browser = await next.browser('/')
-    await hasRedbox(browser)
+    await assertHasRedbox(browser)
     await expandCallStack(browser)
     const callStack = await getRedboxCallStack(browser)
 

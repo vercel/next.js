@@ -17,7 +17,7 @@ declare const incrementalCacheHandler: any
 // const renderToHTML = undefined
 
 import { renderToHTML } from '../../server/render'
-import RouteModule from '../../server/future/route-modules/pages/module'
+import RouteModule from '../../server/route-modules/pages/module'
 
 import type { RequestData } from '../../server/web/types'
 import type { BuildManifest } from '../../server/get-page-files'
@@ -82,7 +82,6 @@ const error500Mod = userland500Page
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
 const buildManifest: BuildManifest = self.__BUILD_MANIFEST as any
-const prerenderManifest = maybeJSONParse(self.__PRERENDER_MANIFEST)
 const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
 const subresourceIntegrityManifest = sriEnabled
   ? maybeJSONParse(self.__SUBRESOURCE_INTEGRITY_MANIFEST)
@@ -99,7 +98,6 @@ const render = getRender({
   error500Mod,
   Document,
   buildManifest,
-  prerenderManifest,
   renderToHTML,
   reactLoadableManifest,
   subresourceIntegrityManifest,

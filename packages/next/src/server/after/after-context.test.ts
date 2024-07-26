@@ -4,7 +4,7 @@ import { AsyncLocalStorage } from 'async_hooks'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { AfterContext } from './after-context'
 
-describe('createAfterContext', () => {
+describe('AfterContext', () => {
   // 'async-local-storage.ts' needs `AsyncLocalStorage` on `globalThis` at import time,
   // so we have to do some contortions here to set it up before running anything else
   type RASMod =
@@ -13,7 +13,7 @@ describe('createAfterContext', () => {
   type AfterContextMod = typeof import('./after-context')
 
   let requestAsyncStorage: RASMod['requestAsyncStorage']
-  let createAfterContext: AfterContextMod['createAfterContext']
+  let AfterContext: AfterContextMod['AfterContext']
   let after: AfterMod['unstable_after']
 
   beforeAll(async () => {
@@ -26,7 +26,7 @@ describe('createAfterContext', () => {
     requestAsyncStorage = RASMod.requestAsyncStorage
 
     const AfterContextMod = await import('./after-context')
-    createAfterContext = AfterContextMod.createAfterContext
+    AfterContext = AfterContextMod.AfterContext
 
     const AfterMod = await import('./after')
     after = AfterMod.unstable_after
@@ -49,7 +49,7 @@ describe('createAfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -116,7 +116,7 @@ describe('createAfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -164,7 +164,7 @@ describe('createAfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -255,7 +255,7 @@ describe('createAfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -315,7 +315,7 @@ describe('createAfterContext', () => {
       throw new Error('onClose is broken for some reason')
     })
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -353,7 +353,7 @@ describe('createAfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -406,7 +406,7 @@ describe('createAfterContext', () => {
     const waitUntil = undefined
     const onClose = jest.fn()
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -436,7 +436,7 @@ describe('createAfterContext', () => {
 
     const onClose = undefined
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -463,13 +463,16 @@ describe('createAfterContext', () => {
 
 const createMockRequestStore = (afterContext: AfterContext): RequestStore => {
   const partialStore: Partial<RequestStore> = {
+    url: { pathname: '/', search: '' },
     afterContext: afterContext,
     assetPrefix: '',
     reactLoadableManifest: {},
     draftMode: undefined,
+    isHmrRefresh: false,
+    serverComponentsHmrCache: undefined,
   }
 
-  return new Proxy(partialStore, {
+  return new Proxy(partialStore as RequestStore, {
     get(target, key) {
       if (key in target) {
         return target[key as keyof typeof target]
@@ -478,5 +481,5 @@ const createMockRequestStore = (afterContext: AfterContext): RequestStore => {
         `RequestStore property not mocked: '${typeof key === 'symbol' ? key.toString() : key}'`
       )
     },
-  }) as RequestStore
+  })
 }

@@ -2,14 +2,14 @@ import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
 import type { SizeLimit } from '../../types'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { AppRenderContext, GenerateFlight } from './app-render'
-import type { AppPageModule } from '../../server/future/route-modules/app-page/module'
+import type { AppPageModule } from '../../server/route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
 import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
-  NEXT_ROUTER_STATE_TREE,
-  ACTION,
+  NEXT_ROUTER_STATE_TREE_HEADER,
+  ACTION_HEADER,
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
@@ -182,7 +182,7 @@ async function createForwardedActionResponse(
   const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
 
   try {
-    let body: BodyInit | AsyncIterable<any> | undefined
+    let body: BodyInit | ReadableStream<Uint8Array> | undefined
     if (
       // The type check here ensures that `req` is correctly typed, and the
       // environment variable check provides dead code elimination.
@@ -239,6 +239,36 @@ async function createForwardedActionResponse(
   return RenderResult.fromStatic('{}')
 }
 
+/**
+ * Returns the parsed redirect URL if we deem that it is hosted by us.
+ *
+ * We handle both relative and absolute redirect URLs.
+ *
+ * In case the redirect URL is not relative to the application we return `null`.
+ */
+function getAppRelativeRedirectUrl(
+  basePath: string,
+  host: Host,
+  redirectUrl: string
+): URL | null {
+  if (redirectUrl.startsWith('/') || redirectUrl.startsWith('./')) {
+    // Make sure we are appending the basePath to relative URLS
+    return new URL(`${basePath}${redirectUrl}`, 'http://n')
+  }
+
+  const parsedRedirectUrl = new URL(redirectUrl)
+
+  if (host?.value !== parsedRedirectUrl.host) {
+    return null
+  }
+
+  // At this point the hosts are the same, just confirm we
+  // are routing to a path underneath the `basePath`
+  return parsedRedirectUrl.pathname.startsWith(basePath)
+    ? parsedRedirectUrl
+    : null
+}
+
 async function createRedirectRenderResult(
   req: BaseNextRequest,
   res: BaseNextResponse,
@@ -252,14 +282,15 @@ async function createRedirectRenderResult(
   // If we're redirecting to another route of this Next.js application, we'll
   // try to stream the response from the other worker path. When that works,
   // we can save an extra roundtrip and avoid a full page reload.
-  // When the redirect URL starts with a `/`, or to the same host as application,
-  // we treat it as an app-relative redirect.
-  const parsedRedirectUrl = new URL(redirectUrl, 'http://n')
-  const isAppRelativeRedirect =
-    redirectUrl.startsWith('/') ||
-    (originalHost && originalHost.value === parsedRedirectUrl.host)
+  // When the redirect URL starts with a `/` or is to the same host, under the
+  // `basePath` we treat it as an app-relative redirect;
+  const appRelativeRedirectUrl = getAppRelativeRedirectUrl(
+    basePath,
+    originalHost,
+    redirectUrl
+  )
 
-  if (isAppRelativeRedirect) {
+  if (appRelativeRedirectUrl) {
     if (!originalHost) {
       throw new Error(
         'Invariant: Missing `host` header from a forwarded Server Actions request.'
@@ -278,7 +309,7 @@ async function createRedirectRenderResult(
       process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${originalHost.value}`
 
     const fetchUrl = new URL(
-      `${origin}${basePath}${parsedRedirectUrl.pathname}${parsedRedirectUrl.search}`
+      `${origin}${appRelativeRedirectUrl.pathname}${appRelativeRedirectUrl.search}`
     )
 
     if (staticGenerationStore.revalidatedTags) {
@@ -294,10 +325,10 @@ async function createRedirectRenderResult(
     }
 
     // Ensures that when the path was revalidated we don't return a partial response on redirects
-    forwardedHeaders.delete(NEXT_ROUTER_STATE_TREE)
+    forwardedHeaders.delete(NEXT_ROUTER_STATE_TREE_HEADER)
     // When an action follows a redirect, it's no longer handling an action: it's just a normal RSC request
     // to the requested URL. We should remove the `next-action` header so that it's not treated as an action
-    forwardedHeaders.delete(ACTION)
+    forwardedHeaders.delete(ACTION_HEADER)
 
     try {
       const response = await fetch(fetchUrl, {

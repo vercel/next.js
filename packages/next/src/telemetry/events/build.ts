@@ -172,6 +172,7 @@ export type EventBuildFeatureUsage = {
     | 'skipMiddlewareUrlNormalize'
     | 'skipTrailingSlashRedirect'
     | 'modularizeImports'
+    | 'esmExternals'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(
