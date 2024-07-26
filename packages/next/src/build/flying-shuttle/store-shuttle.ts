@@ -1,6 +1,5 @@
 import fs from 'fs'
 import path from 'path'
-import crypto from 'crypto'
 import { recursiveCopy } from '../../lib/recursive-copy'
 import { version as nextVersion } from 'next/package.json'
 import type { NextConfigComplete } from '../../server/config-shared'
@@ -12,35 +11,31 @@ import {
   PAGES_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../shared/lib/constants'
-import { getNextPublicEnvironmentVariables } from '../webpack/plugins/define-env-plugin'
+
+export interface ShuttleManifest {
+  nextVersion: string
+  config: Record<string, any>
+}
 
 export function generateShuttleManifest(config: NextConfigComplete) {
-  // NEXT_PUBLIC_ changes for now since they are inlined
-  // and specific next config values that can impact the build
-  const globalHash = crypto.createHash('sha256')
-  const nextPublicEnv = getNextPublicEnvironmentVariables()
-  for (const key in nextPublicEnv) {
-    globalHash.update(`${key}=${nextPublicEnv[key]}`)
-  }
-
-  const omittedConfigKeys = ['headers', 'rewrites', 'redirects']
-
-  for (const key in config) {
-    if (omittedConfigKeys.includes(key)) {
-      continue
-    }
-    let serializedConfig =
-      typeof config[key] === 'function'
-        ? config[key].toString()
-        : JSON.stringify(config[key])
-
-    globalHash.update(`${key}=${serializedConfig}`)
-  }
-
-  return {
+  return JSON.stringify({
     nextVersion,
-    globalHash: globalHash.digest('hex'),
-  }
+    config: {
+      env: config.env,
+      i18n: config.i18n,
+      basePath: config.basePath,
+      sassOptions: config.sassOptions,
+      trailingSlash: config.trailingSlash,
+      productionBrowserSourceMaps: config.productionBrowserSourceMaps,
+
+      experimental: {
+        ppr: config.experimental.ppr,
+        reactCompiler: config.experimental.reactCompiler,
+        serverSourceMaps: config.experimental.serverSourceMaps,
+        serverMinification: config.experimental.serverMinification,
+      },
+    },
+  } satisfies ShuttleManifest)
 }
 
 // we can create a new shuttle with the outputs before env values have
@@ -57,10 +52,9 @@ export async function storeShuttle({
   await fs.promises.rm(shuttleDir, { force: true, recursive: true })
   await fs.promises.mkdir(shuttleDir, { recursive: true })
 
-  const shuttleManifest = generateShuttleManifest(config)
   await fs.promises.writeFile(
     path.join(shuttleDir, 'shuttle-manifest.json'),
-    JSON.stringify(shuttleManifest)
+    generateShuttleManifest(config)
   )
 
   // copy all server entries

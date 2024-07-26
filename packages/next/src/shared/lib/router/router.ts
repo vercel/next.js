@@ -43,6 +43,7 @@ import { isBot } from './utils/is-bot'
 import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
 import { handleSmoothScroll } from './utils/handle-smooth-scroll'
+import type { Params } from '../../../client/components/params'
 
 declare global {
   interface Window {
@@ -1486,7 +1487,7 @@ export default class Router implements BaseRouter {
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
     route = removeTrailingSlash(pathname)
-    let routeMatch: { [paramName: string]: string | string[] } | false = false
+    let routeMatch: Params | false = false
 
     if (isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
