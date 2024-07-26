@@ -669,7 +669,7 @@ export interface Project {
     TurbopackResult<HmrIdentifiers>
   >
 
-  buildGlobal(): Promise<TurbopackResult<WrittenGlobalEndpoints>>
+  buildGlobal(): Promise<WrittenGlobalEndpoints>
 
   getSourceForAsset(filePath: string): Promise<string | null>
 
@@ -773,15 +773,21 @@ export type WrittenEndpoint =
       config: EndpointConfig
     }
 
+export type WrittenEndpointWithIssues = {
+  writtenEndpoint: WrittenEndpoint
+  issues: Issue[]
+  diagnostics: Diagnostics[]
+}
+
 export type WrittenGlobalEndpoints = {
   annotatedWrittenRoutes: {
-    writtenRoute: WrittenEndpoint
+    writtenRouteWithIssues: WrittenEndpointWithIssues
     routeType: string
     page: string
   }[]
-  appEndpoint: WrittenEndpoint
-  documentEndpoint: WrittenEndpoint
-  errorEndpoint: WrittenEndpoint
+  appEndpoint: WrittenEndpointWithIssues
+  documentEndpoint: WrittenEndpointWithIssues
+  errorEndpoint: WrittenEndpointWithIssues
 }
 
 function rustifyEnv(env: Record<string, string>): RustifiedEnv {
