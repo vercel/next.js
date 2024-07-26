@@ -1,0 +1,32 @@
+[package]
+name = "turbo-tasks-backend"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+auto-hash-map = { workspace = true }
+dashmap = { workspace = true }
+once_cell = { workspace = true }
+parking_lot = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+smallvec = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+turbo-prehash = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbo-tasks-malloc = { workspace = true, default-features = false }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

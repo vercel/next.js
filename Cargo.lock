@@ -8568,6 +8568,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbo-tasks-backend"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "auto-hash-map",
+ "dashmap",
+ "once_cell",
+ "parking_lot",
+ "rustc-hash",
+ "serde",
+ "smallvec",
+ "tokio",
+ "tracing",
+ "turbo-prehash",
+ "turbo-tasks",
+ "turbo-tasks-build",
+ "turbo-tasks-hash",
+ "turbo-tasks-malloc",
+]
+
+[[package]]
 name = "turbo-tasks-build"
 version = "0.1.0"
 dependencies = [
