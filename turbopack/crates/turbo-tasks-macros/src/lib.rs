@@ -11,6 +11,7 @@ mod primitive_macro;
 mod value_impl_macro;
 mod value_macro;
 mod value_trait_macro;
+mod with_key_macro;
 
 extern crate proc_macro;
 
@@ -175,6 +176,12 @@ pub fn test_tt(_args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
     value_impl_macro::value_impl(args, input)
+}
+
+#[proc_macro_error]
+#[proc_macro_attribute]
+pub fn with_key(_args: TokenStream, input: TokenStream) -> TokenStream {
+    with_key_macro::with_key(input)
 }
 
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
