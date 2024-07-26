@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('app dir - form', () => {
+describe('app dir - form - with basepath', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -10,8 +10,8 @@ describe('app dir - form', () => {
     return
   }
 
-  it('should soft-navigate on submit and show the prefetched loading state', async () => {
-    const session = await next.browser('/forms/basic')
+  it('should add basePath to `action`', async () => {
+    const session = await next.browser('/base/forms/basic')
 
     const start = Date.now()
     await session.eval(`window.__MPA_NAV_ID = ${start}`)
@@ -22,17 +22,14 @@ describe('app dir - form', () => {
     const submitButton = await session.elementByCss('[type="submit"]')
     await submitButton.click()
 
-    // we should have prefetched a loading state, so it should be displayed
-    await session.waitForElementByCss('#loading')
-
     const result = await session.waitForElementByCss('#search-results').text()
     expect(result).toMatch(/query: "my search"/)
 
     expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
   })
 
-  it('should soft-navigate to the formAction url of the submitter', async () => {
-    const session = await next.browser('/forms/button-formaction')
+  it("should not add basePath to a submitter's formAction", async () => {
+    const session = await next.browser('/base/forms/button-formaction')
 
     const start = Date.now()
     await session.eval(`window.__MPA_NAV_ID = ${start}`)
@@ -43,21 +40,9 @@ describe('app dir - form', () => {
     const submitButton = await session.elementByCss('[type="submit"]')
     await submitButton.click()
 
-    // we didn't prefetch a loading state, so we don't know if it'll be displayed
-    // TODO: is this correct? it'll probably be there in dev, but what about prod?
-    // await session.waitForElementByCss('#loading')
-
     const result = await session.waitForElementByCss('#search-results').text()
     expect(result).toMatch(/query: "my search"/)
 
     expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
   })
-
-  it.todo('should not warn for submitters using client/server actions')
-
-  it.todo(
-    'should handle submitter with unsupported form{EncType,Method,Target}'
-  )
-  it.todo('should handle file inputs')
-  it.todo('should handle `replace`')
 })
