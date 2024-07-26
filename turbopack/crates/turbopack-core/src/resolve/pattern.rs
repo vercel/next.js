@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{trace::TraceRawVcs, RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, LinkContent, LinkType,
+    util::normalize_path, DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath,
+    LinkContent, LinkType,
 };
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
@@ -248,6 +249,81 @@ impl Pattern {
             current.push(item);
         }
         current
+    }
+
+    pub fn with_normalized_path(&self) -> Option<Pattern> {
+        let mut new = self.clone();
+
+        fn normalize_path_internal(pattern: &mut Pattern) -> Option<()> {
+            match pattern {
+                Pattern::Constant(c) => {
+                    *c = (*(normalize_path(c)?)).into();
+                    Some(())
+                }
+                Pattern::Dynamic => Some(()),
+                Pattern::Concatenation(list) => {
+                    let mut segments = Vec::new();
+                    for seqment in list.iter() {
+                        match seqment {
+                            Pattern::Constant(str) => {
+                                for seqment in str.split('/') {
+                                    match seqment {
+                                        "." | "" => {}
+                                        ".." => {
+                                            segments.pop()?;
+                                        }
+                                        seqment => {
+                                            segments.push(vec![Pattern::Constant(seqment.into())]);
+                                        }
+                                    }
+                                }
+                                if str.ends_with("/") {
+                                    segments.push(vec![]);
+                                }
+                            }
+                            Pattern::Dynamic => {
+                                if segments.is_empty() {
+                                    segments.push(vec![]);
+                                }
+                                let last = segments.last_mut().unwrap();
+                                last.push(Pattern::Dynamic);
+                            }
+                            Pattern::Alternatives(_) | Pattern::Concatenation(_) => {
+                                panic!("for with_normalized_path the Pattern must be normalized");
+                            }
+                        }
+                    }
+                    let separator: RcStr = "/".into();
+                    *list = segments
+                        .into_iter()
+                        .flat_map(|c| {
+                            std::iter::once(Pattern::Constant(separator.clone()))
+                                .chain(c.into_iter())
+                        })
+                        .skip(1)
+                        .collect();
+                    Some(())
+                }
+                Pattern::Alternatives(_) => {
+                    panic!("for with_normalized_path the Pattern must be normalized");
+                }
+            }
+        }
+
+        match &mut new {
+            c @ Pattern::Constant(_) | c @ Pattern::Concatenation(_) => {
+                normalize_path_internal(c)?;
+            }
+            Pattern::Alternatives(list) => {
+                for c in list {
+                    normalize_path_internal(c)?;
+                }
+            }
+            Pattern::Dynamic => {}
+        }
+
+        new.normalize();
+        Some(new)
     }
 
     /// Order into Alternatives -> Concatenation -> Constant/Dynamic
@@ -1285,6 +1361,55 @@ mod tests {
                 ])
             );
         }
+    }
+
+    #[test]
+    fn with_normalized_path() {
+        assert!(Pattern::Constant("a/../..".into())
+            .with_normalized_path()
+            .is_none());
+        assert_eq!(
+            Pattern::Constant("a/b/../c".into())
+                .with_normalized_path()
+                .unwrap(),
+            Pattern::Constant("a/c".into())
+        );
+        assert_eq!(
+            Pattern::Alternatives(vec![
+                Pattern::Constant("a/b/../c".into()),
+                Pattern::Constant("a/b/../c/d".into())
+            ])
+            .with_normalized_path()
+            .unwrap(),
+            Pattern::Alternatives(vec![
+                Pattern::Constant("a/c".into()),
+                Pattern::Constant("a/c/d".into())
+            ])
+        );
+
+        // Dynamic is a segment itself
+        assert_eq!(
+            Pattern::Concatenation(vec![
+                Pattern::Constant("a/b/".into()),
+                Pattern::Dynamic,
+                Pattern::Constant("../c".into())
+            ])
+            .with_normalized_path()
+            .unwrap(),
+            Pattern::Constant("a/b/c".into())
+        );
+
+        // Dynamic is only part of the second segment
+        assert_eq!(
+            Pattern::Concatenation(vec![
+                Pattern::Constant("a/b".into()),
+                Pattern::Dynamic,
+                Pattern::Constant("../c".into())
+            ])
+            .with_normalized_path()
+            .unwrap(),
+            Pattern::Constant("a/c".into())
+        );
     }
 
     #[test]
