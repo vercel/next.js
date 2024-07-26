@@ -91,8 +91,21 @@ pub enum SubpathValueResult {
 impl AliasTemplate for SubpathValue {
     type Output<'a> = Result<SubpathValueResult> where Self: 'a;
 
-    fn convert<'a>(&'a self) -> Self::Output<'a> {
-        todo!()
+    fn convert(&self) -> Self::Output<'_> {
+        Ok(match self {
+            SubpathValue::Alternatives(list) => SubpathValueResult::Alternatives(
+                list.iter()
+                    .map(|value: &SubpathValue| value.convert())
+                    .collect::<Result<Vec<_>>>()?,
+            ),
+            SubpathValue::Conditional(list) => SubpathValueResult::Conditional(
+                list.iter()
+                    .map(|(condition, value)| Ok((condition.clone(), value.convert()?)))
+                    .collect::<Result<Vec<_>>>()?,
+            ),
+            SubpathValue::Result(value) => SubpathValueResult::Result(value.clone().into()),
+            SubpathValue::Excluded => SubpathValueResult::Excluded,
+        })
     }
 
     fn replace(&self, capture: &Pattern) -> Result<SubpathValueResult> {
