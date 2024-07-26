@@ -73,13 +73,33 @@ export function streamFromString(str: string): ReadableStream<Uint8Array> {
   })
 }
 
+export function streamFromBuffer(chunk: Buffer): ReadableStream<Uint8Array> {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(chunk)
+      controller.close()
+    },
+  })
+}
+
+export async function streamToBuffer(
+  stream: ReadableStream<Uint8Array>
+): Promise<Buffer> {
+  const buffers: Buffer[] = []
+
+  for await (const chunk of stream) {
+    buffers.push(Buffer.from(chunk))
+  }
+
+  return Buffer.concat(buffers)
+}
+
 export async function streamToString(
   stream: ReadableStream<Uint8Array>
 ): Promise<string> {
   const decoder = new TextDecoder('utf-8', { fatal: true })
   let string = ''
 
-  // @ts-expect-error TypeScript gets this wrong (https://nodejs.org/api/webstreams.html#async-iteration)
   for await (const chunk of stream) {
     string += decoder.decode(chunk, { stream: true })
   }
@@ -108,6 +128,7 @@ export function createBufferedTransformStream(): TransformStream<
       try {
         const chunk = new Uint8Array(bufferByteLength)
         let copiedBytes = 0
+
         for (let i = 0; i < bufferedChunks.length; i++) {
           const bufferedChunk = bufferedChunks[i]
           chunk.set(bufferedChunk, copiedBytes)
@@ -354,17 +375,15 @@ function createMergedTransformStream(
   })
 }
 
+const CLOSE_TAG = '</body></html>'
+
 /**
  * This transform stream moves the suffix to the end of the stream, so results
  * like `</body></html><script>...</script>` will be transformed to
  * `<script>...</script></body></html>`.
  */
-function createMoveSuffixStream(
-  suffix: string
-): TransformStream<Uint8Array, Uint8Array> {
+function createMoveSuffixStream(): TransformStream<Uint8Array, Uint8Array> {
   let foundSuffix = false
-
-  const encodedSuffix = encoder.encode(suffix)
 
   return new TransformStream({
     transform(chunk, controller) {
@@ -372,13 +391,13 @@ function createMoveSuffixStream(
         return controller.enqueue(chunk)
       }
 
-      const index = indexOfUint8Array(chunk, encodedSuffix)
+      const index = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.BODY_AND_HTML)
       if (index > -1) {
         foundSuffix = true
 
         // If the whole chunk is the suffix, then don't write anything, it will
         // be written in the flush.
-        if (chunk.length === suffix.length) {
+        if (chunk.length === ENCODED_TAGS.CLOSED.BODY_AND_HTML.length) {
           return
         }
 
@@ -388,9 +407,11 @@ function createMoveSuffixStream(
 
         // In the case where the suffix is in the middle of the chunk, we need
         // to split the chunk into two parts.
-        if (chunk.length > suffix.length + index) {
+        if (chunk.length > ENCODED_TAGS.CLOSED.BODY_AND_HTML.length + index) {
           // Write out the part after the suffix.
-          const after = chunk.slice(index + suffix.length)
+          const after = chunk.slice(
+            index + ENCODED_TAGS.CLOSED.BODY_AND_HTML.length
+          )
           controller.enqueue(after)
         }
       } else {
@@ -400,7 +421,7 @@ function createMoveSuffixStream(
     flush(controller) {
       // Even if we didn't find the suffix, the HTML is not valid if we don't
       // add it, so insert it at the end.
-      controller.enqueue(encodedSuffix)
+      controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
     },
   })
 }
@@ -520,10 +541,8 @@ export async function continueFizzStream(
     validateRootLayout,
   }: ContinueStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
-  const closeTag = '</body></html>'
-
   // Suffix itself might contain close tags at the end, so we need to split it.
-  const suffixUnclosed = suffix ? suffix.split(closeTag, 1)[0] : null
+  const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
   // If we're generating static HTML and there's an `allReady` promise on the
   // stream, we need to wait for it to resolve before continuing.
@@ -552,7 +571,7 @@ export async function continueFizzStream(
     validateRootLayout ? createRootLayoutValidatorStream() : null,
 
     // Close tags should always be deferred to the end
-    createMoveSuffixStream(closeTag),
+    createMoveSuffixStream(),
 
     // Special head insertions
     // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
@@ -590,8 +609,6 @@ export async function continueStaticPrerender(
   prerenderStream: ReadableStream<Uint8Array>,
   { inlinedDataStream, getServerInsertedHTML }: ContinueStaticPrerenderOptions
 ) {
-  const closeTag = '</body></html>'
-
   return (
     prerenderStream
       // Buffer everything to avoid flushing too frequently
@@ -601,7 +618,7 @@ export async function continueStaticPrerender(
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
-      .pipeThrough(createMoveSuffixStream(closeTag))
+      .pipeThrough(createMoveSuffixStream())
   )
 }
 
@@ -614,8 +631,6 @@ export async function continueDynamicHTMLResume(
   renderStream: ReadableStream<Uint8Array>,
   { inlinedDataStream, getServerInsertedHTML }: ContinueResumeOptions
 ) {
-  const closeTag = '</body></html>'
-
   return (
     renderStream
       // Buffer everything to avoid flushing too frequently
@@ -625,7 +640,7 @@ export async function continueDynamicHTMLResume(
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
-      .pipeThrough(createMoveSuffixStream(closeTag))
+      .pipeThrough(createMoveSuffixStream())
   )
 }
 
@@ -637,13 +652,11 @@ export async function continueDynamicDataResume(
   renderStream: ReadableStream<Uint8Array>,
   { inlinedDataStream }: ContinueDynamicDataResumeOptions
 ) {
-  const closeTag = '</body></html>'
-
   return (
     renderStream
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
-      .pipeThrough(createMoveSuffixStream(closeTag))
+      .pipeThrough(createMoveSuffixStream())
   )
 }

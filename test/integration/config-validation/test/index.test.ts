@@ -13,7 +13,6 @@ describe('next.config.js validation', () => {
           name: 'invalid config types',
           configContent: `
         module.exports = {
-          swcMinify: 'hello',
           rewrites: true,
           images: {
             loader: 'something'
@@ -23,7 +22,6 @@ describe('next.config.js validation', () => {
           outputs: [
             `received 'something' at "images.loader"`,
             'Expected function, received boolean at "rewrites"',
-            'Expected boolean, received string at "swcMinify"',
           ],
         },
         {

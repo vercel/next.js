@@ -1,19 +1,22 @@
-import { join } from 'path'
 import { check } from 'next-test-utils'
+import { join } from 'path'
 import { createNextApp, projectFilesShouldExist, useTempDir } from './utils'
 
-let testVersion
-beforeAll(async () => {
-  // TODO: investigate moving this post publish or create deployed GH#57025
-  // tarballs to avoid these failing while a publish is in progress
-  testVersion = 'canary'
-  // const span = new Span({ name: 'parent' })
-  // testVersion = (
-  //   await createNextInstall({ onlyPackages: true, parentSpan: span })
-  // ).get('next')
-})
-
 describe('create-next-app prompts', () => {
+  let nextTgzFilename: string
+
+  beforeAll(() => {
+    if (!process.env.NEXT_TEST_PKG_PATHS) {
+      throw new Error('This test needs to be run with `node run-tests.js`.')
+    }
+
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
+
+    nextTgzFilename = pkgPaths.get('next')
+  })
+
   it('should prompt user for choice if directory name is absent', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'no-dir-name'
@@ -22,13 +25,15 @@ describe('create-next-app prompts', () => {
           '--ts',
           '--app',
           '--eslint',
+          '--no-turbo',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
         ],
         {
           cwd,
-        }
+        },
+        nextTgzFilename
       )
 
       await new Promise<void>((resolve) => {
@@ -59,6 +64,7 @@ describe('create-next-app prompts', () => {
           projectName,
           '--app',
           '--eslint',
+          '--no-turbo',
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
@@ -66,7 +72,7 @@ describe('create-next-app prompts', () => {
         {
           cwd,
         },
-        testVersion
+        nextTgzFilename
       )
 
       await new Promise<void>((resolve) => {
@@ -95,13 +101,14 @@ describe('create-next-app prompts', () => {
           '--ts',
           '--app',
           '--eslint',
+          '--no-turbo',
           '--no-src-dir',
           '--no-import-alias',
         ],
         {
           cwd,
         },
-        testVersion
+        nextTgzFilename
       )
 
       await new Promise<void>((resolve) => {
@@ -130,13 +137,14 @@ describe('create-next-app prompts', () => {
           '--ts',
           '--app',
           '--eslint',
+          '--no-turbo',
           '--no-tailwind',
           '--no-src-dir',
         ],
         {
           cwd,
         },
-        testVersion
+        nextTgzFilename
       )
 
       await new Promise<void>(async (resolve) => {
@@ -160,6 +168,48 @@ describe('create-next-app prompts', () => {
       expect(tsConfig.compilerOptions.paths).toMatchInlineSnapshot(`
         {
           "@/something/*": [
+            "./*",
+          ],
+        }
+      `)
+    })
+  })
+
+  it('should not prompt user for choice and use defaults if --yes is defined', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'yes-we-can'
+      const childProcess = createNextApp(
+        [projectName, '--yes'],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: [
+              'app',
+              '.eslintrc.json',
+              'package.json',
+              'tailwind.config.ts',
+              'tsconfig.json',
+            ],
+          })
+          resolve()
+        })
+      })
+
+      const pkg = require(join(cwd, projectName, 'package.json'))
+      expect(pkg.name).toBe(projectName)
+      const tsConfig = require(join(cwd, projectName, 'tsconfig.json'))
+      expect(tsConfig.compilerOptions.paths).toMatchInlineSnapshot(`
+        {
+          "@/*": [
             "./*",
           ],
         }

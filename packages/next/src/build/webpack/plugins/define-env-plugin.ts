@@ -5,6 +5,7 @@ import type {
 import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { needsExperimentalReact } from '../../../lib/needs-experimental-react'
+import { checkIsAppPPREnabled } from '../../../server/lib/experimental/ppr'
 
 function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
@@ -57,12 +58,12 @@ interface SerializedDefineEnv {
 /**
  * Collects all environment variables that are using the `NEXT_PUBLIC_` prefix.
  */
-function getNextPublicEnvironmentVariables(): DefineEnv {
+export function getNextPublicEnvironmentVariables(): DefineEnv {
   const defineEnv: DefineEnv = {}
   for (const key in process.env) {
     if (key.startsWith('NEXT_PUBLIC_')) {
       const value = process.env[key]
-      if (value) {
+      if (value != null) {
         defineEnv[`process.env.${key}`] = value
       }
     }
@@ -79,7 +80,7 @@ function getNextConfigEnv(config: NextConfigComplete): DefineEnv {
   const env = config.env
   for (const key in env) {
     const value = env[key]
-    if (value) {
+    if (value != null) {
       errorIfEnvConflicted(config, key)
       defineEnv[`process.env.${key}`] = value
     }
@@ -154,26 +155,44 @@ export function getDefineEnv({
              * the runtime they are running with, if it's not using `edge-runtime`
              */
             process.env.NEXT_EDGE_RUNTIME_PROVIDER ?? 'edge-runtime',
+
+          // process should be only { env: {...} } for edge runtime.
+          // For ignore avoid warn on `process.emit` usage but directly omit it.
+          'process.emit': false,
         }),
     'process.turbopack': isTurbopack,
     'process.env.TURBOPACK': isTurbopack,
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
-    'process.env.NODE_ENV': dev ? 'development' : 'production',
+    'process.env.NODE_ENV':
+      dev || config.experimental.allowDevelopmentBuild
+        ? 'development'
+        : 'production',
     'process.env.NEXT_RUNTIME': isEdgeServer
       ? 'edge'
       : isNodeServer
-      ? 'nodejs'
-      : '',
+        ? 'nodejs'
+        : '',
     'process.env.NEXT_MINIMAL': '',
-    'process.env.__NEXT_PPR': config.experimental.ppr === true,
+    'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
+      config.experimental.appNavFailHandling
+    ),
+    'process.env.__NEXT_APP_ISR_INDICATOR': Boolean(
+      config.devIndicators.appIsrStatus
+    ),
+    'process.env.__NEXT_PPR': checkIsAppPPREnabled(config.experimental.ppr),
+    'process.env.__NEXT_AFTER': config.experimental.after ?? false,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
-    'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers ?? [],
+    ...(isTurbopack
+      ? {}
+      : {
+          'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers ?? [],
+        }),
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH':
       config.experimental.manualClientBasePath ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME': JSON.stringify(
       isNaN(Number(config.experimental.staleTimes?.dynamic))
-        ? 30 // 30 seconds
+        ? 0
         : config.experimental.staleTimes?.dynamic
     ),
     'process.env.__NEXT_CLIENT_ROUTER_STATIC_STALETIME': JSON.stringify(
@@ -181,6 +200,8 @@ export function getDefineEnv({
         ? 5 * 60 // 5 minutes
         : config.experimental.staleTimes?.static
     ),
+    'process.env.__NEXT_FLYING_SHUTTLE':
+      config.experimental.flyingShuttle ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
       config.experimental.clientRouterFilter ?? true,
     'process.env.__NEXT_CLIENT_ROUTER_S_FILTER':
@@ -220,7 +241,7 @@ export function getDefineEnv({
     ...getImageConfig(config, dev),
     'process.env.__NEXT_ROUTER_BASEPATH': config.basePath,
     'process.env.__NEXT_STRICT_NEXT_HEAD':
-      config.experimental.strictNextHead ?? false,
+      config.experimental.strictNextHead ?? true,
     'process.env.__NEXT_HAS_REWRITES': hasRewrites,
     'process.env.__NEXT_CONFIG_OUTPUT': config.output,
     'process.env.__NEXT_I18N_SUPPORT': !!config.i18n,

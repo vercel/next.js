@@ -29,7 +29,7 @@ The examples on this page walk through basic username and password auth for educ
 
 ### Sign-up and login functionality
 
-You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/rendering/server-components), [`useFormStatus()`](https://react.dev/reference/react-dom/hooks/useFormStatus), and [`useFormState()`](https://react.dev/reference/react-dom/hooks/useFormState) to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
+You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) and [`useActionState()`](https://react.dev/reference/react/useActionState) to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
 
 Since Server Actions always execute on the server, they provide a secure environment for handling authentication logic.
 
@@ -159,7 +159,7 @@ To prevent unnecessary calls to your authentication provider's API or database, 
 ```ts filename="app/actions/auth.ts" switcher
 import { SignupFormSchema, FormState } from '@/app/lib/definitions'
 
-export async function signup(state: FormState, formData) {
+export async function signup(state: FormState, formData: FormData) {
   // Validate form fields
   const validatedFields = SignupFormSchema.safeParse({
     name: formData.get('name'),
@@ -181,7 +181,7 @@ export async function signup(state: FormState, formData) {
 ```js filename="app/actions/auth.js" switcher
 import { SignupFormSchema } from '@/app/lib/definitions'
 
-export async function signup(formData: FormData) {
+export async function signup(state, formData) {
   // Validate form fields
   const validatedFields = SignupFormSchema.safeParse({
     name: formData.get('name'),
@@ -200,16 +200,16 @@ export async function signup(formData: FormData) {
 }
 ```
 
-Back in your `<SignupForm />`, you can use React's `useFormState()` hook to display validation errors to the user:
+Back in your `<SignupForm />`, you can use React's `useActionState()` hook to display validation errors and a pending state while the form is submitting:
 
-```tsx filename="app/ui/signup-form.tsx" switcher highlight={7,15,21,27-36}
+```tsx filename="app/ui/signup-form.tsx" switcher highlight={7,15,21,27-39}
 'use client'
 
-import { useFormState } from 'react-dom'
+import { useActionState } from 'react'
 import { signup } from '@/app/actions/auth'
 
 export function SignupForm() {
-  const [state, action] = useFormState(signup, undefined)
+  const [state, action, pending] = useActionState(signup, undefined)
 
   return (
     <form action={action}>
@@ -239,20 +239,22 @@ export function SignupForm() {
           </ul>
         </div>
       )}
-      <SignupButton />
+      <button aria-disabled={pending} type="submit">
+        {pending ? 'Submitting...' : 'Sign up'}
+      </button>
     </form>
   )
 }
 ```
 
-```jsx filename="app/ui/signup-form.js" switcher highlight={7,15,21,27-36}
+```jsx filename="app/ui/signup-form.js" switcher highlight={7,15,21,27-39}
 'use client'
 
-import { useFormState } from 'react-dom'
+import { useActionState } from 'react'
 import { signup } from '@/app/actions/auth'
 
 export function SignupForm() {
-  const [state, action] = useFormState(signup, undefined)
+  const [state, action, pending] = useActionState(signup, undefined)
 
   return (
     <form action={action}>
@@ -282,47 +284,15 @@ export function SignupForm() {
           </ul>
         </div>
       )}
-      <SignupButton />
+      <button aria-disabled={pending} type="submit">
+        {pending ? 'Submitting...' : 'Sign up'}
+      </button>
     </form>
   )
 }
 ```
 
-You can also use the `useFormStatus()` hook to handle the pending state on form submission:
-
-```tsx filename="app/ui/signup-form.tsx" highlight={7} switcher
-'use client'
-
-import { useFormStatus, useFormState } from 'react-dom'
-
-export function SignupButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button aria-disabled={pending} type="submit">
-      {pending ? 'Submitting...' : 'Sign up'}
-    </button>
-  )
-}
-```
-
-```jsx filename="app/ui/signup-form.js"  highlight={7} switcher
-'use client'
-
-import { useFormStatus, useFormState } from 'react-dom'
-
-export function SignupButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button aria-disabled={pending} type="submit">
-      {pending ? 'Submitting...' : 'Sign up'}
-    </button>
-  )
-}
-```
-
-> **Good to know:** `useFormStatus()` must be called from a component that is rendered inside a `<form>`. See the [React Docs](https://react.dev/reference/react-dom/hooks/useFormStatus#usage) for more information.
+> **Good to know:** Alternatively, you can use the [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to display the pending state.
 
 #### 3. Create a user or check user credentials
 
@@ -497,7 +467,7 @@ The form above has two input fields for capturing the user's email and password.
 You can then call your Authentication Provider's API in the API route to handle authentication:
 
 ```ts filename="pages/api/auth/login.ts" switcher
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import { signIn } from '@/auth'
 
 export default async function handler(
@@ -744,6 +714,7 @@ You can also extend the session's expiration time. This is useful for keeping th
 ```ts filename="app/lib/session.ts" switcher
 import 'server-only'
 import { cookies } from 'next/headers'
+import { decrypt } from '@/app/lib/session'
 
 export async function updateSession() {
   const session = cookies().get('session')?.value
@@ -767,8 +738,9 @@ export async function updateSession() {
 ```js filename="app/lib/session.js" switcher
 import 'server-only'
 import { cookies } from 'next/headers'
+import { decrypt } from '@/app/lib/session'
 
-eexport async function updateSession() {
+export async function updateSession() {
   const session = cookies().get('session').value
   const payload = await decrypt(session)
 
@@ -844,6 +816,7 @@ You can use [API Routes](/docs/pages/building-your-application/routing/api-route
 ```ts filename="pages/api/login.ts" switcher
 import { serialize } from 'cookie'
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { encrypt } from '@/app/lib/session'
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const sessionData = req.body
@@ -862,6 +835,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
 ```js filename="pages/api/login.js" switcher
 import { serialize } from 'cookie'
+import { encrypt } from '@/app/lib/session'
 
 export default function handler(req, res) {
   const sessionData = req.body
@@ -895,6 +869,7 @@ For example:
 ```ts filename="app/lib/session.ts" switcher
 import cookies from 'next/headers'
 import { db } from '@/app/lib/db'
+import { encrypt } from '@/app/lib/session'
 
 export async function createSession(id: number) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -928,6 +903,7 @@ export async function createSession(id: number) {
 ```js filename="app/lib/session.js" switcher
 import cookies from 'next/headers'
 import { db } from '@/app/lib/db'
+import { encrypt } from '@/app/lib/session'
 
 export async function createSession(id) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -973,7 +949,7 @@ After implementing session management, you'll need to add authorization logic to
 
 ```ts filename="pages/api/create-session.ts" switcher
 import db from '../../lib/db'
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 
 export default async function handler(
   req: NextApiRequest,
@@ -1358,7 +1334,7 @@ In the example, we use the `verifySession()` function from our DAL to check for 
 
 ### Layouts and auth checks
 
-Due to [Partial Rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), be cautious when doing checks in [Layouts](/docs/app/building-your-application/routing/pages-and-layouts) as these don't re-render on navigation, meaning the user session won't be checked on every route change.
+Due to [Partial Rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), be cautious when doing checks in [Layouts](/docs/app/building-your-application/routing/layouts-and-templates) as these don't re-render on navigation, meaning the user session won't be checked on every route change.
 
 Instead, you should do the checks close to your data source or the component that'll be conditionally rendered.
 
@@ -1526,20 +1502,6 @@ export default function RootLayout({ children }) {
 }
 ```
 
-```tsx filename="app/layout.ts" switcher
-import { ContextProvider } from 'auth-lib'
-
-export default function RootLayout({ children }) {
-  return (
-    <html lang="en">
-      <body>
-        <ContextProvider>{children}</ContextProvider>
-      </body>
-    </html>
-  )
-}
-```
-
 ```tsx filename="app/ui/profile.ts switcher
 "use client";
 
@@ -1656,6 +1618,7 @@ Now that you've learned about authentication in Next.js, here are Next.js-compat
 - [NextAuth.js](https://authjs.dev/getting-started/installation?framework=next.js)
 - [Supabase](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 - [Stytch](https://stytch.com/docs/guides/quickstarts/nextjs)
+- [WorkOS](https://workos.com/docs/user-management)
 
 ### Session Management Libraries
 

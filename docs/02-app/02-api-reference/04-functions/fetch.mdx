@@ -3,9 +3,9 @@ title: fetch
 description: API reference for the extended fetch function.
 ---
 
-Next.js extends the native [Web `fetch()` API](https://developer.mozilla.org/docs/Web/API/Fetch_API) to allow each request on the server to set its own persistent caching semantics.
+Next.js extends the native [Web `fetch()` API](https://developer.mozilla.org/docs/Web/API/Fetch_API) to allow each request on the server to set its own persistent caching and revalidation semantics.
 
-In the browser, the `cache` option indicates how a fetch request will interact with the _browser's_ HTTP cache. With this extension, `cache` indicates how a _server-side_ fetch request will interact with the framework's persistent HTTP cache.
+In the browser, the `cache` option indicates how a fetch request will interact with the _browser's_ HTTP cache. With this extension, `cache` indicates how a _server-side_ fetch request will interact with the framework's persistent [Data Cache](/docs/app/building-your-application/caching#data-cache).
 
 You can call `fetch` with `async` and `await` directly within Server Components.
 
@@ -63,15 +63,12 @@ Configure how the request should interact with Next.js [Data Cache](/docs/app/bu
 fetch(`https://...`, { cache: 'force-cache' | 'no-store' })
 ```
 
-- **`force-cache`** (default) - Next.js looks for a matching request in its Data Cache.
+- **`no-store`** (default): Next.js fetches the resource from the remote server on every request without looking in the cache, and it will not update the cache with the downloaded resource.
+- **`force-cache`**: Next.js looks for a matching request in its Data Cache.
   - If there is a match and it is fresh, it will be returned from the cache.
   - If there is no match or a stale match, Next.js will fetch the resource from the remote server and update the cache with the downloaded resource.
-- **`no-store`** - Next.js fetches the resource from the remote server on every request without looking in the cache, and it will not update the cache with the downloaded resource.
 
-> **Good to know**:
->
-> - If you don't provide a `cache` option, Next.js will default to `force-cache`, unless a [dynamic function](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions) such as `cookies()` is used, in which case it will default to `no-store`.
-> - The `no-cache` option behaves the same way as `no-store` in Next.js.
+> **Good to know**: The `no-cache` option behaves the same way as `no-store` in Next.js.
 
 ### `options.next.revalidate`
 
@@ -89,8 +86,8 @@ Set the cache lifetime of a resource (in seconds).
 >
 > - If an individual `fetch()` request sets a `revalidate` number lower than the [default `revalidate`](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) of a route, the whole route revalidation interval will be decreased.
 > - If two fetch requests with the same URL in the same route have different `revalidate` values, the lower value will be used.
-> - As a convenience, it is not necessary to set the `cache` option if `revalidate` is set to a number since `0` implies `cache: 'no-store'` and a positive value implies `cache: 'force-cache'`.
-> - Conflicting options such as `{ revalidate: 0, cache: 'force-cache' }` or `{ revalidate: 10, cache: 'no-store' }` will cause an error.
+> - As a convenience, it is not necessary to set the `cache` option if `revalidate` is set to a number.
+> - Conflicting options such as `{ revalidate: 3600, cache: 'no-store' }` will cause an error.
 
 ### `options.next.tags`
 
@@ -102,6 +99,7 @@ Set the cache tags of a resource. Data can then be revalidated on-demand using [
 
 ## Version History
 
-| Version   | Changes             |
-| --------- | ------------------- |
-| `v13.0.0` | `fetch` introduced. |
+| Version   | Changes                                                                 |
+| --------- | ----------------------------------------------------------------------- |
+| `v15.0.0` | Default `cache` option was changed from `'force-cache'` to `'no-store'` |
+| `v13.0.0` | `fetch` introduced.                                                     |

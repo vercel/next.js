@@ -35,23 +35,23 @@ describe('createInitialRouterState', () => {
 
     const state = createInitialRouterState({
       buildId,
-      initialTree,
+      initialFlightData: [
+        [initialTree, ['', {}, children, null], <title>Test</title>],
+      ],
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children, null],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
-      initialHead: <title>Test</title>,
       couldBeIntercepted: false,
     })
 
     const state2 = createInitialRouterState({
       buildId,
-      initialTree,
+      initialFlightData: [
+        [initialTree, ['', {}, children, null], <title>Test</title>],
+      ],
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children, null],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
-      initialHead: <title>Test</title>,
     })
 
     const expectedCache: CacheNode = {
@@ -60,7 +60,6 @@ describe('createInitialRouterState', () => {
       prefetchRsc: null,
       head: null,
       prefetchHead: null,
-      lazyDataResolved: false,
       loading: null,
       parallelRoutes: new Map([
         [
@@ -83,7 +82,6 @@ describe('createInitialRouterState', () => {
                           loading: null,
                           head: <title>Test</title>,
                           prefetchHead: null,
-                          lazyDataResolved: false,
                         },
                       ],
                     ]),
@@ -94,7 +92,6 @@ describe('createInitialRouterState', () => {
                 prefetchRsc: null,
                 head: null,
                 prefetchHead: null,
-                lazyDataResolved: false,
                 loading: null,
               },
             ],

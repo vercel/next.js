@@ -176,9 +176,7 @@ export async function writeConfigurationDefaults(
           cyan(optionKey) +
             ' was set to ' +
             bold(check.suggested) +
-            check.reason
-            ? ` (${check.reason})`
-            : ''
+            (check.reason ? ` (${check.reason})` : '')
         )
       }
     } else if ('value' in check) {
@@ -187,8 +185,8 @@ export async function writeConfigurationDefaults(
         !('parsedValues' in check
           ? check.parsedValues?.includes(ev)
           : 'parsedValue' in check
-          ? check.parsedValue === ev
-          : check.value === ev)
+            ? check.parsedValue === ev
+            : check.value === ev)
       ) {
         if (!userTsConfig.compilerOptions) {
           userTsConfig.compilerOptions = {}
@@ -223,10 +221,33 @@ export async function writeConfigurationDefaults(
         )
     )
   } else if (hasAppDir && !rawConfig.include.includes(nextAppTypes)) {
-    userTsConfig.include.push(nextAppTypes)
-    suggestedActions.push(
-      cyan('include') + ' was updated to add ' + bold(`'${nextAppTypes}'`)
-    )
+    if (!Array.isArray(userTsConfig.include)) {
+      userTsConfig.include = []
+    }
+    // rawConfig will resolve all extends and include paths (ex: tsconfig.json, tsconfig.base.json, etc.)
+    // if it doesn't match userTsConfig then update the userTsConfig to add the
+    // rawConfig's includes in addition to nextAppTypes
+    if (
+      rawConfig.include.length !== userTsConfig.include.length ||
+      JSON.stringify(rawConfig.include.sort()) !==
+        JSON.stringify(userTsConfig.include.sort())
+    ) {
+      userTsConfig.include.push(...rawConfig.include, nextAppTypes)
+      suggestedActions.push(
+        cyan('include') +
+          ' was set to ' +
+          bold(
+            `[${[...rawConfig.include, nextAppTypes]
+              .map((i) => `'${i}'`)
+              .join(', ')}]`
+          )
+      )
+    } else {
+      userTsConfig.include.push(nextAppTypes)
+      suggestedActions.push(
+        cyan('include') + ' was updated to add ' + bold(`'${nextAppTypes}'`)
+      )
+    }
   }
 
   // Enable the Next.js typescript plugin.
@@ -270,14 +291,13 @@ export async function writeConfigurationDefaults(
       )
     }
 
-    // If `strict` is set to `false` or `strictNullChecks` is set to `false`,
+    // If `strict` is set to `false` and `strictNullChecks` is set to `false`,
     // then set `strictNullChecks` to `true`.
     if (
       hasPagesDir &&
       hasAppDir &&
-      userTsConfig.compilerOptions &&
-      !userTsConfig.compilerOptions.strict &&
-      !('strictNullChecks' in userTsConfig.compilerOptions)
+      !tsOptions.strict &&
+      !('strictNullChecks' in tsOptions)
     ) {
       userTsConfig.compilerOptions.strictNullChecks = true
       suggestedActions.push(
@@ -315,8 +335,13 @@ export async function writeConfigurationDefaults(
   Log.info(
     `We detected TypeScript in your project and reconfigured your ${cyan(
       'tsconfig.json'
-    )} file for you. Strict-mode is set to ${cyan('false')} by default.`
+    )} file for you.${
+      userTsConfig.compilerOptions?.strict
+        ? ''
+        : ` Strict-mode is set to ${cyan('false')} by default.`
+    }`
   )
+
   if (suggestedActions.length) {
     Log.info(
       `The following suggested values were added to your ${cyan(

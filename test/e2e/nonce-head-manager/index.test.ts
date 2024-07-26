@@ -44,6 +44,13 @@ describe('nonce head manager', () => {
         await browser.eval(`JSON.stringify(window.scriptExecutionIds)`),
       '["src-1.js","src-2.js"]'
     )
+
+    await browser.elementByCss('#change-script').click()
+    await check(
+      async () =>
+        await browser.eval(`JSON.stringify(window.scriptExecutionIds)`),
+      '["src-1.js","src-2.js","src-1.js"]'
+    )
   }
 
   it('should not re-execute the script when re-rendering', async () => {

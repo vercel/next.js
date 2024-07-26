@@ -9,10 +9,6 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { COMPILER_NAMES } from '../../shared/lib/constants'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 
-export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
-  consoleStore.setState({ appUrl, bindAddr })
-}
-
 type CompilerDiagnostics = {
   totalModulesCount: number
   errors: string[] | null

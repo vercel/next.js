@@ -242,6 +242,9 @@ async function postProcessHTML(
             publicPath: `${renderOpts.assetPrefix}/_next/`,
             preload: 'media',
             fonts: false,
+            logLevel:
+              process.env.CRITTERS_LOG_LEVEL ||
+              (process.env.NODE_ENV === 'production' ? 'warn' : 'info'),
             ...renderOpts.optimizeCss,
           })
           return await cssOptimizer.process(html)

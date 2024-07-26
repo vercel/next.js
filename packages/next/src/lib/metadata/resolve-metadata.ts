@@ -37,6 +37,7 @@ import {
   resolveThemeColor,
   resolveVerification,
   resolveItunes,
+  resolveFacebook,
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
 import { getTracer } from '../../server/lib/trace/tracer'
@@ -56,7 +57,7 @@ type ViewportResolver = (
 export type MetadataItems = [
   Metadata | MetadataResolver | null,
   StaticMetadata,
-  Viewport | ViewportResolver | null
+  Viewport | ViewportResolver | null,
 ][]
 
 type TitleTemplates = {
@@ -120,6 +121,7 @@ function mergeStaticMetadata(
     const resolvedTwitter = resolveTwitter(
       { ...target.twitter, images: twitter } as Twitter,
       target.metadataBase,
+      metadataContext,
       titleTemplates.twitter
     )
     target.twitter = resolvedTwitter
@@ -192,10 +194,15 @@ function mergeMetadata({
         target.twitter = resolveTwitter(
           source.twitter,
           metadataBase,
+          metadataContext,
           titleTemplates.twitter
         )
         break
       }
+      case 'facebook':
+        target.facebook = resolveFacebook(source.facebook)
+        break
+
       case 'verification':
         target.verification = resolveVerification(source.verification)
         break
@@ -566,7 +573,8 @@ function inheritFromMetadata(
 const commonOgKeys = ['title', 'description', 'images'] as const
 function postProcessMetadata(
   metadata: ResolvedMetadata,
-  titleTemplates: TitleTemplates
+  titleTemplates: TitleTemplates,
+  metadataContext: MetadataContext
 ): ResolvedMetadata {
   const { openGraph, twitter } = metadata
 
@@ -599,6 +607,7 @@ function postProcessMetadata(
       const partialTwitter = resolveTwitter(
         autoFillProps,
         metadata.metadataBase,
+        metadataContext,
         titleTemplates.twitter
       )
       if (metadata.twitter) {
@@ -778,7 +787,7 @@ export async function accumulateMetadata(
     }
   }
 
-  return postProcessMetadata(resolvedMetadata, titleTemplates)
+  return postProcessMetadata(resolvedMetadata, titleTemplates, metadataContext)
 }
 
 export async function accumulateViewport(

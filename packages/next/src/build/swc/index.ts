@@ -16,9 +16,14 @@ import type {
   TurboRuleConfigItemOptions,
 } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
-import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
-import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
+import {
+  type DefineEnvPluginOptions,
+  getDefineEnv,
+} from '../webpack/plugins/define-env-plugin'
 import type { PageExtensions } from '../page-extensions-type'
+import type { __ApiPreviewProps } from '../../server/api-utils'
+import { getReactCompilerLoader } from '../get-babel-loader-config'
+import { TurbopackInternalError } from '../../server/dev/turbopack-utils'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -96,9 +101,9 @@ const triples = (() => {
 })()
 
 // Allow to specify an absolute path to the custom turbopack binary to load.
-// If one of env variables is set, `loadNative` will try to use any turbo-* interfaces from specified
-// binary instead. This will not affect existing swc's transform, or other interfaces. This is thin,
-// naive interface - `loadBindings` will not validate neither path nor the binary.
+// If one of env variables is set, `loadNative` will try to use specified
+// binary instead. This is thin, naive interface
+// - `loadBindings` will not validate neither path nor the binary.
 //
 // Note these are internal flag: there's no stability, feature guarantee.
 const __INTERNAL_CUSTOM_TURBOPACK_BINDINGS =
@@ -137,7 +142,7 @@ let lastNativeBindingsLoadErrorCode:
   | 'unsupported_target'
   | string
   | undefined = undefined
-let nativeBindings: any
+let nativeBindings: Binding
 let wasmBindings: any
 let downloadWasmPromise: any
 let pendingBindings: any
@@ -157,21 +162,21 @@ export interface Binding {
       stream: any
       get: any
     }
-    mdx: {
-      compile: any
-      compileSync: any
-    }
     createProject: (
       options: ProjectOptions,
       turboEngineOptions?: TurboEngineOptions
     ) => Promise<Project>
+    startTurbopackTraceServer: (path: string) => void
+  }
+  mdx: {
+    compile: any
+    compileSync: any
   }
   minify: any
   minifySync: any
   transform: any
   transformSync: any
   parse: any
-  parseSync: any
 
   getTargetTriple(): string | undefined
 
@@ -273,6 +278,14 @@ export async function loadBindings(
       attempts = attempts.concat(a)
     }
 
+    // For these platforms we already tried to load wasm and failed, skip reattempt
+    if (!shouldLoadWasmFallbackFirst && !disableWasmFallback) {
+      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
+      if (fallbackBindings) {
+        return resolve(fallbackBindings)
+      }
+    }
+
     logLoadFailure(attempts, true)
   })
   return pendingBindings
@@ -328,7 +341,7 @@ async function tryLoadWasmWithFallback(attempts: any) {
       downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory)
     }
     await downloadWasmPromise
-    let bindings = await loadWasm(pathToFileURL(wasmDirectory).href)
+    let bindings = await loadWasm(wasmDirectory)
     // @ts-expect-error TODO: this event has a wrong type.
     eventSwcLoadFailure({
       wasm: 'fallback',
@@ -387,7 +400,6 @@ function logLoadFailure(attempts: any, triedWasm = false) {
       process.exit(1)
     })
 }
-
 export interface ProjectOptions {
   /**
    * A root path from which all files must be nested under. Trying to access
@@ -432,6 +444,21 @@ export interface ProjectOptions {
    * The mode in which Next.js is running.
    */
   dev: boolean
+
+  /**
+   * The server actions encryption key.
+   */
+  encryptionKey: string
+
+  /**
+   * The build id.
+   */
+  buildId: string
+
+  /**
+   * Options for draft mode.
+   */
+  previewProps: __ApiPreviewProps
 }
 
 type RustifiedEnv = { name: string; value: string }[]
@@ -651,6 +678,8 @@ export interface Project {
   updateInfoSubscribe(
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+
+  onExit(): Promise<void>
 }
 
 export type Route =
@@ -752,7 +781,10 @@ function rustifyEnv(env: Record<string, string>): RustifiedEnv {
 }
 
 // TODO(sokra) Support wasm option.
-function bindingToApi(binding: any, _wasm: boolean) {
+function bindingToApi(
+  binding: any,
+  _wasm: boolean
+): Binding['turbo']['createProject'] {
   type NativeFunction<T> = (
     callback: (err: Error, value: T) => void
   ) => Promise<{ __napiType: 'RootTask' }>
@@ -773,7 +805,9 @@ function bindingToApi(binding: any, _wasm: boolean) {
     try {
       return await fn()
     } catch (nativeError: any) {
-      throw new Error(nativeError.message, { cause: nativeError })
+      throw new TurbopackInternalError(nativeError.message, {
+        cause: nativeError,
+      })
     }
   }
 
@@ -1059,6 +1093,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
       )
       return subscription
     }
+
+    onExit(): Promise<void> {
+      return binding.projectOnExit(this._nativeProject)
+    }
   }
 
   class EndpointImpl implements Endpoint {
@@ -1104,12 +1142,69 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
   }
 
+  /**
+   * Returns a new copy of next.js config object to avoid mutating the original.
+   *
+   * Also it does some augmentation to the configuration as well, for example set the
+   * turbopack's rules if `experimental.reactCompilerOptions` is set.
+   */
+  function augmentNextConfig(
+    originalNextConfig: NextConfigComplete,
+    projectPath: string
+  ): Record<string, any> {
+    let nextConfig = { ...(originalNextConfig as any) }
+
+    const reactCompilerOptions = nextConfig.experimental?.reactCompiler
+
+    // It is not easy to set the rules inside of rust as resolving, and passing the context identical to the webpack
+    // config is bit hard, also we can reuse same codes between webpack config in here.
+    if (reactCompilerOptions) {
+      const ruleKeys = ['*.ts', '*.js', '*.jsx', '*.tsx']
+      if (
+        Object.keys(nextConfig?.experimental?.turbo?.rules ?? []).some((key) =>
+          ruleKeys.includes(key)
+        )
+      ) {
+        Log.warn(
+          `The React Compiler cannot be enabled automatically because 'experimental.turbo' contains a rule for '*.ts', '*.js', '*.jsx', and '*.tsx'. Remove this rule, or add 'babel-loader' and 'babel-plugin-react-compiler' to the Turbopack configuration manually.`
+        )
+      } else {
+        if (!nextConfig.experimental.turbo) {
+          nextConfig.experimental.turbo = {}
+        }
+
+        if (!nextConfig.experimental.turbo.rules) {
+          nextConfig.experimental.turbo.rules = {}
+        }
+
+        for (const key of ['*.ts', '*.js', '*.jsx', '*.tsx']) {
+          nextConfig.experimental.turbo.rules[key] = {
+            browser: {
+              foreign: false,
+              loaders: [
+                getReactCompilerLoader(
+                  originalNextConfig.experimental.reactCompiler,
+                  projectPath,
+                  nextConfig.dev,
+                  false,
+                  undefined
+                ),
+              ],
+            },
+          }
+        }
+      }
+    }
+
+    return nextConfig
+  }
+
   async function serializeNextConfig(
     nextConfig: NextConfigComplete,
     projectPath: string
   ): Promise<string> {
     // Avoid mutating the existing `nextConfig` object.
-    let nextConfigSerializable = { ...(nextConfig as any) }
+    let nextConfigSerializable = augmentNextConfig(nextConfig, projectPath)
 
     nextConfigSerializable.generateBuildId =
       await nextConfig.generateBuildId?.()
@@ -1118,8 +1213,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
     nextConfigSerializable.exportPathMap = {}
     nextConfigSerializable.webpack = nextConfig.webpack && {}
 
-    if (nextConfig.experimental?.turbo?.rules) {
-      ensureLoadersHaveSerializableOptions(nextConfig.experimental.turbo?.rules)
+    if (nextConfigSerializable.experimental?.turbo?.rules) {
+      ensureLoadersHaveSerializableOptions(
+        nextConfigSerializable.experimental.turbo?.rules
+      )
     }
 
     nextConfigSerializable.modularizeImports =
@@ -1194,10 +1291,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
   }
 
-  async function createProject(
-    options: ProjectOptions,
-    turboEngineOptions: TurboEngineOptions
-  ) {
+  const createProject: Binding['turbo']['createProject'] = async (
+    options,
+    turboEngineOptions
+  ) => {
     return new ProjectImpl(
       await binding.projectNew(
         await rustifyProjectOptions(options),
@@ -1254,9 +1351,6 @@ async function loadWasm(importPath = '') {
           return bindings?.parse
             ? bindings.parse(src.toString(), options)
             : Promise.resolve(bindings.parseSync(src.toString(), options))
-        },
-        parseSync(src: string, options: any) {
-          return bindings.parseSync(src.toString(), options)
         },
         getTargetTriple() {
           return undefined
@@ -1329,15 +1423,31 @@ function loadNative(importPath?: string) {
   const customBindings = !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
     ? require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS)
     : null
-  let bindings: any
+  let bindings: any = customBindings
   let attempts: any[] = []
 
+  const NEXT_TEST_NATIVE_DIR = process.env.NEXT_TEST_NATIVE_DIR
   for (const triple of triples) {
-    try {
-      bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
-      infoLog('next-swc build: local built @next/swc')
-      break
-    } catch (e) {}
+    if (NEXT_TEST_NATIVE_DIR) {
+      try {
+        // Use the binary directly to skip `pnpm pack` for testing as it's slow because of the large native binary.
+        bindings = require(
+          `${NEXT_TEST_NATIVE_DIR}/next-swc.${triple.platformArchABI}.node`
+        )
+        infoLog(
+          'next-swc build: local built @next/swc from NEXT_TEST_NATIVE_DIR'
+        )
+        break
+      } catch (e) {}
+    } else {
+      try {
+        bindings = require(
+          `@next/swc/native/next-swc.${triple.platformArchABI}.node`
+        )
+        infoLog('next-swc build: local built @next/swc')
+        break
+      } catch (e) {}
+    }
   }
 
   if (!bindings) {
@@ -1471,6 +1581,12 @@ function loadNative(importPath?: string) {
           },
         },
         createProject: bindingToApi(customBindings ?? bindings, false),
+        startTurbopackTraceServer: (traceFilePath) => {
+          Log.warn(
+            'Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/'
+          )
+          ;(customBindings ?? bindings).startTurbopackTraceServer(traceFilePath)
+        },
       },
       mdx: {
         compile: (src: string, options: any) =>
@@ -1500,10 +1616,7 @@ function getMdxOptions(options: any = {}) {
     ...options,
     development: options.development ?? false,
     jsx: options.jsx ?? false,
-    parse: options.parse ?? {
-      gfmStrikethroughSingleTilde: true,
-      mathTextSingleDollar: true,
-    },
+    mdxType: options.mdxType ?? 'commonMark',
   }
 }
 

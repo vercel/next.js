@@ -86,6 +86,7 @@ export default function cloudfrontLoader({ src, width, quality }) {
   url.searchParams.set('width', width.toString())
   url.searchParams.set('quality', (quality || 75).toString())
   return url.href
+}
 ```
 
 ### Cloudinary
@@ -101,7 +102,7 @@ export default function cloudinaryLoader({ src, width, quality }) {
 ### Cloudflare
 
 ```js
-// Docs: https://developers.cloudflare.com/images/url-format
+// Docs: https://developers.cloudflare.com/images/transform-images
 export default function cloudflareLoader({ src, width, quality }) {
   const params = [`width=${width}`, `quality=${quality || 75}`, 'format=auto']
   return `https://example.com/cdn-cgi/image/${params.join(',')}/${src}`
