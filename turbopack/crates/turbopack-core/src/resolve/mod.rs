@@ -13,8 +13,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{
-    util::{normalize_path, normalize_request},
-    FileSystemEntryType, FileSystemPath, RealPathResult,
+    util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
 };
 
 use self::{
@@ -2609,7 +2608,7 @@ async fn handle_exports_imports_field(
     let req = Pattern::Constant(format!("{}{}", path, query_str).into());
     let values = exports_imports_field
         .lookup(&req)
-        .map(AliasMatch::try_into_self)
+        .map(|m| m.try_into_self())
         .collect::<Result<Vec<_>>>()?;
 
     for value in values.iter() {
@@ -2625,9 +2624,10 @@ async fn handle_exports_imports_field(
 
     let mut resolved_results = Vec::new();
     for (result_path, conditions) in results {
-        if let Some(result_path) = normalize_path(result_path) {
-            let request =
-                Request::parse(Value::new(RcStr::from(format!("./{}", result_path)).into()));
+        if let Some(result_path) = result_path.with_normalized_path() {
+            let request = Request::parse(Value::new(
+                Pattern::Concatenation(vec![Pattern::Constant("./{}".into()), result_path]).into(),
+            ));
             let resolve_result = resolve_internal_boxed(package_path, request, options).await?;
             if conditions.is_empty() {
                 resolved_results.push(resolve_result.with_request(path.into()));

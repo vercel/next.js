@@ -60,27 +60,57 @@ pub enum SubpathValue {
     Excluded,
 }
 
+/// The result an "exports"/"imports" field describes. Can represent multiple
+/// alternatives, conditional result, ignored result (null mapping) and a plain
+/// result.
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+pub enum SubpathValueResult {
+    /// Alternative subpaths, defined with `"path": ["other1", "other2"]`,
+    /// allows for specifying multiple possible remappings to be tried. This
+    /// may be that conditions didn't match, or that a particular path
+    /// wasn't found.
+    Alternatives(Vec<SubpathValueResult>),
+
+    /// Conditional subpaths, defined with `"path": { "condition": "other"}`,
+    /// allow remapping based on certain predefined conditions. Eg, if using
+    /// ESM import syntax, the `import` condition allows you to remap to a
+    /// file that uses ESM syntax.
+    /// Node defines several conditions in https://nodejs.org/api/packages.html#conditional-exports
+    /// TODO: Should this use an enum of predefined keys?
+    Conditional(Vec<(RcStr, SubpathValueResult)>),
+
+    /// A result subpath, defined with `"path": "other"`, remaps imports of
+    /// `path` to `other`.
+    Result(Pattern),
+
+    /// An excluded subpath, defined with `"path": null`, prevents importing
+    /// this subpath.
+    Excluded,
+}
+
 impl AliasTemplate for SubpathValue {
-    type Output<'a> = Result<Self> where Self: 'a;
+    type Output<'a> = Result<SubpathValueResult> where Self: 'a;
 
     fn convert<'a>(&'a self) -> Self::Output<'a> {
         todo!()
     }
 
-    fn replace(&self, capture: &Pattern) -> Result<Self> {
+    fn replace(&self, capture: &Pattern) -> Result<SubpathValueResult> {
         Ok(match self {
-            SubpathValue::Alternatives(list) => SubpathValue::Alternatives(
+            SubpathValue::Alternatives(list) => SubpathValueResult::Alternatives(
                 list.iter()
                     .map(|value: &SubpathValue| value.replace(capture))
                     .collect::<Result<Vec<_>>>()?,
             ),
-            SubpathValue::Conditional(list) => SubpathValue::Conditional(
+            SubpathValue::Conditional(list) => SubpathValueResult::Conditional(
                 list.iter()
                     .map(|(condition, value)| Ok((condition.clone(), value.replace(capture)?)))
                     .collect::<Result<Vec<_>>>()?,
             ),
-            SubpathValue::Result(value) => SubpathValue::Result(value.replace('*', capture).into()),
-            SubpathValue::Excluded => SubpathValue::Excluded,
+            SubpathValue::Result(value) => {
+                SubpathValueResult::Result(capture.spread_into_star(value))
+            }
+            SubpathValue::Excluded => SubpathValueResult::Excluded,
         })
     }
 }
@@ -203,6 +233,121 @@ impl SubpathValue {
             )),
         }
     }
+}
+
+impl SubpathValueResult {
+    /// Walks the [SubpathValueResult] and adds results to the `target` vector.
+    /// It uses the `conditions` to skip or enter conditional results.
+    /// The state of conditions is stored within `condition_overrides`, which is
+    /// also exposed to the consumer.
+    pub fn add_results<'a>(
+        &'a self,
+        conditions: &BTreeMap<RcStr, ConditionValue>,
+        unspecified_condition: &ConditionValue,
+        condition_overrides: &mut HashMap<&'a str, ConditionValue>,
+        target: &mut Vec<(&'a Pattern, Vec<(&'a str, bool)>)>,
+    ) -> bool {
+        match self {
+            SubpathValueResult::Alternatives(list) => {
+                for value in list {
+                    if value.add_results(
+                        conditions,
+                        unspecified_condition,
+                        condition_overrides,
+                        target,
+                    ) {
+                        return true;
+                    }
+                }
+                false
+            }
+            SubpathValueResult::Conditional(list) => {
+                for (condition, value) in list {
+                    let condition_value = if condition == "default" {
+                        &ConditionValue::Set
+                    } else {
+                        condition_overrides
+                            .get(condition.as_str())
+                            .or_else(|| conditions.get(condition))
+                            .unwrap_or(unspecified_condition)
+                    };
+                    match condition_value {
+                        ConditionValue::Set => {
+                            if value.add_results(
+                                conditions,
+                                unspecified_condition,
+                                condition_overrides,
+                                target,
+                            ) {
+                                return true;
+                            }
+                        }
+                        ConditionValue::Unset => {}
+                        ConditionValue::Unknown => {
+                            condition_overrides.insert(condition, ConditionValue::Set);
+                            if value.add_results(
+                                conditions,
+                                unspecified_condition,
+                                condition_overrides,
+                                target,
+                            ) {
+                                condition_overrides.insert(condition, ConditionValue::Unset);
+                            } else {
+                                condition_overrides.remove(condition.as_str());
+                            }
+                        }
+                    }
+                }
+                false
+            }
+            SubpathValueResult::Result(r) => {
+                target.push((
+                    r,
+                    condition_overrides
+                        .iter()
+                        .filter_map(|(k, v)| match v {
+                            ConditionValue::Set => Some((*k, true)),
+                            ConditionValue::Unset => Some((*k, false)),
+                            ConditionValue::Unknown => None,
+                        })
+                        .collect(),
+                ));
+                true
+            }
+            SubpathValueResult::Excluded => true,
+        }
+    }
+
+    // fn try_new(value: &Value, ty: ExportImport) -> Result<Self> {
+    //     match value {
+    //         Value::Null => Ok(SubpathValue::Excluded),
+    //         Value::String(s) => Ok(SubpathValue::Result(s.as_str().into())),
+    //         Value::Number(_) => bail!("numeric values are invalid in {ty}s field
+    // entries"),         Value::Bool(_) => bail!("boolean values are invalid in
+    // {ty}s field entries"),         Value::Object(object) =>
+    // Ok(SubpathValue::Conditional(             object
+    //                 .iter()
+    //                 .map(|(key, value)| {
+    //                     if key.starts_with('.') {
+    //                         bail!(
+    //                             "invalid key \"{}\" in an {ty} field conditions
+    // object. Did you \                              mean to place this request
+    // at a higher level?",                             key
+    //                         );
+    //                     }
+
+    //                     Ok((key.as_str().into(), SubpathValue::try_new(value,
+    // ty)?))                 })
+    //                 .collect::<Result<Vec<_>>>()?,
+    //         )),
+    //         Value::Array(array) => Ok(SubpathValue::Alternatives(
+    //             array
+    //                 .iter()
+    //                 .map(|value| SubpathValue::try_new(value, ty))
+    //                 .collect::<Result<Vec<_>>>()?,
+    //         )),
+    //     }
+    // }
 }
 
 struct ResultsIterMut<'a> {
