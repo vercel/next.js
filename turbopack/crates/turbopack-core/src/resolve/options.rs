@@ -140,7 +140,35 @@ impl ImportMapping {
 impl AliasTemplate for Vc<ImportMapping> {
     type Output<'a> = Pin<Box<dyn Future<Output = Result<Vc<ReplacedImportMapping>>> + Send + 'a>>;
 
-    fn replace<'a>(&'a self, capture: &'a Pattern) -> Self::Output<'a> {
+    fn convert(&self) -> Self::Output<'_> {
+        Box::pin(async move {
+            let this = &*self.await?;
+            Ok(match this {
+                // _ => ImportMapping::Ignore
+                ImportMapping::External(name, ty) => {
+                    ReplacedImportMapping::External(name.clone(), *ty)
+                }
+                ImportMapping::PrimaryAlternative(name, context) => {
+                    ReplacedImportMapping::PrimaryAlternative((*name).clone().into(), *context)
+                }
+                ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
+                ImportMapping::Ignore => ReplacedImportMapping::Ignore,
+                ImportMapping::Empty => ReplacedImportMapping::Empty,
+                ImportMapping::Alternatives(alternatives) => ReplacedImportMapping::Alternatives(
+                    alternatives
+                        .iter()
+                        .map(|mapping| mapping.convert())
+                        .try_join()
+                        .await?,
+                ),
+                ImportMapping::Dynamic(replacement) => ReplacedImportMapping::Dynamic(*replacement),
+            }
+            .cell())
+        })
+    }
+
+    fn replace<'a>(&'a self, capture: &Pattern) -> Self::Output<'a> {
+        let capture = capture.clone();
         Box::pin(async move {
             let this = &*self.await?;
             Ok(match this {
@@ -161,13 +189,13 @@ impl AliasTemplate for Vc<ImportMapping> {
                         *context,
                     )
                 }
-                ImportMapping::Direct(v) => ReplacedImportMapping::Direct(v.clone()),
+                ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
                 ImportMapping::Ignore => ReplacedImportMapping::Ignore,
                 ImportMapping::Empty => ReplacedImportMapping::Empty,
                 ImportMapping::Alternatives(alternatives) => ReplacedImportMapping::Alternatives(
                     alternatives
                         .iter()
-                        .map(|mapping| mapping.replace(capture))
+                        .map(|mapping| mapping.replace(&capture))
                         .try_join()
                         .await?,
                 ),
@@ -177,10 +205,6 @@ impl AliasTemplate for Vc<ImportMapping> {
             }
             .cell())
         })
-    }
-
-    fn convert<'a>(&'a self) -> Self::Output<'a> {
-        todo!()
     }
 }
 

@@ -694,10 +694,10 @@ pub trait AliasTemplate {
         Self: 'a;
 
     /// Turn `self` into a `Self::Output`
-    fn convert<'a>(&'a self) -> Self::Output<'a>;
+    fn convert(&self) -> Self::Output<'_>;
 
     /// Replaces `capture` within `self`.
-    fn replace<'a>(&'a self, capture: &'a Pattern) -> Self::Output<'a>;
+    fn replace<'a>(&'a self, capture: &Pattern) -> Self::Output<'a>;
 }
 
 #[cfg(test)]
