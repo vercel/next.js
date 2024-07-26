@@ -38,7 +38,7 @@ export async function walkTreeWithFlightRouterState({
   injectedFontPreloadTags,
   rootLayoutIncluded,
   asNotFound,
-  getMetadataReady,
+  metadataOutlet,
   ctx,
   preloadCallbacks,
 }: {
@@ -54,7 +54,7 @@ export async function walkTreeWithFlightRouterState({
   injectedFontPreloadTags: Set<string>
   rootLayoutIncluded: boolean
   asNotFound?: boolean
-  getMetadataReady: () => Promise<void>
+  metadataOutlet: React.ReactNode
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
 }): Promise<FlightDataPath[]> {
@@ -154,7 +154,7 @@ export async function walkTreeWithFlightRouterState({
           // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
           rootLayoutIncluded,
           asNotFound,
-          getMetadataReady,
+          metadataOutlet,
           preloadCallbacks,
         }
       )
@@ -215,7 +215,7 @@ export async function walkTreeWithFlightRouterState({
           injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
           rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           asNotFound,
-          getMetadataReady,
+          metadataOutlet,
           preloadCallbacks,
         })
 
