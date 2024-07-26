@@ -27,6 +27,7 @@ import { isStaticGenEnabled } from '../../server/route-modules/app-route/helpers
 import type { ExperimentalConfig } from '../../server/config-shared'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import type { Params } from '../../client/components/params'
 
 export const enum ExportedAppRouteFiles {
   BODY = 'BODY',
@@ -36,7 +37,7 @@ export const enum ExportedAppRouteFiles {
 export async function exportAppRoute(
   req: MockedRequest,
   res: MockedResponse,
-  params: { [key: string]: string | string[] } | undefined,
+  params: Params | undefined,
   page: string,
   incrementalCache: IncrementalCache | undefined,
   distDir: string,
