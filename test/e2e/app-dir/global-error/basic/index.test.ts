@@ -7,6 +7,7 @@ async function testDev(browser, errorRegex) {
 }
 
 describe('app dir - global error', () => {
+  console.log('debug')
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })

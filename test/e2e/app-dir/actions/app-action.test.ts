@@ -15,6 +15,7 @@ const GENERIC_RSC_ERROR =
   'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
 describe('app-dir action handling', () => {
+  console.log('debug')
   const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
     nextTestSetup({
       files: __dirname,
