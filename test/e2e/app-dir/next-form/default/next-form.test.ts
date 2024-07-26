@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app dir - form', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -53,7 +53,53 @@ describe('app dir - form', () => {
     expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
   })
 
-  it.todo('should not warn for submitters using client/server actions')
+  describe('functions passed to formAction', () => {
+    it.each([
+      {
+        name: 'client action',
+        path: '/forms/with-function/button-formaction-client',
+      },
+      {
+        name: 'server action',
+        path: '/forms/with-function/button-formaction-server',
+      },
+      {
+        name: 'server action (closure)',
+        path: '/forms/with-function/button-formaction-server-closure',
+      },
+    ])(
+      "runs $name from submitter and doesn't warn about unsupported attributes",
+      async ({ path }) => {
+        const session = await next.browser(path)
+
+        const start = Date.now()
+        await session.eval(`window.__MPA_NAV_ID = ${start}`) // actions should not MPA-navigate either.
+
+        const searchInput = await session.elementByCss('input[name="query"]')
+        await searchInput.fill('will not be a search')
+
+        const submitButton = await session.elementByCss('[type="submit"]')
+        await submitButton.click()
+
+        const result = await session
+          .waitForElementByCss('#redirected-results')
+          .text()
+        expect(result).toMatch(/query: "will not be a search"/)
+
+        expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
+
+        if (isNextDev) {
+          const logs = (await session.log()).map((item) => item.message)
+
+          expect(logs).not.toContainEqual(
+            expect.stringMatching(
+              /next\/form's `.+?` was set to an unsupported value/
+            )
+          )
+        }
+      }
+    )
+  })
 
   it.todo(
     'should handle submitter with unsupported form{EncType,Method,Target}'
