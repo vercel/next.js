@@ -33,4 +33,3 @@ export interface InstallTemplateArgs {
   skipInstall: boolean;
   turbo: boolean;
 }
-j
