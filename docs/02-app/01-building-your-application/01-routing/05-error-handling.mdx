@@ -211,7 +211,7 @@ export default function Error({ error, reset }) {
 }
 ```
 
-You can bubble up errors to the next parent error boundary by throwing while rendering the `Error` component.
+If you want errors to bubble up to the parent error boundary, you can `throw` when rendering the `error` component.
 
 ### Handling Errors in Nested Routes
 
