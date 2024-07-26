@@ -480,11 +480,15 @@ const Link = React.forwardRef<HTMLAnchorElement, RealLinksProps>(
     const mergedRef = React.useCallback(
       (el: HTMLAnchorElement) => {
         setIntersectionRef(el)
+        if (childRef) {
+          if (typeof childRef === 'function') childRef(el)
+          else if (typeof childRef === 'object') {
+            childRef.current = el
+          }
+        }
       },
       [childRef, setIntersectionRef]
     )
-
-    const setRef = useMergedRef(setIntersectionWithResetRef, childRef)
 
     // Prefetch the URL if we haven't already and it's visible.
     if (router && isVisible) {
