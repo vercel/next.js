@@ -20,7 +20,7 @@ export interface GetTemplateFileArgs {
 
 export interface InstallTemplateArgs {
   appName: string;
-  api:boolean;
+  api: boolean;
   root: string;
   packageManager: PackageManager;
   isOnline: boolean;
