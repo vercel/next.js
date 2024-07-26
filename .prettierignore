@@ -16,16 +16,16 @@ packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
 
 .github/actions/next-stats-action/.work
 
-packages/next-swc/crates/**/tests/**/output*
-packages/next-swc/crates/core/tests/loader/issue-32553/input.js
+crates/**/tests/**/output*
+crates/core/tests/loader/issue-32553/input.js
 # prettier destroys the directives here
-packages/next-swc/crates/next-custom-transforms/tests/errors/react-server-components/client-graph/use-client/input.js
-packages/next-swc/crates/next-custom-transforms/tests/errors/react-server-components/server-graph/fake-client-entry/input.js
-packages/next-swc/crates/next-custom-transforms/tests/errors/server-actions/server-graph/8/input.js
-packages/next-swc/crates/next-custom-transforms/tests/errors/server-actions/server-graph/9/input.js
-packages/next-swc/crates/next-custom-transforms/tests/fixture/optimize-barrel/normal/4/input.js
-packages/next-swc/crates/next-custom-transforms/tests/fixture/react-server-components/client-graph/client-entry/input.js
-packages/next-swc/crates/next-custom-transforms/tests/fixture/react-server-components/server-graph/client-entry/input.js
+crates/next-custom-transforms/tests/errors/react-server-components/client-graph/use-client/input.js
+crates/next-custom-transforms/tests/errors/react-server-components/server-graph/fake-client-entry/input.js
+crates/next-custom-transforms/tests/errors/server-actions/server-graph/8/input.js
+crates/next-custom-transforms/tests/errors/server-actions/server-graph/9/input.js
+crates/next-custom-transforms/tests/fixture/optimize-barrel/normal/4/input.js
+crates/next-custom-transforms/tests/fixture/react-server-components/client-graph/client-entry/input.js
+crates/next-custom-transforms/tests/fixture/react-server-components/server-graph/client-entry/input.js
 packages/next-swc/native/**/*
 packages/next-swc/docs/assets/**/*
 

@@ -780,6 +780,8 @@ describe('app-dir static/dynamic handling', () => {
           "blog/tim.rsc",
           "blog/tim/first-post.html",
           "blog/tim/first-post.rsc",
+          "default-cache-search-params/page.js",
+          "default-cache-search-params/page_client-reference-manifest.js",
           "default-cache/page.js",
           "default-cache/page_client-reference-manifest.js",
           "dynamic-error/[id]/page.js",
@@ -2089,6 +2091,41 @@ describe('app-dir static/dynamic handling', () => {
       )
     })
 
+    it('should log fetch metrics to the diagnostics directory', async () => {
+      const fetchMetrics = JSON.parse(
+        await next.readFile('.next/diagnostics/fetch-metrics.json')
+      )
+
+      const indexFetchMetrics = fetchMetrics['/']
+
+      expect(indexFetchMetrics).toHaveLength(1)
+      expect(indexFetchMetrics[0]).toMatchObject({
+        url: 'https://next-data-api-endpoint.vercel.app/api/random?page',
+        status: 200,
+        cacheStatus: 'skip',
+        start: expect.any(Number),
+        end: expect.any(Number),
+        cacheReason: 'auto no cache',
+      })
+
+      const otherPageMetrics =
+        fetchMetrics['/variable-revalidate/headers-instance']
+
+      expect(otherPageMetrics).toHaveLength(4)
+      expect(otherPageMetrics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            url: 'https://next-data-api-endpoint.vercel.app/api/random?layout',
+            status: 200,
+            cacheStatus: 'hit',
+            start: expect.any(Number),
+            end: expect.any(Number),
+            cacheReason: 'revalidate: 10',
+          }),
+        ])
+      )
+    })
+
     // build cache not leveraged for custom cache handler so not seeded
     if (!process.env.CUSTOM_CACHE_HANDLER) {
       it('should correctly error and not update cache for ISR', async () => {
@@ -2203,14 +2240,41 @@ describe('app-dir static/dynamic handling', () => {
     }, 'success')
   })
 
+  it('should cache correctly when accessing search params opts into dynamic rendering', async () => {
+    const res = await next.fetch('/default-cache-search-params')
+    expect(res.status).toBe(200)
+
+    let prevHtml = await res.text()
+    let prev$ = cheerio.load(prevHtml)
+
+    await retry(async () => {
+      const curRes = await next.fetch('/default-cache-search-params')
+      expect(curRes.status).toBe(200)
+
+      const curHtml = await curRes.text()
+      const cur$ = cheerio.load(curHtml)
+
+      expect(cur$('#data-default-cache').text()).not.toBe(
+        prev$('#data-default-cache').text()
+      )
+      expect(cur$('#data-request-cache').text()).not.toBe(
+        prev$('#data-request-cache').text()
+      )
+      expect(cur$('#data-cache-auto').text()).not.toBe(
+        prev$('#data-cache-auto').text()
+      )
+    })
+  })
+
   it('should cache correctly for fetchCache = force-cache', async () => {
     const res = await next.fetch('/force-cache')
     expect(res.status).toBe(200)
 
     let prevHtml = await res.text()
     let prev$ = cheerio.load(prevHtml)
+    const cliOutputLength = next.cliOutput.length
 
-    await check(async () => {
+    await retry(async () => {
       const curRes = await next.fetch('/force-cache')
       expect(curRes.status).toBe(200)
 
@@ -2230,14 +2294,18 @@ describe('app-dir static/dynamic handling', () => {
       expect(cur$('#data-auto-cache').text()).toBe(
         prev$('#data-auto-cache').text()
       )
+    })
 
-      return 'success'
-    }, 'success')
+    if (isNextDev) {
+      await retry(() => {
+        const cliOutput = next.cliOutput
+          .slice(cliOutputLength)
+          .replace(/in \d+ms/g, 'in 0ms') // stub request durations
 
-    if (!isNextDeploy) {
-      expect(next.cliOutput).toContain(
-        'fetch for https://next-data-api-endpoint.vercel.app/api/random?d4 on /force-cache specified "cache: force-cache" and "revalidate: 3", only one should be specified.'
-      )
+        expect(stripAnsi(cliOutput)).toContain(`
+ │ GET https://next-data-api-en../api/random?d4 200 in 0ms (cache hit)
+ │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
+      })
     }
   })
 
@@ -3455,6 +3523,26 @@ describe('app-dir static/dynamic handling', () => {
       const res2 = await next.fetch('/unstable-cache/dynamic', {
         headers: cookieHeader,
       })
+      const html2 = await res2.text()
+      const data2 = cheerio.load(html2)('#cached-data').text()
+
+      expect(data).not.toEqual(data2)
+    })
+
+    it('should not cache new result in draft mode', async () => {
+      const draftRes = await next.fetch('/api/draft-mode?status=enable')
+      const setCookie = draftRes.headers.get('set-cookie')
+      const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
+
+      expect(cookieHeader.Cookie).toBeTruthy()
+
+      const res = await next.fetch('/unstable-cache/dynamic', {
+        headers: cookieHeader,
+      })
+      const html = await res.text()
+      const data = cheerio.load(html)('#cached-data').text()
+
+      const res2 = await next.fetch('/unstable-cache/dynamic')
       const html2 = await res2.text()
       const data2 = cheerio.load(html2)('#cached-data').text()
 

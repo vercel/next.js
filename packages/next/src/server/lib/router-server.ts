@@ -1,7 +1,7 @@
 // this must come first as it includes require hooks
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
-import type { DevBundler } from './router-utils/setup-dev-bundler'
-import type { NextUrlWithParsedQuery } from '../request-meta'
+import type { DevBundler, ServerFields } from './router-utils/setup-dev-bundler'
+import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
 import type { NextServer } from '../next'
 
 // This is required before other imports to ensure the require hook is setup.
@@ -19,7 +19,7 @@ import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
 import { isAbortError, pipeToNodeResponse } from '../pipe-readable'
 import { getResolveRoutes } from './router-utils/resolve-routes'
-import { getRequestMeta } from '../request-meta'
+import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
@@ -41,6 +41,10 @@ import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-path
 import { getHostname } from '../../shared/lib/get-hostname'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { MockedResponse } from './mock-request'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  type AppIsrManifestAction,
+} from '../dev/hot-reloader-types'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -53,6 +57,7 @@ export type RenderServer = Pick<
   | 'clearModuleContext'
   | 'deleteAppClientCache'
   | 'propagateServerField'
+  | 'getServerField'
 >
 
 export interface LazyRenderServerInstance {
@@ -65,10 +70,10 @@ export async function initialize(opts: {
   dir: string
   port: number
   dev: boolean
+  onCleanup: (listener: () => Promise<void>) => void
   server?: import('http').Server
   minimalMode?: boolean
   hostname?: string
-  isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
   experimentalHttpsServer?: boolean
@@ -133,6 +138,7 @@ export async function initialize(opts: {
         isCustomServer: opts.customServer,
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
+        onCleanup: opts.onCleanup,
       })
     )
 
@@ -218,7 +224,7 @@ export async function initialize(opts: {
       parsedUrl: NextUrlWithParsedQuery,
       invokePath: string,
       handleIndex: number,
-      additionalInvokeHeaders: Record<string, string> = {}
+      additionalRequestMeta?: RequestMeta
     ) {
       // invokeRender expects /api routes to not be locale prefixed
       // so normalize here before continuing
@@ -249,16 +255,19 @@ export async function initialize(opts: {
         throw new Error('Failed to initialize render server')
       }
 
-      const invokeHeaders: typeof req.headers = {
-        ...req.headers,
-        'x-middleware-invoke': '',
-        'x-invoke-path': invokePath,
-        'x-invoke-query': encodeURIComponent(JSON.stringify(parsedUrl.query)),
-        ...(additionalInvokeHeaders || {}),
-      }
-      Object.assign(req.headers, invokeHeaders)
+      addRequestMeta(req, 'invokePath', invokePath)
+      addRequestMeta(req, 'invokeQuery', parsedUrl.query)
+      addRequestMeta(req, 'middlewareInvoke', false)
 
-      debug('invokeRender', req.url, invokeHeaders)
+      for (const key in additionalRequestMeta || {}) {
+        addRequestMeta(
+          req,
+          key as keyof RequestMeta,
+          additionalRequestMeta![key as keyof RequestMeta]
+        )
+      }
+
+      debug('invokeRender', req.url, req.headers)
 
       try {
         const initResult =
@@ -405,10 +414,10 @@ export async function initialize(opts: {
         ) {
           res.statusCode = 500
           await invokeRender(parsedUrl, '/_error', handleIndex, {
-            'x-invoke-status': '500',
-            'x-invoke-error': JSON.stringify({
-              message: `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`,
-            }),
+            invokeStatus: 500,
+            invokeError: new Error(
+              `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`
+            ),
           })
           return
         }
@@ -434,7 +443,7 @@ export async function initialize(opts: {
             '/405',
             handleIndex,
             {
-              'x-invoke-status': '405',
+              invokeStatus: 405,
             }
           )
         }
@@ -492,14 +501,14 @@ export async function initialize(opts: {
 
           if (typeof err.statusCode === 'number') {
             const invokePath = `/${err.statusCode}`
-            const invokeStatus = `${err.statusCode}`
+            const invokeStatus = err.statusCode
             res.statusCode = err.statusCode
             return await invokeRender(
               url.parse(invokePath, true),
               invokePath,
               handleIndex,
               {
-                'x-invoke-status': invokeStatus,
+                invokeStatus,
               }
             )
           }
@@ -515,7 +524,7 @@ export async function initialize(opts: {
           parsedUrl.pathname || '/',
           handleIndex,
           {
-            'x-invoke-output': matchedOutput.itemPath,
+            invokeOutput: matchedOutput.itemPath,
           }
         )
       }
@@ -545,13 +554,13 @@ export async function initialize(opts: {
           UNDERSCORE_NOT_FOUND_ROUTE,
           handleIndex,
           {
-            'x-invoke-status': '404',
+            invokeStatus: 404,
           }
         )
       }
 
       await invokeRender(parsedUrl, '/404', handleIndex, {
-        'x-invoke-status': '404',
+        invokeStatus: 404,
       })
     }
 
@@ -570,7 +579,7 @@ export async function initialize(opts: {
         }
         res.statusCode = Number(invokeStatus)
         return await invokeRender(url.parse(invokePath, true), invokePath, 0, {
-          'x-invoke-status': invokeStatus,
+          invokeStatus: res.statusCode,
         })
       } catch (err2) {
         console.error(err2)
@@ -599,8 +608,11 @@ export async function initialize(opts: {
     minimalMode: opts.minimalMode,
     dev: !!opts.dev,
     server: opts.server,
-    isNodeDebugging: !!opts.isNodeDebugging,
-    serverFields: developmentBundler?.serverFields || {},
+    serverFields: {
+      ...(developmentBundler?.serverFields || {}),
+      setAppIsrStatus:
+        devBundlerService?.setAppIsrStatus.bind(devBundlerService),
+    } satisfies ServerFields,
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
     bundlerService: devBundlerService,
@@ -657,7 +669,19 @@ export async function initialize(opts: {
         // only handle HMR requests if the basePath in the request
         // matches the basePath for the handler responding to the request
         if (isHMRRequest) {
-          return developmentBundler.hotReloader.onHMR(req, socket, head)
+          return developmentBundler.hotReloader.onHMR(
+            req,
+            socket,
+            head,
+            (client) => {
+              client.send(
+                JSON.stringify({
+                  action: HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST,
+                  data: devBundlerService?.appIsrManifest || {},
+                } satisfies AppIsrManifestAction)
+              )
+            }
+          )
         }
       }
 

@@ -236,7 +236,7 @@ export default async function sitemap({
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
   return products.map((product) => ({
-    url: `${BASE_URL}/product/${id}`,
+    url: `${BASE_URL}/product/${product.id}`,
     lastModified: product.date,
   }))
 }
@@ -258,7 +258,7 @@ export default async function sitemap({ id }) {
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
   return products.map((product) => ({
-    url: `${BASE_URL}/product/${id}`,
+    url: `${BASE_URL}/product/${product.id}`,
     lastModified: product.date,
   }))
 }
@@ -293,8 +293,8 @@ type Sitemap = Array<{
 
 ## Version History
 
-| Version   | Changes                                                      |
-| --------- | ------------------------------------------------------------ |
-| `v14.2.0` | Add localizations support.                                   |
-| `v13.4.5` | Add `changeFrequency` and `priority` attributes to sitemaps. |
-| `v13.3.0` | `sitemap` introduced.                                        |
+| Version    | Changes                                                      |
+| ---------- | ------------------------------------------------------------ |
+| `v14.2.0`  | Add localizations support.                                   |
+| `v13.4.14` | Add `changeFrequency` and `priority` attributes to sitemaps. |
+| `v13.3.0`  | `sitemap` introduced.                                        |

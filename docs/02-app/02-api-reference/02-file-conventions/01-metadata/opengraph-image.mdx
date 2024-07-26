@@ -93,6 +93,8 @@ The easiest way to generate an image is to use the [ImageResponse](/docs/app/api
 ```tsx filename="app/about/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
 
+export const runtime = 'edge'
+
 // Image metadata
 export const alt = 'About Acme'
 export const size = {
@@ -146,6 +148,8 @@ export default async function Image() {
 
 ```jsx filename="app/about/opengraph-image.js" switcher
 import { ImageResponse } from 'next/og'
+
+export const runtime = 'edge'
 
 // Image metadata
 export const alt = 'About Acme'
@@ -397,13 +401,38 @@ export default async function Image({ params }) {
 
 This example uses the Edge runtime to fetch a local image on the file system and passes it as an `ArrayBuffer` to the `src` attribute of an `<img>` element. The local asset should be placed relative to the example source file location.
 
-```jsx filename="app/opengraph-image.js" switcher
+```tsx filename="app/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
-import { readFile } from 'node:fs/promises'
 
 export const runtime = 'edge'
 
-export async function GET() {
+export default async function Image() {
+  const logoSrc = await fetch(new URL('./logo.png', import.meta.url)).then(
+    (res) => res.arrayBuffer()
+  )
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <img src={logoSrc} height="100" />
+      </div>
+    )
+  )
+}
+```
+
+```jsx filename="app/opengraph-image.js" switcher
+import { ImageResponse } from 'next/og'
+
+export const runtime = 'edge'
+
+export default async function Image() {
   const logoSrc = await fetch(new URL('./logo.png', import.meta.url)).then(
     (res) => res.arrayBuffer()
   )
@@ -428,12 +457,37 @@ export async function GET() {
 
 This example uses the Node.js runtime to fetch a local image on the file system and passes it as an `ArrayBuffer` to the `src` attribute of an `<img>` element. The local asset should be placed relative to the root of your project, rather than the location of the example source file.
 
+```tsx filename="app/opengraph-image.tsx" switcher
+import { ImageResponse } from 'next/og'
+import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
+
+export default async function Image() {
+  const logoData = await readFile(join(process.cwd(), 'logo.png'))
+  const logoSrc = Uint8Array.from(logoData).buffer
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <img src={logoSrc} height="100" />
+      </div>
+    )
+  )
+}
+```
+
 ```jsx filename="app/opengraph-image.js" switcher
 import { ImageResponse } from 'next/og'
 import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
-export async function GET() {
+export default async function Image() {
   const logoData = await readFile(join(process.cwd(), 'logo.png'))
   const logoSrc = Uint8Array.from(logoData).buffer
 

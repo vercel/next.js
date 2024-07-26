@@ -5,7 +5,7 @@
     "examples": ["examples/**"],
     "Font (next/font)": ["**/*font*"],
     "tests": ["test/**", "bench/**"],
-    "Turbopack": ["packages/next-swc/crates/next-*/**"],
+    "Turbopack": ["crates/next-*/**"],
     "created-by: Chrome Aurora": [
       { "type": "user", "pattern": "atcastle" },
       { "type": "user", "pattern": "devknoll" },
@@ -17,14 +17,13 @@
     ],
     "CI approved": [
       { "type": "user", "pattern": "SukkaW" },
-      { "type": "user", "pattern": "unstubbable" },
       { "type": "user", "pattern": "vercel-release-bot" }
     ],
     "created-by: Next.js team": [
       { "type": "user", "pattern": "acdlite" },
       { "type": "user", "pattern": "balazsorban44" },
+      { "type": "user", "pattern": "devjiwonchoi" },
       { "type": "user", "pattern": "eps1lon" },
-      { "type": "user", "pattern": "Ethan-Arrowood" },
       { "type": "user", "pattern": "feedthejim" },
       { "type": "user", "pattern": "gnoff" },
       { "type": "user", "pattern": "huozhi" },
@@ -38,25 +37,25 @@
       { "type": "user", "pattern": "shuding" },
       { "type": "user", "pattern": "styfle" },
       { "type": "user", "pattern": "timneutkens" },
+      { "type": "user", "pattern": "unstubbable" },
       { "type": "user", "pattern": "wyattjoh" },
       { "type": "user", "pattern": "ztanner" }
     ],
     "created-by: Next.js DevEx team": [
-      { "type": "user", "pattern": "leerob" },
-      { "type": "user", "pattern": "ismaelrumzan" },
-      { "type": "user", "pattern": "molebox" },
       { "type": "user", "pattern": "delbaoliveira" },
-      { "type": "user", "pattern": "lydiahallie" },
-      { "type": "user", "pattern": "StephDietz" },
-      { "type": "user", "pattern": "timeyoutakeit" },
-      { "type": "user", "pattern": "manovotny" }
+      { "type": "user", "pattern": "ismaelrumzan" },
+      { "type": "user", "pattern": "leerob" },
+      { "type": "user", "pattern": "manovotny" },
+      { "type": "user", "pattern": "molebox" },
+      { "type": "user", "pattern": "timeyoutakeit" }
     ],
     "created-by: Turbopack team": [
-      { "type": "user", "pattern": "bgw" },
       { "type": "user", "pattern": "arlyon" },
+      { "type": "user", "pattern": "bgw" },
       { "type": "user", "pattern": "ForsakenHarmony" },
       { "type": "user", "pattern": "kdy1" },
-      { "type": "user", "pattern": "kwonoj" },
+      { "type": "user", "pattern": "LichuAcu" },
+      { "type": "user", "pattern": "mischnic" },
       { "type": "user", "pattern": "padmaia" },
       { "type": "user", "pattern": "sokra" },
       { "type": "user", "pattern": "wbinnssmith" }
@@ -72,6 +71,7 @@
       "packages/next-swc/**",
       "packages/next/**",
       "packages/react-refresh-utils/**"
-    ]
+    ],
+    "type: react-sync": [".github/.react-version"]
   }
 }

@@ -1,5 +1,5 @@
 ---
-title: staleTimes (Experimental)
+title: staleTimes (experimental)
 description: Learn how to override the invalidation time of the Client Router Cache.
 ---
 
@@ -25,9 +25,9 @@ module.exports = nextConfig
 
 The `static` and `dynamic` properties correspond with the time period (in seconds) based on different types of [link prefetching](/docs/app/api-reference/components/link#prefetch).
 
-- The `dynamic` property is used when the `prefetch` prop on `Link` is left unspecified or is set to `false`.
+- The `dynamic` property is used when the page is neither statically generated nor fully prefetched (i.e., with prefetch={true}).
   - Default: 0 seconds (not cached)
-- The `static` property is used when the `prefetch` prop on `Link` is set to `true`, or when calling [`router.prefetch`](/docs/app/building-your-application/caching#routerprefetch).
+- The `static` property is used for statically generated pages, or when the `prefetch` prop on `Link` is set to `true`, or when calling [`router.prefetch`](/docs/app/building-your-application/caching#routerprefetch).
   - Default: 5 minutes
 
 > **Good to know:**
@@ -35,13 +35,12 @@ The `static` and `dynamic` properties correspond with the time period (in second
 > - [Loading boundaries](/docs/app/api-reference/file-conventions/loading) are considered reusable for the `static` period defined in this configuration.
 > - This doesn't affect [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), **meaning shared layouts won't automatically be refetched on every navigation, only the page segment that changes.**
 > - This doesn't change [back/forward caching](/docs/app/building-your-application/caching#client-side-router-cache) behavior to prevent layout shift and to prevent losing the browser scroll position.
-> - The different properties of this config refer to variable levels of "liveness" and are unrelated to whether the segment itself is opting into static or dynamic rendering. In other words, the current `static` default of 5 minutes suggests that data feels static by virtue of it being revalidated infrequently.
 
 You can learn more about the Client Router Cache [here](/docs/app/building-your-application/caching#client-side-router-cache).
 
 ### Version History
 
-| Version   | Changes                                                            |
-| --------- | ------------------------------------------------------------------ |
-| `v15.0.0` | `staleTimes` enables and configures the duration for page segments |
-| `v14.2.0` | experimental `staleTimes` introduced                               |
+| Version   | Changes                                                |
+| --------- | ------------------------------------------------------ |
+| `v15.0.0` | The "dynamic" staleTime default changed from 30s to 0s |
+| `v14.2.0` | experimental `staleTimes` introduced                   |

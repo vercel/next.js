@@ -1,7 +1,7 @@
 import type { FindComponentsResult } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
 import type { Options as ServerOptions } from '../next-server'
-import type { Params } from '../../shared/lib/router/utils/route-matcher'
+import type { Params } from '../../client/components/params'
 import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
@@ -65,6 +65,8 @@ import { isPostpone } from '../lib/router-utils/is-postpone'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 import { buildCustomRoute } from '../../lib/build-custom-route'
 import { decorateServerError } from '../../shared/lib/error-source'
+import type { ServerOnInstrumentationRequestError } from '../app-render/types'
+import type { ServerComponentsHmrCache } from '../response-cache'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -112,6 +114,9 @@ export default class DevServer extends Server {
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
   >
   private startServerSpan: Span
+  private readonly serverComponentsHmrCache:
+    | ServerComponentsHmrCache
+    | undefined
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -157,8 +162,6 @@ export default class DevServer extends Server {
       options.startServerSpan ?? trace('start-next-dev-server')
     this.storeGlobals()
     this.renderOpts.dev = true
-    this.renderOpts.appDirDevErrorLogger = (err: any) =>
-      this.logErrorWithOriginalStack(err, 'app-dir')
     this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache({
       // 5MB
@@ -191,6 +194,17 @@ export default class DevServer extends Server {
     const { pagesDir, appDir } = findPagesDir(this.dir)
     this.pagesDir = pagesDir
     this.appDir = appDir
+
+    if (this.nextConfig.experimental.serverComponentsHmrCache) {
+      this.serverComponentsHmrCache = new LRUCache({
+        max: this.nextConfig.cacheMaxMemorySize,
+        length: (value) => JSON.stringify(value).length,
+      })
+    }
+  }
+
+  protected override getServerComponentsHmrCache() {
+    return this.serverComponentsHmrCache
   }
 
   protected getRouteMatchers(): RouteMatcherManager {
@@ -276,9 +290,6 @@ export default class DevServer extends Server {
     const telemetry = new Telemetry({ distDir: this.distDir })
 
     await super.prepareImpl()
-    await this.startServerSpan
-      .traceChild('run-instrumentation-hook')
-      .traceAsyncFn(() => this.runInstrumentationHookIfAvailable())
     await this.matchers.reload()
 
     // Store globals again to preserve changes made by the instrumentation hook.
@@ -443,6 +454,7 @@ export default class DevServer extends Server {
       this.logErrorWithOriginalStack(error, 'warning')
       const err = getProperError(error)
       const { req, res, page } = params
+
       res.statusCode = 500
       await this.renderError(err, req, res, page)
       return null
@@ -584,7 +596,8 @@ export default class DevServer extends Server {
     })
   }
 
-  private async runInstrumentationHookIfAvailable() {
+  protected async loadInstrumentationModule(): Promise<any> {
+    let instrumentationModule: any
     if (
       this.actualInstrumentationHookFile &&
       (await this.ensurePage({
@@ -596,15 +609,21 @@ export default class DevServer extends Server {
         .catch(() => false))
     ) {
       try {
-        const instrumentationHook = await require(
+        instrumentationModule = await require(
           pathJoin(this.distDir, 'server', INSTRUMENTATION_HOOK_FILENAME)
         )
-        await instrumentationHook.register()
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
         throw err
       }
     }
+    return instrumentationModule
+  }
+
+  protected async runInstrumentationHookIfAvailable() {
+    await this.startServerSpan
+      .traceChild('run-instrumentation-hook')
+      .traceAsyncFn(() => this.instrumentation?.register?.())
   }
 
   protected async ensureEdgeFunction({
@@ -853,5 +872,15 @@ export default class DevServer extends Server {
 
   async getCompilationError(page: string): Promise<any> {
     return await this.bundlerService.getCompilationError(page)
+  }
+
+  protected async instrumentationOnRequestError(
+    ...args: Parameters<ServerOnInstrumentationRequestError>
+  ) {
+    await super.instrumentationOnRequestError(...args)
+
+    const err = args[0]
+    // Safe catch to avoid floating promises
+    this.logErrorWithOriginalStack(err, 'app-dir').catch(() => {})
   }
 }

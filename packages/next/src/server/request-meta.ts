@@ -6,6 +6,7 @@ import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
+import type { ServerComponentsHmrCache } from './response-cache'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -69,6 +70,11 @@ export interface RequestMeta {
   incrementalCache?: any
 
   /**
+   * The server components HMR cache, only for dev.
+   */
+  serverComponentsHmrCache?: ServerComponentsHmrCache
+
+  /**
    * True when the request is for the prefetch flight data.
    */
   isPrefetchRSCRequest?: true
@@ -99,6 +105,36 @@ export interface RequestMeta {
    * The previous revalidate before rendering 404 page for notFound: true
    */
   notFoundRevalidate?: number | false
+
+  /**
+   * The path we routed to and should be invoked
+   */
+  invokePath?: string
+
+  /**
+   * The specific page output we should be matching
+   */
+  invokeOutput?: string
+
+  /**
+   * The status we are invoking the request with from routing
+   */
+  invokeStatus?: number
+
+  /**
+   * The routing error we are invoking with
+   */
+  invokeError?: Error
+
+  /**
+   * The query parsed for the invocation
+   */
+  invokeQuery?: Record<string, undefined | string | string[]>
+
+  /**
+   * Whether the request is a middleware invocation
+   */
+  middlewareInvoke?: boolean
 }
 
 /**

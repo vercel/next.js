@@ -1,4 +1,5 @@
 /// <reference types="./types/global" />
+/// <reference types="./types/compiled" />
 /// <reference path="./dist/styled-jsx/types/index.d.ts" />
 /// <reference path="./amp.d.ts" />
 /// <reference path="./app.d.ts" />

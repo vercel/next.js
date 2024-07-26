@@ -1,5 +1,5 @@
 import { nextTestSetup, FileRef } from 'e2e-utils'
-import { getRedboxSource, hasRedbox } from 'next-test-utils'
+import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
 import { join } from 'path'
 import cheerio from 'cheerio'
 
@@ -456,7 +456,7 @@ describe('app dir - next/font', () => {
               './does-not-exist.woff2'
             )
           )
-          expect(await hasRedbox(browser)).toBeTrue()
+          await assertHasRedbox(browser)
           expect(await getRedboxSource(browser)).toInclude(
             "Can't resolve './does-not-exist.woff2'"
           )

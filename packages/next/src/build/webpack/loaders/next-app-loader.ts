@@ -35,6 +35,7 @@ import {
 import { getFilesInDir } from '../../../lib/get-files-in-dir'
 import type { PageExtensions } from '../../page-extensions-type'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../client/components/parallel-route-default'
+import type { Compilation } from 'webpack'
 
 export type AppLoaderOptions = {
   name: string
@@ -49,6 +50,7 @@ export type AppLoaderOptions = {
   tsconfigPath?: string
   isDev?: true
   basePath: string
+  flyingShuttle?: boolean
   nextConfigOutput?: NextConfig['output']
   nextConfigExperimentalUseEarlyImport?: true
   middlewareConfig: string
@@ -173,9 +175,13 @@ async function createTreeCodeFromPath(
     metadataResolver,
     pageExtensions,
     basePath,
+    buildInfo,
+    flyingShuttle,
     collectedDeclarations,
   }: {
     page: string
+    flyingShuttle?: boolean
+    buildInfo: ReturnType<typeof getModuleBuildInfo>
     resolveDir: DirResolver
     resolver: PathResolver
     metadataResolver: MetadataResolver
@@ -348,9 +354,15 @@ async function createTreeCodeFromPath(
         })
       )
 
-      const definedFilePaths = filePaths.filter(
-        ([, filePath]) => filePath !== undefined
-      ) as [ValueOf<typeof FILE_TYPES>, string][]
+      const definedFilePaths = filePaths.filter(([, filePath]) => {
+        if (filePath !== undefined) {
+          if (flyingShuttle && buildInfo.route?.relatedModules) {
+            buildInfo.route.relatedModules.push(filePath)
+          }
+          return true
+        }
+        return false
+      }) as [ValueOf<typeof FILE_TYPES>, string][]
 
       // Add default not found error as root not found if not present
       const hasNotFoundFile = definedFilePaths.some(
@@ -510,6 +522,10 @@ function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
   )
 }
 
+const filesInDirMapMap: WeakMap<
+  Compilation,
+  Map<string, Promise<Set<string>>>
+> = new WeakMap()
 const nextAppLoader: AppLoader = async function nextAppLoader() {
   const loaderOptions = this.getOptions()
   const {
@@ -524,6 +540,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     nextConfigOutput,
     preferredRegion,
     basePath,
+    flyingShuttle,
     middlewareConfig: middlewareConfigBase64,
     nextConfigExperimentalUseEarlyImport,
   } = loaderOptions
@@ -539,6 +556,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     absolutePagePath: createAbsolutePath(appDir, pagePath),
     preferredRegion,
     middlewareConfig,
+    relatedModules: [],
   }
 
   const extensions = pageExtensions.map((extension) => `.${extension}`)
@@ -621,20 +639,30 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   // This can be more efficient than checking them with `fs.stat` one by one
   // because all the thousands of files are likely in a few possible directories.
   // Note that it should only be cached for this compilation, not globally.
-  const filesInDir = new Map<string, Set<string>>()
   const fileExistsInDirectory = async (dirname: string, fileName: string) => {
-    const existingFiles = filesInDir.get(dirname)
-    if (existingFiles) {
-      return existingFiles.has(fileName)
+    // I don't think we should ever hit this code path, but if we do we should handle it gracefully.
+    if (this._compilation === undefined) {
+      try {
+        return (await getFilesInDir(dirname).catch(() => new Set())).has(
+          fileName
+        )
+      } catch (e) {
+        return false
+      }
     }
-    try {
-      const files = await getFilesInDir(dirname)
-      const fileNames = new Set<string>(files)
-      filesInDir.set(dirname, fileNames)
-      return fileNames.has(fileName)
-    } catch (err) {
-      return false
+    const map =
+      filesInDirMapMap.get(this._compilation) ||
+      new Map<string, Promise<Set<string>>>()
+    if (!filesInDirMapMap.has(this._compilation)) {
+      filesInDirMapMap.set(this._compilation, map)
     }
+    if (!map.has(dirname)) {
+      map.set(
+        dirname,
+        getFilesInDir(dirname).catch(() => new Set())
+      )
+    }
+    return ((await map.get(dirname)) || new Set()).has(fileName)
   }
 
   const resolver: PathResolver = async (pathname) => {
@@ -708,6 +736,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     pageExtensions,
     basePath,
     collectedDeclarations,
+    buildInfo,
+    flyingShuttle,
   })
 
   if (!treeCodeResult.rootLayout) {
@@ -746,7 +776,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       }
 
       // Clear fs cache, get the new result with the created root layout.
-      filesInDir.clear()
+      if (this._compilation) filesInDirMapMap.get(this._compilation)?.clear()
       treeCodeResult = await createTreeCodeFromPath(pagePath, {
         page,
         resolveDir,
@@ -757,6 +787,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         pageExtensions,
         basePath,
         collectedDeclarations,
+        buildInfo,
+        flyingShuttle,
       })
     }
   }
@@ -786,13 +818,17 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       ? // Evaluate the imported modules early in the generated code
         collectedDeclarations
           .map(([varName, modulePath]) => {
-            return `import * as ${varName}_ from ${JSON.stringify(modulePath)};\nconst ${varName} = () => ${varName}_;\n`
+            return `import * as ${varName}_ from ${JSON.stringify(
+              modulePath
+            )};\nconst ${varName} = () => ${varName}_;\n`
           })
           .join('')
       : // Lazily evaluate the imported modules in the generated code
         collectedDeclarations
           .map(([varName, modulePath]) => {
-            return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(modulePath)});\n`
+            return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+              modulePath
+            )});\n`
           })
           .join('')
 
