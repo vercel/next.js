@@ -2625,9 +2625,10 @@ async fn handle_exports_imports_field(
     let mut resolved_results = Vec::new();
     for (result_path, conditions) in results {
         if let Some(result_path) = result_path.with_normalized_path() {
-            let request = Request::parse(Value::new(
-                Pattern::Concatenation(vec![Pattern::Constant("./{}".into()), result_path]).into(),
-            ));
+            let request = Request::parse(Value::new(Pattern::Concatenation(vec![
+                Pattern::Constant("./{}".into()),
+                result_path,
+            ])));
             let resolve_result = resolve_internal_boxed(package_path, request, options).await?;
             if conditions.is_empty() {
                 resolved_results.push(resolve_result.with_request(path.into()));

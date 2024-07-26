@@ -435,8 +435,7 @@ impl Pattern {
                     *list = segments
                         .into_iter()
                         .flat_map(|c| {
-                            std::iter::once(Pattern::Constant(separator.clone()))
-                                .chain(c.into_iter())
+                            std::iter::once(Pattern::Constant(separator.clone())).chain(c)
                         })
                         .skip(1)
                         .collect();
