@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 /* eslint-disable import/no-extraneous-dependencies */
+import type { InitialReturnValue } from 'prompts'
+import Conf from 'conf'
+import ciInfo from 'ci-info'
+import prompts from 'prompts'
+import updateCheck from 'update-check'
+import packageJson from './package.json'
 import { basename, resolve } from 'node:path'
 import { existsSync } from 'node:fs'
-import { cyan, green, red, yellow, bold, blue } from 'picocolors'
 import { Command } from 'commander'
-import Conf from 'conf'
-import prompts from 'prompts'
-import type { InitialReturnValue } from 'prompts'
-import checkForUpdate from 'update-check'
+import { cyan, green, red, yellow, bold, blue } from 'picocolors'
 import { createApp, DownloadError } from './create-app'
 import { getPkgManager } from './helpers/get-pkg-manager'
-import { validateNpmName } from './helpers/validate-pkg'
-import packageJson from './package.json'
-import ciInfo from 'ci-info'
 import { isFolderEmpty } from './helpers/is-folder-empty'
+import { validateNpmName } from './helpers/validate-pkg'
 
 let projectPath: string = ''
 
@@ -239,14 +239,14 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  const resolvedProjectPath = resolve(projectPath)
-  const projectName = basename(resolvedProjectPath)
+  const appPath = resolve(projectPath)
+  const appName = basename(appPath)
 
-  const validation = validateNpmName(projectName)
+  const validation = validateNpmName(appName)
   if (!validation.valid) {
     console.error(
       `Could not create a project called ${red(
-        `"${projectName}"`
+        `"${appName}"`
       )} because of npm naming restrictions:`
     )
 
@@ -263,14 +263,7 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  /**
-   * Verify the project dir is empty or doesn't exist
-   */
-  const root = resolve(resolvedProjectPath)
-  const appName = basename(root)
-  const folderExists = existsSync(root)
-
-  if (folderExists && !isFolderEmpty(root, appName)) {
+  if (existsSync(appPath) && !isFolderEmpty(appPath, appName)) {
     process.exit(1)
   }
 
@@ -488,7 +481,7 @@ async function run(): Promise<void> {
 
   try {
     await createApp({
-      appPath: resolvedProjectPath,
+      appPath,
       packageManager,
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
@@ -521,7 +514,7 @@ async function run(): Promise<void> {
     }
 
     await createApp({
-      appPath: resolvedProjectPath,
+      appPath,
       packageManager,
       typescript: program.typescript,
       eslint: program.eslint,
@@ -537,21 +530,18 @@ async function run(): Promise<void> {
   conf.set('preferences', preferences)
 }
 
-const update = checkForUpdate(packageJson).catch(() => null)
+const update = updateCheck(packageJson).catch(() => null)
 
 async function notifyUpdate(): Promise<void> {
   try {
-    const res = await update
-    if (res?.latest) {
-      const updateMessage =
-        packageManager === 'yarn'
-          ? 'yarn global add create-next-app'
-          : packageManager === 'pnpm'
-            ? 'pnpm add -g create-next-app'
-            : packageManager === 'bun'
-              ? 'bun add -g create-next-app'
-              : 'npm i -g create-next-app'
-
+    if ((await update)?.latest) {
+      const global = {
+        npm: 'npm i -g',
+        yarn: 'yarn global add',
+        pnpm: 'pnpm add -g',
+        bun: 'bun add -g',
+      }
+      const updateMessage = `${global[packageManager]} create-next-app`
       console.log(
         yellow(bold('A new version of `create-next-app` is available!')) +
           '\n' +
@@ -560,28 +550,26 @@ async function notifyUpdate(): Promise<void> {
           '\n'
       )
     }
-    process.exit()
+    process.exit(0)
   } catch {
     // ignore error
   }
 }
 
-run()
-  .then(notifyUpdate)
-  .catch(async (reason) => {
-    console.log()
-    console.log('Aborting installation.')
-    if (reason.command) {
-      console.log(`  ${cyan(reason.command)} has failed.`)
-    } else {
-      console.log(
-        red('Unexpected error. Please report it as a bug:') + '\n',
-        reason
-      )
-    }
-    console.log()
+async function exit(reason: { command?: string }) {
+  console.log()
+  console.log('Aborting installation.')
+  if (reason.command) {
+    console.log(`  ${cyan(reason.command)} has failed.`)
+  } else {
+    console.log(
+      red('Unexpected error. Please report it as a bug:') + '\n',
+      reason
+    )
+  }
+  console.log()
+  await notifyUpdate()
+  process.exit(1)
+}
 
-    await notifyUpdate()
-
-    process.exit(1)
-  })
+run().then(notifyUpdate).catch(exit)
