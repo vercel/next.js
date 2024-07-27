@@ -65,8 +65,8 @@ const program = new Command(packageJson.name)
     ).choices(['npm', 'pnpm', 'yarn', 'bun'])
   )
   .option(
-    '--reset-preferences',
-    'Explicitly tell the CLI to reset any stored preferences.'
+    '--reset, --reset-preferences',
+    'Reset the preferences saved for create-next-app.'
   )
   .option(
     '--skip-install',
@@ -122,9 +122,20 @@ async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })
 
   if (opts.resetPreferences) {
-    conf.clear()
-    console.log(`Preferences reset successfully`)
-    return
+    const { resetPreferences } = await prompts({
+      onState: onPromptState,
+      type: 'toggle',
+      name: 'resetPreferences',
+      message: 'Would you like to reset the saved preferences?',
+      initial: false,
+      active: 'Yes',
+      inactive: 'No',
+    })
+    if (resetPreferences) {
+      conf.clear()
+      console.log('The preferences have been reset successfully!')
+    }
+    process.exit(0)
   }
 
   if (typeof projectPath === 'string') {
