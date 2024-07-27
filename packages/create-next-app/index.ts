@@ -146,6 +146,11 @@ async function run(): Promise<void> {
     process.exit(0)
   }
 
+  const isDryRun = args.includes('--dry-run')
+  if (isDryRun) {
+    console.log('Running a dry run, skipping installation.')
+  }
+
   if (typeof projectPath === 'string') {
     projectPath = projectPath.trim()
   }
@@ -423,7 +428,7 @@ async function run(): Promise<void> {
   }
 
   try {
-    await createApp({
+    const createAppParams = {
       appPath,
       packageManager,
       example: example && example !== 'default' ? example : undefined,
@@ -437,7 +442,15 @@ async function run(): Promise<void> {
       skipInstall: opts.skipInstall,
       empty: opts.empty,
       turbo: opts.turbo,
-    })
+    }
+
+    if (isDryRun) {
+      console.log('Dry Run Result:')
+      console.log(JSON.stringify(createAppParams, null, 2))
+      return
+    }
+
+    await createApp(createAppParams)
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
       throw reason
