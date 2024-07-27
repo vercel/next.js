@@ -2498,6 +2498,8 @@ export default async function build(
 
       if (!isGenerateMode) {
         if (config.experimental.flyingShuttle) {
+          await buildTracesPromise
+
           console.log('stitching builds...')
           const stitchResult = await stitchBuilds(
             {

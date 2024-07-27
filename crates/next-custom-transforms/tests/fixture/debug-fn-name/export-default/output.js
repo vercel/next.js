@@ -6,9 +6,9 @@ export default (()=>{
         "useEffect": ()=>{}
     }["useEffect"]);
     const onClick = useCallback({
-        "useCallback(onClick)": ()=>[]
-    }["useCallback(onClick)"]);
+        "useCallback[onClick]": ()=>[]
+    }["useCallback[onClick]"]);
     const computed = useMemo({
-        "useMemo(computed)": ()=>{}
-    }["useMemo(computed)"]);
+        "useMemo[computed]": ()=>{}
+    }["useMemo[computed]"]);
 });

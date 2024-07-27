@@ -34,7 +34,7 @@ export function createComponentTree(props: {
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   asNotFound?: boolean
-  getMetadataReady: () => Promise<void>
+  metadataOutlet?: React.ReactNode
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
@@ -64,7 +64,7 @@ async function createComponentTreeInternal({
   injectedJS,
   injectedFontPreloadTags,
   asNotFound,
-  getMetadataReady,
+  metadataOutlet,
   ctx,
   missingSlots,
   preloadCallbacks,
@@ -78,7 +78,7 @@ async function createComponentTreeInternal({
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   asNotFound?: boolean
-  getMetadataReady: () => Promise<void>
+  metadataOutlet?: React.ReactNode
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
@@ -436,12 +436,10 @@ async function createComponentTreeInternal({
             injectedJS: injectedJSWithCurrentLayout,
             injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             asNotFound,
-            // The metadataReady is used to trigger any errors that were caught during metadata resolution.
-            // We only want to throw once per segment, as otherwise the error will be triggered
+            // The metadataOutlet is responsible for throwing any errors that were caught during metadata resolution.
+            // We only want to render an outlet once per segment, as otherwise the error will be triggered
             // multiple times causing an uncaught error.
-            getMetadataReady: isChildrenRouteKey
-              ? getMetadataReady
-              : () => Promise.resolve(),
+            metadataOutlet: isChildrenRouteKey ? metadataOutlet : undefined,
             ctx,
             missingSlots,
             preloadCallbacks,
@@ -589,7 +587,7 @@ async function createComponentTreeInternal({
       props.searchParams = createUntrackedSearchParams(query)
       segmentElement = (
         <>
-          <MetadataOutlet getReady={getMetadataReady} />
+          {metadataOutlet}
           <ClientPageRoot props={props} Component={Component} />
           {layerAssets}
         </>
@@ -600,7 +598,7 @@ async function createComponentTreeInternal({
       props.searchParams = createDynamicallyTrackedSearchParams(query)
       segmentElement = (
         <>
-          <MetadataOutlet getReady={getMetadataReady} />
+          {metadataOutlet}
           <Component {...props} />
           {layerAssets}
         </>
@@ -633,22 +631,4 @@ async function createComponentTreeInternal({
     </>,
     loadingData,
   ]
-}
-
-async function MetadataOutlet({
-  getReady,
-}: {
-  getReady: () => Promise<void> & { status?: string; value?: unknown }
-}) {
-  const ready = getReady()
-  // We actually expect this to be an instrumented promise and once this file is properly
-  // moved to the RSC module graph we can switch to using React.use for this synchronous unwrapping.
-  // The synchronous unwrapping will become important with dynamic IO since we want to resolve metadata
-  // before anything dynamic can be triggered
-  if (ready.status === 'rejected') {
-    throw ready.value
-  } else if (ready.status !== 'fulfilled') {
-    await ready
-  }
-  return null
 }
