@@ -17,7 +17,7 @@ CacheHandler.onCreation(async () => {
 
       // Redis won't work without error handling.
       client.on("error", (e) => {
-        throw e;
+        console.warn("Redis error", e);
       });
     } catch (error) {
       console.warn("Failed to create Redis client:", error);
