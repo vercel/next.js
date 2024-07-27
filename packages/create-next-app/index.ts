@@ -14,6 +14,7 @@ import { cyan, green, red, yellow, bold, blue } from 'picocolors'
 import { createApp, DownloadError } from './create-app'
 import { getPkgManager } from './helpers/get-pkg-manager'
 import { isFolderEmpty } from './helpers/is-folder-empty'
+import * as log from './helpers/log'
 import { validateNpmName } from './helpers/validate-pkg'
 
 let projectPath: string = ''
@@ -133,14 +134,14 @@ async function run(): Promise<void> {
     })
     if (resetPreferences) {
       conf.clear()
-      console.log('The preferences have been reset successfully!')
+      log.event('The preferences have been reset successfully!')
     }
     process.exit(0)
   }
 
   const isDryRun = args.includes('--dry-run')
   if (isDryRun) {
-    console.log('Running a dry run, skipping installation.')
+    log.ready('Running a dry run, skipping installation.')
   }
 
   if (typeof projectPath === 'string') {
@@ -169,7 +170,7 @@ async function run(): Promise<void> {
   }
 
   if (!projectPath) {
-    console.log(
+    log.warn(
       '\nPlease specify the project directory:\n' +
         `  ${cyan(opts.name())} ${green('<project-directory>')}\n` +
         'For example:\n' +
@@ -184,7 +185,7 @@ async function run(): Promise<void> {
 
   const validation = validateNpmName(appName)
   if (!validation.valid) {
-    console.error(
+    log.error(
       `Could not create a project called ${red(
         `"${appName}"`
       )} because of npm naming restrictions:`
@@ -197,7 +198,7 @@ async function run(): Promise<void> {
   }
 
   if (opts.example === true) {
-    console.error(
+    log.error(
       'Please provide an example name or url, otherwise remove the example option.'
     )
     process.exit(1)
@@ -256,7 +257,7 @@ async function run(): Promise<void> {
              * process and not write to the file system.
              */
             onCancel: () => {
-              console.error('Exiting.')
+              log.error('Exiting.')
               process.exit(1)
             },
           }
@@ -437,7 +438,7 @@ async function run(): Promise<void> {
     }
 
     if (isDryRun) {
-      console.log('Dry Run Result:')
+      log.ready('Dry Run Result:')
       console.log(JSON.stringify(createAppParams, null, 2))
       return
     }
@@ -490,7 +491,7 @@ async function notifyUpdate(): Promise<void> {
         bun: 'bun add -g',
       }
       const updateMessage = `${global[packageManager]} create-next-app`
-      console.log(
+      log.warn(
         yellow(bold('A new version of `create-next-app` is available!')) +
           '\n' +
           'You can update by running: ' +
@@ -505,17 +506,14 @@ async function notifyUpdate(): Promise<void> {
 }
 
 async function exit(reason: { command?: string }) {
-  console.log()
-  console.log('Aborting installation.')
+  log.info('')
+  log.warn('Aborting installation.')
   if (reason.command) {
-    console.log(`  ${cyan(reason.command)} has failed.`)
+    log.error(`  ${reason.command} has failed.`)
   } else {
-    console.log(
-      red('Unexpected error. Please report it as a bug:') + '\n',
-      reason
-    )
+    log.error('Unexpected error. Please report it as a bug:\n', reason)
   }
-  console.log()
+  log.info('')
   await notifyUpdate()
   process.exit(1)
 }
