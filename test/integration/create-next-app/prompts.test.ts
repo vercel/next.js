@@ -1,6 +1,11 @@
 import { check } from 'next-test-utils'
 import { join } from 'path'
-import { createNextApp, projectFilesShouldExist, useTempDir } from './utils'
+import {
+  createNextApp,
+  projectFilesShouldExist,
+  projectFilesShouldNotExist,
+  useTempDir,
+} from './utils'
 
 describe('create-next-app prompts', () => {
   let nextTgzFilename: string
@@ -247,6 +252,47 @@ describe('create-next-app prompts', () => {
           () => output,
           /The preferences have been reset successfully/
         )
+      })
+    })
+  })
+
+  it('should not create app if --dry-run', async () => {
+    const projectName = 'dry-run'
+    await useTempDir(async (cwd) => {
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--eslint',
+          '--no-turbo',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+          '--dry-run',
+        ],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+      await new Promise<void>(async (resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          projectFilesShouldNotExist({
+            cwd,
+            projectName,
+            files: ['package.json'],
+          })
+          resolve()
+        })
+        let output = ''
+        childProcess.stdout.on('data', (data) => {
+          output += data
+          process.stdout.write(data)
+        })
+        await check(() => output, /Running a dry run, skipping installation/)
+        await check(() => output, /Dry Run Result/)
       })
     })
   })
