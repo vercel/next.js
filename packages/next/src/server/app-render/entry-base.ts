@@ -28,10 +28,7 @@ import {
 } from '../../server/app-render/rsc/preloads'
 import { Postpone } from '../../server/app-render/rsc/postpone'
 import { taintObjectReference } from '../../server/app-render/rsc/taint'
-import {
-  ForbiddenBoundary,
-  NotFoundBoundary,
-} from '../../client/components/ui-errors-boundaries'
+import { UIErrorsBoundary } from '../../client/components/ui-errors-boundaries'
 
 import * as React from 'react'
 import {
@@ -64,8 +61,7 @@ export {
   Postpone,
   taintObjectReference,
   ClientPageRoot,
-  NotFoundBoundary,
-  ForbiddenBoundary,
+  UIErrorsBoundary,
   patchFetch,
   createCacheScope,
   patchCacheScopeSupportIntoReact,

@@ -1,7 +1,5 @@
 'use client'
 
-import React from 'react'
-
 import {
   UIErrorBoundaryWrapper,
   type UIErrorBoundaryWrapperProps,
@@ -11,25 +9,18 @@ import { isNotFoundError } from './not-found'
 
 type BoundaryConsumerProps = Pick<
   UIErrorBoundaryWrapperProps,
-  'uiComponent' | 'uiComponentStyles' | 'children'
+  'forbidden' | 'not-found' | 'children'
 >
 
-export function ForbiddenBoundary(props: BoundaryConsumerProps) {
-  return (
-    <UIErrorBoundaryWrapper
-      nextError={'forbidden'}
-      matcher={isForbiddenError}
-      {...props}
-    />
-  )
+const matcher = (err: unknown) => {
+  if (isForbiddenError(err)) {
+    return 'forbidden'
+  }
+  if (isNotFoundError(err)) {
+    return 'not-found'
+  }
 }
 
-export function NotFoundBoundary(props: BoundaryConsumerProps) {
-  return (
-    <UIErrorBoundaryWrapper
-      nextError={'not-found'}
-      matcher={isNotFoundError}
-      {...props}
-    />
-  )
+export function UIErrorsBoundary(props: BoundaryConsumerProps) {
+  return <UIErrorBoundaryWrapper matcher={matcher} {...props} />
 }

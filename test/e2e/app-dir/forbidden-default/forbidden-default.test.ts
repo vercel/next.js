@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, getRedboxDescription, hasRedbox } from 'next-test-utils'
+import { check, getRedboxDescription, assertHasRedbox } from 'next-test-utils'
 
 describe('forbidden-default', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -14,7 +14,7 @@ describe('forbidden-default', () => {
 
     if (isNextDev) {
       await check(async () => {
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatch(
           /forbidden\(\) is not allowed to use in root layout/
         )
@@ -27,7 +27,7 @@ describe('forbidden-default', () => {
     const browser = await next.browser('/?root-forbidden=1')
 
     if (isNextDev) {
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxDescription(browser)).toBe(
         'Error: forbidden() is not allowed to use in root layout'
       )

@@ -4,17 +4,21 @@ import React, { useContext } from 'react'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { usePathname } from './navigation'
 import { MissingSlotContext } from '../../shared/lib/app-router-context.shared-runtime'
-import type { UIErrorFileType } from '../../shared/lib/ui-error-types'
+import {
+  uiErrorFileTypes,
+  type UIErrorFileType,
+} from '../../shared/lib/ui-error-types'
 
-interface UIErrorBoundaryProps {
-  uiComponent?: React.ReactNode
-  uiComponentStyles?: React.ReactNode
+interface UIErrorBoundaryProps
+  extends Record<
+    UIErrorFileType,
+    React.ReactNode | { component: React.ReactNode; styles: React.ReactNode }
+  > {
   forceTrigger?: boolean
   children: React.ReactNode
   pathname: string
-  matcher: (error: unknown) => boolean
+  matcher: (error: unknown) => UIErrorFileType | undefined
   missingSlots?: Set<string>
-  nextError: UIErrorFileType
 }
 
 interface UIErrorBoundaryState {
@@ -39,11 +43,11 @@ class UIErrorBoundary extends React.Component<
     if (
       process.env.NODE_ENV === 'development' &&
       this.props.missingSlots &&
-      // A missing children slot is the typical not-found case, so no need to warn
+      // A missing children slot is the typical ui-error case, so no need to warn
       !this.props.missingSlots.has('children')
     ) {
       let warningMessage =
-        `No default component was found for a parallel route rendered on this page. Falling back to nearest ${this.props.nextError} boundary.
+        `No default component was found for a parallel route rendered on this page. Falling back to nearest ${this.props.matcher(this.state.error)} boundary.
 ` +
         'Learn more: https://nextjs.org/docs/app/building-your-application/routing/parallel-routes#defaultjs\n\n'
 
@@ -87,19 +91,71 @@ class UIErrorBoundary extends React.Component<
     }
   }
 
+  objectToComponent(componentName: UIErrorFileType): React.ReactNode {
+    if (
+      this.props[componentName] !== null &&
+      typeof this.props[componentName] === 'object' &&
+      'component' in this.props[componentName]
+    ) {
+      return this.props[componentName].component
+    }
+    return this.props[componentName]
+  }
+
+  assertUIComponents() {
+    uiErrorFileTypes.forEach((type) => {
+      if (
+        this.props.matcher(this.state.error) === type &&
+        !this.objectToComponent(type)
+      ) {
+        throw this.state.error
+      }
+    })
+  }
+
+  renderUIComponent(componentName: UIErrorFileType | undefined) {
+    if (
+      !componentName ||
+      this.props.matcher(this.state.error) !== componentName
+    ) {
+      return
+    }
+
+    if (
+      this.props[componentName] !== null &&
+      typeof this.props[componentName] === 'object' &&
+      'component' in this.props[componentName]
+    ) {
+      return (
+        <>
+          {this.props[componentName].component}
+          {this.props[componentName].styles}
+        </>
+      )
+    }
+
+    return this.props[componentName]
+  }
+
   render() {
     if (this.state.didCatch) {
       if (!this.props.forceTrigger && !this.props.matcher(this.state.error)) {
         throw this.state.error
       }
+
+      this.assertUIComponents()
+
       return (
         <>
           <meta name="robots" content="noindex" />
           {process.env.NODE_ENV === 'development' && (
-            <meta name="next-error" content={this.props.nextError} />
+            <meta
+              name="next-error"
+              content={this.props.matcher(this.state.error)}
+            />
           )}
-          {this.props.uiComponentStyles}
-          {this.props.uiComponent}
+
+          {this.renderUIComponent(this.props.matcher(this.state.error))}
         </>
       )
     }
@@ -114,22 +170,14 @@ export type UIErrorBoundaryWrapperProps = Omit<
 >
 
 export function UIErrorBoundaryWrapper({
-  uiComponent,
   children,
   ...rest
 }: UIErrorBoundaryWrapperProps) {
   const pathname = usePathname()
   const missingSlots = useContext(MissingSlotContext)
-  return uiComponent ? (
-    <UIErrorBoundary
-      pathname={pathname}
-      missingSlots={missingSlots}
-      uiComponent={uiComponent}
-      {...rest}
-    >
+  return (
+    <UIErrorBoundary pathname={pathname} missingSlots={missingSlots} {...rest}>
       {children}
     </UIErrorBoundary>
-  ) : (
-    <>{children}</>
   )
 }

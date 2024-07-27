@@ -834,7 +834,7 @@ describe('Error overlay for hydration errors', () => {
     if (isTurbopack) {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <NotFoundErrorBoundary pathname="/" notFound={[...]} notFoundStyles={[...]} asNotFound={undefined} missingSlots={Set}>
+          <UIErrorBoundary pathname="/" missingSlots={Set} matcher={function matcher} not-found={{...}} forbidden={{...}}>
             <RedirectBoundary>
               <RedirectErrorBoundary router={{...}}>
                 <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
@@ -854,7 +854,7 @@ describe('Error overlay for hydration errors', () => {
     } else {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <NotFoundErrorBoundary pathname="/" notFound={[...]} notFoundStyles={[...]} asNotFound={undefined} missingSlots={Set}>
+          <UIErrorBoundary pathname="/" missingSlots={Set} matcher={function matcher} not-found={{...}} forbidden={{...}}>
             <RedirectBoundary>
               <RedirectErrorBoundary router={{...}}>
                 <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>

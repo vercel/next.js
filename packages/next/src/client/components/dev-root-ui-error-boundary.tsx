@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { ForbiddenBoundary, NotFoundBoundary } from './ui-errors-boundaries'
+import { UIErrorsBoundary } from './ui-errors-boundaries'
 import type { UIErrorHelper } from '../../shared/lib/ui-error-types'
 
 export function bailOnUIError(uiError: UIErrorHelper) {
@@ -24,10 +24,11 @@ export function DevRootUIErrorsBoundary({
   children: React.ReactNode
 }) {
   return (
-    <ForbiddenBoundary uiComponent={<NotAllowedRootForbiddenError />}>
-      <NotFoundBoundary uiComponent={<NotAllowedRootNotFoundError />}>
-        {children}
-      </NotFoundBoundary>
-    </ForbiddenBoundary>
+    <UIErrorsBoundary
+      not-found={<NotAllowedRootNotFoundError />}
+      forbidden={<NotAllowedRootForbiddenError />}
+    >
+      {children}
+    </UIErrorsBoundary>
   )
 }
