@@ -107,7 +107,7 @@ const program = new Command(packageJson.name)
   .option(
     '--api',
     `
-  Initialize a Headless API.
+  Initialize a Headless API using app router.
 `
   )
   .option(

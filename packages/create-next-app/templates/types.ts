@@ -2,7 +2,7 @@ import { PackageManager } from "../helpers/get-pkg-manager";
 
 export type TemplateType =
   | "app"
-  | "api"
+  | "app-api"
   | "app-empty"
   | "app-tw"
   | "app-tw-empty"
@@ -20,7 +20,7 @@ export interface GetTemplateFileArgs {
 
 export interface InstallTemplateArgs {
   appName: string;
-  api: boolean;
+  app-api: boolean;
   root: string;
   packageManager: PackageManager;
   isOnline: boolean;

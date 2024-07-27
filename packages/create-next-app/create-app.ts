@@ -37,7 +37,7 @@ export async function createApp({
   skipInstall,
   empty,
   turbo,
-  api,
+  app-api,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -52,16 +52,16 @@ export async function createApp({
   skipInstall: boolean
   empty: boolean
   turbo: boolean
-  api: boolean
+  app-api: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = api 
-    ? 'api' 
+  const template: TemplateType = app-api 
+    ? 'app-api' 
     : `${appRouter ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`;
 
 
-  if (api && template !== 'api') {
+  if (api && template !== 'app-api') {
     console.error(`Invalid template for api flag: ${red(template)}`)
     process.exit(1)
   }
@@ -242,7 +242,7 @@ export async function createApp({
       importAlias,
       skipInstall,
       turbo,
-      api,
+      app-api,
     })
   }
 
