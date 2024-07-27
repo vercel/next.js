@@ -32,7 +32,37 @@ describe('create-next-app with package manager yarn', () => {
       .catch(() => command('npm', ['i', '-g', 'yarn']))
   })
 
-  it('should use yarn for --use-yarn flag', async () => {
+  it('should use yarn for legacy --use-yarn flag', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-yarn-flag'
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--use-yarn',
+          '--no-turbo',
+          '--no-eslint',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files,
+      })
+    })
+  })
+
+  it('should use yarn for --use yarn', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-yarn'
       const res = await run(
@@ -40,7 +70,7 @@ describe('create-next-app with package manager yarn', () => {
           projectName,
           '--ts',
           '--app',
-          '--use-yarn',
+          '--use=yarn',
           '--no-turbo',
           '--no-eslint',
           '--no-src-dir',
@@ -92,11 +122,29 @@ describe('create-next-app with package manager yarn', () => {
     })
   })
 
-  it('should use yarn for --use-yarn flag with example', async () => {
+  it('should use yarn for legacy --use-yarn flag with example', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-yarn-flag-with-example'
+      const res = await run(
+        [projectName, '--use-yarn', '--example', FULL_EXAMPLE_PATH],
+        nextTgzFilename,
+        { cwd }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files,
+      })
+    })
+  })
+
+  it('should use yarn for --use yarn with example', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-yarn-with-example'
       const res = await run(
-        [projectName, '--use-yarn', '--example', FULL_EXAMPLE_PATH],
+        [projectName, '--use=yarn', '--example', FULL_EXAMPLE_PATH],
         nextTgzFilename,
         { cwd }
       )

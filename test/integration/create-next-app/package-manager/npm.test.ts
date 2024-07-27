@@ -24,7 +24,37 @@ describe('create-next-app with package manager npm', () => {
     nextTgzFilename = pkgPaths.get('next')
   })
 
-  it('should use npm for --use-npm flag', async () => {
+  it('should use npm for legacy --use-npm flag', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-npm-flag'
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--use-npm',
+          '--no-turbo',
+          '--no-eslint',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files,
+      })
+    })
+  })
+
+  it('should use npm for --use npm', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-npm'
       const res = await run(
@@ -32,7 +62,7 @@ describe('create-next-app with package manager npm', () => {
           projectName,
           '--ts',
           '--app',
-          '--use-npm',
+          '--use=npm',
           '--no-turbo',
           '--no-eslint',
           '--no-src-dir',
@@ -84,11 +114,29 @@ describe('create-next-app with package manager npm', () => {
     })
   })
 
-  it('should use npm for --use-npm flag with example', async () => {
+  it('should use npm for legacy --use-npm flag with example', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-npm-flag-with-example'
+      const res = await run(
+        [projectName, '--use-npm', '--example', FULL_EXAMPLE_PATH],
+        nextTgzFilename,
+        { cwd }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files,
+      })
+    })
+  })
+
+  it('should use npm for --use npm with example', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-npm-with-example'
       const res = await run(
-        [projectName, '--use-npm', '--example', FULL_EXAMPLE_PATH],
+        [projectName, '--use=npm', '--example', FULL_EXAMPLE_PATH],
         nextTgzFilename,
         { cwd }
       )
