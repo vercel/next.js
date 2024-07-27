@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable import/no-extraneous-dependencies */
 import type { InitialReturnValue } from 'prompts'
+import type { PackageManager } from './helpers/get-pkg-manager'
 import Conf from 'conf'
 import ciInfo from 'ci-info'
 import prompts from 'prompts'
@@ -8,7 +9,7 @@ import updateCheck from 'update-check'
 import packageJson from './package.json'
 import { basename, resolve } from 'node:path'
 import { existsSync } from 'node:fs'
-import { Command } from 'commander'
+import { Command, Option } from 'commander'
 import { cyan, green, red, yellow, bold, blue } from 'picocolors'
 import { createApp, DownloadError } from './create-app'
 import { getPkgManager } from './helpers/get-pkg-manager'
@@ -57,21 +58,11 @@ const program = new Command(packageJson.name)
     'Specify import alias to use (default "@/*").'
   )
   .option('--empty', 'Initialize an empty project.')
-  .option(
-    '--use-npm',
-    'Explicitly tell the CLI to bootstrap the application using npm.'
-  )
-  .option(
-    '--use-pnpm',
-    'Explicitly tell the CLI to bootstrap the application using pnpm.'
-  )
-  .option(
-    '--use-yarn',
-    'Explicitly tell the CLI to bootstrap the application using Yarn.'
-  )
-  .option(
-    '--use-bun',
-    'Explicitly tell the CLI to bootstrap the application using Bun.'
+  .addOption(
+    new Option(
+      '--use <package-manager>',
+      'Specify the package manager to use.'
+    ).choices(['npm', 'pnpm', 'yarn', 'bun'])
   )
   .option(
     '--reset-preferences',
@@ -111,22 +102,26 @@ const program = new Command(packageJson.name)
   })
   .allowUnknownOption()
   .parse(process.argv)
-  .opts()
 
-const packageManager = !!program.useNpm
-  ? 'npm'
-  : !!program.usePnpm
-    ? 'pnpm'
-    : !!program.useYarn
-      ? 'yarn'
-      : !!program.useBun
-        ? 'bun'
-        : getPkgManager()
+const opts = program.opts()
+const { args } = program
+
+const packageManager: PackageManager = opts.use
+  ? opts.use
+  : args.includes('--use-npm')
+    ? 'npm'
+    : args.includes('--use-pnpm')
+      ? 'pnpm'
+      : args.includes('--use-yarn')
+        ? 'yarn'
+        : args.includes('--use-bun')
+          ? 'bun'
+          : getPkgManager()
 
 async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })
 
-  if (program.resetPreferences) {
+  if (opts.resetPreferences) {
     conf.clear()
     console.log(`Preferences reset successfully`)
     return
@@ -160,10 +155,10 @@ async function run(): Promise<void> {
   if (!projectPath) {
     console.log(
       '\nPlease specify the project directory:\n' +
-        `  ${cyan(program.name())} ${green('<project-directory>')}\n` +
+        `  ${cyan(opts.name())} ${green('<project-directory>')}\n` +
         'For example:\n' +
-        `  ${cyan(program.name())} ${green('my-next-app')}\n\n` +
-        `Run ${cyan(`${program.name()} --help`)} to see all options.`
+        `  ${cyan(opts.name())} ${green('my-next-app')}\n\n` +
+        `Run ${cyan(`${opts.name()} --help`)} to see all options.`
     )
     process.exit(1)
   }
@@ -185,7 +180,7 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  if (program.example === true) {
+  if (opts.example === true) {
     console.error(
       'Please provide an example name or url, otherwise remove the example option.'
     )
@@ -196,7 +191,7 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  const example = typeof program.example === 'string' && program.example.trim()
+  const example = typeof opts.example === 'string' && opts.example.trim()
   const preferences = (conf.get('preferences') || {}) as Record<
     string,
     boolean | string
@@ -206,7 +201,7 @@ async function run(): Promise<void> {
    * If the user does not provide the necessary flags, prompt them for their
    * preferences, unless `--yes` option was specified, or when running in CI.
    */
-  const skipPrompt = ciInfo.isCI || program.yes
+  const skipPrompt = ciInfo.isCI || opts.yes
 
   if (!example) {
     const defaults: typeof preferences = {
@@ -223,11 +218,11 @@ async function run(): Promise<void> {
     const getPrefOrDefault = (field: string) =>
       preferences[field] ?? defaults[field]
 
-    if (!program.typescript && !program.javascript) {
+    if (!opts.typescript && !opts.javascript) {
       if (skipPrompt) {
         // default to TypeScript in CI as we can't prompt to
         // prevent breaking setup flows
-        program.typescript = getPrefOrDefault('typescript')
+        opts.typescript = getPrefOrDefault('typescript')
       } else {
         const styledTypeScript = blue('TypeScript')
         const { typescript } = await prompts(
@@ -253,8 +248,8 @@ async function run(): Promise<void> {
         /**
          * Depending on the prompt response, set the appropriate program flags.
          */
-        program.typescript = Boolean(typescript)
-        program.javascript = !Boolean(typescript)
+        opts.typescript = Boolean(typescript)
+        opts.javascript = !Boolean(typescript)
         preferences.typescript = Boolean(typescript)
       }
     }
@@ -264,7 +259,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--no-eslint')
     ) {
       if (skipPrompt) {
-        program.eslint = getPrefOrDefault('eslint')
+        opts.eslint = getPrefOrDefault('eslint')
       } else {
         const styledEslint = blue('ESLint')
         const { eslint } = await prompts({
@@ -276,7 +271,7 @@ async function run(): Promise<void> {
           active: 'Yes',
           inactive: 'No',
         })
-        program.eslint = Boolean(eslint)
+        opts.eslint = Boolean(eslint)
         preferences.eslint = Boolean(eslint)
       }
     }
@@ -286,7 +281,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--no-tailwind')
     ) {
       if (skipPrompt) {
-        program.tailwind = getPrefOrDefault('tailwind')
+        opts.tailwind = getPrefOrDefault('tailwind')
       } else {
         const tw = blue('Tailwind CSS')
         const { tailwind } = await prompts({
@@ -298,7 +293,7 @@ async function run(): Promise<void> {
           active: 'Yes',
           inactive: 'No',
         })
-        program.tailwind = Boolean(tailwind)
+        opts.tailwind = Boolean(tailwind)
         preferences.tailwind = Boolean(tailwind)
       }
     }
@@ -308,7 +303,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--no-src-dir')
     ) {
       if (skipPrompt) {
-        program.srcDir = getPrefOrDefault('srcDir')
+        opts.srcDir = getPrefOrDefault('srcDir')
       } else {
         const styledSrcDir = blue('`src/` directory')
         const { srcDir } = await prompts({
@@ -320,14 +315,14 @@ async function run(): Promise<void> {
           active: 'Yes',
           inactive: 'No',
         })
-        program.srcDir = Boolean(srcDir)
+        opts.srcDir = Boolean(srcDir)
         preferences.srcDir = Boolean(srcDir)
       }
     }
 
     if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
       if (skipPrompt) {
-        program.app = getPrefOrDefault('app')
+        opts.app = getPrefOrDefault('app')
       } else {
         const styledAppDir = blue('App Router')
         const { appRouter } = await prompts({
@@ -339,14 +334,14 @@ async function run(): Promise<void> {
           active: 'Yes',
           inactive: 'No',
         })
-        program.app = Boolean(appRouter)
+        opts.app = Boolean(appRouter)
         preferences.app = Boolean(appRouter)
       }
     }
 
-    if (!program.turbo && !process.argv.includes('--no-turbo')) {
+    if (!opts.turbo && !process.argv.includes('--no-turbo')) {
       if (skipPrompt) {
-        program.turbo = getPrefOrDefault('turbo')
+        opts.turbo = getPrefOrDefault('turbo')
       } else {
         const styledTurbo = blue('Turbopack')
         const { turbo } = await prompts({
@@ -358,21 +353,21 @@ async function run(): Promise<void> {
           active: 'Yes',
           inactive: 'No',
         })
-        program.turbo = Boolean(turbo)
+        opts.turbo = Boolean(turbo)
         preferences.turbo = Boolean(turbo)
       }
     }
 
     const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
-      typeof program.importAlias !== 'string' ||
-      !importAliasPattern.test(program.importAlias)
+      typeof opts.importAlias !== 'string' ||
+      !importAliasPattern.test(opts.importAlias)
     ) {
       if (skipPrompt) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
-        program.importAlias = defaults.importAlias
+        opts.importAlias = defaults.importAlias
       } else if (process.argv.includes('--no-import-alias')) {
-        program.importAlias = defaults.importAlias
+        opts.importAlias = defaults.importAlias
       } else {
         const styledImportAlias = blue('import alias')
 
@@ -388,7 +383,7 @@ async function run(): Promise<void> {
 
         if (!customizeImportAlias) {
           // We don't use preferences here because the default value is @/* regardless of existing preferences
-          program.importAlias = defaults.importAlias
+          opts.importAlias = defaults.importAlias
         } else {
           const { importAlias } = await prompts({
             onState: onPromptState,
@@ -401,7 +396,7 @@ async function run(): Promise<void> {
                 ? true
                 : 'Import alias must follow the pattern <prefix>/*',
           })
-          program.importAlias = importAlias
+          opts.importAlias = importAlias
           preferences.importAlias = importAlias
         }
       }
@@ -413,16 +408,16 @@ async function run(): Promise<void> {
       appPath,
       packageManager,
       example: example && example !== 'default' ? example : undefined,
-      examplePath: program.examplePath,
-      typescript: program.typescript,
-      tailwind: program.tailwind,
-      eslint: program.eslint,
-      appRouter: program.app,
-      srcDir: program.srcDir,
-      importAlias: program.importAlias,
-      skipInstall: program.skipInstall,
-      empty: program.empty,
-      turbo: program.turbo,
+      examplePath: opts.examplePath,
+      typescript: opts.typescript,
+      tailwind: opts.tailwind,
+      eslint: opts.eslint,
+      appRouter: opts.app,
+      srcDir: opts.srcDir,
+      importAlias: opts.importAlias,
+      skipInstall: opts.skipInstall,
+      empty: opts.empty,
+      turbo: opts.turbo,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -445,15 +440,15 @@ async function run(): Promise<void> {
     await createApp({
       appPath,
       packageManager,
-      typescript: program.typescript,
-      eslint: program.eslint,
-      tailwind: program.tailwind,
-      appRouter: program.app,
-      srcDir: program.srcDir,
-      importAlias: program.importAlias,
-      skipInstall: program.skipInstall,
-      empty: program.empty,
-      turbo: program.turbo,
+      typescript: opts.typescript,
+      eslint: opts.eslint,
+      tailwind: opts.tailwind,
+      appRouter: opts.app,
+      srcDir: opts.srcDir,
+      importAlias: opts.importAlias,
+      skipInstall: opts.skipInstall,
+      empty: opts.empty,
+      turbo: opts.turbo,
     })
   }
   conf.set('preferences', preferences)

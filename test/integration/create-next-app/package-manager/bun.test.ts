@@ -29,7 +29,37 @@ describe('create-next-app with package manager bun', () => {
       .catch(() => command('npm', ['i', '-g', 'bun']))
   })
 
-  it('should use bun for --use-bun flag', async () => {
+  it('should use bun for legacy --use-bun flag', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-bun-flag'
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--use-bun',
+          '--no-turbo',
+          '--no-eslint',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files,
+      })
+    })
+  })
+
+  it('should use bun for --use bun', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-bun'
       const res = await run(
@@ -37,7 +67,7 @@ describe('create-next-app with package manager bun', () => {
           projectName,
           '--ts',
           '--app',
-          '--use-bun',
+          '--use=bun',
           '--no-turbo',
           '--no-eslint',
           '--no-src-dir',
@@ -89,11 +119,29 @@ describe('create-next-app with package manager bun', () => {
     })
   })
 
-  it('should use bun for --use-bun flag with example', async () => {
+  it('should use bun for legacy --use-bun flag with example', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-bun-flag-with-example'
+      const res = await run(
+        [projectName, '--use-bun', '--example', FULL_EXAMPLE_PATH],
+        nextTgzFilename,
+        { cwd }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files,
+      })
+    })
+  })
+
+  it('should use bun for --use bun with example', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-bun-with-example'
       const res = await run(
-        [projectName, '--use-bun', '--example', FULL_EXAMPLE_PATH],
+        [projectName, '--use=bun', '--example', FULL_EXAMPLE_PATH],
         nextTgzFilename,
         { cwd }
       )
