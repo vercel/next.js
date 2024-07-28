@@ -16,7 +16,7 @@ import { getPkgManager } from './helpers/get-pkg-manager'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { validateNpmName } from './helpers/validate-pkg'
 
-let projectPath: string = ''
+let appName: string = ''
 
 const handleSigTerm = () => process.exit(0)
 
@@ -97,7 +97,7 @@ const program = new Command(packageJson.name)
     // by the user they will be interpreted as the positional argument (name) in
     // the action handler. See https://github.com/tj/commander.js/pull/1355
     if (name && !name.startsWith('--no-')) {
-      projectPath = name.trim()
+      appName = name.trim()
     }
   })
   .allowUnknownOption()
@@ -163,7 +163,7 @@ async function run(): Promise<void> {
     console.log('Running a dry run, skipping installation.')
   }
 
-  if (!projectPath) {
+  if (!appName) {
     const { path } = await prompts({
       onState: onPromptState,
       type: 'text',
@@ -180,10 +180,10 @@ async function run(): Promise<void> {
     })
 
     if (typeof path === 'string') {
-      projectPath = path.trim()
+      appName = path.trim()
     }
 
-    if (!projectPath) {
+    if (!appName) {
       console.log(
         '\nPlease specify the project directory:\n' +
           `  ${cyan(opts.name())} ${green('<project-directory>')}\n` +
@@ -194,9 +194,6 @@ async function run(): Promise<void> {
       process.exit(1)
     }
   }
-
-  const appPath = resolve(projectPath)
-  const appName = basename(appPath)
 
   const validation = validateNpmName(appName)
   if (!validation.valid) {
@@ -212,6 +209,7 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
+  const appPath = resolve(appName)
   if (existsSync(appPath) && !isFolderEmpty(appPath, appName)) {
     process.exit(1)
   }
