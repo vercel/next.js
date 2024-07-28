@@ -1732,7 +1732,12 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "app-dir-hmr should update server components after navigating to a page with a different runtime",
+      "app-dir-hmr should update server components pages when env files is changed (nodejs)",
+      "app-dir-hmr should update server components pages when env files is changed (edge)",
+      "app-dir-hmr can navigate cleanly to a page that requires a change in the Webpack runtime"
+    ],
     "runtimeError": false
   },
   "test/development/app-render-error-log/app-render-error-log.test.ts": {
