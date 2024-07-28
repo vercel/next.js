@@ -93,13 +93,13 @@ When using an external URL, you must add it to [remotePatterns](#remotepatterns)
 
 ### `width`
 
-The `width` property represents the _intrisic_ image width in pixels.
+The `width` property represents the _intrisic_ image width in pixels.This property is used to infer the correct aspect ratio of the image and avoid layout shift during loading. It does not determine the rendered size of the image, which is controlled by CSS, similar to the `width` attribute in the HTML `<img>` tag.
 
 Required, except for [statically imported images](/docs/app/building-your-application/optimizing/images#local-images) or images with the [`fill` property](#fill).
 
 ### `height`
 
-The `height` property represents the _intrisic_ image height in pixels.
+The `height` property represents the _intrisic_ image height in pixels.This property is used to infer the correct aspect ratio of the image and avoid layout shift during loading. It does not determine the rendered size of the image, which is controlled by CSS, similar to the `height` attribute in the HTML `<img>` tag.
 
 Required, except for [statically imported images](/docs/app/building-your-application/optimizing/images#local-images) or images with the [`fill` property](#fill).
 
