@@ -37,115 +37,58 @@ const onPromptState = (state: {
 }
 
 const program = new Command(packageJson.name)
-  .version(packageJson.version)
-  .argument('[project-directory]')
-  .usage(`${green('[project-directory]')} [options]`)
-  .action((name) => {
-    // Commander does not implicitly support negated options. When they are used
-    // by the user they will be interpreted as the positional argument (name) in
-    // the action handler. See https://github.com/tj/commander.js/pull/1355
-    if (name && !name.startsWith('--no-')) {
-      projectPath = name
-    }
-  })
-  .option(
-    '--ts, --typescript',
-    `
-
-  Initialize as a TypeScript project. (default)
-`
+  .version(
+    packageJson.version,
+    '-v, --version',
+    'Output the current version of create-next-app.'
   )
+  .argument('[directory]')
+  .usage('[directory] [options]')
+  .helpOption('-h, --help', 'Display this help message.')
+  .option('--ts, --typescript', 'Initialize as a TypeScript project. (default)')
+  .option('--js, --javascript', 'Initialize as a JavaScript project.')
+  .option('--tailwind', 'Initialize with Tailwind CSS config. (default)')
+  .option('--eslint', 'Initialize with ESLint config.')
+  .option('--app', 'Initialize as an App Router project.')
+  .option('--src-dir', "Initialize inside a 'src/' directory.")
+  .option('--turbo', 'Enable Turbopack by default for development.')
   .option(
-    '--js, --javascript',
-    `
-
-  Initialize as a JavaScript project.
-`
+    '--import-alias <prefix/*>',
+    'Specify import alias to use (default "@/*").'
   )
-  .option(
-    '--tailwind',
-    `
-
-  Initialize with Tailwind CSS config. (default)
-`
-  )
-  .option(
-    '--eslint',
-    `
-
-  Initialize with ESLint config.
-`
-  )
-  .option(
-    '--app',
-    `
-
-  Initialize as an App Router project.
-`
-  )
-  .option(
-    '--src-dir',
-    `
-
-  Initialize inside a \`src/\` directory.
-`
-  )
-  .option(
-    '--turbo',
-    `
-    
-  Enable Turbopack by default for development.
-`
-  )
-  .option(
-    '--import-alias <alias-to-configure>',
-    `
-
-  Specify import alias to use (default "@/*").
-`
-  )
-  .option(
-    '--empty',
-    `
-
-  Initialize an empty project.
-`
-  )
+  .option('--empty', 'Initialize an empty project.')
   .option(
     '--use-npm',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using npm
-`
+    'Explicitly tell the CLI to bootstrap the application using npm.'
   )
   .option(
     '--use-pnpm',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using pnpm
-`
+    'Explicitly tell the CLI to bootstrap the application using pnpm.'
   )
   .option(
     '--use-yarn',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using Yarn
-`
+    'Explicitly tell the CLI to bootstrap the application using Yarn.'
   )
   .option(
     '--use-bun',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using Bun
-`
+    'Explicitly tell the CLI to bootstrap the application using Bun.'
   )
   .option(
-    '-e, --example [name]|[github-url]',
+    '--reset-preferences',
+    'Explicitly tell the CLI to reset any stored preferences.'
+  )
+  .option(
+    '--skip-install',
+    'Explicitly tell the CLI to skip installing packages.'
+  )
+  .option('--yes', 'Use saved preferences or defaults for unprovided options.')
+  .option(
+    '-e, --example <example-name|github-url>',
     `
 
   An example to bootstrap the app with. You can use an example name
-  from the official Next.js repo or a GitHub URL. The URL can use
-  any branch and/or subdirectory
+  from the official Next.js repo or a public GitHub URL. The URL can use
+  any branch and/or subdirectory.
 `
   )
   .option(
@@ -158,28 +101,14 @@ const program = new Command(packageJson.name)
   --example-path foo/bar
 `
   )
-  .option(
-    '--reset-preferences',
-    `
-
-  Explicitly tell the CLI to reset any stored preferences
-`
-  )
-  .option(
-    '--skip-install',
-    `
-
-  Explicitly tell the CLI to skip installing packages
-`
-  )
-  .option(
-    '--yes',
-    `
-
-  Use previous preferences or defaults for all options that were not
-  explicitly specified, without prompting.
-`
-  )
+  .action((name) => {
+    // Commander does not implicitly support negated options. When they are used
+    // by the user they will be interpreted as the positional argument (name) in
+    // the action handler. See https://github.com/tj/commander.js/pull/1355
+    if (name && !name.startsWith('--no-')) {
+      projectPath = name
+    }
+  })
   .allowUnknownOption()
   .parse(process.argv)
   .opts()
