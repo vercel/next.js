@@ -411,6 +411,10 @@ async function run(): Promise<void> {
   const createAppParams = {
     appPath,
     packageManager,
+    // Proceed to default app if the example value is "default".
+    // x-ref: https://github.com/vercel/next.js/pull/12109
+    example: example && example !== 'default' ? example : undefined,
+    examplePath: opts.examplePath,
     typescript: opts.typescript,
     tailwind: opts.tailwind,
     eslint: opts.eslint,
@@ -435,7 +439,7 @@ async function run(): Promise<void> {
       throw reason
     }
 
-    const res = await prompts({
+    const { builtin } = await prompts({
       onState: onPromptState,
       type: 'confirm',
       name: 'builtin',
@@ -444,7 +448,8 @@ async function run(): Promise<void> {
         `Do you want to use the default template instead?`,
       initial: true,
     })
-    if (!res.builtin) {
+
+    if (!builtin) {
       throw reason
     }
 
