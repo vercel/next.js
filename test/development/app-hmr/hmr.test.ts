@@ -9,7 +9,7 @@ describe(`app-dir-hmr`, () => {
   })
 
   describe('filesystem changes', () => {
-    it('should not continously poll when hitting a not found page', async () => {
+    it('should not continuously poll when hitting a not found page', async () => {
       let requestCount = 0
 
       const browser = await next.browser('/does-not-exist', {

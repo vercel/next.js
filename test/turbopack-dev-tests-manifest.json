@@ -1726,17 +1726,15 @@
     "passed": [
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
-      "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
-      "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge)",
-      "app-dir-hmr filesystem changes should update server components pages when env files is changed (nodejs)"
+      "app-dir-hmr filesystem changes should not continuously poll when hitting a not found page"
     ],
     "failed": [],
     "pending": [],
     "flakey": [
-      "app-dir-hmr should update server components after navigating to a page with a different runtime",
-      "app-dir-hmr should update server components pages when env files is changed (nodejs)",
-      "app-dir-hmr should update server components pages when env files is changed (edge)",
-      "app-dir-hmr can navigate cleanly to a page that requires a change in the Webpack runtime"
+      "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime",
+      "app-dir-hmr filesystem changes should update server components pages when env files is changed (nodejs)",
+      "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge)",
+      "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime"
     ],
     "runtimeError": false
   },
