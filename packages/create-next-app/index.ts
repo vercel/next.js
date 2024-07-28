@@ -99,9 +99,9 @@ const program = new Command(packageJson.name)
       // by the user they will be interpreted as the positional argument (name) in
       // the action handler. See https://github.com/tj/commander.js/pull/1355
       // Also, the internal flags we used cannot be used as the app name.
-      ['--no-', '--use-', '--dry-run'].some((flag) => {
-        return !name.startsWith(flag)
-      })
+      !name.startsWith('--no-') &&
+      !name.startsWith('--use-') &&
+      name !== '--dry-run'
     ) {
       appName = name.trim()
     }
