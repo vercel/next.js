@@ -39,6 +39,7 @@ import {
   turborepoTraceAccess,
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
+import type { Params } from '../client/components/params'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -100,8 +101,6 @@ async function exportPageImpl(
     const isDynamic = isDynamicRoute(page)
     const outDir = isAppDir ? join(distDir, 'server/app') : input.outDir
 
-    let params: { [key: string]: string | string[] } | undefined
-
     const filePath = normalizePagePath(path)
     const ampPath = `${filePath}.amp`
     let renderAmpPath = ampPath
@@ -137,6 +136,8 @@ async function exportPageImpl(
       path,
       input.renderOpts.locales
     )
+
+    let params: Params | undefined
 
     if (isDynamic && page !== nonLocalizedPath) {
       const normalizedPage = isAppDir ? normalizeAppPath(page) : page
@@ -386,6 +387,7 @@ export default async function exportPage(
     hasEmptyPrelude: result.hasEmptyPrelude,
     hasPostponed: result.hasPostponed,
     turborepoAccessTraceResult: turborepoAccessTraceResult.serialize(),
+    fetchMetrics: result.fetchMetrics,
   }
 }
 

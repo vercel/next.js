@@ -1,8 +1,11 @@
 'use client'
 
+import { useTransition } from 'react'
 import { action } from './actions'
 
 export default function Page() {
+  const [, startTransition] = useTransition()
+
   return (
     <main>
       <p>
@@ -17,6 +20,15 @@ export default function Page() {
         }}
       >
         Submit
+      </button>
+
+      <button
+        id="submit-transition"
+        onClick={async () => {
+          startTransition(() => action())
+        }}
+      >
+        Action that triggers an error
       </button>
     </main>
   )

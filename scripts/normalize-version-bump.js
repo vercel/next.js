@@ -72,6 +72,6 @@ const writeJson = async (filePath, data) =>
     private: true,
     workspaces: ['packages/*'],
     scripts: {},
-    packageManager: 'pnpm@8.15.7',
+    packageManager: 'pnpm@9.6.0',
   })
 })()

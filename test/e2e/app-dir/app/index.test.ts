@@ -30,6 +30,28 @@ describe('app dir - basic', () => {
     })
   }
 
+  if (isNextStart) {
+    it('should contain framework.json', async () => {
+      const frameworksJson = await next.readJSON(
+        '.next/diagnostics/framework.json'
+      )
+      expect(frameworksJson).toEqual({
+        name: 'Next.js',
+        version: require('next/package.json').version,
+      })
+    })
+
+    it('outputs correct build-diagnostics.json', async () => {
+      const buildDiagnosticsJson = await next.readJSON(
+        '.next/diagnostics/build-diagnostics.json'
+      )
+      expect(buildDiagnosticsJson).toMatchObject({
+        buildStage: 'static-generation',
+        buildOptions: {},
+      })
+    })
+  }
+
   if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
     it('should not have loader generated function for edge runtime', async () => {
       expect(
@@ -37,12 +59,6 @@ describe('app dir - basic', () => {
       ).not.toContain('_stringifiedConfig')
       expect(await next.readFile('.next/server/middleware.js')).not.toContain(
         '_middlewareConfig'
-      )
-    })
-
-    it('should not have entire prerender-manifest for edge', async () => {
-      expect(await next.readFile('.next/prerender-manifest.js')).not.toContain(
-        'initialRevalidate'
       )
     })
 
@@ -717,9 +733,11 @@ describe('app dir - basic', () => {
         await browser.waitForElementByCss('#render-id')
         expect(await browser.eval('window.history.length')).toBe(2)
 
-        // Get the ID again, and compare, they should be the same.
-        const thirdID = await browser.elementById('render-id').text()
-        expect(thirdID).not.toBe(firstID)
+        await retry(async () => {
+          // Get the ID again, and compare, they should be the same.
+          const thirdID = await browser.elementById('render-id').text()
+          expect(thirdID).not.toBe(firstID)
+        })
 
         // verify that the flag is still set
         expect(await browser.eval('window.__nextSoftPushTest')).toBe(1)

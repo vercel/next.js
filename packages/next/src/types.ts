@@ -1,8 +1,8 @@
-/// <reference types="node" />
-/// <reference types="react" />
-/// <reference types="react/experimental" />
-/// <reference types="react-dom" />
-/// <reference types="react-dom/experimental" />
+/// <reference types="node" preserve="true" />
+/// <reference types="react" preserve="true" />
+/// <reference types="react/experimental" preserve="true" />
+/// <reference types="react-dom" preserve="true" />
+/// <reference types="react-dom/experimental" preserve="true" />
 
 import type { Agent as HttpAgent } from 'http'
 import type { Agent as HttpsAgent } from 'https'
@@ -37,6 +37,8 @@ export type {
   ResolvingViewport,
   ResolvedViewport,
 } from './lib/metadata/types/metadata-interface'
+
+export type { Instrumentation } from './server/instrumentation/types'
 
 /**
  * Stub route type for typedRoutes before `next dev` or `next build` is run

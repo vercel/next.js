@@ -34,6 +34,9 @@ export const expectedWhenTrailingSlashTrue = [
   // Turbopack and plain next.js have different hash output for the file name
   expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
+  ...(process.env.TURBOPACK
+    ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
+    : []),
   '_next/static/test-build-id/_ssgManifest.js',
   'another/first/index.html',
   'another/first/index.txt',
@@ -57,6 +60,9 @@ const expectedWhenTrailingSlashFalse = [
   '404.html',
   expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
+  ...(process.env.TURBOPACK
+    ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
+    : []),
   '_next/static/test-build-id/_ssgManifest.js',
   'another.html',
   'another.txt',

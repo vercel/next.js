@@ -1,7 +1,14 @@
-export default {
+import createMdx from '@next/mdx'
+
+const withMdx = createMdx()
+
+export default withMdx({
   experimental: {
     typedRoutes: true,
   },
+
+  pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'mdx'],
+
   async rewrites() {
     return [
       {
@@ -40,4 +47,4 @@ export default {
       },
     ]
   },
-}
+})
