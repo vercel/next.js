@@ -267,7 +267,15 @@ async function run(): Promise<void> {
       await createApp({
         appPath,
         packageManager,
-        ...defaults,
+        typescript: opts.typescript,
+        eslint: opts.eslint,
+        tailwind: opts.tailwind,
+        app: opts.app,
+        srcDir: opts.srcDir,
+        importAlias: opts.importAlias,
+        skipInstall: opts.skipInstall,
+        empty: opts.empty,
+        turbo: opts.turbo,
       })
     }
 
