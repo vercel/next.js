@@ -212,28 +212,39 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  if (opts.example === true) {
-    console.error(
-      'Please provide an example name or url, otherwise remove the example option.'
-    )
-    process.exit(1)
-  }
-
   if (existsSync(appPath) && !isFolderEmpty(appPath, appName)) {
     process.exit(1)
   }
 
-  const example = typeof opts.example === 'string' && opts.example.trim()
+  if (opts.example) {
+    const example = typeof opts.example === 'string' && opts.example.trim()
 
-  if (example && example !== 'default') {
+    if (!example || opts.example === true) {
+      console.error(
+        'Please provide an example name or url, otherwise remove the example option.'
+      )
+      process.exit(1)
+    }
+
     try {
-      await createApp({
-        appPath,
-        packageManager,
-        example,
-        examplePath: opts.examplePath,
-        ...defaults,
-      })
+      // If the example value is "default", serve the default example.
+      // Previously, providing "default" would skip the example prompt.
+      // x-ref: https://github.com/vercel/next.js/pull/12109
+      if (example === 'default') {
+        await createApp({
+          appPath,
+          packageManager,
+          ...defaults,
+        })
+      } else {
+        await createApp({
+          appPath,
+          packageManager,
+          example,
+          examplePath: opts.examplePath,
+          ...defaults,
+        })
+      }
     } catch (reason) {
       if (!(reason instanceof DownloadError)) {
         throw reason
@@ -453,62 +464,27 @@ async function run(): Promise<void> {
     }
   }
 
-  try {
-    const createAppParams = {
-      appPath,
-      packageManager,
-      example: example && example !== 'default' ? example : undefined,
-      examplePath: opts.examplePath,
-      typescript: opts.typescript,
-      tailwind: opts.tailwind,
-      eslint: opts.eslint,
-      app: opts.app,
-      srcDir: opts.srcDir,
-      importAlias: opts.importAlias,
-      skipInstall: opts.skipInstall,
-      empty: opts.empty,
-      turbo: opts.turbo,
-    }
-
-    if (isDryRun) {
-      console.log('Dry Run Result:')
-      console.log(JSON.stringify(createAppParams, null, 2))
-      return
-    }
-
-    await createApp(createAppParams)
-  } catch (reason) {
-    if (!(reason instanceof DownloadError)) {
-      throw reason
-    }
-
-    const res = await prompts({
-      onState: onPromptState,
-      type: 'confirm',
-      name: 'builtin',
-      message:
-        `Could not download "${example}" because of a connectivity issue between your machine and GitHub.\n` +
-        `Do you want to use the default template instead?`,
-      initial: true,
-    })
-    if (!res.builtin) {
-      throw reason
-    }
-
-    await createApp({
-      appPath,
-      packageManager,
-      typescript: opts.typescript,
-      eslint: opts.eslint,
-      tailwind: opts.tailwind,
-      app: opts.app,
-      srcDir: opts.srcDir,
-      importAlias: opts.importAlias,
-      skipInstall: opts.skipInstall,
-      empty: opts.empty,
-      turbo: opts.turbo,
-    })
+  const createAppParams = {
+    appPath,
+    packageManager,
+    typescript: opts.typescript,
+    tailwind: opts.tailwind,
+    eslint: opts.eslint,
+    app: opts.app,
+    srcDir: opts.srcDir,
+    importAlias: opts.importAlias,
+    skipInstall: opts.skipInstall,
+    empty: opts.empty,
+    turbo: opts.turbo,
   }
+
+  if (isDryRun) {
+    console.log('Dry Run Result:')
+    console.log(JSON.stringify(createAppParams, null, 2))
+    return
+  }
+
+  await createApp(createAppParams)
   conf.set('preferences', preferences)
 }
 

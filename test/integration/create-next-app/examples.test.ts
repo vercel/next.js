@@ -216,15 +216,7 @@ describe('create-next-app --example', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'example-default'
       const res = await run(
-        [
-          projectName,
-          '--js',
-          '--no-tailwind',
-          '--eslint',
-          '--example',
-          'default',
-          '--import-alias=@/*',
-        ],
+        [projectName, '--example', 'default'],
         nextTgzFilename,
         {
           cwd,
@@ -235,8 +227,8 @@ describe('create-next-app --example', () => {
       shouldBeTemplateProject({
         cwd,
         projectName,
-        template: 'default',
-        mode: 'js',
+        template: 'app-tw',
+        mode: 'ts',
       })
     })
   })
