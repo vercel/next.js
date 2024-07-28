@@ -93,10 +93,16 @@ const program = new Command(packageJson.name)
 `
   )
   .action((name) => {
-    // Commander does not implicitly support negated options. When they are used
-    // by the user they will be interpreted as the positional argument (name) in
-    // the action handler. See https://github.com/tj/commander.js/pull/1355
-    if (name && !name.startsWith('--no-')) {
+    if (
+      name &&
+      // Commander does not implicitly support negated options. When they are used
+      // by the user they will be interpreted as the positional argument (name) in
+      // the action handler. See https://github.com/tj/commander.js/pull/1355
+      // Also, the internal flags we used cannot be used as the app name.
+      ['--no-', '--use-', '--dry-run'].some((flag) => {
+        return !name.startsWith(flag)
+      })
+    ) {
       appName = name.trim()
     }
   })
