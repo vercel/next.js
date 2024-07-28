@@ -97,7 +97,7 @@ const program = new Command(packageJson.name)
     // by the user they will be interpreted as the positional argument (name) in
     // the action handler. See https://github.com/tj/commander.js/pull/1355
     if (name && !name.startsWith('--no-')) {
-      projectPath = name
+      projectPath = name.trim()
     }
   })
   .allowUnknownOption()
@@ -118,9 +118,29 @@ const packageManager: PackageManager = opts.use
           ? 'bun'
           : getPkgManager()
 
-async function run(): Promise<void> {
-  const conf = new Conf({ projectName: 'create-next-app' })
+const conf = new Conf({ projectName: 'create-next-app' })
 
+const preferences = (conf.get('preferences') ?? {}) as {
+  [key: string]: string | boolean
+}
+
+const defaults = {
+  typescript: true,
+  eslint: true,
+  tailwind: true,
+  app: true,
+  srcDir: false,
+  importAlias: '@/*',
+  skipInstall: false,
+  customizeImportAlias: false,
+  empty: false,
+  turbo: false,
+}
+
+const getPrefOrDefault = (field: keyof typeof defaults) =>
+  preferences[field] ?? defaults[field]
+
+async function run(): Promise<void> {
   if (opts.resetPreferences) {
     const { resetPreferences } = await prompts({
       onState: onPromptState,
@@ -143,12 +163,8 @@ async function run(): Promise<void> {
     console.log('Running a dry run, skipping installation.')
   }
 
-  if (typeof projectPath === 'string') {
-    projectPath = projectPath.trim()
-  }
-
   if (!projectPath) {
-    const res = await prompts({
+    const { path } = await prompts({
       onState: onPromptState,
       type: 'text',
       name: 'path',
@@ -163,20 +179,20 @@ async function run(): Promise<void> {
       },
     })
 
-    if (typeof res.path === 'string') {
-      projectPath = res.path.trim()
+    if (typeof path === 'string') {
+      projectPath = path.trim()
     }
-  }
 
-  if (!projectPath) {
-    console.log(
-      '\nPlease specify the project directory:\n' +
-        `  ${cyan(opts.name())} ${green('<project-directory>')}\n` +
-        'For example:\n' +
-        `  ${cyan(opts.name())} ${green('my-next-app')}\n\n` +
-        `Run ${cyan(`${opts.name()} --help`)} to see all options.`
-    )
-    process.exit(1)
+    if (!projectPath) {
+      console.log(
+        '\nPlease specify the project directory:\n' +
+          `  ${cyan(opts.name())} ${green('<project-directory>')}\n` +
+          'For example:\n' +
+          `  ${cyan(opts.name())} ${green('my-next-app')}\n\n` +
+          `Run ${cyan(`${opts.name()} --help`)} to see all options.`
+      )
+      process.exit(1)
+    }
   }
 
   const appPath = resolve(projectPath)
@@ -208,10 +224,44 @@ async function run(): Promise<void> {
   }
 
   const example = typeof opts.example === 'string' && opts.example.trim()
-  const preferences = (conf.get('preferences') || {}) as Record<
-    string,
-    boolean | string
-  >
+
+  if (example && example !== 'default') {
+    try {
+      await createApp({
+        appPath,
+        packageManager,
+        example,
+        examplePath: opts.examplePath,
+        ...defaults,
+      })
+    } catch (reason) {
+      if (!(reason instanceof DownloadError)) {
+        throw reason
+      }
+
+      const res = await prompts({
+        onState: onPromptState,
+        type: 'confirm',
+        name: 'builtin',
+        message:
+          `Could not download "${example}" because of a connectivity issue between your machine and GitHub.\n` +
+          `Do you want to use the default template instead?`,
+        initial: true,
+      })
+
+      if (!res.builtin) {
+        throw reason
+      }
+
+      await createApp({
+        appPath,
+        packageManager,
+        ...defaults,
+      })
+    }
+
+    process.exit(0)
+  }
 
   /**
    * If the user does not provide the necessary flags, prompt them for their
@@ -219,202 +269,186 @@ async function run(): Promise<void> {
    */
   const skipPrompt = ciInfo.isCI || opts.yes
 
-  if (!example) {
-    const defaults: typeof preferences = {
-      typescript: true,
-      eslint: true,
-      tailwind: true,
-      app: true,
-      srcDir: false,
-      importAlias: '@/*',
-      customizeImportAlias: false,
-      empty: false,
-      turbo: false,
-    }
-    const getPrefOrDefault = (field: string) =>
-      preferences[field] ?? defaults[field]
-
-    if (!opts.typescript && !opts.javascript) {
-      if (skipPrompt) {
-        // default to TypeScript in CI as we can't prompt to
-        // prevent breaking setup flows
-        opts.typescript = getPrefOrDefault('typescript')
-      } else {
-        const styledTypeScript = blue('TypeScript')
-        const { typescript } = await prompts(
-          {
-            type: 'toggle',
-            name: 'typescript',
-            message: `Would you like to use ${styledTypeScript}?`,
-            initial: getPrefOrDefault('typescript'),
-            active: 'Yes',
-            inactive: 'No',
+  if (!opts.typescript && !opts.javascript) {
+    if (skipPrompt) {
+      // default to TypeScript in CI as we can't prompt to
+      // prevent breaking setup flows
+      opts.typescript = getPrefOrDefault('typescript')
+    } else {
+      const styledTypeScript = blue('TypeScript')
+      const { typescript } = await prompts(
+        {
+          type: 'toggle',
+          name: 'typescript',
+          message: `Would you like to use ${styledTypeScript}?`,
+          initial: getPrefOrDefault('typescript'),
+          active: 'Yes',
+          inactive: 'No',
+        },
+        {
+          /**
+           * User inputs Ctrl+C or Ctrl+D to exit the prompt. We should close the
+           * process and not write to the file system.
+           */
+          onCancel: () => {
+            console.error('Exiting.')
+            process.exit(1)
           },
-          {
-            /**
-             * User inputs Ctrl+C or Ctrl+D to exit the prompt. We should close the
-             * process and not write to the file system.
-             */
-            onCancel: () => {
-              console.error('Exiting.')
-              process.exit(1)
-            },
-          }
-        )
-        /**
-         * Depending on the prompt response, set the appropriate program flags.
-         */
-        opts.typescript = Boolean(typescript)
-        opts.javascript = !Boolean(typescript)
-        preferences.typescript = Boolean(typescript)
-      }
+        }
+      )
+      /**
+       * Depending on the prompt response, set the appropriate program flags.
+       */
+      opts.typescript = Boolean(typescript)
+      opts.javascript = !Boolean(typescript)
+      preferences.typescript = Boolean(typescript)
     }
+  }
 
-    if (
-      !process.argv.includes('--eslint') &&
-      !process.argv.includes('--no-eslint')
-    ) {
-      if (skipPrompt) {
-        opts.eslint = getPrefOrDefault('eslint')
-      } else {
-        const styledEslint = blue('ESLint')
-        const { eslint } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'eslint',
-          message: `Would you like to use ${styledEslint}?`,
-          initial: getPrefOrDefault('eslint'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        opts.eslint = Boolean(eslint)
-        preferences.eslint = Boolean(eslint)
-      }
+  if (
+    !process.argv.includes('--eslint') &&
+    !process.argv.includes('--no-eslint')
+  ) {
+    if (skipPrompt) {
+      opts.eslint = getPrefOrDefault('eslint')
+    } else {
+      const styledEslint = blue('ESLint')
+      const { eslint } = await prompts({
+        onState: onPromptState,
+        type: 'toggle',
+        name: 'eslint',
+        message: `Would you like to use ${styledEslint}?`,
+        initial: getPrefOrDefault('eslint'),
+        active: 'Yes',
+        inactive: 'No',
+      })
+      opts.eslint = Boolean(eslint)
+      preferences.eslint = Boolean(eslint)
     }
+  }
 
-    if (
-      !process.argv.includes('--tailwind') &&
-      !process.argv.includes('--no-tailwind')
-    ) {
-      if (skipPrompt) {
-        opts.tailwind = getPrefOrDefault('tailwind')
-      } else {
-        const tw = blue('Tailwind CSS')
-        const { tailwind } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'tailwind',
-          message: `Would you like to use ${tw}?`,
-          initial: getPrefOrDefault('tailwind'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        opts.tailwind = Boolean(tailwind)
-        preferences.tailwind = Boolean(tailwind)
-      }
+  if (
+    !process.argv.includes('--tailwind') &&
+    !process.argv.includes('--no-tailwind')
+  ) {
+    if (skipPrompt) {
+      opts.tailwind = getPrefOrDefault('tailwind')
+    } else {
+      const tw = blue('Tailwind CSS')
+      const { tailwind } = await prompts({
+        onState: onPromptState,
+        type: 'toggle',
+        name: 'tailwind',
+        message: `Would you like to use ${tw}?`,
+        initial: getPrefOrDefault('tailwind'),
+        active: 'Yes',
+        inactive: 'No',
+      })
+      opts.tailwind = Boolean(tailwind)
+      preferences.tailwind = Boolean(tailwind)
     }
+  }
 
-    if (
-      !process.argv.includes('--src-dir') &&
-      !process.argv.includes('--no-src-dir')
-    ) {
-      if (skipPrompt) {
-        opts.srcDir = getPrefOrDefault('srcDir')
-      } else {
-        const styledSrcDir = blue('`src/` directory')
-        const { srcDir } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'srcDir',
-          message: `Would you like your code inside a ${styledSrcDir}?`,
-          initial: getPrefOrDefault('srcDir'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        opts.srcDir = Boolean(srcDir)
-        preferences.srcDir = Boolean(srcDir)
-      }
+  if (
+    !process.argv.includes('--src-dir') &&
+    !process.argv.includes('--no-src-dir')
+  ) {
+    if (skipPrompt) {
+      opts.srcDir = getPrefOrDefault('srcDir')
+    } else {
+      const styledSrcDir = blue('`src/` directory')
+      const { srcDir } = await prompts({
+        onState: onPromptState,
+        type: 'toggle',
+        name: 'srcDir',
+        message: `Would you like your code inside a ${styledSrcDir}?`,
+        initial: getPrefOrDefault('srcDir'),
+        active: 'Yes',
+        inactive: 'No',
+      })
+      opts.srcDir = Boolean(srcDir)
+      preferences.srcDir = Boolean(srcDir)
     }
+  }
 
-    if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
-      if (skipPrompt) {
-        opts.app = getPrefOrDefault('app')
-      } else {
-        const styledAppDir = blue('App Router')
-        const { appRouter } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'appRouter',
-          message: `Would you like to use ${styledAppDir}? (recommended)`,
-          initial: getPrefOrDefault('app'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        opts.app = Boolean(appRouter)
-        preferences.app = Boolean(appRouter)
-      }
+  if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
+    if (skipPrompt) {
+      opts.app = getPrefOrDefault('app')
+    } else {
+      const styledAppDir = blue('App Router')
+      const { app } = await prompts({
+        onState: onPromptState,
+        type: 'toggle',
+        name: 'app',
+        message: `Would you like to use ${styledAppDir}? (recommended)`,
+        initial: getPrefOrDefault('app'),
+        active: 'Yes',
+        inactive: 'No',
+      })
+      opts.app = Boolean(app)
+      preferences.app = Boolean(app)
     }
+  }
 
-    if (!opts.turbo && !process.argv.includes('--no-turbo')) {
-      if (skipPrompt) {
-        opts.turbo = getPrefOrDefault('turbo')
-      } else {
-        const styledTurbo = blue('Turbopack')
-        const { turbo } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'turbo',
-          message: `Would you like to use ${styledTurbo} for ${`next dev`}?`,
-          initial: getPrefOrDefault('turbo'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        opts.turbo = Boolean(turbo)
-        preferences.turbo = Boolean(turbo)
-      }
+  if (!opts.turbo && !process.argv.includes('--no-turbo')) {
+    if (skipPrompt) {
+      opts.turbo = getPrefOrDefault('turbo')
+    } else {
+      const styledTurbo = blue('Turbopack')
+      const { turbo } = await prompts({
+        onState: onPromptState,
+        type: 'toggle',
+        name: 'turbo',
+        message: `Would you like to use ${styledTurbo} for ${`next dev`}?`,
+        initial: getPrefOrDefault('turbo'),
+        active: 'Yes',
+        inactive: 'No',
+      })
+      opts.turbo = Boolean(turbo)
+      preferences.turbo = Boolean(turbo)
     }
+  }
 
-    const importAliasPattern = /^[^*"]+\/\*\s*$/
-    if (
-      typeof opts.importAlias !== 'string' ||
-      !importAliasPattern.test(opts.importAlias)
-    ) {
-      if (skipPrompt) {
+  const importAliasPattern = /^[^*"]+\/\*\s*$/
+  if (
+    typeof opts.importAlias !== 'string' ||
+    !importAliasPattern.test(opts.importAlias)
+  ) {
+    if (skipPrompt) {
+      // We don't use preferences here because the default value is @/* regardless of existing preferences
+      opts.importAlias = defaults.importAlias
+    } else if (process.argv.includes('--no-import-alias')) {
+      opts.importAlias = defaults.importAlias
+    } else {
+      const styledImportAlias = blue('import alias')
+
+      const { customizeImportAlias } = await prompts({
+        onState: onPromptState,
+        type: 'toggle',
+        name: 'customizeImportAlias',
+        message: `Would you like to customize the ${styledImportAlias} (${defaults.importAlias} by default)?`,
+        initial: getPrefOrDefault('customizeImportAlias'),
+        active: 'Yes',
+        inactive: 'No',
+      })
+
+      if (!customizeImportAlias) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
         opts.importAlias = defaults.importAlias
-      } else if (process.argv.includes('--no-import-alias')) {
-        opts.importAlias = defaults.importAlias
       } else {
-        const styledImportAlias = blue('import alias')
-
-        const { customizeImportAlias } = await prompts({
+        const { importAlias } = await prompts({
           onState: onPromptState,
-          type: 'toggle',
-          name: 'customizeImportAlias',
-          message: `Would you like to customize the ${styledImportAlias} (${defaults.importAlias} by default)?`,
-          initial: getPrefOrDefault('customizeImportAlias'),
-          active: 'Yes',
-          inactive: 'No',
+          type: 'text',
+          name: 'importAlias',
+          message: `What ${styledImportAlias} would you like configured?`,
+          initial: getPrefOrDefault('importAlias'),
+          validate: (value) =>
+            importAliasPattern.test(value)
+              ? true
+              : 'Import alias must follow the pattern <prefix>/*',
         })
-
-        if (!customizeImportAlias) {
-          // We don't use preferences here because the default value is @/* regardless of existing preferences
-          opts.importAlias = defaults.importAlias
-        } else {
-          const { importAlias } = await prompts({
-            onState: onPromptState,
-            type: 'text',
-            name: 'importAlias',
-            message: `What ${styledImportAlias} would you like configured?`,
-            initial: getPrefOrDefault('importAlias'),
-            validate: (value) =>
-              importAliasPattern.test(value)
-                ? true
-                : 'Import alias must follow the pattern <prefix>/*',
-          })
-          opts.importAlias = importAlias
-          preferences.importAlias = importAlias
-        }
+        opts.importAlias = importAlias
+        preferences.importAlias = importAlias
       }
     }
   }
@@ -428,7 +462,7 @@ async function run(): Promise<void> {
       typescript: opts.typescript,
       tailwind: opts.tailwind,
       eslint: opts.eslint,
-      appRouter: opts.app,
+      app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,
       skipInstall: opts.skipInstall,
@@ -467,7 +501,7 @@ async function run(): Promise<void> {
       typescript: opts.typescript,
       eslint: opts.eslint,
       tailwind: opts.tailwind,
-      appRouter: opts.app,
+      app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,
       skipInstall: opts.skipInstall,
@@ -478,18 +512,18 @@ async function run(): Promise<void> {
   conf.set('preferences', preferences)
 }
 
+const global = {
+  npm: 'npm i -g',
+  yarn: 'yarn global add',
+  pnpm: 'pnpm add -g',
+  bun: 'bun add -g',
+}
+const updateMessage = `${global[packageManager]} create-next-app`
 const update = updateCheck(packageJson).catch(() => null)
 
 async function notifyUpdate(): Promise<void> {
   try {
     if ((await update)?.latest) {
-      const global = {
-        npm: 'npm i -g',
-        yarn: 'yarn global add',
-        pnpm: 'pnpm add -g',
-        bun: 'bun add -g',
-      }
-      const updateMessage = `${global[packageManager]} create-next-app`
       console.log(
         yellow(bold('A new version of `create-next-app` is available!')) +
           '\n' +
