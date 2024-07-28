@@ -216,35 +216,26 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  if (opts.example) {
-    const example = typeof opts.example === 'string' && opts.example.trim()
+  if (opts.example === true) {
+    console.error(
+      'Please provide an example name or url, otherwise remove the example option.'
+    )
+    process.exit(1)
+  }
 
-    if (!example || opts.example === true) {
-      console.error(
-        'Please provide an example name or url, otherwise remove the example option.'
-      )
-      process.exit(1)
-    }
+  const example = typeof opts.example === 'string' && opts.example.trim()
 
+  // If the example value is "default", skip the example prompt.
+  // x-ref: https://github.com/vercel/next.js/pull/12109
+  if (example && example !== 'default') {
     try {
-      // If the example value is "default", serve the default example.
-      // Previously, providing "default" would skip the example prompt.
-      // x-ref: https://github.com/vercel/next.js/pull/12109
-      if (example === 'default') {
-        await createApp({
-          appPath,
-          packageManager,
-          ...defaults,
-        })
-      } else {
-        await createApp({
-          appPath,
-          packageManager,
-          example,
-          examplePath: opts.examplePath,
-          ...defaults,
-        })
-      }
+      await createApp({
+        appPath,
+        packageManager,
+        example,
+        examplePath: opts.examplePath,
+        ...defaults,
+      })
     } catch (reason) {
       if (!(reason instanceof DownloadError)) {
         throw reason
