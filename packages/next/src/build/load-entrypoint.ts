@@ -60,6 +60,15 @@ export async function loadEntrypoint(
         // Ensure that we use linux style path separators for node.
         .replace(/\\/g, '/')
 
+      const stats = await _promises.default.lstat(filepath);
+      const hasSimlink = stats.isSymbolicLink();
+
+      // If the file is a symlink, we need to adjust the relative path to the symlink
+      if (hasSimlink) {
+        const symlinkPath = _path.default.dirname(filepath);
+        const symlinkRelative = _path.default.relative(PACKAGE_ROOT, symlinkPath).replace(/\\/g, "/");
+        return fromRequest ? `from ${JSON.stringify(_path.default.join(symlinkRelative, relative))}` : `import ${JSON.stringify(_path.default.join(symlinkRelative, relative))}`;
+      } else
       // Verify that the relative import is relative to the `next` package. This
       // will catch cases where the constants at the top of the file were not
       // updated after the file was moved.
