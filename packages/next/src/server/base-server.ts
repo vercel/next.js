@@ -2,7 +2,7 @@ import type { __ApiPreviewProps } from './api-utils'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../client/components/params'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type {
   NextParsedUrlQuery,
@@ -101,6 +101,7 @@ import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
+  NEXT_IS_PRERENDER_HEADER,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -836,10 +837,7 @@ export default abstract class Server<
   ) {
     const [err, req, ctx] = args
 
-    if (
-      process.env.__NEXT_EXPERIMENTAL_INSTRUMENTATION &&
-      this.instrumentation
-    ) {
+    if (this.instrumentation) {
       try {
         await this.instrumentation.onRequestError?.(
           err,
@@ -2917,6 +2915,9 @@ export default abstract class Server<
               ? 'STALE'
               : 'HIT'
       )
+      // Set a header used by the client router to signal the response is static
+      // and should respect the `static` cache staleTime value.
+      res.setHeader(NEXT_IS_PRERENDER_HEADER, '1')
     }
 
     const { value: cachedData } = cacheEntry

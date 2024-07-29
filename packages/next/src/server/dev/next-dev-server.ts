@@ -1,7 +1,7 @@
-import type { FindComponentsResult } from '../next-server'
+import type { FindComponentsResult, NodeRequestHandler } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
 import type { Options as ServerOptions } from '../next-server'
-import type { Params } from '../../shared/lib/router/utils/route-matcher'
+import type { Params } from '../../client/components/params'
 import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
@@ -9,9 +9,10 @@ import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
-import type {
-  NextParsedUrlQuery,
-  NextUrlWithParsedQuery,
+import {
+  getRequestMeta,
+  type NextParsedUrlQuery,
+  type NextUrlWithParsedQuery,
 } from '../request-meta'
 import type { DevBundlerService } from '../lib/dev-bundler-service'
 import type { IncrementalCache } from '../lib/incremental-cache'
@@ -67,6 +68,7 @@ import { buildCustomRoute } from '../../lib/build-custom-route'
 import { decorateServerError } from '../../shared/lib/error-source'
 import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 import type { ServerComponentsHmrCache } from '../response-cache'
+import { logRequests } from './log-requests'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -290,9 +292,6 @@ export default class DevServer extends Server {
     const telemetry = new Telemetry({ distDir: this.distDir })
 
     await super.prepareImpl()
-    await this.startServerSpan
-      .traceChild('run-instrumentation-hook')
-      .traceAsyncFn(() => this.runInstrumentationHookIfAvailable())
     await this.matchers.reload()
 
     // Store globals again to preserve changes made by the instrumentation hook.
@@ -464,6 +463,43 @@ export default class DevServer extends Server {
     }
   }
 
+  public getRequestHandler(): NodeRequestHandler {
+    const handler = super.getRequestHandler()
+
+    return (req, res, parsedUrl) => {
+      const request = this.normalizeReq(req)
+      const response = this.normalizeRes(res)
+      const loggingConfig = this.nextConfig.logging
+
+      if (loggingConfig !== false) {
+        const start = Date.now()
+        const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
+
+        if (!isMiddlewareRequest) {
+          response.originalResponse.once('close', () => {
+            // NOTE: The route match is only attached to the request's meta data
+            // after the request handler is created, so we need to check it in the
+            // close handler and not before.
+            const routeMatch = getRequestMeta(req).match
+
+            if (!routeMatch) {
+              return
+            }
+
+            logRequests({
+              request,
+              response,
+              loggingConfig,
+              requestDurationInMs: Date.now() - start,
+            })
+          })
+        }
+      }
+
+      return handler(request, response, parsedUrl)
+    }
+  }
+
   public async handleRequest(
     req: NodeNextRequest,
     res: NodeNextResponse,
@@ -623,10 +659,10 @@ export default class DevServer extends Server {
     return instrumentationModule
   }
 
-  private async runInstrumentationHookIfAvailable() {
-    if (this.instrumentation) {
-      await this.instrumentation.register?.()
-    }
+  protected async runInstrumentationHookIfAvailable() {
+    await this.startServerSpan
+      .traceChild('run-instrumentation-hook')
+      .traceAsyncFn(() => this.instrumentation?.register?.())
   }
 
   protected async ensureEdgeFunction({

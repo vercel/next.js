@@ -1,5 +1,8 @@
 import fs from 'fs'
 import path from 'path'
+import { version as nextVersion } from 'next/package.json'
+import type { Route } from 'playwright'
+import { retry } from 'next-test-utils'
 import { nextTestSetup, isNextStart } from 'e2e-utils'
 
 // This feature is only relevant to Webpack.
@@ -20,6 +23,25 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         NEXT_PRIVATE_FLYING_SHUTTLE: 'true',
       },
     })
+    let initialConfig: Record<string, any> = {}
+
+    beforeAll(async () => {
+      const manifest = await next.readJSON(
+        '.next/cache/shuttle/shuttle-manifest.json'
+      )
+      initialConfig = manifest.config
+    })
+
+    async function checkShuttleManifest() {
+      const manifest = await next.readJSON(
+        '.next/cache/shuttle/shuttle-manifest.json'
+      )
+
+      expect(manifest).toEqual({
+        nextVersion,
+        config: initialConfig,
+      })
+    }
 
     it('should have file hashes in trace files', async () => {
       const deploymentsTracePath = path.join(
@@ -68,6 +90,184 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
 
           expect(typeof traceFile.fileHashes[key]).toBe('string')
         }
+      }
+    })
+
+    it('should hard navigate on chunk load failure', async () => {
+      let blockChunks = false
+      const browser = await next.browser('/dashboard', {
+        beforePageLoad(page) {
+          page.route('**/_next/static/**', async (route: Route) => {
+            if (blockChunks) {
+              return route.abort()
+            }
+            return route.continue()
+          })
+        },
+      })
+
+      await retry(async () => {
+        expect(await browser.eval('!!next.router.push')).toBe(true)
+      })
+      blockChunks = true
+      await browser.eval('window.beforeNav = 1')
+      await browser.eval('next.router.push("/dynamic-client/first/second")')
+
+      await retry(async () => {
+        expect(
+          await browser.eval('document.documentElement.innerHTML')
+        ).toContain('button on app/dynamic-client')
+      })
+      // since we hard navigate on failure global scope should be cleared
+      expect(await browser.eval('window.beforeNav')).toBeFalsy()
+    })
+
+    async function checkAppPagesNavigation() {
+      const testPaths = [
+        { path: '/', content: 'hello from pages/index', type: 'pages' },
+        {
+          path: '/blog/123',
+          content: 'hello from pages/blog/[slug]',
+          type: 'pages',
+        },
+        {
+          path: '/dynamic-client/first/second',
+          content: 'button on app/dynamic-client',
+          type: 'app',
+        },
+        {
+          path: '/dashboard',
+          content: 'hello from app/dashboard',
+          type: 'app',
+        },
+        {
+          path: '/dashboard/deployments/123',
+          content: 'hello from app/dashboard/deployments/[id]',
+          type: 'app',
+        },
+      ]
+
+      for (const testPath of testPaths) {
+        const { path, content } = testPath
+        require('console').error('checking', path)
+
+        const res = await next.fetch(path)
+        expect(res.status).toBe(200)
+
+        const browser = await next.browser(path)
+
+        await retry(async () => {
+          expect(await browser.eval('!!window.next.router')).toBe(true)
+          expect(
+            await browser.eval('document.documentElement.innerHTML')
+          ).toContain(content)
+        })
+
+        const checkNav = async (testPath: (typeof testPaths)[0]) => {
+          await browser.eval(`window.next.router.push("${testPath.path}")`)
+
+          await retry(async () => {
+            expect(await browser.eval('!!window.next.router')).toBe(true)
+            expect(
+              await browser.eval('document.documentElement.innerHTML')
+            ).toContain(testPath.content)
+          })
+        }
+
+        // test navigating to a pages path
+        const pagesTestPath = testPaths.find(
+          (item) => item.type === 'pages' && item.path !== path
+        )
+        await checkNav(pagesTestPath)
+
+        // go back to initial page
+        await checkNav(testPath)
+
+        // test navigating to an app route
+        const appTestPath = testPaths.find(
+          (item) => item.type === 'app' && item.path !== path
+        )
+        await checkNav(appTestPath)
+      }
+    }
+
+    it('should only rebuild just a changed app route correctly', async () => {
+      await next.stop()
+
+      const dataPath = 'app/dashboard/deployments/[id]/data.json'
+      const originalContent = await next.readFile(dataPath)
+
+      try {
+        await next.patchFile(dataPath, JSON.stringify({ hello: 'again' }))
+        await next.start()
+
+        expect(next.cliOutput).not.toContain('/catch-all')
+        expect(next.cliOutput).not.toContain('/blog/[slug]')
+        expect(next.cliOutput).toContain('/dashboard/deployments/[id]')
+
+        await checkShuttleManifest()
+        await checkAppPagesNavigation()
+      } finally {
+        await next.patchFile(dataPath, originalContent)
+      }
+    })
+
+    it('should only rebuild just a changed pages route correctly', async () => {
+      await next.stop()
+
+      const pagePath = 'pages/index.js'
+      const originalContent = await next.readFile(pagePath)
+
+      try {
+        await next.patchFile(
+          pagePath,
+          originalContent.replace(
+            'hello from pages/index',
+            'hello from pages/index!!'
+          )
+        )
+        await next.start()
+
+        expect(next.cliOutput).toContain('/')
+        expect(next.cliOutput).not.toContain('/catch-all')
+        expect(next.cliOutput).not.toContain('/blog/[slug]')
+
+        await checkShuttleManifest()
+        await checkAppPagesNavigation()
+      } finally {
+        await next.patchFile(pagePath, originalContent)
+      }
+    })
+
+    it('should only rebuild a changed app and pages route correctly', async () => {
+      await next.stop()
+
+      const pagePath = 'pages/index.js'
+      const originalPageContent = await next.readFile(pagePath)
+      const dataPath = 'app/dashboard/deployments/[id]/data.json'
+      const originalDataContent = await next.readFile(dataPath)
+
+      try {
+        await next.patchFile(
+          pagePath,
+          originalPageContent.replace(
+            'hello from pages/index',
+            'hello from pages/index!!'
+          )
+        )
+        await next.patchFile(dataPath, JSON.stringify({ hello: 'again' }))
+        await next.start()
+
+        expect(next.cliOutput).toContain('/')
+        expect(next.cliOutput).toContain('/dashboard/deployments/[id]')
+        expect(next.cliOutput).not.toContain('/catch-all')
+        expect(next.cliOutput).not.toContain('/blog/[slug]')
+
+        await checkShuttleManifest()
+        await checkAppPagesNavigation()
+      } finally {
+        await next.patchFile(pagePath, originalPageContent)
+        await next.patchFile(dataPath, originalDataContent)
       }
     })
   }

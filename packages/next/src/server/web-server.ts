@@ -1,9 +1,8 @@
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../client/components/params'
 import type { LoadComponentsReturnType } from './load-components'
-import type { PrerenderManifest } from '../build'
 import type {
   LoadedRenderOpts,
   MiddlewareRoutingItem,
@@ -33,7 +32,6 @@ import type { PAGE_TYPES } from '../lib/page-types'
 import type { Rewrite } from '../lib/load-custom-routes'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../api/constants'
-import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { getEdgeInstrumentationModule } from './web/globals'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
 import { getEdgePreviewProps } from './web/get-edge-preview-props'
@@ -52,7 +50,6 @@ interface WebServerOptions extends Options {
       | typeof import('./app-render/app-render').renderToHTMLOrFlight
       | undefined
     incrementalCacheHandler?: any
-    prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
     interceptionRouteRewrites?: Rewrite[]
   }
 }
@@ -140,17 +137,13 @@ export default class NextWebServer extends BaseServer<
   }
 
   protected getPrerenderManifest() {
-    const { prerenderManifest } = this.serverOptions.webServerConfig
-    if (this.renderOpts?.dev || !prerenderManifest) {
-      return {
-        version: -1 as any, // letting us know this doesn't conform to spec
-        routes: {},
-        dynamicRoutes: {},
-        notFoundRoutes: [],
-        preview: getEdgePreviewProps(),
-      }
+    return {
+      version: -1 as any, // letting us know this doesn't conform to spec
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+      preview: getEdgePreviewProps(),
     }
-    return prerenderManifest
   }
 
   protected getNextFontManifest() {

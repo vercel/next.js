@@ -211,6 +211,8 @@ export default function Error({ error, reset }) {
 }
 ```
 
+If you want errors to bubble up to the parent error boundary, you can `throw` when rendering the `error` component.
+
 ### Handling Errors in Nested Routes
 
 Errors will bubble up to the nearest parent error boundary. This allows for granular error handling by placing `error.tsx` files at different levels in the [route hierarchy](/docs/app/building-your-application/routing#component-hierarchy).
@@ -225,7 +227,7 @@ Errors will bubble up to the nearest parent error boundary. This allows for gran
 
 ### Handling Global Errors
 
-While less common, you can handle errors in the root layout using `app/global-error.js`. Global error UI must define its own `<html>` and `<body>` tags, since it is replacing the root layout or template when active.
+While less common, you can handle errors in the root layout using `app/global-error.js`, located in the root app directory, even when leveraging [internationalization](/docs/app/building-your-application/routing/internationalization). Global error UI must define its own `<html>` and `<body>` tags, since it is replacing the root layout or template when active.
 
 ```tsx filename="app/global-error.tsx" switcher
 'use client' // Error boundaries must be Client Components

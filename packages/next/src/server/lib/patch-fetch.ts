@@ -11,7 +11,6 @@ import {
   NEXT_CACHE_TAG_MAX_ITEMS,
   NEXT_CACHE_TAG_MAX_LENGTH,
 } from '../../lib/constants'
-import * as Log from '../../build/output/log'
 import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
@@ -168,49 +167,30 @@ function trackFetchMetric(
   staticGenerationStore: StaticGenerationStore,
   ctx: Omit<FetchMetric, 'end' | 'idx'>
 ) {
+  // If the static generation store is not available, we can't track the fetch
+  if (!staticGenerationStore) return
+  if (staticGenerationStore.requestEndedState?.ended) return
+
+  const isDebugBuild =
+    !!process.env.NEXT_DEBUG_BUILD && staticGenerationStore.isStaticGeneration
+  const isDevelopment = process.env.NODE_ENV === 'development'
+
   if (
-    !staticGenerationStore ||
-    staticGenerationStore.requestEndedState?.ended ||
-    process.env.NODE_ENV !== 'development'
+    // The only time we want to track fetch metrics outside of development is when
+    // we are performing a static generation & we are in debug mode.
+    !isDebugBuild &&
+    !isDevelopment
   ) {
     return
   }
+
   staticGenerationStore.fetchMetrics ??= []
 
-  const dedupeFields = ['url', 'status', 'method'] as const
-
-  // don't add metric if one already exists for the fetch
-  if (
-    staticGenerationStore.fetchMetrics.some((metric) =>
-      dedupeFields.every((field) => metric[field] === ctx[field])
-    )
-  ) {
-    return
-  }
   staticGenerationStore.fetchMetrics.push({
     ...ctx,
     end: Date.now(),
     idx: staticGenerationStore.nextFetchId || 0,
   })
-
-  // only store top 10 metrics to avoid storing too many
-  if (staticGenerationStore.fetchMetrics.length > 10) {
-    // sort slowest first as these should be highlighted
-    staticGenerationStore.fetchMetrics.sort((a, b) => {
-      const aDur = a.end - a.start
-      const bDur = b.end - b.start
-
-      if (aDur < bDur) {
-        return 1
-      } else if (aDur > bDur) {
-        return -1
-      }
-      return 0
-    })
-    // now grab top 10
-    staticGenerationStore.fetchMetrics =
-      staticGenerationStore.fetchMetrics.slice(0, 10)
-  }
 }
 
 interface PatchableModule {
@@ -328,6 +308,7 @@ function createPatchedFetcher(
 
         let currentFetchCacheConfig = getRequestMeta('cache')
         let cacheReason = ''
+        let cacheWarning: string | undefined
 
         if (
           typeof currentFetchCacheConfig === 'string' &&
@@ -336,9 +317,7 @@ function createPatchedFetcher(
           // when providing fetch with a Request input, it'll automatically set a cache value of 'default'
           // we only want to warn if the user is explicitly setting a cache value
           if (!(isRequestInput && currentFetchCacheConfig === 'default')) {
-            Log.warn(
-              `fetch for ${fetchUrl} on ${staticGenerationStore.route} specified "cache: ${currentFetchCacheConfig}" and "revalidate: ${currentFetchRevalidate}", only one should be specified.`
-            )
+            cacheWarning = `Specified "cache: ${currentFetchCacheConfig}" and "revalidate: ${currentFetchRevalidate}", only one should be specified.`
           }
           currentFetchCacheConfig = undefined
         }
@@ -587,6 +566,7 @@ function createPatchedFetcher(
                   finalRevalidate === 0 || cacheReasonOverride
                     ? 'skip'
                     : 'miss',
+                cacheWarning,
                 status: res.status,
                 method: clonedInit.method || 'GET',
               })
@@ -647,6 +627,7 @@ function createPatchedFetcher(
         let handleUnlock = () => Promise.resolve()
         let cacheReasonOverride
         let isForegroundRevalidate = false
+        let isHmrRefreshCache = false
 
         if (cacheKey && staticGenerationStore.incrementalCache) {
           let cachedFetchData: CachedFetchData | undefined
@@ -657,6 +638,8 @@ function createPatchedFetcher(
           ) {
             cachedFetchData =
               requestStore.serverComponentsHmrCache.get(cacheKey)
+
+            isHmrRefreshCache = true
           }
 
           if (isCacheableRevalidate && !cachedFetchData) {
@@ -712,7 +695,8 @@ function createPatchedFetcher(
               start: fetchStart,
               url: fetchUrl,
               cacheReason,
-              cacheStatus: 'hit',
+              cacheStatus: isHmrRefreshCache ? 'hmr' : 'hit',
+              cacheWarning,
               status: cachedFetchData.status || 200,
               method: init?.method || 'GET',
             })

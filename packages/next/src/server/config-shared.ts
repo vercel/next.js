@@ -93,10 +93,10 @@ type JSONValue =
 export type TurboLoaderItem =
   | string
   | {
-      loader: string
-      // At the moment, Turbopack options must be JSON-serializable, so restrict values.
-      options: Record<string, JSONValue>
-    }
+    loader: string
+    // At the moment, Turbopack options must be JSON-serializable, so restrict values.
+    options: Record<string, JSONValue>
+  }
 
 export type TurboRuleConfigItemOrShortcut =
   | TurboLoaderItem[]
@@ -145,7 +145,7 @@ export interface ExperimentalTurboOptions {
   rules?: Record<string, TurboRuleConfigItemOrShortcut>
 
   /**
-   * Use swc_css instead of lightningcss for turbopakc
+   * Use swc_css instead of lightningcss for Turbopack
    */
   useSwcCss?: boolean
 
@@ -199,7 +199,14 @@ export interface ReactCompilerOptions {
   panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
 }
 
+export interface LoggingConfig {
+  fetches?: {
+    fullUrl?: boolean
+  }
+}
+
 export interface ExperimentalConfig {
+  appNavFailHandling?: boolean
   flyingShuttle?: boolean
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
@@ -302,14 +309,14 @@ export interface ExperimentalConfig {
   turbo?: ExperimentalTurboOptions
   turbotrace?: {
     logLevel?:
-      | 'bug'
-      | 'fatal'
-      | 'error'
-      | 'warning'
-      | 'hint'
-      | 'note'
-      | 'suggestions'
-      | 'info'
+    | 'bug'
+    | 'fatal'
+    | 'error'
+    | 'warning'
+    | 'hint'
+    | 'note'
+    | 'suggestions'
+    | 'info'
     logDetail?: boolean
     logAll?: boolean
     contextDirectory?: string
@@ -323,15 +330,15 @@ export interface ExperimentalConfig {
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
    */
   mdxRs?:
-    | boolean
-    | {
-        development?: boolean
-        jsx?: boolean
-        jsxRuntime?: string
-        jsxImportSource?: string
-        providerImportSource?: string
-        mdxType?: 'gfm' | 'commonmark'
-      }
+  | boolean
+  | {
+    development?: boolean
+    jsx?: boolean
+    jsxRuntime?: string
+    jsxImportSource?: string
+    providerImportSource?: string
+    mdxType?: 'gfm' | 'commonmark'
+  }
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
@@ -584,10 +591,10 @@ export interface NextConfig extends Record<string, any> {
   rewrites?: () => Promise<
     | Rewrite[]
     | {
-        beforeFiles: Rewrite[]
-        afterFiles: Rewrite[]
-        fallback: Rewrite[]
-      }
+      beforeFiles: Rewrite[]
+      afterFiles: Rewrite[]
+      fallback: Rewrite[]
+    }
   >
 
   /**
@@ -691,10 +698,10 @@ export interface NextConfig extends Record<string, any> {
     buildActivity?: boolean
     /** Position of "building..." indicator in browser */
     buildActivityPosition?:
-      | 'bottom-right'
-      | 'bottom-left'
-      | 'top-right'
-      | 'top-left'
+    | 'bottom-right'
+    | 'bottom-left'
+    | 'top-right'
+    | 'top-left'
 
     appIsrStatus?: boolean
   }
@@ -804,10 +811,10 @@ export interface NextConfig extends Record<string, any> {
    */
   compiler?: {
     reactRemoveProperties?:
-      | boolean
-      | {
-          properties?: string[]
-        }
+    | boolean
+    | {
+      properties?: string[]
+    }
     relay?: {
       src: string
       artifactDirectory?: string
@@ -815,18 +822,18 @@ export interface NextConfig extends Record<string, any> {
       eagerEsModules?: boolean
     }
     removeConsole?:
-      | boolean
-      | {
-          exclude?: string[]
-        }
+    | boolean
+    | {
+      exclude?: string[]
+    }
     styledComponents?: boolean | StyledComponentsConfig
     emotion?: boolean | EmotionConfig
 
     styledJsx?:
-      | boolean
-      | {
-          useLightningcss?: boolean
-        }
+    | boolean
+    | {
+      useLightningcss?: boolean
+    }
   }
 
   /**
@@ -859,11 +866,7 @@ export interface NextConfig extends Record<string, any> {
     }
   >
 
-  logging?: {
-    fetches?: {
-      fullUrl?: boolean
-    }
-  }
+  logging?: LoggingConfig | false
 
   /**
    * period (in seconds) where the server allow to serve stale cache
@@ -938,11 +941,13 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
+  logging: {},
   swrDelta: undefined,
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
     flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
     prerenderEarlyExit: true,
     serverMinification: true,
@@ -1014,7 +1019,7 @@ export const defaultConfig: NextConfig = {
     reactCompiler: undefined,
     after: false,
     staticGenerationRetryCount: undefined,
-    serverComponentsHmrCache: false,
+    serverComponentsHmrCache: true,
     customPublicEnvPrefix: 'NEXT_PUBLIC_',
   },
   bundlePagesRouterDependencies: false,

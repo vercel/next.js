@@ -43,6 +43,7 @@ import { isBot } from './utils/is-bot'
 import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
 import { handleSmoothScroll } from './utils/handle-smooth-scroll'
+import type { Params } from '../../../client/components/params'
 
 declare global {
   interface Window {
@@ -765,45 +766,6 @@ export default class Router implements BaseRouter {
       ],
     }
 
-    if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
-      const { BloomFilter } =
-        require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
-
-      type Filter = ReturnType<
-        import('../../lib/bloom-filter').BloomFilter['export']
-      >
-
-      const routerFilterSValue: Filter | false = process.env
-        .__NEXT_CLIENT_ROUTER_S_FILTER as any
-
-      const staticFilterData: Filter | undefined = routerFilterSValue
-        ? routerFilterSValue
-        : undefined
-
-      const routerFilterDValue: Filter | false = process.env
-        .__NEXT_CLIENT_ROUTER_D_FILTER as any
-
-      const dynamicFilterData: Filter | undefined = routerFilterDValue
-        ? routerFilterDValue
-        : undefined
-
-      if (staticFilterData?.numHashes) {
-        this._bfl_s = new BloomFilter(
-          staticFilterData.numItems,
-          staticFilterData.errorRate
-        )
-        this._bfl_s.import(staticFilterData)
-      }
-
-      if (dynamicFilterData?.numHashes) {
-        this._bfl_d = new BloomFilter(
-          dynamicFilterData.numItems,
-          dynamicFilterData.errorRate
-        )
-        this._bfl_d.import(dynamicFilterData)
-      }
-    }
-
     // Backwards compat for Router.router.events
     // TODO: Should be remove the following major version as it was never documented
     this.events = Router.events
@@ -1060,10 +1022,86 @@ export default class Router implements BaseRouter {
     skipNavigate?: boolean
   ) {
     if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
+      if (!this._bfl_s && !this._bfl_d) {
+        const { BloomFilter } =
+          require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
+
+        type Filter = ReturnType<
+          import('../../lib/bloom-filter').BloomFilter['export']
+        >
+        let staticFilterData: Filter | undefined
+        let dynamicFilterData: Filter | undefined
+
+        try {
+          ;({
+            __routerFilterStatic: staticFilterData,
+            __routerFilterDynamic: dynamicFilterData,
+          } = (await getClientBuildManifest()) as any as {
+            __routerFilterStatic?: Filter
+            __routerFilterDynamic?: Filter
+          })
+        } catch (err) {
+          // failed to load build manifest hard navigate
+          // to be safe
+          console.error(err)
+          if (skipNavigate) {
+            return true
+          }
+          handleHardNavigation({
+            url: addBasePath(
+              addLocale(as, locale || this.locale, this.defaultLocale)
+            ),
+            router: this,
+          })
+          return new Promise(() => {})
+        }
+
+        const routerFilterSValue: Filter | false = process.env
+          .__NEXT_CLIENT_ROUTER_S_FILTER as any
+
+        if (!staticFilterData && routerFilterSValue) {
+          staticFilterData = routerFilterSValue ? routerFilterSValue : undefined
+        }
+
+        const routerFilterDValue: Filter | false = process.env
+          .__NEXT_CLIENT_ROUTER_D_FILTER as any
+
+        if (!dynamicFilterData && routerFilterDValue) {
+          dynamicFilterData = routerFilterDValue
+            ? routerFilterDValue
+            : undefined
+        }
+
+        if (staticFilterData?.numHashes) {
+          this._bfl_s = new BloomFilter(
+            staticFilterData.numItems,
+            staticFilterData.errorRate
+          )
+          this._bfl_s.import(staticFilterData)
+        }
+
+        if (dynamicFilterData?.numHashes) {
+          this._bfl_d = new BloomFilter(
+            dynamicFilterData.numItems,
+            dynamicFilterData.errorRate
+          )
+          this._bfl_d.import(dynamicFilterData)
+        }
+      }
+
       let matchesBflStatic = false
       let matchesBflDynamic = false
+      const pathsToCheck: Array<{ as?: string; allowMatchCurrent?: boolean }> =
+        [{ as }, { as: resolvedAs }]
 
-      for (const curAs of [as, resolvedAs]) {
+      if (process.env.__NEXT_FLYING_SHUTTLE) {
+        // if existing page changed we hard navigate to
+        // avoid runtime conflict with new page
+        // TODO: check buildManifest files instead?
+        pathsToCheck.push({ as: this.asPath, allowMatchCurrent: true })
+      }
+
+      for (const { as: curAs, allowMatchCurrent } of pathsToCheck) {
         if (curAs) {
           const asNoSlash = removeTrailingSlash(
             new URL(curAs, 'http://n').pathname
@@ -1073,8 +1111,9 @@ export default class Router implements BaseRouter {
           )
 
           if (
+            allowMatchCurrent ||
             asNoSlash !==
-            removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
+              removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
           ) {
             matchesBflStatic =
               matchesBflStatic ||
@@ -1448,7 +1487,7 @@ export default class Router implements BaseRouter {
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
     route = removeTrailingSlash(pathname)
-    let routeMatch: { [paramName: string]: string | string[] } | false = false
+    let routeMatch: Params | false = false
 
     if (isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
