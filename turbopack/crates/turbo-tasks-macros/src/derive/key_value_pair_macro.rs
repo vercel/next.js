@@ -2,10 +2,9 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Ident, ItemEnum};
 
-pub fn with_key(input: TokenStream) -> TokenStream {
+pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemEnum);
 
-    let attrs = &input.attrs;
     let ident = &input.ident;
     let vis = &input.vis;
     let key_name = Ident::new(&format!("{}Key", input.ident), input.ident.span());
@@ -60,9 +59,7 @@ pub fn with_key(input: TokenStream) -> TokenStream {
     let value_clone_fields = clone_fields(&value_fields);
 
     quote! {
-        #input
-
-        impl turbo_tasks::Keyed for #ident {
+        impl turbo_tasks::KeyValuePair for #ident {
             type Key = #key_name;
             type Value = #value_name;
 
@@ -90,9 +87,17 @@ pub fn with_key(input: TokenStream) -> TokenStream {
                     _ => panic!("Invalid key and value combination"),
                 }
             }
+
+            fn into_key_and_value(self) -> (#key_name, #value_name) {
+                match self {
+                    #(
+                        #ident::#variant_names { #key_pat #value_pat } => (#key_name::#variant_names { #key_pat }, #value_name::#variant_names { #value_pat }),
+                    )*
+                }
+            }
         }
 
-        #(#attrs)*
+        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         #vis enum #key_name {
             #(
                 #variant_names {
@@ -101,7 +106,7 @@ pub fn with_key(input: TokenStream) -> TokenStream {
             )*
         }
 
-        #(#attrs)*
+        #[derive(Debug, Clone)]
         #vis enum #value_name {
             #(
                 #variant_names {
