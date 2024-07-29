@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { BrowserInterface } from '../../../../lib/next-webdriver'
 
 describe('app dir - form', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
@@ -11,9 +12,7 @@ describe('app dir - form', () => {
 
   it('should soft-navigate on submit and show the prefetched loading state', async () => {
     const session = await next.browser('/forms/basic')
-
-    const start = Date.now()
-    await session.eval(`window.__MPA_NAV_ID = ${start}`)
+    const navigationTracker = await trackMpaNavs(session)
 
     const searchInput = await session.elementByCss('input[name="query"]')
     await searchInput.fill('my search')
@@ -27,14 +26,12 @@ describe('app dir - form', () => {
     const result = await session.waitForElementByCss('#search-results').text()
     expect(result).toMatch(/query: "my search"/)
 
-    expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
+    expect(await navigationTracker.didMpaNavigate()).toBe(false)
   })
 
   it('should soft-navigate to the formAction url of the submitter', async () => {
     const session = await next.browser('/forms/button-formaction')
-
-    const start = Date.now()
-    await session.eval(`window.__MPA_NAV_ID = ${start}`)
+    const navigationTracker = await trackMpaNavs(session)
 
     const searchInput = await session.elementByCss('input[name="query"]')
     await searchInput.fill('my search')
@@ -49,7 +46,7 @@ describe('app dir - form', () => {
     const result = await session.waitForElementByCss('#search-results').text()
     expect(result).toMatch(/query: "my search"/)
 
-    expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
+    expect(await navigationTracker.didMpaNavigate()).toBe(false)
   })
 
   describe('functions passed to action', () => {
@@ -68,9 +65,7 @@ describe('app dir - form', () => {
       },
     ])('runs $name', async ({ path }) => {
       const session = await next.browser(path)
-
-      const start = Date.now()
-      await session.eval(`window.__MPA_NAV_ID = ${start}`) // actions should not MPA-navigate either.
+      const navigationTracker = await trackMpaNavs(session) // actions should not MPA-navigate either.
 
       const searchInput = await session.elementByCss('input[name="query"]')
       await searchInput.fill('will not be a search')
@@ -83,7 +78,7 @@ describe('app dir - form', () => {
         .text()
       expect(result).toMatch(/query: "will not be a search"/)
 
-      expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
+      expect(await navigationTracker.didMpaNavigate()).toBe(false)
     })
   })
 
@@ -105,9 +100,7 @@ describe('app dir - form', () => {
       "runs $name from submitter and doesn't warn about unsupported attributes",
       async ({ path }) => {
         const session = await next.browser(path)
-
-        const start = Date.now()
-        await session.eval(`window.__MPA_NAV_ID = ${start}`) // actions should not MPA-navigate either.
+        const navigationTracker = await trackMpaNavs(session) // actions should not MPA-navigate either.
 
         const searchInput = await session.elementByCss('input[name="query"]')
         await searchInput.fill('will not be a search')
@@ -120,7 +113,7 @@ describe('app dir - form', () => {
           .text()
         expect(result).toMatch(/query: "will not be a search"/)
 
-        expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
+        expect(await navigationTracker.didMpaNavigate()).toBe(false)
 
         if (isNextDev) {
           const logs = (await session.log()).map((item) => item.message)
@@ -185,9 +178,7 @@ describe('app dir - form', () => {
 
   it('does not push a new history entry if `replace` is passed', async () => {
     const session = await next.browser(`/forms/with-replace`)
-
-    const start = Date.now()
-    await session.eval(`window.__MPA_NAV_ID = ${start}`)
+    const navigationTracker = await trackMpaNavs(session)
 
     // apparently this is usually not 1...?
     const prevHistoryLength: number = await session.eval(`history.length`)
@@ -197,7 +188,7 @@ describe('app dir - form', () => {
 
     await session.waitForElementByCss('#search-results')
 
-    expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
+    expect(await navigationTracker.didMpaNavigate()).toBe(false)
     expect(await session.eval(`history.length`)).toEqual(prevHistoryLength)
   })
 
@@ -219,3 +210,14 @@ describe('app dir - form', () => {
   // (we don't have any methods on BrowserInterface to deal with files)
   it.todo('handles file inputs, but warns about them')
 })
+
+async function trackMpaNavs(session: BrowserInterface) {
+  const id = Date.now()
+  await session.eval(`window.__MPA_NAV_ID = ${id}`)
+  return {
+    async didMpaNavigate() {
+      const maybeId = await session.eval(`window.__MPA_NAV_ID`)
+      return id !== maybeId
+    },
+  }
+}
