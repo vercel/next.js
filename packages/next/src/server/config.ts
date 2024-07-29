@@ -1184,6 +1184,11 @@ export function getEnabledExperimentalFeatures(
         userNextConfigExperimental[featureName] !==
           defaultConfig.experimental[featureName]
       ) {
+        const isTurbopack = !!process.env.TURBOPACK
+        if (featureName === 'turbo' && !isTurbopack) {
+          continue
+        }
+
         enabledExperiments.push(featureName)
       }
     }
