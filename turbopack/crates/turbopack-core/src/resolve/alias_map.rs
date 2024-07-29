@@ -483,6 +483,26 @@ where
                         let mut remaining = self.request.clone();
                         remaining.strip_prefix(prefix.len());
                         let remaining_suffix = remaining.constant_suffix();
+                        println!(
+                            "AliasKey::Wildcard request {:?}, prefix: {:?}, suffix: {:?}, wo \
+                             prefix: {:?}, remaining_suffix {:?}, wo presuffix {:?}, skipped {:?}",
+                            self.request,
+                            std::str::from_utf8(prefix),
+                            suffix,
+                            {
+                                let mut x = self.request.clone();
+                                x.strip_prefix(prefix.len());
+                                x
+                            },
+                            remaining_suffix,
+                            {
+                                let mut x = self.request.clone();
+                                x.strip_prefix(prefix.len());
+                                x.strip_suffix(suffix.len());
+                                x
+                            },
+                            !remaining_suffix.ends_with(&**suffix)
+                        );
                         if !remaining_suffix.ends_with(&**suffix) {
                             continue;
                         }

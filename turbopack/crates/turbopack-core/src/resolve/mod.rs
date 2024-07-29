@@ -2604,23 +2604,40 @@ async fn handle_exports_imports_field(
     let mut conditions_state = HashMap::new();
 
     let query_str = query.await?;
-
     let req = Pattern::Constant(format!("{}{}", path, query_str).into());
+
+    println!(
+        "handle_exports_imports_field req {:?} {:?} {:?}",
+        req,
+        req.constant_prefix(),
+        exports_imports_field
+    );
+
     let values = exports_imports_field
         .lookup(&req)
         .map(|m| m.try_into_self())
         .collect::<Result<Vec<_>>>()?;
 
+    println!("handle_exports_imports_field values {:?}", values);
+
     for value in values.iter() {
+        // println!("handle_exports_imports_field {:?}", value);
+
         if value.add_results(
             conditions,
             unspecified_conditions,
             &mut conditions_state,
             &mut results,
         ) {
+            // println!("handle_exports_imports_field break");
             break;
         }
     }
+
+    println!(
+        "handle_exports_imports_field list {:?} {:?}",
+        results, conditions_state
+    );
 
     let mut resolved_results = Vec::new();
     for (result_path, conditions) in results {
@@ -2629,6 +2646,11 @@ async fn handle_exports_imports_field(
                 Pattern::Constant("./".into()),
                 result_path,
             ])));
+            println!(
+                "handle_exports_imports_field reresolve {:?} {:?}",
+                package_path, request
+            );
+
             let resolve_result = resolve_internal_boxed(package_path, request, options).await?;
             if conditions.is_empty() {
                 resolved_results.push(resolve_result.with_request(path.into()));
@@ -2638,6 +2660,10 @@ async fn handle_exports_imports_field(
                 resolved_results.push(resolve_result.cell());
             }
         }
+    }
+
+    for r in &resolved_results {
+        println!("handle_exports_imports_field result {:?}", r.dbg().await?);
     }
 
     // other options do not apply anymore when an exports field exist

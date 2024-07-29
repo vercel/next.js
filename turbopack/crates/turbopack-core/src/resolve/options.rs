@@ -412,7 +412,7 @@ impl ImportMap {
         // relative requests must not match global wildcard aliases.
 
         use turbo_tasks::debug::ValueDebug;
-        println!("lookup 1 {:?}", request.dbg().await?);
+        println!("lookup 1 {:?} {:?}", request.dbg().await?, self.map);
         if let Some(request_pattern) = request.await?.request_pattern() {
             println!(
                 "lookup 2 {:?} {:?}",
