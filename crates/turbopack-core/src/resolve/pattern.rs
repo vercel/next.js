@@ -627,6 +627,33 @@ impl Pattern {
         new.normalize();
         Pattern::alternatives([self.clone(), new])
     }
+
+    /// Calls `cb` on all constants that are at the end of the pattern and
+    /// replaces the given final constant with the returned pattern. Returns
+    /// true if replacements were performed.
+    pub fn replace_final_constants(&mut self, cb: &impl Fn(&RcStr) -> Option<Pattern>) -> bool {
+        let mut replaced = false;
+        match self {
+            Pattern::Constant(c) => {
+                if let Some(replacement) = cb(c) {
+                    *self = replacement;
+                    replaced = true;
+                }
+            }
+            Pattern::Dynamic => {}
+            Pattern::Alternatives(list) => {
+                for i in list {
+                    replaced = i.replace_final_constants(cb) || replaced;
+                }
+            }
+            Pattern::Concatenation(list) => {
+                if let Some(i) = list.last_mut() {
+                    replaced = i.replace_final_constants(cb) || replaced;
+                }
+            }
+        }
+        replaced
+    }
 }
 
 impl Pattern {
@@ -1111,6 +1138,7 @@ pub async fn read_matches(
 #[cfg(test)]
 mod tests {
     use rstest::*;
+    use turbo_tasks::RcStr;
 
     use super::Pattern;
 
@@ -1357,5 +1385,78 @@ mod tests {
         #[case] expected: Option<Vec<(&str, bool)>>,
     ) {
         assert_eq!(pat.next_constants(value), expected);
+    }
+
+    #[test]
+    fn replace_final_constants() {
+        fn f(mut p: Pattern, cb: &impl Fn(&RcStr) -> Option<Pattern>) -> Pattern {
+            p.replace_final_constants(cb);
+            p
+        }
+
+        let js_to_ts_tsx = |c: &RcStr| -> Option<Pattern> {
+            c.strip_suffix(".js").map(|rest| {
+                let new_ending = Pattern::Alternatives(vec![
+                    Pattern::Constant(".ts".into()),
+                    Pattern::Constant(".tsx".into()),
+                    Pattern::Constant(".js".into()),
+                ]);
+                if !rest.is_empty() {
+                    Pattern::Concatenation(vec![Pattern::Constant(rest.into()), new_ending])
+                } else {
+                    new_ending
+                }
+            })
+        };
+
+        assert_eq!(
+            f(
+                Pattern::Concatenation(vec![
+                    Pattern::Constant(".".into()),
+                    Pattern::Constant("/".into()),
+                    Pattern::Dynamic,
+                    Pattern::Alternatives(vec![
+                        Pattern::Constant(".js".into()),
+                        Pattern::Constant(".node".into()),
+                    ])
+                ]),
+                &js_to_ts_tsx
+            ),
+            Pattern::Concatenation(vec![
+                Pattern::Constant(".".into()),
+                Pattern::Constant("/".into()),
+                Pattern::Dynamic,
+                Pattern::Alternatives(vec![
+                    Pattern::Alternatives(vec![
+                        Pattern::Constant(".ts".into()),
+                        Pattern::Constant(".tsx".into()),
+                        Pattern::Constant(".js".into()),
+                    ]),
+                    Pattern::Constant(".node".into()),
+                ])
+            ]),
+        );
+        assert_eq!(
+            f(
+                Pattern::Concatenation(vec![
+                    Pattern::Constant(".".into()),
+                    Pattern::Constant("/".into()),
+                    Pattern::Constant("abc.js".into()),
+                ]),
+                &js_to_ts_tsx
+            ),
+            Pattern::Concatenation(vec![
+                Pattern::Constant(".".into()),
+                Pattern::Constant("/".into()),
+                Pattern::Concatenation(vec![
+                    Pattern::Constant("abc".into()),
+                    Pattern::Alternatives(vec![
+                        Pattern::Constant(".ts".into()),
+                        Pattern::Constant(".tsx".into()),
+                        Pattern::Constant(".js".into()),
+                    ])
+                ]),
+            ])
+        );
     }
 }

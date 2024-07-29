@@ -1922,7 +1922,6 @@ async fn resolve_relative_request(
     let mut new_path = path_pattern.clone();
 
     let fragment_val = fragment.await?;
-
     if !fragment_val.is_empty() {
         new_path.push(Pattern::Alternatives(
             once(Pattern::Constant("".into()))
@@ -1944,9 +1943,49 @@ async fn resolve_relative_request(
                 )
                 .collect(),
         ));
-
         new_path.normalize();
     };
+
+    if options_value.enable_typescript_with_output_extension {
+        new_path.replace_final_constants(&|c: &RcStr| -> Option<Pattern> {
+            let result = match c.rsplit_once(".") {
+                Some((base, "js")) => Some((
+                    base,
+                    vec![
+                        Pattern::Constant(".ts".into()),
+                        Pattern::Constant(".tsx".into()),
+                        Pattern::Constant(".js".into()),
+                    ],
+                )),
+                Some((base, "mjs")) => Some((
+                    base,
+                    vec![
+                        Pattern::Constant(".mts".into()),
+                        Pattern::Constant(".js".into()),
+                    ],
+                )),
+                Some((base, "cjs")) => Some((
+                    base,
+                    vec![
+                        Pattern::Constant(".cts".into()),
+                        Pattern::Constant(".js".into()),
+                    ],
+                )),
+                _ => None,
+            };
+            result.map(|(base, replacement)| {
+                if base.is_empty() {
+                    Pattern::Alternatives(replacement)
+                } else {
+                    Pattern::Concatenation(vec![
+                        Pattern::Constant(base.into()),
+                        Pattern::Alternatives(replacement),
+                    ])
+                }
+            })
+        });
+        new_path.normalize();
+    }
 
     let mut results = Vec::new();
     let matches = read_matches(
