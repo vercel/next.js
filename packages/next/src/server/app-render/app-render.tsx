@@ -350,7 +350,7 @@ async function generateDynamicRSCPayload(
   if (!options?.skipFlight) {
     const preloadCallbacks: PreloadCallbacks = []
 
-    const [MetadataTree, getMetadataReady] = createMetadataComponents({
+    const [MetadataTree, MetadataOutlet] = createMetadataComponents({
       tree: loaderTree,
       query,
       metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
@@ -379,7 +379,7 @@ async function generateDynamicRSCPayload(
         injectedFontPreloadTags: new Set(),
         rootLayoutIncluded: false,
         asNotFound: ctx.isNotFoundPath || options?.asNotFound,
-        getMetadataReady,
+        metadataOutlet: <MetadataOutlet />,
         preloadCallbacks,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
@@ -486,7 +486,7 @@ async function getRSCPayload(
     query
   )
 
-  const [MetadataTree, getMetadataReady] = createMetadataComponents({
+  const [MetadataTree, MetadataOutlet] = createMetadataComponents({
     tree,
     errorType: asNotFound ? 'not-found' : undefined,
     query,
@@ -509,7 +509,7 @@ async function getRSCPayload(
     injectedFontPreloadTags,
     rootLayoutIncluded: false,
     asNotFound: asNotFound,
-    getMetadataReady,
+    metadataOutlet: <MetadataOutlet />,
     missingSlots,
     preloadCallbacks,
   })
