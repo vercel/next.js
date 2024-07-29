@@ -803,7 +803,14 @@ async fn gen_content_with_visitors(
                 for visitor in root_visitors {
                     program.visit_mut_with(&mut visitor.create());
                 }
-                program.visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
+                program.visit_mut_with(
+                    &mut swc_core::ecma::transforms::base::hygiene::hygiene_with_config(
+                        swc_core::ecma::transforms::base::hygiene::Config {
+                            top_level_mark: eval_context.top_level_mark,
+                            ..Default::default()
+                        },
+                    ),
+                );
                 program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(None));
 
                 // we need to remove any shebang before bundling as it's only valid as the first
