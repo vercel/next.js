@@ -46,27 +46,31 @@ async fn read_glob_internal(
     let glob_value = glob.await?;
     match &*dir {
         DirectoryContent::Entries(entries) => {
-            for item in entries.iter() {
-                match item {
-                    (segment, DirectoryEntry::Directory(path)) => {
+            for (segment, entry) in entries.iter() {
+                if !include_dot_files && segment.starts_with('.') {
+                    continue;
+                }
+                let entry = entry.resolve_symlink().await?;
+                match entry {
+                    DirectoryEntry::Directory(path) => {
                         let full_path = format!("{prefix}{segment}");
                         let full_path_prefix: RcStr = format!("{full_path}/").into();
                         if glob_value.execute(&full_path) {
                             result
                                 .results
-                                .insert(full_path.clone(), DirectoryEntry::Directory(*path));
+                                .insert(full_path.clone(), DirectoryEntry::Directory(path));
                         }
                         if glob_value.execute(&full_path_prefix) {
                             result.inner.insert(
                                 full_path,
-                                read_glob_inner(full_path_prefix, *path, glob, include_dot_files),
+                                read_glob_inner(full_path_prefix, path, glob, include_dot_files),
                             );
                         }
                     }
-                    (segment, entry) => {
+                    entry => {
                         let full_path = format!("{prefix}{segment}");
                         if glob_value.execute(&full_path) {
-                            result.results.insert(full_path, *entry);
+                            result.results.insert(full_path, entry);
                         }
                     }
                 }
