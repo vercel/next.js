@@ -204,7 +204,13 @@ function onFormSubmit(
     })
   }
   if (targetUrl.searchParams.size) {
-    // url-encoded HTML forms ignore any queryparams in the `action` url. We need to match that.
+    // url-encoded HTML forms *overwrite* any search params in the `action` url:
+    //
+    //  "Let `query` be the result of running the application/x-www-form-urlencoded serializer [...]"
+    //  "Set parsed action's query component to `query`."
+    //   https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submit-mutate-action
+    //
+    // We need to match that.
     // (note that all other parts of the URL, like `hash`, are preserved)
     targetUrl.search = ''
   }
@@ -213,8 +219,11 @@ function onFormSubmit(
 
   for (let [name, value] of formData) {
     if (typeof value !== 'string') {
-      // if the value is not a string, then it's a file input.
-      // the native browser behavior is to use the filename as the value instead.
+      // For file inputs, the native browser behavior is to use the filename as the value instead:
+      //
+      //   "If entry's value is a File object, then let value be entry's value's name. Otherwise, let value be entry's value."
+      //   https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#converting-an-entry-list-to-a-list-of-name-value-pairs
+      //
       if (process.env.NODE_ENV === 'development') {
         console.warn(
           `<Form> only supports file inputs if \`action\` is a function. File inputs cannot be used if \`action\` is a string, ` +
