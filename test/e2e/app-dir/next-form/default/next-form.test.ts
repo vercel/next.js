@@ -184,7 +184,24 @@ describe('app dir - form', () => {
     )
   })
 
-  it.todo('should handle `replace`')
+  it('does not push a new history entry if `replace` is passed', async () => {
+    const session = await next.browser(`/forms/with-replace`)
+
+    const start = Date.now()
+    await session.eval(`window.__MPA_NAV_ID = ${start}`)
+
+    // apparently this is usually not 1...?
+    const prevHistoryLength: number = await session.eval(`history.length`)
+
+    const submitButton = await session.elementByCss('[type="submit"]')
+    await submitButton.click()
+
+    await session.waitForElementByCss('#search-results')
+
+    expect(await session.eval(`window.__MPA_NAV_ID`)).toEqual(start)
+    expect(await session.eval(`history.length`)).toEqual(prevHistoryLength)
+  })
+
   it.todo('does not do anything if user called preventDefault in onSubmit')
 
   // TODO(lubieowoce): implement this
