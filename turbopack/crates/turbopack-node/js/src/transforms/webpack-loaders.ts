@@ -163,20 +163,6 @@ type ResolveOptions = {
   roots?: string[];
   importFields?: string[];
 };
-const SUPPORTED_RESOLVE_OPTIONS = new Set([
-  "alias",
-  "aliasFields",
-  "conditionNames",
-  "descriptionFiles",
-  "extensions",
-  "exportsFields",
-  "mainFields",
-  "mainFiles",
-  "modules",
-  "restrictions",
-  "preferRelative",
-  "dependencyType",
-]);
 
 const transform = (
   ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
@@ -356,6 +342,9 @@ const transform = (
                       .join("\n")
                   );
                   break;
+                default:
+                  // TODO: do we need to handle this?
+                  break
               }
 
               ipc.sendInfo({

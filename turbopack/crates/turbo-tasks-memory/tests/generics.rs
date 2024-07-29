@@ -13,8 +13,8 @@ async fn test_option_some() {
     run(&REGISTRATION, async move {
         let vc_42 = Vc::cell(42);
         let option: Vc<Option<Vc<u32>>> = Vc::cell(Some(vc_42));
-        assert_eq!(*option.is_some().await.unwrap(), true);
-        assert_eq!(*option.is_none().await.unwrap(), false);
+        assert!(*option.is_some().await.unwrap());
+        assert!(!(*option.is_none().await.unwrap()));
         assert_eq!(&*option.await.unwrap(), &Some(vc_42));
         assert_eq!(option.dbg().await.unwrap().to_string(), "Some(\n    42,\n)");
     })
@@ -25,8 +25,8 @@ async fn test_option_some() {
 async fn test_option_none() {
     run(&REGISTRATION, async move {
         let option: Vc<Option<Vc<u32>>> = Default::default();
-        assert_eq!(*option.is_some().await.unwrap(), false);
-        assert_eq!(*option.is_none().await.unwrap(), true);
+        assert!(!(*option.is_some().await.unwrap()));
+        assert!(*option.is_none().await.unwrap());
         assert_eq!(&*option.await.unwrap(), &None);
         assert_eq!(option.dbg().await.unwrap().to_string(), "None");
     })
@@ -39,7 +39,7 @@ async fn test_vec() {
         let vc_42 = Vc::cell(42);
         let vec: Vc<Vec<Vc<u32>>> = Vc::cell(vec![vc_42]);
         assert_eq!(*vec.len().await.unwrap(), 1);
-        assert_eq!(*vec.is_empty().await.unwrap(), false);
+        assert!(!(*vec.is_empty().await.unwrap()));
         assert_eq!(&*vec.await.unwrap(), &[vc_42]);
         assert_eq!(vec.dbg().await.unwrap().to_string(), "[\n    42,\n]");
     })
@@ -51,7 +51,7 @@ async fn test_empty_vec() {
     run(&REGISTRATION, async move {
         let vec: Vc<Vec<Vc<u32>>> = Default::default();
         assert_eq!(*vec.len().await.unwrap(), 0);
-        assert_eq!(*vec.is_empty().await.unwrap(), true);
+        assert!(*vec.is_empty().await.unwrap());
         assert_eq!(vec.dbg().await.unwrap().to_string(), "[]");
     })
     .await
@@ -73,7 +73,7 @@ async fn test_index_set() {
         let vc_42 = Vc::cell(42);
         let set: Vc<IndexSet<Vc<u32>>> = Vc::cell(IndexSet::from([vc_42]));
         assert_eq!(*set.len().await.unwrap(), 1);
-        assert_eq!(*set.is_empty().await.unwrap(), false);
+        assert!(!(*set.is_empty().await.unwrap()));
         assert_eq!(&*set.await.unwrap(), &IndexSet::from([vc_42]));
         assert_eq!(set.dbg().await.unwrap().to_string(), "{\n    42,\n}");
     })
@@ -85,7 +85,7 @@ async fn test_empty_index_set() {
     run(&REGISTRATION, async move {
         let set: Vc<IndexSet<Vc<u32>>> = Default::default();
         assert_eq!(*set.len().await.unwrap(), 0);
-        assert_eq!(*set.is_empty().await.unwrap(), true);
+        assert!(*set.is_empty().await.unwrap());
         assert_eq!(&*set.await.unwrap(), &IndexSet::<Vc<u32>>::default());
         assert_eq!(set.dbg().await.unwrap().to_string(), "{}");
     })
@@ -98,7 +98,7 @@ async fn test_index_map() {
         let vc_42 = Vc::cell(42);
         let map: Vc<IndexMap<Vc<u32>, _>> = Vc::cell(IndexMap::from([(vc_42, vc_42)]));
         assert_eq!(*map.len().await.unwrap(), 1);
-        assert_eq!(*map.is_empty().await.unwrap(), false);
+        assert!(!(*map.is_empty().await.unwrap()));
         assert_eq!(&*map.await.unwrap(), &IndexMap::from([(vc_42, vc_42)]));
         assert_eq!(map.dbg().await.unwrap().to_string(), "{\n    42: 42,\n}");
     })
@@ -110,7 +110,7 @@ async fn test_empty_index_map() {
     run(&REGISTRATION, async move {
         let map: Vc<IndexMap<Vc<u32>, Vc<u32>>> = Default::default();
         assert_eq!(*map.len().await.unwrap(), 0);
-        assert_eq!(*map.is_empty().await.unwrap(), true);
+        assert!(*map.is_empty().await.unwrap());
         assert_eq!(
             &*map.await.unwrap(),
             &IndexMap::<Vc<u32>, Vc<u32>>::default()

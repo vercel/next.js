@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 declare var RUNTIME_PUBLIC_PATH: string;
 declare var OUTPUT_ROOT: string;
 declare var ASSET_PREFIX: string;

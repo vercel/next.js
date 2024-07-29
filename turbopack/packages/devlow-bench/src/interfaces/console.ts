@@ -1,5 +1,4 @@
-import { Interface, Scenario, ScenarioVariant } from "../index.js";
-import inquirer from "inquirer";
+import { Interface } from "../index.js";
 import { bgCyan, bold, magenta, red, underline } from "picocolors";
 import { formatUnit } from "../units.js";
 import { formatVariant } from "../utils.js";

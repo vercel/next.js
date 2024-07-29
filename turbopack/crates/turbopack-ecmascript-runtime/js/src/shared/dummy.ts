@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 /**
  * This file acts as a dummy implementor for the interface that
  * `runtime-utils.ts` expects to be available in the global scope.

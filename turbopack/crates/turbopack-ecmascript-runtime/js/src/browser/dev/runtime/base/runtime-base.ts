@@ -6,7 +6,7 @@
  * shared runtime utils.
  */
 
-/* eslint-disable @next/next/no-assign-module-variable */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 /// <reference path="../../../../shared/runtime-utils.ts" />
 /// <reference path="./globals.d.ts" />
@@ -197,7 +197,7 @@ async function loadChunk(
   if (moduleChunksPromises.length > 0) {
     // Some module chunks are already loaded or loading.
 
-    if (moduleChunksPromises.length == includedModuleChunksList.length) {
+    if (moduleChunksPromises.length === includedModuleChunksList.length) {
       // When all included module chunks are already loaded or loading, we can skip loading ourselves
       return Promise.all(moduleChunksPromises);
     }
@@ -258,6 +258,8 @@ async function loadChunkPath(
       case SourceType.Update:
         loadReason = "from an HMR update";
         break;
+      default:
+        invariant(source, (source) => `Unknown source type: ${source?.type}`);
     }
     throw new Error(
       `Failed to load chunk ${chunkPath} ${loadReason}${
@@ -301,6 +303,8 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       case SourceType.Update:
         instantiationReason = "because of an HMR update";
         break;
+      default:
+        invariant(source, (source) => `Unknown source type: ${source?.type}`);
     }
     throw new Error(
       `Module ${id} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`
@@ -324,7 +328,10 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
     case SourceType.Update:
       parents = source.parents || [];
       break;
+    default:
+      invariant(source, (source) => `Unknown source type: ${source?.type}`);
   }
+
   const module: Module = {
     exports: {},
     error: undefined,
@@ -571,6 +578,8 @@ function computedInvalidatedModules(
         }
         break;
       // TODO(alexkirsz) Dependencies: handle dependencies effects.
+      default:
+        invariant(effect, (effect) => `Unknown effect type: ${effect?.type}`);
     }
   }
 
@@ -752,13 +761,6 @@ function applyPhase(
   }
 }
 
-/**
- * Utility function to ensure all variants of an enum are handled.
- */
-function invariant(never: never, computeMessage: (arg: any) => string): never {
-  throw new Error(`Invariant: ${computeMessage(never)}`);
-}
-
 function applyUpdate(update: PartialUpdate) {
   switch (update.type) {
     case "ChunkListUpdate":
@@ -800,6 +802,7 @@ function applyChunkListUpdate(update: ChunkListUpdate) {
             (instruction) =>
               `Unknown partial instruction: ${JSON.stringify(instruction)}.`
           );
+          break;
         default:
           invariant(
             chunkUpdate,

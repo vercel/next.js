@@ -38,12 +38,10 @@ fn find_root(mut node: NodeRef) -> NodeRef {
     }
 }
 
-fn check_invariants<'a>(
-    ctx: &NodeAggregationContext<'a>,
-    node_ids: impl IntoIterator<Item = NodeRef>,
-) {
+fn check_invariants(ctx: &NodeAggregationContext<'_>, node_ids: impl IntoIterator<Item = NodeRef>) {
     let mut queue = node_ids.into_iter().collect::<Vec<_>>();
     // print(ctx, &queue[0], true);
+    #[allow(clippy::mutable_key_type, reason = "this is a test")]
     let mut visited = HashSet::new();
     while let Some(node_id) = queue.pop() {
         assert_eq!(node_id.0.atomic.load(Ordering::SeqCst), 0);
@@ -428,7 +426,9 @@ struct NodeGuard {
 impl NodeGuard {
     unsafe fn new(guard: MutexGuard<'_, NodeInner>, node: Arc<Node>) -> Self {
         NodeGuard {
-            guard: unsafe { std::mem::transmute(guard) },
+            guard: unsafe {
+                std::mem::transmute::<MutexGuard<'_, NodeInner>, MutexGuard<'_, NodeInner>>(guard)
+            },
             node,
         }
     }

@@ -97,7 +97,10 @@ struct NodeGuard {
 impl NodeGuard {
     unsafe fn new(guard: MutexGuard<'_, NodeInner>, node: Arc<Node>) -> Self {
         NodeGuard {
-            guard: unsafe { std::mem::transmute(guard) },
+            // #[allow(clippy::missing_transmute_annotations, reason = "this is a test")]
+            guard: unsafe {
+                std::mem::transmute::<MutexGuard<'_, NodeInner>, MutexGuard<'_, NodeInner>>(guard)
+            },
             node,
         }
     }

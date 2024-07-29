@@ -170,7 +170,7 @@ mod tests {
         });
 
         receiver.run_exit_handler().await;
-        assert_eq!(called.load(Ordering::SeqCst), true);
+        assert!(called.load(Ordering::SeqCst));
     }
 
     #[tokio::test]
