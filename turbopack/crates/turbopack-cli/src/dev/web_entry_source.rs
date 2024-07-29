@@ -44,6 +44,7 @@ pub fn get_client_chunking_context(
             server_root.join("/_assets".into()),
             environment,
             RuntimeType::Development,
+            Vc::cell(None),
         )
         .hot_module_replacement()
         .build(),

@@ -8,6 +8,7 @@ use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
+        global_information::OptionGlobalInformation,
         Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext,
         EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
     },
@@ -84,6 +85,8 @@ pub struct NodeJsChunkingContext {
     minify_type: MinifyType,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
+    /// Global information
+    global_information: Vc<OptionGlobalInformation>,
 }
 
 impl NodeJsChunkingContext {
@@ -96,6 +99,7 @@ impl NodeJsChunkingContext {
         asset_root_path: Vc<FileSystemPath>,
         environment: Vc<Environment>,
         runtime_type: RuntimeType,
+        global_information: Vc<OptionGlobalInformation>,
     ) -> NodeJsChunkingContextBuilder {
         NodeJsChunkingContextBuilder {
             chunking_context: NodeJsChunkingContext {
@@ -109,6 +113,7 @@ impl NodeJsChunkingContext {
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
+                global_information,
             },
         }
     }

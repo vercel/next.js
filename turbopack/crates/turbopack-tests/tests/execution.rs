@@ -329,6 +329,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
         static_root_path,
         env,
         RuntimeType::Development,
+        Vc::cell(None),
     )
     .build();
 

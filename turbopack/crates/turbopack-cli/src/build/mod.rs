@@ -196,6 +196,7 @@ async fn build_internal(
                 NodeEnv::Development => RuntimeType::Development,
                 NodeEnv::Production => RuntimeType::Production,
             },
+            Vc::cell(None),
         )
         .minify_type(minify_type)
         .build(),

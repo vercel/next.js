@@ -328,6 +328,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 static_root_path,
                 env,
                 options.runtime_type,
+                Vc::cell(None),
             )
             .build(),
         ),
@@ -340,6 +341,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 static_root_path,
                 env,
                 options.runtime_type,
+                Vc::cell(None),
             )
             .minify_type(options.minify_type)
             .build(),

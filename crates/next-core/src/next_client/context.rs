@@ -14,7 +14,7 @@ use turbopack::{
 };
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_core::{
-    chunk::ChunkingContext,
+    chunk::{global_information::OptionGlobalInformation, ChunkingContext},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
         FreeVarReferences,
@@ -353,6 +353,7 @@ pub async fn get_client_chunking_context(
     asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
     mode: Vc<NextMode>,
+    global_information: Vc<OptionGlobalInformation>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -363,6 +364,7 @@ pub async fn get_client_chunking_context(
         get_client_assets_path(client_root),
         environment,
         next_mode.runtime_type(),
+        global_information,
     )
     .chunk_base_path(asset_prefix)
     .minify_type(next_mode.minify_type())

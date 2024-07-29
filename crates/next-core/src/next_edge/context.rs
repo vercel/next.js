@@ -6,7 +6,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::resolve_options_context::ResolveOptionsContext;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
-    chunk::ChunkingContext,
+    chunk::{global_information::OptionGlobalInformation, ChunkingContext},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
         FreeVarReferences,
@@ -178,6 +178,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
+    global_information: Vc<OptionGlobalInformation>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".into());
     let next_mode = mode.await?;
@@ -190,6 +191,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
             client_root.join("static/media".into()),
             environment,
             next_mode.runtime_type(),
+            global_information,
         )
         .asset_base_path(asset_prefix)
         .minify_type(next_mode.minify_type())
@@ -203,6 +205,7 @@ pub async fn get_edge_chunking_context(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
+    global_information: Vc<OptionGlobalInformation>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".into());
     let next_mode = mode.await?;
@@ -215,6 +218,7 @@ pub async fn get_edge_chunking_context(
             output_root.join("assets".into()),
             environment,
             next_mode.runtime_type(),
+            global_information,
         )
         // Since one can't read files in edge directly, any asset need to be fetched
         // instead. This special blob url is handled by the custom fetch

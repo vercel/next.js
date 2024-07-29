@@ -255,6 +255,7 @@ async fn source(
         build_output_root.join("assets".into()),
         node_build_environment(),
         RuntimeType::Development,
+        Vc::cell(None),
     )
     .build();
 

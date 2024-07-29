@@ -34,7 +34,7 @@ use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSyst
 use turbopack::{evaluate_context::node_build_environment, ModuleAssetContext};
 use turbopack_core::{
     changed::content_changed,
-    chunk::ChunkingContext,
+    chunk::{global_information::OptionGlobalInformation, ChunkingContext},
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     diagnostics::DiagnosticExt,
@@ -54,6 +54,7 @@ use crate::{
     app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
     build,
     entrypoints::Entrypoints,
+    global_information::build_global_information,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
@@ -562,6 +563,7 @@ impl Project {
                 node_root.join("build/assets".into()),
                 node_build_environment(),
                 next_mode.runtime_type(),
+                self.global_information(),
             )
             .build(),
         );
@@ -621,6 +623,7 @@ impl Project {
             self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
             self.next_mode(),
+            self.global_information(),
         ))
     }
 
@@ -637,6 +640,7 @@ impl Project {
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.server_compile_time_info().environment(),
+                self.global_information(),
             )
         } else {
             get_server_chunking_context(
@@ -644,6 +648,7 @@ impl Project {
                 self.project_path(),
                 self.node_root(),
                 self.server_compile_time_info().environment(),
+                self.global_information(),
             )
         }
     }
@@ -661,6 +666,7 @@ impl Project {
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.edge_compile_time_info().environment(),
+                self.global_information(),
             )
         } else {
             get_edge_chunking_context(
@@ -668,6 +674,7 @@ impl Project {
                 self.project_path(),
                 self.node_root(),
                 self.edge_compile_time_info().environment(),
+                self.global_information(),
             )
         }
     }
@@ -1160,6 +1167,14 @@ impl Project {
     pub fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
         let path = self.client_root();
         any_output_changed(roots, path, false)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn global_information(self: Vc<Self>) -> Result<Vc<OptionGlobalInformation>> {
+        match *self.next_mode().await? {
+            NextMode::Build => Ok(build_global_information(self)),
+            _ => Ok(Vc::cell(None)),
+        }
     }
 }
 

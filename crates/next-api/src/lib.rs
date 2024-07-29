@@ -6,6 +6,7 @@ mod app;
 mod dynamic_imports;
 pub mod entrypoints;
 mod font;
+pub mod global_information;
 mod instrumentation;
 mod loadable_manifest;
 mod middleware;
