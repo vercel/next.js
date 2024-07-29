@@ -93,10 +93,10 @@ type JSONValue =
 export type TurboLoaderItem =
   | string
   | {
-    loader: string
-    // At the moment, Turbopack options must be JSON-serializable, so restrict values.
-    options: Record<string, JSONValue>
-  }
+      loader: string
+      // At the moment, Turbopack options must be JSON-serializable, so restrict values.
+      options: Record<string, JSONValue>
+    }
 
 export type TurboRuleConfigItemOrShortcut =
   | TurboLoaderItem[]
@@ -309,14 +309,14 @@ export interface ExperimentalConfig {
   turbo?: ExperimentalTurboOptions
   turbotrace?: {
     logLevel?:
-    | 'bug'
-    | 'fatal'
-    | 'error'
-    | 'warning'
-    | 'hint'
-    | 'note'
-    | 'suggestions'
-    | 'info'
+      | 'bug'
+      | 'fatal'
+      | 'error'
+      | 'warning'
+      | 'hint'
+      | 'note'
+      | 'suggestions'
+      | 'info'
     logDetail?: boolean
     logAll?: boolean
     contextDirectory?: string
@@ -330,15 +330,15 @@ export interface ExperimentalConfig {
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
    */
   mdxRs?:
-  | boolean
-  | {
-    development?: boolean
-    jsx?: boolean
-    jsxRuntime?: string
-    jsxImportSource?: string
-    providerImportSource?: string
-    mdxType?: 'gfm' | 'commonmark'
-  }
+    | boolean
+    | {
+        development?: boolean
+        jsx?: boolean
+        jsxRuntime?: string
+        jsxImportSource?: string
+        providerImportSource?: string
+        mdxType?: 'gfm' | 'commonmark'
+      }
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
@@ -591,10 +591,10 @@ export interface NextConfig extends Record<string, any> {
   rewrites?: () => Promise<
     | Rewrite[]
     | {
-      beforeFiles: Rewrite[]
-      afterFiles: Rewrite[]
-      fallback: Rewrite[]
-    }
+        beforeFiles: Rewrite[]
+        afterFiles: Rewrite[]
+        fallback: Rewrite[]
+      }
   >
 
   /**
@@ -698,10 +698,10 @@ export interface NextConfig extends Record<string, any> {
     buildActivity?: boolean
     /** Position of "building..." indicator in browser */
     buildActivityPosition?:
-    | 'bottom-right'
-    | 'bottom-left'
-    | 'top-right'
-    | 'top-left'
+      | 'bottom-right'
+      | 'bottom-left'
+      | 'top-right'
+      | 'top-left'
 
     appIsrStatus?: boolean
   }
@@ -811,10 +811,10 @@ export interface NextConfig extends Record<string, any> {
    */
   compiler?: {
     reactRemoveProperties?:
-    | boolean
-    | {
-      properties?: string[]
-    }
+      | boolean
+      | {
+          properties?: string[]
+        }
     relay?: {
       src: string
       artifactDirectory?: string
@@ -822,18 +822,18 @@ export interface NextConfig extends Record<string, any> {
       eagerEsModules?: boolean
     }
     removeConsole?:
-    | boolean
-    | {
-      exclude?: string[]
-    }
+      | boolean
+      | {
+          exclude?: string[]
+        }
     styledComponents?: boolean | StyledComponentsConfig
     emotion?: boolean | EmotionConfig
 
     styledJsx?:
-    | boolean
-    | {
-      useLightningcss?: boolean
-    }
+      | boolean
+      | {
+          useLightningcss?: boolean
+        }
   }
 
   /**

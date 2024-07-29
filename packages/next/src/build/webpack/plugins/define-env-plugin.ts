@@ -42,13 +42,13 @@ export interface DefineEnvPluginOptions {
 
 interface DefineEnv {
   [key: string]:
-  | string
-  | string[]
-  | boolean
-  | MiddlewareMatcher[]
-  | BloomFilter
-  | Partial<NextConfigComplete['images']>
-  | I18NDomains
+    | string
+    | string[]
+    | boolean
+    | MiddlewareMatcher[]
+    | BloomFilter
+    | Partial<NextConfigComplete['images']>
+    | I18NDomains
 }
 
 interface SerializedDefineEnv {
@@ -115,11 +115,11 @@ function getImageConfig(
       unoptimized: config?.images?.unoptimized,
       ...(dev
         ? {
-          // pass domains in development to allow validating on the client
-          domains: config.images.domains,
-          remotePatterns: config.images?.remotePatterns,
-          output: config.output,
-        }
+            // pass domains in development to allow validating on the client
+            domains: config.images.domains,
+            remotePatterns: config.images?.remotePatterns,
+            output: config.output,
+          }
         : {}),
     },
   }
@@ -150,18 +150,18 @@ export function getDefineEnv({
     ...(!isEdgeServer
       ? {}
       : {
-        EdgeRuntime:
-          /**
-           * Cloud providers can set this environment variable to allow users
-           * and library authors to have different implementations based on
-           * the runtime they are running with, if it's not using `edge-runtime`
-           */
-          process.env.NEXT_EDGE_RUNTIME_PROVIDER ?? 'edge-runtime',
+          EdgeRuntime:
+            /**
+             * Cloud providers can set this environment variable to allow users
+             * and library authors to have different implementations based on
+             * the runtime they are running with, if it's not using `edge-runtime`
+             */
+            process.env.NEXT_EDGE_RUNTIME_PROVIDER ?? 'edge-runtime',
 
-        // process should be only { env: {...} } for edge runtime.
-        // For ignore avoid warn on `process.emit` usage but directly omit it.
-        'process.emit': false,
-      }),
+          // process should be only { env: {...} } for edge runtime.
+          // For ignore avoid warn on `process.emit` usage but directly omit it.
+          'process.emit': false,
+        }),
     'process.turbopack': isTurbopack,
     'process.env.TURBOPACK': isTurbopack,
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
@@ -188,8 +188,8 @@ export function getDefineEnv({
     ...(isTurbopack
       ? {}
       : {
-        'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers ?? [],
-      }),
+          'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers ?? [],
+        }),
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH':
       config.experimental.manualClientBasePath ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME': JSON.stringify(
@@ -220,8 +220,8 @@ export function getDefineEnv({
     // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
     ...(dev && (isClient ?? isEdgeServer)
       ? {
-        'process.env.__NEXT_DIST_DIR': distDir,
-      }
+          'process.env.__NEXT_DIST_DIR': distDir,
+        }
       : {}),
     'process.env.__NEXT_TRAILING_SLASH': config.trailingSlash,
     'process.env.__NEXT_BUILD_INDICATOR':
@@ -265,17 +265,17 @@ export function getDefineEnv({
     'process.env.__NEXT_ASSET_PREFIX': config.assetPrefix,
     ...(isNodeOrEdgeCompilation
       ? {
-        // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
-        // This is typically found in unmaintained modules from the
-        // pre-webpack era (common in server-side code)
-        'global.GENTLY': false,
-      }
+          // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
+          // This is typically found in unmaintained modules from the
+          // pre-webpack era (common in server-side code)
+          'global.GENTLY': false,
+        }
       : undefined),
     ...(isNodeOrEdgeCompilation
       ? {
-        'process.env.__NEXT_EXPERIMENTAL_REACT':
-          needsExperimentalReact(config),
-      }
+          'process.env.__NEXT_EXPERIMENTAL_REACT':
+            needsExperimentalReact(config),
+        }
       : undefined),
   }
   return serializeDefineEnv(defineEnv)
