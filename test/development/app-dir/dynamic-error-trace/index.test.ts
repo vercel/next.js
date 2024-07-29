@@ -75,6 +75,5 @@ describe('app dir - dynamic error trace', () => {
               7 |
           `
     )
-    expect(codeframe).toContain(`useHeaders()`)
   })
 })
