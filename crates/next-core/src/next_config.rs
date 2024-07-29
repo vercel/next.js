@@ -1123,7 +1123,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn tree_shaking_mode_for_foreign_code(
         self: Vc<Self>,
-        is_development: Vc<bool>,
+        is_development: bool,
     ) -> Result<Vc<OptionTreeShaking>> {
         let is_development = *is_development.await?;
         let tree_shaking = self.await?.experimental.tree_shaking;
