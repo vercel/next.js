@@ -147,7 +147,6 @@ async fn test_changing_generic() {
 
 // Test that we can convert a `Vc` to a `ReadRef`, and then back to a `Vc`.
 #[tokio::test]
-#[ignore = "TODO: This panics! There's a casting bug in the generics implementation."]
 async fn test_read_ref_round_trip() {
     run(&REGISTRATION, async move {
         let c: Vc<Option<Vc<u8>>> = Vc::cell(Some(Vc::cell(1)));

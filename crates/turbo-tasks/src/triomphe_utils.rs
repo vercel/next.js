@@ -5,23 +5,42 @@ use unsize::Coercion;
 /// Attempt to downcast a [`triomphe::Arc<dyn Any + Send +
 /// Sync>`][`triomphe::Arc`] to a concrete type.
 ///
+/// Checks that the downcast is safe using [`Any::is`].
+///
 /// Ported from [`std::sync::Arc::downcast`] to [`triomphe::Arc`].
 pub fn downcast_triomphe_arc<T: Any + Send + Sync>(
     this: triomphe::Arc<dyn Any + Send + Sync>,
 ) -> Result<triomphe::Arc<T>, triomphe::Arc<dyn Any + Send + Sync>> {
     if (*this).is::<T>() {
-        unsafe {
-            // Get the pointer to the offset (*const T) inside of the ArcInner.
-            let ptr = triomphe::Arc::into_raw(this);
-            // SAFETY: The negative offset from the data (ptr) in an Arc to the start of the
-            // data structure is fixed regardless of type `T`.
-            //
-            // SAFETY: Casting from a fat pointer to a thin pointer is safe, as long as the
-            // types are compatible (they are).
-            Ok(triomphe::Arc::from_raw(ptr.cast()))
-        }
+        unsafe { Ok(unchecked_sidecast_triomphe_arc(this)) }
     } else {
         Err(this)
+    }
+}
+
+/// Transmutes the contents of `Arc<T>` to `Arc<U>`. Updates the `Arc`'s fat
+/// pointer metadata.
+///
+/// Unlike [`downcast_triomphe_arc`] this make no checks the transmute is safe.
+///
+/// # Safety
+///
+/// It must be [safe to transmute][transmutes] from `T` to `U`.
+///
+/// [transmutes]: https://doc.rust-lang.org/nomicon/transmutes.html
+pub unsafe fn unchecked_sidecast_triomphe_arc<T, U>(this: triomphe::Arc<T>) -> triomphe::Arc<U>
+where
+    T: ?Sized,
+{
+    unsafe {
+        // Get the pointer to the offset (*const T) inside of the ArcInner.
+        let ptr = triomphe::Arc::into_raw(this);
+        // SAFETY: The negative offset from the data (ptr) in an Arc to the start of the
+        // data structure is fixed regardless of type `T`.
+        //
+        // SAFETY: Casting from a fat pointer to a thin pointer is safe, as long as the
+        // types are compatible (they are).
+        triomphe::Arc::from_raw(ptr.cast())
     }
 }
 
