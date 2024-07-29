@@ -48,7 +48,7 @@ export default function Form({
     if (key in props) {
       if (process.env.NODE_ENV === 'development') {
         console.error(
-          `next/form does not support changing \`${key}\`. ` +
+          `<Form> does not support changing \`${key}\`. ` +
             (typeof actionProp === 'string'
               ? `If you'd like to use it to perform a mutation, consider making \`action\` a function instead.\n` +
                 `Learn more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations`
@@ -99,7 +99,7 @@ export default function Form({
     if (process.env.NODE_ENV === 'development') {
       if (replace || scroll) {
         console.error(
-          'Passing `replace` or `scroll` to a next/form whose `action` is a function has no effect.\n' +
+          'Passing `replace` or `scroll` to a <Form> whose `action` is a function has no effect.\n' +
             'See the relevant docs to learn how to control this behavior for navigations triggered from actions:\n' +
             '  `redirect()`       - https://nextjs.org/docs/app/api-reference/functions/redirect#parameters\n' +
             '  `router.replace()` - https://nextjs.org/docs/app/api-reference/functions/use-router#userouter\n'
@@ -219,7 +219,7 @@ function onFormSubmit(
       // the native browser behavior is to use the filename as the value instead.
       if (process.env.NODE_ENV === 'development') {
         console.warn(
-          `next/form only supports file inputs if \`action\` is a function. File inputs cannot be used if \`action\` is a string, ` +
+          `<Form> only supports file inputs if \`action\` is a function. File inputs cannot be used if \`action\` is a string, ` +
             `because files cannot be encoded as search params.`
         )
       }
@@ -244,7 +244,7 @@ function checkActionUrl(action: string, source: 'action' | 'formAction') {
     testUrl = new URL(action, 'http://n')
   } catch (err) {
     console.error(
-      `next/form received ${aPropName} that cannot be parsed as a URL: "${action}".`
+      `<Form> received ${aPropName} that cannot be parsed as a URL: "${action}".`
     )
     return
   }
@@ -252,7 +252,7 @@ function checkActionUrl(action: string, source: 'action' | 'formAction') {
   // url-encoded HTML forms ignore any queryparams in the `action` url. We need to match that.
   if (testUrl.searchParams.size) {
     console.warn(
-      `next/form received ${aPropName} that contains search params: "${action}". This is not supported, and they will be ignored. ` +
+      `<Form> received ${aPropName} that contains search params: "${action}". This is not supported, and they will be ignored. ` +
         `If you need to pass in additional search params, use an \`<input type="hidden" />\` instead.`
     )
   }
@@ -269,8 +269,8 @@ function hasUnsupportedSubmitterAttributes(submitter: HTMLElement): boolean {
   if (formEncType !== null && !isSupportedEncType(formEncType)) {
     if (process.env.NODE_ENV === 'development') {
       console.error(
-        `next/form's \`encType\` was set to an unsupported value via \`formEncType="${formEncType}"\`. ` +
-          `This will disable next/form's navigation functionality. If you need this, use a native <form> element instead.`
+        `<Form>'s \`encType\` was set to an unsupported value via \`formEncType="${formEncType}"\`. ` +
+          `This will disable <Form>'s navigation functionality. If you need this, use a native <form> element instead.`
       )
     }
     return true
@@ -281,8 +281,8 @@ function hasUnsupportedSubmitterAttributes(submitter: HTMLElement): boolean {
   if (formMethod !== null && !isSupportedMethod(formMethod)) {
     if (process.env.NODE_ENV === 'development') {
       console.error(
-        `next/form's \`method\` was set to an unsupported value via \`formMethod="${formMethod}"\`. ` +
-          `This will disable next/form's navigation functionality. If you need this, use a native <form> element instead.`
+        `<Form>'s \`method\` was set to an unsupported value via \`formMethod="${formMethod}"\`. ` +
+          `This will disable <Form>'s navigation functionality. If you need this, use a native <form> element instead.`
       )
     }
     return true
@@ -293,8 +293,8 @@ function hasUnsupportedSubmitterAttributes(submitter: HTMLElement): boolean {
   if (formTarget !== null && !isSupportedTarget(formTarget)) {
     if (process.env.NODE_ENV === 'development') {
       console.error(
-        `next/form's \`target\` was set to an unsupported value via \`formTarget="${formTarget}"\`. ` +
-          `This will disable next/form's navigation functionality. If you need this, use a native <form> element instead.`
+        `<Form>'s \`target\` was set to an unsupported value via \`formTarget="${formTarget}"\`. ` +
+          `This will disable <Form>'s navigation functionality. If you need this, use a native <form> element instead.`
       )
     }
     return true

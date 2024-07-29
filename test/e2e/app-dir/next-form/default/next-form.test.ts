@@ -128,7 +128,7 @@ describe('app dir - form', () => {
 
           expect(logs).not.toContainEqual(
             expect.stringMatching(
-              /next\/form's `.+?` was set to an unsupported value/
+              /<Form>'s `.+?` was set to an unsupported value/
             )
           )
         }
@@ -158,7 +158,7 @@ describe('app dir - form', () => {
             expect.objectContaining({
               source: 'error',
               message: expect.stringContaining(
-                `next/form's \`${attributeBaseName}\` was set to an unsupported value`
+                `<Form>'s \`${attributeBaseName}\` was set to an unsupported value`
               ),
             })
           )
