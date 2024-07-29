@@ -1069,13 +1069,13 @@ export default class NextNodeServer extends BaseServer<
     return nodeFs
   }
 
-  private normalizeReq(
+  protected normalizeReq(
     req: NodeNextRequest | IncomingMessage
   ): NodeNextRequest {
     return !(req instanceof NodeNextRequest) ? new NodeNextRequest(req) : req
   }
 
-  private normalizeRes(
+  protected normalizeRes(
     res: NodeNextResponse | ServerResponse
   ): NodeNextResponse {
     return !(res instanceof NodeNextResponse) ? new NodeNextResponse(res) : res
@@ -1103,35 +1103,8 @@ export default class NextNodeServer extends BaseServer<
 
     const handler = super.getRequestHandler()
 
-    return (req, res, parsedUrl) => {
-      const request = this.normalizeReq(req)
-      const response = this.normalizeRes(res)
-      const loggingConfig = this.nextConfig.logging
-
-      if (this.renderOpts.dev && loggingConfig !== false) {
-        const { logRequests } =
-          require('./logging/log-requests') as typeof import('./logging/log-requests')
-
-        const start = Date.now()
-        const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
-
-        response.originalResponse.once('close', () => {
-          // NOTE: The route match is only attached to the request's meta data
-          // after the request handler is created, so we need to check it in the
-          // close handler and not before.
-          const routeMatch = getRequestMeta(req).match
-
-          if (!routeMatch || isMiddlewareRequest) {
-            return
-          }
-
-          const requestDurationInMs = Date.now() - start
-          logRequests({ request, response, loggingConfig, requestDurationInMs })
-        })
-      }
-
-      return handler(request, response, parsedUrl)
-    }
+    return (req, res, parsedUrl) =>
+      handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
   }
 
   public async revalidate({
