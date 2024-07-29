@@ -1,12 +1,12 @@
-use turbo_tasks::{util::SharedError, CellId, SharedReference, TaskId};
+use turbo_tasks::{util::SharedError, CellId, KeyValuePair, SharedReference, TaskId};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct CellRef {
     task: TaskId,
     cell: CellId,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
@@ -22,21 +22,20 @@ impl OutputValue {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum RootType {
     RootTask,
     OnceTask,
     ReadingStronglyConsistent,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum InProgressState {
     Scheduled { clean: bool },
     InProgress { clean: bool, stale: bool },
 }
 
-#[turbo_tasks::with_key]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, KeyValuePair)]
 pub enum CachedDataItem {
     // Output
     Output {
@@ -169,6 +168,46 @@ impl CachedDataItem {
             CachedDataItem::OutdatedOutputDependency { .. } => false,
             CachedDataItem::OutdatedCellDependency { .. } => false,
             CachedDataItem::Error { .. } => false,
+        }
+    }
+}
+
+impl CachedDataItemKey {
+    pub fn is_persistent(&self) -> bool {
+        match self {
+            CachedDataItemKey::Output { .. } => true,
+            CachedDataItemKey::Collectible { collectible, .. } => !collectible.task.is_transient(),
+            CachedDataItemKey::Dirty { .. } => true,
+            CachedDataItemKey::DirtyWhenPersisted { .. } => true,
+            CachedDataItemKey::Child { task, .. } => !task.is_transient(),
+            CachedDataItemKey::CellData { .. } => true,
+            CachedDataItemKey::OutputDependency { target, .. } => !target.is_transient(),
+            CachedDataItemKey::CellDependency { target, .. } => !target.task.is_transient(),
+            CachedDataItemKey::OutputDependent { task, .. } => !task.is_transient(),
+            CachedDataItemKey::CellDependent { task, .. } => !task.is_transient(),
+            CachedDataItemKey::AggregationNumber { .. } => true,
+            CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
+            CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
+            CachedDataItemKey::AggregatedDirtyTask { task, .. } => !task.is_transient(),
+            CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
+                !collectible.task.is_transient()
+            }
+            CachedDataItemKey::AggregatedUnfinishedTasks { .. } => true,
+            CachedDataItemKey::AggregateRootType { .. } => false,
+            CachedDataItemKey::InProgress { .. } => false,
+            CachedDataItemKey::OutdatedCollectible { .. } => false,
+            CachedDataItemKey::OutdatedOutputDependency { .. } => false,
+            CachedDataItemKey::OutdatedCellDependency { .. } => false,
+            CachedDataItemKey::Error { .. } => false,
+        }
+    }
+}
+
+impl CachedDataItemValue {
+    pub fn is_persistent(&self) -> bool {
+        match self {
+            CachedDataItemValue::Output { value } => !value.is_transient(),
+            _ => true,
         }
     }
 }
