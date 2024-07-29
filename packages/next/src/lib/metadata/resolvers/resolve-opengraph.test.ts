@@ -1,4 +1,4 @@
-import { resolveImages } from './resolve-opengraph'
+import { resolveImages, resolveOpenGraph } from './resolve-opengraph'
 
 describe('resolveImages', () => {
   const image1 = 'https://www.example.com/image1.jpg'
@@ -34,5 +34,44 @@ describe('resolveImages', () => {
       { url: new URL(image1) },
       { url: new URL(image2), alt: 'Image2' },
     ])
+  })
+})
+
+describe('resolveOpenGraph', () => {
+  it('should wrap an empty string with an array', () => {
+    expect(
+      resolveOpenGraph(
+        // pass authors as empty string
+        { type: 'article', authors: '' },
+        null,
+        { isStandaloneMode: false, trailingSlash: false, pathname: '' },
+        ''
+      )
+    ).toEqual({
+      // should be an array, or else throw: "n.map is not a function"
+      // x-ref: https://github.com/vercel/next.js/pull/68262
+      authors: [''],
+      images: undefined,
+      title: { absolute: '', template: null },
+      type: 'article',
+      url: null,
+    })
+  })
+
+  it('should return null if null', () => {
+    expect(
+      resolveOpenGraph(
+        { type: 'article', authors: null },
+        null,
+        { isStandaloneMode: false, trailingSlash: false, pathname: '' },
+        ''
+      )
+    ).toEqual({
+      authors: null,
+      images: undefined,
+      title: { absolute: '', template: null },
+      type: 'article',
+      url: null,
+    })
   })
 })
