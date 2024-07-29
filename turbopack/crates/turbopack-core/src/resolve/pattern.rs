@@ -323,7 +323,7 @@ impl Pattern {
             result.normalize();
             result
         } else {
-            self.clone()
+            Pattern::Constant(template.into())
         }
     }
 
@@ -1752,6 +1752,12 @@ mod tests {
 
     #[test]
     fn spread_into_star() {
+        let pat = Pattern::Constant("xyz".into());
+        assert_eq!(
+            pat.spread_into_star("before/after"),
+            Pattern::Constant("before/after".into()),
+        );
+
         let pat =
             Pattern::Concatenation(vec![Pattern::Constant("a/b/c/".into()), Pattern::Dynamic]);
         assert_eq!(
@@ -1794,6 +1800,7 @@ mod tests {
                 Pattern::Constant("before/b/b".into()),
             ])
         );
+
         let pat = Pattern::Dynamic;
         assert_eq!(
             pat.spread_into_star("before/*/*"),
