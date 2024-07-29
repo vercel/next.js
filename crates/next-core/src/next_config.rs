@@ -1149,7 +1149,7 @@ impl NextConfig {
         self: Vc<Self>,
         _is_development: Vc<bool>,
     ) -> Result<Vc<OptionTreeShaking>> {
-        Ok(OptionTreeShaking(Some(TreeShakingMode::ReexportsOnly)).cell())
+        Ok(Vc::cell(Some(TreeShakingMode::ReexportsOnly)))
     }
 }
 
