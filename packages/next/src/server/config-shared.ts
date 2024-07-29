@@ -199,6 +199,12 @@ export interface ReactCompilerOptions {
   panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
 }
 
+export interface LoggingConfig {
+  fetches?: {
+    fullUrl?: boolean
+  }
+}
+
 export interface ExperimentalConfig {
   appNavFailHandling?: boolean
   flyingShuttle?: boolean
@@ -853,13 +859,7 @@ export interface NextConfig extends Record<string, any> {
     }
   >
 
-  logging?:
-    | {
-        fetches?: {
-          fullUrl?: boolean
-        }
-      }
-    | false
+  logging?: LoggingConfig | false
 
   /**
    * period (in seconds) where the server allow to serve stale cache
