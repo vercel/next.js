@@ -116,11 +116,19 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'
-      skipInstallBuild: 'yes'
+      needsNextest: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: turbo run test-cargo-unit
       mold: 'yes'
       stepName: 'test-cargo-unit'
+    secrets: inherit
+
+  test-bench:
+    name: test cargo benches
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/test-turbopack-rust-bench-test.yml
     secrets: inherit
 
   rust-check:

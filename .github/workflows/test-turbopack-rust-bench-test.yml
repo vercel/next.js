@@ -4,20 +4,24 @@ on:
     inputs:
       runner:
         type: string
+        default: '["self-hosted", "linux", "x64", "metal"]'
       os:
         type: string
+        default: 'linux'
       all:
         type: boolean
+        default: false
 
 env:
-  TURBOPACK_BENCH_COUNTS: "100"
-  TURBOPACK_BENCH_PROGRESS: "1"
+  TURBOPACK_BENCH_COUNTS: '100'
+  TURBOPACK_BENCH_PROGRESS: '1'
+
+  NODE_LTS_VERSION: 20
 
 jobs:
   test:
     name: Test
-    # alias custom runner name to our labels array
-    runs-on: ${{ inputs.runner == 'ubuntu-latest-metal' && fromJSON('[ "self-hosted", "linux", "x64", "metal" ]') || inputs.runner }}
+    runs-on: ${{ fromJSON(inputs.runner) }}
     steps:
       - name: Set git to use LF
         run: |
@@ -30,26 +34,23 @@ jobs:
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          save-cache: true
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      - name: Setup Node.js
-        uses: ./.github/actions/setup-node
+      - name: Setup node
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+      - run: corepack enable
 
       - name: Build benchmarks for tests
         timeout-minutes: 120
         run: |
-          cargo tp-bench-test --no-run
+          cargo test --benches --workspace --release --no-fail-fast --exclude turbopack-bench --exclude next-swc-napi --no-run
 
       - name: Run cargo test on benchmarks
         timeout-minutes: 120
         run: |
-          cargo tp-bench-test
+          cargo test --benches --workspace --release --no-fail-fast --exclude turbopack-bench --exclude next-swc-napi
 
       - name: Build benchmarks for tests for other bundlers
         if: inputs.all
