@@ -29,7 +29,7 @@ export type Manifest = {
     action: string
     accept: {
       [mimeType: string]: string[]
-    }[]
+    }
   }[]
   icons?: Icon[]
   id?: string
