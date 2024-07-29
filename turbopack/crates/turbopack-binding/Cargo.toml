@@ -108,7 +108,6 @@ __turbo_tasks_memory_print_task_invalidation = [
   "turbo-tasks-memory/print_task_invalidation",
 ]
 __turbo_tasks_testing = ["__turbo", "turbo-tasks-testing"]
-__turbo_updater = ["__turbo", "turbo-updater"]
 
 __turbopack = ["turbopack"]
 __turbopack_bench = ["__turbopack", "turbopack-bench"]
@@ -217,7 +216,6 @@ turbo-tasks-macros-shared = { optional = true, workspace = true }
 turbo-tasks-malloc = { optional = true, workspace = true, default-features = false }
 turbo-tasks-memory = { optional = true, workspace = true }
 turbo-tasks-testing = { optional = true, workspace = true }
-turbo-updater = { optional = true, workspace = true }
 turbopack = { optional = true, workspace = true }
 turbopack-bench = { optional = true, workspace = true }
 turbopack-browser = { optional = true, workspace = true }

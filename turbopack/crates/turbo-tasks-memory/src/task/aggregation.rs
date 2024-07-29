@@ -313,7 +313,7 @@ impl<'a> AggregationContext for TaskAggregationContext<'a> {
         let new_change = TaskChange {
             unfinished,
             #[cfg(feature = "track_unfinished")]
-            unfinished_tasks_update: unfinished_tasks_update,
+            unfinished_tasks_update,
             dirty_tasks_update,
             collectibles: change.collectibles.clone(),
         };

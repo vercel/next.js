@@ -213,7 +213,9 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     let relative_path: RcStr = sys_to_unix(relative_path.to_str().unwrap()).into();
     let path = root_fs.root().join(relative_path.clone());
     let project_path = project_root.join(relative_path.clone());
-    let tests_path = project_fs.root().join("crates/turbopack-tests".into());
+    let tests_path = project_fs
+        .root()
+        .join("turbopack/crates/turbopack-tests".into());
 
     let options_file = path.join("options.json".into());
 
