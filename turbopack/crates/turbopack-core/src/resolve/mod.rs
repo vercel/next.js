@@ -2648,7 +2648,8 @@ async fn handle_exports_imports_field(
             ])));
             println!(
                 "handle_exports_imports_field reresolve {:?} {:?}",
-                package_path, request
+                package_path.await?.path,
+                request.dbg().await?
             );
 
             let resolve_result = resolve_internal_boxed(package_path, request, options).await?;

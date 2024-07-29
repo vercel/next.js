@@ -121,6 +121,12 @@ impl AliasTemplate for SubpathValue {
                     .collect::<Result<Vec<_>>>()?,
             ),
             SubpathValue::Result(value) => {
+                println!(
+                    "AliasTemplate::replace {:?} {:?} {:?}",
+                    capture,
+                    value,
+                    capture.spread_into_star(value)
+                );
                 SubpathValueResult::Result(capture.spread_into_star(value))
             }
             SubpathValue::Excluded => SubpathValueResult::Excluded,
