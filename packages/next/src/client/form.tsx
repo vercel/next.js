@@ -6,6 +6,7 @@ import { addBasePath } from './add-base-path'
 import { useIntersection } from './use-intersection'
 import { useMergedRef } from './use-merged-ref'
 import type { AppRouterInstance } from '../shared/lib/app-router-context.shared-runtime'
+import { PrefetchKind } from './components/router-reducer/router-reducer-types'
 
 const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
 
@@ -89,7 +90,7 @@ export default function Form({
     try {
       // TODO: do we need to take the current field values here?
       // or are we assuming that queryparams can't affect this (but what about rewrites)?
-      router.prefetch(actionProp)
+      router.prefetch(actionProp, { kind: PrefetchKind.AUTO })
     } catch (err) {
       console.error(err)
     }
