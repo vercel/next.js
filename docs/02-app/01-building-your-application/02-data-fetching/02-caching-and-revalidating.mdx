@@ -24,17 +24,14 @@ fetch('https://...', { cache: 'force-cache' })
 To cache specific requests to your database or ORM, you can use the [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) API:
 
 ```jsx
-import { getUser } from './data';
-import { unstable_cache } from 'next/cache';
- 
-const getCachedUser = unstable_cache(
-  async (id) => getUser(id),
-  ['my-app-user']
-);
- 
+import { getUser } from './data'
+import { unstable_cache } from 'next/cache'
+
+const getCachedUser = unstable_cache(async (id) => getUser(id), ['my-app-user'])
+
 export default async function Component({ userID }) {
-  const user = await getCachedUser(userID);
-  return user;
+  const user = await getCachedUser(userID)
+  return user
 }
 ```
 
