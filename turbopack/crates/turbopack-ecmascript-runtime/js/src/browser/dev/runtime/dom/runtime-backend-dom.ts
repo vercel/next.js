@@ -5,6 +5,8 @@
  * It will be appended to the base development runtime code.
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 /// <reference path="../base/runtime-base.ts" />
 /// <reference path="../../../../shared/require-type.d.ts" />
 
@@ -124,7 +126,7 @@ async function loadWebAssemblyModule(
           `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
         );
 
-        if (previousLinks.length == 0) {
+        if (previousLinks.length === 0) {
           reject(new Error(`No link element found for chunk ${chunkPath}`));
           return;
         }
@@ -299,5 +301,6 @@ function _eval({ code, url, map }: EcmascriptModuleEntry): ModuleFactory {
     )}`;
   }
 
+  // eslint-disable-next-line no-eval
   return eval(code);
 }

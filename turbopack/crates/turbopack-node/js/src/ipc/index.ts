@@ -80,6 +80,8 @@ function createIpc<TIncoming, TOutgoing>(
             }
             break;
           }
+          default:
+            invariant(state, (state) => `Unknown state type: ${state?.type}`);
         }
       }
     });
@@ -207,3 +209,10 @@ improveConsole("timeEnd", "stdout", true);
 improveConsole("timeLog", "stdout", true);
 improveConsole("timeStamp", "stdout", true);
 improveConsole("assert", "stderr", true);
+
+/**
+ * Utility function to ensure all variants of an enum are handled.
+ */
+function invariant(never: never, computeMessage: (arg: any) => string): never {
+  throw new Error(`Invariant: ${computeMessage(never)}`);
+}

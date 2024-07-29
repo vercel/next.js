@@ -1,4 +1,4 @@
-import { IPC, StructuredError } from "./index";
+import { IPC } from "./index";
 import type { Ipc as GenericIpc } from "./index";
 
 type IpcIncomingMessage =

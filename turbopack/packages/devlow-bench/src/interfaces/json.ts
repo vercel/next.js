@@ -1,7 +1,5 @@
-import { Interface, Scenario, ScenarioVariant } from "../index.js";
-import inquirer from "inquirer";
+import { Interface } from "../index.js";
 import { formatUnit } from "../units.js";
-import { formatVariant } from "../utils.js";
 import { writeFile } from "fs/promises";
 
 function filterProp(

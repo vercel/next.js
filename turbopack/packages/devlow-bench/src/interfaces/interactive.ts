@@ -1,6 +1,5 @@
-import { Interface, Scenario, ScenarioVariant } from "../index.js";
+import { Interface } from "../index.js";
 import inquirer from "inquirer";
-import { formatUnit } from "../units.js";
 import { formatVariant } from "../utils.js";
 
 export default function createInterface(): Interface {

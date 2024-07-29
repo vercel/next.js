@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 /// <reference path="../shared/runtime-utils.ts" />
 /// <reference path="../shared-node/base-externals-utils.ts" />
 /// <reference path="../shared-node/node-externals-utils.ts" />
@@ -31,6 +33,8 @@ function stringifySourceInfo(source: SourceInfo): string {
       return `runtime for chunk ${source.chunkPath}`;
     case SourceType.Parent:
       return `parent module ${source.parentId}`;
+    default:
+      invariant(source, (source) => `Unknown source type: ${source?.type}`);
   }
 }
 
@@ -187,6 +191,8 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       case SourceType.Parent:
         instantiationReason = `because it was required from module ${source.parentId}`;
         break;
+      default:
+        invariant(source, (source) => `Unknown source type: ${source?.type}`);
     }
     throw new Error(
       `Module ${id} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`
@@ -203,6 +209,8 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       // has already been taken care of in `getOrInstantiateModuleFromParent`.
       parents = [source.parentId];
       break;
+    default:
+      invariant(source, (source) => `Unknown source type: ${source?.type}`);
   }
 
   const module: Module = {
@@ -242,7 +250,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       P: resolveAbsolutePath,
       U: relativeURL,
       R: createResolvePathFromModule(r),
-      __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
+      __dirname: module.id.replace(/(^|\/)\/+$/, ""),
     });
   } catch (error) {
     module.error = error as any;

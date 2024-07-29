@@ -124,6 +124,9 @@ export default async function transform(
           glob: "**",
         });
         break;
+      default:
+        // TODO: do we need to do anything here?
+        break;
     }
   }
   return {
