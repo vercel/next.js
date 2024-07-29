@@ -1131,11 +1131,7 @@ impl NextConfig {
         Ok(OptionTreeShaking(match tree_shaking {
             Some(false) => Some(TreeShakingMode::ReexportsOnly),
             Some(true) => {
-                if is_development {
-                    Some(TreeShakingMode::ModuleFragments)
-                } else {
-                    Some(TreeShakingMode::ReexportsOnly)
-                }
+                Some(TreeShakingMode::ModuleFragments)
             }
             None => {
                 if is_development {
