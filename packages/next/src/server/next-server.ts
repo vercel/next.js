@@ -915,7 +915,7 @@ export default class NextNodeServer extends BaseServer<
           cacheEntry.revalidate || 0,
           Boolean(this.renderOpts.dev)
         )
-        return true
+        return false // There might be middleware for this request
       } catch (err) {
         if (err instanceof ImageError) {
           res.statusCode = err.statusCode
