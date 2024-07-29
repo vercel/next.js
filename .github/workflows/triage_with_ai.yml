@@ -3,8 +3,6 @@ name: Triage Issues with AI
 on:
   issues:
     types: [opened]
-  pull_request:
-    types: [opened, synchronize]
 
 jobs:
   triage:
