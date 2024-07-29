@@ -217,65 +217,101 @@ impl Pattern {
     }
 
     pub fn strip_prefix(&mut self, len: usize) {
-        fn strip_prefix_internal(pattern: &mut Pattern, len: usize) {
+        fn strip_prefix_internal(pattern: &mut Pattern, chars_to_strip: &mut usize) {
             match pattern {
                 Pattern::Constant(c) => {
-                    *c = (&c[len..]).into();
+                    let c_len = c.len();
+                    if *chars_to_strip >= c_len {
+                        *c = "".into();
+                    } else {
+                        *c = (&c[*chars_to_strip..]).into();
+                    }
+                    *chars_to_strip = (*chars_to_strip).saturating_sub(c_len);
                 }
                 Pattern::Concatenation(list) => {
-                    if let Some(c) = list.first_mut() {
-                        strip_prefix_internal(c, len);
+                    for c in list {
+                        if *chars_to_strip > 0 {
+                            strip_prefix_internal(c, chars_to_strip);
+                        }
                     }
                 }
                 Pattern::Alternatives(_) => {
                     panic!("for strip_prefix a Pattern must be normalized");
                 }
-                Pattern::Dynamic => {}
+                Pattern::Dynamic => {
+                    panic!("strip_prefix prefix is too long");
+                }
             }
         }
 
-        match self {
+        match &mut *self {
             c @ Pattern::Constant(_) | c @ Pattern::Concatenation(_) => {
-                strip_prefix_internal(c, len);
+                let mut len_local = len;
+                strip_prefix_internal(c, &mut len_local);
             }
             Pattern::Alternatives(list) => {
                 for c in list {
-                    strip_prefix_internal(c, len);
+                    let mut len_local = len;
+                    strip_prefix_internal(c, &mut len_local);
                 }
             }
-            Pattern::Dynamic => {}
-        }
+            Pattern::Dynamic => {
+                if len > 0 {
+                    panic!("strip_prefix prefix is too long");
+                }
+            }
+        };
+
+        self.normalize()
     }
 
     pub fn strip_suffix(&mut self, len: usize) {
-        fn strip_suffix_internal(pattern: &mut Pattern, len: usize) {
+        fn strip_suffix_internal(pattern: &mut Pattern, chars_to_strip: &mut usize) {
             match pattern {
                 Pattern::Constant(c) => {
-                    *c = (&c[(c.len() - len)..]).into();
+                    let c_len = c.len();
+                    if *chars_to_strip >= c_len {
+                        *c = "".into();
+                    } else {
+                        *c = (&c[..(c_len - *chars_to_strip)]).into();
+                    }
+                    *chars_to_strip = (*chars_to_strip).saturating_sub(c_len);
                 }
                 Pattern::Concatenation(list) => {
-                    if let Some(c) = list.last_mut() {
-                        strip_suffix_internal(c, len);
+                    for c in list.iter_mut().rev() {
+                        if *chars_to_strip > 0 {
+                            strip_suffix_internal(c, chars_to_strip);
+                        }
                     }
                 }
                 Pattern::Alternatives(_) => {
                     panic!("for strip_suffix a Pattern must be normalized");
                 }
-                Pattern::Dynamic => {}
+                Pattern::Dynamic => {
+                    panic!("strip_suffix suffix is too long");
+                }
             }
         }
 
-        match self {
+        match &mut *self {
             c @ Pattern::Constant(_) | c @ Pattern::Concatenation(_) => {
-                strip_suffix_internal(c, len);
+                let mut len_local = len;
+                strip_suffix_internal(c, &mut len_local);
             }
             Pattern::Alternatives(list) => {
                 for c in list {
-                    strip_suffix_internal(c, len);
+                    let mut len_local = len;
+                    strip_suffix_internal(c, &mut len_local);
                 }
             }
-            Pattern::Dynamic => {}
-        }
+            Pattern::Dynamic => {
+                if len > 0 {
+                    panic!("strip_suffix suffix is too long");
+                }
+            }
+        };
+
+        self.normalize()
     }
 
     // Replace `*` in `template` with self.
@@ -1586,6 +1622,88 @@ mod tests {
             Pattern::Concatenation(vec![Pattern::Constant("a/b/c/".into()), Pattern::Dynamic]),
         ]);
         assert_eq!(pat.constant_prefix(), "a/b/");
+    }
+
+    #[test]
+    fn strip_prefix() {
+        fn strip(mut pat: Pattern, n: usize) -> Pattern {
+            pat.strip_prefix(n);
+            pat
+        }
+
+        assert_eq!(
+            strip(Pattern::Constant("a/b".into()), 0),
+            Pattern::Constant("a/b".into())
+        );
+
+        assert_eq!(
+            strip(
+                Pattern::Alternatives(vec![
+                    Pattern::Constant("a/b/x".into()),
+                    Pattern::Constant("a/b/y".into()),
+                ]),
+                2
+            ),
+            Pattern::Alternatives(vec![
+                Pattern::Constant("b/x".into()),
+                Pattern::Constant("b/y".into()),
+            ])
+        );
+
+        assert_eq!(
+            strip(
+                Pattern::Concatenation(vec![
+                    Pattern::Constant("a/".into()),
+                    Pattern::Constant("b".into()),
+                    Pattern::Constant("/".into()),
+                    Pattern::Constant("y/".into()),
+                    Pattern::Dynamic
+                ]),
+                4
+            ),
+            Pattern::Concatenation(vec![Pattern::Constant("y/".into()), Pattern::Dynamic]),
+        );
+    }
+
+    #[test]
+    fn strip_suffix() {
+        fn strip(mut pat: Pattern, n: usize) -> Pattern {
+            pat.strip_suffix(n);
+            pat
+        }
+
+        assert_eq!(
+            strip(Pattern::Constant("a/b".into()), 0),
+            Pattern::Constant("a/b".into())
+        );
+
+        assert_eq!(
+            strip(
+                Pattern::Alternatives(vec![
+                    Pattern::Constant("x/b/a".into()),
+                    Pattern::Constant("y/b/a".into()),
+                ]),
+                2
+            ),
+            Pattern::Alternatives(vec![
+                Pattern::Constant("x/b".into()),
+                Pattern::Constant("y/b".into()),
+            ])
+        );
+
+        assert_eq!(
+            strip(
+                Pattern::Concatenation(vec![
+                    Pattern::Dynamic,
+                    Pattern::Constant("/a/".into()),
+                    Pattern::Constant("b".into()),
+                    Pattern::Constant("/".into()),
+                    Pattern::Constant("y/".into()),
+                ]),
+                4
+            ),
+            Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant("/a/".into()),]),
+        );
     }
 
     #[test]
