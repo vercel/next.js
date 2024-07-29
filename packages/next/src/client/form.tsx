@@ -93,7 +93,7 @@ export default function Form({
 
   if (!isNavigatingForm) {
     if (process.env.NODE_ENV === 'development') {
-      if (replace || scroll) {
+      if (replace !== undefined || scroll !== undefined) {
         console.error(
           'Passing `replace` or `scroll` to a <Form> whose `action` is a function has no effect.\n' +
             'See the relevant docs to learn how to control this behavior for navigations triggered from actions:\n' +
