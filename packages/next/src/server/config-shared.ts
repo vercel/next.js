@@ -145,7 +145,7 @@ export interface ExperimentalTurboOptions {
   rules?: Record<string, TurboRuleConfigItemOrShortcut>
 
   /**
-   * Use swc_css instead of lightningcss for turbopakc
+   * Use swc_css instead of lightningcss for Turbopack
    */
   useSwcCss?: boolean
 

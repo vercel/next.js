@@ -215,13 +215,13 @@ module.exports = {
               const cssPreload = $('link[rel="preload"][as="style"]')
               expect(cssPreload.length).toBe(1)
               expect(cssPreload.attr('href')).toMatch(
-                /^\/_next\/static\/css\/.*\.css$/
+                /^\/_next\/static\/.*\.css$/
               )
 
               const cssSheet = $('link[rel="stylesheet"]')
               expect(cssSheet.length).toBe(1)
               expect(cssSheet.attr('href')).toMatch(
-                /^\/_next\/static\/css\/.*\.css$/
+                /^\/_next\/static\/.*\.css$/
               )
 
               /* ensure CSS preloaded first */

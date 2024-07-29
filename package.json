@@ -2,9 +2,6 @@
   "name": "nextjs-project",
   "version": "0.0.0",
   "private": true,
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
     "new-error": "turbo gen error",
     "new-test": "turbo gen test",
@@ -246,28 +243,28 @@
     "ws": "8.2.3",
     "yargs": "16.2.0"
   },
-  "resolutions": {
-    "webpack": "5.90.0",
-    "browserslist": "4.22.2",
-    "caniuse-lite": "1.0.30001579",
-    "@types/node": "20.12.3",
-    "@babel/core": "7.22.5",
-    "@babel/parser": "7.22.5",
-    "@babel/types": "7.22.5",
-    "@babel/traverse": "7.22.5",
-    "@types/react": "npm:types-react@19.0.0-rc.0",
-    "@types/react-dom": "npm:types-react-dom@19.0.0-rc.0",
-    "react": "19.0.0-rc-76002254-20240724",
-    "react-dom": "19.0.0-rc-76002254-20240724",
-    "react-is": "19.0.0-rc-76002254-20240724",
-    "scheduler": "0.25.0-rc-76002254-20240724"
-  },
   "engines": {
     "node": ">=18.18.0",
     "pnpm": "9.6.0"
   },
   "packageManager": "pnpm@9.6.0",
   "pnpm": {
+    "overrides": {
+      "webpack": "5.90.0",
+      "browserslist": "4.22.2",
+      "caniuse-lite": "1.0.30001579",
+      "@types/node": "20.12.3",
+      "@babel/core": "7.22.5",
+      "@babel/parser": "7.22.5",
+      "@babel/types": "7.22.5",
+      "@babel/traverse": "7.22.5",
+      "@types/react": "npm:types-react@19.0.0-rc.0",
+      "@types/react-dom": "npm:types-react-dom@19.0.0-rc.0",
+      "react": "19.0.0-rc-76002254-20240724",
+      "react-dom": "19.0.0-rc-76002254-20240724",
+      "react-is": "19.0.0-rc-76002254-20240724",
+      "scheduler": "0.25.0-rc-76002254-20240724"
+    },
     "patchedDependencies": {
       "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch"
     }
