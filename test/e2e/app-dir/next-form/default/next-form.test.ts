@@ -202,7 +202,19 @@ describe('app dir - form', () => {
     expect(await session.eval(`history.length`)).toEqual(prevHistoryLength)
   })
 
-  it.todo('does not do anything if user called preventDefault in onSubmit')
+  it('does not navigate if preventDefault is called in onSubmit', async () => {
+    const session = await next.browser(`/forms/with-onsubmit-preventdefault`)
+
+    const submitButton = await session.elementByCss('[type="submit"]')
+    await submitButton.click()
+
+    // see fixture code for explanation why we expect this
+
+    await session.waitForElementByCss('#redirected-results')
+    expect(new URL(await session.url()).pathname).toEqual(
+      '/redirected-from-action'
+    )
+  })
 
   // TODO(lubieowoce): implement this
   // (we don't have any methods on BrowserInterface to deal with files)
