@@ -4,7 +4,7 @@ on:
   issues:
     types: [opened]
   pull_request:
-    types: [opened, synchronize]
+    types: [synchronize]
 
 jobs:
   triage:
