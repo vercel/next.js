@@ -68,12 +68,6 @@ export default function Form({
     disabled: !isNavigatingForm, // if we don't have an action path, we can't preload anything anyway.
   })
 
-  // TODO: Link does something like this in addition, do we need it?
-  // check if visible state need to be reset
-  // if (previousActionProp.current !== actionProp) {
-  //   resetVisible()
-  //   previousActionProp.current = actionProp
-  // }
   const ownRef = useMergedRef<HTMLFormElement>(
     setIntersectionRef,
     externalRef ?? null
