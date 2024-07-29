@@ -47,8 +47,6 @@ pub mod turbo {
     pub use turbo_tasks_memory as tasks_memory;
     #[cfg(feature = "__turbo_tasks_testing")]
     pub use turbo_tasks_testing as tasks_testing;
-    #[cfg(feature = "__turbo_updater")]
-    pub use turbo_updater as updater;
 }
 
 #[cfg(feature = "__turbopack")]

@@ -19,17 +19,17 @@ rule:
         - inside:
             kind: field_declaration
 ignores:
-  - "./crates/turbopack-css/**"
-  - "./crates/turbopack-dev-server/**"
-  - "./crates/turbopack-browser/**"
-  - "./crates/turbopack-ecmascript-hmr-protocol/**"
-  - "./crates/turbopack-ecmascript-plugins/**"
-  - "./crates/turbopack-ecmascript-runtime/**"
-  - "./crates/turbopack-json/**"
-  - "./crates/turbopack-mdx/**"
-  - "./crates/turbopack-node/**"
-  - "./crates/turbopack-static/**"
-  - "./crates/turbopack-tests/**"
-  - "./crates/turbopack/**"
-  - "./crates/turborepo-cache/**"
-  - "./crates/turborepo-scm/**"
+  - './crates/turbopack-css/**'
+  - './crates/turbopack-dev-server/**'
+  - './crates/turbopack-browser/**'
+  - './crates/turbopack-ecmascript-hmr-protocol/**'
+  - './crates/turbopack-ecmascript-plugins/**'
+  - './crates/turbopack-ecmascript-runtime/**'
+  - './crates/turbopack-json/**'
+  - './crates/turbopack-mdx/**'
+  - './crates/turbopack-node/**'
+  - './crates/turbopack-static/**'
+  - './crates/turbopack-tests/**'
+  - './crates/turbopack/**'
+  - './crates/turborepo-cache/**'
+  - './crates/turborepo-scm/**'

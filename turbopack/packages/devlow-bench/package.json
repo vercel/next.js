@@ -10,8 +10,8 @@
   "bin": "dist/cli.js",
   "scripts": {
     "lint": "eslint src/",
-    "prerelease": "pnpm run build:ts",
-    "build:ts": "tsc"
+    "prerelease": "pnpm run build",
+    "build": "tsc"
   },
   "files": [
     "dist"
@@ -30,7 +30,6 @@
     "./interfaces/json": "./dist/interfaces/json.js"
   },
   "devDependencies": {
-    "@turbo/eslint-config": "workspace:*",
     "@types/inquirer": "^9.0.3",
     "@types/minimist": "^1.2.2",
     "@types/node": "^20.3.0",
