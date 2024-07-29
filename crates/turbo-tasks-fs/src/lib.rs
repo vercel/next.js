@@ -1807,6 +1807,24 @@ pub enum DirectoryEntry {
     Error,
 }
 
+/// Handles the `DirectoryEntry::Symlink` variant by checking the symlink target
+/// type and replacing it with `DirectoryEntry::File` or
+/// `DirectoryEntry::Directory`.
+impl DirectoryEntry {
+    pub async fn resolve_symlink(self) -> Result<Self> {
+        if let DirectoryEntry::Symlink(symlink) = self {
+            let real_path = symlink.realpath().resolve().await?;
+            match *real_path.get_type().await? {
+                FileSystemEntryType::Directory => Ok(DirectoryEntry::Directory(real_path)),
+                FileSystemEntryType::File => Ok(DirectoryEntry::File(real_path)),
+                _ => Ok(self),
+            }
+        } else {
+            Ok(self)
+        }
+    }
+}
+
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Copy, Debug)]
 pub enum FileSystemEntryType {
