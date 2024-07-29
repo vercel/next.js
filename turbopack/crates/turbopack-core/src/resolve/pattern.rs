@@ -295,22 +295,31 @@ impl Pattern {
         self.normalize()
     }
 
-    // Replace `*` in `template` with self.
+    //// Replace all `*`s in `template` with self.
+    ////
+    //// Handle top-level alternatives seperately so that multiple star placeholders
+    //// match the same pattern instead of the whole alternative.
     pub fn spread_into_star(&self, template: &str) -> Pattern {
         if template.contains("*") {
-            let mut split = template.split("*");
-            let (Some(prefix), Some(suffix)) = (split.next(), split.next()) else {
-                panic!("Invalid template in spread_into_star: '{}'", template);
+            let alternatives: Box<dyn Iterator<Item = &Pattern>> = match self {
+                Pattern::Alternatives(list) => Box::new(list.iter()),
+                c => Box::new(std::iter::once(c)),
             };
-            if split.next().is_some() {
-                panic!("Invalid template in spread_into_star: '{}'", template);
-            }
 
-            let mut result = Pattern::Concatenation(vec![
-                Pattern::Constant(prefix.into()),
-                self.clone(),
-                Pattern::Constant(suffix.into()),
-            ]);
+            let mut result = Pattern::alternatives(alternatives.map(|pat| {
+                let mut split = template.split("*");
+                let mut concatenation: Vec<Pattern> = Vec::with_capacity(3);
+
+                // There are at least two elements in the iterator
+                concatenation.push(Pattern::Constant(split.next().unwrap().into()));
+
+                for part in split {
+                    concatenation.push(pat.clone());
+                    concatenation.push(Pattern::Constant(part.into()));
+                }
+                Pattern::Concatenation(concatenation)
+            }));
+
             result.normalize();
             result
         } else {
@@ -509,7 +518,6 @@ impl Pattern {
                         new_alternatives.push(alt);
                     }
                 }
-                *list = new_alternatives;
                 if new_alternatives.len() == 1 {
                     *self = new_alternatives.into_iter().next().unwrap();
                 } else {
@@ -1772,6 +1780,29 @@ mod tests {
                     Pattern::Dynamic,
                     Pattern::Constant("/after".into())
                 ]),
+            ])
+        );
+
+        let pat = Pattern::Alternatives(vec![
+            Pattern::Constant("a".into()),
+            Pattern::Constant("b".into()),
+        ]);
+        assert_eq!(
+            pat.spread_into_star("before/*/*"),
+            Pattern::Alternatives(vec![
+                Pattern::Constant("before/a/a".into()),
+                Pattern::Constant("before/b/b".into()),
+            ])
+        );
+        let pat = Pattern::Dynamic;
+        assert_eq!(
+            pat.spread_into_star("before/*/*"),
+            Pattern::Concatenation(vec![
+                // TODO currently nothing ensures that both Dynamic parts are equal
+                Pattern::Constant("before/".into()),
+                Pattern::Dynamic,
+                Pattern::Constant("/".into()),
+                Pattern::Dynamic
             ])
         );
     }
