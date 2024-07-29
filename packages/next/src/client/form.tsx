@@ -58,12 +58,13 @@ export type FormProps<RouteInferType = any> = InternalFormProps
 export default function Form({
   replace,
   scroll,
-  prefetch = null,
+  prefetch: prefetchProp,
   ref: externalRef,
   ...props
 }: FormProps) {
   const actionProp = props.action
   const isNavigatingForm = typeof actionProp === 'string'
+  const prefetch = prefetchProp ?? null
 
   for (const key of DISALLOWED_FORM_PROPS) {
     if (key in props) {
@@ -123,6 +124,11 @@ export default function Form({
             'See the relevant docs to learn how to control this behavior for navigations triggered from actions:\n' +
             '  `redirect()`       - https://nextjs.org/docs/app/api-reference/functions/redirect#parameters\n' +
             '  `router.replace()` - https://nextjs.org/docs/app/api-reference/functions/use-router#userouter\n'
+        )
+      }
+      if (prefetchProp !== undefined) {
+        console.error(
+          'Passing `prefetch` to a <Form> whose `action` is a function has no effect.'
         )
       }
     }
