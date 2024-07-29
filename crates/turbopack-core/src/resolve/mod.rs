@@ -1026,8 +1026,8 @@ enum ExportsFieldResult {
     None,
 }
 
-/// Extracts the "exports" field out of the nearest package.json, parsing it
-/// into an appropriate [AliasMap] for lookups.
+/// Extracts the "exports" field out of the package.json, parsing it into an
+/// appropriate [AliasMap] for lookups.
 #[turbo_tasks::function]
 async fn exports_field(package_json_path: Vc<FileSystemPath>) -> Result<Vc<ExportsFieldResult>> {
     let read = read_package_json(package_json_path).await?;
@@ -2158,6 +2158,39 @@ async fn apply_in_package(
     Ok(None)
 }
 
+#[turbo_tasks::value]
+enum FindSelfReferencePackageResult {
+    Found {
+        name: String,
+        package_path: Vc<FileSystemPath>,
+    },
+    NotFound,
+}
+
+#[turbo_tasks::function]
+/// Finds the nearest folder containing package.json that could be used for a
+/// self-reference (i.e. has an exports fields).
+async fn find_self_reference(
+    lookup_path: Vc<FileSystemPath>,
+) -> Result<Vc<FindSelfReferencePackageResult>> {
+    let package_json_context = find_context_file(lookup_path, package_json()).await?;
+    if let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context {
+        let read = read_package_json(*package_json_path).await?;
+        if let Some(json) = &*read {
+            if json.get("exports").is_some() {
+                if let Some(name) = json["name"].as_str() {
+                    return Ok(FindSelfReferencePackageResult::Found {
+                        name: name.to_string(),
+                        package_path: package_json_path.parent(),
+                    }
+                    .cell());
+                }
+            }
+        }
+    }
+    Ok(FindSelfReferencePackageResult::NotFound.cell())
+}
+
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolve_module_request(
     lookup_path: Vc<FileSystemPath>,
@@ -2186,7 +2219,25 @@ async fn resolve_module_request(
         return Ok(result);
     }
 
-    let mut results = vec![];
+    // Self references, if the nearest package.json has the name of the requested
+    // module. This should match only using the exports field and no other
+    // fields/fallbacks.
+    if let FindSelfReferencePackageResult::Found { name, package_path } =
+        &*find_self_reference(lookup_path).await?
+    {
+        if name == module {
+            let result = resolve_into_package(
+                Value::new(path.clone()),
+                *package_path,
+                query,
+                fragment,
+                options,
+            );
+            if !(*result.is_unresolveable().await?) {
+                return Ok(result);
+            }
+        }
+    }
 
     let result = find_package(
         lookup_path,
@@ -2201,6 +2252,8 @@ async fn resolve_module_request(
         )
         .into());
     }
+
+    let mut results = vec![];
 
     // There may be more than one package with the same name. For instance, in a
     // TypeScript project, `compilerOptions.baseUrl` can declare a path where to
