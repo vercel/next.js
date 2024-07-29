@@ -334,6 +334,7 @@ pub async fn get_client_chunking_context(
     asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
     mode: Vc<NextMode>,
+    global_information: Vc<Option<RcStr>>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -344,6 +345,7 @@ pub async fn get_client_chunking_context(
         get_client_assets_path(client_root),
         environment,
         next_mode.runtime_type(),
+        global_information,
     )
     .chunk_base_path(asset_prefix)
     .minify_type(next_mode.minify_type())

@@ -193,6 +193,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
             client_root.join("static/media".into()),
             environment,
             next_mode.runtime_type(),
+            Vc::cell(None),
         )
         .asset_base_path(asset_prefix)
         .minify_type(next_mode.minify_type())
@@ -218,6 +219,7 @@ pub async fn get_edge_chunking_context(
             output_root.join("assets".into()),
             environment,
             next_mode.runtime_type(),
+            Vc::cell(None),
         )
         // Since one can't read files in edge directly, any asset need to be fetched
         // instead. This special blob url is handled by the custom fetch

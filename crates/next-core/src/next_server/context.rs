@@ -878,6 +878,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         client_root.join("static/media".into()),
         environment,
         next_mode.runtime_type(),
+        Vc::cell(None),
     )
     .asset_prefix(asset_prefix)
     .minify_type(next_mode.minify_type())
@@ -903,6 +904,7 @@ pub async fn get_server_chunking_context(
         node_root.join("server/assets".into()),
         environment,
         next_mode.runtime_type(),
+        Vc::cell(None),
     )
     .minify_type(next_mode.minify_type())
     .build())

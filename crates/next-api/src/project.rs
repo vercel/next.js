@@ -572,6 +572,7 @@ impl Project {
                 node_root.join("build/assets".into()),
                 node_build_environment(),
                 next_mode.runtime_type(),
+                self.global_information(),
             )
             .build(),
         );
@@ -631,6 +632,7 @@ impl Project {
             self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
             self.next_mode(),
+            self.global_information(),
         ))
     }
 
@@ -1162,6 +1164,18 @@ impl Project {
     pub fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
         let path = self.client_root();
         any_output_changed(roots, path, false)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn global_information(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
+        match *self.next_mode().await? {
+            NextMode::Build => {
+                // Global information would be generated here, with access
+                // to Project, and thus to all entrypoints
+                Ok(Vc::cell(Some("prod".into())))
+            }
+            _ => Ok(Vc::cell(None)),
+        }
     }
 }
 
