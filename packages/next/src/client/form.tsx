@@ -44,13 +44,14 @@ export default function Form({
   ...props
 }: FormProps) {
   const actionProp = props.action
+  const isNavigatingForm = typeof actionProp === 'string'
 
   for (const key of DISALLOWED_FORM_PROPS) {
     if (key in props) {
       if (process.env.NODE_ENV === 'development') {
         console.error(
           `<Form> does not support changing \`${key}\`. ` +
-            (typeof actionProp === 'string'
+            (isNavigatingForm
               ? `If you'd like to use it to perform a mutation, consider making \`action\` a function instead.\n` +
                 `Learn more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations`
               : '')
@@ -64,7 +65,7 @@ export default function Form({
 
   const [setIntersectionRef, isVisible] = useIntersection({
     rootMargin: '200px',
-    disabled: typeof actionProp !== 'string', // if we don't have an action path, we can't preload anything anyway.
+    disabled: !isNavigatingForm, // if we don't have an action path, we can't preload anything anyway.
   })
 
   // TODO: Link does something like this in addition, do we need it?
@@ -79,7 +80,7 @@ export default function Form({
   )
 
   useEffect(() => {
-    if (typeof actionProp !== 'string') {
+    if (!isNavigatingForm) {
       return
     }
 
@@ -94,9 +95,9 @@ export default function Form({
     } catch (err) {
       console.error(err)
     }
-  }, [isVisible, actionProp, router])
+  }, [isNavigatingForm, isVisible, actionProp, router])
 
-  if (typeof actionProp !== 'string') {
+  if (!isNavigatingForm) {
     if (process.env.NODE_ENV === 'development') {
       if (replace || scroll) {
         console.error(
