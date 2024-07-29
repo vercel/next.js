@@ -184,7 +184,10 @@ describe('app dir - form', () => {
     )
   })
 
-  it.todo('should handle file inputs')
   it.todo('should handle `replace`')
   it.todo('does not do anything if user called preventDefault in onSubmit')
+
+  // TODO(lubieowoce): implement this
+  // (we don't have any methods on BrowserInterface to deal with files)
+  it.todo('handles file inputs, but warns about them')
 })
