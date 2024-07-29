@@ -2626,7 +2626,7 @@ async fn handle_exports_imports_field(
     for (result_path, conditions) in results {
         if let Some(result_path) = result_path.with_normalized_path() {
             let request = Request::parse(Value::new(Pattern::Concatenation(vec![
-                Pattern::Constant("./{}".into()),
+                Pattern::Constant("./".into()),
                 result_path,
             ])));
             let resolve_result = resolve_internal_boxed(package_path, request, options).await?;
