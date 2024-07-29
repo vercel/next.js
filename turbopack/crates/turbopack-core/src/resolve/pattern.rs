@@ -82,9 +82,9 @@ fn longest_common_suffix<'a>(strings: &[&'a str]) -> &'a str {
         return "";
     }
     let first = strings[0];
-    let mut len = 0;
+    let mut len = first.len();
     for str in &strings[1..] {
-        len = std::cmp::max(
+        len = std::cmp::min(
             len,
             // TODO these are Unicode Scalar Values, not graphemes
             str.chars()
@@ -95,25 +95,6 @@ fn longest_common_suffix<'a>(strings: &[&'a str]) -> &'a str {
         );
     }
     &first[(first.len() - len)..]
-}
-
-#[cfg(test)]
-mod test2 {
-    use super::{longest_common_prefix, longest_common_suffix};
-
-    #[test]
-    fn prefix() {
-        assert_eq!(longest_common_prefix(&["ab", "cd", "ef"]), "");
-        assert_eq!(longest_common_prefix(&["ab1", "ab23", "ab456"]), "ab");
-        assert_eq!(longest_common_prefix(&["abc", "abc", "abc"]), "abc");
-    }
-
-    #[test]
-    fn suffix() {
-        assert_eq!(longest_common_suffix(&["ab", "cd", "ef"]), "");
-        assert_eq!(longest_common_suffix(&["1ab", "23ab", "456ab"]), "ab");
-        assert_eq!(longest_common_suffix(&["abc", "abc", "abc"]), "abc");
-    }
 }
 
 impl Pattern {
@@ -1481,7 +1462,25 @@ mod tests {
     use rstest::*;
     use turbo_tasks::RcStr;
 
-    use super::Pattern;
+    use super::{longest_common_prefix, longest_common_suffix, Pattern};
+
+    #[test]
+    fn longest_common_prefix_test() {
+        assert_eq!(longest_common_prefix(&["ab"]), "ab");
+        assert_eq!(longest_common_prefix(&["ab", "cd", "ef"]), "");
+        assert_eq!(longest_common_prefix(&["ab1", "ab23", "ab456"]), "ab");
+        assert_eq!(longest_common_prefix(&["abc", "abc", "abc"]), "abc");
+        assert_eq!(longest_common_prefix(&["abc", "a", "abc"]), "a");
+    }
+
+    #[test]
+    fn longest_common_suffix_test() {
+        assert_eq!(longest_common_suffix(&["ab"]), "ab");
+        assert_eq!(longest_common_suffix(&["ab", "cd", "ef"]), "");
+        assert_eq!(longest_common_suffix(&["1ab", "23ab", "456ab"]), "ab");
+        assert_eq!(longest_common_suffix(&["abc", "abc", "abc"]), "abc");
+        assert_eq!(longest_common_suffix(&["abc", "c", "abc"]), "c");
+    }
 
     #[test]
     fn normalize() {
@@ -1616,12 +1615,36 @@ mod tests {
 
     #[test]
     fn constant_prefix() {
+        assert_eq!(
+            Pattern::Constant("a/b/c.js".into()).constant_prefix(),
+            "a/b/c.js",
+        );
+
         let pat = Pattern::Alternatives(vec![
             Pattern::Constant("a/b/x".into()),
             Pattern::Constant("a/b/y".into()),
             Pattern::Concatenation(vec![Pattern::Constant("a/b/c/".into()), Pattern::Dynamic]),
         ]);
         assert_eq!(pat.constant_prefix(), "a/b/");
+    }
+
+    #[test]
+    fn constant_suffix() {
+        assert_eq!(
+            Pattern::Constant("a/b/c.js".into()).constant_suffix(),
+            "a/b/c.js",
+        );
+
+        let pat = Pattern::Alternatives(vec![
+            Pattern::Constant("a/b/x.js".into()),
+            Pattern::Constant("a/b/y.js".into()),
+            Pattern::Concatenation(vec![
+                Pattern::Constant("a/b/c/".into()),
+                Pattern::Dynamic,
+                Pattern::Constant(".js".into()),
+            ]),
+        ]);
+        assert_eq!(pat.constant_suffix(), ".js");
     }
 
     #[test]
