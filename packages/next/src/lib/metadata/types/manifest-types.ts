@@ -97,7 +97,7 @@ export type Manifest = {
       text?: string
       url?: string
       files?: File | File[]
-    }[]
+    }
   }
   short_name?: string
   shortcuts?: {
