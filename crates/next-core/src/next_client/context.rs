@@ -241,10 +241,10 @@ pub async fn get_client_module_options_context(
         webpack_loader_options(project_path, next_config, false, conditions).await?;
 
     let tree_shaking_mode_for_user_code = *next_config
-        .tree_shaking_mode_for_user_code(Vc::cell(next_mode.is_development()))
+        .tree_shaking_mode_for_user_code(next_mode.is_development())
         .await?;
     let tree_shaking_mode_for_foreign_code = *next_config
-        .tree_shaking_mode_for_foreign_code(Vc::cell(next_mode.is_development()))
+        .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
     let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
