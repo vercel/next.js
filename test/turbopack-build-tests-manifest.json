@@ -7530,12 +7530,11 @@
     "test/integration/critical-css/test/index.test.js": {
       "passed": [
         "CSS optimization for SSR apps production mode should have all CSS files in manifest",
-        "CSS optimization for SSR apps production mode should not inline non-critical css"
-      ],
-      "failed": [
+        "CSS optimization for SSR apps production mode should not inline non-critical css",
         "CSS optimization for SSR apps production mode should inline critical CSS",
         "CSS optimization for SSR apps production mode should inline critical CSS (dynamic)"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
