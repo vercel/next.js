@@ -109,6 +109,9 @@ export default function Form({
     return <form {...props} ref={ownRef} />
   }
 
+  if (process.env.NODE_ENV === 'development') {
+    checkActionUrl(actionProp, 'action')
+  }
   const actionHref = addBasePath(actionProp)
 
   return (
@@ -187,24 +190,25 @@ function onFormSubmit(
     // NOTE: this should not have `basePath` added, because we can't add it before hydration
     const submitterFormAction = submitter.getAttribute('formAction')
     if (submitterFormAction !== null) {
+      if (process.env.NODE_ENV === 'development') {
+        checkActionUrl(submitterFormAction, 'formAction')
+      }
       action = submitterFormAction
     }
   }
 
-  // TODO: is it a problem that we've got an absolute URL here?
-  // TODO: how should we handle invalid URLs here?
-  const targetUrl = new URL(action, document.baseURI)
+  let targetUrl: URL
+  try {
+    targetUrl = new URL(action, document.baseURI)
+  } catch (err) {
+    throw new Error(`Cannot parse form action "${action}" as a URL`, {
+      cause: err,
+    })
+  }
   if (targetUrl.searchParams.size) {
     // url-encoded HTML forms ignore any queryparams in the `action` url. We need to match that.
     // (note that all other parts of the URL, like `hash`, are preserved)
     targetUrl.search = ''
-
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        `next/form received an \`action\` that contains search params: "${action}". This is not supported, and they will be ignored.` +
-          `If you need to pass in additional search params, use an \`<input type="hidden" />\` instead.`
-      )
-    }
   }
 
   const formData = new FormData(formElement)
@@ -230,6 +234,28 @@ function onFormSubmit(
 
   const method = replace ? 'replace' : 'push'
   router[method](targetUrl.href, { scroll })
+}
+
+function checkActionUrl(action: string, source: 'action' | 'formAction') {
+  const aPropName = source === 'action' ? `an \`action\`` : `a \`formAction\``
+
+  let testUrl: URL
+  try {
+    testUrl = new URL(action, 'http://n')
+  } catch (err) {
+    console.error(
+      `next/form received ${aPropName} that cannot be parsed as a URL: "${action}".`
+    )
+    return
+  }
+
+  // url-encoded HTML forms ignore any queryparams in the `action` url. We need to match that.
+  if (testUrl.searchParams.size) {
+    console.warn(
+      `next/form received ${aPropName} that contains search params: "${action}". This is not supported, and they will be ignored. ` +
+        `If you need to pass in additional search params, use an \`<input type="hidden" />\` instead.`
+    )
+  }
 }
 
 const isSupportedEncType = (value: string) =>
