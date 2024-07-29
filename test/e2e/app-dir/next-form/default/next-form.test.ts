@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('app dir - form', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (skipped) {
