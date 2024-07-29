@@ -199,7 +199,12 @@ function onFormSubmit(
 
   let targetUrl: URL
   try {
-    targetUrl = new URL(action, document.baseURI)
+    // NOTE: It might be more correct to resolve URLs relative to `document.baseURI`,
+    // but we already do it relative to `location.href` elsewhere:
+    //  (see e.g. https://github.com/vercel/next.js/blob/bb0e6722f87ceb2d43015f5b8a413d0072f2badf/packages/next/src/client/components/app-router.tsx#L146)
+    // so it's better to stay consistent.
+    const base = window.location.href
+    targetUrl = new URL(action, base)
   } catch (err) {
     throw new Error(`Cannot parse form action "${action}" as a URL`, {
       cause: err,
