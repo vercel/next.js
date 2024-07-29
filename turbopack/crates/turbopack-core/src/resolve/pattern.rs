@@ -510,6 +510,11 @@ impl Pattern {
                     }
                 }
                 *list = new_alternatives;
+                if new_alternatives.len() == 1 {
+                    *self = new_alternatives.into_iter().next().unwrap();
+                } else {
+                    *list = new_alternatives;
+                }
             }
             Pattern::Concatenation(list) => {
                 let mut has_alternatives = false;
@@ -1532,6 +1537,14 @@ mod tests {
                     ]),
                 ])
             );
+        }
+
+        #[allow(clippy::redundant_clone)] // alignment
+        {
+            let mut p = Pattern::Alternatives(vec![a.clone()]);
+            p.normalize();
+
+            assert_eq!(p, a);
         }
     }
 
