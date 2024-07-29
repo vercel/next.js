@@ -11,7 +11,6 @@ mod primitive_macro;
 mod value_impl_macro;
 mod value_macro;
 mod value_trait_macro;
-mod with_key_macro;
 
 extern crate proc_macro;
 
@@ -46,6 +45,11 @@ pub fn derive_deterministic_hash(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(TaskInput, attributes(turbo_tasks))]
 pub fn derive_task_input(input: TokenStream) -> TokenStream {
     derive::derive_task_input(input)
+}
+
+#[proc_macro_derive(KeyValuePair)]
+pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
+    derive::derive_key_value_pair(input)
 }
 
 /// Creates a Vc<Value> struct for a `struct` or `enum` that represent
@@ -176,12 +180,6 @@ pub fn test_tt(_args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
     value_impl_macro::value_impl(args, input)
-}
-
-#[proc_macro_error]
-#[proc_macro_attribute]
-pub fn with_key(_args: TokenStream, input: TokenStream) -> TokenStream {
-    with_key_macro::with_key(input)
 }
 
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
