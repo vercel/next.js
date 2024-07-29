@@ -10,7 +10,7 @@ Caching is the process of storing data to reduce the number of requests made to 
 
 ### `fetch` requests
 
-By default, `fetch` requests fetch fresh data at runtime.
+Starting with Next.js 15, `fetch` requests are not cached by default.
 
 To cache an individual `fetch` request, you can use the `cache: 'force-cache'` option:
 
@@ -19,70 +19,22 @@ To cache an individual `fetch` request, you can use the `cache: 'force-cache'` o
 fetch('https://...', { cache: 'force-cache' })
 ```
 
-To opt out of caching for individual `fetch` requests, you can use the `cache: 'no-store'` option:
-
-```js filename="layout.js | page.js"
-fetch('https://...', { cache: 'no-store' })
-```
-
-> **Advanced**: If you have multiple `fetch` requests in a layout or page segment, you can configure the caching behavior of all data requests in the segment using the `const dynamic = 'force-dynamic'` or `const fetchCache = 'force-no-store'` [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
-
 ### Data fetching libraries and ORMs
 
-Whether a data request is cached will depend on the default semantics of your Data Fetching Library, Database Client, or ORM.
+To cache specific requests to your database or ORM, you can use the [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) API:
 
-To cache specific requests, you can use the [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) API:
-
-```tsx filename="@/app/lib/data.ts switcher highlight={6}
-import { unstable_cache as cache } from 'next/cache'
-
-export async function getPosts() {
-  cache()
-
-  try {
-    // Fetch Data
-  } catch (error) {}
-}
-```
-
-```jsx filename="@/app/lib/data.js switcher highlight={6}
-import { unstable_cache as cache } from 'next/cache'
-
-export async function getPosts() {
-  cache()
-  try {
-    // Fetch Data
-  } catch (error) {}
-}
-```
-
-To opt specific requests out of caching, you can use the [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore) API:
-
-```tsx filename="@/app/lib/data.ts switcher highlight={6}
-import { unstable_noStore as noStore } from 'next/cache'
-
-export async function getTransactions() {
-  // Prevent the response from being cached.
-  // This is equivalent to in fetch(..., {cache: 'no-store'}).
-  noStore()
-
-  try {
-    // Fetch Data
-  } catch (error) {}
-}
-```
-
-```jsx filename="@/app/lib/data.js switcher highlight={6}
-import { unstable_noStore as noStore } from 'next/cache'
-
-export async function getTransactions() {
-  // Prevent the response from being cached.
-  // This is equivalent to in fetch(..., {cache: 'no-store'}).
-  noStore()
-
-  try {
-    // Fetch Data
-  } catch (error) {}
+```jsx
+import { getUser } from './data';
+import { unstable_cache } from 'next/cache';
+ 
+const getCachedUser = unstable_cache(
+  async (id) => getUser(id),
+  ['my-app-user']
+);
+ 
+export default async function Component({ userID }) {
+  const user = await getCachedUser(userID);
+  return user;
 }
 ```
 
@@ -126,24 +78,18 @@ Use `revalidatePath` in [Server Actions](/docs/app/building-your-application/dat
 ```tsx filename="@/app/actions.tsx switcher
 import { revalidatePath } from 'next/cache'
 
-export default async createPost() {
-  try {
-    // Mutate data
-    revalidatePath('/posts')
-  } catch(error) {}
-
+export async function createPost() {
+  // Mutate data
+  revalidatePath('/posts')
 }
 ```
 
 ```jsx filename="@/app/actions.js switcher
 import { revalidatePath } from 'next/cache'
 
-export default async createPost() {
-  try {
-    // Mutate data
-    revalidatePath('/posts')
-  } catch(error) {}
-
+export async function createPost() {
+  // Mutate data
+  revalidatePath('/posts')
 }
 ```
 
@@ -177,7 +123,7 @@ You can then revalidate this `fetch` call tagged with `collection` by calling `r
 
 import { revalidateTag } from 'next/cache'
 
-export default async function action() {
+export async function action() {
   revalidateTag('collection')
 }
 ```
@@ -187,7 +133,7 @@ export default async function action() {
 
 import { revalidateTag } from 'next/cache'
 
-export default async function action() {
+export async function action() {
   revalidateTag('collection')
 }
 ```
