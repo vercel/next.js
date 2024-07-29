@@ -158,8 +158,6 @@ function onFormSubmit(
     }
   }
 
-  // TODO: do we need to do something for native form validation?
-
   const formElement = event.currentTarget
   const submitter = (event.nativeEvent as SubmitEvent).submitter
 
