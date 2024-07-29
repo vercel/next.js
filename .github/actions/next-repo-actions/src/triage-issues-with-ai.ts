@@ -1,7 +1,10 @@
 import { info } from '@actions/core'
+import { context } from '@actions/github'
 
 async function main() {
-  info('Triaging issues with AI!')
+  const payload = context.payload
+
+  info(`Payload: ${JSON.stringify(payload)}`)
 }
 
 main()
