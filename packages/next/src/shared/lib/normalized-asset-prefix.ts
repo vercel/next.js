@@ -1,9 +1,16 @@
-export function normalizedAssetPrefix(assetPrefix: string): string {
-  const escapedAssetPrefix = assetPrefix.replace(/^\/+/, '')
+export function normalizedAssetPrefix(assetPrefix: string | undefined): string {
+  const escapedAssetPrefix = assetPrefix?.replace(/^\/+/, '') || false
 
-  if (escapedAssetPrefix.startsWith('http')) {
+  // assetPrefix as a url
+  if (escapedAssetPrefix && escapedAssetPrefix.startsWith('http')) {
     return escapedAssetPrefix.split('://', 2)[1]
   }
 
-  return `${escapedAssetPrefix ? `/${escapedAssetPrefix}` : ''}`
+  // assetPrefix is set to `undefined` or '/'
+  if (!escapedAssetPrefix || escapedAssetPrefix === '') {
+    return ''
+  }
+
+  // assetPrefix is a common path but escaped so let's add one leading slash
+  return `/${escapedAssetPrefix}`
 }

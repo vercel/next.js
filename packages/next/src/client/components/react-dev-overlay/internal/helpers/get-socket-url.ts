@@ -11,16 +11,15 @@ function getSocketProtocol(assetPrefix: string): string {
   return protocol === 'http:' ? 'ws' : 'wss'
 }
 
-export function getSocketUrl(assetPrefix: string): string {
+export function getSocketUrl(assetPrefix: string | undefined): string {
   const { hostname, port } = window.location
-  const protocol = getSocketProtocol(assetPrefix)
+  const protocol = getSocketProtocol(assetPrefix || '')
   const prefix = normalizedAssetPrefix(assetPrefix)
 
-  let url = `${protocol}://${hostname}:${port}${prefix && prefix !== '' ? `/${prefix}` : ''}`
-
-  if (prefix.startsWith('http')) {
-    url = `${protocol}://${prefix.split('://', 2)[1]}`
+  // same check but on original assetPrefix value
+  if (assetPrefix?.replace(/^\/+/, '').startsWith('http')) {
+    return `${protocol}://${prefix}`
   }
 
-  return url
+  return `${protocol}://${hostname}:${port}${prefix}`
 }
