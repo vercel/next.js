@@ -404,6 +404,7 @@ pub async fn get_next_edge_import_map(
             "next/app" => "next/dist/api/app".to_string(),
             "next/document" => "next/dist/api/document".to_string(),
             "next/dynamic" => "next/dist/api/dynamic".to_string(),
+            "next/form" => "next/dist/api/form".to_string(),
             "next/head" => "next/dist/api/head".to_string(),
             "next/headers" => "next/dist/api/headers".to_string(),
             "next/image" => "next/dist/api/image".to_string(),

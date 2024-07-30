@@ -80,8 +80,9 @@ function logFetchMetric(
     url,
   } = fetchMetric
 
-  if (cacheStatus === 'hmr') {
-    // Cache hits during HMR refreshes are intentionally not logged.
+  if (cacheStatus === 'hmr' && !loggingConfig?.fetches?.hmrRefreshes) {
+    // Cache hits during HMR refreshes are intentionally not logged, unless
+    // explicitly enabled in the logging config.
     return
   }
 
@@ -138,8 +139,13 @@ function truncateUrl(url: string): string {
   )
 }
 
-function formatCacheStatus(cacheStatus: 'hit' | 'miss' | 'skip'): string {
-  const color = cacheStatus === 'hit' ? green : yellow
-
-  return color(`(cache ${cacheStatus})`)
+function formatCacheStatus(cacheStatus: FetchMetric['cacheStatus']): string {
+  switch (cacheStatus) {
+    case 'hmr':
+      return green('(HMR cache)')
+    case 'hit':
+      return green('(cache hit)')
+    default:
+      return yellow(`(cache ${cacheStatus})`)
+  }
 }
