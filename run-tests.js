@@ -408,7 +408,8 @@ ${ENDGROUP}`)
     // a starter Next.js install to re-use to speed up tests to avoid having to
     // run `pnpm install` each time.
     console.log(`${GROUP}Creating shared Next.js install`)
-    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc.0'
+    const reactVersion =
+      process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc-3208e73e-20240730'
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
