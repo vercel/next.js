@@ -882,6 +882,7 @@ export default abstract class Server<
           attributes: {
             'http.method': method,
             'http.target': req.url,
+            'user_agent.original': req.headers['user-agent'],
           },
         },
         async (span) =>

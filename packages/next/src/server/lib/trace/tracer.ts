@@ -166,7 +166,10 @@ type NextAttributeNames =
   | 'next.span_name'
   | 'next.span_type'
   | 'next.clientComponentLoadCount'
-type OTELAttributeNames = `http.${string}` | `net.${string}`
+type OTELAttributeNames =
+  | `http.${string}`
+  | `net.${string}`
+  | `user_agent.${string}`
 type AttributeNames = NextAttributeNames | OTELAttributeNames
 
 /** we use this map to propagate attributes from nested spans to the top span */
