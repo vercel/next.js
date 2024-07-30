@@ -241,7 +241,6 @@ export async function createApp({
       importAlias,
       skipInstall,
       turbo,
-      api,
     })
   }
 

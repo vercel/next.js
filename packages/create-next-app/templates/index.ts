@@ -40,7 +40,6 @@ export const installTemplate = async ({
   importAlias,
   skipInstall,
   turbo,
-  app-api, 
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
