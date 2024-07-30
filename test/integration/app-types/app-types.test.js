@@ -62,6 +62,21 @@ const appDir = __dirname
         )
       })
 
+      it('should generate route types correctly and report form errors', async () => {
+        // Make sure all errors were reported and other Forms passed type checking
+        const errorLines = [
+          ...errors.matchAll(
+            /\.\/src\/app\/type-checks\/form\/page\.tsx:(\d+):/g
+          ),
+        ].map(([, line]) => +line)
+
+        const ST = 8
+        const ED = 10
+        expect(errorLines).toEqual(
+          Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
+        )
+      })
+
       it('should type check invalid entry exports', () => {
         // Can't export arbitrary things.
         expect(errors).toContain(`"foo" is not a valid Page export field.`)
