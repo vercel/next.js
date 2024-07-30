@@ -12,7 +12,7 @@ jobs:
       - uses: actions/setup-node@v4
       - run: corepack enable
       - name: 'Send notification to Slack (AI-powered)'
-        run: node ./github/actions/next-repo-actions/dist/triage-issues-with-ai/index.js
+        run: node ./.github/actions/next-repo-actions/dist/triage-issues-with-ai/index.js
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
