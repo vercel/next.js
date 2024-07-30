@@ -199,6 +199,7 @@ export function createNextApiEsmAliases() {
     dynamic: 'next/dist/api/dynamic',
     script: 'next/dist/api/script',
     link: 'next/dist/api/link',
+    form: 'next/dist/api/form',
     navigation: 'next/dist/api/navigation',
     headers: 'next/dist/api/headers',
     og: 'next/dist/api/og',
