@@ -1,3 +1,5 @@
+import { normalizedAssetPrefix } from '../../../../../shared/lib/normalized-asset-prefix'
+
 function getSocketProtocol(assetPrefix: string): string {
   let protocol = window.location.protocol
 
@@ -9,18 +11,16 @@ function getSocketProtocol(assetPrefix: string): string {
   return protocol === 'http:' ? 'ws' : 'wss'
 }
 
-export function getSocketUrl(assetPrefix: string): string {
+export function getSocketUrl(assetPrefix: string | undefined): string {
   const { hostname, port } = window.location
-  const protocol = getSocketProtocol(assetPrefix)
-  const normalizedAssetPrefix = assetPrefix.replace(/^\/+/, '')
+  const protocol = getSocketProtocol(assetPrefix || '')
+  const prefix = normalizedAssetPrefix(assetPrefix)
 
-  let url = `${protocol}://${hostname}:${port}${
-    normalizedAssetPrefix ? `/${normalizedAssetPrefix}` : ''
-  }`
-
-  if (normalizedAssetPrefix.startsWith('http')) {
-    url = `${protocol}://${normalizedAssetPrefix.split('://', 2)[1]}`
+  // if original assetPrefix is a full URL with protocol
+  // we just update to use the correct `ws` protocol
+  if (assetPrefix?.replace(/^\/+/, '').includes('://')) {
+    return `${protocol}://${prefix}`
   }
 
-  return url
+  return `${protocol}://${hostname}:${port}${prefix}`
 }
