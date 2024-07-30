@@ -532,6 +532,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/server/lib/experimental/create-env-definitions.test.ts": {
+    "passed": [
+      "create-env-definitions should allow empty env",
+      "create-env-definitions should create env definitions"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/server/lib/i18n-provider.test.ts": {
     "passed": [
       "I18NProvider analyze for pathname / and defaultLocale en",
@@ -1663,6 +1673,38 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/prerender-indicator/prerender-indicator.test.ts": {
+    "passed": [
+      "prerender indicator should have prerender-indicator by default for static page",
+      "prerender indicator should hide the indicator when changing to dynamic",
+      "prerender indicator should not have the indicator on dynamic page on load",
+      "prerender indicator should not show the indicator if disabled in next.config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/server-components-hmr-cache/server-components-hmr-cache.test.ts": {
+    "passed": [
+      "server-components-hmr-cache edge runtime in after() should not use cached fetch calls for intentional refresh requests",
+      "server-components-hmr-cache edge runtime in after() should use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache edge runtime should not use cached fetch calls for intentional refresh requests",
+      "server-components-hmr-cache edge runtime should use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache edge runtime with experimental.serverComponentsHmrCache disabled in after() should not use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache edge runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache node runtime in after() should not use cached fetch calls for intentional refresh requests",
+      "server-components-hmr-cache node runtime in after() should use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache node runtime should not use cached fetch calls for intentional refresh requests",
+      "server-components-hmr-cache node runtime should use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled in after() should not use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/strict-mode-enabled-by-default/strict-mode-enabled-by-default.test.ts": {
     "passed": [],
     "failed": [],
@@ -1670,17 +1712,28 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/typed-env/typed-env.test.ts": {
+    "passed": [
+      "typed-env should have env types from next config",
+      "typed-env should rewrite env types if .env is modified"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
-      "app-dir-hmr filesystem changes should not break when renaming a folder",
       "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
       "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge)",
       "app-dir-hmr filesystem changes should update server components pages when env files is changed (nodejs)"
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "app-dir-hmr filesystem changes should not break when renaming a folder"
+    ],
     "runtimeError": false
   },
   "test/development/app-render-error-log/app-render-error-log.test.ts": {
@@ -1797,33 +1850,7 @@
       "basic HMR, basePath: \"\" should have correct compile timing after fixing error",
       "basic HMR, basePath: \"\" should have correct router.isReady for auto-export page",
       "basic HMR, basePath: \"\" should have correct router.isReady for getStaticProps page",
-      "basic HMR, basePath: \"\" should show hydration error correctly",
-      "basic HMR, basePath: \"/docs\" Error Recovery should detect runtime errors on the module scope",
-      "basic HMR, basePath: \"/docs\" Error Recovery should detect syntax errors and recover",
-      "basic HMR, basePath: \"/docs\" Error Recovery should not continously poll a custom error page",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after a bad return from the render function",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after an error reported via SSR",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after exporting an invalid page",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after loader parse error in an imported file",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after undefined exported as default",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after webpack parse error in an imported file",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in getInitialProps in client",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in the render function",
-      "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - anonymous page function",
-      "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - runtime-error",
-      "basic HMR, basePath: \"/docs\" Hot Module Reloading delete a page and add it back should load the page properly",
-      "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should detect the changes and display it",
-      "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should not full reload when nonlatin characters are used",
-      "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should not reload unrelated pages",
-      "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should update styles correctly",
-      "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should update styles in a dynamic component correctly",
-      "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should update styles in a stateful component correctly",
-      "basic HMR, basePath: \"/docs\" should have correct compile timing after fixing error",
-      "basic HMR, basePath: \"/docs\" should have correct router.isReady for auto-export page",
-      "basic HMR, basePath: \"/docs\" should have correct router.isReady for getStaticProps page",
-      "basic HMR, basePath: \"/docs\" should show hydration error correctly"
+      "basic HMR, basePath: \"\" should show hydration error correctly"
     ],
     "failed": [],
     "pending": [],
@@ -3309,6 +3336,7 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
       "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
+      "app-dir static/dynamic handling unstable_cache should not cache new result in draft mode",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-store",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
@@ -3397,6 +3425,7 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
       "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
+      "app-dir static/dynamic handling unstable_cache should not cache new result in draft mode",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-store",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
@@ -3435,11 +3464,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app/flying-shuttle.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "should output updated trace files should skip for non-next start"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -3658,6 +3687,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/catchall-parallel-routes-group/catchall-parallel-routes-group.test.ts": {
+    "passed": [
+      "catchall-parallel-routes-group should work without throwing any errors about invalid pages"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
     "passed": [
       "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
@@ -3831,11 +3869,21 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/draft-mode-middleware/draft-mode-middleware.test.ts": {
+    "passed": [
+      "app-dir - draft-mode-middleware should be able to disable draft mode with middleware present",
+      "app-dir - draft-mode-middleware should be able to enable draft mode with middleware present"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/draft-mode/draft-mode.test.ts": {
     "passed": [
       "app dir - draft mode in edge runtime should be disabled from api route handler",
       "app dir - draft mode in edge runtime should be enabled from api route handler when draft mode enabled",
-      "app dir - draft mode in edge runtime should genenerate rand when draft mode enabled",
+      "app dir - draft mode in edge runtime should generate rand when draft mode enabled",
       "app dir - draft mode in edge runtime should have set-cookie header on enable",
       "app dir - draft mode in edge runtime should have set-cookie header with redirect location",
       "app dir - draft mode in edge runtime should not perform full page navigation on router.refresh()",
@@ -3844,7 +3892,7 @@
       "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/with-cookies",
       "app dir - draft mode in nodejs runtime should be disabled from api route handler",
       "app dir - draft mode in nodejs runtime should be enabled from api route handler when draft mode enabled",
-      "app dir - draft mode in nodejs runtime should genenerate rand when draft mode enabled",
+      "app dir - draft mode in nodejs runtime should generate rand when draft mode enabled",
       "app dir - draft mode in nodejs runtime should have set-cookie header on enable",
       "app dir - draft mode in nodejs runtime should have set-cookie header with redirect location",
       "app dir - draft mode in nodejs runtime should not perform full page navigation on router.refresh()",
@@ -4439,6 +4487,7 @@
       "app dir - metadata basic should support alternate tags",
       "app dir - metadata basic should support appLinks tags",
       "app dir - metadata basic should support apple related tags `itunes` and `appWebApp`",
+      "app dir - metadata basic should support facebook related tags",
       "app dir - metadata basic should support generateMetadata dynamic props",
       "app dir - metadata basic should support other basic tags",
       "app dir - metadata basic should support other basic tags (edge)",
@@ -7737,6 +7786,42 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/on-request-error/basic/basic.test.ts": {
+    "passed": [
+      "on-request-error - basic app router should catch app routes error in edge runtime",
+      "on-request-error - basic app router should catch app routes error in node runtime",
+      "on-request-error - basic app router should catch client component page error in edge runtime",
+      "on-request-error - basic app router should catch client component page error in node runtime",
+      "on-request-error - basic app router should catch server component page error in edge runtime",
+      "on-request-error - basic app router should catch server component page error in node runtime",
+      "on-request-error - basic middleware should catch middleware error",
+      "on-request-error - basic pages router should catch pages router api error in edge runtime",
+      "on-request-error - basic pages router should catch pages router api error in node runtime",
+      "on-request-error - basic pages router should catch pages router page error in edge runtime",
+      "on-request-error - basic pages router should catch pages router page error in node runtime"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/on-request-error/skip-next-internal-error/skip-next-internal-error.test.ts": {
+    "passed": [
+      "on-request-error - skip-next-internal-error app router API should not catch server component not-found errors",
+      "on-request-error - skip-next-internal-error app router API should not catch server component redirect errors",
+      "on-request-error - skip-next-internal-error app router render should not catch client component dynamic usage errors",
+      "on-request-error - skip-next-internal-error app router render should not catch client component not-found errors",
+      "on-request-error - skip-next-internal-error app router render should not catch client component redirect errors",
+      "on-request-error - skip-next-internal-error app router render should not catch next dynamic no-ssr errors",
+      "on-request-error - skip-next-internal-error app router render should not catch server component dynamic usage errors",
+      "on-request-error - skip-next-internal-error app router render should not catch server component not-found errors",
+      "on-request-error - skip-next-internal-error app router render should not catch server component redirect errors"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/opentelemetry/client-trace-metadata/client-trace-metadata.test.ts": {
     "passed": [
       "clientTraceMetadata hard loading a dynamic page twice should yield different dynamic trace data",
@@ -8189,7 +8274,7 @@
       "transpile packages optional deps should not throw an error when optional deps are not installed"
     ],
     "failed": [],
-    "pending": [],
+    "pending": ["transpile packages should handle optional peer dependencies"],
     "flakey": [],
     "runtimeError": false
   },
@@ -8246,6 +8331,19 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/with-router/index.test.ts": {
+    "passed": [
+      "withRouter SSR should show an error when trying to use router methods during SSR"
+    ],
+    "failed": [],
+    "pending": [
+      "withRouter production mode allows observation of navigation events using top level Router",
+      "withRouter production mode allows observation of navigation events using top level Router deprecated behavior",
+      "withRouter production mode allows observation of navigation events using withRouter"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -17305,19 +17403,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/with-router/test/index.test.js": {
-    "passed": [
-      "withRouter SSR should show an error when trying to use router methods during SSR"
-    ],
-    "failed": [],
-    "pending": [
-      "withRouter production mode allows observation of navigation events using top level Router",
-      "withRouter production mode allows observation of navigation events using top level Router deprecated behavior",
-      "withRouter production mode allows observation of navigation events using withRouter"
-    ],
     "flakey": [],
     "runtimeError": false
   },

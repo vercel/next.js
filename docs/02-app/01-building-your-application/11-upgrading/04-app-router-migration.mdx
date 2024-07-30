@@ -435,7 +435,7 @@ In `app`, you should use the three new hooks imported from `next/navigation`: [`
 - The new `useRouter` hook is imported from `next/navigation` and has different behavior to the `useRouter` hook in `pages` which is imported from `next/router`.
   - The [`useRouter` hook imported from `next/router`](/docs/pages/api-reference/functions/use-router) is not supported in the `app` directory but can continue to be used in the `pages` directory.
 - The new `useRouter` does not return the `pathname` string. Use the separate `usePathname` hook instead.
-- The new `useRouter` does not return the `query` object. Use the separate `useSearchParams` hook instead.
+- The new `useRouter` does not return the `query` object. Search parameters and dynamic route parameters are now separate. Use the `useSearchParams` and `useParams` hooks instead.
 - You can use `useSearchParams` and `usePathname` together to listen to page changes. See the [Router Events](/docs/app/api-reference/functions/use-router#router-events) section for more details.
 - These new hooks are only supported in Client Components. They cannot be used in Server Components.
 
@@ -876,11 +876,11 @@ export async function GET(request) {}
 
 In the `pages` directory, global stylesheets are restricted to only `pages/_app.js`. With the `app` directory, this restriction has been lifted. Global styles can be added to any layout, page, or component.
 
-- [CSS Modules](/docs/app/building-your-application/styling/css-modules)
+- [CSS Modules](/docs/app/building-your-application/styling/stylesheets)
 - [Tailwind CSS](/docs/app/building-your-application/styling/tailwind-css)
-- [Global Styles](/docs/app/building-your-application/styling/css-modules#global-styles)
+- [Global Styles](/docs/app/building-your-application/styling/stylesheets#global-styles)
 - [CSS-in-JS](/docs/app/building-your-application/styling/css-in-js)
-- [External Stylesheets](/docs/app/building-your-application/styling/css-modules#external-stylesheets)
+- [External Stylesheets](/docs/app/building-your-application/styling/stylesheets#external-stylesheets)
 - [Sass](/docs/app/building-your-application/styling/sass)
 
 #### Tailwind CSS

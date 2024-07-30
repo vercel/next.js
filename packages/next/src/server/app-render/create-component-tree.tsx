@@ -1,4 +1,8 @@
-import type { FlightSegmentPath, CacheNodeSeedData } from './types'
+import type {
+  FlightSegmentPath,
+  CacheNodeSeedData,
+  PreloadCallbacks,
+} from './types'
 import React from 'react'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
@@ -15,10 +19,7 @@ import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
-
-type Params = {
-  [key: string]: string | string[]
-}
+import type { Params } from '../../client/components/params'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -36,6 +37,7 @@ export function createComponentTree(props: {
   metadataOutlet?: React.ReactNode
   ctx: AppRenderContext
   missingSlots?: Set<string>
+  preloadCallbacks: PreloadCallbacks
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -65,6 +67,7 @@ async function createComponentTreeInternal({
   metadataOutlet,
   ctx,
   missingSlots,
+  preloadCallbacks,
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
@@ -78,6 +81,7 @@ async function createComponentTreeInternal({
   metadataOutlet?: React.ReactNode
   ctx: AppRenderContext
   missingSlots?: Set<string>
+  preloadCallbacks: PreloadCallbacks
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -110,6 +114,7 @@ async function createComponentTreeInternal({
   )
 
   const layerAssets = getLayerAssets({
+    preloadCallbacks,
     ctx,
     layoutOrPagePath,
     injectedCSS: injectedCSSWithCurrentLayout,
@@ -437,6 +442,7 @@ async function createComponentTreeInternal({
             metadataOutlet: isChildrenRouteKey ? metadataOutlet : undefined,
             ctx,
             missingSlots,
+            preloadCallbacks,
           })
 
           childCacheNodeSeedData = seedData

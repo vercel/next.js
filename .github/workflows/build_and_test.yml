@@ -8,7 +8,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 2.0.6-canary.0
+  TURBO_VERSION: 2.0.9
   NODE_MAINTENANCE_VERSION: 18
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 8
@@ -241,7 +241,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs && git checkout . && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/production/pages-dir/production/test/index.test.ts test/e2e/streaming-ssr/index.test.ts
+      afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs && git checkout . && mv crates/wasm/pkg crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/production/pages-dir/production/test/index.test.ts test/e2e/streaming-ssr/index.test.ts
       stepName: 'test-next-swc-wasm'
     secrets: inherit
 
@@ -291,7 +291,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --dev-mode --group ${{ matrix.group }}
+      afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode dev --group ${{ matrix.group }}
       stepName: 'test-new-tests-dev-${{matrix.group}}'
 
     secrets: inherit
@@ -308,8 +308,25 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --prod-mode --group ${{ matrix.group }}
+      afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode start --group ${{ matrix.group }}
       stepName: 'test-new-tests-start-${{matrix.group}}'
+
+    secrets: inherit
+
+  test-new-tests-deploy:
+    name: Test new tests when deployed
+    needs: ['test-prod', 'test-new-tests-dev', 'test-new-tests-start']
+    if: ${{ needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/4, 2/4, 3/4, 4/4]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: node scripts/test-new-tests.mjs --mode deploy --group ${{ matrix.group }}
+      stepName: 'test-new-tests-deploy-${{matrix.group}}'
 
     secrets: inherit
 
@@ -490,6 +507,7 @@ jobs:
         'test-turbopack-integration',
         'test-new-tests-dev',
         'test-new-tests-start',
+        'test-new-tests-deploy',
         'test-turbopack-production',
         'test-turbopack-production-integration',
       ]

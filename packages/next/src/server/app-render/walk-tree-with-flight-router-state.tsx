@@ -2,6 +2,7 @@ import type {
   FlightDataPath,
   FlightRouterState,
   FlightSegmentPath,
+  PreloadCallbacks,
   Segment,
 } from './types'
 import {
@@ -17,8 +18,8 @@ import {
 } from './create-flight-router-state-from-loader-tree'
 import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
-import { createComponentTree } from './create-component-tree'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
+import { createComponentTree } from './create-component-tree'
 
 /**
  * Use router state to decide at what common layout to render the page.
@@ -39,6 +40,7 @@ export async function walkTreeWithFlightRouterState({
   asNotFound,
   metadataOutlet,
   ctx,
+  preloadCallbacks,
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTreeToFilter: LoaderTree
@@ -54,6 +56,7 @@ export async function walkTreeWithFlightRouterState({
   asNotFound?: boolean
   metadataOutlet: React.ReactNode
   ctx: AppRenderContext
+  preloadCallbacks: PreloadCallbacks
 }): Promise<FlightDataPath[]> {
   const {
     renderOpts: { nextFontManifest, experimental },
@@ -152,6 +155,7 @@ export async function walkTreeWithFlightRouterState({
           rootLayoutIncluded,
           asNotFound,
           metadataOutlet,
+          preloadCallbacks,
         }
       )
 
@@ -212,6 +216,7 @@ export async function walkTreeWithFlightRouterState({
           rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           asNotFound,
           metadataOutlet,
+          preloadCallbacks,
         })
 
         return path

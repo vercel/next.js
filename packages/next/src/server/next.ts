@@ -4,7 +4,6 @@ import type {
   Options as ServerOptions,
 } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
-import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextUrlWithParsedQuery } from './request-meta'
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './lib/types'
@@ -25,6 +24,7 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
+import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
 
 let ServerImpl: typeof Server
 
@@ -40,10 +40,7 @@ export type NextServerOptions = Omit<
   // This is assigned in this server abstraction.
   'conf'
 > &
-  Partial<Pick<ServerOptions | DevServerOptions, 'conf'>> & {
-    preloadedConfig?: NextConfigComplete
-    internal_setStandaloneConfig?: boolean
-  }
+  Partial<Pick<ServerOptions | DevServerOptions, 'conf'>>
 
 export interface RequestHandler {
   (
@@ -140,7 +137,7 @@ export class NextServer {
     return server.render404(...args)
   }
 
-  async prepare(serverFields?: any) {
+  async prepare(serverFields?: ServerFields) {
     if (this.standaloneMode) return
 
     const server = await this.getServer()
@@ -184,16 +181,14 @@ export class NextServer {
   private async [SYMBOL_LOAD_CONFIG]() {
     const dir = resolve(this.options.dir || '.')
 
-    const config =
-      this.options.preloadedConfig ||
-      (await loadConfig(
-        this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-        dir,
-        {
-          customConfig: this.options.conf,
-          silent: true,
-        }
-      ))
+    const config = await loadConfig(
+      this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
+      dir,
+      {
+        customConfig: this.options.conf,
+        silent: true,
+      }
+    )
 
     // check serialized build config when available
     if (process.env.NODE_ENV === 'production') {

@@ -5,8 +5,10 @@ import type {
   PrefetchKind,
   RouterChangeByServerResponse,
 } from '../../client/components/router-reducer/router-reducer-types'
-import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
-import type { FlightRouterState } from '../../server/app-render/types'
+import type {
+  FlightRouterState,
+  FetchServerResponseResult,
+} from '../../server/app-render/types'
 import React from 'react'
 
 export type ChildSegmentMap = Map<string, CacheNode>
@@ -125,7 +127,7 @@ export interface AppRouterInstance {
    * Refresh the current page. Use in development only.
    * @internal
    */
-  fastRefresh(): void
+  hmrRefresh(): void
   /**
    * Navigate to the provided href.
    * Pushes a new history entry.

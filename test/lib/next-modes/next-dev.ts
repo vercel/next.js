@@ -89,8 +89,11 @@ export class NextDevInstance extends NextInstance {
           }
         })
 
+        const serverReadyTimeoutId = this.setServerReadyTimeout(reject)
+
         const readyCb = (msg) => {
           const resolveServer = () => {
+            clearTimeout(serverReadyTimeoutId)
             try {
               this._parsedUrl = new URL(this._url)
             } catch (err) {
@@ -111,12 +114,9 @@ export class NextDevInstance extends NextInstance {
               .split(/\s*- Local:/)
               .pop()
               .trim()
-            resolveServer()
-          } else if (
-            msg.includes('started server on') &&
-            msg.includes('url:')
-          ) {
-            this._url = msg.split('url: ').pop().split(/\s/, 1)[0].trim()
+          }
+
+          if (this.serverReadyPattern.test(colorStrippedMsg)) {
             resolveServer()
           }
         }
@@ -152,7 +152,8 @@ export class NextDevInstance extends NextInstance {
 
   public override async patchFile(
     filename: string,
-    content: string | ((contents: string) => string)
+    content: string | ((contents: string) => string),
+    runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
   ) {
     const isServerRunning = this.childProcess && !this.isStopping
     const cliOutputLength = this.cliOutput.length
@@ -161,19 +162,31 @@ export class NextDevInstance extends NextInstance {
       await this.handleDevWatchDelayBeforeChange(filename)
     }
 
-    const { newFile } = await super.patchFile(filename, content)
+    const waitForChanges = async ({ newFile }: { newFile: boolean }) => {
+      if (isServerRunning) {
+        if (newFile) {
+          await this.handleDevWatchDelayAfterChange(filename)
+        } else if (filename.startsWith('next.config')) {
+          await retry(async () => {
+            const cliOutput = this.cliOutput.slice(cliOutputLength)
 
-    if (isServerRunning) {
-      if (newFile) {
-        await this.handleDevWatchDelayAfterChange(filename)
-      } else if (filename.startsWith('next.config')) {
-        await retry(() => {
-          if (!this.cliOutput.slice(cliOutputLength).includes('Ready in')) {
-            throw new Error('Server has not finished restarting.')
-          }
-        })
+            if (!this.serverReadyPattern.test(cliOutput)) {
+              throw new Error('Server has not finished restarting.')
+            }
+          })
+        }
       }
     }
+
+    if (runWithTempContent) {
+      return super.patchFile(filename, content, async ({ newFile }) => {
+        await waitForChanges({ newFile })
+        await runWithTempContent({ newFile })
+      })
+    }
+
+    const { newFile } = await super.patchFile(filename, content)
+    await retry(() => waitForChanges({ newFile }))
 
     return { newFile }
   }
@@ -195,7 +208,7 @@ export class NextDevInstance extends NextInstance {
 
   public override async deleteFile(filename: string) {
     await this.handleDevWatchDelayBeforeChange(filename)
-    super.deleteFile(filename)
+    await super.deleteFile(filename)
     await this.handleDevWatchDelayAfterChange(filename)
   }
 }

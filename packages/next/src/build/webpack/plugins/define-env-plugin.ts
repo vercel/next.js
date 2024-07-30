@@ -58,7 +58,7 @@ interface SerializedDefineEnv {
 /**
  * Collects all environment variables that are using the `NEXT_PUBLIC_` prefix.
  */
-function getNextPublicEnvironmentVariables(): DefineEnv {
+export function getNextPublicEnvironmentVariables(): DefineEnv {
   const defineEnv: DefineEnv = {}
   for (const key in process.env) {
     if (key.startsWith('NEXT_PUBLIC_')) {
@@ -173,6 +173,12 @@ export function getDefineEnv({
         ? 'nodejs'
         : '',
     'process.env.NEXT_MINIMAL': '',
+    'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
+      config.experimental.appNavFailHandling
+    ),
+    'process.env.__NEXT_APP_ISR_INDICATOR': Boolean(
+      config.devIndicators.appIsrStatus
+    ),
     'process.env.__NEXT_PPR': checkIsAppPPREnabled(config.experimental.ppr),
     'process.env.__NEXT_AFTER': config.experimental.after ?? false,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
@@ -194,6 +200,8 @@ export function getDefineEnv({
         ? 5 * 60 // 5 minutes
         : config.experimental.staleTimes?.static
     ),
+    'process.env.__NEXT_FLYING_SHUTTLE':
+      config.experimental.flyingShuttle ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
       config.experimental.clientRouterFilter ?? true,
     'process.env.__NEXT_CLIENT_ROUTER_S_FILTER':
