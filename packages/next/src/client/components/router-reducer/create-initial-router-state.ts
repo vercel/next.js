@@ -5,7 +5,7 @@ import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
 import { createPrefetchCacheEntryForInitialLoad } from './prefetch-cache-utils'
-import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
+import type { PrefetchCacheEntry } from './router-reducer-types'
 import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
 
 export interface InitialRouterStateParameters {
@@ -101,7 +101,6 @@ export function createInitialRouterState({
 
     createPrefetchCacheEntryForInitialLoad({
       url,
-      kind: PrefetchKind.AUTO,
       data: {
         f: initialFlightData,
         c: undefined,
