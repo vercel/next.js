@@ -45,7 +45,7 @@ async function main() {
           }),
         }),
       },
-      prompt: `${JSON.stringify(issue)}\n${fileText}\nlatestVersion: ${latestVersion}\nlatestCanaryVersion: ${latestCanaryVersion}\nWith the above GitHub issue (JSON), the triage guidelines for determining whether an issue is severe, and the latest versions of Next.js, can you determine whether the given issue is severe enough to report to Slack? If severe enough, report to Slack with an approximately 300 character summary (don't repeat the triage guidelines while doing so) of why you think it is severe enough to report to Slack. If not severe enough, do not report on Slack.`,
+      prompt: `${JSON.stringify(issue)}\n${fileText}\nlatestVersion: ${latestVersion}\nlatestCanaryVersion: ${latestCanaryVersion}\nWith the above GitHub issue (JSON), the triage guidelines for determining whether an issue is severe, and the latest versions of Next.js, can you determine whether the given issue is severe enough to report to Slack? If severe enough, report to Slack with an approximately 300 character summary (don't repeat the triage guidelines while doing so) of why you think it is severe enough to report to Slack. If not severe enough, do not report to Slack.`,
     })
 
     // the ai determined that the issue was severe enough to report on slack
