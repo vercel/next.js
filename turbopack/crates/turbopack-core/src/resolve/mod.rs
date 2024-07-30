@@ -1504,26 +1504,13 @@ async fn handle_after_resolve_plugins(
     .cell())
 }
 
-use turbo_tasks::debug::ValueDebug;
 #[turbo_tasks::function]
 async fn resolve_internal(
     lookup_path: Vc<FileSystemPath>,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
-    let x = resolve_internal_inline(lookup_path, request, options).await?;
-    // match &*request.await? {
-    //     Request::Module { module, .. } if module == "@" => {
-    println!(
-        "resolve_internal {:?} {:?} {:?}",
-        lookup_path.await?.path,
-        request.dbg().await?,
-        x.dbg().await?
-    );
-    //     }
-    //     _ => {}
-    // }
-    Ok(x)
+    resolve_internal_inline(lookup_path, request, options).await
 }
 
 fn resolve_internal_boxed(
@@ -1558,17 +1545,6 @@ async fn resolve_internal_inline(
         // Apply import mappings if provided
         if let Some(import_map) = &options_value.import_map {
             let result = import_map.await?.lookup(lookup_path, request).await?;
-            // match &*request.await? {
-            //     Request::Module { module, .. } if module == "@" => {
-            println!(
-                "resolve_internal_inline import_map {:?} {:?} {:?}",
-                lookup_path.await?.path,
-                request.dbg().await?,
-                result.clone().cell().dbg().await?
-            );
-            //     }
-            //     _ => {}
-            // }
             if !matches!(result, ImportMapResult::NoEntry) {
                 has_alias = true;
                 let resolved_result = resolve_import_map_result(
@@ -2264,15 +2240,6 @@ async fn resolve_module_request(
     query: Vc<RcStr>,
     fragment: Vc<RcStr>,
 ) -> Result<Vc<ResolveResult>> {
-    if module == "@" {
-        println!(
-            "resolve_module_request {:?} {:?} {:?}",
-            lookup_path.await?.path,
-            module,
-            path
-        );
-    }
-
     // Check alias field for module aliases first
     if let Some(result) = apply_in_package(
         lookup_path,
@@ -2606,19 +2573,10 @@ async fn handle_exports_imports_field(
     let query_str = query.await?;
     let req = Pattern::Constant(format!("{}{}", path, query_str).into());
 
-    println!(
-        "handle_exports_imports_field req {:?} {:?} {:?}",
-        req,
-        req.constant_prefix(),
-        exports_imports_field
-    );
-
     let values = exports_imports_field
         .lookup(&req)
         .map(|m| m.try_into_self())
         .collect::<Result<Vec<_>>>()?;
-
-    println!("handle_exports_imports_field values {:?}", values);
 
     for value in values.iter() {
         // println!("handle_exports_imports_field {:?}", value);
@@ -2634,11 +2592,6 @@ async fn handle_exports_imports_field(
         }
     }
 
-    println!(
-        "handle_exports_imports_field list {:?} {:?}",
-        results, conditions_state
-    );
-
     let mut resolved_results = Vec::new();
     for (result_path, conditions) in results {
         if let Some(result_path) = result_path.with_normalized_path() {
@@ -2646,11 +2599,6 @@ async fn handle_exports_imports_field(
                 Pattern::Constant("./".into()),
                 result_path,
             ])));
-            println!(
-                "handle_exports_imports_field reresolve {:?} {:?}",
-                package_path.await?.path,
-                request.dbg().await?
-            );
 
             let resolve_result = resolve_internal_boxed(package_path, request, options).await?;
             if conditions.is_empty() {
@@ -2661,10 +2609,6 @@ async fn handle_exports_imports_field(
                 resolved_results.push(resolve_result.cell());
             }
         }
-    }
-
-    for r in &resolved_results {
-        println!("handle_exports_imports_field result {:?}", r.dbg().await?);
     }
 
     // other options do not apply anymore when an exports field exist

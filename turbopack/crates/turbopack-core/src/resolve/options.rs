@@ -408,17 +408,9 @@ impl ImportMap {
         lookup_path: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Result<ImportMapResult> {
-        // TODO lookup pattern
         // relative requests must not match global wildcard aliases.
 
-        use turbo_tasks::debug::ValueDebug;
-        println!("lookup 1 {:?} {:?}", request.dbg().await?, self.map);
         if let Some(request_pattern) = request.await?.request_pattern() {
-            println!(
-                "lookup 2 {:?} {:?}",
-                request_pattern,
-                request_pattern.constant_prefix()
-            );
             let mut lookup = if request_pattern.must_match("./") {
                 self.map
                     .lookup_with_prefix_predicate(&request_pattern, |prefix| {
@@ -434,10 +426,8 @@ impl ImportMap {
             };
             if let Some(result) = lookup.next() {
                 let x: Vc<ReplacedImportMapping> = result.try_join_into_self().await?;
-                println!("lookup 3 {:?} : {:?}", request_pattern, x.dbg().await?);
                 return import_mapping_to_result(x, lookup_path, request).await;
             } else {
-                println!("lookup 3 {:?} : {:?}", request_pattern, "None");
             }
         }
         Ok(ImportMapResult::NoEntry)
