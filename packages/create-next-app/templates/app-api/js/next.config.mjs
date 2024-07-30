@@ -1,14 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    // API routes configuration
+  // API routes configuration
   api: {
-    
     bodyParser: {
-      sizeLimit: '1mb',
+      sizeLimit: "1mb",
     },
     cors: {
-      origin: '*',
-      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      origin: "*",
+      methods: ["GET", "POST", "PUT", "DELETE"],
     },
   },
 };
