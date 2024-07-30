@@ -1,7 +1,7 @@
 **Triage Guidelines:**
 
 Hard rules:
-- Ignore the bug label.
+- Ignore the bug, Documentation labels.
 - Ignore the url to the code that reproduces the issue.
 
 Questions to ask:
@@ -11,4 +11,4 @@ Questions to ask:
 - Did build/compile times increase drastically? If yes, it's a severe issue.
 - Is there a significant performance regression? If yes, it's a severe issue.
 - Is CSS not working as expected? If yes, it's a severe issue.
-- Are multiple stages (next dev, next start, deploy) affected? If yes, it's a severe issue.
+- Are multiple stages (next dev, next start, deploy) affected? If yes, it's likely a severe issue.
