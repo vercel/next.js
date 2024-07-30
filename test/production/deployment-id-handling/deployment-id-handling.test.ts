@@ -85,14 +85,18 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
     )
 
     it('should contain deployment id in RSC payload request headers', async () => {
-      const browser = await next.browser('/from-app')
       const rscHeaders = []
-      browser.on('request', async (req) => {
-        const headers = await req.allHeaders()
-        if (headers['rsc']) {
-          rscHeaders.push(headers)
-        }
+      const browser = await next.browser('/from-app', {
+        beforePageLoad(page) {
+          page.on('request', async (req) => {
+            const headers = await req.allHeaders()
+            if (headers['rsc']) {
+              rscHeaders.push(headers)
+            }
+          })
+        },
       })
+
       await browser.elementByCss('#other-app').click()
 
       await retry(async () => {
