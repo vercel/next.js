@@ -2,13 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { BrowserInterface } from '../../../../lib/next-webdriver'
 
 describe('app dir - form', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should soft-navigate on submit and show the prefetched loading state', async () => {
     const session = await next.browser('/forms/basic')
