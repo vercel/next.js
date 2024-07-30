@@ -1,29 +1,16 @@
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use mdxjs::{compile, MdxParseOptions, Options};
-use turbo_tasks::{RcStr, Value, ValueDefault, Vc};
-use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPath};
+use turbo_tasks::{RcStr, ValueDefault, Vc};
+use turbo_tasks_fs::{rope::Rope, File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
-    context::AssetContext,
     ident::AssetIdent,
-    module::Module,
-    reference::ModuleReferences,
-    resolve::origin::ResolveOrigin,
+    issue::IssueDescriptionExt,
     source::Source,
-    virtual_source::VirtualSource,
-};
-use turbopack_ecmascript::{
-    chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptExports,
-    },
-    references::AnalyzeEcmascriptModuleResultBuilder,
-    AnalyzeEcmascriptModuleResult, EcmascriptInputTransforms, EcmascriptModuleAsset,
-    EcmascriptModuleAssetType, EcmascriptOptions,
+    source_transform::SourceTransform,
 };
 
 #[turbo_tasks::function]
@@ -86,247 +73,122 @@ impl ValueDefault for MdxTransformOptions {
 }
 
 #[turbo_tasks::value]
-#[derive(Clone, Copy)]
-pub struct MdxModuleAsset {
-    source: Vc<Box<dyn Source>>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    transforms: Vc<EcmascriptInputTransforms>,
+pub struct MdxTransform {
     options: Vc<MdxTransformOptions>,
-    ecmascript_options: Vc<EcmascriptOptions>,
-}
-
-/// MDX components should be treated as normal j|tsx components to analyze
-/// its imports or run ecma transforms,
-/// only difference is it is not a valid ecmascript AST we
-/// can't pass it forward directly. Internally creates an jsx from mdx
-/// via mdxrs, then pass it through existing ecmascript analyzer.
-///
-/// To make mdx as a variant of ecmascript and use its `source_transforms`
-/// instead, there should be a way to get a valid SWC ast from mdx source input
-/// - which we don't have yet.
-async fn into_ecmascript_module_asset(
-    current_context: &Vc<MdxModuleAsset>,
-) -> Result<Vc<EcmascriptModuleAsset>> {
-    let content = current_context.content();
-    let this = current_context.await?;
-    let transform_options = this.options.await?;
-
-    let AssetContent::File(file) = &*content.await? else {
-        anyhow::bail!("Unexpected mdx asset content");
-    };
-
-    let FileContent::Content(file) = &*file.await? else {
-        anyhow::bail!("Not able to read mdx file content");
-    };
-
-    let jsx_runtime = if let Some(runtime) = &transform_options.jsx_runtime {
-        match runtime.as_str() {
-            "automatic" => Some(mdxjs::JsxRuntime::Automatic),
-            "classic" => Some(mdxjs::JsxRuntime::Classic),
-            _ => None,
-        }
-    } else {
-        None
-    };
-
-    let parse_options = match transform_options.mdx_type {
-        Some(MdxParseConstructs::Gfm) => MdxParseOptions::gfm(),
-        _ => MdxParseOptions::default(),
-    };
-
-    let options = Options {
-        parse: parse_options,
-        development: transform_options.development.unwrap_or(false),
-        provider_import_source: transform_options
-            .provider_import_source
-            .clone()
-            .map(RcStr::into_owned),
-        jsx: transform_options.jsx.unwrap_or(false), // true means 'preserve' jsx syntax.
-        jsx_runtime,
-        jsx_import_source: transform_options
-            .jsx_import_source
-            .clone()
-            .map(RcStr::into_owned),
-        filepath: Some(this.source.ident().path().await?.to_string()),
-        ..Default::default()
-    };
-    // TODO: upstream mdx currently bubbles error as string
-    let mdx_jsx_component =
-        compile(&file.content().to_str()?, &options).map_err(|e| anyhow!("{}", e))?;
-
-    let source = VirtualSource::new_with_ident(
-        this.source.ident(),
-        AssetContent::file(File::from(Rope::from(mdx_jsx_component)).into()),
-    );
-    Ok(EcmascriptModuleAsset::new(
-        Vc::upcast(source),
-        this.asset_context,
-        Value::new(EcmascriptModuleAssetType::Typescript {
-            tsx: true,
-            analyze_types: false,
-        }),
-        this.transforms,
-        this.ecmascript_options,
-        this.asset_context.compile_time_info(),
-    ))
 }
 
 #[turbo_tasks::value_impl]
-impl MdxModuleAsset {
+impl MdxTransform {
     #[turbo_tasks::function]
-    pub fn new(
-        source: Vc<Box<dyn Source>>,
-        asset_context: Vc<Box<dyn AssetContext>>,
-        transforms: Vc<EcmascriptInputTransforms>,
-        options: Vc<MdxTransformOptions>,
-        ecmascript_options: Vc<EcmascriptOptions>,
-    ) -> Vc<Self> {
-        Self::cell(MdxModuleAsset {
-            source,
-            asset_context,
-            transforms,
-            options,
-            ecmascript_options,
-        })
-    }
-
-    #[turbo_tasks::function]
-    async fn analyze(self: Vc<Self>) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-        let asset = into_ecmascript_module_asset(&self).await;
-
-        if let Ok(asset) = asset {
-            Ok(asset.analyze())
-        } else {
-            let mut result = AnalyzeEcmascriptModuleResultBuilder::new();
-            result.set_successful(false);
-            result.build(false).await
-        }
+    pub fn new(options: Vc<MdxTransformOptions>) -> Vc<Self> {
+        MdxTransform { options }.cell()
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Module for MdxModuleAsset {
+impl SourceTransform for MdxTransform {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source
-            .ident()
-            .with_modifier(modifier())
-            .with_layer(self.asset_context.layer())
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let analyze = self.analyze().await?;
-        Ok(analyze.references)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for MdxModuleAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModule for MdxModuleAsset {
-    #[turbo_tasks::function]
-    async fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(MdxChunkItem::cell(MdxChunkItem {
-            module: self,
-            chunking_context,
-        })))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for MdxModuleAsset {
-    #[turbo_tasks::function]
-    fn get_exports(&self) -> Vc<EcmascriptExports> {
-        EcmascriptExports::Value.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ResolveOrigin for MdxModuleAsset {
-    #[turbo_tasks::function]
-    fn origin_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
-    }
-
-    #[turbo_tasks::function]
-    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        self.asset_context
+    fn transform(&self, source: Vc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
+        Vc::upcast(
+            MdxTransformedAsset {
+                options: self.options,
+                source,
+            }
+            .cell(),
+        )
     }
 }
 
 #[turbo_tasks::value]
-struct MdxChunkItem {
-    module: Vc<MdxModuleAsset>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+struct MdxTransformedAsset {
+    options: Vc<MdxTransformOptions>,
+    source: Vc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkItem for MdxChunkItem {
+impl Source for MdxTransformedAsset {
     #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
-    }
-
-    #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
-    }
-
-    #[turbo_tasks::function]
-    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
-        Ok(Vc::upcast(
-            Vc::<EcmascriptChunkType>::default().resolve().await?,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+    fn ident(&self) -> Vc<AssetIdent> {
+        self.source.ident().rename_as("*.tsx".into())
     }
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for MdxChunkItem {
+impl Asset for MdxTransformedAsset {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
-    }
-
-    #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
-        panic!("MdxChunkItem::content should never be called");
-    }
-
-    /// Once we have mdx contents, we should treat it as j|tsx components and
-    /// apply all of the ecma transforms
-    #[turbo_tasks::function]
-    async fn content_with_async_module_info(
-        &self,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let item = into_ecmascript_module_asset(&self.module)
+    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        let this = self.await?;
+        Ok(self
+            .process()
+            .issue_file_path(this.source.ident().path(), "MDX processing")
             .await?
-            .as_chunk_item(Vc::upcast(self.chunking_context));
-        let ecmascript_item = Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item)
             .await?
-            .context("MdxChunkItem must generate an EcmascriptChunkItem")?;
-        Ok(ecmascript_item.content_with_async_module_info(async_module_info))
+            .content)
     }
+}
+
+#[turbo_tasks::value_impl]
+impl MdxTransformedAsset {
+    #[turbo_tasks::function]
+    async fn process(self: Vc<Self>) -> Result<Vc<MdxTransformResult>> {
+        let this = self.await?;
+        let content = this.source.content().await?;
+        let transform_options = this.options.await?;
+
+        let AssetContent::File(file) = &*content else {
+            anyhow::bail!("Unexpected mdx asset content");
+        };
+
+        let FileContent::Content(file) = &*file.await? else {
+            anyhow::bail!("Not able to read mdx file content");
+        };
+
+        let jsx_runtime = if let Some(runtime) = &transform_options.jsx_runtime {
+            match runtime.as_str() {
+                "automatic" => Some(mdxjs::JsxRuntime::Automatic),
+                "classic" => Some(mdxjs::JsxRuntime::Classic),
+                _ => None,
+            }
+        } else {
+            None
+        };
+
+        let parse_options = match transform_options.mdx_type {
+            Some(MdxParseConstructs::Gfm) => MdxParseOptions::gfm(),
+            _ => MdxParseOptions::default(),
+        };
+
+        let options = Options {
+            parse: parse_options,
+            development: transform_options.development.unwrap_or(false),
+            provider_import_source: transform_options
+                .provider_import_source
+                .clone()
+                .map(RcStr::into_owned),
+            jsx: transform_options.jsx.unwrap_or(false), // true means 'preserve' jsx syntax.
+            jsx_runtime,
+            jsx_import_source: transform_options
+                .jsx_import_source
+                .clone()
+                .map(RcStr::into_owned),
+            filepath: Some(this.source.ident().path().await?.to_string()),
+            ..Default::default()
+        };
+
+        // TODO: upstream mdx currently bubbles error as string
+        let mdx_jsx_component =
+            compile(&file.content().to_str()?, &options).map_err(|e| anyhow!("{}", e))?;
+
+        Ok(MdxTransformResult {
+            content: AssetContent::file(File::from(Rope::from(mdx_jsx_component)).into()),
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value]
+struct MdxTransformResult {
+    content: Vc<AssetContent>,
 }
 
 pub fn register() {

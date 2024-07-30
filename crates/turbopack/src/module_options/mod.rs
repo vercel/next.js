@@ -16,6 +16,7 @@ use turbopack_core::{
 };
 use turbopack_css::CssModuleAssetType;
 use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptOptions, SpecifiedModuleType};
+use turbopack_mdx::MdxTransform;
 use turbopack_node::transforms::{postcss::PostCssTransform, webpack::WebpackLoaders};
 use turbopack_wasm::source::WebAssemblySourceType;
 
@@ -185,22 +186,6 @@ impl ModuleOptions {
         } else {
             Vc::cell(transforms.clone())
         };
-
-        let mdx_transforms = Vc::cell(
-            if let Some(transform) = &ts_transform {
-                if let Some(decorators_transform) = &decorators_transform {
-                    vec![decorators_transform.clone(), transform.clone()]
-                } else {
-                    vec![transform.clone()]
-                }
-            } else {
-                vec![]
-            }
-            .iter()
-            .cloned()
-            .chain(transforms.iter().cloned())
-            .collect(),
-        );
 
         // Apply decorators transform for the ModuleType::Ecmascript as well after
         // constructing ts_app_transforms. Ecmascript can have decorators for
@@ -535,11 +520,9 @@ impl ModuleOptions {
                     ModuleRuleCondition::ResourcePathEndsWith(".md".to_string()),
                     ModuleRuleCondition::ResourcePathEndsWith(".mdx".to_string()),
                 ]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Mdx {
-                    transforms: mdx_transforms,
-                    options: mdx_transform_options,
-                    ecmascript_options: ecmascript_options_vc,
-                })],
+                vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
+                    Vc::upcast(MdxTransform::new(mdx_transform_options)),
+                ]))],
             ));
         }
 
