@@ -11,7 +11,8 @@ use next_api::{
     route::{Endpoint, Route},
 };
 use turbo_tasks::{RcStr, TransientInstance, TurboTasks, Vc};
-use turbopack_binding::turbo::{malloc::TurboMalloc, tasks_memory::MemoryBackend};
+use turbo_tasks_malloc::TurboMalloc;
+use turbo_tasks_memory::MemoryBackend;
 
 pub async fn main_inner(
     tt: &TurboTasks<MemoryBackend>,

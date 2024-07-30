@@ -3902,9 +3902,21 @@ dependencies = [
  "serde",
  "serde_json",
  "shadow-rs",
+ "swc_core",
  "tracing",
  "turbo-tasks",
- "turbopack-binding",
+ "turbo-tasks-build",
+ "turbo-tasks-env",
+ "turbo-tasks-fs",
+ "turbo-tasks-memory",
+ "turbopack",
+ "turbopack-browser",
+ "turbopack-cli-utils",
+ "turbopack-core",
+ "turbopack-ecmascript",
+ "turbopack-env",
+ "turbopack-node",
+ "turbopack-nodejs",
 ]
 
 [[package]]
@@ -3912,7 +3924,8 @@ name = "next-build"
 version = "0.1.0"
 dependencies = [
  "next-core",
- "turbopack-binding",
+ "turbo-tasks-build",
+ "turbopack-core",
  "vergen 7.5.1",
 ]
 
@@ -3932,7 +3945,21 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "turbo-tasks",
- "turbopack-binding",
+ "turbo-tasks-build",
+ "turbo-tasks-env",
+ "turbo-tasks-fs",
+ "turbo-tasks-malloc",
+ "turbo-tasks-memory",
+ "turbopack",
+ "turbopack-browser",
+ "turbopack-cli-utils",
+ "turbopack-core",
+ "turbopack-ecmascript",
+ "turbopack-ecmascript-runtime",
+ "turbopack-env",
+ "turbopack-node",
+ "turbopack-nodejs",
+ "turbopack-trace-utils",
 ]
 
 [[package]]
@@ -3943,6 +3970,7 @@ dependencies = [
  "anyhow",
  "async-recursion",
  "async-trait",
+ "auto-hash-map",
  "base64 0.21.4",
  "futures",
  "indexmap 1.9.3",
@@ -3950,6 +3978,7 @@ dependencies = [
  "lazy-regex",
  "lazy_static",
  "mime_guess",
+ "modularize_imports",
  "next-custom-transforms",
  "once_cell",
  "qstring",
@@ -3959,11 +3988,30 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
+ "swc_core",
+ "swc_relay",
  "thiserror",
  "tracing",
  "turbo-tasks",
+ "turbo-tasks-build",
+ "turbo-tasks-bytes",
+ "turbo-tasks-env",
+ "turbo-tasks-fetch",
  "turbo-tasks-fs",
- "turbopack-binding",
+ "turbo-tasks-hash",
+ "turbopack",
+ "turbopack-browser",
+ "turbopack-core",
+ "turbopack-ecmascript",
+ "turbopack-ecmascript-plugins",
+ "turbopack-ecmascript-runtime",
+ "turbopack-env",
+ "turbopack-image",
+ "turbopack-node",
+ "turbopack-nodejs",
+ "turbopack-static",
+ "turbopack-trace-server",
+ "turbopack-trace-utils",
 ]
 
 [[package]]
@@ -3977,6 +4025,7 @@ dependencies = [
  "fxhash",
  "hex",
  "lazy_static",
+ "modularize_imports",
  "once_cell",
  "pathdiff",
  "preset_env_base",
@@ -3987,9 +4036,14 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
+ "styled_components",
+ "styled_jsx",
  "swc_core",
+ "swc_emotion",
+ "swc_relay",
+ "testing",
  "tracing",
- "turbopack-binding",
+ "turbopack-ecmascript-plugins",
  "walkdir",
 ]
 
@@ -4005,6 +4059,7 @@ dependencies = [
  "iana-time-zone",
  "indexmap 1.9.3",
  "lightningcss-napi",
+ "mdxjs",
  "napi",
  "napi-build",
  "napi-derive",
@@ -4012,18 +4067,29 @@ dependencies = [
  "next-build",
  "next-core",
  "next-custom-transforms",
+ "node-file-trace",
  "once_cell",
  "owo-colors 3.5.0",
  "rand",
  "serde",
  "serde_json",
  "shadow-rs",
+ "swc_core",
  "tokio",
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
  "turbo-tasks",
- "turbopack-binding",
+ "turbo-tasks-build",
+ "turbo-tasks-fs",
+ "turbo-tasks-malloc",
+ "turbo-tasks-memory",
+ "turbopack",
+ "turbopack-core",
+ "turbopack-ecmascript-hmr-protocol",
+ "turbopack-ecmascript-plugins",
+ "turbopack-trace-server",
+ "turbopack-trace-utils",
  "url",
  "urlencoding",
 ]
@@ -6436,7 +6502,6 @@ dependencies = [
  "swc_ecma_transforms_typescript",
  "swc_ecma_utils",
  "swc_ecma_visit",
- "swc_malloc",
  "swc_nodejs_common",
  "swc_plugin_proxy",
  "swc_plugin_runner",
@@ -7387,16 +7452,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "swc_malloc"
-version = "0.5.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "313a800441b32643bc183a3b5a08fdadcc391924a6a02ba5d2294fbbc39e7436"
-dependencies = [
- "mimalloc",
- "tikv-jemallocator",
-]
-
-[[package]]
 name = "swc_node_comments"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7764,26 +7819,6 @@ checksum = "3fdd6f064ccff2d6567adcb3873ca630700f00b5ad3f060c25b5dcfd9a4ce152"
 dependencies = [
  "cfg-if",
  "once_cell",
-]
-
-[[package]]
-name = "tikv-jemalloc-sys"
-version = "0.5.4+5.3.0-patched"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9402443cb8fd499b6f327e40565234ff34dbda27460c5b47db0db77443dd85d1"
-dependencies = [
- "cc",
- "libc",
-]
-
-[[package]]
-name = "tikv-jemallocator"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "965fe0c26be5c56c94e38ba547249074803efd52adfb66de62107d95aab3eaca"
-dependencies = [
- "libc",
- "tikv-jemalloc-sys",
 ]
 
 [[package]]
@@ -8572,57 +8607,6 @@ dependencies = [
  "turbo-tasks-testing",
  "turbopack-create-test-app",
  "url",
-]
-
-[[package]]
-name = "turbopack-binding"
-version = "0.1.0"
-dependencies = [
- "auto-hash-map",
- "mdxjs",
- "modularize_imports",
- "node-file-trace",
- "styled_components",
- "styled_jsx",
- "swc_core",
- "swc_emotion",
- "swc_relay",
- "testing",
- "turbo-tasks",
- "turbo-tasks-build",
- "turbo-tasks-bytes",
- "turbo-tasks-env",
- "turbo-tasks-fetch",
- "turbo-tasks-fs",
- "turbo-tasks-hash",
- "turbo-tasks-macros",
- "turbo-tasks-macros-shared",
- "turbo-tasks-malloc",
- "turbo-tasks-memory",
- "turbo-tasks-testing",
- "turbopack",
- "turbopack-bench",
- "turbopack-browser",
- "turbopack-cli-utils",
- "turbopack-core",
- "turbopack-create-test-app",
- "turbopack-css",
- "turbopack-dev-server",
- "turbopack-ecmascript",
- "turbopack-ecmascript-hmr-protocol",
- "turbopack-ecmascript-plugins",
- "turbopack-ecmascript-runtime",
- "turbopack-env",
- "turbopack-image",
- "turbopack-json",
- "turbopack-mdx",
- "turbopack-node",
- "turbopack-nodejs",
- "turbopack-static",
- "turbopack-swc-utils",
- "turbopack-test-utils",
- "turbopack-trace-server",
- "turbopack-trace-utils",
 ]
 
 [[package]]
@@ -9629,12 +9613,12 @@ dependencies = [
  "console_error_panic_hook",
  "getrandom",
  "js-sys",
+ "mdxjs",
  "next-custom-transforms",
  "serde-wasm-bindgen",
  "serde_json",
  "swc_core",
  "tracing",
- "turbopack-binding",
  "wasm-bindgen",
  "wasm-bindgen-futures",
 ]

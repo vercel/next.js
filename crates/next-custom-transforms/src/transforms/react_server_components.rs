@@ -2,11 +2,11 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use regex::Regex;
 use serde::Deserialize;
-use swc_core::{common::util::take::Take, ecma::visit::VisitWith};
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
+        util::take::Take,
         FileName, Span, Spanned, DUMMY_SP,
     },
     ecma::{
@@ -15,6 +15,7 @@ use turbopack_binding::swc::core::{
         utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
         visit::{
             as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
+            VisitWith,
         },
     },
 };

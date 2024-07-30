@@ -23,22 +23,20 @@ use next_custom_transforms::transforms::{
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
 };
 use serde::de::DeserializeOwned;
-use swc_core::ecma::visit::as_folder;
-use turbopack_binding::swc::{
-    core::{
-        common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
-        ecma::{
-            parser::{EsSyntax, Syntax},
-            transforms::{
-                base::resolver,
-                react::jsx,
-                testing::{test, test_fixture},
-            },
+use swc_core::{
+    common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
+    ecma::{
+        parser::{EsSyntax, Syntax},
+        transforms::{
+            base::resolver,
+            react::jsx,
+            testing::{test, test_fixture},
         },
+        visit::as_folder,
     },
-    custom_transform::relay::{relay, RelayLanguageConfig},
-    testing::fixture,
 };
+use swc_relay::{relay, RelayLanguageConfig};
+use testing::fixture;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsSyntax {
@@ -207,7 +205,7 @@ fn next_ssg_fixture(input: PathBuf) {
             let jsx = jsx::<SingleThreadedComments>(
                 tr.cm.clone(),
                 None,
-                turbopack_binding::swc::core::ecma::transforms::react::Options {
+                swc_core::ecma::transforms::react::Options {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
@@ -252,7 +250,7 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
     test_fixture(
         syntax(),
         &|_tr| {
-            let config = turbopack_binding::swc::custom_transform::relay::Config {
+            let config = swc_relay::Config {
                 language: RelayLanguageConfig::TypeScript,
                 artifact_directory: Some(PathBuf::from("__generated__")),
                 ..Default::default()

@@ -3,41 +3,33 @@ use std::iter::once;
 use anyhow::{bail, Result};
 use indexmap::IndexMap;
 use turbo_tasks::{RcStr, Value, Vc};
-use turbo_tasks_fs::FileSystem;
-use turbopack_binding::{
-    turbo::{
-        tasks_env::{EnvMap, ProcessEnv},
-        tasks_fs::FileSystemPath,
+use turbo_tasks_env::{EnvMap, ProcessEnv};
+use turbo_tasks_fs::{FileSystem, FileSystemPath};
+use turbopack::{
+    module_options::{
+        JsxTransformOptions, ModuleOptionsContext, ModuleRule, TypeofWindow,
+        TypescriptTransformOptions,
     },
-    turbopack::{
-        core::{
-            compile_time_info::{
-                CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
-            },
-            environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions},
-            free_var_references,
-        },
-        ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode},
-        ecmascript_plugin::transform::directives::{
-            client::ClientDirectiveTransformer,
-            client_disallowed::ClientDisallowedDirectiveTransformer,
-        },
-        node::{
-            execution_context::ExecutionContext,
-            transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
-        },
-        nodejs::NodeJsChunkingContext,
-        turbopack::{
-            condition::ContextCondition,
-            module_options::{
-                JsxTransformOptions, ModuleOptionsContext, ModuleRule, TypeofWindow,
-                TypescriptTransformOptions,
-            },
-            resolve_options_context::ResolveOptionsContext,
-            transition::Transition,
-        },
-    },
+    resolve_options_context::ResolveOptionsContext,
+    transition::Transition,
 };
+use turbopack_core::{
+    compile_time_info::{
+        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
+    },
+    condition::ContextCondition,
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions},
+    free_var_references,
+};
+use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode};
+use turbopack_ecmascript_plugins::transform::directives::{
+    client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,
+};
+use turbopack_node::{
+    execution_context::ExecutionContext,
+    transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
+};
+use turbopack_nodejs::NodeJsChunkingContext;
 
 use super::{
     resolve::ExternalCjsModulesResolvePlugin,
@@ -370,10 +362,8 @@ pub async fn get_server_compile_time_info(
 fn internal_assets_conditions() -> ContextCondition {
     ContextCondition::any(vec![
         ContextCondition::InPath(next_js_fs().root()),
-        ContextCondition::InPath(
-            turbopack_binding::turbopack::ecmascript_runtime::embed_fs().root(),
-        ),
-        ContextCondition::InPath(turbopack_binding::turbopack::node::embed_js::embed_fs().root()),
+        ContextCondition::InPath(turbopack_ecmascript_runtime::embed_fs().root()),
+        ContextCondition::InPath(turbopack_node::embed_js::embed_fs().root()),
     ])
 }
 

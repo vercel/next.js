@@ -6,33 +6,29 @@ use next_core::{
     next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
     util::NextRuntime,
 };
+use swc_core::{common::comments::Comments, ecma::ast::Program};
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
     RcStr, TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
-use turbopack_binding::{
-    swc::core::{common::comments::Comments, ecma::ast::Program},
-    turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
-    turbopack::{
-        core::{
-            asset::{Asset, AssetContent},
-            chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
-            context::AssetContext,
-            module::Module,
-            output::OutputAsset,
-            reference::primary_referenced_modules,
-            reference_type::{
-                EcmaScriptModulesReferenceSubType, ReferenceType, TypeScriptReferenceSubType,
-            },
-            virtual_output::VirtualOutputAsset,
-            virtual_source::VirtualSource,
-        },
-        ecmascript::{
-            chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptModuleAsset,
-            EcmascriptModuleAssetType,
-        },
+use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    context::AssetContext,
+    module::Module,
+    output::OutputAsset,
+    reference::primary_referenced_modules,
+    reference_type::{
+        EcmaScriptModulesReferenceSubType, ReferenceType, TypeScriptReferenceSubType,
     },
+    virtual_output::VirtualOutputAsset,
+    virtual_source::VirtualSource,
+};
+use turbopack_ecmascript::{
+    chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptModuleAsset,
+    EcmascriptModuleAssetType,
 };
 
 /// Scans the RSC entry point's full module graph looking for exported Server
