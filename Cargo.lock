@@ -712,29 +712,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bindgen"
-version = "0.65.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfdf7b466f9a4903edc73f95d6d2bcd5baf8ae620638762244d3f60143643cc5"
-dependencies = [
- "bitflags 1.3.2",
- "cexpr",
- "clang-sys",
- "lazy_static",
- "lazycell",
- "log",
- "peeking_take_while",
- "prettyplease",
- "proc-macro2",
- "quote",
- "regex",
- "rustc-hash",
- "shlex",
- "syn 2.0.58",
- "which",
-]
-
-[[package]]
 name = "binding_macros"
 version = "0.70.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1000,15 +977,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d43a04d8753f35258c91f8ec639f792891f748a1edbd759cf1dcea3382ad83c"
 
 [[package]]
-name = "cexpr"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fac387a98bb7c37292057cffc56d62ecb629900026402633ae9160df93a8766"
-dependencies = [
- "nom",
-]
-
-[[package]]
 name = "cfg-expr"
 version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1135,17 +1103,6 @@ checksum = "57663b653d948a338bfb3eeba9bb2fd5fcfaecb9e199e87e1eda4d9e8b240fd9"
 dependencies = [
  "ciborium-io",
  "half 2.4.1",
-]
-
-[[package]]
-name = "clang-sys"
-version = "1.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b023947811758c97c59bf9d1c188fd619ad4718dcaa767947df1cadb14f39f4"
-dependencies = [
- "glob",
- "libc",
- "libloading",
 ]
 
 [[package]]
@@ -3280,12 +3237,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
-name = "lazycell"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
-
-[[package]]
 name = "leb128"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4533,12 +4484,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "peeking_take_while"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
-
-[[package]]
 name = "percent-encoding"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4875,26 +4820,6 @@ checksum = "af7cee1a6c8a5b9208b3cb1061f10c0cb689087b3d8ce85fb9d2dd7a29b6ba66"
 dependencies = [
  "diff",
  "yansi",
-]
-
-[[package]]
-name = "prettyplease"
-version = "0.2.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d3928fb5db768cb86f891ff014f0144589297e3c6a1aba6ed7cecfdace270c7"
-dependencies = [
- "proc-macro2",
- "syn 2.0.58",
-]
-
-[[package]]
-name = "priority-queue"
-version = "1.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ca9c6be70d989d21a136eb86c2d83e4b328447fac4a88dace2143c179c86267"
-dependencies = [
- "autocfg",
- "indexmap 1.9.3",
 ]
 
 [[package]]
@@ -5945,12 +5870,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "shlex"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
-
-[[package]]
 name = "signal-hook"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5978,21 +5897,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8229b473baa5980ac72ef434c4415e70c4b5e71b423043adb4ba059f89c99a1"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "signposter"
-version = "0.1.0"
-dependencies = [
- "once_cell",
- "signposter-sys",
-]
-
-[[package]]
-name = "signposter-sys"
-version = "0.1.0"
-dependencies = [
- "bindgen",
 ]
 
 [[package]]
@@ -8246,16 +8150,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-signpost"
-version = "0.1.0"
-dependencies = [
- "dashmap",
- "signposter",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "tracing-subscriber"
 version = "0.3.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8411,7 +8305,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_regex",
- "serde_test",
  "thiserror",
  "tokio",
  "tracing",
@@ -8527,7 +8420,6 @@ dependencies = [
 name = "turbo-tasks-macros"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "either",
  "proc-macro-error",
  "proc-macro2",
@@ -8581,7 +8473,6 @@ dependencies = [
  "num_cpus",
  "once_cell",
  "parking_lot",
- "priority-queue",
  "rand",
  "ref-cast",
  "regex",
@@ -8688,7 +8579,6 @@ dependencies = [
  "swc_emotion",
  "swc_relay",
  "testing",
- "tracing-signpost",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-bytes",
@@ -8763,7 +8653,6 @@ dependencies = [
  "regex",
  "serde",
  "tokio",
- "tracing-signpost",
  "tracing-subscriber",
  "turbo-tasks",
  "turbo-tasks-build",
@@ -8784,7 +8673,6 @@ dependencies = [
  "turbopack-node",
  "turbopack-nodejs",
  "turbopack-resolve",
- "turbopack-trace-server",
  "turbopack-trace-utils",
  "webbrowser",
 ]
@@ -8833,8 +8721,6 @@ dependencies = [
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
- "turbo-tasks-memory",
- "turbo-tasks-testing",
 ]
 
 [[package]]
@@ -8927,7 +8813,6 @@ dependencies = [
  "parking_lot",
  "petgraph",
  "regex",
- "rstest",
  "rustc-hash",
  "serde",
  "serde_json",

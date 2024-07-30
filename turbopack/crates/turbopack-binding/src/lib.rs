@@ -110,6 +110,4 @@ pub mod features {
     pub use node_file_trace;
     #[cfg(feature = "__feature_swc_ast_explorer")]
     pub use swc_ast_explorer;
-    #[cfg(feature = "__feature_tracing_signpost")]
-    pub use tracing_signpost;
 }
