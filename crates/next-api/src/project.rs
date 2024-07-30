@@ -37,7 +37,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             changed::content_changed,
-            chunk::ChunkingContext,
+            chunk::{global_information::OptionGlobalInformation, ChunkingContext},
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             diagnostics::DiagnosticExt,
@@ -60,6 +60,7 @@ use crate::{
     app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
     build,
     entrypoints::Entrypoints,
+    global_information::build_global_information,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
@@ -649,6 +650,7 @@ impl Project {
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.server_compile_time_info().environment(),
+                self.global_information(),
             )
         } else {
             get_server_chunking_context(
@@ -656,6 +658,7 @@ impl Project {
                 self.project_path(),
                 self.node_root(),
                 self.server_compile_time_info().environment(),
+                self.global_information(),
             )
         }
     }
@@ -673,6 +676,7 @@ impl Project {
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.edge_compile_time_info().environment(),
+                self.global_information(),
             )
         } else {
             get_edge_chunking_context(
@@ -680,6 +684,7 @@ impl Project {
                 self.project_path(),
                 self.node_root(),
                 self.edge_compile_time_info().environment(),
+                self.global_information(),
             )
         }
     }
@@ -1167,13 +1172,9 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn global_information(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
+    pub async fn global_information(self: Vc<Self>) -> Result<Vc<OptionGlobalInformation>> {
         match *self.next_mode().await? {
-            NextMode::Build => {
-                // Global information would be generated here, with access
-                // to Project, and thus to all entrypoints
-                Ok(Vc::cell(Some("prod".into())))
-            }
+            NextMode::Build => Ok(build_global_information(self)),
             _ => Ok(Vc::cell(None)),
         }
     }

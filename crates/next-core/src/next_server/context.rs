@@ -11,6 +11,7 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
+            chunk::global_information::OptionGlobalInformation,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
@@ -865,6 +866,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
+    global_information: Vc<OptionGlobalInformation>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -878,7 +880,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         client_root.join("static/media".into()),
         environment,
         next_mode.runtime_type(),
-        Vc::cell(None),
+        global_information,
     )
     .asset_prefix(asset_prefix)
     .minify_type(next_mode.minify_type())
@@ -891,6 +893,7 @@ pub async fn get_server_chunking_context(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
+    global_information: Vc<OptionGlobalInformation>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -904,7 +907,7 @@ pub async fn get_server_chunking_context(
         node_root.join("server/assets".into()),
         environment,
         next_mode.runtime_type(),
-        Vc::cell(None),
+        global_information,
     )
     .minify_type(next_mode.minify_type())
     .build())
