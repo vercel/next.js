@@ -7530,12 +7530,11 @@
     "test/integration/critical-css/test/index.test.js": {
       "passed": [
         "CSS optimization for SSR apps production mode should have all CSS files in manifest",
-        "CSS optimization for SSR apps production mode should not inline non-critical css"
-      ],
-      "failed": [
+        "CSS optimization for SSR apps production mode should not inline non-critical css",
         "CSS optimization for SSR apps production mode should inline critical CSS",
         "CSS optimization for SSR apps production mode should inline critical CSS (dynamic)"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -7739,7 +7738,9 @@
         "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have compiled successfully",
         "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have the correct color on mount after navigation",
         "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have compiled successfully",
-        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have the correct color on mount after navigation"
+        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have the correct color on mount after navigation",
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should've preloaded the CSS file and injected it in <head>",
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should've preloaded the CSS file and injected it in <head>"
       ],
       "failed": [
         "CSS Property Ordering production mode useLightnincsss(false) should have compiled successfully",
@@ -7757,9 +7758,7 @@
         "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should compile successfully",
         "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
         "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should compile successfully",
-        "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should've preloaded the CSS file and injected it in <head>",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should've preloaded the CSS file and injected it in <head>"
+        "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file"
       ],
       "pending": [],
       "flakey": [],
@@ -15713,10 +15712,12 @@
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app",
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app/edge",
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should append dpl query to all assets correctly for /pages-edge",
+        "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should contain deployment id in RSC payload request headers",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app/edge",
-        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /pages-edge"
+        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /pages-edge",
+        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should contain deployment id in RSC payload request headers"
       ],
       "pending": [],
       "flakey": [],
