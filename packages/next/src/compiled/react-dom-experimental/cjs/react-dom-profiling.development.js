@@ -5951,7 +5951,7 @@
             ? HooksDispatcherOnMountWithHookTypesInDEV
             : HooksDispatcherOnMountInDEV;
       shouldDoubleInvokeUserFnsInHooksDEV = nextRenderLanes =
-        0 !== (workInProgress.mode & 8);
+        (workInProgress.mode & StrictLegacyMode) !== NoMode;
       var children = callComponentInDEV(Component, props, secondArg);
       shouldDoubleInvokeUserFnsInHooksDEV = !1;
       didScheduleRenderPhaseUpdateDuringThisPass &&
@@ -6056,7 +6056,7 @@
     function bailoutHooks(current, workInProgress, lanes) {
       workInProgress.updateQueue = current.updateQueue;
       workInProgress.flags =
-        0 !== (workInProgress.mode & 16)
+        (workInProgress.mode & StrictEffectsMode) !== NoMode
           ? workInProgress.flags & -201328645
           : workInProgress.flags & -2053;
       current.lanes &= ~lanes;
@@ -6911,8 +6911,8 @@
           )));
     }
     function mountEffect(create, deps) {
-      0 !== (currentlyRenderingFiber$1.mode & 16) &&
-      0 === (currentlyRenderingFiber$1.mode & 64)
+      (currentlyRenderingFiber$1.mode & StrictEffectsMode) !== NoMode &&
+      (currentlyRenderingFiber$1.mode & NoStrictPassiveEffectsMode) === NoMode
         ? mountEffectImpl(142608384, Passive, create, deps)
         : mountEffectImpl(8390656, Passive, create, deps);
     }
@@ -6955,7 +6955,8 @@
     }
     function mountLayoutEffect(create, deps) {
       var fiberFlags = 4194308;
-      0 !== (currentlyRenderingFiber$1.mode & 16) && (fiberFlags |= 67108864);
+      (currentlyRenderingFiber$1.mode & StrictEffectsMode) !== NoMode &&
+        (fiberFlags |= 67108864);
       return mountEffectImpl(fiberFlags, Layout, create, deps);
     }
     function imperativeHandleEffect(create, ref) {
@@ -6988,7 +6989,8 @@
         );
       deps = null !== deps && void 0 !== deps ? deps.concat([ref]) : null;
       var fiberFlags = 4194308;
-      0 !== (currentlyRenderingFiber$1.mode & 16) && (fiberFlags |= 67108864);
+      (currentlyRenderingFiber$1.mode & StrictEffectsMode) !== NoMode &&
+        (fiberFlags |= 67108864);
       mountEffectImpl(
         fiberFlags,
         Layout,
@@ -7537,7 +7539,7 @@
         null !== error &&
         "string" === typeof error.environmentName
       ) {
-        var badgeName = error.environmentName;
+        var JSCompiler_inline_result = error.environmentName;
         error = [
           "%o\n\n%s\n\n%s\n",
           error,
@@ -7550,7 +7552,7 @@
               1,
               badgeFormat + error[0],
               badgeStyle,
-              pad + badgeName + pad,
+              pad + JSCompiler_inline_result + pad,
               resetStyle
             )
           : error.splice(
@@ -7558,10 +7560,12 @@
               0,
               badgeFormat,
               badgeStyle,
-              pad + badgeName + pad,
+              pad + JSCompiler_inline_result + pad,
               resetStyle
             );
-        console.error.apply(console, error);
+        error.unshift(console);
+        JSCompiler_inline_result = bind.apply(console.error, error);
+        JSCompiler_inline_result();
       } else
         console.error(
           "%o\n\n%s\n\n%s\n",
@@ -8128,7 +8132,7 @@
           ),
           (didWarnAboutBadClass[componentName] = !0));
       }
-      workInProgress.mode & 8 &&
+      workInProgress.mode & StrictLegacyMode &&
         ReactStrictModeWarnings.recordLegacyContextWarning(
           workInProgress,
           null
@@ -8261,7 +8265,7 @@
           null !== _instance &&
           (state = readContext(_instance));
         _instance = new Component(nextProps, state);
-        if (workInProgress.mode & 8) {
+        if (workInProgress.mode & StrictLegacyMode) {
           setIsStrictModeForDevtools(!0);
           try {
             _instance = new Component(nextProps, state);
@@ -8468,7 +8472,7 @@
               "%s: It is not recommended to assign props directly to state because updates to props won't be reflected in state. In most cases, it is better to use props directly.",
               state
             )));
-        workInProgress.mode & 8 &&
+        workInProgress.mode & StrictLegacyMode &&
           ReactStrictModeWarnings.recordLegacyContextWarning(
             workInProgress,
             _instance
@@ -8511,7 +8515,8 @@
           (_instance.state = workInProgress.memoizedState));
         "function" === typeof _instance.componentDidMount &&
           (workInProgress.flags |= 4194308);
-        0 !== (workInProgress.mode & 16) && (workInProgress.flags |= 67108864);
+        (workInProgress.mode & StrictEffectsMode) !== NoMode &&
+          (workInProgress.flags |= 67108864);
         _instance = !0;
       } else if (null === current$jscomp$0) {
         _instance = workInProgress.stateNode;
@@ -8574,11 +8579,11 @@
                     _instance.UNSAFE_componentWillMount()),
                 "function" === typeof _instance.componentDidMount &&
                   (workInProgress.flags |= 4194308),
-                0 !== (workInProgress.mode & 16) &&
+                (workInProgress.mode & StrictEffectsMode) !== NoMode &&
                   (workInProgress.flags |= 67108864))
               : ("function" === typeof _instance.componentDidMount &&
                   (workInProgress.flags |= 4194308),
-                0 !== (workInProgress.mode & 16) &&
+                (workInProgress.mode & StrictEffectsMode) !== NoMode &&
                   (workInProgress.flags |= 67108864),
                 (workInProgress.memoizedProps = nextProps),
                 (workInProgress.memoizedState = oldContext)),
@@ -8588,7 +8593,7 @@
             (_instance = lane))
           : ("function" === typeof _instance.componentDidMount &&
               (workInProgress.flags |= 4194308),
-            0 !== (workInProgress.mode & 16) &&
+            (workInProgress.mode & StrictEffectsMode) !== NoMode &&
               (workInProgress.flags |= 67108864),
             (_instance = !1));
       } else {
@@ -8697,7 +8702,7 @@
         else {
           markComponentRenderStarted(workInProgress);
           Component = callRenderInDEV(lane);
-          if (workInProgress.mode & 8) {
+          if (workInProgress.mode & StrictLegacyMode) {
             setIsStrictModeForDevtools(!0);
             try {
               callRenderInDEV(lane);
@@ -8850,7 +8855,7 @@
                         : null,
                     retryLane: OffscreenLane
                   }),
-                  (instance = createFiber(18, null, null, 0)),
+                  (instance = createFiber(18, null, null, NoMode)),
                   (instance.stateNode = JSCompiler_temp),
                   (instance.return = workInProgress),
                   (workInProgress.child = instance),
@@ -10677,7 +10682,7 @@
                       newState,
                       nextProps
                     );
-                    if (updateLane.mode & 8) {
+                    if (updateLane.mode & StrictLegacyMode) {
                       setIsStrictModeForDevtools(!0);
                       try {
                         partialState.call(instance, newState, nextProps);
@@ -10702,7 +10707,7 @@
                       newState,
                       nextProps
                     );
-                    if (updateLane.mode & 8) {
+                    if (updateLane.mode & StrictLegacyMode) {
                       setIsStrictModeForDevtools(!0);
                       try {
                         nextState.call(instance, newState, nextProps);
@@ -10799,7 +10804,7 @@
     ) {
       var prevState = workInProgress.memoizedState,
         partialState = getDerivedStateFromProps(nextProps, prevState);
-      if (workInProgress.mode & 8) {
+      if (workInProgress.mode & StrictLegacyMode) {
         setIsStrictModeForDevtools(!0);
         try {
           partialState = getDerivedStateFromProps(nextProps, prevState);
@@ -10839,7 +10844,7 @@
           newState,
           nextContext
         );
-        if (workInProgress.mode & 8) {
+        if (workInProgress.mode & StrictLegacyMode) {
           setIsStrictModeForDevtools(!0);
           try {
             oldProps = instance.shouldComponentUpdate(
@@ -10905,7 +10910,7 @@
     }
     function shouldProfile(current) {
       return (
-        0 !== (current.mode & 2) &&
+        (current.mode & ProfileMode) !== NoMode &&
         (executionContext & CommitContext) !== NoContext
       );
     }
@@ -11346,7 +11351,9 @@
             props.autoFocus && instance.focus();
             break a;
           case "img":
-            props.src && (instance.src = props.src);
+            props.src
+              ? (instance.src = props.src)
+              : props.srcSet && (instance.srcset = props.srcSet);
         }
       } catch (error) {
         captureCommitPhaseError(finishedWork, finishedWork.return, error);
@@ -13484,7 +13491,8 @@
             );
           case REACT_STRICT_MODE_TYPE:
             fiberTag = 8;
-            mode |= 24;
+            mode |= StrictLegacyMode;
+            mode |= StrictEffectsMode;
             break;
           case REACT_PROFILER_TYPE:
             return (
@@ -13495,7 +13503,7 @@
                   'Profiler must specify an "id" of type `string` as a prop. Received the type `%s` instead.',
                   typeof type.id
                 ),
-              (key = createFiber(12, type, key, owner | 2)),
+              (key = createFiber(12, type, key, owner | ProfileMode)),
               (key.elementType = REACT_PROFILER_TYPE),
               (key.lanes = lanes),
               (key.stateNode = { effectDuration: 0, passiveEffectDuration: 0 }),
@@ -13716,7 +13724,7 @@
         newChildLanes = 0,
         subtreeFlags = 0;
       if (didBailout)
-        if (0 !== (completedWork.mode & 2)) {
+        if ((completedWork.mode & ProfileMode) !== NoMode) {
           for (
             var _treeBaseDuration = completedWork.selfBaseDuration,
               _child2 = completedWork.child;
@@ -13741,7 +13749,7 @@
               (subtreeFlags |= _treeBaseDuration.flags & 31457280),
               (_treeBaseDuration.return = completedWork),
               (_treeBaseDuration = _treeBaseDuration.sibling);
-      else if (0 !== (completedWork.mode & 2)) {
+      else if ((completedWork.mode & ProfileMode) !== NoMode) {
         _treeBaseDuration = completedWork.actualDuration;
         _child2 = completedWork.selfBaseDuration;
         for (var child = completedWork.child; null !== child; )
@@ -14090,7 +14098,7 @@
                   );
                 _type[internalInstanceKey] = workInProgress;
                 bubbleProperties(workInProgress);
-                0 !== (workInProgress.mode & 2) &&
+                (workInProgress.mode & ProfileMode) !== NoMode &&
                   null !== newProps &&
                   ((_type = workInProgress.child),
                   null !== _type &&
@@ -14103,7 +14111,7 @@
                     (workInProgress.memoizedState = null),
                   (workInProgress.flags |= 4),
                   bubbleProperties(workInProgress),
-                  0 !== (workInProgress.mode & 2) &&
+                  (workInProgress.mode & ProfileMode) !== NoMode &&
                     null !== newProps &&
                     ((_type = workInProgress.child),
                     null !== _type &&
@@ -14126,7 +14134,7 @@
           if (0 !== (workInProgress.flags & 128))
             return (
               (workInProgress.lanes = renderLanes),
-              0 !== (workInProgress.mode & 2) &&
+              (workInProgress.mode & ProfileMode) !== NoMode &&
                 transferActualDuration(workInProgress),
               workInProgress
             );
@@ -14149,7 +14157,7 @@
             (workInProgress.child.flags |= 8192);
           scheduleRetryEffect(workInProgress, workInProgress.updateQueue);
           bubbleProperties(workInProgress);
-          0 !== (workInProgress.mode & 2) &&
+          (workInProgress.mode & ProfileMode) !== NoMode &&
             newProps &&
             ((current = workInProgress.child),
             null !== current &&
@@ -14327,7 +14335,7 @@
             (current = workInProgress.flags),
             current & 65536
               ? ((workInProgress.flags = (current & -65537) | 128),
-                0 !== (workInProgress.mode & 2) &&
+                (workInProgress.mode & ProfileMode) !== NoMode &&
                   transferActualDuration(workInProgress),
                 workInProgress)
               : null
@@ -14359,7 +14367,7 @@
           current = workInProgress.flags;
           return current & 65536
             ? ((workInProgress.flags = (current & -65537) | 128),
-              0 !== (workInProgress.mode & 2) &&
+              (workInProgress.mode & ProfileMode) !== NoMode &&
                 transferActualDuration(workInProgress),
               workInProgress)
             : null;
@@ -14378,7 +14386,7 @@
             (current = workInProgress.flags),
             current & 65536
               ? ((workInProgress.flags = (current & -65537) | 128),
-                0 !== (workInProgress.mode & 2) &&
+                (workInProgress.mode & ProfileMode) !== NoMode &&
                   transferActualDuration(workInProgress),
                 workInProgress)
               : null
@@ -14957,7 +14965,7 @@
           );
       else
         switch (
-          (erroredWork.mode & 2 &&
+          (erroredWork.mode & ProfileMode &&
             stopProfilerTimerIfRunningAndRecordDelta(erroredWork, !0),
           markComponentRenderStopped(),
           workInProgressSuspendedReason)
@@ -15242,7 +15250,7 @@
     }
     function performUnitOfWork(unitOfWork) {
       var current = unitOfWork.alternate;
-      0 !== (unitOfWork.mode & 2)
+      (unitOfWork.mode & ProfileMode) !== NoMode
         ? (startProfilerTimer(unitOfWork),
           (current = runWithFiberInDEV(
             unitOfWork,
@@ -15271,7 +15279,7 @@
     }
     function replayBeginWork(unitOfWork) {
       var current = unitOfWork.alternate,
-        isProfilingMode = 0 !== (unitOfWork.mode & 2);
+        isProfilingMode = (unitOfWork.mode & ProfileMode) !== NoMode;
       isProfilingMode && startProfilerTimer(unitOfWork);
       switch (unitOfWork.tag) {
         case 15:
@@ -15351,7 +15359,7 @@
               workInProgress = unitOfWork;
               break a;
             }
-            if (0 !== (root.mode & 2)) {
+            if ((root.mode & ProfileMode) !== NoMode) {
               stopProfilerTimerIfRunningAndRecordDelta(root, !1);
               unitOfWork = root.actualDuration;
               for (thrownValue = root.child; null !== thrownValue; )
@@ -15380,7 +15388,7 @@
           );
         var current = completedWork.alternate;
         unitOfWork = completedWork.return;
-        0 === (completedWork.mode & 2)
+        (completedWork.mode & ProfileMode) === NoMode
           ? (current = runWithFiberInDEV(
               completedWork,
               completeWork,
@@ -15910,7 +15918,7 @@
                   doubleInvokeEffectsOnFiber,
                   root,
                   fiber,
-                  0 === (fiber.mode & 64)
+                  (fiber.mode & NoStrictPassiveEffectsMode) === NoMode
                 )
               : recursivelyTraverseAndDoubleInvokeEffectsInDEV(
                   root,
@@ -15949,7 +15957,8 @@
     }
     function commitDoubleInvokeEffectsInDEV(root) {
       var doubleInvokeEffects = !0;
-      root.current.mode & 24 || (doubleInvokeEffects = !1);
+      root.current.mode & (StrictLegacyMode | StrictEffectsMode) ||
+        (doubleInvokeEffects = !1);
       recursivelyTraverseAndDoubleInvokeEffectsInDEV(
         root,
         root.current,
@@ -20267,7 +20276,6 @@
       initialChildren,
       hydrationCallbacks,
       isStrictMode,
-      concurrentUpdatesByDefaultOverride,
       identifierPrefix,
       onUncaughtError,
       onCaughtError,
@@ -20285,9 +20293,9 @@
         onRecoverableError,
         formState
       );
-      tag = 1;
-      !0 === isStrictMode && (tag |= 24);
-      isDevToolsPresent && (tag |= 2);
+      tag = ConcurrentMode;
+      !0 === isStrictMode && (tag |= StrictLegacyMode | StrictEffectsMode);
+      isDevToolsPresent && (tag |= ProfileMode);
       isStrictMode = createFiber(3, null, null, tag);
       containerInfo.current = isStrictMode;
       isStrictMode.stateNode = containerInfo;
@@ -22351,6 +22359,12 @@
     Object.freeze(emptyContextObject);
     var resolveFamily = null,
       failedBoundaries = null,
+      NoMode = 0,
+      ConcurrentMode = 1,
+      ProfileMode = 2,
+      StrictLegacyMode = 8,
+      StrictEffectsMode = 16,
+      NoStrictPassiveEffectsMode = 64,
       ReactStrictModeWarnings = {
         recordUnsafeLifecycleWarnings: function () {},
         flushPendingUnsafeLifecycleWarnings: function () {},
@@ -22373,20 +22387,20 @@
         ("function" === typeof instance.componentWillMount &&
           !0 !== instance.componentWillMount.__suppressDeprecationWarning &&
           pendingComponentWillMountWarnings.push(fiber),
-        fiber.mode & 8 &&
+        fiber.mode & StrictLegacyMode &&
           "function" === typeof instance.UNSAFE_componentWillMount &&
           pendingUNSAFE_ComponentWillMountWarnings.push(fiber),
         "function" === typeof instance.componentWillReceiveProps &&
           !0 !==
             instance.componentWillReceiveProps.__suppressDeprecationWarning &&
           pendingComponentWillReceivePropsWarnings.push(fiber),
-        fiber.mode & 8 &&
+        fiber.mode & StrictLegacyMode &&
           "function" === typeof instance.UNSAFE_componentWillReceiveProps &&
           pendingUNSAFE_ComponentWillReceivePropsWarnings.push(fiber),
         "function" === typeof instance.componentWillUpdate &&
           !0 !== instance.componentWillUpdate.__suppressDeprecationWarning &&
           pendingComponentWillUpdateWarnings.push(fiber),
-        fiber.mode & 8 &&
+        fiber.mode & StrictLegacyMode &&
           "function" === typeof instance.UNSAFE_componentWillUpdate &&
           pendingUNSAFE_ComponentWillUpdateWarnings.push(fiber));
     };
@@ -22501,7 +22515,8 @@
     ) {
       var strictRoot = null;
       for (var node = fiber; null !== node; )
-        node.mode & 8 && (strictRoot = node), (node = node.return);
+        node.mode & StrictLegacyMode && (strictRoot = node),
+          (node = node.return);
       null === strictRoot
         ? console.error(
             "Expected to find a StrictMode component in a strict mode tree. This error is likely caused by a bug in React. Please file an issue."
@@ -24557,7 +24572,8 @@
       badgeStyle =
         "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
       resetStyle = "",
-      pad = " ";
+      pad = " ",
+      bind = Function.prototype.bind;
     var didWarnAboutNestedUpdates = !1;
     var overrideHookState = null,
       overrideHookStateDeletePath = null,
@@ -24714,11 +24730,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-experimental-76002254-20240724" !== isomorphicReactPackageVersion)
+      if ("19.0.0-experimental-941e1b4a-20240729" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-experimental-76002254-20240724\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-experimental-941e1b4a-20240729\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -24773,12 +24789,12 @@
           scheduleRoot: scheduleRoot,
           setRefreshHandler: setRefreshHandler,
           getCurrentFiber: getCurrentFiberForDevTools,
-          reconcilerVersion: "19.0.0-experimental-76002254-20240724"
+          reconcilerVersion: "19.0.0-experimental-941e1b4a-20240729"
         });
       })({
         findFiberByHostInstance: getClosestInstanceFromNode,
         bundleType: 1,
-        version: "19.0.0-experimental-76002254-20240724",
+        version: "19.0.0-experimental-941e1b4a-20240729",
         rendererPackageName: "react-dom"
       }) &&
       canUseDOM &&
@@ -24875,7 +24891,6 @@
         null,
         null,
         isStrictMode,
-        !1,
         identifierPrefix,
         onUncaughtError,
         onCaughtError,
@@ -24944,7 +24959,6 @@
         initialChildren,
         null != options ? options : null,
         isStrictMode,
-        !1,
         identifierPrefix,
         onUncaughtError,
         onCaughtError,
@@ -25238,7 +25252,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.0.0-experimental-76002254-20240724";
+    exports.version = "19.0.0-experimental-941e1b4a-20240729";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

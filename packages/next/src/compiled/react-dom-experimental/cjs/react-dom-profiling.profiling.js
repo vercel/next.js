@@ -8049,7 +8049,9 @@ function commitHostComponentMount(finishedWork) {
         props.autoFocus && instance.focus();
         break a;
       case "img":
-        props.src && (instance.src = props.src);
+        props.src
+          ? (instance.src = props.src)
+          : props.srcSet && (instance.srcset = props.srcSet);
     }
   } catch (error) {
     captureCommitPhaseError(finishedWork, finishedWork.return, error);
@@ -14918,7 +14920,6 @@ function createFiberRoot(
   initialChildren,
   hydrationCallbacks,
   isStrictMode,
-  concurrentUpdatesByDefaultOverride,
   identifierPrefix,
   onUncaughtError,
   onCaughtError,
@@ -15615,16 +15616,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1740 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1739 = React.version;
 if (
-  "19.0.0-experimental-76002254-20240724" !==
-  isomorphicReactPackageVersion$jscomp$inline_1740
+  "19.0.0-experimental-941e1b4a-20240729" !==
+  isomorphicReactPackageVersion$jscomp$inline_1739
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1740,
-      "19.0.0-experimental-76002254-20240724"
+      isomorphicReactPackageVersion$jscomp$inline_1739,
+      "19.0.0-experimental-941e1b4a-20240729"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15640,10 +15641,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var devToolsConfig$jscomp$inline_1747 = {
+var devToolsConfig$jscomp$inline_1746 = {
   findFiberByHostInstance: getClosestInstanceFromNode,
   bundleType: 0,
-  version: "19.0.0-experimental-76002254-20240724",
+  version: "19.0.0-experimental-941e1b4a-20240729",
   rendererPackageName: "react-dom"
 };
 (function (internals) {
@@ -15660,10 +15661,10 @@ var devToolsConfig$jscomp$inline_1747 = {
   } catch (err) {}
   return hook.checkDCE ? !0 : !1;
 })({
-  bundleType: devToolsConfig$jscomp$inline_1747.bundleType,
-  version: devToolsConfig$jscomp$inline_1747.version,
-  rendererPackageName: devToolsConfig$jscomp$inline_1747.rendererPackageName,
-  rendererConfig: devToolsConfig$jscomp$inline_1747.rendererConfig,
+  bundleType: devToolsConfig$jscomp$inline_1746.bundleType,
+  version: devToolsConfig$jscomp$inline_1746.version,
+  rendererPackageName: devToolsConfig$jscomp$inline_1746.rendererPackageName,
+  rendererConfig: devToolsConfig$jscomp$inline_1746.rendererConfig,
   overrideHookState: null,
   overrideHookStateDeletePath: null,
   overrideHookStateRenamePath: null,
@@ -15679,14 +15680,14 @@ var devToolsConfig$jscomp$inline_1747 = {
     return null === fiber ? null : fiber.stateNode;
   },
   findFiberByHostInstance:
-    devToolsConfig$jscomp$inline_1747.findFiberByHostInstance ||
+    devToolsConfig$jscomp$inline_1746.findFiberByHostInstance ||
     emptyFindFiberByHostInstance,
   findHostInstancesForRefresh: null,
   scheduleRefresh: null,
   scheduleRoot: null,
   setRefreshHandler: null,
   getCurrentFiber: null,
-  reconcilerVersion: "19.0.0-experimental-76002254-20240724"
+  reconcilerVersion: "19.0.0-experimental-941e1b4a-20240729"
 });
 function noop() {}
 function getCrossOriginStringAs(as, input) {
@@ -15744,7 +15745,6 @@ exports.createRoot = function (container, options) {
     null,
     null,
     isStrictMode,
-    !1,
     identifierPrefix,
     onUncaughtError,
     onCaughtError,
@@ -15799,7 +15799,6 @@ exports.hydrateRoot = function (container, initialChildren, options) {
     initialChildren,
     null != options ? options : null,
     isStrictMode,
-    !1,
     identifierPrefix,
     onUncaughtError,
     onCaughtError,
@@ -15940,7 +15939,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.0.0-experimental-76002254-20240724";
+exports.version = "19.0.0-experimental-941e1b4a-20240729";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

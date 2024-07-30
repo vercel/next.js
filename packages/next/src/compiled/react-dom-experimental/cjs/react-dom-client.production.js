@@ -7755,7 +7755,9 @@ function commitHostComponentMount(finishedWork) {
         props.autoFocus && instance.focus();
         break a;
       case "img":
-        props.src && (instance.src = props.src);
+        props.src
+          ? (instance.src = props.src)
+          : props.srcSet && (instance.srcset = props.srcSet);
     }
   } catch (error) {
     captureCommitPhaseError(finishedWork, finishedWork.return, error);
@@ -14219,7 +14221,6 @@ function createFiberRoot(
   initialChildren,
   hydrationCallbacks,
   isStrictMode,
-  concurrentUpdatesByDefaultOverride,
   identifierPrefix,
   onUncaughtError,
   onCaughtError,
@@ -14901,16 +14902,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1651 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1650 = React.version;
 if (
-  "19.0.0-experimental-76002254-20240724" !==
-  isomorphicReactPackageVersion$jscomp$inline_1651
+  "19.0.0-experimental-941e1b4a-20240729" !==
+  isomorphicReactPackageVersion$jscomp$inline_1650
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1651,
-      "19.0.0-experimental-76002254-20240724"
+      isomorphicReactPackageVersion$jscomp$inline_1650,
+      "19.0.0-experimental-941e1b4a-20240729"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -14926,17 +14927,17 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var devToolsConfig$jscomp$inline_1658 = {
+var devToolsConfig$jscomp$inline_1657 = {
   findFiberByHostInstance: getClosestInstanceFromNode,
   bundleType: 0,
-  version: "19.0.0-experimental-76002254-20240724",
+  version: "19.0.0-experimental-941e1b4a-20240729",
   rendererPackageName: "react-dom"
 };
-var internals$jscomp$inline_2024 = {
-  bundleType: devToolsConfig$jscomp$inline_1658.bundleType,
-  version: devToolsConfig$jscomp$inline_1658.version,
-  rendererPackageName: devToolsConfig$jscomp$inline_1658.rendererPackageName,
-  rendererConfig: devToolsConfig$jscomp$inline_1658.rendererConfig,
+var internals$jscomp$inline_2023 = {
+  bundleType: devToolsConfig$jscomp$inline_1657.bundleType,
+  version: devToolsConfig$jscomp$inline_1657.version,
+  rendererPackageName: devToolsConfig$jscomp$inline_1657.rendererPackageName,
+  rendererConfig: devToolsConfig$jscomp$inline_1657.rendererConfig,
   overrideHookState: null,
   overrideHookStateDeletePath: null,
   overrideHookStateRenamePath: null,
@@ -14952,26 +14953,26 @@ var internals$jscomp$inline_2024 = {
     return null === fiber ? null : fiber.stateNode;
   },
   findFiberByHostInstance:
-    devToolsConfig$jscomp$inline_1658.findFiberByHostInstance ||
+    devToolsConfig$jscomp$inline_1657.findFiberByHostInstance ||
     emptyFindFiberByHostInstance,
   findHostInstancesForRefresh: null,
   scheduleRefresh: null,
   scheduleRoot: null,
   setRefreshHandler: null,
   getCurrentFiber: null,
-  reconcilerVersion: "19.0.0-experimental-76002254-20240724"
+  reconcilerVersion: "19.0.0-experimental-941e1b4a-20240729"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2025 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2024 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2025.isDisabled &&
-    hook$jscomp$inline_2025.supportsFiber
+    !hook$jscomp$inline_2024.isDisabled &&
+    hook$jscomp$inline_2024.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2025.inject(
-        internals$jscomp$inline_2024
+      (rendererID = hook$jscomp$inline_2024.inject(
+        internals$jscomp$inline_2023
       )),
-        (injectedHook = hook$jscomp$inline_2025);
+        (injectedHook = hook$jscomp$inline_2024);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -15001,7 +15002,6 @@ exports.createRoot = function (container, options) {
     null,
     null,
     isStrictMode,
-    !1,
     identifierPrefix,
     onUncaughtError,
     onCaughtError,
@@ -15044,7 +15044,6 @@ exports.hydrateRoot = function (container, initialChildren, options) {
     initialChildren,
     null != options ? options : null,
     isStrictMode,
-    !1,
     identifierPrefix,
     onUncaughtError,
     onCaughtError,
@@ -15065,4 +15064,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.0.0-experimental-76002254-20240724";
+exports.version = "19.0.0-experimental-941e1b4a-20240729";

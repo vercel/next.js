@@ -1253,7 +1253,8 @@
       nonce,
       temporaryReferences,
       findSourceMapURL,
-      replayConsole
+      replayConsole,
+      environmentName
     ) {
       var chunks = new Map();
       this._bundlerConfig = bundlerConfig;
@@ -1269,6 +1270,8 @@
       this._tempRefs = temporaryReferences;
       this._debugFindSourceMapURL = findSourceMapURL;
       this._replayConsole = replayConsole;
+      this._rootEnvironmentName =
+        void 0 === environmentName ? "Server" : environmentName;
       this._fromJSON = createFromJSONCallback(this);
     }
     function resolveBuffer(response, id, buffer) {
@@ -1492,7 +1495,14 @@
         }
       );
     }
-    function createFakeFunction(name, filename, sourceMap, line, col) {
+    function createFakeFunction(
+      name,
+      filename,
+      sourceMap,
+      line,
+      col,
+      environmentName
+    ) {
       name || (name = "<anonymous>");
       var encodedName = JSON.stringify(name);
       1 >= line
@@ -1515,6 +1525,8 @@
       sourceMap
         ? ((col +=
             "\n//# sourceURL=rsc://React/" +
+            encodeURIComponent(environmentName) +
+            "/" +
             filename +
             "?" +
             fakeFunctionIdx++),
@@ -1537,7 +1549,8 @@
         (null != debugInfo.stack &&
           (debugInfo.debugStack = createFakeJSXCallStackInDEV(
             response,
-            debugInfo.stack
+            debugInfo.stack,
+            null == debugInfo.env ? "" : debugInfo.env
           )),
         null != debugInfo.owner &&
           initializeFakeStack(response, debugInfo.owner));
@@ -1731,19 +1744,22 @@
           (response._debugInfo || (response._debugInfo = [])).push(buffer);
           break;
         case 87:
-          if (response._replayConsole)
+          if (response._replayConsole) {
+            buffer = JSON.parse(buffer, response._fromJSON);
+            response = buffer[0];
+            id = buffer[3];
+            tag = buffer.slice(4);
             b: {
-              (buffer = JSON.parse(buffer, response._fromJSON)),
-                (response = buffer[0]),
-                (id = buffer[3]),
-                (tag = buffer.slice(4)),
-                (buffer = 0);
+              buffer = 0;
               switch (response) {
                 case "dir":
                 case "dirxml":
                 case "groupEnd":
                 case "table":
-                  console[response].apply(console, tag);
+                  response = bind.apply(
+                    console[response],
+                    [console].concat(tag)
+                  );
                   break b;
                 case "assert":
                   buffer = 1;
@@ -1766,8 +1782,11 @@
                     " " + id + " ",
                     ""
                   );
-              console[response].apply(console, tag);
+              tag.unshift(console);
+              response = bind.apply(console[response], tag);
             }
+            response();
+          }
           break;
         case 82:
           startReadableStream(response, id, void 0);
@@ -1869,7 +1888,8 @@
           ? options.temporaryReferences
           : void 0,
         options && options.findSourceMapURL ? options.findSourceMapURL : void 0,
-        options ? !1 !== options.replayConsoleLogs : !0
+        options ? !1 !== options.replayConsoleLogs : !0,
+        options && options.environmentName ? options.environmentName : void 0
       );
     }
     function startReadingFromStream(response, stream) {
@@ -1970,6 +1990,7 @@
     }
     var ReactDOM = require("react-dom"),
       decoderOptions = { stream: !0 },
+      bind = Function.prototype.bind,
       chunkCache = new Map(),
       ReactDOMSharedInternals =
         ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
@@ -2026,20 +2047,28 @@
       fakeFunctionCache = new Map(),
       fakeFunctionIdx = 0;
     ReactDOM = {
-      "react-stack-bottom-frame": function (response, stack) {
+      "react-stack-bottom-frame": function (response, stack, environmentName) {
         for (var callStack = fakeJSXCallSite, i = 0; i < stack.length; i++) {
           var frame = stack[i],
-            frameKey = frame.join("-"),
+            frameKey = frame.join("-") + "-" + environmentName,
             fn = fakeFunctionCache.get(frameKey);
           if (void 0 === fn) {
             fn = frame[0];
             var filename = frame[1],
               line = frame[2];
             frame = frame[3];
-            var sourceMap = response._debugFindSourceMapURL
-              ? response._debugFindSourceMapURL(filename)
+            var findSourceMapURL = response._debugFindSourceMapURL;
+            findSourceMapURL = findSourceMapURL
+              ? findSourceMapURL(filename, environmentName)
               : null;
-            fn = createFakeFunction(fn, filename, sourceMap, line, frame);
+            fn = createFakeFunction(
+              fn,
+              filename,
+              findSourceMapURL,
+              line,
+              frame,
+              environmentName
+            );
             fakeFunctionCache.set(frameKey, fn);
           }
           callStack = fn.bind(null, callStack);

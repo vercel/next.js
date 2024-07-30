@@ -464,8 +464,12 @@
             "\n  " + objKind + "\n  " + objectOrArray)
           : "\n  " + objKind;
     }
-    function isNotExternal(stackFrame) {
-      return !externalRegExp.test(stackFrame[1]);
+    function defaultFilterStackFrame(filename) {
+      return (
+        "" !== filename &&
+        !filename.startsWith("node:") &&
+        !filename.includes("node_modules")
+      );
     }
     function getCurrentStackInDEV() {
       return "";
@@ -480,8 +484,9 @@
       onError,
       identifierPrefix,
       onPostpone,
+      temporaryReferences,
       environmentName,
-      temporaryReferences
+      filterStackFrame
     ) {
       if (
         null !== ReactSharedInternalsServer.A &&
@@ -530,6 +535,10 @@
                 return environmentName;
               }
             : environmentName;
+      this.filterStackFrame =
+        void 0 === filterStackFrame
+          ? defaultFilterStackFrame
+          : filterStackFrame;
       this.didWarnForKey = null;
       model = createTask(this, model, null, !1, abortSet, null);
       pingedTasks.push(model);
@@ -765,7 +774,7 @@
       lazyType._debugInfo = wakeable._debugInfo || [];
       return lazyType;
     }
-    function callWithDebugContextInDEV(task, callback, arg) {
+    function callWithDebugContextInDEV(request, task, callback, arg) {
       currentOwner = { env: task.environmentName, owner: task.debugOwner };
       try {
         return callback(arg);
@@ -834,7 +843,7 @@
                 Object.prototype.toString.call(Component) &&
                 "[object Generator]" ===
                   Object.prototype.toString.call(iterableChild)) ||
-              callWithDebugContextInDEV(task, function () {
+              callWithDebugContextInDEV(request, task, function () {
                 console.error(
                   "Returning an Iterator from a Server Component is not supported since it cannot be looped over more than once. "
                 );
@@ -857,7 +866,7 @@
                 Object.prototype.toString.call(Component) &&
                 "[object AsyncGenerator]" ===
                   Object.prototype.toString.call(_iterableChild)) ||
-              callWithDebugContextInDEV(task, function () {
+              callWithDebugContextInDEV(request, task, function () {
                 console.error(
                   "Returning an AsyncIterator from a Server Component is not supported since it cannot be looped over more than once. "
                 );
@@ -873,10 +882,10 @@
         ? (task.keyPath =
             null === prevThenableState ? key : prevThenableState + "," + key)
         : null === prevThenableState && (task.implicitSlot = !0);
-      request = renderModelDestructive(request, task, emptyRoot, "", props);
+      key = renderModelDestructive(request, task, emptyRoot, "", props);
       task.keyPath = prevThenableState;
       task.implicitSlot = componentDebugID;
-      return request;
+      return key;
     }
     function renderFragment(request, task, children) {
       for (var i = 0; i < children.length; i++) {
@@ -1035,7 +1044,7 @@
           "object" !== typeof originalValue ||
             originalValue === value ||
             originalValue instanceof Date ||
-            callWithDebugContextInDEV(task, function () {
+            callWithDebugContextInDEV(request, task, function () {
               "Object" !== objectName(originalValue)
                 ? "string" === typeof jsxChildrenParents.get(parent)
                   ? console.error(
@@ -1460,10 +1469,11 @@
         elementReference = value[ASYNC_ITERATOR];
         if ("function" === typeof elementReference)
           return renderAsyncFragment(request, task, value, elementReference);
-        request = getPrototypeOf(value);
+        elementReference = getPrototypeOf(value);
         if (
-          request !== ObjectPrototype &&
-          (null === request || null !== getPrototypeOf(request))
+          elementReference !== ObjectPrototype &&
+          (null === elementReference ||
+            null !== getPrototypeOf(elementReference))
         )
           throw Error(
             "Only plain objects, and a few built-ins, can be passed to Client Components from Server Components. Classes or null prototypes are not supported." +
@@ -1481,7 +1491,7 @@
         )
           return { name: value.name, env: value.env, owner: value.owner };
         if ("Object" !== objectName(value))
-          callWithDebugContextInDEV(task, function () {
+          callWithDebugContextInDEV(request, task, function () {
             console.error(
               "Only plain objects can be passed to Client Components from Server Components. %s objects are not supported.%s",
               objectName(value),
@@ -1489,7 +1499,7 @@
             );
           });
         else if (!isSimpleObject(value))
-          callWithDebugContextInDEV(task, function () {
+          callWithDebugContextInDEV(request, task, function () {
             console.error(
               "Only plain objects can be passed to Client Components from Server Components. Classes or other objects with methods are not supported.%s",
               describeObjectForErrorMessage(parent, parentPropertyName)
@@ -1498,7 +1508,7 @@
         else if (Object.getOwnPropertySymbols) {
           var symbols = Object.getOwnPropertySymbols(value);
           0 < symbols.length &&
-            callWithDebugContextInDEV(task, function () {
+            callWithDebugContextInDEV(request, task, function () {
               console.error(
                 "Only plain objects can be passed to Client Components from Server Components. Objects with symbol properties like %s are not supported.%s",
                 symbols[0].description,
@@ -1603,11 +1613,12 @@
               ? requestStorage.run(
                   void 0,
                   callWithDebugContextInDEV,
+                  request,
                   task,
                   onError,
                   error
                 )
-              : callWithDebugContextInDEV(task, onError, error)
+              : callWithDebugContextInDEV(request, task, onError, error)
             : supportsRequestStorage
               ? requestStorage.run(void 0, onError, error)
               : onError(error);
@@ -1633,6 +1644,7 @@
       try {
         if (error instanceof Error) {
           var message = String(error.message);
+          var filterStackFrame = request.filterStackFrame;
           a: {
             var previousPrepare = Error.prepareStackTrace;
             Error.prepareStackTrace = prepareStackTrace;
@@ -1670,16 +1682,21 @@
               ]);
             }
           }
-          var stack$jscomp$0 = stack.filter(isNotExternal);
-          for (frames = 0; frames < stack$jscomp$0.length; frames++) {
-            var callsite = stack$jscomp$0[frames],
+          for (frames = 0; frames < stack.length; frames++) {
+            var callsite = stack[frames],
+              functionName = callsite[0],
               url = callsite[1];
             if (url.startsWith("rsc://React/")) {
-              var suffixIdx = url.lastIndexOf("?");
-              -1 < suffixIdx && (callsite[1] = url.slice(12, suffixIdx));
+              var envIdx = url.indexOf("/", 12),
+                suffixIdx = url.lastIndexOf("?");
+              -1 < envIdx &&
+                -1 < suffixIdx &&
+                (url = callsite[1] = url.slice(envIdx + 1, suffixIdx));
             }
+            filterStackFrame(url, functionName) ||
+              (stack.splice(frames, 1), frames--);
           }
-          var stack$jscomp$1 = stack$jscomp$0;
+          var stack$jscomp$0 = stack;
           var errorEnv = error.environmentName;
           "string" === typeof errorEnv && (env = errorEnv);
         } else
@@ -1687,14 +1704,16 @@
             "object" === typeof error && null !== error
               ? describeObjectForErrorMessage(error)
               : String(error)),
-            (stack$jscomp$1 = []);
+            (stack$jscomp$0 = []);
       } catch (x) {
-        message = "An error occurred but serializing the error message failed.";
+        (message =
+          "An error occurred but serializing the error message failed."),
+          (stack$jscomp$0 = []);
       }
       digest = {
         digest: digest,
         message: message,
-        stack: stack$jscomp$1,
+        stack: stack$jscomp$0,
         env: env
       };
       id = id.toString(16) + ":E" + stringify(digest) + "\n";
@@ -3328,7 +3347,6 @@
       jsxPropsParents = new WeakMap(),
       jsxChildrenParents = new WeakMap(),
       CLIENT_REFERENCE_TAG = Symbol.for("react.client.reference"),
-      externalRegExp = /\/node_modules\/|^node:|^$/,
       ObjectPrototype = Object.prototype,
       stringify = JSON.stringify,
       AbortSigil = {},
@@ -3458,8 +3476,9 @@
         options ? options.onError : void 0,
         options ? options.identifierPrefix : void 0,
         options ? options.onPostpone : void 0,
+        options ? options.temporaryReferences : void 0,
         options ? options.environmentName : void 0,
-        options ? options.temporaryReferences : void 0
+        options ? options.filterStackFrame : void 0
       );
       if (options && options.signal) {
         var signal = options.signal;

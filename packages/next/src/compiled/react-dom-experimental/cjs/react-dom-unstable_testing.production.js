@@ -7841,7 +7841,9 @@ function commitHostComponentMount(finishedWork) {
         props.autoFocus && instance.focus();
         break a;
       case "img":
-        props.src && (instance.src = props.src);
+        props.src
+          ? (instance.src = props.src)
+          : props.srcSet && (instance.srcset = props.srcSet);
     }
   } catch (error) {
     captureCommitPhaseError(finishedWork, finishedWork.return, error);
@@ -14548,7 +14550,6 @@ function createFiberRoot(
   initialChildren,
   hydrationCallbacks,
   isStrictMode,
-  concurrentUpdatesByDefaultOverride,
   identifierPrefix,
   onUncaughtError,
   onCaughtError,
@@ -15230,16 +15231,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1680 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1679 = React.version;
 if (
-  "19.0.0-experimental-76002254-20240724" !==
-  isomorphicReactPackageVersion$jscomp$inline_1680
+  "19.0.0-experimental-941e1b4a-20240729" !==
+  isomorphicReactPackageVersion$jscomp$inline_1679
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1680,
-      "19.0.0-experimental-76002254-20240724"
+      isomorphicReactPackageVersion$jscomp$inline_1679,
+      "19.0.0-experimental-941e1b4a-20240729"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15255,17 +15256,17 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var devToolsConfig$jscomp$inline_1687 = {
+var devToolsConfig$jscomp$inline_1686 = {
   findFiberByHostInstance: getClosestInstanceFromNode,
   bundleType: 0,
-  version: "19.0.0-experimental-76002254-20240724",
+  version: "19.0.0-experimental-941e1b4a-20240729",
   rendererPackageName: "react-dom"
 };
-var internals$jscomp$inline_2058 = {
-  bundleType: devToolsConfig$jscomp$inline_1687.bundleType,
-  version: devToolsConfig$jscomp$inline_1687.version,
-  rendererPackageName: devToolsConfig$jscomp$inline_1687.rendererPackageName,
-  rendererConfig: devToolsConfig$jscomp$inline_1687.rendererConfig,
+var internals$jscomp$inline_2057 = {
+  bundleType: devToolsConfig$jscomp$inline_1686.bundleType,
+  version: devToolsConfig$jscomp$inline_1686.version,
+  rendererPackageName: devToolsConfig$jscomp$inline_1686.rendererPackageName,
+  rendererConfig: devToolsConfig$jscomp$inline_1686.rendererConfig,
   overrideHookState: null,
   overrideHookStateDeletePath: null,
   overrideHookStateRenamePath: null,
@@ -15281,26 +15282,26 @@ var internals$jscomp$inline_2058 = {
     return null === fiber ? null : fiber.stateNode;
   },
   findFiberByHostInstance:
-    devToolsConfig$jscomp$inline_1687.findFiberByHostInstance ||
+    devToolsConfig$jscomp$inline_1686.findFiberByHostInstance ||
     emptyFindFiberByHostInstance,
   findHostInstancesForRefresh: null,
   scheduleRefresh: null,
   scheduleRoot: null,
   setRefreshHandler: null,
   getCurrentFiber: null,
-  reconcilerVersion: "19.0.0-experimental-76002254-20240724"
+  reconcilerVersion: "19.0.0-experimental-941e1b4a-20240729"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2059 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2058 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2059.isDisabled &&
-    hook$jscomp$inline_2059.supportsFiber
+    !hook$jscomp$inline_2058.isDisabled &&
+    hook$jscomp$inline_2058.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2059.inject(
-        internals$jscomp$inline_2058
+      (rendererID = hook$jscomp$inline_2058.inject(
+        internals$jscomp$inline_2057
       )),
-        (injectedHook = hook$jscomp$inline_2059);
+        (injectedHook = hook$jscomp$inline_2058);
     } catch (err) {}
 }
 exports.createComponentSelector = function (component) {
@@ -15339,7 +15340,6 @@ exports.createRoot = function (container, options) {
     null,
     null,
     isStrictMode,
-    !1,
     identifierPrefix,
     onUncaughtError,
     onCaughtError,
@@ -15506,7 +15506,6 @@ exports.hydrateRoot = function (container, initialChildren, options) {
     initialChildren,
     null != options ? options : null,
     isStrictMode,
-    !1,
     identifierPrefix,
     onUncaughtError,
     onCaughtError,
@@ -15545,4 +15544,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.0.0-experimental-76002254-20240724";
+exports.version = "19.0.0-experimental-941e1b4a-20240729";

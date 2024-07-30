@@ -3959,7 +3959,7 @@
         null !== error &&
         "string" === typeof error.environmentName
       ) {
-        var badgeName = error.environmentName;
+        var JSCompiler_inline_result = error.environmentName;
         error = [error].slice(0);
         "string" === typeof error[0]
           ? error.splice(
@@ -3967,7 +3967,7 @@
               1,
               "\u001b[0m\u001b[7m%c%s\u001b[0m%c " + error[0],
               "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-              " " + badgeName + " ",
+              " " + JSCompiler_inline_result + " ",
               ""
             )
           : error.splice(
@@ -3975,10 +3975,12 @@
               0,
               "\u001b[0m\u001b[7m%c%s\u001b[0m%c ",
               "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-              " " + badgeName + " ",
+              " " + JSCompiler_inline_result + " ",
               ""
             );
-        console.error.apply(console, error);
+        error.unshift(console);
+        JSCompiler_inline_result = bind.apply(console.error, error);
+        JSCompiler_inline_result();
       } else console.error(error);
       return null;
     }
@@ -4943,87 +4945,114 @@
                 !1
               );
               contentRootSegment.parentFlushed = !0;
-              task.blockedBoundary = newBoundary;
-              task.hoistableState = newBoundary.contentState;
-              task.blockedSegment = contentRootSegment;
-              task.keyPath = keyPath;
-              try {
-                if (
-                  (renderNode(request, task, content, -1),
-                  contentRootSegment.lastPushedText &&
-                    contentRootSegment.textEmbedded &&
-                    contentRootSegment.chunks.push(textSeparator),
-                  (contentRootSegment.status = COMPLETED),
-                  queueCompletedSegment(newBoundary, contentRootSegment),
-                  0 === newBoundary.pendingTasks &&
-                    newBoundary.status === PENDING)
-                ) {
-                  newBoundary.status = COMPLETED;
-                  break a;
-                }
-              } catch (error) {
-                contentRootSegment.status = 4;
-                newBoundary.status = CLIENT_RENDERED;
-                var thrownInfo = getThrownInfo(task.componentStack);
-                var errorDigest = logRecoverableError(
-                  request,
-                  error,
-                  thrownInfo
-                );
-                encodeErrorForBoundary(
-                  newBoundary,
-                  errorDigest,
-                  error,
-                  thrownInfo,
-                  !1
-                );
-                untrackBoundary(request, newBoundary);
-              } finally {
-                (task.blockedBoundary = parentBoundary),
-                  (task.hoistableState = parentHoistableState),
-                  (task.blockedSegment = parentSegment),
-                  (task.keyPath = prevKeyPath$jscomp$3);
-              }
-              var fallbackKeyPath = [
-                  keyPath[0],
-                  "Suspense Fallback",
-                  keyPath[2]
-                ],
-                trackedPostpones = request.trackedPostpones;
-              if (null !== trackedPostpones) {
-                var fallbackReplayNode = [
-                  fallbackKeyPath[1],
-                  fallbackKeyPath[2],
-                  [],
-                  null
-                ];
-                trackedPostpones.workingMap.set(
+              if (null !== request.trackedPostpones) {
+                var fallbackKeyPath = [
+                    keyPath[0],
+                    "Suspense Fallback",
+                    keyPath[2]
+                  ],
+                  fallbackReplayNode = [
+                    fallbackKeyPath[1],
+                    fallbackKeyPath[2],
+                    [],
+                    null
+                  ];
+                request.trackedPostpones.workingMap.set(
                   fallbackKeyPath,
                   fallbackReplayNode
                 );
-                newBoundary.status === POSTPONED
-                  ? (trackedPostpones.workingMap.get(keyPath)[4] =
-                      fallbackReplayNode)
-                  : (newBoundary.trackedFallbackNode = fallbackReplayNode);
+                newBoundary.trackedFallbackNode = fallbackReplayNode;
+                task.blockedSegment = boundarySegment;
+                task.keyPath = fallbackKeyPath;
+                try {
+                  renderNode(request, task, fallback, -1),
+                    boundarySegment.lastPushedText &&
+                      boundarySegment.textEmbedded &&
+                      boundarySegment.chunks.push(textSeparator),
+                    (boundarySegment.status = COMPLETED);
+                } finally {
+                  (task.blockedSegment = parentSegment),
+                    (task.keyPath = prevKeyPath$jscomp$3);
+                }
+                var suspendedPrimaryTask = createRenderTask(
+                  request,
+                  null,
+                  content,
+                  -1,
+                  newBoundary,
+                  contentRootSegment,
+                  newBoundary.contentState,
+                  task.abortSet,
+                  keyPath,
+                  task.formatContext,
+                  task.context,
+                  task.treeContext,
+                  task.componentStack,
+                  task.isFallback
+                );
+                pushComponentStack(suspendedPrimaryTask);
+                request.pingedTasks.push(suspendedPrimaryTask);
+              } else {
+                task.blockedBoundary = newBoundary;
+                task.hoistableState = newBoundary.contentState;
+                task.blockedSegment = contentRootSegment;
+                task.keyPath = keyPath;
+                try {
+                  if (
+                    (renderNode(request, task, content, -1),
+                    contentRootSegment.lastPushedText &&
+                      contentRootSegment.textEmbedded &&
+                      contentRootSegment.chunks.push(textSeparator),
+                    (contentRootSegment.status = COMPLETED),
+                    queueCompletedSegment(newBoundary, contentRootSegment),
+                    0 === newBoundary.pendingTasks &&
+                      newBoundary.status === PENDING)
+                  ) {
+                    newBoundary.status = COMPLETED;
+                    break a;
+                  }
+                } catch (error) {
+                  contentRootSegment.status = 4;
+                  newBoundary.status = CLIENT_RENDERED;
+                  var thrownInfo = getThrownInfo(task.componentStack);
+                  var errorDigest = logRecoverableError(
+                    request,
+                    error,
+                    thrownInfo
+                  );
+                  encodeErrorForBoundary(
+                    newBoundary,
+                    errorDigest,
+                    error,
+                    thrownInfo,
+                    !1
+                  );
+                  untrackBoundary(request, newBoundary);
+                } finally {
+                  (task.blockedBoundary = parentBoundary),
+                    (task.hoistableState = parentHoistableState),
+                    (task.blockedSegment = parentSegment),
+                    (task.keyPath = prevKeyPath$jscomp$3);
+                }
+                var suspendedFallbackTask = createRenderTask(
+                  request,
+                  null,
+                  fallback,
+                  -1,
+                  parentBoundary,
+                  boundarySegment,
+                  newBoundary.fallbackState,
+                  fallbackAbortSet,
+                  [keyPath[0], "Suspense Fallback", keyPath[2]],
+                  task.formatContext,
+                  task.context,
+                  task.treeContext,
+                  task.componentStack,
+                  !0
+                );
+                pushComponentStack(suspendedFallbackTask);
+                request.pingedTasks.push(suspendedFallbackTask);
               }
-              var suspendedFallbackTask = createRenderTask(
-                request,
-                null,
-                fallback,
-                -1,
-                parentBoundary,
-                boundarySegment,
-                newBoundary.fallbackState,
-                fallbackAbortSet,
-                fallbackKeyPath,
-                task.formatContext,
-                task.context,
-                task.treeContext,
-                task.componentStack,
-                !0
-              );
-              pushComponentStack(suspendedFallbackTask);
-              request.pingedTasks.push(suspendedFallbackTask);
             }
             return;
         }
@@ -6009,7 +6038,7 @@
       0 === request.allPendingTasks && completeAll(request);
     }
     function performWork(request$jscomp$1) {
-      if (2 !== request$jscomp$1.status) {
+      if (2 !== request$jscomp$1.status && 1 !== request$jscomp$1.status) {
         var prevContext = currentActiveSnapshot,
           prevDispatcher = ReactSharedInternals.H;
         ReactSharedInternals.H = HooksDispatcher;
@@ -8286,6 +8315,7 @@
       LATE = 3,
       regexForHrefInLinkHeaderURLContext = /[<>\r\n]/g,
       regexForLinkHeaderQuotedParamValueContext = /["';,\r\n]/g,
+      bind = Function.prototype.bind,
       requestStorage = new async_hooks.AsyncLocalStorage(),
       REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       emptyContextObject = {};
@@ -8519,11 +8549,11 @@
       didWarnAboutMaps = !1;
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-rc-76002254-20240724" !== isomorphicReactPackageVersion)
+      if ("19.0.0-rc-941e1b4a-20240729" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-rc-76002254-20240724\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-rc-941e1b4a-20240729\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     exports.renderToPipeableStream = function (children, options) {
@@ -8565,5 +8595,5 @@
         }
       };
     };
-    exports.version = "19.0.0-rc-76002254-20240724";
+    exports.version = "19.0.0-rc-941e1b4a-20240729";
   })();
