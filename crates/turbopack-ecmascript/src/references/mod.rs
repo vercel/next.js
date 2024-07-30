@@ -24,7 +24,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use constant_condition::{ConstantCondition, ConstantConditionValue};
 use constant_value::ConstantValue;
 use indexmap::IndexSet;
@@ -194,7 +194,10 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an asset reference to the analysis result.
-    pub fn add_import_reference(&mut self, reference: Vc<EsmAssetReference>) {
+    pub fn add_import_reference<R>(&mut self, reference: Vc<R>)
+    where
+        R: Upcast<Box<dyn ModuleReference>>,
+    {
         self.references.insert(Vc::upcast(reference));
     }
 
@@ -576,7 +579,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         Some(ModulePart::evaluation())
                     }
                     ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
-                    ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
+                    ImportedSymbol::Part(part_id) => {
+                        evaluation_references.push(i);
+                        Some(ModulePart::internal(*part_id))
+                    }
                     ImportedSymbol::Exports => Some(ModulePart::exports()),
                 },
                 Some(TreeShakingMode::ReexportsOnly) => match &r.imported_symbol {
@@ -585,10 +591,15 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         Some(ModulePart::evaluation())
                     }
                     ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
-                    ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
+                    ImportedSymbol::Part(_) => {
+                        bail!("Internal imports doesn't exist in reexports only mode")
+                    }
                     ImportedSymbol::Exports => None,
                 },
-                None => None,
+                None => {
+                    evaluation_references.push(i);
+                    None
+                }
             },
             special_exports,
             import_externals,
@@ -603,12 +614,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         *r = r.resolve().await?;
     }
 
-    for r in import_references.iter() {
-        // `add_import_reference` will avoid adding duplicate references
-        analysis.add_import_reference(*r);
-    }
     for i in evaluation_references {
-        analysis.add_evaluation_reference(import_references[i]);
+        let reference = import_references[i];
+        analysis.add_evaluation_reference(reference);
+        analysis.add_import_reference(reference);
     }
 
     let (webpack_runtime, webpack_entry, webpack_chunks, esm_exports, esm_star_exports) =
@@ -661,15 +670,18 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             EsmExport::LocalBinding(..) => {}
             EsmExport::ImportedNamespace(reference) => {
                 analysis.add_reexport_reference(reference);
+                analysis.add_import_reference(reference);
             }
             EsmExport::ImportedBinding(reference, ..) => {
                 analysis.add_reexport_reference(reference);
+                analysis.add_import_reference(reference);
             }
             EsmExport::Error => {}
         }
     }
     for &export in esm_star_exports.iter() {
         analysis.add_reexport_reference(export);
+        analysis.add_import_reference(export);
     }
 
     let mut ignore_effect_span = None;
@@ -1076,6 +1088,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                             .add_reference(EsmModuleIdAssetReference::new(*r, Vc::cell(ast_path)))
                     } else {
                         analysis.add_local_reference(*r);
+                        analysis.add_import_reference(*r);
                         analysis.add_binding(EsmBinding::new(*r, export, Vc::cell(ast_path)));
                     }
                 }
