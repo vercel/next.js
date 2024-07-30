@@ -3315,7 +3315,13 @@ function createFromReadableStream(stream, options) {
 function createFromFetch(promiseForResponse, options) {
   var response = createResponseFromOptions(options);
   promiseForResponse.then(function (r) {
-    startReadingFromStream(response, r.body);
+        if (r.body) {
+            startReadingFromStream(response, r.body);
+          } else {
+           r.blob().then(function (blob) {
+               startReadingFromStream(response, blob.stream());
+            })
+          }
   }, function (e) {
     reportGlobalError(response, e);
   });
