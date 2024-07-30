@@ -14779,10 +14779,12 @@
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app",
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app/edge",
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should append dpl query to all assets correctly for /pages-edge",
+        "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should contain deployment id in RSC payload request headers",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app/edge",
-        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /pages-edge"
+        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /pages-edge",
+        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should contain deployment id in RSC payload request headers"
       ],
       "pending": [],
       "flakey": [],
