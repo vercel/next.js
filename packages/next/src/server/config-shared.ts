@@ -199,6 +199,17 @@ export interface ReactCompilerOptions {
   panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
 }
 
+export interface LoggingConfig {
+  fetches?: {
+    fullUrl?: boolean
+    /**
+     * If true, fetch requests that are restored from the HMR cache are logged
+     * during an HMR refresh request, i.e. when editing a server component.
+     */
+    hmrRefreshes?: boolean
+  }
+}
+
 export interface ExperimentalConfig {
   appNavFailHandling?: boolean
   flyingShuttle?: boolean
@@ -853,13 +864,7 @@ export interface NextConfig extends Record<string, any> {
     }
   >
 
-  logging?:
-    | {
-        fetches?: {
-          fullUrl?: boolean
-        }
-      }
-    | false
+  logging?: LoggingConfig | false
 
   /**
    * period (in seconds) where the server allow to serve stale cache

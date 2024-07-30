@@ -192,7 +192,7 @@ export function makeExternalHandler({
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|form|image|legacy\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference$)/
       if (notExternalModules.test(request)) {
         return
       }
