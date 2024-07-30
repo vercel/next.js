@@ -79,6 +79,7 @@ export async function fetchServerResponse(
     [NEXT_ROUTER_STATE_TREE_HEADER]: string
     [NEXT_URL]?: string
     [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
+    'x-deployment-id'?: string
     [NEXT_HMR_REFRESH_HEADER]?: '1'
     // A header that is only added in test mode to assert on fetch priority
     'Next-Test-Fetch-Priority'?: RequestInit['priority']
@@ -107,6 +108,10 @@ export async function fetchServerResponse(
 
   if (nextUrl) {
     headers[NEXT_URL] = nextUrl
+  }
+
+  if (process.env.NEXT_DEPLOYMENT_ID) {
+    headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
   }
 
   const uniqueCacheQuery = hexHash(

@@ -192,8 +192,8 @@ importers:
         specifier: 7.16.0
         version: 7.16.0(eslint@8.56.0)(typescript@5.5.3)
       '@vercel/devlow-bench':
-        specifier: 0.3.1
-        version: 0.3.1(encoding@0.1.13)
+        specifier: 0.3.2
+        version: 0.3.2(encoding@0.1.13)
       '@vercel/fetch':
         specifier: 6.1.1
         version: 6.1.1(@types/node-fetch@2.6.1)(node-fetch@2.6.7(encoding@0.1.13))
@@ -783,7 +783,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.0.0-canary.88
+        specifier: 15.0.0-canary.91
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -844,7 +844,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.0.0-canary.88
+        specifier: 15.0.0-canary.91
         version: link:../next-env
       '@swc/counter':
         specifier: 0.1.3
@@ -975,16 +975,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 15.0.0-canary.88
+        specifier: 15.0.0-canary.91
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.0.0-canary.88
+        specifier: 15.0.0-canary.91
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.0.0-canary.88
+        specifier: 15.0.0-canary.91
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.0.0-canary.88
+        specifier: 15.0.0-canary.91
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1597,7 +1597,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.0.0-canary.88
+        specifier: 15.0.0-canary.91
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -5201,8 +5201,8 @@ packages:
   '@ungap/structured-clone@1.2.0':
     resolution: {integrity: sha512-zuVdFrMJiuCDQUMCzQaD6KL28MjnqqN8XnAqiEq9PNm/hCPTSGfrXCOfwj1ow4LFb/tNymJPwsNbVePc1xFqrQ==}
 
-  '@vercel/devlow-bench@0.3.1':
-    resolution: {integrity: sha512-RbKloNKAj55/JYqhx2QtqVFWKr1f7zvuBVGs8oPksCO6oZkSnvgJhcgjftOpFAzJKUSQ+oUOYIO9oWdjDUjgFw==}
+  '@vercel/devlow-bench@0.3.2':
+    resolution: {integrity: sha512-S5sZLbMpmpmelVoYxXj6aR79sgLDM6Szdow3erbv9Kh7IKLtgldNwRMqMleEaKZZznFx+l3mBrlHs/Cae2pbQg==}
     hasBin: true
 
   '@vercel/fetch-cached-dns@2.0.2':
@@ -19766,7 +19766,7 @@ snapshots:
 
   '@ungap/structured-clone@1.2.0': {}
 
-  '@vercel/devlow-bench@0.3.1(encoding@0.1.13)':
+  '@vercel/devlow-bench@0.3.2(encoding@0.1.13)':
     dependencies:
       '@datadog/datadog-api-client': 1.25.0(encoding@0.1.13)
       chalk: 2.4.2
@@ -23648,7 +23648,7 @@ snapshots:
       function-bind: 1.1.2
       has-proto: 1.0.1
       has-symbols: 1.0.3
-      hasown: 2.0.0
+      hasown: 2.0.2
 
   get-nonce@1.0.1: {}
 
@@ -26355,7 +26355,7 @@ snapshots:
       decamelize: 1.2.0
       loud-rejection: 1.6.0
       map-obj: 1.0.1
-      minimist: 1.2.6
+      minimist: 1.2.8
       normalize-package-data: 2.5.0
       object-assign: 4.1.1
       read-pkg-up: 1.0.1
