@@ -40,6 +40,7 @@ import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-sl
 import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
 import { getHostname } from '../../shared/lib/get-hostname'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
+import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -651,8 +652,14 @@ export async function initialize(opts: {
       if (opts.dev && developmentBundler && req.url) {
         const { basePath, assetPrefix } = config
 
+        let hmrPrefix = basePath
+
+        // assetPrefix overrides basePath for HMR path
+        if (assetPrefix) {
+          hmrPrefix = normalizedAssetPrefix(assetPrefix)
+        }
         const isHMRRequest = req.url.startsWith(
-          ensureLeadingSlash(`${assetPrefix || basePath}/_next/webpack-hmr`)
+          ensureLeadingSlash(`${hmrPrefix}/_next/webpack-hmr`)
         )
 
         // only handle HMR requests if the basePath in the request
