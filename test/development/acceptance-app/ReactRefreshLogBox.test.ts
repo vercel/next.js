@@ -777,24 +777,39 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await cleanup()
   })
 
-  test('Call stack count for client error', async () => {
-    const { session, browser, cleanup } = await sandbox(
-      next,
+  test.each([
+    [
+      'client',
       new Map([
         [
           'app/page.js',
           outdent`
-            'use client'
-            export default function Page() {
-              if (typeof window !== 'undefined') {
-                throw new Error('Client error')
-              }
-              return null
-            }
-          `,
+        'use client'
+        export default function Page() {
+          if (typeof window !== 'undefined') {
+            throw new Error('Client error')
+          }
+          return null
+        }
+      `,
         ],
-      ])
-    )
+      ]),
+    ],
+    [
+      'server',
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+        export default function Page() {
+          throw new Error('Server error')
+        }
+      `,
+        ],
+      ]),
+    ],
+  ])('Call stack count is correct for %s error', async (_, fixture) => {
+    const { session, browser, cleanup } = await sandbox(next, fixture)
 
     await session.assertHasRedbox()
 
@@ -817,47 +832,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await cleanup()
   })
 
-  test('Call stack for server error', async () => {
-    const { session, browser, cleanup } = await sandbox(
-      next,
-      new Map([
-        [
-          'app/page.js',
-          outdent`
-      export default function Page() {
-        throw new Error('Server error')
-      }
-    `,
-        ],
-      ])
-    )
-
-    try {
-      await session.assertHasRedbox()
-
-      // Should still show the errored line in source code
-      const source = await session.getRedboxSource()
-      expect(source).toContain('app/page.js')
-      expect(source).toContain(`throw new Error('Server error')`)
-
-      await expect(
-        browser.hasElementByCssSelector(
-          '[data-nextjs-data-runtime-error-collapsed-action]'
-        )
-      ).resolves.toEqual(false)
-
-      const stackFrameElements = await browser.elementsByCss(
-        '[data-nextjs-call-stack-frame]'
-      )
-      const stackFrames = await Promise.all(
-        stackFrameElements.map((f) => f.innerText())
-      )
-      expect(stackFrames).toEqual([])
-    } finally {
-      await cleanup()
-    }
-  })
-
   test('should hide unrelated frames in stack trace with unknown anonymous calls', async () => {
     const { session, browser, cleanup } = await sandbox(
       next,
@@ -878,48 +852,18 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         ],
       ])
     )
+    await session.assertHasRedbox()
+    await expandCallStack(browser)
+    let callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+    const text = (
+      await Promise.all(callStackFrames.map((f) => f.innerText()))
+    ).join('')
+    expect(text).not.toContain('<anonymous>')
+    expect(text).toContain('app/page.js')
 
-    try {
-      await session.assertHasRedbox()
-
-      // Should still show the errored line in source code
-      const source = await session.getRedboxSource()
-      expect(source).toContain('app/page.js')
-      expect(source).toContain(
-        `throw new Error("This is an error from an anonymous function")`
-      )
-
-      await expect(
-        browser.hasElementByCssSelector(
-          '[data-nextjs-data-runtime-error-collapsed-action]'
-        )
-      ).resolves.toEqual(false)
-
-      const stackFrameElements = await browser.elementsByCss(
-        '[data-nextjs-call-stack-frame]'
-      )
-      const stackFrames = await Promise.all(
-        stackFrameElements.map((f) => f.innerText())
-      )
-      expect(stackFrames).toEqual(
-        process.env.TURBOPACK
-          ? [
-              // TODO: Why is Turbopack off by one in the column?
-              outdent`
-                Page
-                app/page.js (5:6)
-              `,
-            ]
-          : [
-              outdent`
-                Page
-                app/page.js (5:5)
-              `,
-            ]
-      )
-    } finally {
-      await cleanup()
-    }
+    await cleanup()
   })
 
   test('should hide unrelated frames in stack trace with nodejs internal calls', async () => {
@@ -937,30 +881,24 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       ])
     )
 
-    try {
-      await session.assertHasRedbox()
+    await session.assertHasRedbox()
+    await expandCallStack(browser)
 
-      // Should still show the errored line in source code
-      const source = await session.getRedboxSource()
-      expect(source).toContain('app/page.js')
-      expect(source).toContain(`new URL("/", "invalid")`)
+    // Should still show the errored line in source code
+    const source = await session.getRedboxSource()
+    expect(source).toContain('app/page.js')
+    expect(source).toContain(`new URL("/", "invalid")`)
 
-      await expect(
-        browser.hasElementByCssSelector(
-          '[data-nextjs-data-runtime-error-collapsed-action]'
-        )
-      ).resolves.toEqual(false)
+    await expandCallStack(browser)
+    const callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+    const texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
 
-      const stackFrameElements = await browser.elementsByCss(
-        '[data-nextjs-call-stack-frame]'
-      )
-      const stackFrames = await Promise.all(
-        stackFrameElements.map((f) => f.innerText())
-      )
-      expect(stackFrames).toEqual([])
-    } finally {
-      await cleanup()
-    }
+    expect(texts.filter((t) => t.includes('node:internal'))).toHaveLength(0)
+    expect(texts.filter((t) => t.includes('node:async_hooks'))).toHaveLength(0)
+
+    await cleanup()
   })
 
   test('Server component errors should open up in fullscreen', async () => {

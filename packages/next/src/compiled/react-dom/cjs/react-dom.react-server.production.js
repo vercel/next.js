@@ -9,7 +9,13 @@
  */
 
 "use strict";
-var React = require("next/dist/compiled/react");
+if (
+  !require("next/dist/compiled/react")
+    .__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE
+)
+  throw Error(
+    'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
+  );
 function noop() {}
 var Internals = {
   d: {
@@ -30,10 +36,6 @@ var Internals = {
   p: 0,
   findDOMNode: null
 };
-if (!React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE)
-  throw Error(
-    'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
-  );
 function getCrossOriginStringAs(as, input) {
   if ("font" === as) return "";
   if ("string" === typeof input)
@@ -149,4 +151,4 @@ exports.preloadModule = function (href, options) {
       });
     } else Internals.d.m(href);
 };
-exports.version = "19.0.0-rc-76002254-20240724";
+exports.version = "19.0.0-rc-6230622a1a-20240610";
