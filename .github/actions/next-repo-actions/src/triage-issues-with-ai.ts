@@ -16,6 +16,7 @@ async function main() {
 
   const slackClient = new WebClient(process.env.SLACK_TOKEN)
   const model = 'gpt-4o'
+  const channel = '#next-info'
 
   const issue = context.payload.issue
   const filePath = path.join(
@@ -62,12 +63,13 @@ async function main() {
 
       await slackClient.chat.postMessage({
         blocks,
-        channel: '#next-info',
+        channel,
         icon_emoji: ':github:',
         username: 'GitHub Notifier',
       })
     } else {
-      info('The issue was not severe enough to report on Slack.')
+      // the ai will also provide a reason why the issue was not severe enough to report on slack
+      info(`${result.text}`)
     }
   } catch (error) {
     setFailed(error)
