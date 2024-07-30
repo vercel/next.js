@@ -23,3 +23,5 @@
 
 8 -> 10 call = import*0*("b")
 - *0* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
+
+0 -> 11 conditional = true
