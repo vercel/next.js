@@ -6,7 +6,7 @@
 __turbopack_esm__({
     "dog": [
         ()=>dog,
-        (v)=>dog = v
+        (dog_new_value)=>dog = dog_new_value
     ]
 });
 let dog = "dog";
@@ -114,7 +114,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 __turbopack_esm__({
     "cat": [
         ()=>cat,
-        (v)=>cat = v
+        (cat_new_value)=>cat = cat_new_value
     ]
 });
 let cat = "cat";
@@ -140,7 +140,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 __turbopack_esm__({
     "getDog": [
         ()=>getDog,
-        (v)=>getDog = v
+        (getDog_new_value)=>getDog = getDog_new_value
     ]
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__8$3e$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 8>");
@@ -161,7 +161,7 @@ function getDog() {
 __turbopack_esm__({
     "setDog": [
         ()=>setDog,
-        (v)=>setDog = v
+        (setDog_new_value)=>setDog = setDog_new_value
     ]
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__4$3e$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 4>");
@@ -180,7 +180,7 @@ function setDog(newDog) {
 __turbopack_esm__({
     "dogRef": [
         ()=>dogRef,
-        (v)=>dogRef = v
+        (dogRef_new_value)=>dogRef = dogRef_new_value
     ]
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__8$3e$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 8>");
@@ -222,7 +222,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 __turbopack_esm__({
     "getChimera": [
         ()=>getChimera,
-        (v)=>getChimera = v
+        (getChimera_new_value)=>getChimera = getChimera_new_value
     ]
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__4$3e$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 4>");
@@ -259,7 +259,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 __turbopack_esm__({
     "initialCat": [
         ()=>initialCat,
-        (v)=>initialCat = v
+        (initialCat_new_value)=>initialCat = initialCat_new_value
     ]
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 0>");

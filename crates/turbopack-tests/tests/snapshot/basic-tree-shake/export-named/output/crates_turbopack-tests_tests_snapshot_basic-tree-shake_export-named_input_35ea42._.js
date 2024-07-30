@@ -6,7 +6,7 @@
 __turbopack_esm__({
     "dog": [
         ()=>dog,
-        (v)=>dog = v
+        (dog_new_value)=>dog = dog_new_value
     ]
 });
 let dog = "dog";
@@ -139,7 +139,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 __turbopack_esm__({
     "cat": [
         ()=>cat,
-        (v)=>cat = v
+        (cat_new_value)=>cat = cat_new_value
     ]
 });
 let cat = "cat";
@@ -165,7 +165,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 __turbopack_esm__({
     "__TURBOPACK__reexport__cat__": [
         ()=>__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$export$2d$named$2f$input$2f$lib$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$export__cat$3e$__["cat"],
-        (v)=>$expr = v
+        (cat_new_value)=>$expr = cat_new_value
     ]
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$export$2d$named$2f$input$2f$lib$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-named/input/lib.js [test] (ecmascript) <module evaluation>");
@@ -194,7 +194,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 __turbopack_esm__({
     "fakeCat": [
         ()=>__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$export$2d$named$2f$input$2f$module$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$export__fakeCat$3e$__["fakeCat"],
-        (v)=>$expr = v
+        (fakeCat_new_value)=>$expr = fakeCat_new_value
     ]
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$export$2d$named$2f$input$2f$module$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-named/input/module.js [test] (ecmascript) <module evaluation>");
