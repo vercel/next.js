@@ -43,7 +43,7 @@ async function main() {
           }),
         }),
       },
-      prompt: `${JSON.stringify(issue)}\n${fileText}\nlatestVersion: ${latestVersion}\nlatestCanaryVersion: ${latestCanaryVersion}\nith the above GitHub issue (JSON) and the triage guidelines for determining whether an issue is severe, can you determine whether the given issue is severe enough to flag on Slack? If severe enough, report to Slack with an approximately 300 character summary of why you think it is severe enough to flag on Slack. If not, do not report on Slack.`,
+      prompt: `${JSON.stringify(issue)}\n${fileText}\nlatestVersion: ${latestVersion}\nlatestCanaryVersion: ${latestCanaryVersion}\nWith the above GitHub issue (JSON), the triage guidelines for determining whether an issue is severe, and the latest versions of Next.js, can you determine whether the given issue is severe enough to flag on Slack? If severe enough, report to Slack with an approximately 300 character summary of why you think it is severe enough to flag on Slack. If not severe enough, do not report on Slack.`,
     })
 
     if (result.roundtrips.length > 1) {
