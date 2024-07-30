@@ -40,8 +40,8 @@ const appDir = __dirname
           ),
         ].map(([, line]) => +line)
 
-        const ST = 17
-        const ED = 34
+        const ST = 18
+        const ED = 35
         expect(errorLines).toEqual(
           Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
         )
