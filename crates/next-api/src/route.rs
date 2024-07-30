@@ -2,6 +2,7 @@ use anyhow::Result;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Completion, RcStr, Vc};
+use turbopack_binding::turbopack::core::module::Module;
 
 use crate::paths::ServerPath;
 
@@ -75,6 +76,7 @@ pub trait Endpoint {
     fn write_to_disk(self: Vc<Self>) -> Vc<WrittenEndpoint>;
     fn server_changed(self: Vc<Self>) -> Vc<Completion>;
     fn client_changed(self: Vc<Self>) -> Vc<Completion>;
+    fn root_module(self: Vc<Self>) -> Vc<Box<dyn Module>>;
 }
 
 #[turbo_tasks::value(shared)]

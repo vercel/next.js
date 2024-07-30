@@ -1219,6 +1219,17 @@ impl Endpoint for PageEndpoint {
             .project()
             .client_changed(self.output().client_assets()))
     }
+
+    #[turbo_tasks::function]
+    async fn root_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        let this = self.await?;
+
+        let client_module_context = this.pages_project.client_module_context();
+        let client_module =
+            create_page_loader_entry_module(client_module_context, self.source(), this.pathname);
+
+        Ok(client_module)
+    }
 }
 
 #[turbo_tasks::value]

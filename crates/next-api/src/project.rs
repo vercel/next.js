@@ -573,7 +573,7 @@ impl Project {
                 node_root.join("build/assets".into()),
                 node_build_environment(),
                 next_mode.runtime_type(),
-                self.global_information(),
+                Vc::cell(None), // self.global_information(), // circular bug here
             )
             .build(),
         );

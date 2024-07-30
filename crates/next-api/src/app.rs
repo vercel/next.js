@@ -1340,6 +1340,35 @@ impl Endpoint for AppEndpoint {
             .project()
             .client_changed(self.output().client_assets()))
     }
+
+    #[turbo_tasks::function]
+    async fn root_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        let this = self.await?;
+
+        let next_config = self.await?.app_project.project().next_config();
+        let (app_entry, _, _) = match this.ty {
+            AppEndpointType::Page { ty, loader_tree } => (
+                self.app_page_entry(loader_tree),
+                true,
+                matches!(ty, AppPageEndpointType::Html),
+            ),
+
+            AppEndpointType::Route { path, root_layouts } => (
+                self.app_route_entry(path, root_layouts, next_config),
+                false,
+                false,
+            ),
+            AppEndpointType::Metadata { metadata } => {
+                (self.app_metadata_entry(metadata, next_config), false, false)
+            }
+        };
+
+        let app_entry = app_entry.await?;
+
+        let rsc_entry = app_entry.rsc_entry;
+
+        Ok(rsc_entry)
+    }
 }
 
 #[turbo_tasks::value]

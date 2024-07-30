@@ -238,4 +238,9 @@ impl Endpoint for MiddlewareEndpoint {
     fn client_changed(self: Vc<Self>) -> Vc<Completion> {
         Completion::immutable()
     }
+
+    #[turbo_tasks::function]
+    fn root_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        Err(anyhow::anyhow!("Not implemented yet"))
+    }
 }
