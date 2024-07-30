@@ -1,9 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{RcStr, Value, Vc};
-use turbopack_binding::turbopack::{
-    core::{context::ProcessResult, reference_type::ReferenceType, source::Source},
-    turbopack::{transition::Transition, ModuleAssetContext},
-};
+use turbopack::{transition::Transition, ModuleAssetContext};
+use turbopack_core::{context::ProcessResult, reference_type::ReferenceType, source::Source};
 
 use super::NextDynamicEntryModule;
 

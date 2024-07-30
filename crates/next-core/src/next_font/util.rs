@@ -2,10 +2,8 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
-use turbopack_binding::{
-    turbo::tasks_hash::hash_xxh3_hash64,
-    turbopack::core::issue::{IssueExt, IssueSeverity, StyledString},
-};
+use turbo_tasks_hash::hash_xxh3_hash64;
+use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
 use super::issue::NextFontIssue;
 

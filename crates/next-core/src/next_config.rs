@@ -5,24 +5,21 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
-use turbopack_binding::{
-    turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
-    turbopack::{
-        core::{
-            issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-            resolve::ResolveAliasMap,
-        },
-        ecmascript::{OptionTreeShaking, TreeShakingMode},
-        ecmascript_plugin::transform::{
-            emotion::EmotionTransformConfig, relay::RelayConfig,
-            styled_components::StyledComponentsTransformConfig,
-        },
-        node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems},
-        turbopack::module_options::{
-            module_options_context::MdxTransformOptions, LoaderRuleItem, OptionWebpackRules,
-        },
-    },
+use turbo_tasks_env::EnvMap;
+use turbo_tasks_fs::FileSystemPath;
+use turbopack::module_options::{
+    module_options_context::MdxTransformOptions, LoaderRuleItem, OptionWebpackRules,
 };
+use turbopack_core::{
+    issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    resolve::ResolveAliasMap,
+};
+use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};
+use turbopack_ecmascript_plugins::transform::{
+    emotion::EmotionTransformConfig, relay::RelayConfig,
+    styled_components::StyledComponentsTransformConfig,
+};
+use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems};
 
 use crate::{
     next_import_map::mdx_import_source_file, next_shared::transforms::ModularizeImportPackageConfig,

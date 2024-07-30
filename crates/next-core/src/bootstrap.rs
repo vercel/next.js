@@ -2,18 +2,16 @@ use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
-use turbopack_binding::turbopack::{
-    core::{
-        asset::AssetContent,
-        chunk::EvaluatableAsset,
-        context::AssetContext,
-        module::Module,
-        reference_type::{InnerAssets, ReferenceType},
-        source::Source,
-        virtual_source::VirtualSource,
-    },
-    ecmascript::utils::StringifyJs,
+use turbopack_core::{
+    asset::AssetContent,
+    chunk::EvaluatableAsset,
+    context::AssetContext,
+    module::Module,
+    reference_type::{InnerAssets, ReferenceType},
+    source::Source,
+    virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::utils::StringifyJs;
 
 #[turbo_tasks::function]
 pub async fn route_bootstrap(

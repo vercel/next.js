@@ -29,32 +29,26 @@ use turbo_tasks::{
     Completion, Completions, IntoTraitRef, RcStr, State, TaskInput, TraitRef, TransientInstance,
     TryFlatJoinIterExt, Value, Vc,
 };
-use turbopack_binding::{
-    turbo::{
-        tasks_env::{EnvMap, ProcessEnv},
-        tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem},
-    },
-    turbopack::{
-        core::{
-            changed::content_changed,
-            chunk::ChunkingContext,
-            compile_time_info::CompileTimeInfo,
-            context::AssetContext,
-            diagnostics::DiagnosticExt,
-            file_source::FileSource,
-            issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-            output::{OutputAsset, OutputAssets},
-            resolve::{find_context_file, FindContextFileResult},
-            source::Source,
-            source_map::OptionSourceMap,
-            version::{Update, Version, VersionState, VersionedContent},
-            PROJECT_FILESYSTEM_NAME,
-        },
-        node::execution_context::ExecutionContext,
-        nodejs::NodeJsChunkingContext,
-        turbopack::{evaluate_context::node_build_environment, ModuleAssetContext},
-    },
+use turbo_tasks_env::{EnvMap, ProcessEnv};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
+use turbopack::{evaluate_context::node_build_environment, ModuleAssetContext};
+use turbopack_core::{
+    changed::content_changed,
+    chunk::ChunkingContext,
+    compile_time_info::CompileTimeInfo,
+    context::AssetContext,
+    diagnostics::DiagnosticExt,
+    file_source::FileSource,
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    output::{OutputAsset, OutputAssets},
+    resolve::{find_context_file, FindContextFileResult},
+    source::Source,
+    source_map::OptionSourceMap,
+    version::{Update, Version, VersionState, VersionedContent},
+    PROJECT_FILESYSTEM_NAME,
 };
+use turbopack_node::execution_context::ExecutionContext;
+use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},

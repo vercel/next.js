@@ -7,25 +7,21 @@ use next_core::{
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, RcStr, Value, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{File, FileContent, FileSystemPath},
-    turbopack::{
-        core::{
-            asset::AssetContent,
-            chunk::{
-                availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-                EntryChunkGroupResult,
-            },
-            context::AssetContext,
-            module::Module,
-            output::{OutputAsset, OutputAssets},
-            reference_type::{EntryReferenceSubType, ReferenceType},
-            source::Source,
-            virtual_output::VirtualOutputAsset,
-        },
-        ecmascript::chunk::EcmascriptChunkPlaceable,
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbopack_core::{
+    asset::AssetContent,
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult,
     },
+    context::AssetContext,
+    module::Module,
+    output::{OutputAsset, OutputAssets},
+    reference_type::{EntryReferenceSubType, ReferenceType},
+    source::Source,
+    virtual_output::VirtualOutputAsset,
 };
+use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
     paths::{

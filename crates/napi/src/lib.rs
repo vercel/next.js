@@ -45,7 +45,7 @@ use backtrace::Backtrace;
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
 use owo_colors::OwoColorize;
-use turbopack_binding::swc::core::{
+use swc_core::{
     base::{Compiler, TransformOutput},
     common::{FilePathMapping, SourceMap},
 };
@@ -73,8 +73,7 @@ shadow_rs::shadow!(build);
 
 #[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
 #[global_allocator]
-static ALLOC: turbopack_binding::turbo::malloc::TurboMalloc =
-    turbopack_binding::turbo::malloc::TurboMalloc;
+static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 
 static LOG_THROTTLE: Mutex<Option<Instant>> = Mutex::new(None);
 static LOG_FILE_PATH: &str = ".next/turbopack.log";

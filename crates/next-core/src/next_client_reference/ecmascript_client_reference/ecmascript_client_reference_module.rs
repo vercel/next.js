@@ -1,14 +1,12 @@
 #![allow(rustdoc::private_intra_doc_links)]
 use anyhow::{bail, Result};
 use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::turbopack::{
-    core::{
-        asset::{Asset, AssetContent},
-        ident::AssetIdent,
-        module::Module,
-    },
-    ecmascript::chunk::EcmascriptChunkPlaceable,
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    ident::AssetIdent,
+    module::Module,
 };
+use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 /// An [EcmascriptClientReferenceModule] is a marker module, used by the
 /// [super::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule] to indicate which client reference
