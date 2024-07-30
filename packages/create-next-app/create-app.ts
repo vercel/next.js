@@ -65,6 +65,12 @@ export async function createApp({
     process.exit(1)
   }
 
+  // Disable tailwind and eslint for API template
+  if (api) {
+    tailwind = false
+    eslint = false
+  }
+
   if (example) {
     let repoUrl: URL | undefined
 
