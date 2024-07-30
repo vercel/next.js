@@ -1,12 +1,23 @@
 'use client'
 
-import { useEffect, type HTMLProps, type FormEvent } from 'react'
-import { useRouter } from './components/navigation'
+import {
+  useEffect,
+  type HTMLProps,
+  type FormEvent,
+  useContext,
+  startTransition,
+} from 'react'
 import { addBasePath } from './add-base-path'
 import { useIntersection } from './use-intersection'
 import { useMergedRef } from './use-merged-ref'
-import type { AppRouterInstance } from '../shared/lib/app-router-context.shared-runtime'
+import {
+  AppRouterContext,
+  type AppRouterInstance,
+} from '../shared/lib/app-router-context.shared-runtime'
 import { PrefetchKind } from './components/router-reducer/router-reducer-types'
+import { RouterContext } from '../shared/lib/router-context.shared-runtime'
+import type { NextRouter } from './router'
+import { resolveHref } from './resolve-href'
 
 const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
 
@@ -87,11 +98,18 @@ export default function Form({
     }
   }
 
-  const router = useRouter()
+  const { isAppRouter, router } = useAppOrPagesRouter()
+
+  const isPrefetchEnabled =
+    // there is no notion of instant loading states in pages dir, so prefetching is pointless
+    isAppRouter &&
+    // if we don't have an action path, we can't preload anything anyway.
+    isNavigatingForm &&
+    prefetch === null
 
   const [setIntersectionRef, isVisible] = useIntersection({
     rootMargin: '200px',
-    disabled: !isNavigatingForm, // if we don't have an action path, we can't preload anything anyway.
+    disabled: !isPrefetchEnabled,
   })
 
   const ownRef = useMergedRef<HTMLFormElement>(
@@ -100,12 +118,6 @@ export default function Form({
   )
 
   useEffect(() => {
-    if (!isNavigatingForm) {
-      return
-    }
-
-    const isPrefetchEnabled = prefetch === null
-
     if (!isVisible || !isPrefetchEnabled) {
       return
     }
@@ -116,7 +128,7 @@ export default function Form({
     } catch (err) {
       console.error(err)
     }
-  }, [isNavigatingForm, isVisible, actionProp, prefetch, router])
+  }, [isPrefetchEnabled, isVisible, actionProp, prefetch, router])
 
   if (!isNavigatingForm) {
     if (process.env.NODE_ENV === 'development') {
@@ -173,7 +185,7 @@ function onFormSubmit(
     onSubmit: FormProps['onSubmit']
     replace: FormProps['replace']
     scroll: FormProps['scroll']
-    router: AppRouterInstance
+    router: AppRouterInstance | NextRouter
   }
 ) {
   if (typeof onSubmit === 'function') {
@@ -273,7 +285,30 @@ function onFormSubmit(
   event.preventDefault()
 
   const method = replace ? 'replace' : 'push'
-  router[method](targetUrl.href, { scroll })
+  const isAppRouter = !('asPath' in router) // FIXME
+
+  if (isAppRouter) {
+    const targetHref = targetUrl.href
+    router[method](targetHref, { scroll })
+  } else {
+    startTransition(() => {
+      const targetHref = resolveHref(router, targetUrl) // TODO: is this necessary?
+      router[method](targetHref, undefined, { scroll })
+    })
+  }
+}
+
+function useAppOrPagesRouter():
+  | { isAppRouter: true; router: AppRouterInstance }
+  | { isAppRouter: false; router: NextRouter } {
+  const pagesRouter = useContext(RouterContext)
+  const appRouter = useContext(AppRouterContext)
+  if (pagesRouter) {
+    return { isAppRouter: false, router: pagesRouter }
+  } else {
+    // We're in the app directory if there is no pages router.
+    return { isAppRouter: true, router: appRouter! }
+  }
 }
 
 function checkActionUrl(action: string, source: 'action' | 'formAction') {

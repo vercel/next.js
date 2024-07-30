@@ -1,32 +1,42 @@
 import { nextTestSetup } from 'e2e-utils'
 import { BrowserInterface } from '../../../../lib/next-webdriver'
 
-describe('app dir - form', () => {
+describe.each(['app', 'pages'])('%s dir - form', (type) => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
-  it('should soft-navigate on submit and show the prefetched loading state', async () => {
-    const session = await next.browser('/forms/basic')
-    const navigationTracker = await trackMpaNavs(session)
+  const isAppDir = type === 'app'
+  const pathPrefix = isAppDir ? '' : '/pages-dir'
 
-    const searchInput = await session.elementByCss('input[name="query"]')
-    await searchInput.fill('my search')
+  it(
+    'should soft-navigate on submit' + isAppDir
+      ? ' and show the prefetched loading state'
+      : '',
+    async () => {
+      const session = await next.browser(pathPrefix + '/forms/basic')
+      const navigationTracker = await trackMpaNavs(session)
 
-    const submitButton = await session.elementByCss('[type="submit"]')
-    await submitButton.click()
+      const searchInput = await session.elementByCss('input[name="query"]')
+      await searchInput.fill('my search')
 
-    // we should have prefetched a loading state, so it should be displayed
-    await session.waitForElementByCss('#loading')
+      const submitButton = await session.elementByCss('[type="submit"]')
+      await submitButton.click()
 
-    const result = await session.waitForElementByCss('#search-results').text()
-    expect(result).toMatch(/query: "my search"/)
+      if (isAppDir) {
+        // we should have prefetched a loading state, so it should be displayed
+        await session.waitForElementByCss('#loading')
+      }
 
-    expect(await navigationTracker.didMpaNavigate()).toBe(false)
-  })
+      const result = await session.waitForElementByCss('#search-results').text()
+      expect(result).toMatch(/query: "my search"/)
+
+      expect(await navigationTracker.didMpaNavigate()).toBe(false)
+    }
+  )
 
   it('should soft-navigate to the formAction url of the submitter', async () => {
-    const session = await next.browser('/forms/button-formaction')
+    const session = await next.browser(pathPrefix + '/forms/button-formaction')
     const navigationTracker = await trackMpaNavs(session)
 
     const searchInput = await session.elementByCss('input[name="query"]')
@@ -51,16 +61,20 @@ describe('app dir - form', () => {
         name: 'client action',
         path: '/forms/with-function/action-client',
       },
-      {
-        name: 'server action',
-        path: '/forms/with-function/action-server',
-      },
-      {
-        name: 'server action (closure)',
-        path: '/forms/with-function/action-server-closure',
-      },
+      ...(isAppDir
+        ? [
+            {
+              name: 'server action',
+              path: '/forms/with-function/action-server',
+            },
+            {
+              name: 'server action (closure)',
+              path: '/forms/with-function/action-server-closure',
+            },
+          ]
+        : []),
     ])('runs $name', async ({ path }) => {
-      const session = await next.browser(path)
+      const session = await next.browser(pathPrefix + path)
       const navigationTracker = await trackMpaNavs(session) // actions should not MPA-navigate either.
 
       const searchInput = await session.elementByCss('input[name="query"]')
@@ -81,21 +95,27 @@ describe('app dir - form', () => {
   describe('functions passed to formAction', () => {
     it.each([
       {
+        // TODO(lubieowoce): figure out why the client navigation is failing in pages dir
+        // (see "pages-dir/forms/with-function/button-formaction-client/index.tsx" for more)
         name: 'client action',
         path: '/forms/with-function/button-formaction-client',
       },
-      {
-        name: 'server action',
-        path: '/forms/with-function/button-formaction-server',
-      },
-      {
-        name: 'server action (closure)',
-        path: '/forms/with-function/button-formaction-server-closure',
-      },
+      ...(isAppDir
+        ? [
+            {
+              name: 'server action',
+              path: '/forms/with-function/button-formaction-server',
+            },
+            {
+              name: 'server action (closure)',
+              path: '/forms/with-function/button-formaction-server-closure',
+            },
+          ]
+        : []),
     ])(
       "runs $name from submitter and doesn't warn about unsupported attributes",
       async ({ path }) => {
-        const session = await next.browser(path)
+        const session = await next.browser(pathPrefix + path)
         const navigationTracker = await trackMpaNavs(session) // actions should not MPA-navigate either.
 
         const searchInput = await session.elementByCss('input[name="query"]')
@@ -133,7 +153,8 @@ describe('app dir - form', () => {
       'should warn if submitter sets "$name" to an unsupported value and fall back to default submit behavior',
       async ({ name: attributeName, baseName: attributeBaseName }) => {
         const session = await next.browser(
-          `/forms/button-formaction-unsupported?attribute=${attributeName}`
+          pathPrefix +
+            `/forms/button-formaction-unsupported?attribute=${attributeName}`
         )
 
         const submitButton = await session.elementByCss('[type="submit"]')
@@ -173,7 +194,7 @@ describe('app dir - form', () => {
   })
 
   it('does not push a new history entry if `replace` is passed', async () => {
-    const session = await next.browser(`/forms/with-replace`)
+    const session = await next.browser(pathPrefix + `/forms/with-replace`)
     const navigationTracker = await trackMpaNavs(session)
 
     // apparently this is usually not 1...?
@@ -189,7 +210,9 @@ describe('app dir - form', () => {
   })
 
   it('does not navigate if preventDefault is called in onSubmit', async () => {
-    const session = await next.browser(`/forms/with-onsubmit-preventdefault`)
+    const session = await next.browser(
+      pathPrefix + `/forms/with-onsubmit-preventdefault`
+    )
 
     const submitButton = await session.elementByCss('[type="submit"]')
     await submitButton.click()
@@ -198,12 +221,12 @@ describe('app dir - form', () => {
 
     await session.waitForElementByCss('#redirected-results')
     expect(new URL(await session.url()).pathname).toEqual(
-      '/redirected-from-action'
+      pathPrefix + '/redirected-from-action'
     )
   })
 
   it('url-encodes file inputs, but warns about them', async () => {
-    const session = await next.browser(`/forms/with-file-input`)
+    const session = await next.browser(pathPrefix + `/forms/with-file-input`)
 
     const fileInputSelector = 'input[type="file"]'
     // Fake a file to upload
