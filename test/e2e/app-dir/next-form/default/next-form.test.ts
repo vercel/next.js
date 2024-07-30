@@ -202,9 +202,46 @@ describe('app dir - form', () => {
     )
   })
 
-  // TODO(lubieowoce): implement this
-  // (we don't have any methods on BrowserInterface to deal with files)
-  it.todo('handles file inputs, but warns about them')
+  it('url-encodes file inputs, but warns about them', async () => {
+    const session = await next.browser(`/forms/with-file-input`)
+
+    const fileInputSelector = 'input[type="file"]'
+    // Fake a file to upload
+    await session.eval(`
+      const fileInput = document.querySelector(${JSON.stringify(fileInputSelector)});
+      const file = new File(['hello'], 'hello.txt', { type: 'text/plain' });
+      const list = new DataTransfer(); 
+      list.items.add(file); 
+      fileInput.files = list.files; 
+    `)
+
+    const searchInput = await session.elementByCss('input[name="query"]')
+    await searchInput.fill('my search')
+
+    const submitButton = await session.elementByCss('[type="submit"]')
+    await submitButton.click()
+
+    if (isNextDev) {
+      const logs = await session.log()
+      expect(logs).toContainEqual(
+        expect.objectContaining({
+          source: 'warning',
+          message: expect.stringContaining(
+            `<Form> only supports file inputs if \`action\` is a function`
+          ),
+        })
+      )
+    }
+
+    const result = await session.waitForElementByCss('#search-results').text()
+    expect(result).toMatch(/query: "my search"/)
+
+    const url = new URL(await session.url())
+    expect([...url.searchParams.entries()]).toEqual([
+      ['query', 'my search'],
+      ['file', 'hello.txt'],
+    ])
+  })
 })
 
 async function trackMpaNavs(session: BrowserInterface) {
