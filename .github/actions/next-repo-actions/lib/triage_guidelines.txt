@@ -7,3 +7,8 @@ Hard rules:
 Questions to ask:
 - Is the issue reproducible on the latest version of Next.js? If not, it's not a severe issue.
 - Is there a body of text that explains the issue? If not, it's not a severe issue.
+- Is the issue related to an experimental feature? If yes, it's not a severe issue.
+- Did build/compile times increase drastically? If yes, it's a severe issue.
+- Is there a significant performance regression? If yes, it's a severe issue.
+- Is CSS not working as expected? If yes, it's a severe issue.
+- Are multiple stages (next dev, next start, deploy) affected? If yes, it's a severe issue.
