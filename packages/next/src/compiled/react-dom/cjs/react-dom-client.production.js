@@ -401,10 +401,6 @@ function findCurrentFiberUsingSlowPath(fiber) {
   if (3 !== a.tag) throw Error(formatProdErrorMessage(188));
   return a.stateNode.current === a ? fiber : alternate;
 }
-function findCurrentHostFiber(parent) {
-  parent = findCurrentFiberUsingSlowPath(parent);
-  return null !== parent ? findCurrentHostFiberImpl(parent) : null;
-}
 function findCurrentHostFiberImpl(node) {
   var tag = node.tag;
   if (5 === tag || 26 === tag || 27 === tag || 6 === tag) return node;
@@ -14143,9 +14139,6 @@ function attemptContinuousHydration(fiber) {
     markRetryLaneIfNotHydrated(fiber, 67108864);
   }
 }
-function emptyFindFiberByHostInstance() {
-  return null;
-}
 var _enabled = !0;
 function dispatchDiscreteEvent(
   domEventName,
@@ -14748,14 +14741,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_1669 = React.version;
 if (
-  "19.0.0-rc-941e1b4a-20240729" !==
+  "19.0.0-rc-3208e73e-20240730" !==
   isomorphicReactPackageVersion$jscomp$inline_1669
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_1669,
-      "19.0.0-rc-941e1b4a-20240729"
+      "19.0.0-rc-3208e73e-20240730"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -14766,57 +14759,34 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     componentOrElement = Object.keys(componentOrElement).join(",");
     throw Error(formatProdErrorMessage(268, componentOrElement));
   }
-  componentOrElement = findCurrentHostFiber(fiber);
+  componentOrElement = findCurrentFiberUsingSlowPath(fiber);
+  componentOrElement =
+    null !== componentOrElement
+      ? findCurrentHostFiberImpl(componentOrElement)
+      : null;
   componentOrElement =
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var devToolsConfig$jscomp$inline_1676 = {
-  findFiberByHostInstance: getClosestInstanceFromNode,
+var internals$jscomp$inline_2045 = {
   bundleType: 0,
-  version: "19.0.0-rc-941e1b4a-20240729",
-  rendererPackageName: "react-dom"
-};
-var internals$jscomp$inline_2042 = {
-  bundleType: devToolsConfig$jscomp$inline_1676.bundleType,
-  version: devToolsConfig$jscomp$inline_1676.version,
-  rendererPackageName: devToolsConfig$jscomp$inline_1676.rendererPackageName,
-  rendererConfig: devToolsConfig$jscomp$inline_1676.rendererConfig,
-  overrideHookState: null,
-  overrideHookStateDeletePath: null,
-  overrideHookStateRenamePath: null,
-  overrideProps: null,
-  overridePropsDeletePath: null,
-  overridePropsRenamePath: null,
-  setErrorHandler: null,
-  setSuspenseHandler: null,
-  scheduleUpdate: null,
+  version: "19.0.0-rc-3208e73e-20240730",
+  rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  findHostInstanceByFiber: function (fiber) {
-    fiber = findCurrentHostFiber(fiber);
-    return null === fiber ? null : fiber.stateNode;
-  },
-  findFiberByHostInstance:
-    devToolsConfig$jscomp$inline_1676.findFiberByHostInstance ||
-    emptyFindFiberByHostInstance,
-  findHostInstancesForRefresh: null,
-  scheduleRefresh: null,
-  scheduleRoot: null,
-  setRefreshHandler: null,
-  getCurrentFiber: null,
-  reconcilerVersion: "19.0.0-rc-941e1b4a-20240729"
+  findFiberByHostInstance: getClosestInstanceFromNode,
+  reconcilerVersion: "19.0.0-rc-3208e73e-20240730"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2043 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2046 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2043.isDisabled &&
-    hook$jscomp$inline_2043.supportsFiber
+    !hook$jscomp$inline_2046.isDisabled &&
+    hook$jscomp$inline_2046.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2043.inject(
-        internals$jscomp$inline_2042
+      (rendererID = hook$jscomp$inline_2046.inject(
+        internals$jscomp$inline_2045
       )),
-        (injectedHook = hook$jscomp$inline_2043);
+        (injectedHook = hook$jscomp$inline_2046);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -14908,4 +14878,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.0.0-rc-941e1b4a-20240729";
+exports.version = "19.0.0-rc-3208e73e-20240730";

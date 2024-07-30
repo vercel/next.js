@@ -1117,6 +1117,13 @@
         "" === key &&
           null === handler.value &&
           (handler.value = parentObject[key]);
+        parentObject[0] === REACT_ELEMENT_TYPE &&
+          "3" === key &&
+          "object" === typeof handler.value &&
+          null !== handler.value &&
+          handler.value.$$typeof === REACT_ELEMENT_TYPE &&
+          null === handler.value.props &&
+          (handler.value.props = parentObject[key]);
         handler.deps--;
         0 === handler.deps &&
           ((i = handler.chunk),
