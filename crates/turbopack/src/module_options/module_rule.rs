@@ -7,7 +7,6 @@ use turbopack_core::{
 };
 use turbopack_css::CssModuleAssetType;
 use turbopack_ecmascript::{EcmascriptInputTransforms, EcmascriptOptions};
-use turbopack_mdx::MdxTransformOptions;
 use turbopack_wasm::source::WebAssemblySourceType;
 
 use super::{CustomModuleType, ModuleRuleCondition};
@@ -119,14 +118,6 @@ pub enum ModuleType {
     },
     Json,
     Raw,
-    // [TODO] We want to consolidate mdx as a type of ecma|typescript module types with
-    // its source transform. Refer `turbopack-mdx::into_ecmascript_module_asset` for the reason
-    // why we keep this separately.
-    Mdx {
-        transforms: Vc<EcmascriptInputTransforms>,
-        options: Vc<MdxTransformOptions>,
-        ecmascript_options: Vc<EcmascriptOptions>,
-    },
     CssGlobal,
     CssModule,
     Css {
