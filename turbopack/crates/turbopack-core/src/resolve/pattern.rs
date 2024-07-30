@@ -315,7 +315,9 @@ impl Pattern {
 
                 for part in split {
                     concatenation.push(pat.clone());
-                    concatenation.push(Pattern::Constant(part.into()));
+                    if !part.is_empty() {
+                        concatenation.push(Pattern::Constant(part.into()));
+                    }
                 }
                 Pattern::Concatenation(concatenation)
             }));
