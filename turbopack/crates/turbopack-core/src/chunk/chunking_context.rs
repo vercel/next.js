@@ -6,7 +6,7 @@ use turbo_tasks_hash::DeterministicHash;
 
 use super::{availability_info::AvailabilityInfo, ChunkableModule, EvaluatableAssets};
 use crate::{
-    chunk::{ChunkItem, ModuleId},
+    chunk::{global_information::OptionGlobalInformation, ChunkItem, ModuleId},
     environment::Environment,
     ident::AssetIdent,
     module::Module,
@@ -113,10 +113,15 @@ pub trait ChunkingContext {
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EntryChunkGroupResult>>;
 
+    fn global_information(self: Vc<Self>) -> Vc<OptionGlobalInformation>;
+
     async fn chunk_item_id_from_ident(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
     ) -> Result<Vc<ModuleId>> {
+        if let Some(global_information) = &*self.global_information().await? {
+            return Ok(global_information.get_module_id(ident).await?);
+        }
         Ok(ModuleId::String(ident.to_string().await?.clone_value()).cell())
     }
 

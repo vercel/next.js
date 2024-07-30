@@ -46,7 +46,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     issue::IssueSeverity,
-    module::Module,
+    module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
@@ -1211,6 +1211,37 @@ impl Endpoint for PageEndpoint {
             .pages_project
             .project()
             .client_changed(self.output().client_assets()))
+    }
+
+    #[turbo_tasks::function]
+    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let this = self.await?;
+
+        let client_module_context = this.pages_project.client_module_context();
+        let client_module =
+            create_page_loader_entry_module(client_module_context, self.source(), this.pathname);
+
+        let client_main_module = esm_resolve(
+            Vc::upcast(PlainResolveOrigin::new(
+                client_module_context,
+                this.pages_project.project().project_path().join("_".into()),
+            )),
+            Request::parse(Value::new(Pattern::Constant(
+                match *this.pages_project.project().next_mode().await? {
+                    NextMode::Development => "next/dist/client/next-dev-turbopack.js",
+                    NextMode::Build => "next/dist/client/next-turbopack.js",
+                }
+                .into(),
+            ))),
+            Value::new(EcmaScriptModulesReferenceSubType::Undefined),
+            IssueSeverity::Error.cell(),
+            None,
+        )
+        .first_module()
+        .await?
+        .context("expected Next.js client runtime to resolve to a module")?;
+
+        Ok(Vc::cell(vec![client_module, client_main_module]))
     }
 }
 

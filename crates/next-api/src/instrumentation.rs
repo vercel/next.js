@@ -15,7 +15,7 @@ use turbopack_core::{
         EntryChunkGroupResult,
     },
     context::AssetContext,
-    module::Module,
+    module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
@@ -235,5 +235,10 @@ impl Endpoint for InstrumentationEndpoint {
     #[turbo_tasks::function]
     fn client_changed(self: Vc<Self>) -> Vc<Completion> {
         Completion::immutable()
+    }
+
+    #[turbo_tasks::function]
+    fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        Err(anyhow::anyhow!("Not implemented yet"))
     }
 }

@@ -53,7 +53,7 @@ use turbopack_core::{
     },
     file_source::FileSource,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
     source::Source,
@@ -1333,6 +1333,35 @@ impl Endpoint for AppEndpoint {
             .app_project
             .project()
             .client_changed(self.output().client_assets()))
+    }
+
+    #[turbo_tasks::function]
+    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let this = self.await?;
+
+        let next_config = self.await?.app_project.project().next_config();
+        let (app_entry, _, _) = match this.ty {
+            AppEndpointType::Page { ty, loader_tree } => (
+                self.app_page_entry(loader_tree),
+                true,
+                matches!(ty, AppPageEndpointType::Html),
+            ),
+
+            AppEndpointType::Route { path, root_layouts } => (
+                self.app_route_entry(path, root_layouts, next_config),
+                false,
+                false,
+            ),
+            AppEndpointType::Metadata { metadata } => {
+                (self.app_metadata_entry(metadata, next_config), false, false)
+            }
+        };
+
+        let app_entry = app_entry.await?;
+
+        let rsc_entry = app_entry.rsc_entry;
+
+        Ok(Vc::cell(vec![rsc_entry]))
     }
 }
 

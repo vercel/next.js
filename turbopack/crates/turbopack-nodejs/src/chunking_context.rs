@@ -384,4 +384,9 @@ impl ChunkingContext for NodeJsChunkingContext {
             self.chunk_item_id_from_ident(AsyncLoaderModule::asset_ident_for(module))
         })
     }
+
+    #[turbo_tasks::function]
+    async fn global_information(self: Vc<Self>) -> Result<Vc<OptionGlobalInformation>> {
+        Ok(self.await?.global_information)
+    }
 }
