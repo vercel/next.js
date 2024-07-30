@@ -141,7 +141,11 @@ impl Request {
             Request::Windows { path, .. } => Some(path.clone()),
             Request::Empty => Some(Pattern::Constant("".into())),
             Request::PackageInternal { path } => Some(path.clone()),
-            Request::Uri { .. } => None,
+            Request::Uri {
+                protocol,
+                remainder,
+                ..
+            } => Some(Pattern::Constant(format!("{protocol}{remainder}").into())),
             Request::Unknown { path } => Some(path.clone()),
             Request::Dynamic => Some(Pattern::Dynamic),
             Request::Alternatives { .. } => None,
