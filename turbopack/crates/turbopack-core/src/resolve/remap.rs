@@ -60,31 +60,13 @@ pub enum SubpathValue {
     Excluded,
 }
 
-/// The result an "exports"/"imports" field describes. Can represent multiple
-/// alternatives, conditional result, ignored result (null mapping) and a plain
-/// result.
+/// A `SubpathValue` that was applied to a pattern. See `SubpathValue` for
+/// more details on the variants.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub enum SubpathValueResult {
-    /// Alternative subpaths, defined with `"path": ["other1", "other2"]`,
-    /// allows for specifying multiple possible remappings to be tried. This
-    /// may be that conditions didn't match, or that a particular path
-    /// wasn't found.
     Alternatives(Vec<SubpathValueResult>),
-
-    /// Conditional subpaths, defined with `"path": { "condition": "other"}`,
-    /// allow remapping based on certain predefined conditions. Eg, if using
-    /// ESM import syntax, the `import` condition allows you to remap to a
-    /// file that uses ESM syntax.
-    /// Node defines several conditions in https://nodejs.org/api/packages.html#conditional-exports
-    /// TODO: Should this use an enum of predefined keys?
     Conditional(Vec<(RcStr, SubpathValueResult)>),
-
-    /// A result subpath, defined with `"path": "other"`, remaps imports of
-    /// `path` to `other`.
     Result(Pattern),
-
-    /// An excluded subpath, defined with `"path": null`, prevents importing
-    /// this subpath.
     Excluded,
 }
 

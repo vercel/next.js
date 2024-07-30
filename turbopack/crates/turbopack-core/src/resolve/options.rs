@@ -102,15 +102,13 @@ pub enum ImportMapping {
     Dynamic(Vc<Box<dyn ImportMappingReplacement>>),
 }
 
+/// An `ImportMapping` that was applied to a pattern. See `ImportMapping` for
+/// more details on the variants.
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum ReplacedImportMapping {
     External(Option<RcStr>, ExternalType),
-    /// An already resolved result that will be returned directly.
     Direct(Vc<ResolveResult>),
-    /// A request alias that will be resolved first, and fall back to resolving
-    /// the original request if it fails. Useful for the tsconfig.json
-    /// `compilerOptions.paths` option and Next aliases.
     PrimaryAlternative(Pattern, Option<Vc<FileSystemPath>>),
     Ignore,
     Empty,
@@ -423,9 +421,12 @@ impl ImportMap {
                 self.map.lookup(&request_pattern)
             };
             if let Some(result) = lookup.next() {
-                let x: Vc<ReplacedImportMapping> = result.try_join_into_self().await?;
-                return import_mapping_to_result(x, lookup_path, request).await;
-            } else {
+                return import_mapping_to_result(
+                    result.try_join_into_self().await?,
+                    lookup_path,
+                    request,
+                )
+                .await;
             }
         }
         Ok(ImportMapResult::NoEntry)

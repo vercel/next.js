@@ -2575,7 +2575,7 @@ async fn handle_exports_imports_field(
 
     let values = exports_imports_field
         .lookup(&req)
-        .map(|m| m.try_into_self())
+        .map(AliasMatch::try_into_self)
         .collect::<Result<Vec<_>>>()?;
 
     for value in values.iter() {
