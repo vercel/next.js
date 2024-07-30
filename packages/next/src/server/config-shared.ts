@@ -202,6 +202,11 @@ export interface ReactCompilerOptions {
 export interface LoggingConfig {
   fetches?: {
     fullUrl?: boolean
+    /**
+     * If true, fetch requests that are restored from the HMR cache are logged
+     * during an HMR refresh request, i.e. when editing a server component.
+     */
+    hmrRefreshes?: boolean
   }
 }
 
