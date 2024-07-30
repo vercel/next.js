@@ -144,7 +144,6 @@ impl AliasTemplate for Vc<ImportMapping> {
         Box::pin(async move {
             let this = &*self.await?;
             Ok(match this {
-                // _ => ImportMapping::Ignore
                 ImportMapping::External(name, ty) => {
                     ReplacedImportMapping::External(name.clone(), *ty)
                 }
@@ -172,7 +171,6 @@ impl AliasTemplate for Vc<ImportMapping> {
         Box::pin(async move {
             let this = &*self.await?;
             Ok(match this {
-                // _ => ImportMapping::Ignore
                 ImportMapping::External(name, ty) => {
                     if let Some(name) = name {
                         ReplacedImportMapping::External(

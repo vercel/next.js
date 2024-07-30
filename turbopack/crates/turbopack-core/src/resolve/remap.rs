@@ -330,37 +330,6 @@ impl SubpathValueResult {
             SubpathValueResult::Excluded => true,
         }
     }
-
-    // fn try_new(value: &Value, ty: ExportImport) -> Result<Self> {
-    //     match value {
-    //         Value::Null => Ok(SubpathValue::Excluded),
-    //         Value::String(s) => Ok(SubpathValue::Result(s.as_str().into())),
-    //         Value::Number(_) => bail!("numeric values are invalid in {ty}s field
-    // entries"),         Value::Bool(_) => bail!("boolean values are invalid in
-    // {ty}s field entries"),         Value::Object(object) =>
-    // Ok(SubpathValue::Conditional(             object
-    //                 .iter()
-    //                 .map(|(key, value)| {
-    //                     if key.starts_with('.') {
-    //                         bail!(
-    //                             "invalid key \"{}\" in an {ty} field conditions
-    // object. Did you \                              mean to place this request
-    // at a higher level?",                             key
-    //                         );
-    //                     }
-
-    //                     Ok((key.as_str().into(), SubpathValue::try_new(value,
-    // ty)?))                 })
-    //                 .collect::<Result<Vec<_>>>()?,
-    //         )),
-    //         Value::Array(array) => Ok(SubpathValue::Alternatives(
-    //             array
-    //                 .iter()
-    //                 .map(|value| SubpathValue::try_new(value, ty))
-    //                 .collect::<Result<Vec<_>>>()?,
-    //         )),
-    //     }
-    // }
 }
 
 struct ResultsIterMut<'a> {

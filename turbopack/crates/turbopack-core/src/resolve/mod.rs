@@ -2579,15 +2579,12 @@ async fn handle_exports_imports_field(
         .collect::<Result<Vec<_>>>()?;
 
     for value in values.iter() {
-        // println!("handle_exports_imports_field {:?}", value);
-
         if value.add_results(
             conditions,
             unspecified_conditions,
             &mut conditions_state,
             &mut results,
         ) {
-            // println!("handle_exports_imports_field break");
             break;
         }
     }

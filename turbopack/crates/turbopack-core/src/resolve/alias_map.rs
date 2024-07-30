@@ -599,8 +599,6 @@ where
     }
 
     /// Returns the wrapped value.
-    ///
-    /// Only implemented when `T::Output` is `T`.
     pub fn as_self(&'a self) -> &T::Output<'a> {
         match self {
             Self::Exact(v) => v,
@@ -617,7 +615,7 @@ where
     ///
     /// Consumes the match.
     ///
-    /// Only implemented when `T::Output` is `Result<T, _>`.
+    /// Only implemented when `T::Output` is some `Result<_, _>`.
     pub fn try_into_self(self) -> Result<R, E> {
         Ok(match self {
             Self::Exact(v) => v?,
@@ -635,7 +633,7 @@ where
     ///
     /// Consumes the match.
     ///
-    /// Only implemented when `T::Output` is `impl Future<Result<T, _>>`
+    /// Only implemented when `T::Output` is some `impl Future<Result<_, _>>`
     pub async fn try_join_into_self(self) -> Result<R, E> {
         Ok(match self {
             Self::Exact(v) => v.await?,
