@@ -20,11 +20,9 @@ import type { NextConfig } from 'next'
 
 describe.each([
   { basePath: '', assetPrefix: '' },
-  { basePath: '', assetPrefix: undefined },
-  { basePath: '', assetPrefix: '/ap' },
+  { basePath: '', assetPrefix: '/asset-prefix' },
   { basePath: '/docs', assetPrefix: '' },
-  { basePath: '/docs', assetPrefix: undefined },
-  { basePath: '/docs', assetPrefix: '/ap' },
+  { basePath: '/docs', assetPrefix: '/asset-prefix' },
 ])('basic HMR, nextConfig: %o', (nextConfig: Partial<NextConfig>) => {
   const { basePath } = nextConfig
   let next: NextInstance

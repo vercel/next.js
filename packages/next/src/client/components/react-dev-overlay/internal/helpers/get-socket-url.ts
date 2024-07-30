@@ -16,8 +16,9 @@ export function getSocketUrl(assetPrefix: string | undefined): string {
   const protocol = getSocketProtocol(assetPrefix || '')
   const prefix = normalizedAssetPrefix(assetPrefix)
 
-  // same check but on original assetPrefix value
-  if (assetPrefix?.replace(/^\/+/, '').startsWith('http')) {
+  // if original assetPrefix is a full URL with protocol
+  // we just update to use the correct `ws` protocol
+  if (assetPrefix?.replace(/^\/+/, '').includes('://')) {
     return `${protocol}://${prefix}`
   }
 

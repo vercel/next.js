@@ -664,6 +664,8 @@ export async function initialize(opts: {
         const { basePath, assetPrefix } = config
 
         let hmrPrefix = basePath
+
+        // assetPrefix overrides basePath for HMR path
         if (assetPrefix) {
           hmrPrefix = normalizedAssetPrefix(assetPrefix)
         }
