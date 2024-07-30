@@ -26,7 +26,7 @@ async function main() {
   try {
     const { data } = await octokit.rest.search.issuesAndPullRequests({
       per_page: 100,
-      q: `repo:${owner}/${repo} is:issue is:open created:>=${aWeekAgo()}`,
+      q: `repo:${owner}/${repo} is:issue created:>=${aWeekAgo()}`,
     })
 
     // const result = await generateText({
