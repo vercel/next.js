@@ -63,49 +63,49 @@ pub enum SubpathValue {
 /// A `SubpathValue` that was applied to a pattern. See `SubpathValue` for
 /// more details on the variants.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
-pub enum SubpathValueResult {
-    Alternatives(Vec<SubpathValueResult>),
-    Conditional(Vec<(RcStr, SubpathValueResult)>),
+pub enum ReplacedSubpathValue {
+    Alternatives(Vec<ReplacedSubpathValue>),
+    Conditional(Vec<(RcStr, ReplacedSubpathValue)>),
     Result(Pattern),
     Excluded,
 }
 
 impl AliasTemplate for SubpathValue {
-    type Output<'a> = Result<SubpathValueResult> where Self: 'a;
+    type Output<'a> = Result<ReplacedSubpathValue> where Self: 'a;
 
-    fn convert(&self) -> Result<SubpathValueResult> {
+    fn convert(&self) -> Result<ReplacedSubpathValue> {
         Ok(match self {
-            SubpathValue::Alternatives(list) => SubpathValueResult::Alternatives(
+            SubpathValue::Alternatives(list) => ReplacedSubpathValue::Alternatives(
                 list.iter()
                     .map(|value: &SubpathValue| value.convert())
                     .collect::<Result<Vec<_>>>()?,
             ),
-            SubpathValue::Conditional(list) => SubpathValueResult::Conditional(
+            SubpathValue::Conditional(list) => ReplacedSubpathValue::Conditional(
                 list.iter()
                     .map(|(condition, value)| Ok((condition.clone(), value.convert()?)))
                     .collect::<Result<Vec<_>>>()?,
             ),
-            SubpathValue::Result(value) => SubpathValueResult::Result(value.clone().into()),
-            SubpathValue::Excluded => SubpathValueResult::Excluded,
+            SubpathValue::Result(value) => ReplacedSubpathValue::Result(value.clone().into()),
+            SubpathValue::Excluded => ReplacedSubpathValue::Excluded,
         })
     }
 
-    fn replace(&self, capture: &Pattern) -> Result<SubpathValueResult> {
+    fn replace(&self, capture: &Pattern) -> Result<ReplacedSubpathValue> {
         Ok(match self {
-            SubpathValue::Alternatives(list) => SubpathValueResult::Alternatives(
+            SubpathValue::Alternatives(list) => ReplacedSubpathValue::Alternatives(
                 list.iter()
                     .map(|value: &SubpathValue| value.replace(capture))
                     .collect::<Result<Vec<_>>>()?,
             ),
-            SubpathValue::Conditional(list) => SubpathValueResult::Conditional(
+            SubpathValue::Conditional(list) => ReplacedSubpathValue::Conditional(
                 list.iter()
                     .map(|(condition, value)| Ok((condition.clone(), value.replace(capture)?)))
                     .collect::<Result<Vec<_>>>()?,
             ),
             SubpathValue::Result(value) => {
-                SubpathValueResult::Result(capture.spread_into_star(value))
+                ReplacedSubpathValue::Result(capture.spread_into_star(value))
             }
-            SubpathValue::Excluded => SubpathValueResult::Excluded,
+            SubpathValue::Excluded => ReplacedSubpathValue::Excluded,
         })
     }
 }
@@ -230,11 +230,11 @@ impl SubpathValue {
     }
 }
 
-impl SubpathValueResult {
-    /// Walks the [SubpathValueResult] and adds results to the `target` vector.
-    /// It uses the `conditions` to skip or enter conditional results.
-    /// The state of conditions is stored within `condition_overrides`, which is
-    /// also exposed to the consumer.
+impl ReplacedSubpathValue {
+    /// Walks the [ReplacedSubpathValue] and adds results to the `target`
+    /// vector. It uses the `conditions` to skip or enter conditional
+    /// results. The state of conditions is stored within
+    /// `condition_overrides`, which is also exposed to the consumer.
     pub fn add_results<'a>(
         &'a self,
         conditions: &BTreeMap<RcStr, ConditionValue>,
@@ -243,7 +243,7 @@ impl SubpathValueResult {
         target: &mut Vec<(&'a Pattern, Vec<(&'a str, bool)>)>,
     ) -> bool {
         match self {
-            SubpathValueResult::Alternatives(list) => {
+            ReplacedSubpathValue::Alternatives(list) => {
                 for value in list {
                     if value.add_results(
                         conditions,
@@ -256,7 +256,7 @@ impl SubpathValueResult {
                 }
                 false
             }
-            SubpathValueResult::Conditional(list) => {
+            ReplacedSubpathValue::Conditional(list) => {
                 for (condition, value) in list {
                     let condition_value = if condition == "default" {
                         &ConditionValue::Set
@@ -295,7 +295,7 @@ impl SubpathValueResult {
                 }
                 false
             }
-            SubpathValueResult::Result(r) => {
+            ReplacedSubpathValue::Result(r) => {
                 target.push((
                     r,
                     condition_overrides
@@ -309,7 +309,7 @@ impl SubpathValueResult {
                 ));
                 true
             }
-            SubpathValueResult::Excluded => true,
+            ReplacedSubpathValue::Excluded => true,
         }
     }
 }
