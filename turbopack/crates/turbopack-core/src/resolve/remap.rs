@@ -91,7 +91,7 @@ pub enum SubpathValueResult {
 impl AliasTemplate for SubpathValue {
     type Output<'a> = Result<SubpathValueResult> where Self: 'a;
 
-    fn convert(&self) -> Self::Output<'_> {
+    fn convert(&self) -> Result<SubpathValueResult> {
         Ok(match self {
             SubpathValue::Alternatives(list) => SubpathValueResult::Alternatives(
                 list.iter()
