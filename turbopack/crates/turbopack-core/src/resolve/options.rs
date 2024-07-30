@@ -407,29 +407,64 @@ impl ImportMap {
         // relative requests must not match global wildcard aliases.
 
         if let Some(request_pattern) = request.await?.request_pattern() {
-            let mut lookup = if request_pattern.must_match("./") {
+            let (req_rel, rest) = request_pattern.split_could_match("./");
+            let (req_rel_parent, req_rest) =
+                rest.map(|r| r.split_could_match("../")).unwrap_or_default();
+
+            let lookup_rel = req_rel.as_ref().and_then(|req| {
                 self.map
-                    .lookup_with_prefix_predicate(&request_pattern, |prefix| {
-                        prefix.starts_with("./")
-                    })
-            } else if request_pattern.must_match("../") {
+                    .lookup_with_prefix_predicate(req, |prefix| prefix.starts_with("./"))
+                    .next()
+            });
+            let lookup_rel_parent = req_rel_parent.as_ref().and_then(|req| {
                 self.map
-                    .lookup_with_prefix_predicate(&request_pattern, |prefix| {
-                        prefix.starts_with("../")
-                    })
-            } else {
-                self.map.lookup(&request_pattern)
-            };
-            if let Some(result) = lookup.next() {
-                return import_mapping_to_result(
-                    result.try_join_into_self().await?,
-                    lookup_path,
-                    request,
-                )
-                .await;
+                    .lookup_with_prefix_predicate(req, |prefix| prefix.starts_with("../"))
+                    .next()
+            });
+            let lookup = req_rest
+                .as_ref()
+                .and_then(|req| self.map.lookup(req).next());
+
+            // TODO This causes a rustc MIR panic with our current nightly
+            // let results = lookup_rel
+            //     .into_iter()
+            //     .chain(lookup_rel_parent.into_iter())
+            //     .chain(lookup.into_iter())
+            //     .map(async |result: super::AliasMatch<Vc<ImportMapping>>| {
+            //         import_mapping_to_result(
+            //             result.try_join_into_self().await?,
+            //             lookup_path,
+            //             request,
+            //         )
+            //         .await
+            //     })
+            //     .try_join()
+            //     .await?;
+
+            let mut results = Vec::with_capacity(1);
+            for result in lookup_rel
+                .into_iter()
+                .chain(lookup_rel_parent.into_iter())
+                .chain(lookup.into_iter())
+            {
+                results.push(
+                    import_mapping_to_result(
+                        result.try_join_into_self().await?,
+                        lookup_path,
+                        request,
+                    )
+                    .await?,
+                );
             }
+
+            Ok(match results.len() {
+                0 => ImportMapResult::NoEntry,
+                1 => results.into_iter().next().unwrap(),
+                2.. => ImportMapResult::Alternatives(results),
+            })
+        } else {
+            Ok(ImportMapResult::NoEntry)
         }
-        Ok(ImportMapResult::NoEntry)
     }
 }
 
