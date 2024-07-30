@@ -40,9 +40,6 @@ next-custom-transforms = { path = "crates/next-custom-transforms" }
 # Turbopack
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
 node-file-trace = { path = "turbopack/crates/node-file-trace", default-features = false }
-signposter = { path = "turbopack/crates/turbo-tasks-signposter" }
-signposter-sys = { path = "turbopack/crates/turbo-tasks-signposter-sys" }
-tracing-signpost = { path = "turbopack/crates/turbo-tasks-tracing-signpost" }
 swc-ast-explorer = { path = "turbopack/crates/turbopack-swc-ast-explorer" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }

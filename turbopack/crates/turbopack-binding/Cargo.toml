@@ -164,7 +164,6 @@ __feature_node_file_trace_custom_allocator = [
 ]
 __feature_auto_hash_map = ["__features", "auto-hash-map"]
 __feature_swc_ast_explorer = []
-__feature_tracing_signpost = ["__features", "tracing-signpost"]
 
 __swc_custom_transform = []
 __swc_transform_styled_components = [
@@ -201,7 +200,6 @@ swc_relay = { optional = true, workspace = true }
 testing = { optional = true, workspace = true }
 
 auto-hash-map = { optional = true, workspace = true }
-tracing-signpost = { optional = true, workspace = true }
 
 node-file-trace = { optional = true, workspace = true }
 turbo-tasks = { optional = true, workspace = true }
