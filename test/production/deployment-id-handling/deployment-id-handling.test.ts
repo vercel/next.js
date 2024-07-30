@@ -51,7 +51,9 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
         const requests = []
 
         browser.on('request', (req) => {
-          requests.push(req.url())
+          if (req.url().includes('/_next/static')) {
+            requests.push(req.url())
+          }
         })
 
         await browser.elementByCss('#dynamic-import').click()
