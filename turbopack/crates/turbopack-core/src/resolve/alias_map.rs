@@ -618,26 +618,10 @@ where
         }
     }
 
-    /// Returns the replaced match, if any.
-    ///
-    /// Consumes the match.
-    pub fn into_replaced(self) -> Option<T::Output<'a>> {
-        if let Self::Replaced(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a, T> AliasMatch<'a, T>
-where
-    T: AliasTemplate<Output<'a> = T>,
-{
     /// Returns the wrapped value.
     ///
     /// Only implemented when `T::Output` is `T`.
-    pub fn as_self(&'a self) -> &'a T {
+    pub fn as_self(&'a self) -> &T::Output<'a> {
         match self {
             Self::Exact(v) => v,
             Self::Replaced(v) => v,
@@ -722,7 +706,7 @@ pub trait AliasTemplate {
 
 #[cfg(test)]
 mod test {
-    use std::{assert_matches::assert_matches, borrow::Cow};
+    use std::assert_matches::assert_matches;
 
     use super::{AliasMap, AliasPattern, AliasTemplate};
     use crate::resolve::pattern::Pattern;
@@ -740,18 +724,27 @@ mod test {
             assert_matches!(lookup.next(), None);
         };
 
-        (@next $lookup:ident, exact($pattern:pat)$(, $($tail:tt)*)?) => {
-            assert_matches!($lookup.next(), Some(super::AliasMatch::Exact($pattern)));
+        (@next $lookup:ident, exact($pattern:expr)$(, $($tail:tt)*)?) => {
+            match $lookup.next().unwrap() {
+                super::AliasMatch::Exact(Pattern::Constant(c)) if c == $pattern => {}
+                m => panic!("unexpected match {:?}", m),
+            }
             $(assert_alias_matches!(@next $lookup, $($tail)*);)?
         };
 
-        (@next $lookup:ident, replaced($pattern:pat)$(, $($tail:tt)*)?) => {
-            assert_matches!($lookup.next(), Some(super::AliasMatch::Replaced(Cow::Borrowed($pattern))));
+        (@next $lookup:ident, replaced($pattern:expr)$(, $($tail:tt)*)?) => {
+            match $lookup.next().unwrap() {
+                super::AliasMatch::Replaced(Pattern::Constant(c)) if c == $pattern => {}
+                m => panic!("unexpected match {:?}", m),
+            }
             $(assert_alias_matches!(@next $lookup, $($tail)*);)?
         };
 
         (@next $lookup:ident, replaced_owned($value:expr)$(, $($tail:tt)*)?) => {
-            assert_matches!($lookup.next(), Some(super::AliasMatch::Replaced(Cow::Owned(s))) if s == $value);
+            match $lookup.next().unwrap() {
+                super::AliasMatch::Replaced(Pattern::Constant(c)) if c == $value => {}
+                m => panic!("unexpected match {:?}", m),
+            }
             $(assert_alias_matches!(@next $lookup, $($tail)*);)?
         };
 
@@ -767,153 +760,153 @@ mod test {
         }
 
         fn convert(&self) -> Self::Output<'a> {
-            todo!()
+            Pattern::Constant(self.to_string().into())
         }
     }
 
-    // #[test]
-    // fn test_one_exact() {
-    //     let mut map = AliasMap::new();
-    //     map.insert(AliasPattern::parse("foo"), "bar");
+    #[test]
+    fn test_one_exact() {
+        let mut map = AliasMap::new();
+        map.insert(AliasPattern::parse("foo"), "bar");
 
-    //     assert_alias_matches!(map, "");
-    //     assert_alias_matches!(map, "foo", exact(&"bar"));
-    //     assert_alias_matches!(map, "foobar");
-    // }
+        assert_alias_matches!(map, "");
+        assert_alias_matches!(map, "foo", exact("bar"));
+        assert_alias_matches!(map, "foobar");
+    }
 
-    // #[test]
-    // fn test_many_exact() {
-    //     let mut map = AliasMap::new();
-    //     map.insert(AliasPattern::parse("foo"), "bar");
-    //     map.insert(AliasPattern::parse("bar"), "foo");
-    //     map.insert(AliasPattern::parse("foobar"), "barfoo");
+    #[test]
+    fn test_many_exact() {
+        let mut map = AliasMap::new();
+        map.insert(AliasPattern::parse("foo"), "bar");
+        map.insert(AliasPattern::parse("bar"), "foo");
+        map.insert(AliasPattern::parse("foobar"), "barfoo");
 
-    //     assert_alias_matches!(map, "");
-    //     assert_alias_matches!(map, "foo", exact(&"bar"));
-    //     assert_alias_matches!(map, "bar", exact(&"foo"));
-    //     assert_alias_matches!(map, "foobar", exact(&"barfoo"));
-    // }
+        assert_alias_matches!(map, "");
+        assert_alias_matches!(map, "foo", exact("bar"));
+        assert_alias_matches!(map, "bar", exact("foo"));
+        assert_alias_matches!(map, "foobar", exact("barfoo"));
+    }
 
-    // #[test]
-    // fn test_empty() {
-    //     let mut map = AliasMap::new();
-    //     map.insert(AliasPattern::parse(""), "empty");
-    //     map.insert(AliasPattern::parse("foo"), "bar");
+    #[test]
+    fn test_empty() {
+        let mut map = AliasMap::new();
+        map.insert(AliasPattern::parse(""), "empty");
+        map.insert(AliasPattern::parse("foo"), "bar");
 
-    //     assert_alias_matches!(map, "", exact(&"empty"));
-    //     assert_alias_matches!(map, "foo", exact(&"bar"));
-    // }
+        assert_alias_matches!(map, "", exact("empty"));
+        assert_alias_matches!(map, "foo", exact("bar"));
+    }
 
-    // #[test]
-    // fn test_left_wildcard() {
-    //     let mut map = AliasMap::new();
-    //     map.insert(AliasPattern::parse("foo*"), "bar");
+    #[test]
+    fn test_left_wildcard() {
+        let mut map = AliasMap::new();
+        map.insert(AliasPattern::parse("foo*"), "bar");
 
-    //     assert_alias_matches!(map, "");
-    //     assert_alias_matches!(map, "foo", replaced("bar"));
-    //     assert_alias_matches!(map, "foobar", replaced("bar"));
-    // }
+        assert_alias_matches!(map, "");
+        assert_alias_matches!(map, "foo", replaced("bar"));
+        assert_alias_matches!(map, "foobar", replaced("bar"));
+    }
 
-    // #[test]
-    // fn test_wildcard_replace_suffix() {
-    //     let mut map = AliasMap::new();
-    //     map.insert(AliasPattern::parse("foo*"), "bar*");
-    //     map.insert(AliasPattern::parse("foofoo*"), "barbar*");
+    #[test]
+    fn test_wildcard_replace_suffix() {
+        let mut map = AliasMap::new();
+        map.insert(AliasPattern::parse("foo*"), "bar*");
+        map.insert(AliasPattern::parse("foofoo*"), "barbar*");
 
-    //     assert_alias_matches!(map, "");
-    //     assert_alias_matches!(map, "foo", replaced_owned("bar"));
-    //     assert_alias_matches!(map, "foobar", replaced_owned("barbar"));
-    //     assert_alias_matches!(
-    //         map,
-    //         "foofoobar",
-    //         // The longer prefix should come first.
-    //         replaced_owned("barbarbar"),
-    //         replaced_owned("barfoobar"),
-    //     );
-    // }
+        assert_alias_matches!(map, "");
+        assert_alias_matches!(map, "foo", replaced_owned("bar"));
+        assert_alias_matches!(map, "foobar", replaced_owned("barbar"));
+        assert_alias_matches!(
+            map,
+            "foofoobar",
+            // The longer prefix should come first.
+            replaced_owned("barbarbar"),
+            replaced_owned("barfoobar"),
+        );
+    }
 
-    // #[test]
-    // fn test_wildcard_replace_prefix() {
-    //     let mut map = AliasMap::new();
-    //     map.insert(AliasPattern::parse("*foo"), "*bar");
-    //     map.insert(AliasPattern::parse("*foofoo"), "*barbar");
+    #[test]
+    fn test_wildcard_replace_prefix() {
+        let mut map = AliasMap::new();
+        map.insert(AliasPattern::parse("*foo"), "*bar");
+        map.insert(AliasPattern::parse("*foofoo"), "*barbar");
 
-    //     assert_alias_matches!(map, "");
-    //     assert_alias_matches!(map, "foo", replaced_owned("bar"));
-    //     assert_alias_matches!(map, "barfoo", replaced_owned("barbar"));
-    //     assert_alias_matches!(
-    //         map,
-    //         "barfoofoo",
-    //         // The longer suffix should come first.
-    //         replaced_owned("barbarbar"),
-    //         replaced_owned("barfoobar"),
-    //     );
-    // }
+        assert_alias_matches!(map, "");
+        assert_alias_matches!(map, "foo", replaced_owned("bar"));
+        assert_alias_matches!(map, "barfoo", replaced_owned("barbar"));
+        assert_alias_matches!(
+            map,
+            "barfoofoo",
+            // The longer suffix should come first.
+            replaced_owned("barbarbar"),
+            replaced_owned("barfoobar"),
+        );
+    }
 
-    // #[test]
-    // fn test_wildcard_replace_infix() {
-    //     let mut map = AliasMap::new();
-    //     map.insert(AliasPattern::parse("foo*foo"), "bar*bar");
-    //     map.insert(AliasPattern::parse("foo*foofoo"), "bar*barbar");
-    //     map.insert(AliasPattern::parse("foofoo*foo"), "bazbaz*baz");
+    #[test]
+    fn test_wildcard_replace_infix() {
+        let mut map = AliasMap::new();
+        map.insert(AliasPattern::parse("foo*foo"), "bar*bar");
+        map.insert(AliasPattern::parse("foo*foofoo"), "bar*barbar");
+        map.insert(AliasPattern::parse("foofoo*foo"), "bazbaz*baz");
 
-    //     assert_alias_matches!(map, "");
-    //     assert_alias_matches!(map, "foo");
-    //     assert_alias_matches!(map, "foofoo", replaced_owned("barbar"));
-    //     assert_alias_matches!(map, "foobazfoo", replaced_owned("barbazbar"));
-    //     assert_alias_matches!(
-    //         map,
-    //         "foofoofoo",
-    //         // The longer prefix should come first.
-    //         replaced_owned("bazbazbaz"),
-    //         // Then the longer suffix.
-    //         replaced_owned("barbarbar"),
-    //         replaced_owned("barfoobar"),
-    //     );
-    //     assert_alias_matches!(
-    //         map,
-    //         "foobazfoofoo",
-    //         // The longer suffix should come first.
-    //         replaced_owned("barbazbarbar"),
-    //         replaced_owned("barbazfoobar"),
-    //     );
-    //     assert_alias_matches!(
-    //         map,
-    //         "foofoobarfoo",
-    //         // The longer prefix should come first.
-    //         replaced_owned("bazbazbarbaz"),
-    //         replaced_owned("barfoobarbar"),
-    //     );
-    //     assert_alias_matches!(
-    //         map,
-    //         "foofoofoofoofoo",
-    //         // The longer prefix should come first.
-    //         replaced_owned("bazbazfoofoobaz"),
-    //         // Then the longer suffix.
-    //         replaced_owned("barfoofoobarbar"),
-    //         replaced_owned("barfoofoofoobar"),
-    //     );
-    // }
+        assert_alias_matches!(map, "");
+        assert_alias_matches!(map, "foo");
+        assert_alias_matches!(map, "foofoo", replaced_owned("barbar"));
+        assert_alias_matches!(map, "foobazfoo", replaced_owned("barbazbar"));
+        assert_alias_matches!(
+            map,
+            "foofoofoo",
+            // The longer prefix should come first.
+            replaced_owned("bazbazbaz"),
+            // Then the longer suffix.
+            replaced_owned("barbarbar"),
+            replaced_owned("barfoobar"),
+        );
+        assert_alias_matches!(
+            map,
+            "foobazfoofoo",
+            // The longer suffix should come first.
+            replaced_owned("barbazbarbar"),
+            replaced_owned("barbazfoobar"),
+        );
+        assert_alias_matches!(
+            map,
+            "foofoobarfoo",
+            // The longer prefix should come first.
+            replaced_owned("bazbazbarbaz"),
+            replaced_owned("barfoobarbar"),
+        );
+        assert_alias_matches!(
+            map,
+            "foofoofoofoofoo",
+            // The longer prefix should come first.
+            replaced_owned("bazbazfoofoobaz"),
+            // Then the longer suffix.
+            replaced_owned("barfoofoobarbar"),
+            replaced_owned("barfoofoofoobar"),
+        );
+    }
 
-    // #[test]
-    // fn test_wildcard_replace_only() {
-    //     let mut map = AliasMap::new();
-    //     map.insert(AliasPattern::parse("*"), "foo*foo");
-    //     map.insert(AliasPattern::parse("**"), "bar*foo");
+    #[test]
+    fn test_wildcard_replace_only() {
+        let mut map = AliasMap::new();
+        map.insert(AliasPattern::parse("*"), "foo*foo");
+        map.insert(AliasPattern::parse("**"), "bar*foo");
 
-    //     assert_alias_matches!(map, "", replaced_owned("foofoo"));
-    //     assert_alias_matches!(map, "bar", replaced_owned("foobarfoo"));
-    //     assert_alias_matches!(
-    //         map,
-    //         "*",
-    //         replaced_owned("barfoo"),
-    //         replaced_owned("foo*foo"),
-    //     );
-    //     assert_alias_matches!(
-    //         map,
-    //         "**",
-    //         replaced_owned("bar*foo"),
-    //         replaced_owned("foo**foo")
-    //     );
-    // }
+        assert_alias_matches!(map, "", replaced_owned("foofoo"));
+        assert_alias_matches!(map, "bar", replaced_owned("foobarfoo"));
+        assert_alias_matches!(
+            map,
+            "*",
+            replaced_owned("barfoo"),
+            replaced_owned("foo*foo"),
+        );
+        assert_alias_matches!(
+            map,
+            "**",
+            replaced_owned("bar*foo"),
+            replaced_owned("foo**foo")
+        );
+    }
 }
