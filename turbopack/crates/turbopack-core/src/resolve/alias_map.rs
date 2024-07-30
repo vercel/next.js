@@ -203,7 +203,15 @@ impl<T> AliasMap<T> {
         let common_prefixes = self
             .map
             .common_prefixes(request.constant_prefix().as_bytes());
-        let mut prefixes_stack = common_prefixes.collect::<Vec<_>>();
+        let mut prefixes_stack = common_prefixes
+            .map(|(p, tree)| {
+                let s = match std::str::from_utf8(p) {
+                    Ok(s) => s,
+                    Err(e) => std::str::from_utf8(&p[..e.valid_up_to()]).unwrap(),
+                };
+                (s, tree)
+            })
+            .collect::<Vec<_>>();
         AliasMapLookupIterator {
             request,
             current_prefix_iterator: prefixes_stack
@@ -232,12 +240,16 @@ impl<T> AliasMap<T> {
             .map
             .common_prefixes(request.constant_prefix().as_bytes());
         let mut prefixes_stack = common_prefixes
-            .filter(|(p, _)| {
+            .filter_map(|(p, tree)| {
                 let s = match std::str::from_utf8(p) {
                     Ok(s) => s,
                     Err(e) => std::str::from_utf8(&p[..e.valid_up_to()]).unwrap(),
                 };
-                prefix_predicate(s)
+                if prefix_predicate(s) {
+                    Some((s, tree))
+                } else {
+                    None
+                }
             })
             .collect::<Vec<_>>();
         AliasMapLookupIterator {
@@ -453,8 +465,8 @@ impl<T> Extend<(AliasPattern, T)> for AliasMap<T> {
 /// [PATTERN_KEY_COMPARE]: https://nodejs.org/api/esm.html#resolution-algorithm-specification
 pub struct AliasMapLookupIterator<'a, T> {
     request: &'a Pattern,
-    prefixes_stack: Vec<(&'a [u8], &'a BTreeMap<AliasKey, T>)>,
-    current_prefix_iterator: Option<(&'a [u8], std::collections::btree_map::Iter<'a, AliasKey, T>)>,
+    prefixes_stack: Vec<(&'a str, &'a BTreeMap<AliasKey, T>)>,
+    current_prefix_iterator: Option<(&'a str, std::collections::btree_map::Iter<'a, AliasKey, T>)>,
 }
 
 impl<'a, T> Iterator for AliasMapLookupIterator<'a, T>
@@ -470,12 +482,7 @@ where
             for (key, template) in &mut *current_prefix_iterator {
                 match key {
                     AliasKey::Exact => {
-                        if self
-                            .request
-                            .as_string()
-                            .map(|r| r.len() == prefix.len())
-                            .unwrap_or_default()
-                        {
+                        if self.request.is_match(prefix) {
                             return Some(AliasMatch::Exact(template.convert()));
                         }
                     }
