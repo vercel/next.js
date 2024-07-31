@@ -7,7 +7,7 @@ related:
     - app/building-your-application/optimizing/instrumentation
 ---
 
-The `instrumentation.js|ts` file is used to integrate observability tools into your application. This allows you to track the performance and behavior of your application, and to debug issues in production.
+The `instrumentation.js|ts` file is used to integrate observability tools into your application, allowing you to track the performance and behavior, and to debug issues in production.
 
 To use it, place the file in the **root** of your application or inside a [`src` folder](/docs/app/building-your-application/configuring/src-directory) if using one.
 
@@ -130,7 +130,7 @@ export function onRequestError(
 
 - `error`: The caught error itself (type is always `Error`), and a `digest` property which is the unique ID of the error.
 - `request`: Read-only request information associated with the error.
-- `context`: The context in which the error occurred. This can be the type of router (`'App Router'` or `'Pages Router'`), and/or (Server Components (`'render'`), Route Handlers (`'route'`), Server Actions (`'action'`), or Middleware (`'middleware'`)).
+- `context`: The context in which the error occurred. This can be the type of router (App or Pages Router), and/or (Server Components (`'render'`), Route Handlers (`'route'`), Server Actions (`'action'`), or Middleware (`'middleware'`)).
 
 ## Version History
 
