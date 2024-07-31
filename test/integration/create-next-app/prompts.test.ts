@@ -276,6 +276,8 @@ describe('create-next-app prompts', () => {
         },
         nextTgzFilename
       )
+
+      let output = ''
       await new Promise<void>(async (resolve) => {
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)
@@ -286,14 +288,32 @@ describe('create-next-app prompts', () => {
           })
           resolve()
         })
-        let output = ''
         childProcess.stdout.on('data', (data) => {
           output += data
           process.stdout.write(data)
         })
-        await check(() => output, /Running a dry run, skipping installation/)
-        await check(() => output, /Dry Run Result/)
       })
+      /**
+       * Running a dry run, skipping installation.
+       * Dry Run Result:
+       *  {
+       *    "appPath": "/private/var/...",
+       *    "packageManager": "pnpm",
+       *    "typescript": true,
+       *    "eslint": true,
+       *    "app": true,
+       *    "importAlias": "@/*"
+       *  }
+       */
+      expect(output).toContain('Running a dry run, skipping installation.')
+      expect(output).toContain('Dry Run Result:')
+      // appPath is a temporary directory, so we can't check for the exact path
+      expect(output).toContain('"appPath":')
+      expect(output).toContain('"packageManager": "pnpm"')
+      expect(output).toContain('"typescript": true')
+      expect(output).toContain('"eslint": true')
+      expect(output).toContain('"app": true')
+      expect(output).toContain('"importAlias": "@/*"')
     })
   })
 })
