@@ -38,7 +38,7 @@ describe('resolveImages', () => {
 })
 
 describe('resolveOpenGraph', () => {
-  it('should wrap an empty string with an array', () => {
+  it('should return null if the value is an empty string', () => {
     expect(
       resolveOpenGraph(
         // pass authors as empty string
@@ -48,9 +48,9 @@ describe('resolveOpenGraph', () => {
         ''
       )
     ).toEqual({
-      // should be an array, or else throw: "n.map is not a function"
+      // if an empty string '' is passed, it'll throw: "n.map is not a function"
       // x-ref: https://github.com/vercel/next.js/pull/68262
-      authors: [''],
+      authors: null,
       images: undefined,
       title: { absolute: '', template: null },
       type: 'article',
@@ -58,7 +58,7 @@ describe('resolveOpenGraph', () => {
     })
   })
 
-  it('should return null if null', () => {
+  it('should return null if the value is null', () => {
     expect(
       resolveOpenGraph(
         { type: 'article', authors: null },

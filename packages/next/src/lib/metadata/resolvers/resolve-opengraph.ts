@@ -152,11 +152,8 @@ export const resolveOpenGraph: FieldResolverExtraArgs<
       const key = k as keyof ResolvedOpenGraph
       if (key in og && key !== 'url') {
         const value = og[key]
-        if (value != null) {
-          const arrayValue = resolveArray(value)
-          // TODO: improve typing inferring
-          ;(target as any)[key] = arrayValue
-        }
+        // TODO: improve typing inferring
+        ;(target as any)[key] = value ? resolveArray(value) : null
       }
     }
     target.images = resolveImages(
