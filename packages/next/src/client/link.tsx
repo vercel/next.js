@@ -384,12 +384,6 @@ const Link = React.forwardRef<HTMLAnchorElement, RealLinksProps>(
           // required & unchecked keys
         }
       })
-
-      if (props.prefetch && !isAppRouter) {
-        warnOnce(
-          'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://nextjs.org/docs/messages/prefetch-true-deprecated'
-        )
-      }
     }
 
     const { href, as } = React.useMemo(() => {
