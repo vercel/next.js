@@ -24,37 +24,7 @@ describe('create-next-app with package manager pnpm', () => {
     nextTgzFilename = pkgPaths.get('next')
   })
 
-  it('should use pnpm for legacy --use-pnpm flag', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'use-pnpm-flag'
-      const res = await run(
-        [
-          projectName,
-          '--ts',
-          '--app',
-          '--use-pnpm',
-          '--no-turbo',
-          '--no-eslint',
-          '--no-src-dir',
-          '--no-tailwind',
-          '--no-import-alias',
-        ],
-        nextTgzFilename,
-        {
-          cwd,
-        }
-      )
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({
-        cwd,
-        projectName,
-        files,
-      })
-    })
-  })
-
-  it('should use pnpm for --use pnpm', async () => {
+  it('should use pnpm for --use-pnpm flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-pnpm'
       const res = await run(
@@ -62,7 +32,7 @@ describe('create-next-app with package manager pnpm', () => {
           projectName,
           '--ts',
           '--app',
-          '--use=pnpm',
+          '--use-pnpm',
           '--no-turbo',
           '--no-eslint',
           '--no-src-dir',
@@ -114,29 +84,11 @@ describe('create-next-app with package manager pnpm', () => {
     })
   })
 
-  it('should use pnpm for legacy --use-pnpm flag with example', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'use-pnpm-flag-with-example'
-      const res = await run(
-        [projectName, '--use-pnpm', '--example', FULL_EXAMPLE_PATH],
-        nextTgzFilename,
-        { cwd }
-      )
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({
-        cwd,
-        projectName,
-        files,
-      })
-    })
-  })
-
-  it('should use pnpm for --use pnpm with example', async () => {
+  it('should use pnpm for --use-pnpm flag with example', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-pnpm-with-example'
       const res = await run(
-        [projectName, '--use=pnpm', '--example', FULL_EXAMPLE_PATH],
+        [projectName, '--use-pnpm', '--example', FULL_EXAMPLE_PATH],
         nextTgzFilename,
         { cwd }
       )
