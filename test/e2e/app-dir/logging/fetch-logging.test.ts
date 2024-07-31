@@ -227,22 +227,68 @@ describe('app-dir - logging', () => {
         })
 
         it('should not log requests for HMR refreshes', async () => {
-          const browser = await next.browser('/default-cache')
+          const browser = await next.browser('/fetch-no-store')
           let headline = await browser.waitForElementByCss('h1').text()
-          expect(headline).toBe('Default Cache')
+          expect(headline).toBe('Hello World!')
           const outputIndex = next.cliOutput.length
 
           await next.patchFile(
-            'app/default-cache/page.js',
-            (content) => content.replace('Default Cache', 'Hello!'),
+            'app/fetch-no-store/page.js',
+            (content) => content.replace('Hello World!', 'Hello Test!'),
             async () =>
               retry(async () => {
                 headline = await browser.waitForElementByCss('h1').text()
-                expect(headline).toBe('Hello!')
+                expect(headline).toBe('Hello Test!')
                 const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+                expect(logs).toInclude(' GET /fetch-no-store')
                 expect(logs).not.toInclude(` │ GET `)
               })
           )
+        })
+
+        describe('when logging.fetches.hmrRefreshes is true', () => {
+          beforeAll(async () => {
+            await next.patchFile('next.config.js', (content) =>
+              content.replace('// hmrRefreshes: true', 'hmrRefreshes: true')
+            )
+          })
+
+          afterAll(async () => {
+            await next.patchFile('next.config.js', (content) =>
+              content.replace('hmrRefreshes: true', '// hmrRefreshes: true')
+            )
+          })
+
+          it('should log requests for HMR refreshes', async () => {
+            const browser = await next.browser('/fetch-no-store')
+            let headline = await browser.waitForElementByCss('h1').text()
+            expect(headline).toBe('Hello World!')
+            const outputIndex = next.cliOutput.length
+
+            await next.patchFile(
+              'app/fetch-no-store/page.js',
+              (content) => content.replace('Hello World!', 'Hello Test!'),
+              async () => {
+                const expectedUrl = withFullUrlFetches
+                  ? 'https://next-data-api-endpoint.vercel.app/api/random'
+                  : 'https://next-data-api-en../api/random'
+
+                return retry(async () => {
+                  headline = await browser.waitForElementByCss('h1').text()
+                  expect(headline).toBe('Hello Test!')
+
+                  const logs = stripAnsi(
+                    next.cliOutput.slice(outputIndex)
+                  ).replace(/\d+ms/g, '1ms')
+
+                  expect(logs).toInclude(' GET /fetch-no-store')
+                  expect(logs).toInclude(
+                    ` │ GET ${expectedUrl}?request-input 200 in 1ms (HMR cache)`
+                  )
+                })
+              }
+            )
+          })
         })
       }
     } else {

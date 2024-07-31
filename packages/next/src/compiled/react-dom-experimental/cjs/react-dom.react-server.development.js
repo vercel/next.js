@@ -11,24 +11,6 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
-    function error(format) {
-      for (
-        var _len2 = arguments.length,
-          args = Array(1 < _len2 ? _len2 - 1 : 0),
-          _key2 = 1;
-        _key2 < _len2;
-        _key2++
-      )
-        args[_key2 - 1] = arguments[_key2];
-      _len2 = format;
-      _key2 = Error("react-stack-top-frame");
-      !supportsCreateTask &&
-        ReactSharedInternalsServer.getCurrentStack &&
-        ((_key2 = ReactSharedInternalsServer.getCurrentStack(_key2)),
-        "" !== _key2 && ((_len2 += "%s"), (args = args.concat([_key2]))));
-      args.unshift(_len2);
-      Function.prototype.apply.call(console.error, console, args);
-    }
     function noop() {}
     function getCrossOriginStringAs(as, input) {
       if ("font" === as) return "";
@@ -39,31 +21,25 @@
       return null === thing
         ? "`null`"
         : void 0 === thing
-        ? "`undefined`"
-        : "" === thing
-        ? "an empty string"
-        : 'something with type "' + typeof thing + '"';
+          ? "`undefined`"
+          : "" === thing
+            ? "an empty string"
+            : 'something with type "' + typeof thing + '"';
     }
     function getValueDescriptorExpectingEnumForWarning(thing) {
       return null === thing
         ? "`null`"
         : void 0 === thing
-        ? "`undefined`"
-        : "" === thing
-        ? "an empty string"
-        : "string" === typeof thing
-        ? JSON.stringify(thing)
-        : "number" === typeof thing
-        ? "`" + thing + "`"
-        : 'something with type "' + typeof thing + '"';
+          ? "`undefined`"
+          : "" === thing
+            ? "an empty string"
+            : "string" === typeof thing
+              ? JSON.stringify(thing)
+              : "number" === typeof thing
+                ? "`" + thing + "`"
+                : 'something with type "' + typeof thing + '"';
     }
-    var ReactSharedInternalsServer =
-      require("next/dist/compiled/react-experimental").__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
-    if (!ReactSharedInternalsServer)
-      throw Error(
-        'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
-      );
-    var supportsCreateTask = !!console.createTask,
+    var React = require("next/dist/compiled/react-experimental"),
       Internals = {
         d: {
           f: noop,
@@ -83,6 +59,10 @@
         p: 0,
         findDOMNode: null
       };
+    if (!React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE)
+      throw Error(
+        'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
+      );
     ("function" === typeof Map &&
       null != Map.prototype &&
       "function" === typeof Map.prototype.forEach &&
@@ -90,7 +70,7 @@
       null != Set.prototype &&
       "function" === typeof Set.prototype.clear &&
       "function" === typeof Set.prototype.forEach) ||
-      error(
+      console.error(
         "React depends on Map and Set built-in types. Make sure that you load a polyfill in older browsers. https://reactjs.org/link/react-polyfills"
       );
     exports.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
@@ -98,17 +78,17 @@
     exports.preconnect = function (href, options) {
       "string" === typeof href && href
         ? null != options && "object" !== typeof options
-          ? error(
+          ? console.error(
               "ReactDOM.preconnect(): Expected the `options` argument (second) to be an object but encountered %s instead. The only supported option at this time is `crossOrigin` which accepts a string.",
               getValueDescriptorExpectingEnumForWarning(options)
             )
           : null != options &&
             "string" !== typeof options.crossOrigin &&
-            error(
+            console.error(
               "ReactDOM.preconnect(): Expected the `crossOrigin` option (second argument) to be a string but encountered %s instead. Try removing this option or passing a string value instead.",
               getValueDescriptorExpectingObjectForWarning(options.crossOrigin)
             )
-        : error(
+        : console.error(
             "ReactDOM.preconnect(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.",
             getValueDescriptorExpectingObjectForWarning(href)
           );
@@ -126,18 +106,18 @@
     };
     exports.prefetchDNS = function (href) {
       if ("string" !== typeof href || !href)
-        error(
+        console.error(
           "ReactDOM.prefetchDNS(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.",
           getValueDescriptorExpectingObjectForWarning(href)
         );
       else if (1 < arguments.length) {
         var options = arguments[1];
         "object" === typeof options && options.hasOwnProperty("crossOrigin")
-          ? error(
+          ? console.error(
               "ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. It looks like the you are attempting to set a crossOrigin property for this DNS lookup hint. Browsers do not perform DNS queries using CORS and setting this attribute on the resource hint has no effect. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.",
               getValueDescriptorExpectingEnumForWarning(options)
             )
-          : error(
+          : console.error(
               "ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.",
               getValueDescriptorExpectingEnumForWarning(options)
             );
@@ -147,17 +127,17 @@
     exports.preinit = function (href, options) {
       "string" === typeof href && href
         ? null == options || "object" !== typeof options
-          ? error(
+          ? console.error(
               "ReactDOM.preinit(): Expected the `options` argument (second) to be an object with an `as` property describing the type of resource to be preinitialized but encountered %s instead.",
               getValueDescriptorExpectingEnumForWarning(options)
             )
           : "style" !== options.as &&
             "script" !== options.as &&
-            error(
+            console.error(
               'ReactDOM.preinit(): Expected the `as` property in the `options` argument (second) to contain a valid value describing the type of resource to be preinitialized but encountered %s instead. Valid values for `as` are "style" and "script".',
               getValueDescriptorExpectingEnumForWarning(options.as)
             )
-        : error(
+        : console.error(
             "ReactDOM.preinit(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.",
             getValueDescriptorExpectingObjectForWarning(href)
           );
@@ -215,7 +195,7 @@
             getValueDescriptorExpectingEnumForWarning(options.as) +
             ".");
       if (encountered)
-        error(
+        console.error(
           "ReactDOM.preinitModule(): Expected up to two arguments, a non-empty `href` string and, optionally, an `options` object with a valid `as` property.%s",
           encountered
         );
@@ -230,7 +210,7 @@
           default:
             (encountered =
               getValueDescriptorExpectingEnumForWarning(encountered)),
-              error(
+              console.error(
                 'ReactDOM.preinitModule(): Currently the only supported "as" type for this function is "script" but received "%s" instead. This warning was generated for `href` "%s". In the future other module types will be supported, aligning with the import-attributes proposal. Learn more here: (https://github.com/tc39/proposal-import-attributes)',
                 encountered,
                 href
@@ -272,7 +252,7 @@
             getValueDescriptorExpectingObjectForWarning(options.as) +
             ".");
       encountered &&
-        error(
+        console.error(
           'ReactDOM.preload(): Expected two arguments, a non-empty `href` string and an `options` object with an `as` property valid for a `<link rel="preload" as="..." />` tag.%s',
           encountered
         );
@@ -333,7 +313,7 @@
             getValueDescriptorExpectingObjectForWarning(options.as) +
             ".");
       encountered &&
-        error(
+        console.error(
           'ReactDOM.preloadModule(): Expected two arguments, a non-empty `href` string and, optionally, an `options` object with an `as` property valid for a `<link rel="modulepreload" as="..." />` tag.%s',
           encountered
         );
@@ -356,5 +336,5 @@
             }))
           : Internals.d.m(href));
     };
-    exports.version = "19.0.0-experimental-dfd30974ab-20240613";
+    exports.version = "19.0.0-experimental-3208e73e-20240730";
   })();
