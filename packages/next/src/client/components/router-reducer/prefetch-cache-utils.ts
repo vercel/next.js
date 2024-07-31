@@ -30,7 +30,8 @@ function createPrefetchCacheKey(
   // In the auto case, since loading.js & layout.js won't have access to search params,
   // we can safely re-use that cache entry. But for full prefetches, we should not
   // re-use the cache entry as the response may differ.
-  if (prefetchKind === PrefetchKind.FULL) {
+  // TODO: Investigate how this should work with PPR. For now, PPR always keys on the full URL.
+  if (prefetchKind === PrefetchKind.FULL || process.env.__NEXT_PPR) {
     // if we have a full prefetch, we can include the search param in the key,
     // as we'll be getting back a full response. The server might have read the search
     // params when generating the full response.
