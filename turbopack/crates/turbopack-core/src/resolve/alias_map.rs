@@ -894,4 +894,28 @@ mod test {
             replaced_owned("foo**foo")
         );
     }
+
+    #[test]
+    fn test_pattern() {
+        let mut map = AliasMap::new();
+        map.insert(AliasPattern::parse("foo"), "foz");
+        map.insert(AliasPattern::parse("bar"), "baz");
+        map.insert(AliasPattern::parse("wild/*"), "card/*");
+
+        let request = Pattern::Alternatives(vec![
+            Pattern::Constant("foo".into()),
+            Pattern::Constant("bar".into()),
+        ]);
+        // let request = Pattern::Constant("foo".into());
+        // let request =
+        //     Pattern::Concatenation(vec![Pattern::Constant("wild/".into()),
+        // Pattern::Dynamic]);
+
+        let result = map.lookup(&request).collect::<Vec<_>>();
+        println!("{:?}", result);
+        // assert_alias_matches!(map, "");
+        // assert_alias_matches!(map, "foo", exact("bar"));
+        // assert_alias_matches!(map, "bar", exact("foo"));
+        // assert_alias_matches!(map, "foobar", exact("barfoo"));
+    }
 }
