@@ -9,7 +9,7 @@ import updateCheck from 'update-check'
 import packageJson from './package.json'
 import { basename, resolve } from 'node:path'
 import { existsSync } from 'node:fs'
-import { Command, Option } from 'commander'
+import { Command } from 'commander'
 import { cyan, green, red, yellow, bold, blue } from 'picocolors'
 import { createApp, DownloadError } from './create-app'
 import { getPkgManager } from './helpers/get-pkg-manager'
@@ -58,11 +58,21 @@ const program = new Command(packageJson.name)
     'Specify import alias to use (default "@/*").'
   )
   .option('--empty', 'Initialize an empty project.')
-  .addOption(
-    new Option(
-      '--use <package-manager>',
-      'Specify the package manager to use.'
-    ).choices(['npm', 'pnpm', 'yarn', 'bun'])
+  .option(
+    '--use-npm',
+    'Explicitly tell the CLI to bootstrap the application using npm.'
+  )
+  .option(
+    '--use-pnpm',
+    'Explicitly tell the CLI to bootstrap the application using pnpm.'
+  )
+  .option(
+    '--use-yarn',
+    'Explicitly tell the CLI to bootstrap the application using Yarn.'
+  )
+  .option(
+    '--use-bun',
+    'Explicitly tell the CLI to bootstrap the application using Bun.'
   )
   .option(
     '--reset, --reset-preferences',
@@ -104,19 +114,17 @@ const program = new Command(packageJson.name)
   .parse(process.argv)
 
 const opts = program.opts()
-const { args } = program
+// const { args } = program
 
-const packageManager: PackageManager = opts.use
-  ? opts.use
-  : args.includes('--use-npm')
-    ? 'npm'
-    : args.includes('--use-pnpm')
-      ? 'pnpm'
-      : args.includes('--use-yarn')
-        ? 'yarn'
-        : args.includes('--use-bun')
-          ? 'bun'
-          : getPkgManager()
+const packageManager: PackageManager = !!opts.useNpm
+  ? 'npm'
+  : !!opts.usePnpm
+    ? 'pnpm'
+    : !!opts.useYarn
+      ? 'yarn'
+      : !!opts.useBun
+        ? 'bun'
+        : getPkgManager()
 
 async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })
