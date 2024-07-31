@@ -9,7 +9,7 @@ chain1 = ???*0*
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-chain2 = (???*0* | 3)
+chain2 = (???*0* | 3){truthy}
 - *0* FreeVar(global)
   ⚠️  unknown global
   ⚠️  This value might have side effects
@@ -25,12 +25,19 @@ resolve1 = (???*0* | 4)
 
 resolve2 = 0
 
-resolve3 = (???*0* | true)
+resolve3 = (???*0* | true){truthy}
 - *0* FreeVar(global)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
 resolve4 = true
+
+resolve5 = (???*0* | false){falsy}
+- *0* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+resolve6 = false
 
 x = true
 

@@ -143,9 +143,9 @@
     ),
     (
         "variable",
-        Alternatives(
-            5,
-            [
+        Alternatives {
+            total_nodes: 5,
+            values: [
                 Member(
                     3,
                     Argument(
@@ -168,6 +168,7 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
 ]

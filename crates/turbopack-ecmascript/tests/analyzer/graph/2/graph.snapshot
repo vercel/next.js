@@ -1,9 +1,9 @@
 [
     (
         "x",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -18,7 +18,8 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "y",

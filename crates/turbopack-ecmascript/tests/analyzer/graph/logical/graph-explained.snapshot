@@ -20,6 +20,10 @@ resolve3 = (FreeVar(global) || true)
 
 resolve4 = (true || FreeVar(global))
 
+resolve5 = (FreeVar(global) && false)
+
+resolve6 = (false && FreeVar(global))
+
 x = true
 
 y = false

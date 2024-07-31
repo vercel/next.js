@@ -8411,7 +8411,7 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
     "abort canplay canplaythrough durationchange emptied encrypted ended error loadeddata loadedmetadata loadstart pause play playing progress ratechange resize seeked seeking stalled suspend timeupdate volumechange waiting"["split"](" ")
 )
 
-0 -> 1572 call = (...) => undefined((???*0* | "unknown-event"), ???*2*, ???*3*, ???*4*)
+0 -> 1572 call = (...) => undefined((???*0* | "unknown-event"){truthy}, ???*2*, ???*3*, ???*4*)
 - *0* ???*1*["type"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -14864,7 +14864,7 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *3* arguments[3]
   ⚠️  function calls are not analysed yet
 
-0 -> 2562 call = (...) => a((???*0* | ???*1* | ???*3* | ???*4*), (???*5* | []))
+0 -> 2562 call = (...) => a((???*0* | ???*1* | ???*3* | ???*4*), (???*5* | []){truthy})
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["mode"]
@@ -16392,7 +16392,7 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-2809 -> 2813 call = (...) => a(???*0*, (???*1* | []))
+2809 -> 2813 call = (...) => a(???*0*, (???*1* | []){truthy})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 - *1* ???*2*["children"]
@@ -36859,7 +36859,7 @@ ${(???*45* | ???*46* | ???*50* | "")}${(???*54* | ???*56*)}`
         "scheduleUpdate": null,
         "currentDispatcherRef": module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]["ReactCurrentDispatcher"],
         "findHostInstanceByFiber": (...) => ((null === a) ? null : a["stateNode"]),
-        "findFiberByHostInstance": ((...) => (b | c | null) | ???*6* | (...) => null),
+        "findFiberByHostInstance": ((...) => (b | c | null) | ???*6* | (...) => null){truthy},
         "findHostInstancesForRefresh": null,
         "scheduleRefresh": null,
         "scheduleRoot": null,

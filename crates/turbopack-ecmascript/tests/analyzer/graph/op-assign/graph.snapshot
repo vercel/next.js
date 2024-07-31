@@ -4,9 +4,9 @@
         Function(
             4,
             173,
-            Alternatives(
-                3,
-                [
+            Alternatives {
+                total_nodes: 3,
+                values: [
                     Constant(
                         Undefined,
                     ),
@@ -16,7 +16,8 @@
                         has_side_effects: true,
                     },
                 ],
-            ),
+                logical_property: None,
+            },
         ),
     ),
     (
@@ -43,9 +44,9 @@
     ),
     (
         "clientComponentLoadTimes",
-        Alternatives(
-            5,
-            [
+        Alternatives {
+            total_nodes: 5,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -70,7 +71,8 @@
                     ],
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "getClientComponentLoaderMetrics",

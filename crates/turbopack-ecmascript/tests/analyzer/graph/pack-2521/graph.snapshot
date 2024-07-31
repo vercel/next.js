@@ -150,9 +150,9 @@
     ),
     (
         "sharp",
-        Alternatives(
-            5,
-            [
+        Alternatives {
+            total_nodes: 5,
+            values: [
                 Unknown {
                     original_value: Some(
                         Variable(
@@ -180,6 +180,7 @@
                     ],
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
 ]

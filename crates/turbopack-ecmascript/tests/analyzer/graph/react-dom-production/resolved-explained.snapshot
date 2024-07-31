@@ -12260,7 +12260,7 @@ d#269 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-d#274 = (???*0* | "unknown-event")
+d#274 = (???*0* | "unknown-event"){truthy}
 - *0* ???*1*["type"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -19903,7 +19903,7 @@ vl = {
     "scheduleUpdate": null,
     "currentDispatcherRef": module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]["ReactCurrentDispatcher"],
     "findHostInstanceByFiber": (...) => ((null === a) ? null : a["stateNode"]),
-    "findFiberByHostInstance": ((...) => (b | c | null) | ???*5* | (...) => null),
+    "findFiberByHostInstance": ((...) => (b | c | null) | ???*5* | (...) => null){truthy},
     "findHostInstancesForRefresh": null,
     "scheduleRefresh": null,
     "scheduleRoot": null,

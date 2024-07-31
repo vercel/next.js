@@ -88,9 +88,9 @@
         Function(
             11,
             87,
-            Alternatives(
-                10,
-                [
+            Alternatives {
+                total_nodes: 10,
+                values: [
                     Constant(
                         Undefined,
                     ),
@@ -142,7 +142,8 @@
                         ],
                     ),
                 ],
-            ),
+                logical_property: None,
+            },
         ),
     ),
     (

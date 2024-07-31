@@ -2,7 +2,7 @@ use std::mem::take;
 
 use swc_core::ecma::atoms::js_word;
 
-use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, ObjectPart};
+use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart};
 
 /// Replaces some builtin values with their resulting values. Called early
 /// without lazy nested values. This allows to skip a lot of work to process the
@@ -30,7 +30,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
                 | JsValue::WellKnownObject(_)
                 | JsValue::Array { .. }
                 | JsValue::Object { .. }
-                | JsValue::Alternatives(_, _)
+                | JsValue::Alternatives { .. }
                 | JsValue::Concat(_, _)
                 | JsValue::Add(_, _)
                 | JsValue::Not(_, _) => {
@@ -102,9 +102,13 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             // matching property access when obj is a bunch of alternatives
             // like `(obj1 | obj2 | obj3).prop`
             // We expand these to `obj1.prop | obj2.prop | obj3.prop`
-            JsValue::Alternatives(_, alts) => {
+            JsValue::Alternatives {
+                total_nodes: _,
+                values,
+                logical_property: _,
+            } => {
                 *value = JsValue::alternatives(
-                    take(alts)
+                    take(values)
                         .into_iter()
                         .map(|alt| JsValue::member(Box::new(alt), prop.clone()))
                         .collect(),
@@ -157,9 +161,13 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     }
                     // accessing multiple alternative properties on an array like `[1,2,3][(1 | 2 |
                     // prop3)]`
-                    JsValue::Alternatives(_, alts) => {
+                    JsValue::Alternatives {
+                        total_nodes: _,
+                        values,
+                        logical_property: _,
+                    } => {
                         *value = JsValue::alternatives(
-                            take(alts)
+                            take(values)
                                 .into_iter()
                                 .map(|alt| JsValue::member(Box::new(obj.clone()), Box::new(alt)))
                                 .collect(),
@@ -297,9 +305,13 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     }
                     // matching mutliple alternative properties on an object like `{a: 1, b: 2}[(a |
                     // b)]`
-                    JsValue::Alternatives(_, alts) => {
+                    JsValue::Alternatives {
+                        total_nodes: _,
+                        values,
+                        logical_property: _,
+                    } => {
                         *value = JsValue::alternatives(
-                            take(alts)
+                            take(values)
                                 .into_iter()
                                 .map(|alt| JsValue::member(Box::new(obj.clone()), Box::new(alt)))
                                 .collect(),
@@ -395,9 +407,13 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 }
                 // matching calls on multiple alternative objects like `(obj1 | obj2).prop(arg1,
                 // arg2, ...)`
-                JsValue::Alternatives(_, alts) => {
+                JsValue::Alternatives {
+                    total_nodes: _,
+                    values,
+                    logical_property: _,
+                } => {
                     *value = JsValue::alternatives(
-                        take(alts)
+                        take(values)
                             .into_iter()
                             .map(|alt| {
                                 JsValue::member_call(
@@ -437,9 +453,17 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         }
         // match calls when the callee are multiple alternative functions like `(func1 |
         // func2)(arg1, arg2, ...)`
-        JsValue::Call(_, box JsValue::Alternatives(_, alts), ref mut args) => {
+        JsValue::Call(
+            _,
+            box JsValue::Alternatives {
+                total_nodes: _,
+                values,
+                logical_property: _,
+            },
+            ref mut args,
+        ) => {
             *value = JsValue::alternatives(
-                take(alts)
+                take(values)
                     .into_iter()
                     .map(|alt| JsValue::call(Box::new(alt), args.clone()))
                     .collect(),
@@ -477,30 +501,37 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         // Reduce logical expressions to their final value(s)
         JsValue::Logical(_, op, ref mut parts) => {
             let len = parts.len();
-            for (i, part) in take(parts).into_iter().enumerate() {
+            let input_parts: Vec<JsValue> = take(parts);
+            *parts = Vec::with_capacity(len);
+            let mut part_properties = Vec::with_capacity(len);
+            for (i, part) in input_parts.into_iter().enumerate() {
                 // The last part is never skipped.
                 if i == len - 1 {
+                    // We intentionally omit the part_properties for the last part.
+                    // This isn't always needed so we only compute it when actually needed.
                     parts.push(part);
                     break;
                 }
-                // We might know at compile-time if a part is skipped or the final value.
-                let skip_part = match op {
+                let property = match op {
                     LogicalOperator::And => part.is_truthy(),
                     LogicalOperator::Or => part.is_falsy(),
                     LogicalOperator::NullishCoalescing => part.is_nullish(),
                 };
-                match skip_part {
+                // We might know at compile-time if a part is skipped or the final value.
+                match property {
                     Some(true) => {
                         // We known this part is skipped, so we can remove it.
                         continue;
                     }
                     Some(false) => {
                         // We known this part is the final value, so we can remove the rest.
+                        part_properties.push(property);
                         parts.push(part);
                         break;
                     }
                     None => {
                         // We don't know if this part is skipped or the final value, so we keep it.
+                        part_properties.push(property);
                         parts.push(part);
                         continue;
                     }
@@ -512,8 +543,57 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 true
             } else {
                 // If not, we know that it will be one of the remaining values.
-                *value = JsValue::alternatives(take(parts));
-                true
+                let last_part = parts.last().unwrap();
+                let property = match op {
+                    LogicalOperator::And => last_part.is_truthy(),
+                    LogicalOperator::Or => last_part.is_falsy(),
+                    LogicalOperator::NullishCoalescing => last_part.is_nullish(),
+                };
+                part_properties.push(property);
+                let (any_unset, all_set) =
+                    part_properties
+                        .iter()
+                        .fold((false, true), |(any_unset, all_set), part| match part {
+                            Some(true) => (any_unset, all_set),
+                            Some(false) => (true, false),
+                            None => (any_unset, false),
+                        });
+                let property = match op {
+                    LogicalOperator::Or => {
+                        if any_unset {
+                            Some(LogicalProperty::Truthy)
+                        } else if all_set {
+                            Some(LogicalProperty::Falsy)
+                        } else {
+                            None
+                        }
+                    }
+                    LogicalOperator::And => {
+                        if any_unset {
+                            Some(LogicalProperty::Falsy)
+                        } else if all_set {
+                            Some(LogicalProperty::Truthy)
+                        } else {
+                            None
+                        }
+                    }
+                    LogicalOperator::NullishCoalescing => {
+                        if any_unset {
+                            Some(LogicalProperty::NonNullish)
+                        } else if all_set {
+                            Some(LogicalProperty::Nullish)
+                        } else {
+                            None
+                        }
+                    }
+                };
+                if let Some(property) = property {
+                    *value = JsValue::alternatives_with_addtional_property(take(parts), property);
+                    true
+                } else {
+                    *value = JsValue::alternatives(take(parts));
+                    true
+                }
             }
         }
         JsValue::Tenary(_, test, cons, alt) => {
