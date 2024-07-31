@@ -22,11 +22,17 @@ describe('terser-class-static-blocks', () => {
 
       expect(chunks.length).toBeGreaterThan(0)
 
-      for (const chunk of chunks) {
-        expect(
-          await next.readFile(path.join('.next/static', chunk))
-        ).not.toContain('/*')
-      }
+      await Promise.all(
+        chunks.map(async (chunk) => {
+          expect(
+            await next.readFile(path.join('.next/static', chunk))
+          ).not.toContain('/*')
+
+          expect(
+            await next.readFile(path.join('.next/static', chunk))
+          ).not.toContain('My JSDoc comment that')
+        })
+      )
     })
   }
 })
