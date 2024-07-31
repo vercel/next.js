@@ -15,7 +15,7 @@ Next.js includes its own server with `next start` by default. If you have an exi
 
 Take a look at the [following example](https://github.com/vercel/next.js/tree/canary/examples/custom-server) of a custom server:
 
-```ts filename="server.ts"
+```ts filename="server.ts" switcher
 import { createServer } from 'http'
 import { parse } from 'url'
 import next from 'next'
@@ -39,7 +39,7 @@ app.prepare().then(() => {
 })
 ```
 
-```js filename="server.js"
+```js filename="server.js" switcher
 import { createServer } from "http";
 import { parse } from "url";
 import next from "next";
