@@ -114,7 +114,7 @@ const program = new Command(packageJson.name)
   .parse(process.argv)
 
 const opts = program.opts()
-// const { args } = program
+const { args } = program
 
 const packageManager: PackageManager = !!opts.useNpm
   ? 'npm'
