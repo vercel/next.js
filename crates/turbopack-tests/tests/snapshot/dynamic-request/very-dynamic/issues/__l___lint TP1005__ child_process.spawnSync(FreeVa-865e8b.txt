@@ -1,4 +1,4 @@
-warning - [analysis] [project]/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js  /crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js:6:0  lint TP1005 child_process.spawnSync(FreeVar(Math)["random"]()) is very dynamic
+[92;4msuggestion - [analysis] [project]/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js  /crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js:6:0  lint TP1005 child_process.spawnSync(FreeVar(Math)["random"]()) is very dynamic
   
        2 | import fs, { readFileSync } from "node:fs";
        3 | 
