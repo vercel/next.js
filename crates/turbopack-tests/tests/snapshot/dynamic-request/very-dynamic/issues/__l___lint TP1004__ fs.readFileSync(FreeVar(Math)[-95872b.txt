@@ -1,4 +1,4 @@
-warning - [analysis] [project]/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js  /crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js:14:0  lint TP1004 fs.readFileSync(FreeVar(Math)["random"]()) is very dynamic
+[92;4msuggestion - [analysis] [project]/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js  /crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js:14:0  lint TP1004 fs.readFileSync(FreeVar(Math)["random"]()) is very dynamic
   
       10 | require(unknown);
       11 | 

@@ -47,6 +47,26 @@ impl Emitter for IssueEmitter {
             DiagnosticId::Error(s) => format!("error {s}").into(),
             DiagnosticId::Lint(s) => format!("lint {s}").into(),
         });
+        let is_lint = db
+            .code
+            .as_ref()
+            .map_or(false, |d| matches!(d, DiagnosticId::Lint(_)));
+
+        let severity = (if is_lint {
+            IssueSeverity::Suggestion
+        } else {
+            match level {
+                Level::Bug => IssueSeverity::Bug,
+                Level::Fatal | Level::PhaseFatal => IssueSeverity::Fatal,
+                Level::Error => IssueSeverity::Error,
+                Level::Warning => IssueSeverity::Warning,
+                Level::Note => IssueSeverity::Note,
+                Level::Help => IssueSeverity::Hint,
+                Level::Cancelled => IssueSeverity::Error,
+                Level::FailureNote => IssueSeverity::Note,
+            }
+        })
+        .cell();
 
         let title;
         if let Some(t) = self.title.as_ref() {
@@ -63,17 +83,7 @@ impl Emitter for IssueEmitter {
         // TODO add other primary and secondary spans with labels as sub_issues
 
         let issue = AnalyzeIssue {
-            severity: match level {
-                Level::Bug => IssueSeverity::Bug,
-                Level::Fatal | Level::PhaseFatal => IssueSeverity::Fatal,
-                Level::Error => IssueSeverity::Error,
-                Level::Warning => IssueSeverity::Warning,
-                Level::Note => IssueSeverity::Note,
-                Level::Help => IssueSeverity::Hint,
-                Level::Cancelled => IssueSeverity::Error,
-                Level::FailureNote => IssueSeverity::Note,
-            }
-            .cell(),
+            severity,
             source_ident: self.source.ident(),
             title: Vc::cell(title),
             message: StyledString::Text(message.into()).cell(),

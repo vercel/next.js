@@ -1,4 +1,4 @@
-warning - [analysis] [project]/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js  /crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js:8:0  lint TP1005 child_process.spawnSync(
+[92;4msuggestion - [analysis] [project]/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js  /crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js:8:0  lint TP1005 child_process.spawnSync(
   
        4 | const unknown = Math.random();
        5 | 
