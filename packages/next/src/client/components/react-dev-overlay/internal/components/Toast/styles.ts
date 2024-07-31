@@ -39,7 +39,7 @@ const styles = css`
     align-items: center;
   }
 
-  .nextjs-static-indicator-toast-wrapper p {
+  .nextjs-static-indicator-toast-wrapper span {
     padding: 4px;
     margin: 0;
   }

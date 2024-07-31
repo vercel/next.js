@@ -7,7 +7,7 @@ export function StaticIndicator({ dispatcher }: { dispatcher?: Dispatcher }) {
   return (
     <Toast className="nextjs-static-indicator-toast-wrapper">
       <LightningBolt />
-      <p>
+      <span>
         Statically rendered page.{' '}
         <a
           onClick={(e) => e.stopPropagation()}
@@ -17,7 +17,7 @@ export function StaticIndicator({ dispatcher }: { dispatcher?: Dispatcher }) {
         >
           Learn more
         </a>
-      </p>
+      </span>
       <button
         onClick={() => {
           dispatcher?.onStaticIndicator(false)
