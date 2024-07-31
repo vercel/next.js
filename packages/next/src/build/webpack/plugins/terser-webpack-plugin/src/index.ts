@@ -49,19 +49,16 @@ const debugMinify = process.env.NEXT_DEBUG_MINIFY
 export class TerserPlugin {
   options: {
     terserOptions: any
-    minifyLicenses: boolean
   }
   constructor(
     options: {
       terserOptions?: any
-      minifyLicenses?: boolean
     } = {}
   ) {
-    const { terserOptions = {}, minifyLicenses = true } = options
+    const { terserOptions = {} } = options
 
     this.options = {
       terserOptions,
-      minifyLicenses,
     }
   }
 
@@ -151,7 +148,7 @@ export class TerserPlugin {
                 mangle: true,
                 module: 'unknown',
                 output: {
-                  comments: this.options.minifyLicenses ? false : 'some',
+                  comments: false,
                 },
               }
             )

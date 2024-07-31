@@ -211,7 +211,6 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
-  minifyLicenses?: boolean
   appNavFailHandling?: boolean
   flyingShuttle?: boolean
   prerenderEarlyExit?: boolean
@@ -946,7 +945,6 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    minifyLicenses: true,
     appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
     flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
     prerenderEarlyExit: true,
