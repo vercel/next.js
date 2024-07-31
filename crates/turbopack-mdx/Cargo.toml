@@ -16,6 +16,7 @@ workspace = true
 anyhow = { workspace = true }
 serde = { workspace = true }
 
+markdown = { workspace = true }
 mdxjs = { workspace = true }
 
 turbo-tasks = { workspace = true }

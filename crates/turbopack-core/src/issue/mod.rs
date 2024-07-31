@@ -431,6 +431,7 @@ pub struct IssueSource {
     range: Option<Vc<SourceRange>>,
 }
 
+/// The end position is the first character after the range
 #[turbo_tasks::value]
 #[derive(Clone, Debug)]
 enum SourceRange {

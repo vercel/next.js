@@ -1,15 +1,19 @@
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use mdxjs::{compile, MdxParseOptions, Options};
 use turbo_tasks::{RcStr, ValueDefault, Vc};
-use turbo_tasks_fs::{rope::Rope, File, FileContent};
+use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
-    issue::IssueDescriptionExt,
+    issue::{
+        Issue, IssueDescriptionExt, IssueExt, IssueSource, IssueStage, OptionIssueSource,
+        OptionStyledString, StyledString,
+    },
     source::Source,
+    source_pos::SourcePos,
     source_transform::SourceTransform,
 };
 
@@ -175,20 +179,103 @@ impl MdxTransformedAsset {
             ..Default::default()
         };
 
-        // TODO: upstream mdx currently bubbles error as string
-        let mdx_jsx_component =
-            compile(&file.content().to_str()?, &options).map_err(|e| anyhow!("{}", e))?;
+        let result = compile(&file.content().to_str()?, &options);
 
-        Ok(MdxTransformResult {
-            content: AssetContent::file(File::from(Rope::from(mdx_jsx_component)).into()),
+        match result {
+            Ok(mdx_jsx_component) => Ok(MdxTransformResult {
+                content: AssetContent::file(File::from(Rope::from(mdx_jsx_component)).into()),
+            }
+            .cell()),
+            Err(err) => {
+                let loc = Vc::cell(err.place.map(|p| {
+                    let (start, end) = match *p {
+                        // markdown's positions are 1-indexed, SourcePos is 0-indexed.
+                        // Both end positions point to the first character after the range
+                        markdown::message::Place::Position(p) => (
+                            SourcePos {
+                                line: p.start.line - 1,
+                                column: p.start.column - 1,
+                            },
+                            SourcePos {
+                                line: p.end.line - 1,
+                                column: p.end.column - 1,
+                            },
+                        ),
+                        markdown::message::Place::Point(p) => {
+                            let p = SourcePos {
+                                line: p.line - 1,
+                                column: p.column - 1,
+                            };
+                            (p, p)
+                        }
+                    };
+
+                    IssueSource::from_line_col(this.source, start, end)
+                }));
+
+                MdxIssue {
+                    path: this.source.ident().path(),
+                    loc,
+                    reason: err.reason,
+                    mdx_rule_id: *err.rule_id,
+                    mdx_source: *err.source,
+                }
+                .cell()
+                .emit();
+
+                Ok(MdxTransformResult {
+                    content: AssetContent::File(FileContent::NotFound.cell()).cell(),
+                }
+                .cell())
+            }
         }
-        .cell())
     }
 }
 
 #[turbo_tasks::value]
 struct MdxTransformResult {
     content: Vc<AssetContent>,
+}
+
+#[turbo_tasks::value]
+struct MdxIssue {
+    /// Place of message.
+    path: Vc<FileSystemPath>,
+    loc: Vc<OptionIssueSource>,
+    /// Reason for message (should use markdown).
+    reason: String,
+    /// Category of message.
+    mdx_rule_id: String,
+    /// Namespace of message.
+    mdx_source: String,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for MdxIssue {
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.path
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        self.loc
+    }
+
+    #[turbo_tasks::function]
+    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
+        IssueStage::Parse.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn title(self: Vc<Self>) -> Vc<StyledString> {
+        StyledString::Text("MDX Parse Error".into()).cell()
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(StyledString::Text(self.reason.clone().into()).cell()))
+    }
 }
 
 pub fn register() {
