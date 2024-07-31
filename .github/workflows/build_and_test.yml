@@ -101,7 +101,6 @@ jobs:
   check-types-precompiled:
     name: types and precompiled
     needs: ['changes', 'build-native', 'build-next']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
