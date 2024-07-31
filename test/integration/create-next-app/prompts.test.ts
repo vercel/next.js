@@ -305,16 +305,24 @@ describe('create-next-app prompts', () => {
        *    "importAlias": "@/*"
        *  }
        */
-      expect(output).toContain('Running a dry run, skipping installation.')
-      expect(output).toContain('Dry Run Result:')
-      // appPath is a temporary directory, so we can't check for the exact path
-      expect(output).toContain('"appPath":')
-      // packageManager may vary depending on the system
-      expect(output).toContain('"packageManager":')
-      expect(output).toContain('"typescript": true')
-      expect(output).toContain('"eslint": true')
-      expect(output).toContain('"app": true')
-      expect(output).toContain('"importAlias": "@/*"')
+      expect(output).toMatch(
+        new RegExp(
+          'Running a dry run, skipping installation\\.' +
+            '\\s*Dry Run Result:' +
+            '\\s*{' +
+            // appPath is a temporary directory, so we can't check for the exact path
+            '\\s*"appPath": ".*",' +
+            // TODO: investigate getPkgManager() returning npm on CI
+            // packageManager is npm on CI, pnpm on local
+            '\\s*"packageManager": ".*",' +
+            '\\s*"typescript": true,' +
+            '\\s*"eslint": true,' +
+            '\\s*"app": true,' +
+            '\\s*"importAlias": "@/\\*"' +
+            '\\s*}',
+          's'
+        )
+      )
     })
   })
 })
