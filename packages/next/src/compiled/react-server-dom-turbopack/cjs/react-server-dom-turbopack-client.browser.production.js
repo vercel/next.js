@@ -69,8 +69,8 @@ function preloadModule(metadata) {
           return requireAsyncModule(metadata[0]);
         })
     : 0 < promises.length
-    ? Promise.all(promises)
-    : null;
+      ? Promise.all(promises)
+      : null;
 }
 var ReactDOMSharedInternals =
     ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
@@ -95,10 +95,10 @@ function serializeNumber(number) {
       ? "$-0"
       : number
     : Infinity === number
-    ? "$Infinity"
-    : -Infinity === number
-    ? "$-Infinity"
-    : "$NaN";
+      ? "$Infinity"
+      : -Infinity === number
+        ? "$-Infinity"
+        : "$NaN";
 }
 function processReply(
   root,
@@ -626,10 +626,10 @@ function initializeModuleChunk(chunk) {
       "*" === metadata[2]
         ? moduleExports
         : "" === metadata[2]
-        ? moduleExports.__esModule
-          ? moduleExports.default
-          : moduleExports
-        : moduleExports[metadata[2]];
+          ? moduleExports.__esModule
+            ? moduleExports.default
+            : moduleExports
+          : moduleExports[metadata[2]];
     chunk.status = "fulfilled";
     chunk.value = JSCompiler_inline_result;
   } catch (error) {
@@ -673,6 +673,13 @@ function waitForReference(
     }
     parentObject[key] = map(response, value);
     "" === key && null === handler.value && (handler.value = parentObject[key]);
+    parentObject[0] === REACT_ELEMENT_TYPE &&
+      "3" === key &&
+      "object" === typeof handler.value &&
+      null !== handler.value &&
+      handler.value.$$typeof === REACT_ELEMENT_TYPE &&
+      null === handler.value.props &&
+      (handler.value.props = parentObject[key]);
     handler.deps--;
     0 === handler.deps &&
       ((i = handler.chunk),
@@ -736,10 +743,23 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
   }
   switch (id.status) {
     case "fulfilled":
-      parentObject = id.value;
-      for (key = 1; key < reference.length; key++)
-        parentObject = parentObject[reference[key]];
-      return map(response, parentObject);
+      var value = id.value;
+      for (id = 1; id < reference.length; id++)
+        if (
+          ((value = value[reference[id]]), value.$$typeof === REACT_LAZY_TYPE)
+        )
+          if (((value = value._payload), "fulfilled" === value.status))
+            value = value.value;
+          else
+            return waitForReference(
+              value,
+              parentObject,
+              key,
+              response,
+              map,
+              reference.slice(id)
+            );
+      return map(response, value);
     case "pending":
     case "blocked":
       return waitForReference(id, parentObject, key, response, map, reference);
@@ -1150,7 +1170,7 @@ function resolveTypedArray(
   );
   resolveBuffer(response, id, constructor);
 }
-function processFullRow(response, id, tag, buffer, chunk) {
+function processFullBinaryRow(response, id, tag, buffer, chunk) {
   switch (tag) {
     case 65:
       resolveBuffer(response, id, mergeBuffer(buffer, chunk).buffer);
@@ -1202,44 +1222,46 @@ function processFullRow(response, id, tag, buffer, chunk) {
     i++
   )
     row += stringDecoder.decode(buffer[i], decoderOptions);
-  row += stringDecoder.decode(chunk);
+  buffer = row += stringDecoder.decode(chunk);
   switch (tag) {
     case 73:
-      resolveModule(response, id, row);
+      resolveModule(response, id, buffer);
       break;
     case 72:
-      id = row[0];
-      row = row.slice(1);
-      response = JSON.parse(row, response._fromJSON);
-      row = ReactDOMSharedInternals.d;
+      id = buffer[0];
+      buffer = buffer.slice(1);
+      response = JSON.parse(buffer, response._fromJSON);
+      buffer = ReactDOMSharedInternals.d;
       switch (id) {
         case "D":
-          row.D(response);
+          buffer.D(response);
           break;
         case "C":
           "string" === typeof response
-            ? row.C(response)
-            : row.C(response[0], response[1]);
+            ? buffer.C(response)
+            : buffer.C(response[0], response[1]);
           break;
         case "L":
           id = response[0];
           tag = response[1];
-          3 === response.length ? row.L(id, tag, response[2]) : row.L(id, tag);
+          3 === response.length
+            ? buffer.L(id, tag, response[2])
+            : buffer.L(id, tag);
           break;
         case "m":
           "string" === typeof response
-            ? row.m(response)
-            : row.m(response[0], response[1]);
+            ? buffer.m(response)
+            : buffer.m(response[0], response[1]);
           break;
         case "X":
           "string" === typeof response
-            ? row.X(response)
-            : row.X(response[0], response[1]);
+            ? buffer.X(response)
+            : buffer.X(response[0], response[1]);
           break;
         case "S":
           "string" === typeof response
-            ? row.S(response)
-            : row.S(
+            ? buffer.S(response)
+            : buffer.S(
                 response[0],
                 0 === response[1] ? void 0 : response[1],
                 3 === response.length ? response[2] : void 0
@@ -1247,27 +1269,27 @@ function processFullRow(response, id, tag, buffer, chunk) {
           break;
         case "M":
           "string" === typeof response
-            ? row.M(response)
-            : row.M(response[0], response[1]);
+            ? buffer.M(response)
+            : buffer.M(response[0], response[1]);
       }
       break;
     case 69:
-      tag = JSON.parse(row).digest;
-      row = Error(
+      tag = JSON.parse(buffer).digest;
+      buffer = Error(
         "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error."
       );
-      row.stack = "Error: " + row.message;
-      row.digest = tag;
+      buffer.stack = "Error: " + buffer.message;
+      buffer.digest = tag;
       tag = response._chunks;
-      (buffer = tag.get(id))
-        ? triggerErrorOnChunk(buffer, row)
-        : tag.set(id, new Chunk("rejected", null, row, response));
+      (chunk = tag.get(id))
+        ? triggerErrorOnChunk(chunk, buffer)
+        : tag.set(id, new Chunk("rejected", null, buffer, response));
       break;
     case 84:
       tag = response._chunks;
-      (buffer = tag.get(id)) && "pending" !== buffer.status
-        ? buffer.reason.enqueueValue(row)
-        : tag.set(id, new Chunk("fulfilled", row, null, response));
+      (chunk = tag.get(id)) && "pending" !== chunk.status
+        ? chunk.reason.enqueueValue(buffer)
+        : tag.set(id, new Chunk("fulfilled", buffer, null, response));
       break;
     case 68:
     case 87:
@@ -1289,13 +1311,13 @@ function processFullRow(response, id, tag, buffer, chunk) {
     case 67:
       (response = response._chunks.get(id)) &&
         "fulfilled" === response.status &&
-        response.reason.close("" === row ? '"$undefined"' : row);
+        response.reason.close("" === buffer ? '"$undefined"' : buffer);
       break;
     default:
       (tag = response._chunks),
-        (buffer = tag.get(id))
-          ? resolveModelChunk(buffer, row)
-          : tag.set(id, new Chunk("resolved_model", row, null, response));
+        (chunk = tag.get(id))
+          ? resolveModelChunk(chunk, buffer)
+          : tag.set(id, new Chunk("resolved_model", buffer, null, response));
   }
 }
 function createFromJSONCallback(response) {
@@ -1388,10 +1410,10 @@ function startReadingFromStream(response, stream) {
             86 === rowState
               ? ((rowTag = rowState), (rowState = 2), i++)
               : (64 < rowState && 91 > rowState) ||
-                114 === rowState ||
-                120 === rowState
-              ? ((rowTag = rowState), (rowState = 3), i++)
-              : ((rowTag = 0), (rowState = 3));
+                  114 === rowState ||
+                  120 === rowState
+                ? ((rowTag = rowState), (rowState = 3), i++)
+                : ((rowTag = 0), (rowState = 3));
             continue;
           case 2:
             lastIdx = value[i++];
@@ -1410,7 +1432,7 @@ function startReadingFromStream(response, stream) {
         var offset = value.byteOffset + i;
         if (-1 < lastIdx)
           (rowLength = new Uint8Array(value.buffer, offset, lastIdx - i)),
-            processFullRow(response, _ref, rowTag, buffer, rowLength),
+            processFullBinaryRow(response, _ref, rowTag, buffer, rowLength),
             (i = lastIdx),
             3 === rowState && i++,
             (rowLength = _ref = rowTag = rowState = 0),
