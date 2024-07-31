@@ -66,6 +66,47 @@ describe('app dir - metadata navigation', () => {
       expect(await getTitle(browser)).toBe('Local not found')
     })
 
+    // TODO: Figure out why generating metadata with forbidden does not work
+    it.skip('should support forbidden in generateMetadata', async () => {
+      const res = await next.fetch('/async/forbidden')
+      expect(res.status).toBe(403)
+      const $ = await next.render$('/async/forbidden')
+
+      // TODO-APP: support render custom not-found in SSR for generateMetadata.
+      // Check contains root not-found payload in flight response for now.
+      let hasRootForbiddenFlight = false
+      for (const el of $('script').toArray()) {
+        const text = $(el).text()
+        if (text.includes('Local forbidden boundary')) {
+          hasRootForbiddenFlight = true
+        }
+      }
+      expect(hasRootForbiddenFlight).toBe(true)
+
+      // Should contain default metadata and noindex tag
+      const matchHtml = createMultiHtmlMatcher($)
+      expect($('meta[charset="utf-8"]').length).toBe(1)
+      matchHtml('meta', 'name', 'content', {
+        viewport: 'width=device-width, initial-scale=1',
+        robots: 'noindex',
+      })
+
+      const browser = await next.browser('/async/forbidden')
+      expect(await browser.elementByCss('h2').text()).toBe(
+        'Local forbidden boundary'
+      )
+
+      const matchMultiDom = createMultiDomMatcher(browser)
+      await matchMultiDom('meta', 'name', 'content', {
+        viewport: 'width=device-width, initial-scale=1',
+        keywords: 'parent',
+        robots: 'noindex',
+        // not found metadata
+        description: 'Local forbidden description',
+      })
+      expect(await getTitle(browser)).toBe('Local forbidden title')
+    })
+
     it('should support redirect in generateMetadata', async () => {
       const res = await next.fetch('/async/redirect', {
         redirect: 'manual',

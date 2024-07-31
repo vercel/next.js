@@ -305,6 +305,28 @@ describe('app-dir action handling', () => {
     }, 'my-not-found')
   })
 
+  it('should support forbidden (javascript disabled)', async () => {
+    const browser = await next.browser('/server', {
+      disableJavaScript: true,
+    })
+
+    await browser.elementByCss('#nowhere_forbidden').click()
+
+    await check(() => {
+      return browser.elementByCss('h1').text()
+    }, 'my-forbidden')
+  })
+
+  it('should support forbidden', async () => {
+    const browser = await next.browser('/server')
+
+    await browser.elementByCss('#nowhere_forbidden').click()
+
+    await check(() => {
+      return browser.elementByCss('h1').text()
+    }, 'my-forbidden')
+  })
+
   it('should support uploading files', async () => {
     const logs: string[] = []
     next.on('stdout', (log) => {

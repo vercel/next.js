@@ -28,6 +28,11 @@ export default function Root({ children }: { children: React.ReactNode }) {
                   Dynamic not found page
                 </Link>
               </li>
+              <li>
+                <Link id="go-to-dynamic-403" href="/dynamic/403">
+                  Dynamic forbidden page
+                </Link>
+              </li>
             </ul>
           </div>
         </nav>

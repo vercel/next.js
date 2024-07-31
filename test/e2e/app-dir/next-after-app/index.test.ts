@@ -149,6 +149,13 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
       })
     })
 
+    it('runs callbacks if forbidden() was called', async () => {
+      await next.browser('/interrupted/calls-forbidden')
+      expect(getLogs()).toContainEqual({
+        source: '[page] /interrupted/calls-forbidden',
+      })
+    })
+
     it('runs callbacks if a user error was thrown in the RSC render', async () => {
       await next.browser('/interrupted/throws-error')
       expect(getLogs()).toContainEqual({

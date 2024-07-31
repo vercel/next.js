@@ -15,6 +15,7 @@ describe('on-request-error - skip-next-internal-error', () => {
     // No navigation errors
     expect(output).not.toContain('NEXT_REDIRECT')
     expect(output).not.toContain('NEXT_NOT_FOUND')
+    expect(output).not.toContain('NEXT_FORBIDDEN')
     expect(output).not.toContain('BAILOUT_TO_CLIENT_SIDE_RENDERING')
     // No dynamic usage errors
     expect(output).not.toContain('DYNAMIC_SERVER_USAGE')
@@ -30,6 +31,11 @@ describe('on-request-error - skip-next-internal-error', () => {
       await assertNoNextjsInternalErrors()
     })
 
+    it('should not catch server component forbidden errors', async () => {
+      await next.fetch('/server/forbidden')
+      await assertNoNextjsInternalErrors()
+    })
+
     it('should not catch server component redirect errors', async () => {
       await next.render('/server/redirect')
       await assertNoNextjsInternalErrors()
@@ -38,6 +44,11 @@ describe('on-request-error - skip-next-internal-error', () => {
     // Client navigation errors
     it('should not catch client component not-found errors', async () => {
       await next.fetch('/server/not-found')
+      await assertNoNextjsInternalErrors()
+    })
+
+    it('should not catch client component forbidden errors', async () => {
+      await next.fetch('/server/forbidden')
       await assertNoNextjsInternalErrors()
     })
 
@@ -69,6 +80,11 @@ describe('on-request-error - skip-next-internal-error', () => {
       await assertNoNextjsInternalErrors()
     })
 
+    it('should not catch server action forbidden errors', async () => {
+      await next.fetch('/form/forbidden')
+      await assertNoNextjsInternalErrors()
+    })
+
     it('should not catch server action redirect errors', async () => {
       await next.fetch('/form/redirect')
       await assertNoNextjsInternalErrors()
@@ -79,6 +95,11 @@ describe('on-request-error - skip-next-internal-error', () => {
     // API routes navigation errors
     it('should not catch server component not-found errors', async () => {
       await next.render('/app-route/not-found')
+      await assertNoNextjsInternalErrors()
+    })
+
+    it('should not catch server component forbidden errors', async () => {
+      await next.render('/app-route/forbidden')
       await assertNoNextjsInternalErrors()
     })
 

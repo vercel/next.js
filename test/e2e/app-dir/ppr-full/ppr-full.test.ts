@@ -285,20 +285,27 @@ describe('ppr-full', () => {
 
     describe.each([
       {
+        signal: 'forbidden()' as const,
+        pathnames: ['/navigation/forbidden', '/navigation/forbidden/dynamic'],
+        statuCode: 403,
+      },
+      {
         signal: 'notFound()' as const,
         pathnames: ['/navigation/not-found', '/navigation/not-found/dynamic'],
+        statuCode: 404,
       },
       {
         signal: 'redirect()' as const,
         pathnames: ['/navigation/redirect', '/navigation/redirect/dynamic'],
+        statuCode: 307,
       },
-    ])('$signal', ({ signal, pathnames }) => {
+    ])('$signal', ({ signal, pathnames, statuCode }) => {
       describe.each(pathnames)('for %s', (pathname) => {
         it('should have correct headers', async () => {
           const res = await next.fetch(pathname, {
             redirect: 'manual',
           })
-          expect(res.status).toEqual(signal === 'redirect()' ? 307 : 404)
+          expect(res.status).toEqual(statuCode)
           expect(res.headers.get('content-type')).toEqual(
             'text/html; charset=utf-8'
           )

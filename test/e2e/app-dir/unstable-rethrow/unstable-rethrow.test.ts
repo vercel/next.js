@@ -12,6 +12,13 @@ describe('unstable-rethrow', () => {
     )
   })
 
+  it('should correctly trigger the forbidden page as forbidden', async () => {
+    const browser = await next.browser('/forbidden-page')
+    expect(await browser.elementByCss('body').text()).toContain(
+      'This page is forbidden.'
+    )
+  })
+
   it('should handle an internal error that gets propagated to the `cause` field', async () => {
     const browser = await next.browser('/cause')
     expect(await browser.elementByCss('body').text()).toContain('hello world')

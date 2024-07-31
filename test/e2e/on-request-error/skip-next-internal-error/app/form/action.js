@@ -1,6 +1,6 @@
 'use server'
 
-import { notFound, redirect } from 'next/navigation'
+import { forbidden, notFound, redirect } from 'next/navigation'
 
 export async function redirectAction() {
   redirect('/another')
@@ -8,4 +8,8 @@ export async function redirectAction() {
 
 export async function notFoundAction() {
   notFound()
+}
+
+export async function forbiddenAction() {
+  forbidden()
 }

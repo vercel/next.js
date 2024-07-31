@@ -520,6 +520,22 @@ describe('app-custom-routes', () => {
         expect(await res.text()).toBeEmpty()
       })
     })
+
+    describe('forbidden', () => {
+      it('can respond correctly in nodejs', async () => {
+        const res = await next.fetch(basePath + '/hooks/forbidden')
+
+        expect(res.status).toEqual(403)
+        expect(await res.text()).toBeEmpty()
+      })
+
+      it('can respond correctly in edge', async () => {
+        const res = await next.fetch(basePath + '/hooks/forbidden/edge')
+
+        expect(res.status).toEqual(403)
+        expect(await res.text()).toBeEmpty()
+      })
+    })
   })
 
   describe('error conditions', () => {

@@ -5,3 +5,7 @@ body {
 .not-found {
   color: rgb(210, 105, 30); /* chocolate */
 }
+
+.forbidden {
+  color: rgb(210, 105, 30); /* chocolate */
+}

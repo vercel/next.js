@@ -1,4 +1,4 @@
-import { redirect, notFound } from 'next/navigation'
+import { redirect, notFound, forbidden } from 'next/navigation'
 
 async function action(formData) {
   'use server'
@@ -13,6 +13,11 @@ async function action(formData) {
 async function nowhere() {
   'use server'
   notFound()
+}
+
+async function nowhere_forbidden() {
+  'use server'
+  forbidden()
 }
 
 async function here() {
@@ -54,6 +59,15 @@ export default function Form() {
         <button formAction={nowhere} type="submit" id="nowhere">
           Go nowhere
         </button>
+
+        <button
+          formAction={nowhere_forbidden}
+          type="submit"
+          id="nowhere_forbidden"
+        >
+          Go nowhere
+        </button>
+
         <button formAction={here} type="submit" id="here">
           Go here
         </button>

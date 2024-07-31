@@ -10,6 +10,11 @@ export default function Page() {
         </Link>
       </div>
       <div>
+        <Link href="/trigger-403" id="trigger-403-link">
+          Navigate to trigger-403 page
+        </Link>
+      </div>
+      <div>
         <Link href="/testabc" id="non-existent-link">
           Navigate to non-existent page
         </Link>

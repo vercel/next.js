@@ -10,6 +10,11 @@ describe('app-dir static-generation-status', () => {
     expect(status).toBe(404)
   })
 
+  it('should render the page using forbidden with status 403', async () => {
+    const { status } = await next.fetch('/forbidden-page')
+    expect(status).toBe(403)
+  })
+
   it('should render the page using redirect with status 307', async () => {
     const { status } = await next.fetch('/redirect-page', {
       redirect: 'manual',

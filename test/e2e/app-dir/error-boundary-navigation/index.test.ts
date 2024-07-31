@@ -16,6 +16,21 @@ export function runTest({ next }) {
     ).toBe('Result Page!')
   })
 
+  it('should allow navigation on forbidden', async () => {
+    const browser = await next.browser('/trigger-403')
+    expect(await browser.elementByCss('#forbidden-component').text()).toBe(
+      'Forbidden!'
+    )
+
+    expect(
+      await browser
+        .elementByCss('#to-result')
+        .click()
+        .waitForElementByCss('#result-page')
+        .text()
+    ).toBe('Result Page!')
+  })
+
   it('should allow navigation on error', async () => {
     const browser = await next.browser('/trigger-error')
     expect(await browser.elementByCss('#error-component').text()).toBe(
@@ -60,6 +75,23 @@ export function runTest({ next }) {
       .waitForElementByCss('#result-page')
       .back()
       .waitForElementByCss('#not-found-component')
+  })
+
+  it('should allow navigating to a page calling forbidden', async () => {
+    const browser = await next.browser('/')
+
+    await browser
+      .elementByCss('#trigger-403-link')
+      .click()
+      .waitForElementByCss('#forbidden-component')
+
+    expect(await browser.elementByCss('#forbidden-component').text()).toBe(
+      'Forbidden!'
+    )
+
+    await browser.back().waitForElementByCss('#homepage')
+
+    expect(await browser.elementByCss('#homepage').text()).toBe('Home')
   })
 
   it('should allow navigating to a page calling notfound', async () => {
@@ -117,6 +149,29 @@ export function runTest({ next }) {
       .elementByCss('#go-to-dynamic-404')
       .click()
       .waitForElementByCss('#not-found-component')
+
+    await browser
+      .elementByCss('#go-to-index')
+      .click()
+      .waitForElementByCss('#homepage')
+  })
+
+  it('should be able to navigate to other page from root forbidden page', async () => {
+    const browser = await next.browser('/')
+
+    await browser
+      .elementByCss('#go-to-dynamic')
+      .click()
+      .waitForElementByCss('#dynamic')
+
+    expect(await browser.elementByCss('#dynamic').text()).toBe(
+      'Dynamic page: foo'
+    )
+
+    await browser
+      .elementByCss('#go-to-dynamic-403')
+      .click()
+      .waitForElementByCss('#forbidden-component')
 
     await browser
       .elementByCss('#go-to-index')

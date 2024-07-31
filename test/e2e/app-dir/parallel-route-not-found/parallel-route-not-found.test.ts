@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(@panteliselef): Handle this for forbidden
 describe('parallel-route-not-found', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

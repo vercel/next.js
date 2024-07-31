@@ -256,6 +256,28 @@ describe('app dir - css', () => {
         )
       })
 
+      it('should include css imported in client forbidden.js', async () => {
+        const browser = await next.browser('/forbidden/clientcomponent')
+        await check(
+          async () =>
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            ),
+          'rgb(255, 0, 0)'
+        )
+      })
+
+      it('should include css imported in server forbidden.js', async () => {
+        const browser = await next.browser('/forbidden/servercomponent')
+        await check(
+          async () =>
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            ),
+          'rgb(255, 0, 0)'
+        )
+      })
+
       it('should include css imported in error.js', async () => {
         const browser = await next.browser('/error/client-component')
         await browser.elementByCss('button').click()
