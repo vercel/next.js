@@ -24,7 +24,7 @@ describe('terser-class-static-blocks', () => {
 
       for (const chunk of chunks) {
         expect(
-          await next.readFile(path.join('.next/static', chunk), 'utf8')
+          await next.readFile(path.join('.next/static', chunk))
         ).not.toContain('/*')
       }
     })
