@@ -309,7 +309,8 @@ describe('create-next-app prompts', () => {
       expect(output).toContain('Dry Run Result:')
       // appPath is a temporary directory, so we can't check for the exact path
       expect(output).toContain('"appPath":')
-      expect(output).toContain('"packageManager": "pnpm"')
+      // packageManager may vary depending on the system
+      expect(output).toContain('"packageManager":')
       expect(output).toContain('"typescript": true')
       expect(output).toContain('"eslint": true')
       expect(output).toContain('"app": true')
