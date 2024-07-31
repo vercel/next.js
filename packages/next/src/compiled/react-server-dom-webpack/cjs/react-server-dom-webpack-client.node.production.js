@@ -71,8 +71,8 @@ function preloadModule(metadata) {
           return requireAsyncModule(metadata[0]);
         })
     : 0 < promises.length
-    ? Promise.all(promises)
-    : null;
+      ? Promise.all(promises)
+      : null;
 }
 function prepareDestinationWithChunks(moduleLoading, chunks, nonce$jscomp$0) {
   if (null !== moduleLoading)
@@ -118,10 +118,10 @@ function serializeNumber(number) {
       ? "$-0"
       : number
     : Infinity === number
-    ? "$Infinity"
-    : -Infinity === number
-    ? "$-Infinity"
-    : "$NaN";
+      ? "$Infinity"
+      : -Infinity === number
+        ? "$-Infinity"
+        : "$NaN";
 }
 function processReply(
   root,
@@ -791,10 +791,10 @@ function initializeModuleChunk(chunk) {
       "*" === metadata[2]
         ? moduleExports
         : "" === metadata[2]
-        ? moduleExports.__esModule
-          ? moduleExports.default
-          : moduleExports
-        : moduleExports[metadata[2]];
+          ? moduleExports.__esModule
+            ? moduleExports.default
+            : moduleExports
+          : moduleExports[metadata[2]];
     chunk.status = "fulfilled";
     chunk.value = JSCompiler_inline_result;
   } catch (error) {
@@ -838,6 +838,13 @@ function waitForReference(
     }
     parentObject[key] = map(response, value);
     "" === key && null === handler.value && (handler.value = parentObject[key]);
+    parentObject[0] === REACT_ELEMENT_TYPE &&
+      "3" === key &&
+      "object" === typeof handler.value &&
+      null !== handler.value &&
+      handler.value.$$typeof === REACT_ELEMENT_TYPE &&
+      null === handler.value.props &&
+      (handler.value.props = parentObject[key]);
     handler.deps--;
     0 === handler.deps &&
       ((i = handler.chunk),
@@ -901,10 +908,23 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
   }
   switch (id.status) {
     case "fulfilled":
-      parentObject = id.value;
-      for (key = 1; key < reference.length; key++)
-        parentObject = parentObject[reference[key]];
-      return map(response, parentObject);
+      var value = id.value;
+      for (id = 1; id < reference.length; id++)
+        if (
+          ((value = value[reference[id]]), value.$$typeof === REACT_LAZY_TYPE)
+        )
+          if (((value = value._payload), "fulfilled" === value.status))
+            value = value.value;
+          else
+            return waitForReference(
+              value,
+              parentObject,
+              key,
+              response,
+              map,
+              reference.slice(id)
+            );
+      return map(response, value);
     case "pending":
     case "blocked":
       return waitForReference(id, parentObject, key, response, map, reference);
@@ -1320,7 +1340,7 @@ function resolveTypedArray(
   );
   resolveBuffer(response, id, constructor);
 }
-function processFullRow(response, id, tag, buffer, chunk) {
+function processFullBinaryRow(response, id, tag, buffer, chunk) {
   switch (tag) {
     case 65:
       resolveBuffer(response, id, mergeBuffer(buffer, chunk).buffer);
@@ -1373,6 +1393,9 @@ function processFullRow(response, id, tag, buffer, chunk) {
   )
     row += stringDecoder.decode(buffer[i], decoderOptions);
   row += stringDecoder.decode(chunk);
+  processFullStringRow(response, id, tag, row);
+}
+function processFullStringRow(response, id, tag, row) {
   switch (tag) {
     case 73:
       resolveModule(response, id, row);
@@ -1429,14 +1452,15 @@ function processFullRow(response, id, tag, buffer, chunk) {
       row.stack = "Error: " + row.message;
       row.digest = tag;
       tag = response._chunks;
-      (buffer = tag.get(id))
-        ? triggerErrorOnChunk(buffer, row)
+      var chunk = tag.get(id);
+      chunk
+        ? triggerErrorOnChunk(chunk, row)
         : tag.set(id, new Chunk("rejected", null, row, response));
       break;
     case 84:
       tag = response._chunks;
-      (buffer = tag.get(id)) && "pending" !== buffer.status
-        ? buffer.reason.enqueueValue(row)
+      (chunk = tag.get(id)) && "pending" !== chunk.status
+        ? chunk.reason.enqueueValue(row)
         : tag.set(id, new Chunk("fulfilled", row, null, response));
       break;
     case 68:
@@ -1463,8 +1487,8 @@ function processFullRow(response, id, tag, buffer, chunk) {
       break;
     default:
       (tag = response._chunks),
-        (buffer = tag.get(id))
-          ? resolveModelChunk(buffer, row)
+        (chunk = tag.get(id))
+          ? resolveModelChunk(chunk, row)
           : tag.set(id, new Chunk("resolved_model", row, null, response));
   }
 }
@@ -1518,82 +1542,175 @@ exports.createFromNodeStream = function (stream, ssrManifest, options) {
     void 0
   );
   stream.on("data", function (chunk) {
-    for (
-      var i = 0,
-        rowState = response._rowState,
-        rowID = response._rowID,
-        rowTag = response._rowTag,
-        rowLength = response._rowLength,
-        buffer = response._buffer,
-        chunkLength = chunk.length;
-      i < chunkLength;
+    if ("string" === typeof chunk) {
+      for (
+        var i = 0,
+          rowState = response._rowState,
+          rowID = response._rowID,
+          rowTag = response._rowTag,
+          rowLength = response._rowLength,
+          buffer = response._buffer,
+          chunkLength = chunk.length;
+        i < chunkLength;
 
-    ) {
-      var lastIdx = -1;
-      switch (rowState) {
-        case 0:
-          lastIdx = chunk[i++];
-          58 === lastIdx
-            ? (rowState = 1)
-            : (rowID =
-                (rowID << 4) | (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-          continue;
-        case 1:
-          rowState = chunk[i];
-          84 === rowState ||
-          65 === rowState ||
-          79 === rowState ||
-          111 === rowState ||
-          85 === rowState ||
-          83 === rowState ||
-          115 === rowState ||
-          76 === rowState ||
-          108 === rowState ||
-          71 === rowState ||
-          103 === rowState ||
-          77 === rowState ||
-          109 === rowState ||
-          86 === rowState
-            ? ((rowTag = rowState), (rowState = 2), i++)
-            : (64 < rowState && 91 > rowState) ||
-              114 === rowState ||
-              120 === rowState
-            ? ((rowTag = rowState), (rowState = 3), i++)
-            : ((rowTag = 0), (rowState = 3));
-          continue;
-        case 2:
-          lastIdx = chunk[i++];
-          44 === lastIdx
-            ? (rowState = 4)
-            : (rowLength =
-                (rowLength << 4) |
-                (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-          continue;
-        case 3:
-          lastIdx = chunk.indexOf(10, i);
+      ) {
+        var lastIdx = -1;
+        switch (rowState) {
+          case 0:
+            lastIdx = chunk.charCodeAt(i++);
+            58 === lastIdx
+              ? (rowState = 1)
+              : (rowID =
+                  (rowID << 4) | (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+            continue;
+          case 1:
+            rowState = chunk.charCodeAt(i);
+            84 === rowState ||
+            65 === rowState ||
+            79 === rowState ||
+            111 === rowState ||
+            85 === rowState ||
+            83 === rowState ||
+            115 === rowState ||
+            76 === rowState ||
+            108 === rowState ||
+            71 === rowState ||
+            103 === rowState ||
+            77 === rowState ||
+            109 === rowState ||
+            86 === rowState
+              ? ((rowTag = rowState), (rowState = 2), i++)
+              : (64 < rowState && 91 > rowState) ||
+                  114 === rowState ||
+                  120 === rowState
+                ? ((rowTag = rowState), (rowState = 3), i++)
+                : ((rowTag = 0), (rowState = 3));
+            continue;
+          case 2:
+            lastIdx = chunk.charCodeAt(i++);
+            44 === lastIdx
+              ? (rowState = 4)
+              : (rowLength =
+                  (rowLength << 4) |
+                  (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+            continue;
+          case 3:
+            lastIdx = chunk.indexOf("\n", i);
+            break;
+          case 4:
+            if (84 !== rowTag)
+              throw Error(
+                "Binary RSC chunks cannot be encoded as strings. This is a bug in the wiring of the React streams."
+              );
+            if (rowLength < chunk.length || chunk.length > 3 * rowLength)
+              throw Error(
+                "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
+              );
+            lastIdx = chunk.length;
+        }
+        if (-1 < lastIdx) {
+          if (0 < buffer.length)
+            throw Error(
+              "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
+            );
+          i = chunk.slice(i, lastIdx);
+          processFullStringRow(response, rowID, rowTag, i);
+          i = lastIdx;
+          3 === rowState && i++;
+          rowLength = rowID = rowTag = rowState = 0;
+          buffer.length = 0;
+        } else if (chunk.length !== i)
+          throw Error(
+            "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
+          );
+      }
+      response._rowState = rowState;
+      response._rowID = rowID;
+      response._rowTag = rowTag;
+      response._rowLength = rowLength;
+    } else {
+      rowLength = 0;
+      chunkLength = response._rowState;
+      rowID = response._rowID;
+      i = response._rowTag;
+      rowState = response._rowLength;
+      buffer = response._buffer;
+      for (rowTag = chunk.length; rowLength < rowTag; ) {
+        lastIdx = -1;
+        switch (chunkLength) {
+          case 0:
+            lastIdx = chunk[rowLength++];
+            58 === lastIdx
+              ? (chunkLength = 1)
+              : (rowID =
+                  (rowID << 4) | (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+            continue;
+          case 1:
+            chunkLength = chunk[rowLength];
+            84 === chunkLength ||
+            65 === chunkLength ||
+            79 === chunkLength ||
+            111 === chunkLength ||
+            85 === chunkLength ||
+            83 === chunkLength ||
+            115 === chunkLength ||
+            76 === chunkLength ||
+            108 === chunkLength ||
+            71 === chunkLength ||
+            103 === chunkLength ||
+            77 === chunkLength ||
+            109 === chunkLength ||
+            86 === chunkLength
+              ? ((i = chunkLength), (chunkLength = 2), rowLength++)
+              : (64 < chunkLength && 91 > chunkLength) ||
+                  114 === chunkLength ||
+                  120 === chunkLength
+                ? ((i = chunkLength), (chunkLength = 3), rowLength++)
+                : ((i = 0), (chunkLength = 3));
+            continue;
+          case 2:
+            lastIdx = chunk[rowLength++];
+            44 === lastIdx
+              ? (chunkLength = 4)
+              : (rowState =
+                  (rowState << 4) |
+                  (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+            continue;
+          case 3:
+            lastIdx = chunk.indexOf(10, rowLength);
+            break;
+          case 4:
+            (lastIdx = rowLength + rowState),
+              lastIdx > chunk.length && (lastIdx = -1);
+        }
+        var offset = chunk.byteOffset + rowLength;
+        if (-1 < lastIdx)
+          (rowState = new Uint8Array(
+            chunk.buffer,
+            offset,
+            lastIdx - rowLength
+          )),
+            processFullBinaryRow(response, rowID, i, buffer, rowState),
+            (rowLength = lastIdx),
+            3 === chunkLength && rowLength++,
+            (rowState = rowID = i = chunkLength = 0),
+            (buffer.length = 0);
+        else {
+          chunk = new Uint8Array(
+            chunk.buffer,
+            offset,
+            chunk.byteLength - rowLength
+          );
+          buffer.push(chunk);
+          rowState -= chunk.byteLength;
           break;
-        case 4:
-          (lastIdx = i + rowLength), lastIdx > chunk.length && (lastIdx = -1);
+        }
       }
-      var offset = chunk.byteOffset + i;
-      if (-1 < lastIdx)
-        (rowLength = new Uint8Array(chunk.buffer, offset, lastIdx - i)),
-          processFullRow(response, rowID, rowTag, buffer, rowLength),
-          (i = lastIdx),
-          3 === rowState && i++,
-          (rowLength = rowID = rowTag = rowState = 0),
-          (buffer.length = 0);
-      else {
-        chunk = new Uint8Array(chunk.buffer, offset, chunk.byteLength - i);
-        buffer.push(chunk);
-        rowLength -= chunk.byteLength;
-        break;
-      }
+      response._rowState = chunkLength;
+      response._rowID = rowID;
+      response._rowTag = i;
+      response._rowLength = rowState;
     }
-    response._rowState = rowState;
-    response._rowID = rowID;
-    response._rowTag = rowTag;
-    response._rowLength = rowLength;
   });
   stream.on("error", function (error) {
     reportGlobalError(response, error);

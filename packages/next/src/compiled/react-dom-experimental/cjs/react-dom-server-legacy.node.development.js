@@ -41,37 +41,6 @@
     function scriptReplacer(match, prefix, s, suffix) {
       return "" + prefix + ("s" === s ? "\\u0073" : "\\u0053") + suffix;
     }
-    function warn(format) {
-      for (
-        var _len = arguments.length,
-          args = Array(1 < _len ? _len - 1 : 0),
-          _key = 1;
-        _key < _len;
-        _key++
-      )
-        args[_key - 1] = arguments[_key];
-      printWarning("warn", format, args, Error("react-stack-top-frame"));
-    }
-    function error$jscomp$2(format) {
-      for (
-        var _len2 = arguments.length,
-          args = Array(1 < _len2 ? _len2 - 1 : 0),
-          _key2 = 1;
-        _key2 < _len2;
-        _key2++
-      )
-        args[_key2 - 1] = arguments[_key2];
-      printWarning("error", format, args, Error("react-stack-top-frame"));
-    }
-    function printWarning(level, format, args, currentStack) {
-      !supportsCreateTask &&
-        ReactSharedInternals.getCurrentStack &&
-        ((currentStack = ReactSharedInternals.getCurrentStack(currentStack)),
-        "" !== currentStack &&
-          ((format += "%s"), (args = args.concat([currentStack]))));
-      args.unshift(format);
-      Function.prototype.apply.call(console[level], console, args);
-    }
     function objectName(object) {
       return Object.prototype.toString
         .call(object)
@@ -99,8 +68,8 @@
           return value.$$typeof === CLIENT_REFERENCE_TAG
             ? "client"
             : (value = value.displayName || value.name)
-            ? "function " + value
-            : "function";
+              ? "function " + value
+              : "function";
         default:
           return String(value);
       }
@@ -143,8 +112,8 @@
               "string" === typeof value
                 ? value
                 : "object" === typeof value && null !== value
-                ? "{" + describeObjectForErrorMessage(value) + "}"
-                : "{" + describeValueForErrorMessage(value) + "}";
+                  ? "{" + describeObjectForErrorMessage(value) + "}"
+                  : "{" + describeValueForErrorMessage(value) + "}";
             "" + i === expandedName
               ? ((start = objKind.length),
                 (length = value.length),
@@ -230,9 +199,9 @@
       return void 0 === expandedName
         ? objKind
         : -1 < start && 0 < length
-        ? ((objectOrArray = " ".repeat(start) + "^".repeat(length)),
-          "\n  " + objKind + "\n  " + objectOrArray)
-        : "\n  " + objKind;
+          ? ((objectOrArray = " ".repeat(start) + "^".repeat(length)),
+            "\n  " + objKind + "\n  " + objectOrArray)
+          : "\n  " + objKind;
     }
     function murmurhash3_32_gc(key, seed) {
       var remainder = key.length & 3;
@@ -313,7 +282,7 @@
     function checkAttributeStringCoercion(value, attributeName) {
       if (willCoercionThrow(value))
         return (
-          error$jscomp$2(
+          console.error(
             "The provided `%s` attribute is an unsupported type %s. This value must be coerced to a string before using it here.",
             attributeName,
             typeName(value)
@@ -324,7 +293,7 @@
     function checkCSSPropertyStringCoercion(value, propName) {
       if (willCoercionThrow(value))
         return (
-          error$jscomp$2(
+          console.error(
             "The provided `%s` CSS property is an unsupported type %s. This value must be coerced to a string before using it here.",
             propName,
             typeName(value)
@@ -335,7 +304,7 @@
     function checkHtmlStringCoercion(value) {
       if (willCoercionThrow(value))
         return (
-          error$jscomp$2(
+          console.error(
             "The provided HTML markup uses a value of unsupported type %s. This value must be coerced to a string before using it here.",
             typeName(value)
           ),
@@ -350,7 +319,7 @@
       if (VALID_ATTRIBUTE_NAME_REGEX.test(attributeName))
         return (validatedAttributeNameCache[attributeName] = !0);
       illegalAttributeNameCache[attributeName] = !0;
-      error$jscomp$2("Invalid attribute name: `%s`", attributeName);
+      console.error("Invalid attribute name: `%s`", attributeName);
       return !1;
     }
     function checkControlledValueProps(tagName, props) {
@@ -361,17 +330,17 @@
         props.disabled ||
         null == props.value ||
         ("select" === tagName
-          ? error$jscomp$2(
+          ? console.error(
               "You provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`."
             )
-          : error$jscomp$2(
+          : console.error(
               "You provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set either `onChange` or `readOnly`."
             ));
       props.onChange ||
         props.readOnly ||
         props.disabled ||
         null == props.checked ||
-        error$jscomp$2(
+        console.error(
           "You provided a `checked` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultChecked`. Otherwise, set either `onChange` or `readOnly`."
         );
     }
@@ -386,7 +355,7 @@
         tagName = ariaProperties.hasOwnProperty(tagName) ? tagName : null;
         if (null == tagName)
           return (
-            error$jscomp$2(
+            console.error(
               "Invalid ARIA attribute `%s`. ARIA attributes follow the pattern aria-* and must be lowercase.",
               name
             ),
@@ -394,7 +363,7 @@
           );
         if (name !== tagName)
           return (
-            error$jscomp$2(
+            console.error(
               "Invalid ARIA attribute `%s`. Did you mean `%s`?",
               name,
               tagName
@@ -407,7 +376,7 @@
         tagName = ariaProperties.hasOwnProperty(tagName) ? tagName : null;
         if (null == tagName) return (warnedProperties$1[name] = !0), !1;
         name !== tagName &&
-          (error$jscomp$2(
+          (console.error(
             "Unknown ARIA attribute `%s`. Did you mean `%s`?",
             name,
             tagName
@@ -427,13 +396,13 @@
         })
         .join(", ");
       1 === invalidProps.length
-        ? error$jscomp$2(
+        ? console.error(
             "Invalid aria prop %s on <%s> tag. For details, see https://react.dev/link/invalid-aria-props",
             props,
             type
           )
         : 1 < invalidProps.length &&
-          error$jscomp$2(
+          console.error(
             "Invalid aria props %s on <%s> tag. For details, see https://react.dev/link/invalid-aria-props",
             props,
             type
@@ -445,7 +414,7 @@
       var lowerCasedName = name.toLowerCase();
       if ("onfocusin" === lowerCasedName || "onfocusout" === lowerCasedName)
         return (
-          error$jscomp$2(
+          console.error(
             "React uses onFocus and onBlur instead of onFocusIn and onFocusOut. All React events are normalized to bubble, so onFocusIn and onFocusOut are not needed/supported by React."
           ),
           (warnedProperties[name] = !0)
@@ -466,7 +435,7 @@
           : null;
         if (null != eventRegistry)
           return (
-            error$jscomp$2(
+            console.error(
               "Invalid event handler property `%s`. Did you mean `%s`?",
               name,
               eventRegistry
@@ -475,7 +444,7 @@
           );
         if (EVENT_NAME_REGEX.test(name))
           return (
-            error$jscomp$2(
+            console.error(
               "Unknown event handler property `%s`. It will be ignored.",
               name
             ),
@@ -484,7 +453,7 @@
       } else if (EVENT_NAME_REGEX.test(name))
         return (
           INVALID_EVENT_NAME_REGEX.test(name) &&
-            error$jscomp$2(
+            console.error(
               "Invalid event handler property `%s`. React events use the camelCase naming convention, for example `onClick`.",
               name
             ),
@@ -493,14 +462,14 @@
       if (rARIA.test(name) || rARIACamel.test(name)) return !0;
       if ("innerhtml" === lowerCasedName)
         return (
-          error$jscomp$2(
+          console.error(
             "Directly setting property `innerHTML` is not permitted. For more information, lookup documentation on `dangerouslySetInnerHTML`."
           ),
           (warnedProperties[name] = !0)
         );
       if ("aria" === lowerCasedName)
         return (
-          error$jscomp$2(
+          console.error(
             "The `aria` attribute is reserved for future use in React. Pass individual `aria-` attributes instead."
           ),
           (warnedProperties[name] = !0)
@@ -512,7 +481,7 @@
         "string" !== typeof value
       )
         return (
-          error$jscomp$2(
+          console.error(
             "Received a `%s` for a string attribute `is`. If this is expected, cast the value to a string.",
             typeof value
           ),
@@ -520,7 +489,7 @@
         );
       if ("number" === typeof value && isNaN(value))
         return (
-          error$jscomp$2(
+          console.error(
             "Received NaN for the `%s` attribute. If this is expected, cast the value to a string.",
             name
           ),
@@ -532,7 +501,7 @@
           lowerCasedName !== name)
         )
           return (
-            error$jscomp$2(
+            console.error(
               "Invalid DOM property `%s`. Did you mean `%s`?",
               name,
               lowerCasedName
@@ -541,7 +510,7 @@
           );
       } else if (name !== lowerCasedName)
         return (
-          error$jscomp$2(
+          console.error(
             "React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element.",
             name,
             lowerCasedName
@@ -610,7 +579,7 @@
               if ("data-" === lowerCasedName || "aria-" === lowerCasedName)
                 return !0;
               value
-                ? error$jscomp$2(
+                ? console.error(
                     'Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s="%s" or %s={value.toString()}.',
                     value,
                     name,
@@ -618,7 +587,7 @@
                     value,
                     name
                   )
-                : error$jscomp$2(
+                : console.error(
                     'Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s="%s" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.',
                     value,
                     name,
@@ -667,7 +636,7 @@
               default:
                 return !0;
             }
-            error$jscomp$2(
+            console.error(
               "Received the string `%s` for the boolean attribute `%s`. %s Did you mean %s={%s}?",
               value,
               name,
@@ -694,13 +663,13 @@
         })
         .join(", ");
       1 === unknownProps.length
-        ? error$jscomp$2(
+        ? console.error(
             "Invalid value for prop %s on <%s> tag. Either remove it from the element, or pass a string or number value to keep it in the DOM. For details, see https://react.dev/link/attribute-behavior ",
             props,
             type
           )
         : 1 < unknownProps.length &&
-          error$jscomp$2(
+          console.error(
             "Invalid values for props %s on <%s> tag. Either remove them from the element, or pass a string or number value to keep them in the DOM. For details, see https://react.dev/link/attribute-behavior ",
             props,
             type
@@ -854,12 +823,12 @@
       return parentContext.insertionMode >= HTML_TABLE_MODE
         ? createFormatContext(HTML_MODE, null, parentContext.tagScope)
         : parentContext.insertionMode === ROOT_HTML_MODE
-        ? "html" === type
-          ? createFormatContext(HTML_HTML_MODE, null, parentContext.tagScope)
-          : createFormatContext(HTML_MODE, null, parentContext.tagScope)
-        : parentContext.insertionMode === HTML_HTML_MODE
-        ? createFormatContext(HTML_MODE, null, parentContext.tagScope)
-        : parentContext;
+          ? "html" === type
+            ? createFormatContext(HTML_HTML_MODE, null, parentContext.tagScope)
+            : createFormatContext(HTML_MODE, null, parentContext.tagScope)
+          : parentContext.insertionMode === HTML_HTML_MODE
+            ? createFormatContext(HTML_MODE, null, parentContext.tagScope)
+            : parentContext;
     }
     function pushStyleAttribute(target, style) {
       if ("object" !== typeof style)
@@ -888,7 +857,7 @@
                 (warnedStyleNames.hasOwnProperty(name) &&
                   warnedStyleNames[name]) ||
                   ((warnedStyleNames[name] = !0),
-                  error$jscomp$2(
+                  console.error(
                     "Unsupported style property %s. Did you mean %s?",
                     name,
                     camelize(name.replace(msPattern$1, "ms-"))
@@ -898,7 +867,7 @@
                   (warnedStyleNames.hasOwnProperty(name) &&
                     warnedStyleNames[name]) ||
                     ((warnedStyleNames[name] = !0),
-                    error$jscomp$2(
+                    console.error(
                       "Unsupported vendor-prefixed style property %s. Did you mean %s?",
                       name,
                       name.charAt(0).toUpperCase() + name.slice(1)
@@ -909,7 +878,7 @@
                 (warnedStyleValues.hasOwnProperty(value$jscomp$0) &&
                   warnedStyleValues[value$jscomp$0]) ||
                   ((warnedStyleValues[value$jscomp$0] = !0),
-                  error$jscomp$2(
+                  console.error(
                     'Style property values shouldn\'t contain a semicolon. Try "%s: %s" instead.',
                     name,
                     value$jscomp$0.replace(
@@ -922,14 +891,14 @@
                 (isNaN(value)
                   ? warnedForNaNValue ||
                     ((warnedForNaNValue = !0),
-                    error$jscomp$2(
+                    console.error(
                       "`NaN` is an invalid value for the `%s` css style property.",
                       nameChunk
                     ))
                   : isFinite(value) ||
                     warnedForInfinityValue ||
                     ((warnedForInfinityValue = !0),
-                    error$jscomp$2(
+                    console.error(
                       "`Infinity` is an invalid value for the `%s` css style property.",
                       nameChunk
                     )));
@@ -1017,7 +986,7 @@
             "function" === typeof x.then
           )
             throw x;
-          error$jscomp$2(
+          console.error(
             "Failed to serialize an action for progressive enhancement:\n%s",
             x
           );
@@ -1040,19 +1009,19 @@
         null === name ||
           didWarnFormActionName ||
           ((didWarnFormActionName = !0),
-          error$jscomp$2(
+          console.error(
             'Cannot specify a "name" prop for a button that specifies a function as a formAction. React needs it to encode which action should be invoked. It will get overridden.'
           ));
         (null === formEncType && null === formMethod) ||
           didWarnFormActionMethod ||
           ((didWarnFormActionMethod = !0),
-          error$jscomp$2(
+          console.error(
             "Cannot specify a formEncType or formMethod for a button that specifies a function as a formAction. React provides those automatically. They will get overridden."
           ));
         null === formTarget ||
           didWarnFormActionTarget ||
           ((didWarnFormActionTarget = !0),
-          error$jscomp$2(
+          console.error(
             "Cannot specify a formTarget for a button that specifies a function as a formAction. The function will always be executed in the same window."
           ));
         var customFields = getCustomFormFields(resumableState, formAction);
@@ -1102,12 +1071,12 @@
         case "href":
           if ("" === value) {
             "src" === name
-              ? error$jscomp$2(
+              ? console.error(
                   'An empty string ("") was passed to the %s attribute. This may cause the browser to download the whole page again over the network. To fix this, either do not render the element at all or pass null to %s instead of an empty string.',
                   name,
                   name
                 )
-              : error$jscomp$2(
+              : console.error(
                   'An empty string ("") was passed to the %s attribute. To fix this, either do not render the element at all or pass null to %s instead of an empty string.',
                   name,
                   name
@@ -1184,7 +1153,7 @@
           "" !== value ||
             didWarnForNewBooleanPropsWithEmptyValue[name] ||
             ((didWarnForNewBooleanPropsWithEmptyValue[name] = !0),
-            error$jscomp$2(
+            console.error(
               "Received an empty string for a boolean attribute `%s`. This will treat the attribute as if it were false. Either pass `false` to silence this warning, or pass `true` if you used an empty string in earlier versions of React to indicate this attribute is true.",
               name
             ));
@@ -1334,13 +1303,13 @@
       null != value &&
         ((value = isArrayImpl(value)),
         props.multiple && !value
-          ? error$jscomp$2(
+          ? console.error(
               "The `%s` prop supplied to <select> must be an array if `multiple` is true.",
               propName
             )
           : !props.multiple &&
             value &&
-            error$jscomp$2(
+            console.error(
               "The `%s` prop supplied to <select> must be a scalar value if `multiple` is false.",
               propName
             ));
@@ -1355,7 +1324,7 @@
             "number" === typeof child ||
             "bigint" === typeof child ||
             ((didWarnInvalidOptionChildren = !0),
-            error$jscomp$2(
+            console.error(
               "Cannot infer the option value of complex children. Pass a `value` prop or use a plain string as children to <option>."
             )));
       });
@@ -1476,9 +1445,9 @@
           "number" === typeof children
             ? "a number for children"
             : Array.isArray(children)
-            ? "an array for children"
-            : "something unexpected for children"),
-        error$jscomp$2(
+              ? "an array for children"
+              : "something unexpected for children"),
+        console.error(
           "A script element was rendered with %s. If script element has children it must be a single string. Consider using dangerouslySetInnerHTML or passing a plain string as children.",
           props
         ));
@@ -1540,11 +1509,11 @@
         didWarnValueNull ||
         ((didWarnValueNull = !0),
         "select" === type && props.multiple
-          ? error$jscomp$2(
+          ? console.error(
               "`value` prop on `%s` should not be null. Consider using an empty array when `multiple` is set to `true` to clear the component or `undefined` for uncontrolled components.",
               type
             )
-          : error$jscomp$2(
+          : console.error(
               "`value` prop on `%s` should not be null. Consider using an empty string to clear the component or `undefined` for uncontrolled components.",
               type
             ));
@@ -1570,14 +1539,14 @@
       !props.suppressContentEditableWarning &&
         props.contentEditable &&
         null != props.children &&
-        error$jscomp$2(
+        console.error(
           "A component is `contentEditable` and contains `children` managed by React. It is now your responsibility to guarantee that none of those nodes are unexpectedly modified or duplicated. This is probably not intentional."
         );
       formatContext.insertionMode !== SVG_MODE &&
         formatContext.insertionMode !== MATHML_MODE &&
         -1 === type.indexOf("-") &&
         type.toLowerCase() !== type &&
-        error$jscomp$2(
+        console.error(
           "<%s /> is using incorrect casing. Use PascalCase for React components, or lowercase for HTML elements.",
           type
         );
@@ -1630,7 +1599,7 @@
           void 0 === props.value ||
             void 0 === props.defaultValue ||
             didWarnDefaultSelectValue ||
-            (error$jscomp$2(
+            (console.error(
               "Select elements must be either controlled or uncontrolled (specify either the value prop, or the defaultValue prop, but not both). Decide between using a controlled or uncontrolled select element and remove one of these props. More info: https://react.dev/link/controlled-components"
             ),
             (didWarnDefaultSelectValue = !0));
@@ -1682,7 +1651,7 @@
                   case "selected":
                     selected = propValue$jscomp$1;
                     didWarnSelectedSetOnOption ||
-                      (error$jscomp$2(
+                      (console.error(
                         "Use the `defaultValue` or `value` props on <select> instead of setting `selected` on <option>."
                       ),
                       (didWarnSelectedSetOnOption = !0));
@@ -1708,7 +1677,7 @@
               null === innerHTML$jscomp$1 ||
                 didWarnInvalidOptionInnerHTML ||
                 ((didWarnInvalidOptionInnerHTML = !0),
-                error$jscomp$2(
+                console.error(
                   "Pass a `value` prop if you set dangerouslyInnerHTML so React knows which value should be selected."
                 )),
                 (stringValue = flattenOptionChildren(children$jscomp$1));
@@ -1735,7 +1704,7 @@
           void 0 === props.value ||
             void 0 === props.defaultValue ||
             didWarnDefaultTextareaValue ||
-            (error$jscomp$2(
+            (console.error(
               "Textarea elements must be either controlled or uncontrolled (specify either the value prop, or the defaultValue prop, but not both). Decide between using a controlled or uncontrolled textarea and remove one of these props. More info: https://react.dev/link/controlled-components"
             ),
             (didWarnDefaultTextareaValue = !0));
@@ -1775,7 +1744,7 @@
             (value$jscomp$0 = defaultValue);
           target$jscomp$0.push(endOfStartTag);
           if (null != children$jscomp$2) {
-            error$jscomp$2(
+            console.error(
               "Use the `defaultValue` or `value` props instead of setting children on <textarea>."
             );
             if (null != value$jscomp$0)
@@ -1861,7 +1830,7 @@
             "submit" === props.type ||
             didWarnFormActionType ||
             ((didWarnFormActionType = !0),
-            error$jscomp$2(
+            console.error(
               'An input can only specify a formAction along with type="submit" or type="image".'
             ));
           var formData = pushFormActionAttribute(
@@ -1877,7 +1846,7 @@
           null === checked ||
             null === defaultChecked ||
             didWarnDefaultChecked ||
-            (error$jscomp$2(
+            (console.error(
               "%s contains an input of type %s with both checked and defaultChecked props. Input elements must be either controlled or uncontrolled (specify either the checked prop, or the defaultChecked prop, but not both). Decide between using a controlled or uncontrolled input element and remove one of these props. More info: https://react.dev/link/controlled-components",
               "A component",
               props.type
@@ -1886,7 +1855,7 @@
           null === value$jscomp$1 ||
             null === defaultValue$jscomp$0 ||
             didWarnDefaultInputValue ||
-            (error$jscomp$2(
+            (console.error(
               "%s contains an input of type %s with both value and defaultValue props. Input elements must be either controlled or uncontrolled (specify either the value prop, or the defaultValue prop, but not both). Decide between using a controlled or uncontrolled input element and remove one of these props. More info: https://react.dev/link/controlled-components",
               "A component",
               props.type
@@ -1953,7 +1922,7 @@
             "submit" === props.type ||
             didWarnFormActionType ||
             ((didWarnFormActionType = !0),
-            error$jscomp$2(
+            console.error(
               'A button can only specify a formAction along with type="submit" or no type.'
             ));
           var formData$jscomp$0 = pushFormActionAttribute(
@@ -2021,13 +1990,13 @@
             (null === formEncType$jscomp$1 && null === formMethod$jscomp$1) ||
               didWarnFormActionMethod ||
               ((didWarnFormActionMethod = !0),
-              error$jscomp$2(
+              console.error(
                 "Cannot specify a encType or method for a form that specifies a function as the action. React provides those automatically. They will get overridden."
               ));
             null === formTarget$jscomp$1 ||
               didWarnFormActionTarget ||
               ((didWarnFormActionTarget = !0),
-              error$jscomp$2(
+              console.error(
                 "Cannot specify a target for a form that specifies a function as the action. The function will always be executed in the same window."
               ));
             var customFields = getCustomFormFields(
@@ -2101,51 +2070,101 @@
             }
           target$jscomp$0.push(endOfStartTag);
           return null;
+        case "object":
+          target$jscomp$0.push(startChunkForTag("object"));
+          var children$jscomp$5 = null,
+            innerHTML$jscomp$4 = null,
+            propKey$jscomp$7;
+          for (propKey$jscomp$7 in props)
+            if (hasOwnProperty.call(props, propKey$jscomp$7)) {
+              var propValue$jscomp$7 = props[propKey$jscomp$7];
+              if (null != propValue$jscomp$7)
+                switch (propKey$jscomp$7) {
+                  case "children":
+                    children$jscomp$5 = propValue$jscomp$7;
+                    break;
+                  case "dangerouslySetInnerHTML":
+                    innerHTML$jscomp$4 = propValue$jscomp$7;
+                    break;
+                  case "data":
+                    checkAttributeStringCoercion(propValue$jscomp$7, "data");
+                    var sanitizedValue = sanitizeURL("" + propValue$jscomp$7);
+                    if ("" === sanitizedValue) {
+                      console.error(
+                        'An empty string ("") was passed to the %s attribute. To fix this, either do not render the element at all or pass null to %s instead of an empty string.',
+                        propKey$jscomp$7,
+                        propKey$jscomp$7
+                      );
+                      break;
+                    }
+                    target$jscomp$0.push(
+                      attributeSeparator,
+                      "data",
+                      attributeAssign,
+                      escapeTextForBrowser(sanitizedValue),
+                      attributeEnd
+                    );
+                    break;
+                  default:
+                    pushAttribute(
+                      target$jscomp$0,
+                      propKey$jscomp$7,
+                      propValue$jscomp$7
+                    );
+                }
+            }
+          target$jscomp$0.push(endOfStartTag);
+          pushInnerHTML(target$jscomp$0, innerHTML$jscomp$4, children$jscomp$5);
+          if ("string" === typeof children$jscomp$5) {
+            target$jscomp$0.push(escapeTextForBrowser(children$jscomp$5));
+            var JSCompiler_inline_result$jscomp$3 = null;
+          } else JSCompiler_inline_result$jscomp$3 = children$jscomp$5;
+          return JSCompiler_inline_result$jscomp$3;
         case "title":
           var insertionMode = formatContext.insertionMode,
             noscriptTagInScope = !!(formatContext.tagScope & 1);
           if (hasOwnProperty.call(props, "children")) {
-            var children$jscomp$5 = props.children,
-              child = Array.isArray(children$jscomp$5)
-                ? 2 > children$jscomp$5.length
-                  ? children$jscomp$5[0]
+            var children$jscomp$6 = props.children,
+              child = Array.isArray(children$jscomp$6)
+                ? 2 > children$jscomp$6.length
+                  ? children$jscomp$6[0]
                   : null
-                : children$jscomp$5;
-            Array.isArray(children$jscomp$5) && 1 < children$jscomp$5.length
-              ? error$jscomp$2(
+                : children$jscomp$6;
+            Array.isArray(children$jscomp$6) && 1 < children$jscomp$6.length
+              ? console.error(
                   "React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length %s instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be commong to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.",
-                  children$jscomp$5.length
+                  children$jscomp$6.length
                 )
               : "function" === typeof child || "symbol" === typeof child
-              ? error$jscomp$2(
-                  "React expect children of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found %s instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags to a single string value.",
-                  "function" === typeof child ? "a Function" : "a Sybmol"
-                )
-              : child &&
-                child.toString === {}.toString &&
-                (null != child.$$typeof
-                  ? error$jscomp$2(
-                      "React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an object that appears to be a React element which never implements a suitable `toString` method. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags to a single string value which is why rendering React elements is not supported. If the `children` of <title> is a React Component try moving the <title> tag into that component. If the `children` of <title> is some HTML markup change it to be Text only to be valid HTML."
-                    )
-                  : error$jscomp$2(
-                      "React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an object that does not implement a suitable `toString` method. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags to a single string value. Using the default `toString` method available on every object is almost certainly an error. Consider whether the `children` of this <title> is an object in error and change it to a string or number value if so. Otherwise implement a `toString` method that React can use to produce a valid <title>."
-                    ));
+                ? console.error(
+                    "React expect children of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found %s instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags to a single string value.",
+                    "function" === typeof child ? "a Function" : "a Sybmol"
+                  )
+                : child &&
+                  child.toString === {}.toString &&
+                  (null != child.$$typeof
+                    ? console.error(
+                        "React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an object that appears to be a React element which never implements a suitable `toString` method. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags to a single string value which is why rendering React elements is not supported. If the `children` of <title> is a React Component try moving the <title> tag into that component. If the `children` of <title> is some HTML markup change it to be Text only to be valid HTML."
+                      )
+                    : console.error(
+                        "React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an object that does not implement a suitable `toString` method. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert children of <title> tags to a single string value. Using the default `toString` method available on every object is almost certainly an error. Consider whether the `children` of this <title> is an object in error and change it to a string or number value if so. Otherwise implement a `toString` method that React can use to produce a valid <title>."
+                      ));
           }
           if (
             insertionMode === SVG_MODE ||
             noscriptTagInScope ||
             null != props.itemProp
           )
-            var JSCompiler_inline_result$jscomp$3 = pushTitleImpl(
+            var JSCompiler_inline_result$jscomp$4 = pushTitleImpl(
               target$jscomp$0,
               props
             );
           else
             isFallback
-              ? (JSCompiler_inline_result$jscomp$3 = null)
+              ? (JSCompiler_inline_result$jscomp$4 = null)
               : (pushTitleImpl(renderState.hoistableChunks, props),
-                (JSCompiler_inline_result$jscomp$3 = void 0));
-          return JSCompiler_inline_result$jscomp$3;
+                (JSCompiler_inline_result$jscomp$4 = void 0));
+          return JSCompiler_inline_result$jscomp$4;
         case "link":
           var rel = props.rel,
             href = props.href,
@@ -2161,18 +2180,18 @@
             "stylesheet" === rel &&
               "string" === typeof props.precedence &&
               (("string" === typeof href && href) ||
-                error$jscomp$2(
+                console.error(
                   'React encountered a `<link rel="stylesheet" .../>` with a `precedence` prop and expected the `href` prop to be a non-empty string but ecountered %s instead. If your intent was to have React hoist and deduplciate this stylesheet using the `precedence` prop ensure there is a non-empty string `href` prop as well, otherwise remove the `precedence` prop.',
                   null === href
                     ? "`null`"
                     : void 0 === href
-                    ? "`undefined`"
-                    : "" === href
-                    ? "an empty string"
-                    : 'something with type "' + typeof href + '"'
+                      ? "`undefined`"
+                      : "" === href
+                        ? "an empty string"
+                        : 'something with type "' + typeof href + '"'
                 ));
             pushLinkImpl(target$jscomp$0, props);
-            var JSCompiler_inline_result$jscomp$4 = null;
+            var JSCompiler_inline_result$jscomp$5 = null;
           } else if ("stylesheet" === props.rel)
             if (
               "string" !== typeof precedence ||
@@ -2182,7 +2201,7 @@
             ) {
               if ("string" === typeof precedence)
                 if (null != props.disabled)
-                  error$jscomp$2(
+                  console.error(
                     'React encountered a `<link rel="stylesheet" .../>` with a `precedence` prop and a `disabled` prop. The presence of the `disabled` prop indicates an intent to manage the stylesheet active state from your from your Component code and React will not hoist or deduplicate this stylesheet. If your intent was to have React hoist and deduplciate this stylesheet using the `precedence` prop remove the `disabled` prop, otherwise remove the `precedence` prop.'
                   );
                 else if (props.onLoad || props.onError) {
@@ -2190,15 +2209,15 @@
                     props.onLoad && props.onError
                       ? "`onLoad` and `onError` props"
                       : props.onLoad
-                      ? "`onLoad` prop"
-                      : "`onError` prop";
-                  error$jscomp$2(
+                        ? "`onLoad` prop"
+                        : "`onError` prop";
+                  console.error(
                     'React encountered a `<link rel="stylesheet" .../>` with a `precedence` prop and %s. The presence of loading and error handlers indicates an intent to manage the stylesheet loading state from your from your Component code and React will not hoist or deduplicate this stylesheet. If your intent was to have React hoist and deduplciate this stylesheet using the `precedence` prop remove the %s, otherwise remove the `precedence` prop.',
                     propDescription,
                     propDescription
                   );
                 }
-              JSCompiler_inline_result$jscomp$4 = pushLinkImpl(
+              JSCompiler_inline_result$jscomp$5 = pushLinkImpl(
                 target$jscomp$0,
                 props
               );
@@ -2244,19 +2263,19 @@
                   hoistableState.stylesheets.add(_resource);
               }
               textEmbedded && target$jscomp$0.push("\x3c!-- --\x3e");
-              JSCompiler_inline_result$jscomp$4 = null;
+              JSCompiler_inline_result$jscomp$5 = null;
             }
           else
             props.onLoad || props.onError
-              ? (JSCompiler_inline_result$jscomp$4 = pushLinkImpl(
+              ? (JSCompiler_inline_result$jscomp$5 = pushLinkImpl(
                   target$jscomp$0,
                   props
                 ))
               : (textEmbedded && target$jscomp$0.push("\x3c!-- --\x3e"),
-                (JSCompiler_inline_result$jscomp$4 = isFallback
+                (JSCompiler_inline_result$jscomp$5 = isFallback
                   ? null
                   : pushLinkImpl(renderState.hoistableChunks, props)));
-          return JSCompiler_inline_result$jscomp$4;
+          return JSCompiler_inline_result$jscomp$5;
         case "script":
           var asyncProp = props.async;
           if (
@@ -2271,7 +2290,7 @@
             formatContext.tagScope & 1 ||
             null != props.itemProp
           )
-            var JSCompiler_inline_result$jscomp$5 = pushScriptImpl(
+            var JSCompiler_inline_result$jscomp$6 = pushScriptImpl(
               target$jscomp$0,
               props
             );
@@ -2302,29 +2321,29 @@
               pushScriptImpl(resource$jscomp$0, scriptProps);
             }
             textEmbedded && target$jscomp$0.push("\x3c!-- --\x3e");
-            JSCompiler_inline_result$jscomp$5 = null;
+            JSCompiler_inline_result$jscomp$6 = null;
           }
-          return JSCompiler_inline_result$jscomp$5;
+          return JSCompiler_inline_result$jscomp$6;
         case "style":
           var insertionMode$jscomp$0 = formatContext.insertionMode,
             noscriptTagInScope$jscomp$0 = !!(formatContext.tagScope & 1);
           if (hasOwnProperty.call(props, "children")) {
-            var children$jscomp$6 = props.children,
-              child$jscomp$0 = Array.isArray(children$jscomp$6)
-                ? 2 > children$jscomp$6.length
-                  ? children$jscomp$6[0]
+            var children$jscomp$7 = props.children,
+              child$jscomp$0 = Array.isArray(children$jscomp$7)
+                ? 2 > children$jscomp$7.length
+                  ? children$jscomp$7[0]
                   : null
-                : children$jscomp$6;
+                : children$jscomp$7;
             ("function" === typeof child$jscomp$0 ||
               "symbol" === typeof child$jscomp$0 ||
               Array.isArray(child$jscomp$0)) &&
-              error$jscomp$2(
+              console.error(
                 "React expect children of <style> tags to be a string, number, or object with a `toString` method but found %s instead. In browsers style Elements can only have `Text` Nodes as children.",
                 "function" === typeof child$jscomp$0
                   ? "a Function"
                   : "symbol" === typeof child$jscomp$0
-                  ? "a Sybmol"
-                  : "an Array"
+                    ? "a Sybmol"
+                    : "an Array"
               );
           }
           var precedence$jscomp$0 = props.precedence,
@@ -2338,34 +2357,34 @@
             "" === href$jscomp$0
           ) {
             target$jscomp$0.push(startChunkForTag("style"));
-            var children$jscomp$7 = null,
-              innerHTML$jscomp$4 = null,
-              propKey$jscomp$7;
-            for (propKey$jscomp$7 in props)
-              if (hasOwnProperty.call(props, propKey$jscomp$7)) {
-                var propValue$jscomp$7 = props[propKey$jscomp$7];
-                if (null != propValue$jscomp$7)
-                  switch (propKey$jscomp$7) {
+            var children$jscomp$8 = null,
+              innerHTML$jscomp$5 = null,
+              propKey$jscomp$8;
+            for (propKey$jscomp$8 in props)
+              if (hasOwnProperty.call(props, propKey$jscomp$8)) {
+                var propValue$jscomp$8 = props[propKey$jscomp$8];
+                if (null != propValue$jscomp$8)
+                  switch (propKey$jscomp$8) {
                     case "children":
-                      children$jscomp$7 = propValue$jscomp$7;
+                      children$jscomp$8 = propValue$jscomp$8;
                       break;
                     case "dangerouslySetInnerHTML":
-                      innerHTML$jscomp$4 = propValue$jscomp$7;
+                      innerHTML$jscomp$5 = propValue$jscomp$8;
                       break;
                     default:
                       pushAttribute(
                         target$jscomp$0,
-                        propKey$jscomp$7,
-                        propValue$jscomp$7
+                        propKey$jscomp$8,
+                        propValue$jscomp$8
                       );
                   }
               }
             target$jscomp$0.push(endOfStartTag);
-            var child$jscomp$1 = Array.isArray(children$jscomp$7)
-              ? 2 > children$jscomp$7.length
-                ? children$jscomp$7[0]
+            var child$jscomp$1 = Array.isArray(children$jscomp$8)
+              ? 2 > children$jscomp$8.length
+                ? children$jscomp$8[0]
                 : null
-              : children$jscomp$7;
+              : children$jscomp$8;
             "function" !== typeof child$jscomp$1 &&
               "symbol" !== typeof child$jscomp$1 &&
               null !== child$jscomp$1 &&
@@ -2373,14 +2392,14 @@
               target$jscomp$0.push(escapeStyleTextContent(child$jscomp$1));
             pushInnerHTML(
               target$jscomp$0,
-              innerHTML$jscomp$4,
-              children$jscomp$7
+              innerHTML$jscomp$5,
+              children$jscomp$8
             );
             target$jscomp$0.push(endChunkForTag("style"));
-            var JSCompiler_inline_result$jscomp$6 = null;
+            var JSCompiler_inline_result$jscomp$7 = null;
           } else {
             href$jscomp$0.includes(" ") &&
-              error$jscomp$2(
+              console.error(
                 'React expected the `href` prop for a <style> tag opting into hoisting semantics using the `precedence` prop to not have any spaces but ecountered spaces instead. using spaces in this prop will cause hydration of this style to fail on the client. The href for the <style> where this ocurred is "%s".',
                 href$jscomp$0
               );
@@ -2393,7 +2412,7 @@
             if (resourceState$jscomp$1 !== EXISTS) {
               resumableState.styleResources[href$jscomp$0] = EXISTS;
               resourceState$jscomp$1 &&
-                error$jscomp$2(
+                console.error(
                   'React encountered a hoistable style tag for the same href as a preload: "%s". When using a style tag to inline styles you should not also preload it as a stylsheet.',
                   href$jscomp$0
                 );
@@ -2412,100 +2431,104 @@
                     styleQueue$jscomp$0
                   ));
               var target = styleQueue$jscomp$0.rules,
-                children$jscomp$8 = null,
-                innerHTML$jscomp$5 = null,
-                propKey$jscomp$8;
-              for (propKey$jscomp$8 in props)
-                if (hasOwnProperty.call(props, propKey$jscomp$8)) {
-                  var propValue$jscomp$8 = props[propKey$jscomp$8];
-                  if (null != propValue$jscomp$8)
-                    switch (propKey$jscomp$8) {
+                children$jscomp$9 = null,
+                innerHTML$jscomp$6 = null,
+                propKey$jscomp$9;
+              for (propKey$jscomp$9 in props)
+                if (hasOwnProperty.call(props, propKey$jscomp$9)) {
+                  var propValue$jscomp$9 = props[propKey$jscomp$9];
+                  if (null != propValue$jscomp$9)
+                    switch (propKey$jscomp$9) {
                       case "children":
-                        children$jscomp$8 = propValue$jscomp$8;
+                        children$jscomp$9 = propValue$jscomp$9;
                         break;
                       case "dangerouslySetInnerHTML":
-                        innerHTML$jscomp$5 = propValue$jscomp$8;
+                        innerHTML$jscomp$6 = propValue$jscomp$9;
                     }
                 }
-              var child$jscomp$2 = Array.isArray(children$jscomp$8)
-                ? 2 > children$jscomp$8.length
-                  ? children$jscomp$8[0]
+              var child$jscomp$2 = Array.isArray(children$jscomp$9)
+                ? 2 > children$jscomp$9.length
+                  ? children$jscomp$9[0]
                   : null
-                : children$jscomp$8;
+                : children$jscomp$9;
               "function" !== typeof child$jscomp$2 &&
                 "symbol" !== typeof child$jscomp$2 &&
                 null !== child$jscomp$2 &&
                 void 0 !== child$jscomp$2 &&
                 target.push(escapeStyleTextContent(child$jscomp$2));
-              pushInnerHTML(target, innerHTML$jscomp$5, children$jscomp$8);
+              pushInnerHTML(target, innerHTML$jscomp$6, children$jscomp$9);
             }
             styleQueue$jscomp$0 &&
               hoistableState &&
               hoistableState.styles.add(styleQueue$jscomp$0);
             textEmbedded && target$jscomp$0.push("\x3c!-- --\x3e");
-            JSCompiler_inline_result$jscomp$6 = void 0;
+            JSCompiler_inline_result$jscomp$7 = void 0;
           }
-          return JSCompiler_inline_result$jscomp$6;
+          return JSCompiler_inline_result$jscomp$7;
         case "meta":
           if (
             formatContext.insertionMode === SVG_MODE ||
             formatContext.tagScope & 1 ||
             null != props.itemProp
           )
-            var JSCompiler_inline_result$jscomp$7 = pushSelfClosing(
+            var JSCompiler_inline_result$jscomp$8 = pushSelfClosing(
               target$jscomp$0,
               props,
               "meta"
             );
           else
             textEmbedded && target$jscomp$0.push("\x3c!-- --\x3e"),
-              (JSCompiler_inline_result$jscomp$7 = isFallback
+              (JSCompiler_inline_result$jscomp$8 = isFallback
                 ? null
                 : "string" === typeof props.charSet
-                ? pushSelfClosing(renderState.charsetChunks, props, "meta")
-                : "viewport" === props.name
-                ? pushSelfClosing(renderState.viewportChunks, props, "meta")
-                : pushSelfClosing(renderState.hoistableChunks, props, "meta"));
-          return JSCompiler_inline_result$jscomp$7;
+                  ? pushSelfClosing(renderState.charsetChunks, props, "meta")
+                  : "viewport" === props.name
+                    ? pushSelfClosing(renderState.viewportChunks, props, "meta")
+                    : pushSelfClosing(
+                        renderState.hoistableChunks,
+                        props,
+                        "meta"
+                      ));
+          return JSCompiler_inline_result$jscomp$8;
         case "listing":
         case "pre":
           target$jscomp$0.push(startChunkForTag(type));
-          var children$jscomp$9 = null,
-            innerHTML$jscomp$6 = null,
-            propKey$jscomp$9;
-          for (propKey$jscomp$9 in props)
-            if (hasOwnProperty.call(props, propKey$jscomp$9)) {
-              var propValue$jscomp$9 = props[propKey$jscomp$9];
-              if (null != propValue$jscomp$9)
-                switch (propKey$jscomp$9) {
+          var children$jscomp$10 = null,
+            innerHTML$jscomp$7 = null,
+            propKey$jscomp$10;
+          for (propKey$jscomp$10 in props)
+            if (hasOwnProperty.call(props, propKey$jscomp$10)) {
+              var propValue$jscomp$10 = props[propKey$jscomp$10];
+              if (null != propValue$jscomp$10)
+                switch (propKey$jscomp$10) {
                   case "children":
-                    children$jscomp$9 = propValue$jscomp$9;
+                    children$jscomp$10 = propValue$jscomp$10;
                     break;
                   case "dangerouslySetInnerHTML":
-                    innerHTML$jscomp$6 = propValue$jscomp$9;
+                    innerHTML$jscomp$7 = propValue$jscomp$10;
                     break;
                   default:
                     pushAttribute(
                       target$jscomp$0,
-                      propKey$jscomp$9,
-                      propValue$jscomp$9
+                      propKey$jscomp$10,
+                      propValue$jscomp$10
                     );
                 }
             }
           target$jscomp$0.push(endOfStartTag);
-          if (null != innerHTML$jscomp$6) {
-            if (null != children$jscomp$9)
+          if (null != innerHTML$jscomp$7) {
+            if (null != children$jscomp$10)
               throw Error(
                 "Can only set one of `children` or `props.dangerouslySetInnerHTML`."
               );
             if (
-              "object" !== typeof innerHTML$jscomp$6 ||
-              !("__html" in innerHTML$jscomp$6)
+              "object" !== typeof innerHTML$jscomp$7 ||
+              !("__html" in innerHTML$jscomp$7)
             )
               throw Error(
                 "`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. Please visit https://react.dev/link/dangerously-set-inner-html for more information."
               );
-            var html = innerHTML$jscomp$6.__html;
+            var html = innerHTML$jscomp$7.__html;
             null !== html &&
               void 0 !== html &&
               ("string" === typeof html && 0 < html.length && "\n" === html[0]
@@ -2513,10 +2536,10 @@
                 : (checkHtmlStringCoercion(html),
                   target$jscomp$0.push("" + html)));
           }
-          "string" === typeof children$jscomp$9 &&
-            "\n" === children$jscomp$9[0] &&
+          "string" === typeof children$jscomp$10 &&
+            "\n" === children$jscomp$10[0] &&
             target$jscomp$0.push(leadingNewline);
-          return children$jscomp$9;
+          return children$jscomp$10;
         case "img":
           var src = props.src,
             srcSet = props.srcSet;
@@ -2580,7 +2603,7 @@
                 fetchPriority: props.fetchPriority,
                 referrerPolicy: props.refererPolicy
               })),
-              2 <= (headers.remainingCapacity -= header.length))
+              0 <= (headers.remainingCapacity -= header.length + 2))
                 ? ((renderState.resets.image[key$jscomp$0] = PRELOAD_NO_CREDS),
                   headers.highImagePreloads &&
                     (headers.highImagePreloads += ", "),
@@ -2633,56 +2656,56 @@
             null === renderState.headChunks
           ) {
             renderState.headChunks = [];
-            var JSCompiler_inline_result$jscomp$8 = pushStartGenericElement(
+            var JSCompiler_inline_result$jscomp$9 = pushStartGenericElement(
               renderState.headChunks,
               props,
               "head"
             );
           } else
-            JSCompiler_inline_result$jscomp$8 = pushStartGenericElement(
+            JSCompiler_inline_result$jscomp$9 = pushStartGenericElement(
               target$jscomp$0,
               props,
               "head"
             );
-          return JSCompiler_inline_result$jscomp$8;
+          return JSCompiler_inline_result$jscomp$9;
         case "html":
           if (
             formatContext.insertionMode === ROOT_HTML_MODE &&
             null === renderState.htmlChunks
           ) {
             renderState.htmlChunks = [doctypeChunk];
-            var JSCompiler_inline_result$jscomp$9 = pushStartGenericElement(
+            var JSCompiler_inline_result$jscomp$10 = pushStartGenericElement(
               renderState.htmlChunks,
               props,
               "html"
             );
           } else
-            JSCompiler_inline_result$jscomp$9 = pushStartGenericElement(
+            JSCompiler_inline_result$jscomp$10 = pushStartGenericElement(
               target$jscomp$0,
               props,
               "html"
             );
-          return JSCompiler_inline_result$jscomp$9;
+          return JSCompiler_inline_result$jscomp$10;
         default:
           if (-1 !== type.indexOf("-")) {
             target$jscomp$0.push(startChunkForTag(type));
-            var children$jscomp$10 = null,
-              innerHTML$jscomp$7 = null,
-              propKey$jscomp$10;
-            for (propKey$jscomp$10 in props)
-              if (hasOwnProperty.call(props, propKey$jscomp$10)) {
-                var propValue$jscomp$10 = props[propKey$jscomp$10];
-                if (null != propValue$jscomp$10) {
-                  var attributeName = propKey$jscomp$10;
-                  switch (propKey$jscomp$10) {
+            var children$jscomp$11 = null,
+              innerHTML$jscomp$8 = null,
+              propKey$jscomp$11;
+            for (propKey$jscomp$11 in props)
+              if (hasOwnProperty.call(props, propKey$jscomp$11)) {
+                var propValue$jscomp$11 = props[propKey$jscomp$11];
+                if (null != propValue$jscomp$11) {
+                  var attributeName = propKey$jscomp$11;
+                  switch (propKey$jscomp$11) {
                     case "children":
-                      children$jscomp$10 = propValue$jscomp$10;
+                      children$jscomp$11 = propValue$jscomp$11;
                       break;
                     case "dangerouslySetInnerHTML":
-                      innerHTML$jscomp$7 = propValue$jscomp$10;
+                      innerHTML$jscomp$8 = propValue$jscomp$11;
                       break;
                     case "style":
-                      pushStyleAttribute(target$jscomp$0, propValue$jscomp$10);
+                      pushStyleAttribute(target$jscomp$0, propValue$jscomp$11);
                       break;
                     case "suppressContentEditableWarning":
                     case "suppressHydrationWarning":
@@ -2692,20 +2715,20 @@
                       attributeName = "class";
                     default:
                       if (
-                        isAttributeNameSafe(propKey$jscomp$10) &&
-                        "function" !== typeof propValue$jscomp$10 &&
-                        "symbol" !== typeof propValue$jscomp$10 &&
-                        !1 !== propValue$jscomp$10
+                        isAttributeNameSafe(propKey$jscomp$11) &&
+                        "function" !== typeof propValue$jscomp$11 &&
+                        "symbol" !== typeof propValue$jscomp$11 &&
+                        !1 !== propValue$jscomp$11
                       ) {
-                        if (!0 === propValue$jscomp$10)
-                          propValue$jscomp$10 = "";
-                        else if ("object" === typeof propValue$jscomp$10)
+                        if (!0 === propValue$jscomp$11)
+                          propValue$jscomp$11 = "";
+                        else if ("object" === typeof propValue$jscomp$11)
                           continue;
                         target$jscomp$0.push(
                           attributeSeparator,
                           attributeName,
                           attributeAssign,
-                          escapeTextForBrowser(propValue$jscomp$10),
+                          escapeTextForBrowser(propValue$jscomp$11),
                           attributeEnd
                         );
                       }
@@ -2715,10 +2738,10 @@
             target$jscomp$0.push(endOfStartTag);
             pushInnerHTML(
               target$jscomp$0,
-              innerHTML$jscomp$7,
-              children$jscomp$10
+              innerHTML$jscomp$8,
+              children$jscomp$11
             );
-            return children$jscomp$10;
+            return children$jscomp$11;
           }
       }
       return pushStartGenericElement(target$jscomp$0, props, type);
@@ -2881,7 +2904,7 @@
         hrefs = styleQueue.hrefs;
       0 < rules.length &&
         0 === hrefs.length &&
-        error$jscomp$2(
+        console.error(
           "React expected to have at least one href for an a hoistable style but found none. This is a bug in React."
         );
       var i = 0;
@@ -3200,7 +3223,7 @@
     ) {
       (resumableState.scriptResources.hasOwnProperty(href) ||
         resumableState.moduleScriptResources.hasOwnProperty(href)) &&
-        error$jscomp$2(
+        console.error(
           'Internal React Error: React expected bootstrap script or module with src "%s" to not have been preloaded already. please file an issue',
           href
         );
@@ -3258,7 +3281,7 @@
     }
     function escapeStringForLinkHeaderQuotedParamValueContext(value, name) {
       willCoercionThrow(value) &&
-        (error$jscomp$2(
+        (console.error(
           "The provided `%s` option is an unsupported type %s. This value must be coerced to a string before using it here.",
           name,
           typeName(value)
@@ -3374,8 +3397,8 @@
                 null == scriptConfig.crossOrigin
                   ? void 0
                   : "use-credentials" === scriptConfig.crossOrigin
-                  ? "use-credentials"
-                  : ""));
+                    ? "use-credentials"
+                    : ""));
           preloadBootstrapScriptOrModule(resumableState, idPrefix, src, props);
           bootstrapChunks.push('<script src="', escapeTextForBrowser(src));
           "string" === typeof integrity &&
@@ -3415,8 +3438,8 @@
                   null == bootstrapScriptContent.crossOrigin
                     ? void 0
                     : "use-credentials" === bootstrapScriptContent.crossOrigin
-                    ? "use-credentials"
-                    : "")),
+                      ? "use-credentials"
+                      : "")),
             preloadBootstrapScriptOrModule(
               resumableState,
               idPrefix,
@@ -3476,6 +3499,15 @@
           (target = !0));
       return target;
     }
+    function pushSegmentFinale(
+      target,
+      renderState,
+      lastPushedText,
+      textEmbedded
+    ) {
+      renderState.generateStaticMarkup ||
+        (lastPushedText && textEmbedded && target.push("\x3c!-- --\x3e"));
+    }
     function getComponentNameFromType(type) {
       if (null == type) return null;
       if ("function" === typeof type)
@@ -3500,7 +3532,7 @@
       if ("object" === typeof type)
         switch (
           ("number" === typeof type.tag &&
-            error$jscomp$2(
+            console.error(
               "Received an unexpected object in getComponentNameFromType(). This is likely a bug in React. Please file an issue."
             ),
           type.$$typeof)
@@ -3590,12 +3622,12 @@
         (null === prev
           ? pushAllNext(newSnapshot)
           : null === newSnapshot
-          ? popAllPrevious(prev)
-          : prev.depth === newSnapshot.depth
-          ? popToNearestCommonAncestor(prev, newSnapshot)
-          : prev.depth > newSnapshot.depth
-          ? popPreviousToCommonLevel(prev, newSnapshot)
-          : popNextToCommonLevel(prev, newSnapshot),
+            ? popAllPrevious(prev)
+            : prev.depth === newSnapshot.depth
+              ? popToNearestCommonAncestor(prev, newSnapshot)
+              : prev.depth > newSnapshot.depth
+                ? popPreviousToCommonLevel(prev, newSnapshot)
+                : popNextToCommonLevel(prev, newSnapshot),
         (currentActiveSnapshot = newSnapshot));
     }
     function warnOnInvalidCallback(callback) {
@@ -3603,7 +3635,7 @@
         var key = String(callback);
         didWarnOnInvalidCallback.has(key) ||
           (didWarnOnInvalidCallback.add(key),
-          error$jscomp$2(
+          console.error(
             "Expected the last optional `callback` argument to be a function. Instead received: %s.",
             callback
           ));
@@ -3616,7 +3648,7 @@
         "ReactClass";
       var warningKey = publicInstance + "." + callerName;
       didWarnAboutNoopUpdateForComponent[warningKey] ||
-        (error$jscomp$2(
+        (console.error(
           "Can only update a mounting component. This usually means you called %s() outside componentWillMount() on the server. This is a no-op.\n\nPlease check the code for the %s component.",
           callerName,
           publicInstance
@@ -3716,7 +3748,7 @@
           "Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer (such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of React in the same app\nSee https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem."
         );
       isInHookUserCodeInDev &&
-        error$jscomp$2(
+        console.error(
           "Do not call Hooks inside useEffect(...), useMemo(...), or other built-in Hooks. You can only call Hooks at the top level of your React function. For more information, see https://react.dev/link/rules-of-hooks"
         );
       return currentlyRenderingComponent;
@@ -3733,9 +3765,9 @@
             (firstWorkInProgressHook = workInProgressHook = createHook()))
           : ((isReRender = !0), (workInProgressHook = firstWorkInProgressHook))
         : null === workInProgressHook.next
-        ? ((isReRender = !1),
-          (workInProgressHook = workInProgressHook.next = createHook()))
-        : ((isReRender = !0), (workInProgressHook = workInProgressHook.next));
+          ? ((isReRender = !1),
+            (workInProgressHook = workInProgressHook.next = createHook()))
+          : ((isReRender = !0), (workInProgressHook = workInProgressHook.next));
       return workInProgressHook;
     }
     function getThenableStateAfterSuspending() {
@@ -3757,7 +3789,7 @@
     }
     function readContext(context) {
       isInHookUserCodeInDev &&
-        error$jscomp$2(
+        console.error(
           "Context can only be read while React is rendering. In classes, you can read it in the render method or getDerivedStateFromProps. In function components, you can read it directly in the function body, but not inside Hooks like useReducer() or useMemo()."
         );
       return context._currentValue2;
@@ -3797,8 +3829,8 @@
             ? initialArg()
             : initialArg
           : void 0 !== init
-          ? init(initialArg)
-          : initialArg;
+            ? init(initialArg)
+            : initialArg;
       isInHookUserCodeInDev = !1;
       workInProgressHook.memoizedState = reducer;
       reducer = workInProgressHook.queue = { last: null, dispatch: null };
@@ -3819,14 +3851,14 @@
           a: {
             var JSCompiler_inline_result = prevState[1];
             if (null === JSCompiler_inline_result)
-              error$jscomp$2(
+              console.error(
                 "%s received a final argument during this render, but not during the previous render. Even though the final argument is optional, its type cannot change between renders.",
                 currentHookNameInDev
               ),
                 (JSCompiler_inline_result = !1);
             else {
               deps.length !== JSCompiler_inline_result.length &&
-                error$jscomp$2(
+                console.error(
                   "The final argument passed to %s changed size between renders. The order and size of this array must remain constant.\n\nPrevious: %s\nIncoming: %s",
                   currentHookNameInDev,
                   "[" + deps.join(", ") + "]",
@@ -4014,7 +4046,7 @@
         });
       }
       0 > disabledDepth &&
-        error$jscomp$2(
+        console.error(
           "disabledDepth fell below zero. This is a bug in React. Please file an issue."
         );
     }
@@ -4025,8 +4057,14 @@
         } catch (x) {
           var match = x.stack.trim().match(/\n( *(at )?)/);
           prefix = (match && match[1]) || "";
+          suffix =
+            -1 < x.stack.indexOf("\n    at")
+              ? " (<anonymous>)"
+              : -1 < x.stack.indexOf("@")
+                ? "@unknown:0:0"
+                : "";
         }
-      return "\n" + prefix + name;
+      return "\n" + prefix + name + suffix;
     }
     function describeNativeComponentFrame(fn, construct) {
       if (!fn || reentry) return "";
@@ -4180,37 +4218,86 @@
       "function" === typeof fn && componentFrameCache.set(fn, sampleLines);
       return sampleLines;
     }
-    function getStackByComponentStackNode(componentStack) {
-      try {
-        var info = "";
-        do {
-          switch (componentStack.tag) {
-            case 0:
-              info += describeBuiltInComponentFrame(componentStack.type);
-              break;
-            case 1:
-              var JSCompiler_temp_const = info;
-              var JSCompiler_inline_result = describeNativeComponentFrame(
-                componentStack.type,
-                !1
-              );
-              info = JSCompiler_temp_const + JSCompiler_inline_result;
-              break;
-            case 2:
-              JSCompiler_temp_const = info;
-              var JSCompiler_inline_result$jscomp$0 =
-                describeNativeComponentFrame(componentStack.type, !0);
-              info = JSCompiler_temp_const + JSCompiler_inline_result$jscomp$0;
-          }
-          componentStack = componentStack.parent;
-        } while (componentStack);
-        return info;
-      } catch (x) {
-        return "\nError generating stack: " + x.message + "\n" + x.stack;
+    function formatOwnerStack(error) {
+      var prevPrepareStackTrace = Error.prepareStackTrace;
+      Error.prepareStackTrace = void 0;
+      error = error.stack;
+      Error.prepareStackTrace = prevPrepareStackTrace;
+      error.startsWith("Error: react-stack-top-frame\n") &&
+        (error = error.slice(29));
+      prevPrepareStackTrace = error.indexOf("\n");
+      -1 !== prevPrepareStackTrace &&
+        (error = error.slice(prevPrepareStackTrace + 1));
+      prevPrepareStackTrace = error.indexOf("react-stack-bottom-frame");
+      -1 !== prevPrepareStackTrace &&
+        (prevPrepareStackTrace = error.lastIndexOf(
+          "\n",
+          prevPrepareStackTrace
+        ));
+      if (-1 !== prevPrepareStackTrace)
+        error = error.slice(0, prevPrepareStackTrace);
+      else return "";
+      return error;
+    }
+    function describeComponentStackByType(type) {
+      if ("string" === typeof type) return describeBuiltInComponentFrame(type);
+      if ("function" === typeof type)
+        return type.prototype && type.prototype.isReactComponent
+          ? ((type = describeNativeComponentFrame(type, !0)), type)
+          : describeNativeComponentFrame(type, !1);
+      if ("object" === typeof type && null !== type) {
+        switch (type.$$typeof) {
+          case REACT_FORWARD_REF_TYPE:
+            return describeNativeComponentFrame(type.render, !1);
+          case REACT_MEMO_TYPE:
+            return describeNativeComponentFrame(type.type, !1);
+          case REACT_LAZY_TYPE:
+            var lazyComponent = type,
+              payload = lazyComponent._payload;
+            lazyComponent = lazyComponent._init;
+            try {
+              type = lazyComponent(payload);
+            } catch (x) {
+              return describeBuiltInComponentFrame("Lazy");
+            }
+            return describeComponentStackByType(type);
+        }
+        if ("string" === typeof type.name)
+          return (
+            (payload = type.env),
+            describeBuiltInComponentFrame(
+              type.name + (payload ? " [" + payload + "]" : "")
+            )
+          );
       }
+      switch (type) {
+        case REACT_SUSPENSE_LIST_TYPE:
+          return describeBuiltInComponentFrame("SuspenseList");
+        case REACT_SUSPENSE_TYPE:
+          return describeBuiltInComponentFrame("Suspense");
+      }
+      return "";
     }
     function defaultErrorHandler(error) {
-      console.error(error);
+      if (
+        "object" === typeof error &&
+        null !== error &&
+        "string" === typeof error.environmentName
+      ) {
+        var JSCompiler_inline_result = error.environmentName;
+        error = [error].slice(0);
+        "string" === typeof error[0]
+          ? error.splice(
+              0,
+              1,
+              "[%s] " + error[0],
+              " " + JSCompiler_inline_result + " "
+            )
+          : error.splice(0, 0, "[%s] ", " " + JSCompiler_inline_result + " ");
+        error.unshift(console);
+        JSCompiler_inline_result = bind.apply(console.error, error);
+        JSCompiler_inline_result();
+      } else console.error(error);
       return null;
     }
     function noop() {}
@@ -4275,12 +4362,14 @@
         abortSet,
         null,
         rootFormatContext,
-        emptyContextObject,
         null,
         emptyTreeContext,
         null,
-        !1
+        !1,
+        emptyContextObject,
+        null
       );
+      pushComponentStack(children);
       pingedTasks.push(children);
     }
     function createRequest(
@@ -4348,11 +4437,12 @@
       abortSet,
       keyPath,
       formatContext,
-      legacyContext,
       context,
       treeContext,
       componentStack,
-      isFallback
+      isFallback,
+      legacyContext,
+      debugTask
     ) {
       request.allPendingTasks++;
       null === blockedBoundary
@@ -4371,13 +4461,13 @@
         abortSet: abortSet,
         keyPath: keyPath,
         formatContext: formatContext,
-        legacyContext: legacyContext,
         context: context,
         treeContext: treeContext,
         componentStack: componentStack,
         thenableState: thenableState,
         isFallback: isFallback
       };
+      task.debugTask = debugTask;
       abortSet.add(task);
       return task;
     }
@@ -4392,11 +4482,12 @@
       abortSet,
       keyPath,
       formatContext,
-      legacyContext,
       context,
       treeContext,
       componentStack,
-      isFallback
+      isFallback,
+      legacyContext,
+      debugTask
     ) {
       request.allPendingTasks++;
       null === blockedBoundary
@@ -4416,13 +4507,13 @@
         abortSet: abortSet,
         keyPath: keyPath,
         formatContext: formatContext,
-        legacyContext: legacyContext,
         context: context,
         treeContext: treeContext,
         componentStack: componentStack,
         thenableState: thenableState,
         isFallback: isFallback
       };
+      task.debugTask = debugTask;
       abortSet.add(task);
       return task;
     }
@@ -4448,16 +4539,115 @@
       };
     }
     function getCurrentStackInDEV() {
-      return null === currentTaskInDEV ||
-        null === currentTaskInDEV.componentStack
-        ? ""
-        : getStackByComponentStackNode(currentTaskInDEV.componentStack);
+      if (null === currentTaskInDEV || null === currentTaskInDEV.componentStack)
+        return "";
+      var componentStack = currentTaskInDEV.componentStack;
+      try {
+        var info = "";
+        if ("string" === typeof componentStack.type)
+          info += describeBuiltInComponentFrame(componentStack.type);
+        else if ("function" === typeof componentStack.type) {
+          if (!componentStack.owner) {
+            var JSCompiler_temp_const = info,
+              fn = componentStack.type,
+              name = fn ? fn.displayName || fn.name : "";
+            var JSCompiler_inline_result = name
+              ? describeBuiltInComponentFrame(name)
+              : "";
+            info = JSCompiler_temp_const + JSCompiler_inline_result;
+          }
+        } else
+          componentStack.owner ||
+            (info += describeComponentStackByType(componentStack.type));
+        for (; componentStack; )
+          (JSCompiler_temp_const = null),
+            null != componentStack.debugStack
+              ? (JSCompiler_temp_const = formatOwnerStack(
+                  componentStack.debugStack
+                ))
+              : ((JSCompiler_inline_result = componentStack),
+                null != JSCompiler_inline_result.stack &&
+                  (JSCompiler_temp_const =
+                    "string" !== typeof JSCompiler_inline_result.stack
+                      ? (JSCompiler_inline_result.stack = formatOwnerStack(
+                          JSCompiler_inline_result.stack
+                        ))
+                      : JSCompiler_inline_result.stack)),
+            (componentStack = componentStack.owner) &&
+              JSCompiler_temp_const &&
+              (info += "\n" + JSCompiler_temp_const);
+        var JSCompiler_inline_result$jscomp$0 = info;
+      } catch (x) {
+        JSCompiler_inline_result$jscomp$0 =
+          "\nError generating stack: " + x.message + "\n" + x.stack;
+      }
+      return JSCompiler_inline_result$jscomp$0;
     }
-    function createBuiltInComponentStack(task, type) {
-      return { tag: 0, parent: task.componentStack, type: type };
+    function pushServerComponentStack(task, debugInfo) {
+      if (null != debugInfo)
+        for (var i = 0; i < debugInfo.length; i++) {
+          var componentInfo = debugInfo[i];
+          "string" === typeof componentInfo.name &&
+            void 0 !== componentInfo.debugStack &&
+            ((task.componentStack = {
+              parent: task.componentStack,
+              type: componentInfo,
+              owner: componentInfo.owner,
+              stack: componentInfo.debugStack
+            }),
+            (task.debugTask = componentInfo.debugTask));
+        }
     }
-    function getThrownInfo(request, node) {
-      return node ? { componentStack: getStackByComponentStackNode(node) } : {};
+    function pushComponentStack(task) {
+      var node = task.node;
+      if ("object" === typeof node && null !== node)
+        switch (node.$$typeof) {
+          case REACT_ELEMENT_TYPE:
+            var type = node.type,
+              owner = node._owner,
+              stack = node._debugStack;
+            pushServerComponentStack(task, node._debugInfo);
+            task.debugTask = node._debugTask;
+            task.componentStack = {
+              parent: task.componentStack,
+              type: type,
+              owner: owner,
+              stack: stack
+            };
+            break;
+          case REACT_LAZY_TYPE:
+            pushServerComponentStack(task, node._debugInfo);
+            break;
+          default:
+            "function" === typeof node.then &&
+              pushServerComponentStack(task, node._debugInfo);
+        }
+    }
+    function getThrownInfo(node$jscomp$0) {
+      var errorInfo = {};
+      node$jscomp$0 &&
+        Object.defineProperty(errorInfo, "componentStack", {
+          configurable: !0,
+          enumerable: !0,
+          get: function () {
+            try {
+              var info = "",
+                node = node$jscomp$0;
+              do
+                (info += describeComponentStackByType(node.type)),
+                  (node = node.parent);
+              while (node);
+              var stack = info;
+            } catch (x) {
+              stack = "\nError generating stack: " + x.message + "\n" + x.stack;
+            }
+            Object.defineProperty(errorInfo, "componentStack", {
+              value: stack
+            });
+            return stack;
+          }
+        });
+      return errorInfo;
     }
     function encodeErrorForBoundary(
       boundary,
@@ -4481,23 +4671,34 @@
       boundary.errorStack = null !== error ? wasAborted + error : null;
       boundary.errorComponentStack = thrownInfo.componentStack;
     }
-    function logRecoverableError(request, error$1, errorInfo) {
-      request = request.onError(error$1, errorInfo);
-      if (null != request && "string" !== typeof request)
-        error$jscomp$2(
-          'onError returned something with a type other than "string". onError should return a string and may return null or undefined but must not return anything else. It received something of type "%s" instead',
-          typeof request
-        );
-      else return request;
+    function logPostpone(request, reason, postponeInfo, debugTask) {
+      request = request.onPostpone;
+      debugTask
+        ? debugTask.run(request.bind(null, reason, postponeInfo))
+        : request(reason, postponeInfo);
     }
-    function fatalError(request, error) {
-      var onShellError = request.onShellError;
-      onShellError(error);
-      onShellError = request.onFatalError;
-      onShellError(error);
+    function logRecoverableError(request, error, errorInfo, debugTask) {
+      request = request.onError;
+      error = debugTask
+        ? debugTask.run(request.bind(null, error, errorInfo))
+        : request(error, errorInfo);
+      if (null != error && "string" !== typeof error)
+        console.error(
+          'onError returned something with a type other than "string". onError should return a string and may return null or undefined but must not return anything else. It received something of type "%s" instead',
+          typeof error
+        );
+      else return error;
+    }
+    function fatalError(request, error, errorInfo, debugTask) {
+      errorInfo = request.onShellError;
+      var onFatalError = request.onFatalError;
+      debugTask
+        ? (debugTask.run(errorInfo.bind(null, error)),
+          debugTask.run(onFatalError.bind(null, error)))
+        : (errorInfo(error), onFatalError(error));
       null !== request.destination
-        ? ((request.status = 2), request.destination.destroy(error))
-        : ((request.status = 1), (request.fatalError = error));
+        ? ((request.status = CLOSED), request.destination.destroy(error))
+        : ((request.status = 2), (request.fatalError = error));
     }
     function renderWithHooks(
       request,
@@ -4519,7 +4720,7 @@
       thenableIndexCounter = 0;
       thenableState = prevThenableState;
       for (
-        request = Component(props, secondArg);
+        request = callComponentInDEV(Component, props, secondArg);
         didScheduleRenderPhaseUpdate;
 
       )
@@ -4562,8 +4763,8 @@
           renderNode(request, task, children, -1),
           (task.treeContext = keyPath))
         : didEmitActionStateMarkers
-        ? renderNode(request, task, children, -1)
-        : renderNodeDestructive(request, task, children, -1);
+          ? renderNode(request, task, children, -1)
+          : renderNodeDestructive(request, task, children, -1);
       task.keyPath = actionStateCount;
     }
     function renderElement(request, task, keyPath, type, props, ref) {
@@ -4583,12 +4784,6 @@
                 (newProps[_propName] = defaultProps[_propName]);
           }
           var resolvedProps = newProps;
-          var previousComponentStack = task.componentStack;
-          task.componentStack = {
-            tag: 2,
-            parent: task.componentStack,
-            type: type
-          };
           var context = emptyContextObject,
             contextType = type.contextType;
           if (
@@ -4603,13 +4798,13 @@
               void 0 === contextType
                 ? " However, it is set to undefined. This can be caused by a typo or by mixing up named and default imports. This can also happen due to a circular dependency, so try moving the createContext() call to a separate file."
                 : "object" !== typeof contextType
-                ? " However, it is set to a " + typeof contextType + "."
-                : contextType.$$typeof === REACT_CONSUMER_TYPE
-                ? " Did you accidentally pass the Context.Consumer instead?"
-                : " However, it is set to an object with keys {" +
-                  Object.keys(contextType).join(", ") +
-                  "}.";
-            error$jscomp$2(
+                  ? " However, it is set to a " + typeof contextType + "."
+                  : contextType.$$typeof === REACT_CONSUMER_TYPE
+                    ? " Did you accidentally pass the Context.Consumer instead?"
+                    : " However, it is set to an object with keys {" +
+                      Object.keys(contextType).join(", ") +
+                      "}.";
+            console.error(
               "%s defines an invalid contextType. contextType should point to the Context object returned by React.createContext().%s",
               getComponentNameFromType(type) || "Component",
               addendum
@@ -4626,7 +4821,7 @@
             var componentName = getComponentNameFromType(type) || "Component";
             didWarnAboutUninitializedState.has(componentName) ||
               (didWarnAboutUninitializedState.add(componentName),
-              error$jscomp$2(
+              console.error(
                 "`%s` uses `getDerivedStateFromProps` but its initial state is %s. This is not recommended. Instead, define the initial state by assigning an object to `this.state` in the constructor of `%s`. This ensures that `getDerivedStateFromProps` arguments have a consistent shape.",
                 componentName,
                 null === instance.state ? "null" : "undefined",
@@ -4673,7 +4868,7 @@
                 (didWarnAboutLegacyLifecyclesAndDerivedState.add(
                   _componentName
                 ),
-                error$jscomp$2(
+                console.error(
                   "Unsafe legacy lifecycles will not be called for components using new component APIs.\n\n%s uses %s but also contains the following legacy lifecycles:%s%s%s\n\nThe above lifecycles should be removed. Learn more about this warning here:\nhttps://react.dev/link/unsafe-component-lifecycles",
                   _componentName,
                   newApiName,
@@ -4692,88 +4887,87 @@
           var name = getComponentNameFromType(type) || "Component";
           instance.render ||
             (type.prototype && "function" === typeof type.prototype.render
-              ? error$jscomp$2(
+              ? console.error(
                   "No `render` method found on the %s instance: did you accidentally return an object from the constructor?",
                   name
                 )
-              : error$jscomp$2(
+              : console.error(
                   "No `render` method found on the %s instance: you may have forgotten to define `render`.",
                   name
                 ));
           !instance.getInitialState ||
             instance.getInitialState.isReactClassApproved ||
             instance.state ||
-            error$jscomp$2(
+            console.error(
               "getInitialState was defined on %s, a plain JavaScript class. This is only supported for classes created using React.createClass. Did you mean to define a state property instead?",
               name
             );
           instance.getDefaultProps &&
             !instance.getDefaultProps.isReactClassApproved &&
-            error$jscomp$2(
+            console.error(
               "getDefaultProps was defined on %s, a plain JavaScript class. This is only supported for classes created using React.createClass. Use a static property to define defaultProps instead.",
               name
             );
-          instance.propTypes &&
-            error$jscomp$2(
-              "propTypes was defined as an instance property on %s. Use a static property to define propTypes instead.",
-              name
-            );
           instance.contextType &&
-            error$jscomp$2(
+            console.error(
               "contextType was defined as an instance property on %s. Use a static property to define contextType instead.",
               name
             );
           type.childContextTypes &&
-            error$jscomp$2(
-              "%s uses the legacy childContextTypes API which was removed in React 19. Use React.createContext() instead.",
+            !didWarnAboutChildContextTypes.has(type) &&
+            (didWarnAboutChildContextTypes.add(type),
+            console.error(
+              "%s uses the legacy childContextTypes API which was removed in React 19. Use React.createContext() instead. (https://react.dev/link/legacy-context)",
               name
-            );
+            ));
           type.contextTypes &&
-            error$jscomp$2(
-              "%s uses the legacy contextTypes API which was removed in React 19. Use React.createContext() with static contextType instead.",
+            !didWarnAboutContextTypes$1.has(type) &&
+            (didWarnAboutContextTypes$1.add(type),
+            console.error(
+              "%s uses the legacy contextTypes API which was removed in React 19. Use React.createContext() with static contextType instead. (https://react.dev/link/legacy-context)",
               name
-            );
+            ));
           "function" === typeof instance.componentShouldUpdate &&
-            error$jscomp$2(
+            console.error(
               "%s has a method called componentShouldUpdate(). Did you mean shouldComponentUpdate()? The name is phrased as a question because the function is expected to return a value.",
               name
             );
           type.prototype &&
             type.prototype.isPureReactComponent &&
             "undefined" !== typeof instance.shouldComponentUpdate &&
-            error$jscomp$2(
+            console.error(
               "%s has a method called shouldComponentUpdate(). shouldComponentUpdate should not be used when extending React.PureComponent. Please extend React.Component if shouldComponentUpdate is used.",
               getComponentNameFromType(type) || "A pure component"
             );
           "function" === typeof instance.componentDidUnmount &&
-            error$jscomp$2(
+            console.error(
               "%s has a method called componentDidUnmount(). But there is no such lifecycle method. Did you mean componentWillUnmount()?",
               name
             );
           "function" === typeof instance.componentDidReceiveProps &&
-            error$jscomp$2(
+            console.error(
               "%s has a method called componentDidReceiveProps(). But there is no such lifecycle method. If you meant to update the state in response to changing props, use componentWillReceiveProps(). If you meant to fetch data or run side-effects or mutations after React has updated the UI, use componentDidUpdate().",
               name
             );
           "function" === typeof instance.componentWillRecieveProps &&
-            error$jscomp$2(
+            console.error(
               "%s has a method called componentWillRecieveProps(). Did you mean componentWillReceiveProps()?",
               name
             );
           "function" === typeof instance.UNSAFE_componentWillRecieveProps &&
-            error$jscomp$2(
+            console.error(
               "%s has a method called UNSAFE_componentWillRecieveProps(). Did you mean UNSAFE_componentWillReceiveProps()?",
               name
             );
           var hasMutatedProps = instance.props !== resolvedProps;
           void 0 !== instance.props &&
             hasMutatedProps &&
-            error$jscomp$2(
+            console.error(
               "When calling super() in `%s`, make sure to pass up the same props that your component's constructor was passed.",
               name
             );
           instance.defaultProps &&
-            error$jscomp$2(
+            console.error(
               "Setting defaultProps as an instance property on %s is not supported and will be ignored. Instead, define defaultProps as a static property on %s.",
               name,
               name
@@ -4782,32 +4976,32 @@
             "function" === typeof instance.componentDidUpdate ||
             didWarnAboutGetSnapshotBeforeUpdateWithoutDidUpdate.has(type) ||
             (didWarnAboutGetSnapshotBeforeUpdateWithoutDidUpdate.add(type),
-            error$jscomp$2(
+            console.error(
               "%s: getSnapshotBeforeUpdate() should be used with componentDidUpdate(). This component defines getSnapshotBeforeUpdate() only.",
               getComponentNameFromType(type)
             ));
           "function" === typeof instance.getDerivedStateFromProps &&
-            error$jscomp$2(
+            console.error(
               "%s: getDerivedStateFromProps() is defined as an instance method and will be ignored. Instead, declare it as a static method.",
               name
             );
           "function" === typeof instance.getDerivedStateFromError &&
-            error$jscomp$2(
+            console.error(
               "%s: getDerivedStateFromError() is defined as an instance method and will be ignored. Instead, declare it as a static method.",
               name
             );
           "function" === typeof type.getSnapshotBeforeUpdate &&
-            error$jscomp$2(
+            console.error(
               "%s: getSnapshotBeforeUpdate() is defined as a static method and will be ignored. Instead, declare it as an instance method.",
               name
             );
           var state = instance.state;
           state &&
             ("object" !== typeof state || isArrayImpl(state)) &&
-            error$jscomp$2("%s.state: must be set to an object or null", name);
+            console.error("%s.state: must be set to an object or null", name);
           "function" === typeof instance.getChildContext &&
             "object" !== typeof type.childContextTypes &&
-            error$jscomp$2(
+            console.error(
               "%s.getChildContext(): childContextTypes must be defined in order to use getChildContext().",
               name
             );
@@ -4832,7 +5026,7 @@
               (didWarnAboutDirectlyAssigningPropsToState.add(
                 componentName$jscomp$0
               ),
-              error$jscomp$2(
+              console.error(
                 "%s: It is not recommended to assign props directly to state because updates to props won't be reflected in state. In most cases, it is better to use props directly.",
                 componentName$jscomp$0
               ));
@@ -4848,7 +5042,7 @@
                 getComponentNameFromType(type) || "Component";
               didWarnAboutUndefinedDerivedState.has(componentName$jscomp$1) ||
                 (didWarnAboutUndefinedDerivedState.add(componentName$jscomp$1),
-                error$jscomp$2(
+                console.error(
                   "%s.getDerivedStateFromProps(): A valid state object (or null) must be returned. You have returned undefined.",
                   componentName$jscomp$1
                 ));
@@ -4873,7 +5067,7 @@
                 var componentName$jscomp$2 =
                   getComponentNameFromType(type) || "Unknown";
                 didWarnAboutDeprecatedWillMount[componentName$jscomp$2] ||
-                  (warn(
+                  (console.warn(
                     "componentWillMount has been renamed, and is not recommended for use. See https://react.dev/link/unsafe-component-lifecycles for details.\n\n* Move code from componentWillMount to componentDidMount (preferred in most cases) or the constructor.\n\nPlease update the following components: %s",
                     componentName$jscomp$2
                   ),
@@ -4885,7 +5079,7 @@
             "function" === typeof instance.UNSAFE_componentWillMount &&
               instance.UNSAFE_componentWillMount();
             oldState !== instance.state &&
-              (error$jscomp$2(
+              (console.error(
                 "%s.componentWillMount(): Assigning directly to this.state is deprecated (except inside a component's constructor). Use setState instead.",
                 getComponentNameFromType(type) || "Component"
               ),
@@ -4936,10 +5130,11 @@
               }
             } else internalInstance.queue = null;
           }
-          var nextChildren = instance.render();
+          var nextChildren = callRenderInDEV(instance);
+          if (1 === request.status) throw AbortSigil;
           instance.props !== resolvedProps &&
             (didWarnAboutReassigningProps ||
-              error$jscomp$2(
+              console.error(
                 "It looks like %s is reassigning its own `this.props` while rendering. This is not supported and can lead to confusing bugs.",
                 getComponentNameFromType(type) || "a component"
               ),
@@ -4948,19 +5143,12 @@
           task.keyPath = keyPath;
           renderNodeDestructive(request, task, nextChildren, -1);
           task.keyPath = prevKeyPath;
-          task.componentStack = previousComponentStack;
         } else {
-          var previousComponentStack$jscomp$0 = task.componentStack;
-          task.componentStack = {
-            tag: 1,
-            parent: task.componentStack,
-            type: type
-          };
           if (type.prototype && "function" === typeof type.prototype.render) {
             var componentName$jscomp$3 =
               getComponentNameFromType(type) || "Unknown";
             didWarnAboutBadClass[componentName$jscomp$3] ||
-              (error$jscomp$2(
+              (console.error(
                 "The <%s /> component appears to have a render method, but doesn't extend React.Component. This is likely to cause errors. Change %s to extend React.Component instead.",
                 componentName$jscomp$3,
                 componentName$jscomp$3
@@ -4968,52 +5156,54 @@
               (didWarnAboutBadClass[componentName$jscomp$3] = !0));
           }
           var value = renderWithHooks(
-              request,
-              task,
-              keyPath,
-              type,
-              props,
-              void 0
-            ),
-            hasId = 0 !== localIdCounter,
+            request,
+            task,
+            keyPath,
+            type,
+            props,
+            void 0
+          );
+          if (1 === request.status) throw AbortSigil;
+          var hasId = 0 !== localIdCounter,
             actionStateCount = actionStateCounter,
             actionStateMatchingIndex$jscomp$0 = actionStateMatchingIndex;
-          type.contextTypes &&
-            error$jscomp$2(
-              "%s uses the legacy contextTypes API which was removed in React 19. Use React.createContext() with React.useContext() instead.",
-              getComponentNameFromType(type) || "Unknown"
-            );
+          if (type.contextTypes) {
+            var _componentName$jscomp$0 =
+              getComponentNameFromType(type) || "Unknown";
+            didWarnAboutContextTypes[_componentName$jscomp$0] ||
+              ((didWarnAboutContextTypes[_componentName$jscomp$0] = !0),
+              console.error(
+                "%s uses the legacy contextTypes API which was removed in React 19. Use React.createContext() with React.useContext() instead. (https://react.dev/link/legacy-context)",
+                _componentName$jscomp$0
+              ));
+          }
           type &&
             type.childContextTypes &&
-            error$jscomp$2(
+            console.error(
               "childContextTypes cannot be defined on a function component.\n  %s.childContextTypes = ...",
               type.displayName || type.name || "Component"
             );
           if ("function" === typeof type.getDerivedStateFromProps) {
-            var _componentName$jscomp$0 =
-              getComponentNameFromType(type) || "Unknown";
-            didWarnAboutGetDerivedStateOnFunctionComponent[
-              _componentName$jscomp$0
-            ] ||
-              (error$jscomp$2(
+            var _componentName2 = getComponentNameFromType(type) || "Unknown";
+            didWarnAboutGetDerivedStateOnFunctionComponent[_componentName2] ||
+              (console.error(
                 "%s: Function components do not support getDerivedStateFromProps.",
-                _componentName$jscomp$0
+                _componentName2
               ),
-              (didWarnAboutGetDerivedStateOnFunctionComponent[
-                _componentName$jscomp$0
-              ] = !0));
+              (didWarnAboutGetDerivedStateOnFunctionComponent[_componentName2] =
+                !0));
           }
           if (
             "object" === typeof type.contextType &&
             null !== type.contextType
           ) {
-            var _componentName2 = getComponentNameFromType(type) || "Unknown";
-            didWarnAboutContextTypeOnFunctionComponent[_componentName2] ||
-              (error$jscomp$2(
+            var _componentName3 = getComponentNameFromType(type) || "Unknown";
+            didWarnAboutContextTypeOnFunctionComponent[_componentName3] ||
+              (console.error(
                 "%s: Function components do not support contextType.",
-                _componentName2
+                _componentName3
               ),
-              (didWarnAboutContextTypeOnFunctionComponent[_componentName2] =
+              (didWarnAboutContextTypeOnFunctionComponent[_componentName3] =
                 !0));
           }
           finishFunctionComponent(
@@ -5025,11 +5215,8 @@
             actionStateCount,
             actionStateMatchingIndex$jscomp$0
           );
-          task.componentStack = previousComponentStack$jscomp$0;
         }
       else if ("string" === typeof type) {
-        var previousComponentStack$jscomp$1 = task.componentStack;
-        task.componentStack = createBuiltInComponentStack(task, type);
         var segment = task.blockedSegment;
         if (null === segment) {
           var children = props.children,
@@ -5099,7 +5286,6 @@
           }
           segment.lastPushedText = !1;
         }
-        task.componentStack = previousComponentStack$jscomp$1;
       } else {
         switch (type) {
           case REACT_LEGACY_HIDDEN_TYPE:
@@ -5121,16 +5307,10 @@
             }
             return;
           case REACT_SUSPENSE_LIST_TYPE:
-            var preiousComponentStack = task.componentStack;
-            task.componentStack = createBuiltInComponentStack(
-              task,
-              "SuspenseList"
-            );
             var _prevKeyPath3 = task.keyPath;
             task.keyPath = keyPath;
             renderNodeDestructive(request, task, props.children, -1);
             task.keyPath = _prevKeyPath3;
-            task.componentStack = preiousComponentStack;
             return;
           case REACT_SCOPE_TYPE:
             throw Error(
@@ -5147,10 +5327,7 @@
                 task.keyPath = _prevKeyPath;
               }
             } else {
-              var previousComponentStack$jscomp$2 = task.componentStack,
-                suspenseComponentStack = (task.componentStack =
-                  createBuiltInComponentStack(task, "Suspense")),
-                prevKeyPath$jscomp$3 = task.keyPath,
+              var prevKeyPath$jscomp$3 = task.keyPath,
                 parentBoundary = task.blockedBoundary,
                 parentHoistableState = task.hoistableState,
                 parentSegment = task.blockedSegment,
@@ -5179,110 +5356,156 @@
                 !1
               );
               contentRootSegment.parentFlushed = !0;
-              task.blockedBoundary = newBoundary;
-              task.hoistableState = newBoundary.contentState;
-              task.blockedSegment = contentRootSegment;
-              task.keyPath = keyPath;
-              try {
-                if (
-                  (renderNode(request, task, content, -1),
-                  request.renderState.generateStaticMarkup ||
-                    (contentRootSegment.lastPushedText &&
-                      contentRootSegment.textEmbedded &&
-                      contentRootSegment.chunks.push("\x3c!-- --\x3e")),
-                  (contentRootSegment.status = COMPLETED),
-                  queueCompletedSegment(newBoundary, contentRootSegment),
-                  0 === newBoundary.pendingTasks &&
-                    newBoundary.status === PENDING)
-                ) {
-                  newBoundary.status = COMPLETED;
-                  task.componentStack = previousComponentStack$jscomp$2;
-                  break a;
-                }
-              } catch (error$2) {
-                contentRootSegment.status = 4;
-                newBoundary.status = CLIENT_RENDERED;
-                var thrownInfo = getThrownInfo(request, task.componentStack);
-                if (
-                  "object" === typeof error$2 &&
-                  null !== error$2 &&
-                  error$2.$$typeof === REACT_POSTPONE_TYPE
-                ) {
-                  request.onPostpone(error$2.message, thrownInfo);
-                  var errorDigest = "POSTPONE";
-                } else
-                  errorDigest = logRecoverableError(
-                    request,
-                    error$2,
-                    thrownInfo
-                  );
-                encodeErrorForBoundary(
-                  newBoundary,
-                  errorDigest,
-                  error$2,
-                  thrownInfo,
-                  !1
-                );
-                untrackBoundary(request, newBoundary);
-              } finally {
-                (task.blockedBoundary = parentBoundary),
-                  (task.hoistableState = parentHoistableState),
-                  (task.blockedSegment = parentSegment),
-                  (task.keyPath = prevKeyPath$jscomp$3),
-                  (task.componentStack = previousComponentStack$jscomp$2);
-              }
-              var fallbackKeyPath = [
-                  keyPath[0],
-                  "Suspense Fallback",
-                  keyPath[2]
-                ],
-                trackedPostpones = request.trackedPostpones;
-              if (null !== trackedPostpones) {
-                var fallbackReplayNode = [
-                  fallbackKeyPath[1],
-                  fallbackKeyPath[2],
-                  [],
-                  null
-                ];
-                trackedPostpones.workingMap.set(
+              if (null !== request.trackedPostpones) {
+                var fallbackKeyPath = [
+                    keyPath[0],
+                    "Suspense Fallback",
+                    keyPath[2]
+                  ],
+                  fallbackReplayNode = [
+                    fallbackKeyPath[1],
+                    fallbackKeyPath[2],
+                    [],
+                    null
+                  ];
+                request.trackedPostpones.workingMap.set(
                   fallbackKeyPath,
                   fallbackReplayNode
                 );
-                newBoundary.status === POSTPONED
-                  ? (trackedPostpones.workingMap.get(keyPath)[4] =
-                      fallbackReplayNode)
-                  : (newBoundary.trackedFallbackNode = fallbackReplayNode);
+                newBoundary.trackedFallbackNode = fallbackReplayNode;
+                task.blockedSegment = boundarySegment;
+                task.keyPath = fallbackKeyPath;
+                boundarySegment.status = 6;
+                try {
+                  renderNode(request, task, fallback, -1),
+                    pushSegmentFinale(
+                      boundarySegment.chunks,
+                      request.renderState,
+                      boundarySegment.lastPushedText,
+                      boundarySegment.textEmbedded
+                    ),
+                    (boundarySegment.status = COMPLETED);
+                } catch (thrownValue) {
+                  throw (
+                    ((boundarySegment.status =
+                      thrownValue === AbortSigil ? 3 : 4),
+                    thrownValue)
+                  );
+                } finally {
+                  (task.blockedSegment = parentSegment),
+                    (task.keyPath = prevKeyPath$jscomp$3);
+                }
+                var suspendedPrimaryTask = createRenderTask(
+                  request,
+                  null,
+                  content,
+                  -1,
+                  newBoundary,
+                  contentRootSegment,
+                  newBoundary.contentState,
+                  task.abortSet,
+                  keyPath,
+                  task.formatContext,
+                  task.context,
+                  task.treeContext,
+                  task.componentStack,
+                  task.isFallback,
+                  emptyContextObject,
+                  task.debugTask
+                );
+                pushComponentStack(suspendedPrimaryTask);
+                request.pingedTasks.push(suspendedPrimaryTask);
+              } else {
+                task.blockedBoundary = newBoundary;
+                task.hoistableState = newBoundary.contentState;
+                task.blockedSegment = contentRootSegment;
+                task.keyPath = keyPath;
+                contentRootSegment.status = 6;
+                try {
+                  if (
+                    (renderNode(request, task, content, -1),
+                    pushSegmentFinale(
+                      contentRootSegment.chunks,
+                      request.renderState,
+                      contentRootSegment.lastPushedText,
+                      contentRootSegment.textEmbedded
+                    ),
+                    (contentRootSegment.status = COMPLETED),
+                    queueCompletedSegment(newBoundary, contentRootSegment),
+                    0 === newBoundary.pendingTasks &&
+                      newBoundary.status === PENDING)
+                  ) {
+                    newBoundary.status = COMPLETED;
+                    break a;
+                  }
+                } catch (thrownValue$2) {
+                  newBoundary.status = CLIENT_RENDERED;
+                  if (thrownValue$2 === AbortSigil) {
+                    contentRootSegment.status = 3;
+                    var error = request.fatalError;
+                  } else
+                    (contentRootSegment.status = 4), (error = thrownValue$2);
+                  var thrownInfo = getThrownInfo(task.componentStack);
+                  if (
+                    "object" === typeof error &&
+                    null !== error &&
+                    error.$$typeof === REACT_POSTPONE_TYPE
+                  ) {
+                    logPostpone(
+                      request,
+                      error.message,
+                      thrownInfo,
+                      task.debugTask
+                    );
+                    var errorDigest = "POSTPONE";
+                  } else
+                    errorDigest = logRecoverableError(
+                      request,
+                      error,
+                      thrownInfo,
+                      task.debugTask
+                    );
+                  encodeErrorForBoundary(
+                    newBoundary,
+                    errorDigest,
+                    error,
+                    thrownInfo,
+                    !1
+                  );
+                  untrackBoundary(request, newBoundary);
+                } finally {
+                  (task.blockedBoundary = parentBoundary),
+                    (task.hoistableState = parentHoistableState),
+                    (task.blockedSegment = parentSegment),
+                    (task.keyPath = prevKeyPath$jscomp$3);
+                }
+                var suspendedFallbackTask = createRenderTask(
+                  request,
+                  null,
+                  fallback,
+                  -1,
+                  parentBoundary,
+                  boundarySegment,
+                  newBoundary.fallbackState,
+                  fallbackAbortSet,
+                  [keyPath[0], "Suspense Fallback", keyPath[2]],
+                  task.formatContext,
+                  task.context,
+                  task.treeContext,
+                  task.componentStack,
+                  !0,
+                  emptyContextObject,
+                  task.debugTask
+                );
+                pushComponentStack(suspendedFallbackTask);
+                request.pingedTasks.push(suspendedFallbackTask);
               }
-              var suspendedFallbackTask = createRenderTask(
-                request,
-                null,
-                fallback,
-                -1,
-                parentBoundary,
-                boundarySegment,
-                newBoundary.fallbackState,
-                fallbackAbortSet,
-                fallbackKeyPath,
-                task.formatContext,
-                task.legacyContext,
-                task.context,
-                task.treeContext,
-                suspenseComponentStack,
-                !0
-              );
-              request.pingedTasks.push(suspendedFallbackTask);
             }
             return;
         }
         if ("object" === typeof type && null !== type)
           switch (type.$$typeof) {
             case REACT_FORWARD_REF_TYPE:
-              var previousComponentStack$jscomp$3 = task.componentStack;
-              task.componentStack = {
-                tag: 1,
-                parent: task.componentStack,
-                type: type.render
-              };
               if ("ref" in props) {
                 var propsWithoutRef = {};
                 for (var key in props)
@@ -5305,7 +5528,6 @@
                 actionStateCounter,
                 actionStateMatchingIndex
               );
-              task.componentStack = previousComponentStack$jscomp$3;
               return;
             case REACT_MEMO_TYPE:
               renderElement(request, task, keyPath, type.type, props, ref);
@@ -5321,7 +5543,7 @@
               void 0 !== type._currentRenderer2 &&
                 null !== type._currentRenderer2 &&
                 type._currentRenderer2 !== rendererSigil &&
-                error$jscomp$2(
+                console.error(
                   "Detected multiple renderers concurrently rendering the same context provider. This is currently unsupported."
                 );
               type._currentRenderer2 = rendererSigil;
@@ -5343,7 +5565,7 @@
                   "Tried to pop a Context at the root of the app. This is a bug in React."
                 );
               prevSnapshot$jscomp$0.context !== type &&
-                error$jscomp$2(
+                console.error(
                   "The parent context is not the expected context. This is probably a bug in React."
                 );
               prevSnapshot$jscomp$0.context._currentValue2 =
@@ -5351,7 +5573,7 @@
               void 0 !== type._currentRenderer2 &&
                 null !== type._currentRenderer2 &&
                 type._currentRenderer2 !== rendererSigil &&
-                error$jscomp$2(
+                console.error(
                   "Detected multiple renderers concurrently rendering the same context provider. This is currently unsupported."
                 );
               type._currentRenderer2 = rendererSigil;
@@ -5360,7 +5582,7 @@
               task.context = JSCompiler_inline_result$jscomp$0;
               task.keyPath = prevKeyPath$jscomp$4;
               prevSnapshot !== task.context &&
-                error$jscomp$2(
+                console.error(
                   "Popping the context provider did not return back to the original snapshot. This is a bug in React."
                 );
               return;
@@ -5368,7 +5590,7 @@
               var context$jscomp$0 = type._context,
                 render = props.children;
               "function" !== typeof render &&
-                error$jscomp$2(
+                console.error(
                   "A context consumer was rendered with multiple children, or a child that isn't a function. A context consumer expects a single child that is a function. If you did pass a function, make sure there is no trailing or leading whitespace around it."
                 );
               var newChildren = render(context$jscomp$0._currentValue2),
@@ -5378,12 +5600,9 @@
               task.keyPath = prevKeyPath$jscomp$5;
               return;
             case REACT_LAZY_TYPE:
-              var previousComponentStack$jscomp$4 = task.componentStack;
-              task.componentStack = createBuiltInComponentStack(task, "Lazy");
-              var init = type._init,
-                Component = init(type._payload);
-              renderElement(request, task, keyPath, Component, props, void 0);
-              task.componentStack = previousComponentStack$jscomp$4;
+              var Component = callLazyInitInDEV(type);
+              if (1 === request.status) throw AbortSigil;
+              renderElement(request, task, keyPath, Component, props, ref);
               return;
           }
         var info = "";
@@ -5428,381 +5647,397 @@
         (task.replay = prevReplay), (task.blockedSegment = null);
       }
     }
-    function renderNodeDestructive(request, task, node$jscomp$0, childIndex) {
-      if (null !== task.replay && "number" === typeof task.replay.slots)
-        resumeNode(request, task, task.replay.slots, node$jscomp$0, childIndex);
-      else if (
-        ((task.node = node$jscomp$0),
-        (task.childIndex = childIndex),
-        null !== node$jscomp$0)
-      ) {
-        if ("object" === typeof node$jscomp$0) {
-          switch (node$jscomp$0.$$typeof) {
-            case REACT_ELEMENT_TYPE:
-              var type = node$jscomp$0.type,
-                key = node$jscomp$0.key,
-                props = node$jscomp$0.props;
-              node$jscomp$0 = props.ref;
-              var ref = void 0 !== node$jscomp$0 ? node$jscomp$0 : null;
-              var name = getComponentNameFromType(type),
-                keyOrIndex =
-                  null == key ? (-1 === childIndex ? 0 : childIndex) : key;
-              key = [task.keyPath, name, keyOrIndex];
-              if (null !== task.replay)
-                a: {
-                  var replay = task.replay;
-                  childIndex = replay.nodes;
-                  for (
-                    node$jscomp$0 = 0;
-                    node$jscomp$0 < childIndex.length;
-                    node$jscomp$0++
-                  ) {
-                    var node = childIndex[node$jscomp$0];
-                    if (keyOrIndex === node[1]) {
-                      if (4 === node.length) {
-                        if (null !== name && name !== node[0])
-                          throw Error(
-                            "Expected the resume to render <" +
-                              node[0] +
-                              "> in this slot but instead it rendered <" +
-                              name +
-                              ">. The tree doesn't match so React will fallback to client rendering."
-                          );
-                        var childNodes = node[2];
-                        name = node[3];
-                        node = task.node;
-                        task.replay = {
-                          nodes: childNodes,
-                          slots: name,
-                          pendingTasks: 1
-                        };
-                        try {
-                          renderElement(request, task, key, type, props, ref);
-                          if (
-                            1 === task.replay.pendingTasks &&
-                            0 < task.replay.nodes.length
-                          )
-                            throw Error(
-                              "Couldn't find all resumable slots by key/index during replaying. The tree doesn't match so React will fallback to client rendering."
-                            );
-                          task.replay.pendingTasks--;
-                        } catch (x) {
-                          if (
-                            "object" === typeof x &&
-                            null !== x &&
-                            (x === SuspenseException ||
-                              "function" === typeof x.then)
-                          )
-                            throw (
-                              (task.node === node && (task.replay = replay), x)
-                            );
-                          task.replay.pendingTasks--;
-                          type = getThrownInfo(request, task.componentStack);
-                          erroredReplay(
-                            request,
-                            task.blockedBoundary,
-                            x,
-                            type,
-                            childNodes,
-                            name
-                          );
-                        }
-                        task.replay = replay;
-                      } else {
-                        if (type !== REACT_SUSPENSE_TYPE)
-                          throw Error(
-                            "Expected the resume to render <Suspense> in this slot but instead it rendered <" +
-                              (getComponentNameFromType(type) || "Unknown") +
-                              ">. The tree doesn't match so React will fallback to client rendering."
-                          );
-                        b: {
-                          type = void 0;
-                          var props$jscomp$0 = props;
-                          props = node[5];
-                          ref = node[2];
-                          replay = node[3];
-                          name = null === node[4] ? [] : node[4][2];
-                          node = null === node[4] ? null : node[4][3];
-                          keyOrIndex = task.componentStack;
-                          var suspenseComponentStack = (task.componentStack =
-                              createBuiltInComponentStack(task, "Suspense")),
-                            prevKeyPath = task.keyPath,
-                            previousReplaySet = task.replay,
-                            parentBoundary = task.blockedBoundary,
-                            parentHoistableState = task.hoistableState,
-                            content = props$jscomp$0.children;
-                          props$jscomp$0 = props$jscomp$0.fallback;
-                          var fallbackAbortSet = new Set(),
-                            resumedBoundary = createSuspenseBoundary(
-                              request,
-                              fallbackAbortSet
-                            );
-                          resumedBoundary.parentFlushed = !0;
-                          resumedBoundary.rootSegmentID = props;
-                          task.blockedBoundary = resumedBoundary;
-                          task.hoistableState = resumedBoundary.contentState;
-                          task.replay = {
-                            nodes: ref,
-                            slots: replay,
-                            pendingTasks: 1
-                          };
-                          try {
-                            renderNode(request, task, content, -1);
-                            if (
-                              1 === task.replay.pendingTasks &&
-                              0 < task.replay.nodes.length
-                            )
-                              throw Error(
-                                "Couldn't find all resumable slots by key/index during replaying. The tree doesn't match so React will fallback to client rendering."
-                              );
-                            task.replay.pendingTasks--;
-                            if (
-                              0 === resumedBoundary.pendingTasks &&
-                              resumedBoundary.status === PENDING
-                            ) {
-                              resumedBoundary.status = COMPLETED;
-                              request.completedBoundaries.push(resumedBoundary);
-                              break b;
-                            }
-                          } catch (error$3) {
-                            (resumedBoundary.status = CLIENT_RENDERED),
-                              (childNodes = getThrownInfo(
-                                request,
-                                task.componentStack
-                              )),
-                              "object" === typeof error$3 &&
-                              null !== error$3 &&
-                              error$3.$$typeof === REACT_POSTPONE_TYPE
-                                ? (request.onPostpone(
-                                    error$3.message,
-                                    childNodes
-                                  ),
-                                  (type = "POSTPONE"))
-                                : (type = logRecoverableError(
-                                    request,
-                                    error$3,
-                                    childNodes
-                                  )),
-                              encodeErrorForBoundary(
-                                resumedBoundary,
-                                type,
-                                error$3,
-                                childNodes,
-                                !1
-                              ),
-                              task.replay.pendingTasks--,
-                              request.clientRenderedBoundaries.push(
-                                resumedBoundary
-                              );
-                          } finally {
-                            (task.blockedBoundary = parentBoundary),
-                              (task.hoistableState = parentHoistableState),
-                              (task.replay = previousReplaySet),
-                              (task.keyPath = prevKeyPath),
-                              (task.componentStack = keyOrIndex);
-                          }
-                          task = createReplayTask(
-                            request,
-                            null,
-                            { nodes: name, slots: node, pendingTasks: 0 },
-                            props$jscomp$0,
-                            -1,
-                            parentBoundary,
-                            resumedBoundary.fallbackState,
-                            fallbackAbortSet,
-                            [key[0], "Suspense Fallback", key[2]],
-                            task.formatContext,
-                            task.legacyContext,
-                            task.context,
-                            task.treeContext,
-                            suspenseComponentStack,
-                            !0
-                          );
-                          request.pingedTasks.push(task);
-                        }
-                      }
-                      childIndex.splice(node$jscomp$0, 1);
-                      break a;
-                    }
-                  }
+    function replayElement(
+      request,
+      task,
+      keyPath,
+      name,
+      keyOrIndex,
+      childIndex,
+      type,
+      props,
+      ref,
+      replay
+    ) {
+      childIndex = replay.nodes;
+      for (var i = 0; i < childIndex.length; i++) {
+        var node = childIndex[i];
+        if (keyOrIndex === node[1]) {
+          if (4 === node.length) {
+            if (null !== name && name !== node[0])
+              throw Error(
+                "Expected the resume to render <" +
+                  node[0] +
+                  "> in this slot but instead it rendered <" +
+                  name +
+                  ">. The tree doesn't match so React will fallback to client rendering."
+              );
+            var childNodes = node[2];
+            node = node[3];
+            name = task.node;
+            task.replay = { nodes: childNodes, slots: node, pendingTasks: 1 };
+            try {
+              renderElement(request, task, keyPath, type, props, ref);
+              if (
+                1 === task.replay.pendingTasks &&
+                0 < task.replay.nodes.length
+              )
+                throw Error(
+                  "Couldn't find all resumable slots by key/index during replaying. The tree doesn't match so React will fallback to client rendering."
+                );
+              task.replay.pendingTasks--;
+            } catch (x) {
+              if (
+                "object" === typeof x &&
+                null !== x &&
+                (x === SuspenseException || "function" === typeof x.then)
+              )
+                throw (task.node === name && (task.replay = replay), x);
+              task.replay.pendingTasks--;
+              props = getThrownInfo(task.componentStack);
+              erroredReplay(
+                request,
+                task.blockedBoundary,
+                x,
+                props,
+                childNodes,
+                node,
+                task.debugTask
+              );
+            }
+            task.replay = replay;
+          } else {
+            if (type !== REACT_SUSPENSE_TYPE)
+              throw Error(
+                "Expected the resume to render <Suspense> in this slot but instead it rendered <" +
+                  (getComponentNameFromType(type) || "Unknown") +
+                  ">. The tree doesn't match so React will fallback to client rendering."
+              );
+            a: {
+              replay = void 0;
+              type = node[5];
+              ref = node[2];
+              name = node[3];
+              keyOrIndex = null === node[4] ? [] : node[4][2];
+              node = null === node[4] ? null : node[4][3];
+              var prevKeyPath = task.keyPath,
+                previousReplaySet = task.replay,
+                parentBoundary = task.blockedBoundary,
+                parentHoistableState = task.hoistableState,
+                content = props.children;
+              props = props.fallback;
+              var fallbackAbortSet = new Set(),
+                resumedBoundary = createSuspenseBoundary(
+                  request,
+                  fallbackAbortSet
+                );
+              resumedBoundary.parentFlushed = !0;
+              resumedBoundary.rootSegmentID = type;
+              task.blockedBoundary = resumedBoundary;
+              task.hoistableState = resumedBoundary.contentState;
+              task.replay = { nodes: ref, slots: name, pendingTasks: 1 };
+              try {
+                renderNode(request, task, content, -1);
+                if (
+                  1 === task.replay.pendingTasks &&
+                  0 < task.replay.nodes.length
+                )
+                  throw Error(
+                    "Couldn't find all resumable slots by key/index during replaying. The tree doesn't match so React will fallback to client rendering."
+                  );
+                task.replay.pendingTasks--;
+                if (
+                  0 === resumedBoundary.pendingTasks &&
+                  resumedBoundary.status === PENDING
+                ) {
+                  resumedBoundary.status = COMPLETED;
+                  request.completedBoundaries.push(resumedBoundary);
+                  break a;
                 }
-              else renderElement(request, task, key, type, props, ref);
+              } catch (error) {
+                (resumedBoundary.status = CLIENT_RENDERED),
+                  (childNodes = getThrownInfo(task.componentStack)),
+                  "object" === typeof error &&
+                  null !== error &&
+                  error.$$typeof === REACT_POSTPONE_TYPE
+                    ? (logPostpone(
+                        request,
+                        error.message,
+                        childNodes,
+                        task.debugTask
+                      ),
+                      (replay = "POSTPONE"))
+                    : (replay = logRecoverableError(
+                        request,
+                        error,
+                        childNodes,
+                        task.debugTask
+                      )),
+                  encodeErrorForBoundary(
+                    resumedBoundary,
+                    replay,
+                    error,
+                    childNodes,
+                    !1
+                  ),
+                  task.replay.pendingTasks--,
+                  request.clientRenderedBoundaries.push(resumedBoundary);
+              } finally {
+                (task.blockedBoundary = parentBoundary),
+                  (task.hoistableState = parentHoistableState),
+                  (task.replay = previousReplaySet),
+                  (task.keyPath = prevKeyPath);
+              }
+              props = createReplayTask(
+                request,
+                null,
+                { nodes: keyOrIndex, slots: node, pendingTasks: 0 },
+                props,
+                -1,
+                parentBoundary,
+                resumedBoundary.fallbackState,
+                fallbackAbortSet,
+                [keyPath[0], "Suspense Fallback", keyPath[2]],
+                task.formatContext,
+                task.context,
+                task.treeContext,
+                task.componentStack,
+                !0,
+                emptyContextObject,
+                task.debugTask
+              );
+              pushComponentStack(props);
+              request.pingedTasks.push(props);
+            }
+          }
+          childIndex.splice(i, 1);
+          break;
+        }
+      }
+    }
+    function renderNodeDestructive(request, task, node, childIndex) {
+      null !== task.replay && "number" === typeof task.replay.slots
+        ? resumeNode(request, task, task.replay.slots, node, childIndex)
+        : ((task.node = node),
+          (task.childIndex = childIndex),
+          (node = task.componentStack),
+          (childIndex = task.debugTask),
+          pushComponentStack(task),
+          retryNode(request, task),
+          (task.componentStack = node),
+          (task.debugTask = childIndex));
+    }
+    function retryNode(request, task) {
+      var node = task.node,
+        childIndex = task.childIndex;
+      if (null !== node) {
+        if ("object" === typeof node) {
+          switch (node.$$typeof) {
+            case REACT_ELEMENT_TYPE:
+              var type = node.type,
+                key = node.key;
+              node = node.props;
+              var ref = node.ref;
+              ref = void 0 !== ref ? ref : null;
+              var debugTask = task.debugTask,
+                name = getComponentNameFromType(type);
+              key = null == key ? (-1 === childIndex ? 0 : childIndex) : key;
+              var keyPath = [task.keyPath, name, key];
+              null !== task.replay
+                ? debugTask
+                  ? debugTask.run(
+                      replayElement.bind(
+                        null,
+                        request,
+                        task,
+                        keyPath,
+                        name,
+                        key,
+                        childIndex,
+                        type,
+                        node,
+                        ref,
+                        task.replay
+                      )
+                    )
+                  : replayElement(
+                      request,
+                      task,
+                      keyPath,
+                      name,
+                      key,
+                      childIndex,
+                      type,
+                      node,
+                      ref,
+                      task.replay
+                    )
+                : debugTask
+                  ? debugTask.run(
+                      renderElement.bind(
+                        null,
+                        request,
+                        task,
+                        keyPath,
+                        type,
+                        node,
+                        ref
+                      )
+                    )
+                  : renderElement(request, task, keyPath, type, node, ref);
               return;
             case REACT_PORTAL_TYPE:
               throw Error(
                 "Portals are not currently supported by the server renderer. Render them conditionally so that they only appear on the client render."
               );
             case REACT_LAZY_TYPE:
-              childNodes = task.componentStack;
-              task.componentStack = createBuiltInComponentStack(task, "Lazy");
-              type = node$jscomp$0._init;
-              node$jscomp$0 = type(node$jscomp$0._payload);
-              task.componentStack = childNodes;
-              renderNodeDestructive(request, task, node$jscomp$0, childIndex);
+              node = callLazyInitInDEV(node);
+              if (1 === request.status) throw AbortSigil;
+              renderNodeDestructive(request, task, node, childIndex);
               return;
           }
-          if (isArrayImpl(node$jscomp$0)) {
-            renderChildrenArray(request, task, node$jscomp$0, childIndex);
+          if (isArrayImpl(node)) {
+            renderChildrenArray(request, task, node, childIndex);
             return;
           }
-          null === node$jscomp$0 || "object" !== typeof node$jscomp$0
-            ? (type = null)
-            : ((childNodes =
-                (MAYBE_ITERATOR_SYMBOL &&
-                  node$jscomp$0[MAYBE_ITERATOR_SYMBOL]) ||
-                node$jscomp$0["@@iterator"]),
-              (type = "function" === typeof childNodes ? childNodes : null));
-          if (type && (childNodes = type.call(node$jscomp$0))) {
-            if (childNodes === node$jscomp$0) {
+          null === node || "object" !== typeof node
+            ? (key = null)
+            : ((type =
+                (MAYBE_ITERATOR_SYMBOL && node[MAYBE_ITERATOR_SYMBOL]) ||
+                node["@@iterator"]),
+              (key = "function" === typeof type ? type : null));
+          if (key && (type = key.call(node))) {
+            if (type === node) {
               if (
                 -1 !== childIndex ||
                 null === task.componentStack ||
-                1 !== task.componentStack.tag ||
+                "function" !== typeof task.componentStack.type ||
                 "[object GeneratorFunction]" !==
                   Object.prototype.toString.call(task.componentStack.type) ||
-                "[object Generator]" !==
-                  Object.prototype.toString.call(childNodes)
+                "[object Generator]" !== Object.prototype.toString.call(type)
               )
                 didWarnAboutGenerators ||
-                  error$jscomp$2(
+                  console.error(
                     "Using Iterators as children is unsupported and will likely yield unexpected results because enumerating a generator mutates it. You may convert it to an array with `Array.from()` or the `[...spread]` operator before rendering. You can also use an Iterable that can iterate multiple times over the same items."
                   ),
                   (didWarnAboutGenerators = !0);
             } else
-              node$jscomp$0.entries !== type ||
+              node.entries !== key ||
                 didWarnAboutMaps ||
-                (error$jscomp$2(
+                (console.error(
                   "Using Maps as children is not supported. Use an array of keyed ReactElements instead."
                 ),
                 (didWarnAboutMaps = !0));
-            node$jscomp$0 = childNodes.next();
-            if (!node$jscomp$0.done) {
-              type = [];
-              do
-                type.push(node$jscomp$0.value),
-                  (node$jscomp$0 = childNodes.next());
-              while (!node$jscomp$0.done);
-              renderChildrenArray(request, task, type, childIndex);
+            node = type.next();
+            if (!node.done) {
+              key = [];
+              do key.push(node.value), (node = type.next());
+              while (!node.done);
+              renderChildrenArray(request, task, key, childIndex);
             }
             return;
           }
           if (
-            "function" === typeof node$jscomp$0[ASYNC_ITERATOR] &&
-            (childNodes = node$jscomp$0[ASYNC_ITERATOR]())
+            "function" === typeof node[ASYNC_ITERATOR] &&
+            (type = node[ASYNC_ITERATOR]())
           ) {
-            childNodes !== node$jscomp$0 ||
+            type !== node ||
               (-1 === childIndex &&
                 null !== task.componentStack &&
-                1 === task.componentStack.tag &&
+                "function" === typeof task.componentStack.type &&
                 "[object AsyncGeneratorFunction]" ===
                   Object.prototype.toString.call(task.componentStack.type) &&
                 "[object AsyncGenerator]" ===
-                  Object.prototype.toString.call(childNodes)) ||
+                  Object.prototype.toString.call(type)) ||
               (didWarnAboutGenerators ||
-                error$jscomp$2(
+                console.error(
                   "Using AsyncIterators as children is unsupported and will likely yield unexpected results because enumerating a generator mutates it. You can use an AsyncIterable that can iterate multiple times over the same items."
                 ),
               (didWarnAboutGenerators = !0));
-            type = task.componentStack;
-            task.componentStack = createBuiltInComponentStack(
-              task,
-              "AsyncIterable"
-            );
             key = task.thenableState;
             task.thenableState = null;
             thenableIndexCounter = 0;
             thenableState = key;
             key = [];
-            props = !1;
-            if (childNodes === node$jscomp$0)
-              for (
-                node$jscomp$0 = readPreviousThenableFromState();
-                void 0 !== node$jscomp$0;
-
-              ) {
-                if (node$jscomp$0.done) {
-                  props = !0;
+            ref = !1;
+            if (type === node)
+              for (node = readPreviousThenableFromState(); void 0 !== node; ) {
+                if (node.done) {
+                  ref = !0;
                   break;
                 }
-                key.push(node$jscomp$0.value);
-                node$jscomp$0 = readPreviousThenableFromState();
+                key.push(node.value);
+                node = readPreviousThenableFromState();
               }
-            if (!props)
-              for (
-                node$jscomp$0 = unwrapThenable(childNodes.next());
-                !node$jscomp$0.done;
-
-              )
-                key.push(node$jscomp$0.value),
-                  (node$jscomp$0 = unwrapThenable(childNodes.next()));
-            task.componentStack = type;
+            if (!ref)
+              for (node = unwrapThenable(type.next()); !node.done; )
+                key.push(node.value), (node = unwrapThenable(type.next()));
             renderChildrenArray(request, task, key, childIndex);
             return;
           }
-          if ("function" === typeof node$jscomp$0.then)
+          if ("function" === typeof node.then)
             return (
               (task.thenableState = null),
               renderNodeDestructive(
                 request,
                 task,
-                unwrapThenable(node$jscomp$0),
+                unwrapThenable(node),
                 childIndex
               )
             );
-          if (node$jscomp$0.$$typeof === REACT_CONTEXT_TYPE)
+          if (node.$$typeof === REACT_CONTEXT_TYPE)
             return renderNodeDestructive(
               request,
               task,
-              node$jscomp$0._currentValue2,
+              node._currentValue2,
               childIndex
             );
-          request = Object.prototype.toString.call(node$jscomp$0);
+          request = Object.prototype.toString.call(node);
           throw Error(
             "Objects are not valid as a React child (found: " +
               ("[object Object]" === request
-                ? "object with keys {" +
-                  Object.keys(node$jscomp$0).join(", ") +
-                  "}"
+                ? "object with keys {" + Object.keys(node).join(", ") + "}"
                 : request) +
               "). If you meant to render a collection of children, use an array instead."
           );
         }
-        "string" === typeof node$jscomp$0
+        "string" === typeof node
           ? ((task = task.blockedSegment),
             null !== task &&
               (task.lastPushedText = pushTextInstance(
                 task.chunks,
-                node$jscomp$0,
+                node,
                 request.renderState,
                 task.lastPushedText
               )))
-          : "number" === typeof node$jscomp$0 ||
-            "bigint" === typeof node$jscomp$0
-          ? ((task = task.blockedSegment),
-            null !== task &&
-              (task.lastPushedText = pushTextInstance(
-                task.chunks,
-                "" + node$jscomp$0,
-                request.renderState,
-                task.lastPushedText
-              )))
-          : ("function" === typeof node$jscomp$0 &&
-              ((request =
-                node$jscomp$0.displayName || node$jscomp$0.name || "Component"),
-              error$jscomp$2(
-                "Functions are not valid as a React child. This may happen if you return %s instead of <%s /> from render. Or maybe you meant to call this function rather than return it.",
-                request,
-                request
-              )),
-            "symbol" === typeof node$jscomp$0 &&
-              error$jscomp$2(
-                "Symbols are not valid as a React child.\n  %s",
-                String(node$jscomp$0)
-              ));
+          : "number" === typeof node || "bigint" === typeof node
+            ? ((task = task.blockedSegment),
+              null !== task &&
+                (task.lastPushedText = pushTextInstance(
+                  task.chunks,
+                  "" + node,
+                  request.renderState,
+                  task.lastPushedText
+                )))
+            : ("function" === typeof node &&
+                ((request = node.displayName || node.name || "Component"),
+                console.error(
+                  "Functions are not valid as a React child. This may happen if you return %s instead of <%s /> from render. Or maybe you meant to call this function rather than return it.",
+                  request,
+                  request
+                )),
+              "symbol" === typeof node &&
+                console.error(
+                  "Symbols are not valid as a React child.\n  %s",
+                  String(node)
+                ));
       }
     }
     function renderChildrenArray(request$jscomp$0, task, children, childIndex) {
-      var prevKeyPath = task.keyPath;
+      var prevKeyPath = task.keyPath,
+        previousComponentStack = task.componentStack;
+      var previousDebugTask = task.debugTask;
+      pushServerComponentStack(task, task.node._debugInfo);
       if (
         -1 !== childIndex &&
         ((task.keyPath = [task.keyPath, "Fragment", childIndex]),
@@ -5836,14 +6071,15 @@
               )
                 throw x;
               task.replay.pendingTasks--;
-              children = getThrownInfo(request$jscomp$0, task.componentStack);
+              children = getThrownInfo(task.componentStack);
               erroredReplay(
                 request$jscomp$0,
                 task.blockedBoundary,
                 x,
                 children,
                 childIndex,
-                node
+                node,
+                task.debugTask
               );
             }
             task.replay = replay;
@@ -5852,6 +6088,8 @@
           }
         }
         task.keyPath = prevKeyPath;
+        task.componentStack = previousComponentStack;
+        task.debugTask = previousDebugTask;
         return;
       }
       replay = task.treeContext;
@@ -5877,6 +6115,8 @@
         }
         task.treeContext = replay;
         task.keyPath = prevKeyPath;
+        task.componentStack = previousComponentStack;
+        task.debugTask = previousDebugTask;
         return;
       }
       for (j = 0; j < replayNodes; j++) {
@@ -5902,39 +6142,56 @@
           null == didWarnForKey &&
             (didWarnForKey = request.didWarnForKey = new WeakSet());
           request = node.componentStack;
-          null === request ||
-            didWarnForKey.has(request) ||
-            (didWarnForKey.add(request),
-            (didWarnForKey = node),
-            (resumeSegmentID = resumeSegmentID.type),
-            (resumeSegmentID =
-              "string" === typeof resumeSegmentID
-                ? createBuiltInComponentStack(didWarnForKey, resumeSegmentID)
-                : resumeSegmentID.prototype &&
-                  resumeSegmentID.prototype.isReactComponent
-                ? {
-                    tag: 2,
-                    parent: didWarnForKey.componentStack,
-                    type: resumeSegmentID
-                  }
-                : {
-                    tag: 1,
-                    parent: didWarnForKey.componentStack,
-                    type: resumeSegmentID
-                  }),
-            (node.componentStack = resumeSegmentID),
-            error$jscomp$2(
+          if (null !== request && !didWarnForKey.has(request)) {
+            didWarnForKey.add(request);
+            var componentName = getComponentNameFromType(resumeSegmentID.type);
+            didWarnForKey = resumeSegmentID._owner;
+            var parentOwner = request.owner;
+            request = "";
+            if (parentOwner && "undefined" !== typeof parentOwner.type) {
+              var name = getComponentNameFromType(parentOwner.type);
+              name &&
+                (request = "\n\nCheck the render method of `" + name + "`.");
+            }
+            request ||
+              (componentName &&
+                (request =
+                  "\n\nCheck the top-level render call using <" +
+                  componentName +
+                  ">."));
+            componentName = "";
+            null != didWarnForKey &&
+              parentOwner !== didWarnForKey &&
+              ((parentOwner = null),
+              "undefined" !== typeof didWarnForKey.type
+                ? (parentOwner = getComponentNameFromType(didWarnForKey.type))
+                : "string" === typeof didWarnForKey.name &&
+                  (parentOwner = didWarnForKey.name),
+              parentOwner &&
+                (componentName =
+                  " It was passed a child from " + parentOwner + "."));
+            didWarnForKey = node.componentStack;
+            node.componentStack = {
+              parent: node.componentStack,
+              type: resumeSegmentID.type,
+              owner: resumeSegmentID._owner,
+              stack: resumeSegmentID._debugStack
+            };
+            console.error(
               'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
-              "",
-              ""
-            ),
-            (node.componentStack = resumeSegmentID.parent));
+              request,
+              componentName
+            );
+            node.componentStack = didWarnForKey;
+          }
         }
         task.treeContext = pushTreeContext(replay, replayNodes, j);
         renderNode(request$jscomp$0, task, childIndex, j);
       }
       task.treeContext = replay;
       task.keyPath = prevKeyPath;
+      task.componentStack = previousComponentStack;
+      task.debugTask = previousDebugTask;
     }
     function trackPostpone(request, trackedPostpones, task, segment) {
       segment.status = POSTPONED;
@@ -6046,11 +6303,11 @@
     }
     function renderNode(request, task, node, childIndex) {
       var previousFormatContext = task.formatContext,
-        previousLegacyContext = task.legacyContext,
         previousContext = task.context,
         previousKeyPath = task.keyPath,
         previousTreeContext = task.treeContext,
         previousComponentStack = task.componentStack,
+        previousDebugTask = task.debugTask,
         segment = task.blockedSegment;
       if (null === segment)
         try {
@@ -6079,19 +6336,20 @@
               task.abortSet,
               task.keyPath,
               task.formatContext,
-              task.legacyContext,
               task.context,
               task.treeContext,
-              null !== task.componentStack ? task.componentStack.parent : null,
-              task.isFallback
+              task.componentStack,
+              task.isFallback,
+              emptyContextObject,
+              task.debugTask
             ).ping;
             node.then(request, request);
             task.formatContext = previousFormatContext;
-            task.legacyContext = previousLegacyContext;
             task.context = previousContext;
             task.keyPath = previousKeyPath;
             task.treeContext = previousTreeContext;
             task.componentStack = previousComponentStack;
+            task.debugTask = previousDebugTask;
             switchContext(previousContext);
             return;
           }
@@ -6101,15 +6359,15 @@
           chunkLength = segment.chunks.length;
         try {
           return renderNodeDestructive(request, task, node, childIndex);
-        } catch (thrownValue$4) {
+        } catch (thrownValue$3) {
           if (
             (resetHooksState(),
             (segment.children.length = childrenLength),
             (segment.chunks.length = chunkLength),
             (childIndex =
-              thrownValue$4 === SuspenseException
+              thrownValue$3 === SuspenseException
                 ? getSuspendedThenable()
-                : thrownValue$4),
+                : thrownValue$3),
             "object" === typeof childIndex && null !== childIndex)
           ) {
             if ("function" === typeof childIndex.then) {
@@ -6137,21 +6395,20 @@
                 task.abortSet,
                 task.keyPath,
                 task.formatContext,
-                task.legacyContext,
                 task.context,
                 task.treeContext,
-                null !== task.componentStack
-                  ? task.componentStack.parent
-                  : null,
-                task.isFallback
+                task.componentStack,
+                task.isFallback,
+                emptyContextObject,
+                task.debugTask
               ).ping;
               node.then(request, request);
               task.formatContext = previousFormatContext;
-              task.legacyContext = previousLegacyContext;
               task.context = previousContext;
               task.keyPath = previousKeyPath;
               task.treeContext = previousTreeContext;
               task.componentStack = previousComponentStack;
+              task.debugTask = previousDebugTask;
               switchContext(previousContext);
               return;
             }
@@ -6161,8 +6418,8 @@
               null !== task.blockedBoundary
             ) {
               node = request.trackedPostpones;
-              segment = getThrownInfo(request, task.componentStack);
-              request.onPostpone(childIndex.message, segment);
+              segment = getThrownInfo(task.componentStack);
+              logPostpone(request, childIndex.message, segment, task.debugTask);
               childIndex = task.blockedSegment;
               segment = createPendingSegment(
                 request,
@@ -6176,11 +6433,11 @@
               childIndex.lastPushedText = !1;
               trackPostpone(request, node, task, segment);
               task.formatContext = previousFormatContext;
-              task.legacyContext = previousLegacyContext;
               task.context = previousContext;
               task.keyPath = previousKeyPath;
               task.treeContext = previousTreeContext;
               task.componentStack = previousComponentStack;
+              task.debugTask = previousDebugTask;
               switchContext(previousContext);
               return;
             }
@@ -6188,7 +6445,6 @@
         }
       }
       task.formatContext = previousFormatContext;
-      task.legacyContext = previousLegacyContext;
       task.context = previousContext;
       task.keyPath = previousKeyPath;
       task.treeContext = previousTreeContext;
@@ -6201,26 +6457,52 @@
       error,
       errorInfo,
       replayNodes,
-      resumeSlots
+      resumeSlots,
+      debugTask
     ) {
-      if (
-        "object" === typeof error &&
-        null !== error &&
-        error.$$typeof === REACT_POSTPONE_TYPE
-      ) {
-        request.onPostpone(error.message, errorInfo);
-        var errorDigest = "POSTPONE";
-      } else errorDigest = logRecoverableError(request, error, errorInfo);
+      "object" === typeof error &&
+      null !== error &&
+      error.$$typeof === REACT_POSTPONE_TYPE
+        ? (logPostpone(request, error.message, errorInfo, debugTask),
+          (debugTask = "POSTPONE"))
+        : (debugTask = logRecoverableError(
+            request,
+            error,
+            errorInfo,
+            debugTask
+          ));
       abortRemainingReplayNodes(
         request,
         boundary,
         replayNodes,
         resumeSlots,
         error,
-        errorDigest,
+        debugTask,
         errorInfo,
         !1
       );
+    }
+    function erroredTask(request, boundary, error, errorInfo, debugTask) {
+      if (
+        "object" === typeof error &&
+        null !== error &&
+        error.$$typeof === REACT_POSTPONE_TYPE
+      ) {
+        logPostpone(request, error.message, errorInfo, debugTask);
+        var errorDigest = "POSTPONE";
+      } else
+        errorDigest = logRecoverableError(request, error, errorInfo, debugTask);
+      null === boundary
+        ? fatalError(request, error, errorInfo, debugTask)
+        : (boundary.pendingTasks--,
+          boundary.status !== CLIENT_RENDERED &&
+            ((boundary.status = CLIENT_RENDERED),
+            encodeErrorForBoundary(boundary, errorDigest, error, errorInfo, !1),
+            untrackBoundary(request, boundary),
+            boundary.parentFlushed &&
+              request.clientRenderedBoundaries.push(boundary)));
+      request.allPendingTasks--;
+      0 === request.allPendingTasks && completeAll(request);
     }
     function abortTaskSoft(task) {
       var boundary = task.blockedBoundary;
@@ -6296,9 +6578,14 @@
     function abortTask(task, request, error) {
       var boundary = task.blockedBoundary,
         segment = task.blockedSegment;
-      null !== segment && (segment.status = 3);
+      if (null !== segment) {
+        if (6 === segment.status) return;
+        segment.status = 3;
+      }
       if (null === boundary) {
-        if (((boundary = {}), 1 !== request.status && 2 !== request.status)) {
+        if (
+          ((boundary = {}), 2 !== request.status && request.status !== CLOSED)
+        ) {
           task = task.replay;
           if (null === task) {
             "object" === typeof error &&
@@ -6308,10 +6595,10 @@
                   "The render was aborted with postpone when the shell is incomplete. Reason: " +
                     error.message
                 )),
-                logRecoverableError(request, task, boundary),
-                fatalError(request, task))
-              : (logRecoverableError(request, error, boundary),
-                fatalError(request, error));
+                logRecoverableError(request, task, boundary, null),
+                fatalError(request, task, boundary, null))
+              : (logRecoverableError(request, error, boundary, null),
+                fatalError(request, error, boundary, null));
             return;
           }
           task.pendingTasks--;
@@ -6320,9 +6607,9 @@
             ("object" === typeof error &&
             null !== error &&
             error.$$typeof === REACT_POSTPONE_TYPE
-              ? (request.onPostpone(error.message, boundary),
+              ? (logPostpone(request, error.message, boundary, null),
                 (segment = "POSTPONE"))
-              : (segment = logRecoverableError(request, error, boundary)),
+              : (segment = logRecoverableError(request, error, boundary, null)),
             abortRemainingReplayNodes(
               request,
               null,
@@ -6340,13 +6627,13 @@
         boundary.pendingTasks--,
           boundary.status !== CLIENT_RENDERED &&
             ((boundary.status = CLIENT_RENDERED),
-            (task = getThrownInfo(request, task.componentStack)),
+            (task = getThrownInfo(task.componentStack)),
             "object" === typeof error &&
             null !== error &&
             error.$$typeof === REACT_POSTPONE_TYPE
-              ? (request.onPostpone(error.message, task),
+              ? (logPostpone(request, error.message, task, null),
                 (segment = "POSTPONE"))
-              : (segment = logRecoverableError(request, error, task)),
+              : (segment = logRecoverableError(request, error, task, null)),
             encodeErrorForBoundary(boundary, segment, error, task, !0),
             untrackBoundary(request, boundary),
             boundary.parentFlushed &&
@@ -6404,7 +6691,7 @@
                       media: props$jscomp$0.media
                     }
                   );
-                  if (2 <= (headers.remainingCapacity -= header.length))
+                  if (0 <= (headers.remainingCapacity -= header.length + 2))
                     (renderState.resets.style[key] = PRELOAD_NO_CREDS),
                       linkHeader && (linkHeader += ", "),
                       (linkHeader += header),
@@ -6419,8 +6706,8 @@
             linkHeader ? onHeaders({ Link: linkHeader }) : onHeaders({});
           }
         }
-      } catch (error$5) {
-        logRecoverableError(request, error$5, {});
+      } catch (error) {
+        logRecoverableError(request, error, {}, null);
       }
     }
     function completeShell(request) {
@@ -6492,51 +6779,53 @@
       request.allPendingTasks--;
       0 === request.allPendingTasks && completeAll(request);
     }
-    function performWork(request$jscomp$1) {
-      if (2 !== request$jscomp$1.status) {
+    function performWork(request$jscomp$0) {
+      if (request$jscomp$0.status !== CLOSED && 2 !== request$jscomp$0.status) {
         var prevContext = currentActiveSnapshot,
           prevDispatcher = ReactSharedInternals.H;
         ReactSharedInternals.H = HooksDispatcher;
         var prevAsyncDispatcher = ReactSharedInternals.A;
         ReactSharedInternals.A = DefaultAsyncDispatcher;
         var prevRequest = currentRequest;
-        currentRequest = request$jscomp$1;
+        currentRequest = request$jscomp$0;
         var prevGetCurrentStackImpl = ReactSharedInternals.getCurrentStack;
         ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
         var prevResumableState = currentResumableState;
-        currentResumableState = request$jscomp$1.resumableState;
+        currentResumableState = request$jscomp$0.resumableState;
         try {
-          var pingedTasks = request$jscomp$1.pingedTasks,
+          var pingedTasks = request$jscomp$0.pingedTasks,
             i;
           for (i = 0; i < pingedTasks.length; i++) {
-            var request = request$jscomp$1,
+            var request = request$jscomp$0,
               task = pingedTasks[i],
               segment = task.blockedSegment;
             if (null === segment) {
               var prevTaskInDEV = void 0,
-                request$jscomp$0 = request;
-              request = task;
-              if (0 !== request.replay.pendingTasks) {
-                switchContext(request.context);
+                task$jscomp$0 = task;
+              if (0 !== task$jscomp$0.replay.pendingTasks) {
+                switchContext(task$jscomp$0.context);
                 prevTaskInDEV = currentTaskInDEV;
-                currentTaskInDEV = request;
+                currentTaskInDEV = task$jscomp$0;
                 try {
-                  renderNodeDestructive(
-                    request$jscomp$0,
-                    request,
-                    request.node,
-                    request.childIndex
-                  );
+                  "number" === typeof task$jscomp$0.replay.slots
+                    ? resumeNode(
+                        request,
+                        task$jscomp$0,
+                        task$jscomp$0.replay.slots,
+                        task$jscomp$0.node,
+                        task$jscomp$0.childIndex
+                      )
+                    : retryNode(request, task$jscomp$0);
                   if (
-                    1 === request.replay.pendingTasks &&
-                    0 < request.replay.nodes.length
+                    1 === task$jscomp$0.replay.pendingTasks &&
+                    0 < task$jscomp$0.replay.nodes.length
                   )
                     throw Error(
                       "Couldn't find all resumable slots by key/index during replaying. The tree doesn't match so React will fallback to client rendering."
                     );
-                  request.replay.pendingTasks--;
-                  request.abortSet.delete(request);
-                  finishedTask(request$jscomp$0, request.blockedBoundary, null);
+                  task$jscomp$0.replay.pendingTasks--;
+                  task$jscomp$0.abortSet.delete(task$jscomp$0);
+                  finishedTask(request, task$jscomp$0.blockedBoundary, null);
                 } catch (thrownValue) {
                   resetHooksState();
                   var x =
@@ -6548,32 +6837,27 @@
                     null !== x &&
                     "function" === typeof x.then
                   ) {
-                    var ping = request.ping;
+                    var ping = task$jscomp$0.ping;
                     x.then(ping, ping);
-                    request.thenableState = getThenableStateAfterSuspending();
-                    null !== request.componentStack &&
-                      (request.componentStack = request.componentStack.parent);
+                    task$jscomp$0.thenableState =
+                      getThenableStateAfterSuspending();
                   } else {
-                    request.replay.pendingTasks--;
-                    request.abortSet.delete(request);
-                    var errorInfo = getThrownInfo(
-                      request$jscomp$0,
-                      request.componentStack
-                    );
+                    task$jscomp$0.replay.pendingTasks--;
+                    task$jscomp$0.abortSet.delete(task$jscomp$0);
+                    var errorInfo = getThrownInfo(task$jscomp$0.componentStack);
                     erroredReplay(
-                      request$jscomp$0,
-                      request.blockedBoundary,
-                      x,
+                      request,
+                      task$jscomp$0.blockedBoundary,
+                      x === AbortSigil ? request.fatalError : x,
                       errorInfo,
-                      request.replay.nodes,
-                      request.replay.slots
+                      task$jscomp$0.replay.nodes,
+                      task$jscomp$0.replay.slots,
+                      task$jscomp$0.debugTask
                     );
-                    request$jscomp$0.pendingRootTasks--;
-                    0 === request$jscomp$0.pendingRootTasks &&
-                      completeShell(request$jscomp$0);
-                    request$jscomp$0.allPendingTasks--;
-                    0 === request$jscomp$0.allPendingTasks &&
-                      completeAll(request$jscomp$0);
+                    request.pendingRootTasks--;
+                    0 === request.pendingRootTasks && completeShell(request);
+                    request.allPendingTasks--;
+                    0 === request.allPendingTasks && completeAll(request);
                   }
                 } finally {
                   currentTaskInDEV = prevTaskInDEV;
@@ -6581,26 +6865,24 @@
               }
             } else
               a: {
-                request$jscomp$0 = prevTaskInDEV = void 0;
-                var task$jscomp$0 = task,
-                  segment$jscomp$0 = segment;
+                prevTaskInDEV = void 0;
+                task$jscomp$0 = task;
+                var segment$jscomp$0 = segment;
                 if (segment$jscomp$0.status === PENDING) {
+                  segment$jscomp$0.status = 6;
                   switchContext(task$jscomp$0.context);
-                  request$jscomp$0 = currentTaskInDEV;
+                  prevTaskInDEV = currentTaskInDEV;
                   currentTaskInDEV = task$jscomp$0;
                   var childrenLength = segment$jscomp$0.children.length,
                     chunkLength = segment$jscomp$0.chunks.length;
                   try {
-                    renderNodeDestructive(
-                      request,
-                      task$jscomp$0,
-                      task$jscomp$0.node,
-                      task$jscomp$0.childIndex
-                    ),
-                      request.renderState.generateStaticMarkup ||
-                        (segment$jscomp$0.lastPushedText &&
-                          segment$jscomp$0.textEmbedded &&
-                          segment$jscomp$0.chunks.push("\x3c!-- --\x3e")),
+                    retryNode(request, task$jscomp$0),
+                      pushSegmentFinale(
+                        segment$jscomp$0.chunks,
+                        request.renderState,
+                        segment$jscomp$0.lastPushedText,
+                        segment$jscomp$0.textEmbedded
+                      ),
                       task$jscomp$0.abortSet.delete(task$jscomp$0),
                       (segment$jscomp$0.status = COMPLETED),
                       finishedTask(
@@ -6618,13 +6900,11 @@
                         : thrownValue;
                     if ("object" === typeof x$jscomp$0 && null !== x$jscomp$0) {
                       if ("function" === typeof x$jscomp$0.then) {
-                        var ping$jscomp$0 = task$jscomp$0.ping;
-                        x$jscomp$0.then(ping$jscomp$0, ping$jscomp$0);
+                        segment$jscomp$0.status = PENDING;
                         task$jscomp$0.thenableState =
                           getThenableStateAfterSuspending();
-                        null !== task$jscomp$0.componentStack &&
-                          (task$jscomp$0.componentStack =
-                            task$jscomp$0.componentStack.parent);
+                        var ping$jscomp$0 = task$jscomp$0.ping;
+                        x$jscomp$0.then(ping$jscomp$0, ping$jscomp$0);
                         break a;
                       }
                       if (
@@ -6634,10 +6914,14 @@
                         var trackedPostpones = request.trackedPostpones;
                         task$jscomp$0.abortSet.delete(task$jscomp$0);
                         var postponeInfo = getThrownInfo(
-                          request,
                           task$jscomp$0.componentStack
                         );
-                        request.onPostpone(x$jscomp$0.message, postponeInfo);
+                        logPostpone(
+                          request,
+                          x$jscomp$0.message,
+                          postponeInfo,
+                          task$jscomp$0.debugTask
+                        );
                         trackPostpone(
                           request,
                           trackedPostpones,
@@ -6653,57 +6937,42 @@
                       }
                     }
                     var errorInfo$jscomp$0 = getThrownInfo(
-                      request,
                       task$jscomp$0.componentStack
                     );
                     task$jscomp$0.abortSet.delete(task$jscomp$0);
-                    segment$jscomp$0.status = 4;
-                    var boundary = task$jscomp$0.blockedBoundary;
-                    "object" === typeof x$jscomp$0 &&
-                    null !== x$jscomp$0 &&
-                    x$jscomp$0.$$typeof === REACT_POSTPONE_TYPE
-                      ? (request.onPostpone(
-                          x$jscomp$0.message,
-                          errorInfo$jscomp$0
-                        ),
-                        (prevTaskInDEV = "POSTPONE"))
-                      : (prevTaskInDEV = logRecoverableError(
+                    x$jscomp$0 === AbortSigil
+                      ? ((segment$jscomp$0.status = 3),
+                        erroredTask(
                           request,
+                          task$jscomp$0.blockedBoundary,
+                          request.fatalError,
+                          errorInfo$jscomp$0,
+                          task$jscomp$0.debugTask
+                        ))
+                      : ((segment$jscomp$0.status = 4),
+                        erroredTask(
+                          request,
+                          task$jscomp$0.blockedBoundary,
                           x$jscomp$0,
-                          errorInfo$jscomp$0
+                          errorInfo$jscomp$0,
+                          task$jscomp$0.debugTask
                         ));
-                    null === boundary
-                      ? fatalError(request, x$jscomp$0)
-                      : (boundary.pendingTasks--,
-                        boundary.status !== CLIENT_RENDERED &&
-                          ((boundary.status = CLIENT_RENDERED),
-                          encodeErrorForBoundary(
-                            boundary,
-                            prevTaskInDEV,
-                            x$jscomp$0,
-                            errorInfo$jscomp$0,
-                            !1
-                          ),
-                          untrackBoundary(request, boundary),
-                          boundary.parentFlushed &&
-                            request.clientRenderedBoundaries.push(boundary)));
-                    request.allPendingTasks--;
-                    0 === request.allPendingTasks && completeAll(request);
                   } finally {
-                    currentTaskInDEV = request$jscomp$0;
+                    currentTaskInDEV = prevTaskInDEV;
                   }
                 }
               }
           }
           pingedTasks.splice(0, i);
-          null !== request$jscomp$1.destination &&
+          null !== request$jscomp$0.destination &&
             flushCompletedQueues(
-              request$jscomp$1,
-              request$jscomp$1.destination
+              request$jscomp$0,
+              request$jscomp$0.destination
             );
-        } catch (error$6) {
-          logRecoverableError(request$jscomp$1, error$6, {}),
-            fatalError(request$jscomp$1, error$6);
+        } catch (error) {
+          (pingedTasks = {}),
+            logRecoverableError(request$jscomp$0, error, pingedTasks, null),
+            fatalError(request$jscomp$0, error, pingedTasks, null);
         } finally {
           (currentResumableState = prevResumableState),
             (ReactSharedInternals.H = prevDispatcher),
@@ -6907,20 +7176,24 @@
                   SentCompleteBoundaryFunction),
                 destination.push(completeBoundaryWithStylesScript1FullBoth))
               : (completedSegments.instructions &
-                  SentStyleInsertionFunction) ===
-                NothingSent
-              ? ((completedSegments.instructions |= SentStyleInsertionFunction),
-                destination.push(completeBoundaryWithStylesScript1FullPartial))
-              : destination.push(completeBoundaryWithStylesScript1Partial)
+                    SentStyleInsertionFunction) ===
+                  NothingSent
+                ? ((completedSegments.instructions |=
+                    SentStyleInsertionFunction),
+                  destination.push(
+                    completeBoundaryWithStylesScript1FullPartial
+                  ))
+                : destination.push(completeBoundaryWithStylesScript1Partial)
             : (completedSegments.instructions &
-                SentCompleteBoundaryFunction) ===
-              NothingSent
-            ? ((completedSegments.instructions |= SentCompleteBoundaryFunction),
-              destination.push(completeBoundaryScript1Full))
-            : destination.push(completeBoundaryScript1Partial))
+                  SentCompleteBoundaryFunction) ===
+                NothingSent
+              ? ((completedSegments.instructions |=
+                  SentCompleteBoundaryFunction),
+                destination.push(completeBoundaryScript1Full))
+              : destination.push(completeBoundaryScript1Partial))
         : requiresStyleInsertion
-        ? destination.push(completeBoundaryWithStylesData1)
-        : destination.push(completeBoundaryData1);
+          ? destination.push(completeBoundaryWithStylesData1)
+          : destination.push(completeBoundaryData1);
       completedSegments = i.toString(16);
       destination.push(request.boundaryPrefix);
       destination.push(completedSegments);
@@ -7299,9 +7572,10 @@
               destination.push(partialBoundaries)),
             i.hasHtml && ((i = endChunkForTag("html")), destination.push(i))),
           0 !== request.abortableTasks.size &&
-            error$jscomp$2(
+            console.error(
               "There was still abortable task at the root when we closed. This is a bug in React."
             ),
+          (request.status = CLOSED),
           destination.push(null),
           (request.destination = null));
       }
@@ -7326,26 +7600,33 @@
       }
     }
     function startFlowing(request, destination) {
-      if (1 === request.status)
-        (request.status = 2), destination.destroy(request.fatalError);
-      else if (2 !== request.status && null === request.destination) {
+      if (2 === request.status)
+        (request.status = CLOSED), destination.destroy(request.fatalError);
+      else if (request.status !== CLOSED && null === request.destination) {
         request.destination = destination;
         try {
           flushCompletedQueues(request, destination);
-        } catch (error$7) {
-          logRecoverableError(request, error$7, {}),
-            fatalError(request, error$7);
+        } catch (error) {
+          (destination = {}),
+            logRecoverableError(request, error, destination, null),
+            fatalError(request, error, destination, null);
         }
       }
     }
     function abort(request, reason) {
+      0 === request.status && (request.status = 1);
       try {
         var abortableTasks = request.abortableTasks;
         if (0 < abortableTasks.size) {
           var error =
             void 0 === reason
               ? Error("The render was aborted by the server without a reason.")
-              : reason;
+              : "object" === typeof reason &&
+                  null !== reason &&
+                  "function" === typeof reason.then
+                ? Error("The render was aborted by the server with a promise.")
+                : reason;
+          request.fatalError = error;
           abortableTasks.forEach(function (task) {
             return abortTask(task, request, error);
           });
@@ -7353,8 +7634,10 @@
         }
         null !== request.destination &&
           flushCompletedQueues(request, request.destination);
-      } catch (error$8) {
-        logRecoverableError(request, error$8, {}), fatalError(request, error$8);
+      } catch (error$4) {
+        (reason = {}),
+          logRecoverableError(request, error$4, reason, null),
+          fatalError(request, error$4, reason, null);
       }
     }
     function addToReplayParent(node, parentKeyPath, trackedPostpones) {
@@ -7420,9 +7703,6 @@
     }
     var React = require("next/dist/compiled/react-experimental"),
       ReactDOM = require("react-dom"),
-      ReactSharedInternals =
-        React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
-      supportsCreateTask = !!console.createTask,
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
       REACT_PORTAL_TYPE = Symbol.for("react.portal"),
       REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
@@ -8124,6 +8404,8 @@
       msPattern = /^ms-/,
       isJavaScriptProtocol =
         /^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r\n\t]*s[\r\n\t]*c[\r\n\t]*r[\r\n\t]*i[\r\n\t]*p[\r\n\t]*t[\r\n\t]*:/i,
+      ReactSharedInternals =
+        React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
       ReactDOMSharedInternals =
         ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
       NotPending = Object.freeze({
@@ -8155,7 +8437,7 @@
                     "<" +
                     escapeHrefForLinkHeaderURLContext(href) +
                     ">; rel=dns-prefetch"),
-                  2 <= (resumableState.remainingCapacity -= header.length));
+                  0 <= (resumableState.remainingCapacity -= header.length + 2));
               JSCompiler_temp
                 ? ((renderState.resets.dns[href] = EXISTS),
                   resumableState.preconnects &&
@@ -8179,8 +8461,8 @@
               "use-credentials" === crossOrigin
                 ? "credentials"
                 : "string" === typeof crossOrigin
-                ? "anonymous"
-                : "default";
+                  ? "anonymous"
+                  : "default";
             if (!resumableState.connectResources[bucket].hasOwnProperty(href)) {
               resumableState.connectResources[bucket][href] = EXISTS;
               resumableState = renderState.headers;
@@ -8204,7 +8486,7 @@
                 }
                 JSCompiler_temp =
                   ((header = JSCompiler_temp),
-                  2 <= (resumableState.remainingCapacity -= header.length));
+                  0 <= (resumableState.remainingCapacity -= header.length + 2));
               }
               JSCompiler_temp
                 ? ((renderState.resets.connect[bucket][href] = EXISTS),
@@ -8247,7 +8529,7 @@
                 0 < resumableState.remainingCapacity &&
                 "high" === fetchPriority &&
                 ((header = getPreloadAsHeader(href, as, options)),
-                2 <= (resumableState.remainingCapacity -= header.length))
+                0 <= (resumableState.remainingCapacity -= header.length + 2))
                   ? ((renderState.resets.image[key] = PRELOAD_NO_CREDS),
                     resumableState.highImagePreloads &&
                       (resumableState.highImagePreloads += ", "),
@@ -8317,7 +8599,7 @@
                   0 < resumableState.remainingCapacity &&
                   "font" === as &&
                   ((key = getPreloadAsHeader(href, as, options)),
-                  2 <= (resumableState.remainingCapacity -= key.length))
+                  0 <= (resumableState.remainingCapacity -= key.length + 2))
                 )
                   (renderState.resets.font[href] = PRELOAD_NO_CREDS),
                     resumableState.fontPreloads &&
@@ -8631,6 +8913,7 @@
       regexForHrefInLinkHeaderURLContext = /[<>\r\n]/g,
       regexForLinkHeaderQuotedParamValueContext = /["';,\r\n]/g,
       doctypeChunk = "",
+      bind = Function.prototype.bind,
       REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       emptyContextObject = {};
     Object.freeze(emptyContextObject);
@@ -8643,6 +8926,8 @@
     var didWarnAboutLegacyLifecyclesAndDerivedState = new Set();
     var didWarnAboutDirectlyAssigningPropsToState = new Set();
     var didWarnAboutUndefinedDerivedState = new Set();
+    var didWarnAboutContextTypes$1 = new Set();
+    var didWarnAboutChildContextTypes = new Set();
     var didWarnAboutInvalidateContextType = new Set();
     var didWarnOnInvalidCallback = new Set();
     var classComponentUpdater = {
@@ -8802,12 +9087,15 @@
     HooksDispatcher.useFormState = useActionState;
     HooksDispatcher.useActionState = useActionState;
     var currentResumableState = null,
+      currentTaskInDEV = null,
       DefaultAsyncDispatcher = {
         getCacheForType: function () {
           throw Error("Not implemented.");
         },
         getOwner: function () {
-          return null;
+          return null === currentTaskInDEV
+            ? null
+            : currentTaskInDEV.componentStack;
         }
       },
       disabledDepth = 0,
@@ -8820,18 +9108,42 @@
       prevGroupEnd;
     disabledLog.__reactDisabledLog = !0;
     var prefix,
+      suffix,
       reentry = !1;
     var componentFrameCache = new (
       "function" === typeof WeakMap ? WeakMap : Map
     )();
-    var CLIENT_RENDERED = 4,
+    var callComponent = {
+        "react-stack-bottom-frame": function (Component, props, secondArg) {
+          return Component(props, secondArg);
+        }
+      },
+      callComponentInDEV =
+        callComponent["react-stack-bottom-frame"].bind(callComponent),
+      callRender = {
+        "react-stack-bottom-frame": function (instance) {
+          return instance.render();
+        }
+      },
+      callRenderInDEV = callRender["react-stack-bottom-frame"].bind(callRender),
+      callLazyInit = {
+        "react-stack-bottom-frame": function (lazy) {
+          var init = lazy._init;
+          return init(lazy._payload);
+        }
+      },
+      callLazyInitInDEV =
+        callLazyInit["react-stack-bottom-frame"].bind(callLazyInit),
+      CLIENT_RENDERED = 4,
       PENDING = 0,
       COMPLETED = 1,
       FLUSHED = 2,
       POSTPONED = 5,
+      CLOSED = 3,
+      AbortSigil = {},
       currentRequest = null,
-      currentTaskInDEV = null,
       didWarnAboutBadClass = {},
+      didWarnAboutContextTypes = {},
       didWarnAboutContextTypeOnFunctionComponent = {},
       didWarnAboutGetDerivedStateOnFunctionComponent = {},
       didWarnAboutReassigningProps = !1,
@@ -8853,5 +9165,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.0.0-experimental-dfd30974ab-20240613";
+    exports.version = "19.0.0-experimental-3208e73e-20240730";
   })();

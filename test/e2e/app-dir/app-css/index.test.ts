@@ -488,8 +488,8 @@ describe('app dir - css', () => {
             // And there is one match for the not found style
             if (isPPREnabledByDefault) {
               expect(matches).toEqual([
-                // string split across chunks.
-                '/_next/static/css/app/css/css-dupl"])</script><script>self.__next_f.push([1,"icate-2/layout.css',
+                // may be split across chunks when we bump React
+                '/_next/static/css/app/css/css-duplicate-2/layout.css',
                 '/_next/static/css/app/css/css-duplicate-2/layout.css',
                 '/_next/static/css/app/css/css-duplicate-2/layout.css',
                 '/_next/static/css/app/css/layout.css',
