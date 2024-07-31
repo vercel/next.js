@@ -36,9 +36,9 @@
     ),
     (
         "value",
-        Alternatives(
-            7,
-            [
+        Alternatives {
+            total_nodes: 7,
+            values: [
                 Member(
                     3,
                     Argument(
@@ -72,13 +72,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "value2",
-        Alternatives(
-            7,
-            [
+        Alternatives {
+            total_nodes: 7,
+            values: [
                 Member(
                     3,
                     Argument(
@@ -112,6 +113,7 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
 ]

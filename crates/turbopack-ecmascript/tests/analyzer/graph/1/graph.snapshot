@@ -31,9 +31,9 @@
     ),
     (
         "x",
-        Alternatives(
-            5,
-            [
+        Alternatives {
+            total_nodes: 5,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -60,13 +60,14 @@
                     ],
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "y",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Constant(
                     Str(
                         Word(
@@ -82,6 +83,7 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
 ]

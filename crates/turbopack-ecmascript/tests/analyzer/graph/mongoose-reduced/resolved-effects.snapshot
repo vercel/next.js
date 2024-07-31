@@ -3,7 +3,7 @@
 0 -> 3 free var = FreeVar(require)
 
 0 -> 4 call = require*0*(
-    `${(???*1* | "./drivers/node-mongodb-native")}/connection`
+    `${(???*1* | "./drivers/node-mongodb-native"){truthy}}/connection`
 )
 - *0* require: The require method from CommonJS
 - *1* ???*2*["MONGOOSE_DRIVER_PATH"]
@@ -16,7 +16,7 @@
 0 -> 5 free var = FreeVar(require)
 
 0 -> 6 call = require*0*(
-    `${(???*1* | "./drivers/node-mongodb-native")}/collection`
+    `${(???*1* | "./drivers/node-mongodb-native"){truthy}}/collection`
 )
 - *0* require: The require method from CommonJS
 - *1* ???*2*["MONGOOSE_DRIVER_PATH"]

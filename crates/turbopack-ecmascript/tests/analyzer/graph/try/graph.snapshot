@@ -16,9 +16,9 @@
     ),
     (
         "pkg",
-        Alternatives(
-            8,
-            [
+        Alternatives {
+            total_nodes: 8,
+            values: [
                 Unknown {
                     original_value: Some(
                         Variable(
@@ -62,6 +62,7 @@
                     ],
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
 ]

@@ -1,9 +1,9 @@
 [
     (
         "a#3",
-        Alternatives(
-            52,
-            [
+        Alternatives {
+            total_nodes: 52,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -300,7 +300,8 @@
                     ],
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "a#5",
@@ -318,9 +319,9 @@
     ),
     (
         "b#3",
-        Alternatives(
-            54,
-            [
+        Alternatives {
+            total_nodes: 54,
+            values: [
                 Unknown {
                     original_value: None,
                     reason: "unsupported expression",
@@ -625,7 +626,8 @@
                     ],
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "b#5",
@@ -643,9 +645,9 @@
     ),
     (
         "c#3",
-        Alternatives(
-            54,
-            [
+        Alternatives {
+            total_nodes: 54,
+            values: [
                 Unknown {
                     original_value: None,
                     reason: "unsupported expression",
@@ -950,7 +952,8 @@
                     ],
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "c#6",
@@ -961,9 +964,9 @@
     ),
     (
         "d#3",
-        Alternatives(
-            54,
-            [
+        Alternatives {
+            total_nodes: 54,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -1270,7 +1273,8 @@
                     ],
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "d#6",
@@ -1281,9 +1285,9 @@
     ),
     (
         "i",
-        Alternatives(
-            6,
-            [
+        Alternatives {
+            total_nodes: 6,
+            values: [
                 Unknown {
                     original_value: Some(
                         Variable(
@@ -1322,7 +1326,8 @@
                     ],
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "len",
@@ -1469,9 +1474,9 @@
     ),
     (
         "olda",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Unknown {
                     original_value: Some(
                         Variable(
@@ -1491,13 +1496,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "oldb",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Unknown {
                     original_value: Some(
                         Variable(
@@ -1517,13 +1523,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "oldc",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Unknown {
                     original_value: Some(
                         Variable(
@@ -1543,13 +1550,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "oldd",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Unknown {
                     original_value: Some(
                         Variable(
@@ -1569,7 +1577,8 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "q",

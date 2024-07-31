@@ -1,9 +1,9 @@
 [
     (
         "a",
-        Alternatives(
-            5,
-            [
+        Alternatives {
+            total_nodes: 5,
+            values: [
                 Constant(
                     Str(
                         Word(
@@ -30,13 +30,14 @@
                     ],
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "b",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -50,13 +51,14 @@
                     has_side_effects: true,
                 },
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "c",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -70,13 +72,14 @@
                     has_side_effects: true,
                 },
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "d",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -92,13 +95,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "e",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -114,13 +118,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -136,6 +141,7 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
 ]

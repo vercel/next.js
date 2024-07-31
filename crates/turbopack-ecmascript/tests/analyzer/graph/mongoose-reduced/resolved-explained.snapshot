@@ -1,6 +1,6 @@
 Collection = ???*0*
 - *0* require*1*(
-        `${(???*2* | "./drivers/node-mongodb-native")}/collection`
+        `${(???*2* | "./drivers/node-mongodb-native"){truthy}}/collection`
     )
   ⚠️  only constant argument is supported
   ⚠️  This value might have side effects
@@ -14,7 +14,7 @@ Collection = ???*0*
 
 Connection = ???*0*
 - *0* require*1*(
-        `${(???*2* | "./drivers/node-mongodb-native")}/connection`
+        `${(???*2* | "./drivers/node-mongodb-native"){truthy}}/connection`
     )
   ⚠️  only constant argument is supported
   ⚠️  This value might have side effects
@@ -26,7 +26,7 @@ Connection = ???*0*
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-driver = (???*0* | "./drivers/node-mongodb-native")
+driver = (???*0* | "./drivers/node-mongodb-native"){truthy}
 - *0* ???*1*["MONGOOSE_DRIVER_PATH"]
   ⚠️  unknown object
   ⚠️  This value might have side effects

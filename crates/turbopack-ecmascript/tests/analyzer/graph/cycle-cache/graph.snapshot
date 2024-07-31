@@ -265,9 +265,9 @@
     ),
     (
         "a",
-        Alternatives(
-            5,
-            [
+        Alternatives {
+            total_nodes: 5,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -296,13 +296,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "b",
-        Alternatives(
-            5,
-            [
+        Alternatives {
+            total_nodes: 5,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -331,13 +332,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "c",
-        Alternatives(
-            5,
-            [
+        Alternatives {
+            total_nodes: 5,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -366,13 +368,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "d",
-        Alternatives(
-            22,
-            [
+        Alternatives {
+            total_nodes: 22,
+            values: [
                 Variable(
                     (
                         "f11",
@@ -500,13 +503,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f11",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "*arrow function 425*",
@@ -520,13 +524,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f12",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "*arrow function 511*",
@@ -540,13 +545,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f21",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f11",
@@ -560,13 +566,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f22",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f12",
@@ -580,13 +587,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f31",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f21",
@@ -600,13 +608,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f32",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f22",
@@ -620,13 +629,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f41",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f31",
@@ -640,13 +650,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f42",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f32",
@@ -660,13 +671,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f51",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f41",
@@ -680,13 +692,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f52",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f42",
@@ -700,13 +713,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f61",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f51",
@@ -720,13 +734,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f62",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f52",
@@ -740,13 +755,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f71",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f61",
@@ -760,13 +776,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f72",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f62",
@@ -780,13 +797,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f81",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f71",
@@ -800,13 +818,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f82",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f72",
@@ -820,13 +839,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f91",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f81",
@@ -840,13 +860,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "f92",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f82",
@@ -860,13 +881,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fa1",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f91",
@@ -880,13 +902,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fa2",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "f92",
@@ -900,13 +923,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fb1",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fa1",
@@ -920,13 +944,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fb2",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fa2",
@@ -940,13 +965,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fc1",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fb1",
@@ -960,13 +986,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fc2",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fb2",
@@ -980,13 +1007,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fd1",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fc1",
@@ -1000,13 +1028,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fd2",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fc2",
@@ -1020,13 +1049,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fe1",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fd1",
@@ -1040,13 +1070,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fe2",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fd2",
@@ -1060,13 +1091,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "ff1",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fe1",
@@ -1080,13 +1112,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "ff2",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fe2",
@@ -1100,13 +1133,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fg1",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "ff1",
@@ -1120,13 +1154,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fg2",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "ff2",
@@ -1140,13 +1175,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fh1",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fg1",
@@ -1160,13 +1196,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fh2",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fg2",
@@ -1180,13 +1217,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fi1",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fh1",
@@ -1200,13 +1238,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fi2",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fh2",
@@ -1220,13 +1259,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fj1",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fi1",
@@ -1240,13 +1280,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fj2",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fi2",
@@ -1260,13 +1301,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fk1",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fj1",
@@ -1280,13 +1322,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fk2",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fj2",
@@ -1300,13 +1343,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fl1",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fk1",
@@ -1320,13 +1364,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "fl2",
-        Alternatives(
-            3,
-            [
+        Alternatives {
+            total_nodes: 3,
+            values: [
                 Variable(
                     (
                         "fk2",
@@ -1340,13 +1385,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "x",
-        Alternatives(
-            4,
-            [
+        Alternatives {
+            total_nodes: 4,
+            values: [
                 Variable(
                     (
                         "a",
@@ -1366,13 +1412,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "x1",
-        Alternatives(
-            7,
-            [
+        Alternatives {
+            total_nodes: 7,
+            values: [
                 Variable(
                     (
                         "x1",
@@ -1410,13 +1457,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "x2",
-        Alternatives(
-            7,
-            [
+        Alternatives {
+            total_nodes: 7,
+            values: [
                 Variable(
                     (
                         "x1",
@@ -1454,13 +1502,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "x3",
-        Alternatives(
-            7,
-            [
+        Alternatives {
+            total_nodes: 7,
+            values: [
                 Variable(
                     (
                         "x1",
@@ -1498,13 +1547,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "x4",
-        Alternatives(
-            7,
-            [
+        Alternatives {
+            total_nodes: 7,
+            values: [
                 Variable(
                     (
                         "x1",
@@ -1542,13 +1592,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "x5",
-        Alternatives(
-            7,
-            [
+        Alternatives {
+            total_nodes: 7,
+            values: [
                 Variable(
                     (
                         "x1",
@@ -1586,13 +1637,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "x6",
-        Alternatives(
-            7,
-            [
+        Alternatives {
+            total_nodes: 7,
+            values: [
                 Variable(
                     (
                         "x1",
@@ -1630,13 +1682,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "y",
-        Alternatives(
-            5,
-            [
+        Alternatives {
+            total_nodes: 5,
+            values: [
                 Variable(
                     (
                         "a",
@@ -1662,13 +1715,14 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "z",
-        Alternatives(
-            5,
-            [
+        Alternatives {
+            total_nodes: 5,
+            values: [
                 Variable(
                     (
                         "a",
@@ -1694,7 +1748,8 @@
                     ),
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "z1",

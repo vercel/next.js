@@ -279,6 +279,36 @@
         ),
     ),
     (
+        "resolve5",
+        Logical(
+            3,
+            And,
+            [
+                FreeVar(
+                    "global",
+                ),
+                Constant(
+                    False,
+                ),
+            ],
+        ),
+    ),
+    (
+        "resolve6",
+        Logical(
+            3,
+            And,
+            [
+                Constant(
+                    False,
+                ),
+                FreeVar(
+                    "global",
+                ),
+            ],
+        ),
+    ),
+    (
         "x",
         Constant(
             True,

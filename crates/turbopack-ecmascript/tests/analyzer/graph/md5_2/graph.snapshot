@@ -354,9 +354,9 @@
     ),
     (
         "a#4",
-        Alternatives(
-            211,
-            [
+        Alternatives {
+            total_nodes: 211,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -1566,7 +1566,8 @@
                     has_side_effects: true,
                 },
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "a#7",
@@ -1607,9 +1608,9 @@
     ),
     (
         "b#4",
-        Alternatives(
-            210,
-            [
+        Alternatives {
+            total_nodes: 210,
+            values: [
                 Unknown {
                     original_value: None,
                     reason: "unsupported expression",
@@ -2808,7 +2809,8 @@
                     ],
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "b#7",
@@ -2877,9 +2879,9 @@
     ),
     (
         "c#4",
-        Alternatives(
-            210,
-            [
+        Alternatives {
+            total_nodes: 210,
+            values: [
                 Unknown {
                     original_value: None,
                     reason: "unsupported expression",
@@ -4082,7 +4084,8 @@
                     ],
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "c#7",
@@ -4141,9 +4144,9 @@
     ),
     (
         "d#4",
-        Alternatives(
-            211,
-            [
+        Alternatives {
+            total_nodes: 211,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -5349,7 +5352,8 @@
                     has_side_effects: true,
                 },
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "d#7",
@@ -5427,9 +5431,9 @@
     ),
     (
         "i",
-        Alternatives(
-            6,
-            [
+        Alternatives {
+            total_nodes: 6,
+            values: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -5461,7 +5465,8 @@
                     ],
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "isBuffer",
@@ -5534,9 +5539,9 @@
     ),
     (
         "message#4",
-        Alternatives(
-            22,
-            [
+        Alternatives {
+            total_nodes: 22,
+            values: [
                 Argument(
                     181,
                     0,
@@ -5655,7 +5660,8 @@
                     [],
                 ),
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "n#10",

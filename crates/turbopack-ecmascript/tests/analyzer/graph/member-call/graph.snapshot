@@ -31,9 +31,9 @@
     ),
     (
         "arrays",
-        Alternatives(
-            9,
-            [
+        Alternatives {
+            total_nodes: 9,
+            values: [
                 Array {
                     total_nodes: 4,
                     items: [
@@ -89,7 +89,8 @@
                     mutable: true,
                 },
             ],
-        ),
+            logical_property: None,
+        },
     ),
     (
         "concatenated_array",
