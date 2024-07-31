@@ -1,4 +1,8 @@
-import type { FlightSegmentPath, CacheNodeSeedData } from './types'
+import type {
+  FlightSegmentPath,
+  CacheNodeSeedData,
+  PreloadCallbacks,
+} from './types'
 import React from 'react'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
@@ -15,10 +19,7 @@ import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
-
-type Params = {
-  [key: string]: string | string[]
-}
+import type { Params } from '../../client/components/params'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -33,9 +34,10 @@ export function createComponentTree(props: {
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   asNotFound?: boolean
-  metadataOutlet?: React.ReactNode
+  getMetadataReady: () => Promise<void>
   ctx: AppRenderContext
   missingSlots?: Set<string>
+  preloadCallbacks: PreloadCallbacks
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -62,9 +64,10 @@ async function createComponentTreeInternal({
   injectedJS,
   injectedFontPreloadTags,
   asNotFound,
-  metadataOutlet,
+  getMetadataReady,
   ctx,
   missingSlots,
+  preloadCallbacks,
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
@@ -75,9 +78,10 @@ async function createComponentTreeInternal({
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   asNotFound?: boolean
-  metadataOutlet?: React.ReactNode
+  getMetadataReady: () => Promise<void>
   ctx: AppRenderContext
   missingSlots?: Set<string>
+  preloadCallbacks: PreloadCallbacks
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -110,6 +114,7 @@ async function createComponentTreeInternal({
   )
 
   const layerAssets = getLayerAssets({
+    preloadCallbacks,
     ctx,
     layoutOrPagePath,
     injectedCSS: injectedCSSWithCurrentLayout,
@@ -431,12 +436,14 @@ async function createComponentTreeInternal({
             injectedJS: injectedJSWithCurrentLayout,
             injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             asNotFound,
-            // The metadataOutlet is responsible for throwing any errors that were caught during metadata resolution.
-            // We only want to render an outlet once per segment, as otherwise the error will be triggered
-            // multiple times causing an uncaught error.
-            metadataOutlet: isChildrenRouteKey ? metadataOutlet : undefined,
+            // getMetadataReady is used to conditionally throw. In the case of parallel routes we will have more than one page
+            // but we only want to throw on the first one.
+            getMetadataReady: isChildrenRouteKey
+              ? getMetadataReady
+              : () => Promise.resolve(),
             ctx,
             missingSlots,
+            preloadCallbacks,
           })
 
           childCacheNodeSeedData = seedData
@@ -581,7 +588,7 @@ async function createComponentTreeInternal({
       props.searchParams = createUntrackedSearchParams(query)
       segmentElement = (
         <>
-          {metadataOutlet}
+          <MetadataOutlet getReady={getMetadataReady} />
           <ClientPageRoot props={props} Component={Component} />
           {layerAssets}
         </>
@@ -592,7 +599,7 @@ async function createComponentTreeInternal({
       props.searchParams = createDynamicallyTrackedSearchParams(query)
       segmentElement = (
         <>
-          {metadataOutlet}
+          <MetadataOutlet getReady={getMetadataReady} />
           <Component {...props} />
           {layerAssets}
         </>
@@ -625,4 +632,22 @@ async function createComponentTreeInternal({
     </>,
     loadingData,
   ]
+}
+
+async function MetadataOutlet({
+  getReady,
+}: {
+  getReady: () => Promise<void> & { status?: string; value?: unknown }
+}) {
+  const ready = getReady()
+  // We actually expect this to be an instrumented promise and once this file is properly
+  // moved to the RSC module graph we can switch to using React.use for this synchronous unwrapping.
+  // The synchronous unwrapping will become important with dynamic IO since we want to resolve metadata
+  // before anything dynamic can be triggered
+  if (ready.status === 'rejected') {
+    throw ready.value
+  } else if (ready.status !== 'fulfilled') {
+    await ready
+  }
+  return null
 }

@@ -47,19 +47,36 @@ let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let reloading = false
 let startLatency: number | null = null
 
-function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
+let pendingHotUpdateWebpack = Promise.resolve()
+let resolvePendingHotUpdateWebpack: () => void = () => {}
+function setPendingHotUpdateWebpack() {
+  pendingHotUpdateWebpack = new Promise((resolve) => {
+    resolvePendingHotUpdateWebpack = () => {
+      resolve()
+    }
+  })
+}
+
+export function waitForWebpackRuntimeHotUpdate() {
+  return pendingHotUpdateWebpack
+}
+
+function handleBeforeHotUpdateWebpack(
+  dispatcher: Dispatcher,
+  hasUpdates: boolean
+) {
   if (hasUpdates) {
     dispatcher.onBeforeRefresh()
   }
 }
 
-function onFastRefresh(
+function handleSuccessfulHotUpdateWebpack(
   dispatcher: Dispatcher,
   sendMessage: (message: string) => void,
   updatedModules: ReadonlyArray<string>
 ) {
+  resolvePendingHotUpdateWebpack()
   dispatcher.onBuildOk()
-
   reportHmrLatency(sendMessage, updatedModules)
 
   dispatcher.onRefresh()
@@ -160,7 +177,9 @@ function tryApplyUpdates(
   dispatcher: Dispatcher
 ) {
   if (!isUpdateAvailable() || !canApplyUpdates()) {
+    resolvePendingHotUpdateWebpack()
     dispatcher.onBuildOk()
+    reportHmrLatency(sendMessage, [])
     return
   }
 
@@ -281,12 +300,16 @@ function processMessage(
     } else {
       tryApplyUpdates(
         function onBeforeHotUpdate(hasUpdates: boolean) {
-          onBeforeFastRefresh(dispatcher, hasUpdates)
+          handleBeforeHotUpdateWebpack(dispatcher, hasUpdates)
         },
         function onSuccessfulHotUpdate(webpackUpdatedModules: string[]) {
           // Only dismiss it when we're sure it's a hot update.
           // Otherwise it would flicker right before the reload.
-          onFastRefresh(dispatcher, sendMessage, webpackUpdatedModules)
+          handleSuccessfulHotUpdateWebpack(
+            dispatcher,
+            sendMessage,
+            webpackUpdatedModules
+          )
         },
         sendMessage,
         dispatcher
@@ -320,6 +343,9 @@ function processMessage(
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()
+      if (!process.env.TURBOPACK) {
+        setPendingHotUpdateWebpack()
+      }
       console.log('[Fast Refresh] rebuilding')
       break
     }
@@ -426,11 +452,11 @@ function processMessage(
         reloading = true
         return window.location.reload()
       }
+      resolvePendingHotUpdateWebpack()
       startTransition(() => {
-        router.fastRefresh()
+        router.hmrRefresh()
         dispatcher.onRefresh()
       })
-      reportHmrLatency(sendMessage, [])
 
       if (process.env.__NEXT_TEST_MODE) {
         if (self.__NEXT_HMR_CB) {
@@ -455,7 +481,7 @@ function processMessage(
     case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE:
     case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE: {
       // TODO-APP: potentially only refresh if the currently viewed page was added/removed.
-      return router.fastRefresh()
+      return router.hmrRefresh()
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = obj

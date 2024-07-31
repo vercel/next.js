@@ -1,12 +1,9 @@
 import type { RouteRegex } from './route-regex'
 import { DecodeError } from '../../utils'
+import type { Params } from '../../../../client/components/params'
 
 export interface RouteMatchFn {
   (pathname: string | null | undefined): false | Params
-}
-
-export interface Params {
-  [param: string]: any
 }
 
 export function getRouteMatcher({ re, groups }: RouteRegex): RouteMatchFn {

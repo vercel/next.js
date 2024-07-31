@@ -2,6 +2,7 @@ import type {
   FlightDataPath,
   FlightRouterState,
   FlightSegmentPath,
+  PreloadCallbacks,
   Segment,
 } from './types'
 import {
@@ -17,8 +18,8 @@ import {
 } from './create-flight-router-state-from-loader-tree'
 import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
-import { createComponentTree } from './create-component-tree'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
+import { createComponentTree } from './create-component-tree'
 
 /**
  * Use router state to decide at what common layout to render the page.
@@ -37,8 +38,9 @@ export async function walkTreeWithFlightRouterState({
   injectedFontPreloadTags,
   rootLayoutIncluded,
   asNotFound,
-  metadataOutlet,
+  getMetadataReady,
   ctx,
+  preloadCallbacks,
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTreeToFilter: LoaderTree
@@ -52,8 +54,9 @@ export async function walkTreeWithFlightRouterState({
   injectedFontPreloadTags: Set<string>
   rootLayoutIncluded: boolean
   asNotFound?: boolean
-  metadataOutlet: React.ReactNode
+  getMetadataReady: () => Promise<void>
   ctx: AppRenderContext
+  preloadCallbacks: PreloadCallbacks
 }): Promise<FlightDataPath[]> {
   const {
     renderOpts: { nextFontManifest, experimental },
@@ -151,7 +154,8 @@ export async function walkTreeWithFlightRouterState({
           // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
           rootLayoutIncluded,
           asNotFound,
-          metadataOutlet,
+          getMetadataReady,
+          preloadCallbacks,
         }
       )
 
@@ -211,7 +215,8 @@ export async function walkTreeWithFlightRouterState({
           injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
           rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           asNotFound,
-          metadataOutlet,
+          getMetadataReady,
+          preloadCallbacks,
         })
 
         return path

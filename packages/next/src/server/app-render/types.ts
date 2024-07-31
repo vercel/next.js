@@ -117,15 +117,6 @@ export type FlightData = Array<FlightDataPath> | string
 
 export type ActionResult = Promise<any>
 
-// Response from `createFromFetch` for normal rendering
-export type NextFlightResponse = [buildId: string, flightData: FlightData]
-
-// Response from `createFromFetch` for server actions. Action's flight data can be null
-export type ActionFlightResponse =
-  | [ActionResult, [buildId: string, flightData: FlightData | null]]
-  // This case happens when `redirect()` is called in a server action.
-  | NextFlightResponse
-
 export type ServerOnInstrumentationRequestError = (
   error: unknown,
   // The request could be middleware, node server or web server request,
@@ -207,3 +198,56 @@ export interface RenderOptsPartial {
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
   RenderOptsPartial &
   RequestLifecycleOpts
+
+export type PreloadCallbacks = (() => void)[]
+
+export type InitialRSCPayload = {
+  /** buildId */
+  b: string
+  /** assetPrefix */
+  p: string
+  /** initialCanonicalUrl */
+  c: string
+  /** couldBeIntercepted */
+  i: boolean
+  /** initialFlightData */
+  f: FlightDataPath[]
+  /** missingSlots */
+  m: Set<string> | undefined
+  /** GlobalError */
+  G: React.ComponentType<any>
+}
+
+// Response from `createFromFetch` for normal rendering
+export type NavigationFlightResponse = {
+  /** buildId */
+  b: string
+  /** flightData */
+  f: FlightData
+}
+
+// Response from `createFromFetch` for server actions. Action's flight data can be null
+export type ActionFlightResponse = {
+  /** actionResult */
+  a: ActionResult
+  /** buildId */
+  b: string
+  /** flightData */
+  f: FlightData | null
+}
+
+export type FetchServerResponseResult = {
+  /** flightData */
+  f: FlightData
+  /** canonicalUrl */
+  c: URL | undefined
+  /** couldBeIntercepted */
+  i: boolean
+  /** isPrerender */
+  p: boolean
+}
+
+export type RSCPayload =
+  | InitialRSCPayload
+  | NavigationFlightResponse
+  | ActionFlightResponse

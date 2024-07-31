@@ -2,7 +2,7 @@ import type { __ApiPreviewProps } from './api-utils'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../client/components/params'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type {
   NextParsedUrlQuery,
@@ -18,6 +18,7 @@ import type {
 import type {
   CachedAppPageValue,
   CachedPageValue,
+  ServerComponentsHmrCache,
   ResponseCacheBase,
   ResponseCacheEntry,
   ResponseGenerator,
@@ -100,6 +101,7 @@ import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
+  NEXT_IS_PRERENDER_HEADER,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -411,6 +413,14 @@ export default abstract class Server<
   protected abstract getResponseCache(options: {
     dev: boolean
   }): ResponseCacheBase
+
+  protected getServerComponentsHmrCache():
+    | ServerComponentsHmrCache
+    | undefined {
+    return this.nextConfig.experimental.serverComponentsHmrCache
+      ? (globalThis as any).__serverComponentsHmrCache
+      : undefined
+  }
 
   protected abstract loadEnvConfig(params: {
     dev: boolean
@@ -828,10 +838,7 @@ export default abstract class Server<
   ) {
     const [err, req, ctx] = args
 
-    if (
-      process.env.__NEXT_EXPERIMENTAL_INSTRUMENTATION &&
-      this.instrumentation
-    ) {
+    if (this.instrumentation) {
       try {
         await this.instrumentation.onRequestError?.(
           err,
@@ -1342,6 +1349,16 @@ export default abstract class Server<
         incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         ;(globalThis as any).__incrementalCache = incrementalCache
+      }
+
+      // set server components HMR cache to request meta so it can be passed
+      // down for edge functions
+      if (!getRequestMeta(req, 'serverComponentsHmrCache')) {
+        addRequestMeta(
+          req,
+          'serverComponentsHmrCache',
+          this.getServerComponentsHmrCache()
+        )
       }
 
       // when invokePath is specified we can short short circuit resolving
@@ -2572,6 +2589,7 @@ export default abstract class Server<
               params: opts.params,
               query,
               renderOpts,
+              serverComponentsHmrCache: this.getServerComponentsHmrCache(),
             })
           }
         } else {
@@ -2898,6 +2916,9 @@ export default abstract class Server<
               ? 'STALE'
               : 'HIT'
       )
+      // Set a header used by the client router to signal the response is static
+      // and should respect the `static` cache staleTime value.
+      res.setHeader(NEXT_IS_PRERENDER_HEADER, '1')
     }
 
     const { value: cachedData } = cacheEntry
