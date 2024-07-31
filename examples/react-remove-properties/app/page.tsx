@@ -1,4 +1,4 @@
-export default function Index() {
+export default function Home() {
   return (
     <div data-test-id="1" data-custom="1a">
       <div data-custom="2">

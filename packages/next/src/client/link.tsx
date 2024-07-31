@@ -433,16 +433,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           const _: never = key
         }
       })
-
-      // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      const hasWarned = React.useRef(false)
-      if (props.prefetch && !hasWarned.current && !isAppRouter) {
-        hasWarned.current = true
-        console.warn(
-          'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://nextjs.org/docs/messages/prefetch-true-deprecated'
-        )
-      }
     }
 
     if (process.env.NODE_ENV !== 'production') {
