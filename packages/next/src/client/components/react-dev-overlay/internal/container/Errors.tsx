@@ -187,6 +187,7 @@ export function Errors({
   if (displayState === 'minimized') {
     return (
       <Toast
+        data-nextjs-toast
         className={`nextjs-toast-errors-parent${hasStaticIndicator ? ' nextjs-error-with-static' : ''}`}
         onClick={fullscreen}
       >

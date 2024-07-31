@@ -1,7 +1,7 @@
 import { noop as css } from '../../helpers/noop-template'
 
 const styles = css`
-  [data-nextjs-toast] {
+  .nextjs-toast {
     position: fixed;
     bottom: var(--size-gap-double);
     left: var(--size-gap-double);
@@ -12,7 +12,7 @@ const styles = css`
   }
 
   @media (max-width: 440px) {
-    [data-nextjs-toast] {
+    .nextjs-toast {
       max-width: 90vw;
       left: 5vw;
     }
