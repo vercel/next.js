@@ -756,7 +756,7 @@ export default async function getBaseWebpackConfig(
     output: {
       ecma: 5,
       safari10: true,
-      comments: false,
+      comments: config.experimental.minifyLicenses ? false : 'some',
       // Fixes usage of Emoji and certain Regex
       ascii_only: true,
       ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
@@ -1117,6 +1117,7 @@ export default async function getBaseWebpackConfig(
                 ...terserOptions.mangle,
               },
             },
+            minifyLicenses: config.experimental.minifyLicenses,
           }).apply(compiler)
         },
         // Minify CSS
