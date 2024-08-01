@@ -48,11 +48,11 @@ The behavior of the `<Form>` component depends on whether the `action` prop is p
 
 When `action` is a string, the `<Form>` component supports the following props:
 
-| Prop                  | Example            | Type                            | Required |
-| --------------------- | ------------------ | ------------------------------- | -------- |
-| [`action`](#action)   | `action="/search"` | `string` (URL or relative path) | Yes      |
-| [`replace`](#replace) | `replace={false}`  | `boolean`                       | -        |
-| [`scroll`](#scroll)   | `scroll={true}`    | `boolean`                       | -        |
+| Prop      | Example            | Type                            | Required |
+| --------- | ------------------ | ------------------------------- | -------- |
+| `action`  | `action="/search"` | `string` (URL or relative path) | Yes      |
+| `replace` | `replace={false}`  | `boolean`                       | -        |
+| `scroll`  | `scroll={true}`    | `boolean`                       | -        |
 
 - **`action`**: The URL or path to navigate to when the form is submitted.
   - An empty string `""` will navigate to the same route with updated search params.
@@ -63,9 +63,9 @@ When `action` is a string, the `<Form>` component supports the following props:
 
 When `action` is a function, the `<Form>` component supports the following prop:
 
-| Prop                | Example             | Type                       | Required |
-| ------------------- | ------------------- | -------------------------- | -------- |
-| [`action`](#action) | `action={myAction}` | `function` (Server Action) | Yes      |
+| Prop     | Example             | Type                       | Required |
+| -------- | ------------------- | -------------------------- | -------- |
+| `action` | `action={myAction}` | `function` (Server Action) | Yes      |
 
 - **`action`**: The Server Action to be called when the form is submitted. See the [React docs](https://react.dev/reference/react-dom/components/form#props) for more.
 
