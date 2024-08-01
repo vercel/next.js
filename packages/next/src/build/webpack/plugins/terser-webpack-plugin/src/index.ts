@@ -157,6 +157,9 @@ export class TerserPlugin {
                     : {}),
                   compress: true,
                   mangle: true,
+                  output: {
+                    comments: false,
+                  },
                 }
               )
 
