@@ -35,11 +35,8 @@ module.exports =
             {},
             nextConfig?.experimental?.turbo?.resolveAlias,
             {
-              'next-mdx-import-source-file': [
-                'private-next-root-dir/src/mdx-components',
-                'private-next-root-dir/mdx-components',
-                '@mdx-js/react',
-              ],
+              'next-mdx-import-source-file':
+                '@vercel/turbopack-next/mdx-import-source',
             }
           ),
         }),
