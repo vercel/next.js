@@ -13,18 +13,18 @@ describe('css-module-with-next-dynamic-and-static-import', () => {
       'My background should be red!'
     )
 
-    // TODO: remove this - button's background should be red, but is gray.
+    // button's background should be red, not gray.
     expect(
       await browser.eval(
         `window.getComputedStyle(document.querySelector('button')).backgroundColor`
       )
-    ).toBe('rgb(239, 239, 239)')
+    ).not.toBe('rgb(239, 239, 239)')
 
     expect(
       await browser.eval(
         `window.getComputedStyle(document.querySelector('button')).backgroundColor`
       )
-    ).not.toBe('rgb(255, 0, 0)')
+    ).toBe('rgb(255, 0, 0)')
   })
 
   it('should be able to load the same css module with both next/dynamic (variable-inserted path) and static import', async () => {
@@ -35,17 +35,17 @@ describe('css-module-with-next-dynamic-and-static-import', () => {
       'My background should be red!'
     )
 
-    // TODO: remove this - button's background should be red, but is gray.
+    // button's background should be red, not gray.
     expect(
       await browser.eval(
         `window.getComputedStyle(document.querySelector('button')).backgroundColor`
       )
-    ).toBe('rgb(239, 239, 239)')
+    ).not.toBe('rgb(239, 239, 239)')
 
     expect(
       await browser.eval(
         `window.getComputedStyle(document.querySelector('button')).backgroundColor`
       )
-    ).not.toBe('rgb(255, 0, 0)')
+    ).toBe('rgb(255, 0, 0)')
   })
 })
