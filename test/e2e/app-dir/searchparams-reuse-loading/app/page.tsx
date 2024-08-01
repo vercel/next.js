@@ -18,6 +18,11 @@ export default function Page() {
             /search-params?id=3 (prefetch: true)
           </Link>
         </li>
+        <li>
+          <Link href="/search-params" prefetch>
+            /search-params (prefetch: true)
+          </Link>
+        </li>
       </ul>
     </>
   )

@@ -46,6 +46,42 @@ function createPrefetchCacheKey(
   return pathnameFromUrl
 }
 
+function getExistingCacheEntry(
+  url: URL,
+  kind: PrefetchKind | undefined,
+  nextUrl: string | null,
+  prefetchCache: Map<string, PrefetchCacheEntry>
+): PrefetchCacheEntry | undefined {
+  const interceptionCacheKey = createPrefetchCacheKey(url, kind, nextUrl)
+  const fullDataCacheKey = createPrefetchCacheKey(url, PrefetchKind.FULL)
+  const autoCacheKey = createPrefetchCacheKey(url, kind)
+
+  // We first check if there's a more specific interception route prefetch entry
+  // This is because when we detect a prefetch that corresponds with an interception route, we prefix it with nextUrl (see `createPrefetchCacheKey`)
+  // to avoid conflicts with other pages that may have the same URL but render different things depending on the `Next-URL` header.
+  if (prefetchCache.has(interceptionCacheKey)) {
+    return prefetchCache.get(interceptionCacheKey)
+  }
+
+  // Check for full data cache entry if search params are present.
+  if (url.search && prefetchCache.has(fullDataCacheKey)) {
+    return prefetchCache.get(fullDataCacheKey)
+  }
+
+  // Check for auto prefetch data
+  const autoPrefetchData = prefetchCache.get(autoCacheKey)
+  if (autoPrefetchData) {
+    // if there are no search params, we can return whatever was in the prefetch.
+    // if there were search params, we should ensure that the prefetch we're using was "auto",
+    // as we wouldn't want to clobber a full prefetch with an auto prefetch.
+    if (!url.search || autoPrefetchData.kind === PrefetchKind.AUTO) {
+      return autoPrefetchData
+    }
+  }
+
+  return undefined
+}
+
 /**
  * Returns a prefetch cache entry if one exists. Otherwise creates a new one and enqueues a fetch request
  * to retrieve the prefetch data from the server.
@@ -64,30 +100,12 @@ export function getOrCreatePrefetchCacheEntry({
   url: URL
   kind?: PrefetchKind
 }): PrefetchCacheEntry {
-  let existingCacheEntry: PrefetchCacheEntry | undefined = undefined
-  const interceptionCacheKey = createPrefetchCacheKey(url, kind, nextUrl)
-  const interceptionData = prefetchCache.get(interceptionCacheKey)
-  const fullDataCacheKey = createPrefetchCacheKey(url, PrefetchKind.FULL)
-
-  // We first check if there's a more specific interception route prefetch entry
-  // This is because when we detect a prefetch that corresponds with an interception route, we prefix it with nextUrl (see `createPrefetchCacheKey`)
-  // to avoid conflicts with other pages that may have the same URL but render different things depending on the `Next-URL` header.
-  if (interceptionData) {
-    existingCacheEntry = interceptionData
-  }
-  // Next we check to see if search params are present in the URL: if they are, we want to see if the existing prefetch entry
-  // is "full" and if so, we use that entry, because those are keyed by the full URL (including search params). This lets
-  // us re-use the loading state from an "auto" prefetch (if it exists) even for routes that have different search params.
-  else if (url.search && prefetchCache.has(fullDataCacheKey)) {
-    existingCacheEntry = prefetchCache.get(fullDataCacheKey)
-  } else {
-    // Otherwise, we check for a regular prefetch entry. These will be keyed by the pathname only.
-    const prefetchCacheKey = createPrefetchCacheKey(url, kind)
-    const prefetchData = prefetchCache.get(prefetchCacheKey)
-    if (prefetchData) {
-      existingCacheEntry = prefetchData
-    }
-  }
+  const existingCacheEntry = getExistingCacheEntry(
+    url,
+    kind,
+    nextUrl,
+    prefetchCache
+  )
 
   if (existingCacheEntry) {
     // Grab the latest status of the cache entry and update it
