@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
 use turbo_tasks::{
@@ -33,19 +33,40 @@ pub async fn build_global_information(project: Vc<Project>) -> Result<Vc<OptionG
 
 async fn process_module(
     module: Vc<Box<dyn Module>>,
-    map: &mut HashMap<AssetIdent, ModuleId>,
+    id_map: &mut HashMap<AssetIdent, ModuleId>,
+    used_ids: &mut HashSet<u64>,
 ) -> Result<()> {
     let ident = module.ident();
-    let hash = hash_xxh3_hash64(ident.to_string().await?) & 0xFFFF;
-    let hashed_module_id = ModuleId::String(hash.to_string().into());
 
-    map.insert(ident.await?.clone_value(), hashed_module_id);
+    let hash = hash_xxh3_hash64(ident.to_string().await?);
+    let mut masked_hash = hash & 0xF;
+    let mut mask = 0xF;
+    while used_ids.contains(&masked_hash) {
+        if mask == 0xFFFFFFFFFFFFFFFF {
+            return Err(anyhow::anyhow!("This is a... 64-bit hash collision?"));
+        }
+        mask = (mask << 4) | 0xF;
+        masked_hash = hash & mask;
+    }
+
+    let hashed_module_id = ModuleId::String(masked_hash.to_string().into());
+
+    dbg!(
+        "process_module",
+        ident.await?.clone_value(),
+        &hashed_module_id,
+        mask
+    );
+
+    id_map.insert(ident.await?.clone_value(), hashed_module_id);
+    used_ids.insert(masked_hash);
 
     Ok(())
 }
 
 async fn build_module_id_map(project: Vc<Project>) -> Result<HashMap<AssetIdent, ModuleId>> {
     let mut module_id_map: HashMap<AssetIdent, ModuleId> = HashMap::new();
+    let mut used_ids: HashSet<u64> = HashSet::new();
 
     let entrypoints = project.entrypoints().await?;
     let mut root_modules = vec![
@@ -91,7 +112,7 @@ async fn build_module_id_map(project: Vc<Project>) -> Result<HashMap<AssetIdent,
         .into_reverse_topological();
 
     for module in modules_iter {
-        process_module(module, &mut module_id_map).await?;
+        process_module(module, &mut module_id_map, &mut used_ids).await?;
     }
 
     Ok(module_id_map)
