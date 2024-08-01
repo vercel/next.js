@@ -23,6 +23,27 @@ module.exports =
         }
 
     return Object.assign({}, nextConfig, {
+      experimental: Object.assign({}, nextConfig?.experimental, {
+        turbo: Object.assign({}, nextConfig?.experimental?.turbo, {
+          rules: Object.assign({}, nextConfig?.experimental?.turbo?.rules, {
+            '*.mdx': {
+              loaders: [loader],
+              as: '*.tsx',
+            },
+          }),
+          resolveAlias: Object.assign(
+            {},
+            nextConfig?.experimental?.turbo?.resolveAlias,
+            {
+              'next-mdx-import-source-file': [
+                'private-next-root-dir/src/mdx-components',
+                'private-next-root-dir/mdx-components',
+                '@mdx-js/react',
+              ],
+            }
+          ),
+        }),
+      }),
       webpack(config, options) {
         config.resolve.alias['next-mdx-import-source-file'] = [
           'private-next-root-dir/src/mdx-components',
