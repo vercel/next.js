@@ -192,8 +192,8 @@ importers:
         specifier: 7.16.0
         version: 7.16.0(eslint@8.56.0)(typescript@5.5.3)
       '@vercel/devlow-bench':
-        specifier: 0.3.2
-        version: 0.3.2(encoding@0.1.13)
+        specifier: workspace:*
+        version: link:turbopack/packages/devlow-bench
       '@vercel/fetch':
         specifier: 6.1.1
         version: 6.1.1(@types/node-fetch@2.6.1)(node-fetch@2.6.7(encoding@0.1.13))
@@ -1119,8 +1119,8 @@ importers:
         specifier: 0.27.1
         version: 0.27.1(encoding@0.1.13)
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240731.3
-        version: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240731.3
+        specifier: '*'
+        version: link:../../turbopack/crates/turbopack-ecmascript-runtime/js
       acorn:
         specifier: 8.11.3
         version: 8.11.3
@@ -1605,6 +1605,125 @@ importers:
       prettier:
         specifier: 2.5.1
         version: 2.5.1
+
+  turbopack/crates/turbopack-cli/js:
+    dependencies:
+      '@vercel/turbopack-ecmascript-runtime':
+        specifier: '*'
+        version: link:../../turbopack-ecmascript-runtime/js
+    devDependencies:
+      '@types/node':
+        specifier: 20.12.3
+        version: 20.12.3
+
+  turbopack/crates/turbopack-ecmascript-runtime/js:
+    dependencies:
+      '@types/node':
+        specifier: 20.12.3
+        version: 20.12.3
+    devDependencies:
+      '@next/react-refresh-utils':
+        specifier: workspace:*
+        version: link:../../../../packages/react-refresh-utils
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+
+  turbopack/crates/turbopack-node/js:
+    dependencies:
+      loader-runner:
+        specifier: ^4.3.0
+        version: 4.3.0
+    devDependencies:
+      '@types/loader-runner':
+        specifier: ^2.2.4
+        version: 2.2.8
+      '@types/node':
+        specifier: 20.12.3
+        version: 20.12.3
+
+  turbopack/crates/turbopack-tests/tests/execution:
+    dependencies:
+      expect:
+        specifier: 29.5.0
+        version: 29.5.0
+      jest-circus:
+        specifier: 29.5.0
+        version: 29.5.0
+      react:
+        specifier: 19.0.0-rc-3208e73e-20240730
+        version: 19.0.0-rc-3208e73e-20240730
+      react-test-renderer:
+        specifier: 18.2.0
+        version: 18.2.0(react@19.0.0-rc-3208e73e-20240730)
+      styled-jsx:
+        specifier: ^5.1.2
+        version: 5.1.6(@babel/core@7.22.5)(babel-plugin-macros@3.1.0)(react@19.0.0-rc-3208e73e-20240730)
+
+  turbopack/packages/devlow-bench:
+    dependencies:
+      '@datadog/datadog-api-client':
+        specifier: ^1.13.0
+        version: 1.25.0(encoding@0.1.13)
+      inquirer:
+        specifier: ^9.2.7
+        version: 9.2.23
+      minimist:
+        specifier: ^1.2.8
+        version: 1.2.8
+      picocolors:
+        specifier: 1.0.1
+        version: 1.0.1
+      pidusage-tree:
+        specifier: ^2.0.5
+        version: 2.0.5
+      playwright-chromium:
+        specifier: ^1.39.0
+        version: 1.41.2
+      split2:
+        specifier: ^4.2.0
+        version: 4.2.0
+      tree-kill:
+        specifier: ^1.2.2
+        version: 1.2.2
+    devDependencies:
+      '@types/inquirer':
+        specifier: ^9.0.3
+        version: 9.0.7
+      '@types/minimist':
+        specifier: ^1.2.2
+        version: 1.2.5
+      '@types/node':
+        specifier: 20.12.3
+        version: 20.12.3
+      '@types/split2':
+        specifier: ^4.2.0
+        version: 4.2.3
+
+  turbopack/packages/node-module-trace: {}
+
+  turbopack/packages/turbo-tracing-next-plugin:
+    dependencies:
+      '@vercel/webpack-nft':
+        specifier: workspace:*
+        version: link:../webpack-nmt
+    devDependencies:
+      next:
+        specifier: workspace:*
+        version: link:../../../packages/next
+
+  turbopack/packages/webpack-nmt:
+    dependencies:
+      '@vercel/experimental-nft':
+        specifier: workspace:*
+        version: link:../node-module-trace
+    devDependencies:
+      '@types/webpack':
+        specifier: ^5.28.0
+        version: 5.28.5(@swc/core@1.6.13(@swc/helpers@0.5.12))
+      webpack:
+        specifier: 5.90.0
+        version: 5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.12))
 
 packages:
 
@@ -4847,6 +4966,9 @@ packages:
   '@types/inquirer@8.2.9':
     resolution: {integrity: sha512-5IEO2PwCy4NZDgj977dho4Qbdiw6dJZJzD4ZaB/9j7dfppf7z0xxFPKZz/FtTAUQbDjmWHJ6Jlz/gn0YzWHPsw==}
 
+  '@types/inquirer@9.0.7':
+    resolution: {integrity: sha512-Q0zyBupO6NxGRZut/JdmqYKOnN95Eg5V8Csg3PGKkP+FnvsUZx1jAyK7fztIszxxMuoBA6E3KXWvdZVXIpx60g==}
+
   '@types/istanbul-lib-coverage@2.0.3':
     resolution: {integrity: sha512-sz7iLqvVUg1gIedBOvlkxPlc8/uVzyS5OwGz1cKjXzkl3FpL3al0crU8YGU1WoHkxn0Wxbw5tyi6hvzJKNzFsw==}
 
@@ -4886,6 +5008,9 @@ packages:
   '@types/keyv@3.1.1':
     resolution: {integrity: sha512-MPtoySlAZQ37VoLaPcTHCu1RWJ4llDkULYZIzOYxlhxBqYPB0RsRlmMU0R6tahtFe27mIdkHV+551ZWV4PLmVw==}
 
+  '@types/loader-runner@2.2.8':
+    resolution: {integrity: sha512-5xcLak5lyLlhMXQD9lUG5n63n6IGIMJSkq9g2tqUCs6agnoIZd0H8nyKuDpzP0DxzMF3Rs2+zOVm2DCh3JLuRg==}
+
   '@types/lodash.curry@4.1.6':
     resolution: {integrity: sha512-x3ctCcmOYqRrihNNnQJW6fe/yZFCgnrIa6p80AiPQRO8Jis29bBdy1dEw1FwngoF/mCZa3Bx+33fUZvOEE635Q==}
 
@@ -4915,6 +5040,9 @@ packages:
 
   '@types/minimist@1.2.0':
     resolution: {integrity: sha512-BsF2gEVEIOcbQCSwXR6V14fGD6QLLT0yQBK6RpblkxVYP9x8ANNThpxMUxV7h4KKjqMDR8qELlcnqrEoyvsohw==}
+
+  '@types/minimist@1.2.5':
+    resolution: {integrity: sha512-hov8bUuiLiyFPGyFPE1lwWhmzYbirOXQNNo40+y3zow8aFVTeyn3VWL0VFFfdNddA8S4Vf0Tc062rzyNr7Paag==}
 
   '@types/mute-stream@0.0.4':
     resolution: {integrity: sha512-CPM9nzrCPPJHQNA9keH9CVkVI+WR5kMa+7XEs5jcGQ0VoAGnLv242w8lIVgwAEfmE4oufJRaTc9PNLQl0ioAow==}
@@ -4998,6 +5126,9 @@ packages:
   '@types/source-list-map@0.1.2':
     resolution: {integrity: sha512-K5K+yml8LTo9bWJI/rECfIPrGgxdpeNbj+d53lwN4QjW1MCwlkhUms+gtdzigTeUyBr09+u8BwOIY3MXvHdcsA==}
 
+  '@types/split2@4.2.3':
+    resolution: {integrity: sha512-59OXIlfUsi2k++H6CHgUQKEb2HKRokUA39HY1i1dS8/AIcqVjtAAFdf8u+HxTWK/4FUHMJQlKSZ4I6irCBJ1Zw==}
+
   '@types/stack-utils@2.0.1':
     resolution: {integrity: sha512-Hl219/BT5fLAaz6NDkSuhzasy49dwQS/DSdu4MdggFB8zcXv7vflBI3xp7FEmkmdDkBUI2bPUNeMttp2knYdxw==}
 
@@ -5036,6 +5167,9 @@ packages:
 
   '@types/webpack-sources@0.1.5':
     resolution: {integrity: sha512-zfvjpp7jiafSmrzJ2/i3LqOyTYTuJ7u1KOXlKgDlvsj9Rr0x7ZiYu5lZbXwobL7lmsRNtPXlBfmaUD8eU2Hu8w==}
+
+  '@types/webpack@5.28.5':
+    resolution: {integrity: sha512-wR87cgvxj3p6D0Crt1r5avwqffqPXUkNlnQ1mjU93G7gCuFjufZR4I6j8cz5g1F1tTYpfOOFvly+cmIQwL9wvw==}
 
   '@types/wrap-ansi@3.0.0':
     resolution: {integrity: sha512-ltIpx+kM7g/MLRZfkbL7EsCEjfzCcScLpkg37eXEtx5kmrAKBkTJwd1GIAjDSL8wTpM6Hzn5YO4pSb91BEwu1g==}
@@ -5201,10 +5335,6 @@ packages:
   '@ungap/structured-clone@1.2.0':
     resolution: {integrity: sha512-zuVdFrMJiuCDQUMCzQaD6KL28MjnqqN8XnAqiEq9PNm/hCPTSGfrXCOfwj1ow4LFb/tNymJPwsNbVePc1xFqrQ==}
 
-  '@vercel/devlow-bench@0.3.2':
-    resolution: {integrity: sha512-S5sZLbMpmpmelVoYxXj6aR79sgLDM6Szdow3erbv9Kh7IKLtgldNwRMqMleEaKZZznFx+l3mBrlHs/Cae2pbQg==}
-    hasBin: true
-
   '@vercel/fetch-cached-dns@2.0.2':
     resolution: {integrity: sha512-gDqKEV8CeY2YmCdZpP1rn3tFK1L07Vw2+HYkCK8zpRHOVGr/sP8yhBsW+C/yqGVj0i9z/rIvqIHe5emvRvxwgw==}
     peerDependencies:
@@ -5237,10 +5367,6 @@ packages:
   '@vercel/og@0.6.2':
     resolution: {integrity: sha512-OTe0KE37F5Y2eTys6eMnfopC+P4qr2ooXUTFyFPTplYSPwowmFk/HLD1FXtbKLjqsIH0SgekcJWad+C5uX4nkg==}
     engines: {node: '>=16'}
-
-  '@vercel/turbopack-ecmascript-runtime@https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240731.3':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240731.3}
-    version: 0.0.0
 
   '@webassemblyjs/ast@1.11.6':
     resolution: {integrity: sha512-IN1xI7PwOvLPgjcf180gC1bqn3q/QaOCwYUahIOhbYUu8KA/3tw2RT/T0Gidi1l7Hhj5D/INhJxiICObqpMu4Q==}
@@ -7946,6 +8072,10 @@ packages:
     resolution: {integrity: sha512-E1q5hSUG2AmYQwQJ041nvgpkODHQvB+RKlB4IYdru6uJsyFTRyZAP463M+1lINorwbqAmUggi6+WwkD8lCS/Dw==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
 
+  expect@29.5.0:
+    resolution: {integrity: sha512-yM7xqUrCO2JdpFo4XpM82t+PJBFybdqoQuJLDGeDX2ij8NZzqRHyu3Hp188/JX7SWqud+7t4MUdvcgGBICMHZg==}
+    engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
+
   expect@29.7.0:
     resolution: {integrity: sha512-2Zks0hf1VLFYI1kbh0I5jP3KHHyCHpkfyHBzsSXRFgl/Bg9mWYfMW8oD+PdMPlEwy5HNsR9JutYy6pMeOh61nw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
@@ -9508,6 +9638,10 @@ packages:
     resolution: {integrity: sha512-D95R7x5UtlMA5iBYsOHFFbMD/GVA4R/Kdq15f7xYWUfWHBto9NYRsOvnSauTgdF+ogCpJ4tyKOXhUifxS65gdw==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
 
+  jest-circus@29.5.0:
+    resolution: {integrity: sha512-gq/ongqeQKAplVxqJmbeUOJJKkW3dDNPY8PjhJ5G0lBRvu0e3EWGxGy5cI4LAGA7gV2UHCtWBI4EMXK8c9nQKA==}
+    engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
+
   jest-circus@29.7.0:
     resolution: {integrity: sha512-3E1nCMgipcTkCocFwM90XXQab9bS+GMsjdpmPrlelaxwD93Ad8iVEjX/vvHPdLPnFf+L40u+5+iutRdA1N9myw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
@@ -10619,9 +10753,6 @@ packages:
   minimist-options@4.1.0:
     resolution: {integrity: sha512-Q4r8ghd80yhO/0j1O3B2BjweX3fiHg9cdOwjJd2J76Q135c+NDxGCqdYKQ1SKBuFfgWbAUzBfvYjPUEeNgqN1A==}
     engines: {node: '>= 6'}
-
-  minimist@1.2.6:
-    resolution: {integrity: sha512-Jsjnk4bw3YJqYzbdyBiNsPWHPfO++UGG749Cxs6peCu5Xg4nrena6OVxOYxrQTqww0Jmwt+Ref8rggumkTLz9Q==}
 
   minimist@1.2.8:
     resolution: {integrity: sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==}
@@ -12579,6 +12710,11 @@ packages:
       react-dom: 19.0.0-rc-3208e73e-20240730
       webpack: 5.90.0
 
+  react-shallow-renderer@16.15.0:
+    resolution: {integrity: sha512-oScf2FqQ9LFVQgA73vr86xl2NaOIX73rh+YFqcOp68CWj56tSfgtGKrEbyhCj0rSijyG9M1CYprTh39fBi5hzA==}
+    peerDependencies:
+      react: 19.0.0-rc-3208e73e-20240730
+
   react-ssr-prepass@1.0.8:
     resolution: {integrity: sha512-O0gfRA1SaK+9ITKxqfnXsej2jF+OHGP/+GxD4unROQaM/0/UczGF9fuF+wTboxaQoKdIf4FvS3h/OigWh704VA==}
     peerDependencies:
@@ -12594,6 +12730,11 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  react-test-renderer@18.2.0:
+    resolution: {integrity: sha512-JWD+aQ0lh2gvh4NM3bBM42Kx+XybOxCpgYK7F8ugAlpaTSnWsX+39Z4XkOykGZAHrjwwTZT3x3KxswVWxHPUqA==}
+    peerDependencies:
+      react: 19.0.0-rc-3208e73e-20240730
 
   react-textarea-autosize@8.5.3:
     resolution: {integrity: sha512-XT1024o2pqCuZSuBt9FwHlaDeNtVrtCXu0Rnz88t1jUGheCLa3PhjE1GH8Ctm2axEtvdCl5SUHYschyQ0L5QHQ==}
@@ -15149,7 +15290,7 @@ snapshots:
   '@babel/code-frame@7.24.7':
     dependencies:
       '@babel/highlight': 7.24.7
-      picocolors: 1.0.0
+      picocolors: 1.0.1
 
   '@babel/compat-data@7.22.20': {}
 
@@ -15581,7 +15722,7 @@ snapshots:
       '@babel/helper-validator-identifier': 7.24.7
       chalk: 2.4.2
       js-tokens: 4.0.0
-      picocolors: 1.0.0
+      picocolors: 1.0.1
 
   '@babel/parser@7.22.5':
     dependencies:
@@ -17599,7 +17740,7 @@ snapshots:
 
   '@jest/source-map@29.6.3':
     dependencies:
-      '@jridgewell/trace-mapping': 0.3.19
+      '@jridgewell/trace-mapping': 0.3.22
       callsites: 3.1.0
       graceful-fs: 4.2.11
 
@@ -18720,7 +18861,7 @@ snapshots:
       cross-spawn: 7.0.3
       is-glob: 4.0.3
       open: 8.4.0
-      picocolors: 1.0.0
+      picocolors: 1.0.1
       tiny-glob: 0.2.9
       tslib: 2.6.2
 
@@ -19362,6 +19503,11 @@ snapshots:
       '@types/through': 0.0.30
       rxjs: 7.8.1
 
+  '@types/inquirer@9.0.7':
+    dependencies:
+      '@types/through': 0.0.30
+      rxjs: 7.8.1
+
   '@types/istanbul-lib-coverage@2.0.3': {}
 
   '@types/istanbul-lib-coverage@2.0.4': {}
@@ -19385,7 +19531,7 @@ snapshots:
 
   '@types/jest@29.5.5':
     dependencies:
-      expect: 29.7.0
+      expect: 29.5.0
       pretty-format: 29.5.0
 
   '@types/jscodeshift@0.11.0':
@@ -19408,6 +19554,10 @@ snapshots:
       '@types/node': 20.12.3
 
   '@types/keyv@3.1.1':
+    dependencies:
+      '@types/node': 20.12.3
+
+  '@types/loader-runner@2.2.8':
     dependencies:
       '@types/node': 20.12.3
 
@@ -19434,6 +19584,8 @@ snapshots:
   '@types/minimatch@3.0.3': {}
 
   '@types/minimist@1.2.0': {}
+
+  '@types/minimist@1.2.5': {}
 
   '@types/mute-stream@0.0.4':
     dependencies:
@@ -19517,6 +19669,10 @@ snapshots:
 
   '@types/source-list-map@0.1.2': {}
 
+  '@types/split2@4.2.3':
+    dependencies:
+      '@types/node': 20.12.3
+
   '@types/stack-utils@2.0.1': {}
 
   '@types/statuses@2.0.5': {}
@@ -19554,6 +19710,17 @@ snapshots:
       '@types/node': 20.12.3
       '@types/source-list-map': 0.1.2
       source-map: 0.6.1
+
+  '@types/webpack@5.28.5(@swc/core@1.6.13(@swc/helpers@0.5.12))':
+    dependencies:
+      '@types/node': 20.12.3
+      tapable: 2.2.0
+      webpack: 5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.12))
+    transitivePeerDependencies:
+      - '@swc/core'
+      - esbuild
+      - uglify-js
+      - webpack-cli
 
   '@types/wrap-ansi@3.0.0': {}
 
@@ -19784,19 +19951,6 @@ snapshots:
 
   '@ungap/structured-clone@1.2.0': {}
 
-  '@vercel/devlow-bench@0.3.2(encoding@0.1.13)':
-    dependencies:
-      '@datadog/datadog-api-client': 1.25.0(encoding@0.1.13)
-      chalk: 2.4.2
-      inquirer: 9.2.23
-      minimist: 1.2.8
-      pidusage-tree: 2.0.5
-      playwright-chromium: 1.41.2
-      split2: 4.2.0
-      tree-kill: 1.2.2
-    transitivePeerDependencies:
-      - encoding
-
   '@vercel/fetch-cached-dns@2.0.2(node-fetch@2.6.7(encoding@0.1.13))':
     dependencies:
       '@types/node-fetch': 2.3.2
@@ -19850,10 +20004,6 @@ snapshots:
       '@resvg/resvg-wasm': 2.4.0
       satori: 0.10.9
       yoga-wasm-web: 0.3.3
-
-  '@vercel/turbopack-ecmascript-runtime@https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240731.3':
-    dependencies:
-      '@types/node': 20.12.3
 
   '@webassemblyjs/ast@1.11.6':
     dependencies:
@@ -20376,7 +20526,7 @@ snapshots:
       caniuse-lite: 1.0.30001579
       fraction.js: 4.2.0
       normalize-range: 0.1.2
-      picocolors: 1.0.0
+      picocolors: 1.0.1
       postcss: 8.4.31
       postcss-value-parser: 4.2.0
 
@@ -21452,7 +21602,7 @@ snapshots:
     dependencies:
       is-directory: 0.3.1
       js-yaml: 3.14.1
-      minimist: 1.2.6
+      minimist: 1.2.8
       object-assign: 4.1.1
       os-homedir: 1.0.2
       parse-json: 2.2.0
@@ -21479,7 +21629,7 @@ snapshots:
       js-yaml: 3.14.1
       lcov-parse: 0.0.10
       log-driver: 1.2.7
-      minimist: 1.2.6
+      minimist: 1.2.8
       request: 2.88.2
 
   create-ecdh@4.0.3:
@@ -22232,7 +22382,7 @@ snapshots:
     dependencies:
       acorn-node: 1.8.2
       defined: 1.0.1
-      minimist: 1.2.6
+      minimist: 1.2.8
 
   devalue@2.0.1: {}
 
@@ -23201,6 +23351,14 @@ snapshots:
       jest-matcher-utils: 27.5.1
       jest-message-util: 27.5.1
 
+  expect@29.5.0:
+    dependencies:
+      '@jest/expect-utils': 29.7.0
+      jest-get-type: 29.6.3
+      jest-matcher-utils: 29.7.0
+      jest-message-util: 29.7.0
+      jest-util: 29.7.0
+
   expect@29.7.0:
     dependencies:
       '@jest/expect-utils': 29.7.0
@@ -23973,7 +24131,7 @@ snapshots:
 
   handlebars@4.7.7:
     dependencies:
-      minimist: 1.2.6
+      minimist: 1.2.8
       neo-async: 2.6.1
       source-map: 0.6.1
       wordwrap: 1.0.0
@@ -24209,7 +24367,7 @@ snapshots:
       glob: 7.1.7
       inquirer: 7.3.3
       json-merge-patch: 1.0.2
-      minimist: 1.2.6
+      minimist: 1.2.8
     transitivePeerDependencies:
       - supports-color
 
@@ -25030,6 +25188,31 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  jest-circus@29.5.0:
+    dependencies:
+      '@jest/environment': 29.7.0
+      '@jest/expect': 29.7.0
+      '@jest/test-result': 29.7.0
+      '@jest/types': 29.5.0
+      '@types/node': 20.12.3
+      chalk: 4.1.2
+      co: 4.6.0
+      dedent: 0.7.0
+      is-generator-fn: 2.1.0
+      jest-each: 29.7.0
+      jest-matcher-utils: 29.7.0
+      jest-message-util: 29.7.0
+      jest-runtime: 29.7.0
+      jest-snapshot: 29.7.0
+      jest-util: 29.7.0
+      p-limit: 3.1.0
+      pretty-format: 29.7.0
+      pure-rand: 6.0.4
+      slash: 3.0.0
+      stack-utils: 2.0.6
+    transitivePeerDependencies:
+      - supports-color
+
   jest-circus@29.7.0(babel-plugin-macros@3.1.0):
     dependencies:
       '@jest/environment': 29.7.0
@@ -25688,7 +25871,7 @@ snapshots:
 
   json5@1.0.2:
     dependencies:
-      minimist: 1.2.6
+      minimist: 1.2.8
 
   json5@2.2.3: {}
 
@@ -26398,7 +26581,7 @@ snapshots:
 
   meow@7.1.1:
     dependencies:
-      '@types/minimist': 1.2.0
+      '@types/minimist': 1.2.5
       camelcase-keys: 6.2.2
       decamelize-keys: 1.1.0
       hard-rejection: 2.1.0
@@ -26412,7 +26595,7 @@ snapshots:
 
   meow@8.1.2:
     dependencies:
-      '@types/minimist': 1.2.0
+      '@types/minimist': 1.2.5
       camelcase-keys: 6.2.2
       decamelize-keys: 1.1.0
       hard-rejection: 2.1.0
@@ -26849,8 +27032,6 @@ snapshots:
       is-plain-obj: 1.1.0
       kind-of: 6.0.3
 
-  minimist@1.2.6: {}
-
   minimist@1.2.8: {}
 
   minipass-collect@1.0.2:
@@ -26926,7 +27107,7 @@ snapshots:
 
   mkdirp@0.5.5:
     dependencies:
-      minimist: 1.2.6
+      minimist: 1.2.8
 
   mkdirp@1.0.4: {}
 
@@ -28832,7 +29013,7 @@ snapshots:
     dependencies:
       deep-extend: 0.6.0
       ini: 1.3.8
-      minimist: 1.2.6
+      minimist: 1.2.8
       strip-json-comments: 2.0.1
 
   react-dom@0.0.0-experimental-3208e73e-20240730(react@19.0.0-rc-3208e73e-20240730):
@@ -28920,6 +29101,12 @@ snapshots:
       react-dom: 19.0.0-rc-3208e73e-20240730(react@19.0.0-rc-3208e73e-20240730)
       webpack: 5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.12))
 
+  react-shallow-renderer@16.15.0(react@19.0.0-rc-3208e73e-20240730):
+    dependencies:
+      object-assign: 4.1.1
+      react: 19.0.0-rc-3208e73e-20240730
+      react-is: 19.0.0-rc-3208e73e-20240730
+
   react-ssr-prepass@1.0.8(react-is@19.0.0-rc-6230622a1a-20240610)(react@19.0.0-rc-3208e73e-20240730):
     dependencies:
       object-is: 1.0.2
@@ -28934,6 +29121,13 @@ snapshots:
       tslib: 2.6.2
     optionalDependencies:
       '@types/react': types-react@19.0.0-rc.0
+
+  react-test-renderer@18.2.0(react@19.0.0-rc-3208e73e-20240730):
+    dependencies:
+      react: 19.0.0-rc-3208e73e-20240730
+      react-is: 19.0.0-rc-3208e73e-20240730
+      react-shallow-renderer: 16.15.0(react@19.0.0-rc-3208e73e-20240730)
+      scheduler: 0.25.0-rc-3208e73e-20240730
 
   react-textarea-autosize@8.5.3(react@19.0.0-rc-6230622a1a-20240610)(types-react@19.0.0-rc.0):
     dependencies:
@@ -30292,7 +30486,7 @@ snapshots:
   strong-log-transformer@2.1.0:
     dependencies:
       duplexer: 0.1.2
-      minimist: 1.2.6
+      minimist: 1.2.8
       through: 2.3.8
 
   stubborn-fs@1.2.5: {}
@@ -30421,7 +30615,7 @@ snapshots:
       css-select: 4.3.0
       css-tree: 1.1.3
       csso: 4.2.0
-      picocolors: 1.0.0
+      picocolors: 1.0.1
       stable: 0.1.8
 
   swr@2.2.4(react@19.0.0-rc-3208e73e-20240730):
@@ -30469,7 +30663,7 @@ snapshots:
       micromatch: 4.0.5
       normalize-path: 3.0.0
       object-hash: 3.0.0
-      picocolors: 1.0.0
+      picocolors: 1.0.1
       postcss: 8.4.31
       postcss-import: 14.1.0(postcss@8.4.31)
       postcss-js: 4.0.1(postcss@8.4.31)
@@ -30756,14 +30950,14 @@ snapshots:
     dependencies:
       '@types/json5': 0.0.29
       json5: 1.0.2
-      minimist: 1.2.6
+      minimist: 1.2.8
       strip-bom: 3.0.0
 
   tsconfig-paths@3.15.0:
     dependencies:
       '@types/json5': 0.0.29
       json5: 1.0.2
-      minimist: 1.2.6
+      minimist: 1.2.8
       strip-bom: 3.0.0
 
   tsec@0.2.1(@bazel/bazelisk@1.19.0)(typescript@5.5.3):
@@ -31151,7 +31345,7 @@ snapshots:
     dependencies:
       browserslist: 4.22.2
       escalade: 3.1.1
-      picocolors: 1.0.0
+      picocolors: 1.0.1
 
   update-check@1.3.2:
     dependencies:
