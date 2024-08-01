@@ -172,7 +172,9 @@ function trackFetchMetric(
   if (staticGenerationStore.requestEndedState?.ended) return
 
   const isDebugBuild =
-    !!process.env.NEXT_DEBUG_BUILD && staticGenerationStore.isStaticGeneration
+    (!!process.env.NEXT_DEBUG_BUILD ||
+      process.env.NEXT_SSG_FETCH_METRICS === '1') &&
+    staticGenerationStore.isStaticGeneration
   const isDevelopment = process.env.NODE_ENV === 'development'
 
   if (
