@@ -1725,14 +1725,15 @@
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
-      "app-dir-hmr filesystem changes should not break when renaming a folder",
       "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
       "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge)",
       "app-dir-hmr filesystem changes should update server components pages when env files is changed (nodejs)"
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "app-dir-hmr filesystem changes should not break when renaming a folder"
+    ],
     "runtimeError": false
   },
   "test/development/app-render-error-log/app-render-error-log.test.ts": {
@@ -2826,7 +2827,7 @@
     "passed": ["app dir HMR should not cause error when removing loading.js"],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": ["app dir HMR should not cause error when removing loading.js"],
     "runtimeError": false
   },
   "test/e2e/app-dir/app-config-crossorigin/index.test.ts": {

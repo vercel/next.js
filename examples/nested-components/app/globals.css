@@ -1,0 +1,24 @@
+h1 {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+p {
+  font:
+    13px Helvetica,
+    Arial;
+  margin: 10px 0;
+}
+
+hr {
+  width: 100px;
+  border-width: 0;
+  margin: 20px auto;
+  text-align: center;
+}
+
+hr::before {
+  content: "***";
+  color: #ccc;
+}

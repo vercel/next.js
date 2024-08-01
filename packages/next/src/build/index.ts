@@ -872,7 +872,15 @@ export default async function build(
           shuttleDir,
           config,
         })
-        console.log({ changedPagePathsResult })
+        console.log(
+          JSON.stringify(
+            {
+              changedPagePathsResult: changedPagePathsResult.changed.pages,
+            },
+            null,
+            2
+          )
+        )
         pagesPaths = changedPagePathsResult.changed.pages
       }
 
@@ -964,7 +972,15 @@ export default async function build(
             shuttleDir,
             config,
           })
-          console.log({ changedAppPathsResult })
+          console.log(
+            JSON.stringify(
+              {
+                changedAppPathsResult: changedAppPathsResult.changed.app,
+              },
+              null,
+              2
+            )
+          )
           appPaths = changedAppPathsResult.changed.app
         }
 
@@ -2482,6 +2498,8 @@ export default async function build(
 
       if (!isGenerateMode) {
         if (config.experimental.flyingShuttle) {
+          await buildTracesPromise
+
           console.log('stitching builds...')
           const stitchResult = await stitchBuilds(
             {
@@ -2736,7 +2754,7 @@ export default async function build(
           // If there was no result, there's nothing more to do.
           if (!exportResult) return
 
-          if (debugOutput) {
+          if (debugOutput || process.env.NEXT_SSG_FETCH_METRICS === '1') {
             recordFetchMetrics(exportResult)
           }
 

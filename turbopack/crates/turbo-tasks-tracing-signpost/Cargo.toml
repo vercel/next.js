@@ -1,0 +1,18 @@
+[package]
+name = "tracing-signpost"
+version = "0.1.0"
+description = "A tracing layer for the macOS Signpost API"
+license = "MPL-2.0"
+edition = "2021"
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+dashmap = { workspace = true }
+signposter = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
