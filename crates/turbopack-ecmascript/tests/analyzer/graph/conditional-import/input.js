@@ -14,9 +14,21 @@ if (true) {
 
 import { x } from "x";
 import { y } from "y";
+import { z } from "y";
 
 if (true) {
   x;
 } else {
   y;
+}
+
+function earlyExit() {
+  if (true) {
+    return hoisted;
+  }
+
+  import("c");
+  z;
+
+  function hoisted() {}
 }

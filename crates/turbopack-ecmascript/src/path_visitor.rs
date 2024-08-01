@@ -153,6 +153,8 @@ impl VisitMutAstPath for ApplyVisitors<'_, '_> {
     method!(visit_mut_call_expr, CallExpr);
     method!(visit_mut_lit, Lit);
     method!(visit_mut_str, Str);
+    method!(visit_mut_block_stmt, BlockStmt);
+    method!(visit_mut_switch_case, SwitchCase);
 }
 
 #[cfg(test)]

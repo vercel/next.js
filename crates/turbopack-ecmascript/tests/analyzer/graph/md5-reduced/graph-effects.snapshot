@@ -1,5 +1,120 @@
 [
     Member {
+        obj: FreeVar(
+            "module",
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "exports",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Left,
+            ),
+            AssignTarget(
+                Simple,
+            ),
+            SimpleAssignTarget(
+                Member,
+            ),
+        ],
+        span: 1622..1636#0,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "module",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Left,
+            ),
+            AssignTarget(
+                Simple,
+            ),
+            SimpleAssignTarget(
+                Member,
+            ),
+            MemberExpr(
+                Obj,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 1622..1628#1,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "md5",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 1639..1642#1,
+        in_try: false,
+    },
+    Member {
         obj: Variable(
             (
                 "x",
@@ -4016,6 +4131,38 @@
         span: 1256..1300#0,
         in_try: false,
     },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    12,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+        ],
+    },
     FreeVar {
         var: FreeVar(
             "safeAdd",
@@ -4905,6 +5052,38 @@
         span: 1459..1526#0,
         in_try: false,
     },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+        ],
+    },
     Call {
         func: Variable(
             (
@@ -5000,119 +5179,36 @@
         span: 1577..1618#0,
         in_try: false,
     },
-    Member {
-        obj: FreeVar(
-            "module",
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "exports",
-                ),
-            ),
-        ),
-        ast_path: [
+    Unreachable {
+        start_ast_path: [
             Program(
                 Script,
             ),
             Script(
                 Body(
-                    3,
+                    2,
                 ),
             ),
             Stmt(
-                Expr,
+                Decl,
             ),
-            ExprStmt(
-                Expr,
+            Decl(
+                Fn,
             ),
-            Expr(
-                Assign,
+            FnDecl(
+                Function,
             ),
-            AssignExpr(
-                Left,
+            Function(
+                Body,
             ),
-            AssignTarget(
-                Simple,
-            ),
-            SimpleAssignTarget(
-                Member,
-            ),
-        ],
-        span: 1622..1636#0,
-        in_try: false,
-    },
-    FreeVar {
-        var: FreeVar(
-            "module",
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    3,
+            BlockStmt(
+                Stmts(
+                    0,
                 ),
             ),
             Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Left,
-            ),
-            AssignTarget(
-                Simple,
-            ),
-            SimpleAssignTarget(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
+                Return,
             ),
         ],
-        span: 1622..1628#1,
-        in_try: false,
-    },
-    FreeVar {
-        var: FreeVar(
-            "md5",
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    3,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 1639..1642#1,
-        in_try: false,
     },
 ]

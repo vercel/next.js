@@ -130,4 +130,36 @@
             ],
         ),
     ),
+    (
+        "earlyExit",
+        Function(
+            4,
+            374,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    Variable(
+                        (
+                            "hoisted",
+                            #7,
+                        ),
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "hoisted",
+        Function(
+            2,
+            459,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
 ]

@@ -14,3 +14,7 @@ c = ???*0*
 - *2* (process.env*3*["NEXT_RUNTIME"] === "edge")
   ⚠️  nested operation
 - *3* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv
+
+earlyExit = (...) => (undefined | hoisted)
+
+hoisted = (...) => undefined

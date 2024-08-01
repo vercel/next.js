@@ -25,3 +25,12 @@
 - *0* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
 
 0 -> 11 conditional = true
+
+0 -> 14 conditional = true
+
+14 -> 15 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 16 call = import*0*("c")
+- *0* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports

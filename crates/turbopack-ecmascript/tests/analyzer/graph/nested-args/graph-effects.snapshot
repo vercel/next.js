@@ -2,6 +2,138 @@
     Call {
         func: Variable(
             (
+                "outer",
+                #2,
+            ),
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Word(
+                            "a",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 295..305#0,
+        in_try: false,
+    },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+            ReturnStmt(
+                Arg,
+            ),
+            Expr(
+                Fn,
+            ),
+            FnExpr(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+        ],
+    },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+        ],
+    },
+    Call {
+        func: Variable(
+            (
                 "x",
                 #2,
             ),
@@ -135,40 +267,89 @@
         ),
         kind: IfElse {
             then: EffectsBlock {
-                effects: [],
-                ast_path: [
-                    Program(
-                        Script,
-                    ),
-                    Script(
-                        Body(
-                            2,
-                        ),
-                    ),
-                    Stmt(
-                        Decl,
-                    ),
-                    Decl(
-                        Fn,
-                    ),
-                    FnDecl(
-                        Function,
-                    ),
-                    Function(
-                        Body,
-                    ),
-                    BlockStmt(
-                        Stmts(
-                            0,
-                        ),
-                    ),
-                    Stmt(
-                        If,
-                    ),
-                    IfStmt(
-                        Cons,
-                    ),
+                effects: [
+                    Unreachable {
+                        start_ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    2,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                If,
+                            ),
+                            IfStmt(
+                                Cons,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Return,
+                            ),
+                        ],
+                    },
                 ],
+                range: Exact(
+                    [
+                        Program(
+                            Script,
+                        ),
+                        Script(
+                            Body(
+                                2,
+                            ),
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Fn,
+                        ),
+                        FnDecl(
+                            Function,
+                        ),
+                        Function(
+                            Body,
+                        ),
+                        BlockStmt(
+                            Stmts(
+                                0,
+                            ),
+                        ),
+                        Stmt(
+                            If,
+                        ),
+                        IfStmt(
+                            Cons,
+                        ),
+                    ],
+                ),
             },
             else: EffectsBlock {
                 effects: [
@@ -260,40 +441,88 @@
                         span: 159..167#0,
                         in_try: false,
                     },
+                    Unreachable {
+                        start_ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    2,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                If,
+                            ),
+                            IfStmt(
+                                Alt,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Return,
+                            ),
+                        ],
+                    },
                 ],
-                ast_path: [
-                    Program(
-                        Script,
-                    ),
-                    Script(
-                        Body(
-                            2,
+                range: Exact(
+                    [
+                        Program(
+                            Script,
                         ),
-                    ),
-                    Stmt(
-                        Decl,
-                    ),
-                    Decl(
-                        Fn,
-                    ),
-                    FnDecl(
-                        Function,
-                    ),
-                    Function(
-                        Body,
-                    ),
-                    BlockStmt(
-                        Stmts(
-                            0,
+                        Script(
+                            Body(
+                                2,
+                            ),
                         ),
-                    ),
-                    Stmt(
-                        If,
-                    ),
-                    IfStmt(
-                        Alt,
-                    ),
-                ],
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Fn,
+                        ),
+                        FnDecl(
+                            Function,
+                        ),
+                        Function(
+                            Body,
+                        ),
+                        BlockStmt(
+                            Stmts(
+                                0,
+                            ),
+                        ),
+                        Stmt(
+                            If,
+                        ),
+                        IfStmt(
+                            Alt,
+                        ),
+                    ],
+                ),
             },
         },
         ast_path: [
@@ -331,6 +560,38 @@
         ],
         span: 105..176#0,
         in_try: false,
+    },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                If,
+            ),
+        ],
     },
     Call {
         func: Variable(
@@ -437,52 +698,85 @@
         span: 271..281#0,
         in_try: false,
     },
-    Call {
-        func: Variable(
-            (
-                "outer",
-                #2,
-            ),
-        ),
-        args: [
-            Value(
-                Constant(
-                    Str(
-                        Word(
-                            "a",
-                        ),
-                    ),
-                ),
-            ),
-        ],
-        ast_path: [
+    Unreachable {
+        start_ast_path: [
             Program(
                 Script,
             ),
             Script(
                 Body(
-                    5,
+                    4,
                 ),
             ),
             Stmt(
                 Decl,
             ),
             Decl(
-                Var,
+                Fn,
             ),
-            VarDecl(
-                Decls(
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+        ],
+    },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
                     0,
                 ),
             ),
-            VarDeclarator(
-                Init,
+            Stmt(
+                Decl,
             ),
-            Expr(
-                Call,
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
             ),
         ],
-        span: 295..305#0,
-        in_try: false,
     },
 ]
