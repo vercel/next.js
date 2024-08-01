@@ -90,13 +90,15 @@ pub(crate) struct ItemData {
 
     /// Variables read by this module item eventually
     ///
-    /// - e.g. variables read in the body of function declarations are considered as eventually
-    ///   read
-    /// - This is only used when reads are not trigger directly by this module item, but require a
-    ///   side effect to be triggered. We don’t know when this is executed.
-    /// - Note: This doesn’t mean they are only read “after” initial evaluation. They might also be
-    ///   read “during” initial evaluation on any module item with SIDE_EFFECTS. This kind of
-    ///   interaction is handled by the module item with SIDE_EFFECTS.
+    /// - e.g. variables read in the body of function declarations are
+    ///   considered as eventually read
+    /// - This is only used when reads are not trigger directly by this module
+    ///   item, but require a side effect to be triggered. We don’t know when
+    ///   this is executed.
+    /// - Note: This doesn’t mean they are only read “after” initial evaluation.
+    ///   They might also be read “during” initial evaluation on any module item
+    ///   with SIDE_EFFECTS. This kind of interaction is handled by the module
+    ///   item with SIDE_EFFECTS.
     pub eventual_read_vars: IndexSet<Id, FxBuildHasher>,
 
     /// Side effects that are triggered on local variables during evaluation

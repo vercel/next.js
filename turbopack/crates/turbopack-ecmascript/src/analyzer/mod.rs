@@ -372,21 +372,24 @@ impl Display for LogicalProperty {
 /// TODO: Use `Arc`
 /// There are 4 kinds of values: Leaves, Nested, Operations, and Placeholders
 /// (see [JsValueMetaKind] for details). Values are processed in two phases:
-/// - Analyze phase: We convert AST into [JsValue]s. We don't have contextual information so we need
-///   to insert placeholders to represent that.
-/// - Link phase: We try to reduce a value to a constant value. The link phase has 5 substeps that
-///   are executed on each node in the graph depth-first. When a value is modified, we need to visit
-///   the new children again.
-/// - Replace variables with their values. This replaces [JsValue::Variable]. No variable should be
+/// - Analyze phase: We convert AST into [JsValue]s. We don't have contextual
+///   information so we need to insert placeholders to represent that.
+/// - Link phase: We try to reduce a value to a constant value. The link phase
+///   has 5 substeps that are executed on each node in the graph depth-first.
+///   When a value is modified, we need to visit the new children again.
+/// - Replace variables with their values. This replaces [JsValue::Variable]. No
+///   variable should be remaining after that.
+/// - Replace placeholders with contextual information. This usually replaces
+///   [JsValue::FreeVar] and [JsValue::Module]. Some [JsValue::Call] on well-
+///   known functions might also be replaced. No free vars or modules should be
 ///   remaining after that.
-/// - Replace placeholders with contextual information. This usually replaces [JsValue::FreeVar] and
-///   [JsValue::Module]. Some [JsValue::Call] on well- known functions might also be replaced. No
-///   free vars or modules should be remaining after that.
-/// - Replace operations on well-known objects and functions. This handles [JsValue::Call] and
-///   [JsValue::Member] on well-known objects and functions.
-/// - Replace all built-in functions with their values when they are compile-time constant.
-/// - For optimization, any nested operations are replaced with [JsValue::Unknown]. So only one
-///   layer of operation remains. Any remaining operation or placeholder can be treated as unknown.
+/// - Replace operations on well-known objects and functions. This handles
+///   [JsValue::Call] and [JsValue::Member] on well-known objects and functions.
+/// - Replace all built-in functions with their values when they are
+///   compile-time constant.
+/// - For optimization, any nested operations are replaced with
+///   [JsValue::Unknown]. So only one layer of operation remains. Any remaining
+///   operation or placeholder can be treated as unknown.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum JsValue {
     // LEAF VALUES
@@ -1771,10 +1774,11 @@ impl JsValue {
     /// When the value has a user-defineable name, return the length of it (in
     /// segments). Otherwise returns None.
     /// - any free var has itself as user-defineable name.
-    /// - any member access adds the identifier as segement to the name of the object.
+    /// - any member access adds the identifier as segement to the name of the
+    ///   object.
     /// - some well-known objects/functions have a user-defineable names.
-    /// - member calls without arguments also have a user-defineable name which is the property with
-    ///   `()` appended.
+    /// - member calls without arguments also have a user-defineable name which
+    ///   is the property with `()` appended.
     pub fn get_defineable_name_len(&self) -> Option<usize> {
         match self {
             JsValue::FreeVar(_) => Some(1),

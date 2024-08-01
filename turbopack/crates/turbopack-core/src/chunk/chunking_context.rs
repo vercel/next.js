@@ -104,7 +104,8 @@ pub trait ChunkingContext {
 
     /// Generates an output chunk that:
     /// * evaluates the given assets; and
-    /// * exports the result of evaluating the given module as a CommonJS default export.
+    /// * exports the result of evaluating the given module as a CommonJS
+    ///   default export.
     fn entry_chunk_group(
         self: Vc<Self>,
         path: Vc<FileSystemPath>,

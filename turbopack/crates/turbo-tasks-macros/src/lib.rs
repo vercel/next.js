@@ -91,10 +91,13 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
 ///
 /// Possible values:
 ///
-/// - "auto" (default): Derives the serialization traits and enabled serialization.
-/// - "auto_for_input": Same as "auto", but also adds the marker trait [turbo_tasks::TypedForInput].
-/// - "custom": Prevents deriving the serialization traits, but still enables serialization (you
-///   need to manually implement [serde::Serialize] and [serde::Deserialize]).
+/// - "auto" (default): Derives the serialization traits and enabled
+///   serialization.
+/// - "auto_for_input": Same as "auto", but also adds the marker trait
+///   [turbo_tasks::TypedForInput].
+/// - "custom": Prevents deriving the serialization traits, but still enables
+///   serialization (you need to manually implement [serde::Serialize] and
+///   [serde::Deserialize]).
 /// - "custom_for_input":Same as "auto", but also adds the marker trait
 ///   [turbo_tasks::TypedForInput].
 /// - "none": Disables serialization and prevents deriving the traits.

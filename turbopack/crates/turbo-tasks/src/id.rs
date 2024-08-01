@@ -85,7 +85,8 @@ impl TaskId {
         **self & TRANSIENT_TASK_BIT != 0
     }
     pub fn persistence(&self) -> TaskPersistence {
-        // tasks with `TaskPersistence::LocalCells` have no `TaskId`, so we can ignore that case
+        // tasks with `TaskPersistence::LocalCells` have no `TaskId`, so we can ignore
+        // that case
         if self.is_transient() {
             TaskPersistence::Transient
         } else {

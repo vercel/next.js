@@ -492,8 +492,10 @@ impl IssueSource {
     /// Arguments:
     ///
     /// * `source`: The source code in which to look up the byte offsets.
-    /// * `start`: Byte offset into the source that the text begins. 0-based index and inclusive.
-    /// * `end`: Byte offset into the source that the text ends. 0-based index and exclusive.
+    /// * `start`: Byte offset into the source that the text begins. 0-based
+    ///   index and inclusive.
+    /// * `end`: Byte offset into the source that the text ends. 0-based index
+    ///   and exclusive.
     pub async fn from_byte_offset(
         source: Vc<Box<dyn Source>>,
         start: usize,
@@ -746,8 +748,8 @@ pub trait IssueReporter {
     ///
     /// * `issues` - A [ReadRef] of [CapturedIssues]. Typically obtained with
     ///   `source.peek_issues_with_path()`.
-    /// * `source` - The root [Vc] from which issues are traced. Can be used by implementers to
-    ///   determine which issues are new.
+    /// * `source` - The root [Vc] from which issues are traced. Can be used by
+    ///   implementers to determine which issues are new.
     /// * `min_failing_severity` - The minimum Vc<[IssueSeverity]>
     ///  The minimum issue severity level considered to fatally end the program.
     fn report_issues(

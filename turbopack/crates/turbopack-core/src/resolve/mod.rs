@@ -887,9 +887,10 @@ impl ResolveResult {
         ))
     }
 
-    /// Returns a new [ResolveResult] where all [RequestKey]s are updated. The `old_request_key`
-    /// (prefix) is replaced with the `request_key`. It's not expected that the [ResolveResult]
-    /// contains [RequestKey]s that don't have the `old_request_key` prefix, but if there are still
+    /// Returns a new [ResolveResult] where all [RequestKey]s are updated. The
+    /// `old_request_key` (prefix) is replaced with the `request_key`. It's
+    /// not expected that the [ResolveResult] contains [RequestKey]s that
+    /// don't have the `old_request_key` prefix, but if there are still
     /// some, they are discarded.
     #[turbo_tasks::function]
     pub async fn with_replaced_request_key(
@@ -923,10 +924,11 @@ impl ResolveResult {
         .into())
     }
 
-    /// Returns a new [ResolveResult] where all [RequestKey]s are updated. All keys matching
-    /// `old_request_key` are rewritten according to `request_key`. It's not expected that the
-    /// [ResolveResult] contains [RequestKey]s that do not match the `old_request_key` prefix, but
-    /// if there are still some, they are discarded.
+    /// Returns a new [ResolveResult] where all [RequestKey]s are updated. All
+    /// keys matching `old_request_key` are rewritten according to
+    /// `request_key`. It's not expected that the [ResolveResult] contains
+    /// [RequestKey]s that do not match the `old_request_key` prefix, but if
+    /// there are still some, they are discarded.
     #[turbo_tasks::function]
     pub async fn with_replaced_request_key_pattern(
         self: Vc<Self>,

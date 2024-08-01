@@ -714,8 +714,8 @@ pub struct NodeJsPool {
 }
 
 impl NodeJsPool {
-    /// * debug: Whether to automatically enable Node's `--inspect-brk` when spawning it. Note:
-    ///   automatically overrides concurrency to 1.
+    /// * debug: Whether to automatically enable Node's `--inspect-brk` when
+    ///   spawning it. Note: automatically overrides concurrency to 1.
     pub(super) fn new(
         cwd: PathBuf,
         entrypoint: PathBuf,

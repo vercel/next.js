@@ -476,23 +476,27 @@ impl<T: Parse> Parse for MaybeParenthesized<T> {
 /// Arguments to the `#[turbo_tasks::function]` macro.
 #[derive(Default)]
 pub struct FunctionArguments {
-    /// Manually annotated metadata about what kind of IO this function does. Currently only used
-    /// by some static analysis tools. May be exposed via `tracing` or used as part of an
-    /// optimization heuristic in the future.
+    /// Manually annotated metadata about what kind of IO this function does.
+    /// Currently only used by some static analysis tools. May be exposed
+    /// via `tracing` or used as part of an optimization heuristic in the
+    /// future.
     ///
-    /// This should only be used by the task that directly performs the IO. Tasks that transitively
-    /// perform IO should not be manually annotated.
+    /// This should only be used by the task that directly performs the IO.
+    /// Tasks that transitively perform IO should not be manually annotated.
     io_markers: HashSet<IoMarker>,
     /// Should we check that the return type contains a `ResolvedValue`?
     ///
-    /// If there is an error due to this option being set, it should be reported to this span.
+    /// If there is an error due to this option being set, it should be reported
+    /// to this span.
     ///
     /// If [`Self::local_cells`] is set, this will also be set to the same span.
     resolved: Option<Span>,
-    /// Changes the behavior of `Vc::cell` to create local cells that are not cached across task
-    /// executions. Cells can be converted to their non-local versions by calling `Vc::resolve`.
+    /// Changes the behavior of `Vc::cell` to create local cells that are not
+    /// cached across task executions. Cells can be converted to their
+    /// non-local versions by calling `Vc::resolve`.
     ///
-    /// If there is an error due to this option being set, it should be reported to this span.
+    /// If there is an error due to this option being set, it should be reported
+    /// to this span.
     ///
     /// Setting this option will also set [`Self::resolved`] to the same span.
     pub local_cells: Option<Span>,

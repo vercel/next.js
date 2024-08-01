@@ -165,8 +165,8 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
 
     /// Wraps the given future in the current task.
     ///
-    /// Beware: this method is not safe to use in production code. It is only intended for use in
-    /// tests and for debugging purposes.
+    /// Beware: this method is not safe to use in production code. It is only
+    /// intended for use in tests and for debugging purposes.
     fn detached_for_testing(
         &self,
         f: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
@@ -254,38 +254,41 @@ pub enum TaskPersistence {
     /// Tasks that may be persisted across sessions using serialization.
     Persistent,
 
-    /// Tasks that will be persisted in memory for the life of this session, but won't persist
-    /// between sessions.
+    /// Tasks that will be persisted in memory for the life of this session, but
+    /// won't persist between sessions.
     ///
-    /// This is used for [root tasks][TurboTasks::spawn_root_task] and tasks with an argument of
+    /// This is used for [root tasks][TurboTasks::spawn_root_task] and tasks
+    /// with an argument of
     /// type [`TransientValue`][crate::value::TransientValue] or
     /// [`TransientInstance`][crate::value::TransientInstance].
     Transient,
 
-    /// Tasks that are persisted only for the lifetime of the nearest non-`LocalCells` parent
-    /// caller.
+    /// Tasks that are persisted only for the lifetime of the nearest
+    /// non-`LocalCells` parent caller.
     ///
-    /// This task does not have a unique task id, and is not shared with the backend. Instead it
-    /// uses the parent task's id.
+    /// This task does not have a unique task id, and is not shared with the
+    /// backend. Instead it uses the parent task's id.
     ///
-    /// Cells are allocated onto a temporary arena by default. Resolved cells inside a local task
-    /// are allocated into the parent task's cells.
+    /// Cells are allocated onto a temporary arena by default. Resolved cells
+    /// inside a local task are allocated into the parent task's cells.
     ///
-    /// This is useful for functions that have a low cache hit rate. Those functions could be
-    /// converted to non-task functions, but that would break their function signature. This
-    /// provides a mechanism for skipping caching without changing the function signature.
+    /// This is useful for functions that have a low cache hit rate. Those
+    /// functions could be converted to non-task functions, but that would
+    /// break their function signature. This provides a mechanism for
+    /// skipping caching without changing the function signature.
     LocalCells,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum ReadConsistency {
-    /// The default behavior for most APIs. Reads are faster, but may return stale values, which
-    /// may later trigger re-computation.
+    /// The default behavior for most APIs. Reads are faster, but may return
+    /// stale values, which may later trigger re-computation.
     Eventual,
-    /// Ensures all dependencies are fully resolved before returning the cell or output data, at
-    /// the cost of slower reads.
+    /// Ensures all dependencies are fully resolved before returning the cell or
+    /// output data, at the cost of slower reads.
     ///
-    /// Top-level code that returns data to the user should use strongly consistent reads.
+    /// Top-level code that returns data to the user should use strongly
+    /// consistent reads.
     Strong,
 }
 
@@ -317,8 +320,9 @@ struct CurrentTaskState {
     /// `RawVc::LocalCell`.
     execution_id: ExecutionId,
 
-    /// The function's metadata if this is a persistent task. Contains information about arguments
-    /// passed to the `#[turbo_tasks::function(...)]` macro.
+    /// The function's metadata if this is a persistent task. Contains
+    /// information about arguments passed to the
+    /// `#[turbo_tasks::function(...)]` macro.
     function_meta: Option<&'static FunctionMeta>,
 
     /// Affected tasks, that are tracked during task execution. These tasks will
@@ -329,8 +333,9 @@ struct CurrentTaskState {
     /// True if the current task has state in cells
     stateful: bool,
 
-    /// Tracks how many cells of each type has been allocated so far during this task execution.
-    /// When a task is re-executed, the cell count may not match the existing cell vec length.
+    /// Tracks how many cells of each type has been allocated so far during this
+    /// task execution. When a task is re-executed, the cell count may not
+    /// match the existing cell vec length.
     ///
     /// This is taken (and becomes `None`) during teardown of a task.
     cell_counters: Option<AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>>,
@@ -534,7 +539,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
     ) -> RawVc {
-        // TODO(bgw): Don't create a full turbo task if this is a function using local_cells
+        // TODO(bgw): Don't create a full turbo task if this is a function using
+        // local_cells
         if registry::get_function(func).arg_meta.is_resolved(&*arg) {
             return self.native_call(func, arg, persistence);
         }
@@ -810,17 +816,18 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.currently_scheduled_tasks.load(Ordering::Acquire)
     }
 
-    /// Waits for the given task to finish executing. This works by performing an untracked read,
-    /// and discarding the value of the task output.
+    /// Waits for the given task to finish executing. This works by performing
+    /// an untracked read, and discarding the value of the task output.
     ///
-    /// [`ReadConsistency::Weak`] means that this will return after the task executes, but before
-    /// all dependencies have completely settled.
+    /// [`ReadConsistency::Weak`] means that this will return after the task
+    /// executes, but before all dependencies have completely settled.
     ///
-    /// [`ReadConsistency::Strong`] means that this will also wait for the task and all dependencies
-    /// to fully settle before returning.
+    /// [`ReadConsistency::Strong`] means that this will also wait for the task
+    /// and all dependencies to fully settle before returning.
     ///
-    /// As this function is typically called in top-level code that waits for results to be ready
-    /// for the user to access, most callers should use [`ReadConsistency::Strong`].
+    /// As this function is typically called in top-level code that waits for
+    /// results to be ready for the user to access, most callers should use
+    /// [`ReadConsistency::Strong`].
     pub async fn wait_task_completion(
         &self,
         id: TaskId,

@@ -575,8 +575,9 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 
-    /// For persistent tasks with associated [`NativeFunction`][turbo_tasks::NativeFunction]s,
-    /// return the [`FunctionId`].
+    /// For persistent tasks with associated
+    /// [`NativeFunction`][turbo_tasks::NativeFunction]s, return the
+    /// [`FunctionId`].
     fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId>;
 
     fn connect_task(

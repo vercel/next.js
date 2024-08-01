@@ -866,8 +866,8 @@ impl Pattern {
         }
     }
 
-    /// Same as `match_internal`, but additionally pushing matched dynamic elements into the given
-    /// result list.
+    /// Same as `match_internal`, but additionally pushing matched dynamic
+    /// elements into the given result list.
     fn match_collect_internal<'a>(
         &self,
         mut value: &'a str,
@@ -1098,10 +1098,11 @@ impl Pattern {
         replaced
     }
 
-    /// Matches the given string against self, and applies the match onto the target pattern.
+    /// Matches the given string against self, and applies the match onto the
+    /// target pattern.
     ///
-    /// The two patterns should have a similar structure (same number of alternatives and dynamics)
-    /// and only differ in the constant contents.
+    /// The two patterns should have a similar structure (same number of
+    /// alternatives and dynamics) and only differ in the constant contents.
     pub fn match_apply_template(&self, value: &str, target: &Pattern) -> Option<String> {
         let match_idx = self.match_position(value)?;
         let source = match self {
@@ -1124,7 +1125,8 @@ impl Pattern {
         }?;
 
         let mut dynamics = VecDeque::new();
-        // This is definitely a match, because it matched above in `self.match_position(value)`
+        // This is definitely a match, because it matched above in
+        // `self.match_position(value)`
         source.match_collect_internal(value, None, &mut dynamics);
 
         let mut result = "".to_string();
