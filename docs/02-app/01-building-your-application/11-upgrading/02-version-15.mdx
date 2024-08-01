@@ -148,3 +148,29 @@ module.exports = nextConfig
 Auto instrumentation for Speed Insights was removed in Next.js 15.
 
 To continue using Speed Insights, follow the [Vercel Speed Insights Quickstart](https://vercel.com/docs/speed-insights/quickstart) guide.
+
+## `NextRequest` Geolocation
+
+The `geo` and `ip` properties on `NextRequest` have been removed. These values had to be provided by your hosting provider.
+
+If you are using Vercel, you can alternatively use the `geolocation` and `ipAddress` functions from [`@vercel/functions](https://vercel.com/docs/functions/vercel-functions-package) instead:
+
+```js filename="middleware.ts"
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const { city } = geolocation(request);
+
+  // ...
+}
+```
+
+```js filename="middleware.ts"
+import type { ipAddress } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const ip = ipAddress(request)
+
+  // ...
+}
+```

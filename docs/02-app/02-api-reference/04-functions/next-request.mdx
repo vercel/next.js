@@ -116,36 +116,8 @@ The following options are available:
 
 </AppOnly>
 
-## `ip`
+## Version History
 
-The `ip` property is a string that contains the IP address of the request. This value can optionally be provided by your hosting platform.
-
-> **Good to know:** On [Vercel](https://vercel.com/docs/frameworks/nextjs?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), this value is provided by default. On other platforms, you can use the [`X-Forwarded-For`](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Forwarded-For) header to provide the IP address.
-
-```ts
-// Provided by Vercel
-request.ip
-// Self-hosting
-request.headers.get('X-Forwarded-For')
-```
-
-## `geo`
-
-The `geo` property is an object that contains the geographic information of the request. This value can optionally be provided by your hosting platform.
-
-> **Good to know:** On [Vercel](https://vercel.com/docs/frameworks/nextjs?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), this value is provided by default. On other platforms, you can use the [`X-Forwarded-For`](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Forwarded-For) header to provide the IP address, then use a [third-party service](https://ip-api.com/) to lookup the geographic information.
-
-```ts
-// Provided by Vercel
-request.geo.city
-request.geo.country
-request.geo.region
-request.geo.latitude
-request.geo.longitude
-
-// Self-hosting
-function getGeo(request) {
-  let ip = request.headers.get('X-Forwarded-For')
-  // Use a third-party service to lookup the geographic information
-}
-```
+| Version   | Changes                 |
+| --------- | ----------------------- |
+| `v15.0.0` | `ip` and `geo` removed. |
