@@ -1,9 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/crates/turbopack-tests/tests/snapshot/cssmodules/composes/input/index.module.css [test] (css module)"],"sourcesContent":["__turbopack_export_value__({\n  \"className\": \"index-module__Tw9iRq__className\",\n  \"subClass\": \"index-module__Tw9iRq__subClass\" + \" \" + \"index-module__Tw9iRq__className\",\n});\n"],"names":[],"mappings":"AAAA;AACA;AACA;AACA"}},
-    {"offset": {"line": 8, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
-    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

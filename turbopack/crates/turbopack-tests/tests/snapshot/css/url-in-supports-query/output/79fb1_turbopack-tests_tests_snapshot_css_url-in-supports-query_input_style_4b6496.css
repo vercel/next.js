@@ -1,7 +1,0 @@
-/* [project]/crates/turbopack-tests/tests/snapshot/css/url-in-supports-query/input/style.css [test] (swc css) */
-@supports ((-webkit-mask: url("")) or (mask: url(""))) {
-  .supports-url-in-query {
-    color: red;
-  }
-}
-/*# sourceMappingURL=79fb1_turbopack-tests_tests_snapshot_css_url-in-supports-query_input_style_4b6496.css.map*/

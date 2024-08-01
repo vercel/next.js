@@ -1,12 +1,12 @@
 const RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
-const OUTPUT_ROOT = "crates/turbopack-tests/tests/snapshot/runtime/default_build_runtime";
+const OUTPUT_ROOT = "turbopack/crates/turbopack-tests/tests/snapshot/runtime/default_build_runtime";
 const ASSET_PREFIX = "/";
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
  *
  * It will be prepended to the runtime code of each runtime.
- */ /* eslint-disable @next/next/no-assign-module-variable */ /// <reference path="./runtime-types.d.ts" />
+ */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
 const REEXPORTED_OBJECTS = Symbol("reexported objects");
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
@@ -325,7 +325,12 @@ function asyncModule(module, body, hasAwait) {
     });
 };
 relativeURL.prototype = URL.prototype;
-/// <reference path="../shared/runtime-utils.ts" />
+/**
+ * Utility function to ensure all variants of an enum are handled.
+ */ function invariant(never, computeMessage) {
+    throw new Error(`Invariant: ${computeMessage(never)}`);
+}
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
 /// If a fn requires node.js specific behavior, it should be placed in `node-external-utils` instead.
@@ -364,7 +369,7 @@ function externalRequire(id, esm = false) {
 externalRequire.resolve = (id, options)=>{
     return require.resolve(id, options);
 };
-const path = require("path");
+/* eslint-disable @typescript-eslint/no-unused-vars */ const path = require("path");
 const relativePathToRuntimeRoot = path.relative(RUNTIME_PUBLIC_PATH, ".");
 // Compute the relative path to the `distDir`.
 const relativePathToDistRoot = path.relative(path.join(OUTPUT_ROOT, RUNTIME_PUBLIC_PATH), ".");
@@ -384,7 +389,7 @@ const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
     }
     return ABSOLUTE_ROOT;
 }
-/// <reference path="../shared/runtime-utils.ts" />
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
 function readWebAssemblyAsResponse(path) {
     const { createReadStream } = require("fs");
     const { Readable } = require("stream");
@@ -405,7 +410,7 @@ async function instantiateWebAssemblyFromPath(path, importsObj) {
     const { instance } = await WebAssembly.instantiateStreaming(response, importsObj);
     return instance.exports;
 }
-/// <reference path="../shared/runtime-utils.ts" />
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
 /// <reference path="../shared-node/base-externals-utils.ts" />
 /// <reference path="../shared-node/node-externals-utils.ts" />
 /// <reference path="../shared-node/node-wasm-utils.ts" />
@@ -425,6 +430,8 @@ function stringifySourceInfo(source) {
             return `runtime for chunk ${source.chunkPath}`;
         case 1:
             return `parent module ${source.parentId}`;
+        default:
+            invariant(source, (source)=>`Unknown source type: ${source?.type}`);
     }
 }
 const url = require("url");
@@ -529,6 +536,8 @@ function instantiateModule(id, source) {
             case 1:
                 instantiationReason = `because it was required from module ${source.parentId}`;
                 break;
+            default:
+                invariant(source, (source)=>`Unknown source type: ${source?.type}`);
         }
         throw new Error(`Module ${id} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`);
     }
@@ -544,6 +553,8 @@ function instantiateModule(id, source) {
                 source.parentId
             ];
             break;
+        default:
+            invariant(source, (source)=>`Unknown source type: ${source?.type}`);
     }
     const module1 = {
         exports: {},
@@ -584,7 +595,7 @@ function instantiateModule(id, source) {
             P: resolveAbsolutePath,
             U: relativeURL,
             R: createResolvePathFromModule(r),
-            __dirname: module1.id.replace(/(^|\/)[\/]+$/, "")
+            __dirname: module1.id.replace(/(^|\/)\/+$/, "")
         });
     } catch (error) {
         module1.error = error;

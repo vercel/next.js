@@ -1,9 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/crates/turbopack-tests/tests/snapshot/css/css-modules/input/style.module.css [test] (css module)"],"sourcesContent":["__turbopack_export_value__({\n  \"module-style\": \"style-module__mnEziG__module-style\",\n});\n"],"names":[],"mappings":"AAAA;AACA;AACA"}},
-    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 12, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/crates/turbopack-tests/tests/snapshot/css/css-modules/input/index.js"],"sourcesContent":["import style from \"./style.module.css\";\n\nconsole.log(style, import(\"./style.module.css\"));\n"],"names":[],"mappings":";;;;AAEA,QAAQ,GAAG,CAAC,kMAAA,CAAA,UAAK"}},
-    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}
