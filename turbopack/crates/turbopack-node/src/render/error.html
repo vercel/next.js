@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>${TITLE}</title>
+  </head>
+  <body>
+    <div id="__next">
+      <!-- put it in here, so we can just use the body -->
+      <style>
+        body {
+          color: #000;
+          background: #fff;
+          margin: 0;
+        }
+
+        .next-error-h1 {
+          border-right: 1px solid rgba(0, 0, 0, 0.3);
+        }
+
+        @media (prefers-color-scheme: dark) {
+          body {
+            color: #fff;
+            background: #000;
+          }
+          .next-error-h1 {
+            border-right: 1px solid rgba(255, 255, 255, 0.3);
+          }
+        }
+
+        .error {
+          /* https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52 */
+          font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial,
+            sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+          height: 100vh;
+          max-height: 100vh;
+          overflow: hidden;
+          /*text-align: center;*/
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .error > div {
+          max-width: 100%;
+        }
+
+        .desc {
+          display: inline-block;
+          text-align: left;
+        }
+
+        h1 {
+          display: inline-block;
+          margin: 0 20px 0 0;
+          padding-right: 23px;
+          font-size: 24px;
+          font-weight: 500;
+          vertical-align: top;
+          line-height: 49px;
+        }
+
+        h2 {
+          font-size: 14px;
+          font-weight: 400;
+          line-height: 49px;
+          margin: 0;
+        }
+
+        h3 {
+          margin-left: 15px;
+          font-size: 14px;
+          font-weight: 600;
+        }
+
+        .details {
+          margin-top: 100px;
+          overflow: hidden;
+          max-height: 70%;
+        }
+
+        pre {
+          padding: 15px;
+          background: #ddd;
+
+          /*white-space: pre-wrap;*/
+          /*word-break: keep-all;*/
+
+          max-width: 80vw;
+          overflow: scroll;
+          max-height: 90%;
+
+          border-radius: 10px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+          pre {
+            background: #222;
+          }
+        }
+      </style>
+
+      <div class="error">
+        <div>
+          <h1 class="next-error-h1">${STATUS_CODE}</h1>
+          <div class="desc">
+            <h2>${TITLE}.</h2>
+          </div>
+        </div>
+        <section class="details">
+          <h3>Details</h3>
+          <pre>${DETAILS}</pre>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>

@@ -104,17 +104,17 @@ impl PagesProject {
         async fn add_page_to_routes(
             routes: &mut IndexMap<RcStr, Route>,
             page: Vc<PagesStructureItem>,
-            make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<FileSystemPath>) -> Route,
+            make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<PagesStructureItem>) -> Route,
         ) -> Result<()> {
             let PagesStructureItem {
                 next_router_path,
-                project_path,
                 original_path,
+                ..
             } = *page.await?;
             let pathname: RcStr = format!("/{}", next_router_path.await?.path).into();
             let pathname_vc = Vc::cell(pathname.clone());
             let original_name = Vc::cell(format!("/{}", original_path.await?.path).into());
-            let route = make_route(pathname_vc, original_name, project_path);
+            let route = make_route(pathname_vc, original_name, page);
             routes.insert(pathname, route);
             Ok(())
         }
@@ -122,7 +122,7 @@ impl PagesProject {
         async fn add_dir_to_routes(
             routes: &mut IndexMap<RcStr, Route>,
             dir: Vc<PagesDirectoryStructure>,
-            make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<FileSystemPath>) -> Route,
+            make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<PagesStructureItem>) -> Route,
         ) -> Result<()> {
             let mut queue = vec![dir];
             while let Some(dir) = queue.pop() {
@@ -143,14 +143,14 @@ impl PagesProject {
         }
 
         if let Some(api) = api {
-            add_dir_to_routes(&mut routes, *api, |pathname, original_name, path| {
+            add_dir_to_routes(&mut routes, *api, |pathname, original_name, page| {
                 Route::PageApi {
                     endpoint: Vc::upcast(PageEndpoint::new(
                         PageEndpointType::Api,
                         self,
                         pathname,
                         original_name,
-                        path,
+                        page,
                         pages_structure,
                     )),
                 }
@@ -158,13 +158,13 @@ impl PagesProject {
             .await?;
         }
 
-        let make_page_route = |pathname, original_name, path| Route::Page {
+        let make_page_route = |pathname, original_name, page| Route::Page {
             html_endpoint: Vc::upcast(PageEndpoint::new(
                 PageEndpointType::Html,
                 self,
                 pathname,
                 original_name,
-                path,
+                page,
                 pages_structure,
             )),
             data_endpoint: Vc::upcast(PageEndpoint::new(
@@ -172,7 +172,7 @@ impl PagesProject {
                 self,
                 pathname,
                 original_name,
-                path,
+                page,
                 pages_structure,
             )),
         };
@@ -196,19 +196,18 @@ impl PagesProject {
     ) -> Result<Vc<Box<dyn Endpoint>>> {
         let PagesStructureItem {
             next_router_path,
-            project_path,
             original_path,
+            ..
         } = *item.await?;
         let pathname: RcStr = format!("/{}", next_router_path.await?.path).into();
         let pathname_vc = Vc::cell(pathname.clone());
         let original_name = Vc::cell(format!("/{}", original_path.await?.path).into());
-        let path = project_path;
         let endpoint = Vc::upcast(PageEndpoint::new(
             ty,
             self,
             pathname_vc,
             original_name,
-            path,
+            item,
             self.pages_structure(),
         ));
         Ok(endpoint)
@@ -570,7 +569,7 @@ struct PageEndpoint {
     pages_project: Vc<PagesProject>,
     pathname: Vc<RcStr>,
     original_name: Vc<RcStr>,
-    path: Vc<FileSystemPath>,
+    page: Vc<PagesStructureItem>,
     pages_structure: Vc<PagesStructure>,
 }
 
@@ -601,7 +600,7 @@ impl PageEndpoint {
         pages_project: Vc<PagesProject>,
         pathname: Vc<RcStr>,
         original_name: Vc<RcStr>,
-        path: Vc<FileSystemPath>,
+        page: Vc<PagesStructureItem>,
         pages_structure: Vc<PagesStructure>,
     ) -> Vc<Self> {
         PageEndpoint {
@@ -609,7 +608,7 @@ impl PageEndpoint {
             pages_project,
             pathname,
             original_name,
-            path,
+            page,
             pages_structure,
         }
         .cell()
@@ -618,7 +617,7 @@ impl PageEndpoint {
     #[turbo_tasks::function]
     async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
         let this = self.await?;
-        Ok(Vc::upcast(FileSource::new(this.path)))
+        Ok(Vc::upcast(FileSource::new(this.page.project_path())))
     }
 
     #[turbo_tasks::function]

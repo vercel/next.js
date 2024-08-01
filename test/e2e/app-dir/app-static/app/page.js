@@ -1,3 +1,5 @@
+import { Button } from './button'
+
 export default async function Page() {
   console.log('rendering index')
 
@@ -10,6 +12,7 @@ export default async function Page() {
       <p id="page">/</p>
       <p id="page-data">{data}</p>
       <p id="now">{Date.now()}</p>
+      <Button />
     </>
   )
 }
