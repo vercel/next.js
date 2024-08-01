@@ -1,5 +1,3 @@
-import { ScenarioVariant } from "./index.js";
-
 export function formatVariant(
   scenario: string,
   props: Record<string, string | number | boolean | null>

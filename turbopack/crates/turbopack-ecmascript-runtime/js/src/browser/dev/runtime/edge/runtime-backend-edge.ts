@@ -5,6 +5,8 @@
  * It will be appended to the base development runtime code.
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 /// <reference path="../base/runtime-base.ts" />
 /// <reference path="../../../../shared-node/base-externals-utils.ts" />
 /// <reference path="../../../../shared/require-type.d.ts" />
@@ -50,7 +52,7 @@ function getFileStem(path: string): string {
 
   const stem = fileName.split(".").shift()!;
 
-  if (stem == "") {
+  if (stem === "") {
     return fileName;
   }
 

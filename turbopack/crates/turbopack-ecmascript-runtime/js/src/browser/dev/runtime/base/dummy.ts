@@ -5,6 +5,8 @@
  * This interface will be implemented by runtime backends.
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 /// <reference path="../../../../shared/require-type.d.ts" />
 
 declare var BACKEND: RuntimeBackend;

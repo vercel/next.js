@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 /// <reference path="../shared/runtime-utils.ts" />
 
 function readWebAssemblyAsResponse(path: string) {

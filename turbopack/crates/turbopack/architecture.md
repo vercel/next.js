@@ -54,7 +54,7 @@ will hide that async and error in the `XxxVc`.
 
 ### Tasks
 
-A combination of a function and its arguments is called a Task (basically an
+A combination of a function and its arguments is called a Task (essentially an
 invocation of a function).
 
 It's also possible to store data in a Task via `XxxVc::cell(value: Xxx)`.

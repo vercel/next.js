@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/crates/turbopack-tests/tests/snapshot/cssmodules/relative-uri-import/input/index.module.css"],"sourcesContent":[".bar {\n  composes: foo from 'other.module.css';\n}\n"],"names":[],"mappings":"AAAA"}},
-    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

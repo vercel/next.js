@@ -1,9 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env/input/index.js"],"sourcesContent":["class Foo {}\n\nconsole.log(Foo, [].includes(\"foo\"));\n"],"names":[],"mappings":";;;;;AAAA,IAAA,AAAM,MAAN,SAAM;;8NAAA;;AAEN,QAAQ,GAAG,CAAC,KAAK,EAAE,CAAC,QAAQ,CAAC"}},
-    {"offset": {"line": 15, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 19, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/crates/turbopack-tests/tests/snapshot/node_modules/@swc/helpers/_/_class_call_check.js"],"sourcesContent":["\"purposefully empty stub\";\n\"@swc/helpers/_/_class_call_check.js\";\n"],"names":[],"mappings":"AAAA;AACA"}},
-    {"offset": {"line": 21, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

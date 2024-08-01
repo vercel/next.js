@@ -5,7 +5,7 @@
  * It will be prepended to the runtime code of each runtime.
  */
 
-/* eslint-disable @next/next/no-assign-module-variable */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 /// <reference path="./runtime-types.d.ts" />
 
@@ -514,3 +514,10 @@ const relativeURL = function relativeURL(this: any, inputUrl: string) {
 };
 
 relativeURL.prototype = URL.prototype;
+
+/**
+ * Utility function to ensure all variants of an enum are handled.
+ */
+function invariant(never: never, computeMessage: (arg: any) => string): never {
+  throw new Error(`Invariant: ${computeMessage(never)}`);
+}
