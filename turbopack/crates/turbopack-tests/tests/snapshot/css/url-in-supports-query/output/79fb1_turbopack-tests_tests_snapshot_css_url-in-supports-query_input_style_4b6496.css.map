@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/crates/turbopack-tests/tests/snapshot/css/url-in-supports-query/input/style.css"],"sourcesContent":["@supports ((-webkit-mask: url(\"\")) or (mask: url(\"\"))) {\n  .supports-url-in-query {\n    color: red;\n  }\n}\n"],"names":[],"mappings":"AAAA,CAAC,QAAQ,CAAE,CAAC,CAAC,AAAD,YAAY,EAAE,GAAG,CAAC,EAAE,CAAA,CAAC,IAAM,CAAC,AAAD,IAAI,EAAE,GAAG,CAAC,EAAE,CAAA,CAAC,CAAC,CAAE,CAAC;EACtD,CAAC,qBAAqB,CAAC,CAAC;IACtB,KAAK,EAAE,GAAG;EACZ,CAAC;AACH,CAAC"}},
-    {"offset": {"line": 5, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}
