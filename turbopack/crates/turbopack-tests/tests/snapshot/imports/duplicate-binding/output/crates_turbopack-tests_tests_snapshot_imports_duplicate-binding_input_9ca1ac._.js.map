@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/table.js"],"sourcesContent":["export const Table = ()=>{\n  return 'table'\n}\n"],"names":[],"mappings":";;;AAAO,MAAM,QAAQ;IACnB,OAAO;AACT"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/index.js"],"sourcesContent":["\nimport { Table } from \"./table\"\n\nexport function Table() {\n    console.log(Table)\n}\n"],"names":[],"mappings":";;;;;;AAGO,SAAS;IACZ,QAAQ,GAAG,CAAC,gMAAA,CAAA,QAAK;AACrB"}},
+    {"offset": {"line": 25, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

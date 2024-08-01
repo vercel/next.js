@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-extends-without-ext/input/prop.ts"],"sourcesContent":["export const prop = 1;\n"],"names":[],"mappings":";;;AAAO,MAAM,OAAO"}},
+    {"offset": {"line": 9, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-extends-without-ext/input/index.ts"],"sourcesContent":["import { prop as globalFoo } from \"foo\";\nimport { prop as localFoo } from \"./foo\";\nimport { prop as atFoo } from \"@/foo\";\n\nconsole.log(globalFoo, localFoo, atFoo);\n"],"names":[],"mappings":";;;;;;AAIA,QAAQ,GAAG,CAAC,mNAAA,CAAA,OAAS,EAAE,mNAAA,CAAA,OAAQ,EAAE,mNAAA,CAAA,OAAK"}},
+    {"offset": {"line": 21, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
