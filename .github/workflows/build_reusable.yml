@@ -176,6 +176,11 @@ jobs:
       - run: pnpm install
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
+      - name: Install node-file-trace test dependencies
+        if: ${{ inputs.needsNextest == 'yes' }}
+        working-directory: turbopack/crates/turbopack/tests/node-file-trace
+        run: pnpm install -r --side-effects-cache false
+
       - run: ANALYZE=1 pnpm build
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
