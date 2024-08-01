@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 0, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/crates/turbopack-tests/tests/snapshot/basic/ecmascript_minify/input/index.js"],"sourcesContent":["const inlined = 3;\nconst message = getMessage();\n\nconsole.log(\"Hello,\" + \" world!\", inlined, message);\nconsole.log(message);\n\nfunction getMessage() {\n  return \"Hello\";\n}\n"],"names":[],"mappings":"qOACA,IAAM,EAMG,QAJT,QAAQ,GAAG,CAAC,gBAHI,EAG2B,GAC3C,QAAQ,GAAG,CAAC"}},
+    {"offset": {"line": 0, "column": 306}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

@@ -1,0 +1,243 @@
+[package]
+name = "turbopack-binding"
+version = "0.1.0"
+edition = "2021"
+license = "MPL-2.0"
+autobenches = false
+
+[lib]
+bench = false
+
+[features]
+__swc = []
+__swc_core = ["__swc"]
+__swc_core_serde = ["swc_core/ecma_ast_serde"]
+__swc_core_next_core = [
+  "__swc_core",
+  "swc_core/common_concurrent",
+  "swc_core/ecma_ast",
+  "swc_core/ecma_visit",
+  "swc_core/ecma_loader_node",
+  "swc_core/ecma_loader_lru",
+  "swc_core/ecma_utils",
+  "swc_core/ecma_minifier",
+  "swc_core/ecma_preset_env",
+  "swc_core/ecma_transforms",
+  "swc_core/ecma_transforms_react",
+  "swc_core/ecma_transforms_typescript",
+  "swc_core/ecma_transforms_optimization",
+  "swc_core/ecma_parser",
+  "swc_core/ecma_parser_typescript",
+  "swc_core/cached",
+  "swc_core/base",
+]
+
+__swc_core_binding_napi = [
+  "__swc_core",
+  "swc_core/base_concurrent",
+  "swc_core/base_node",
+  "swc_core/common_concurrent",
+  "swc_core/ecma_ast",
+  "swc_core/ecma_loader_node",
+  "swc_core/ecma_loader_lru",
+  "swc_core/bundler",
+  "swc_core/bundler_concurrent",
+  "swc_core/ecma_codegen",
+  "swc_core/ecma_minifier",
+  "swc_core/ecma_parser",
+  "swc_core/ecma_parser_typescript",
+  "swc_core/ecma_transforms",
+  "swc_core/ecma_transforms_optimization",
+  "swc_core/ecma_transforms_react",
+  "swc_core/ecma_transforms_typescript",
+  "swc_core/ecma_utils",
+  "swc_core/ecma_visit",
+]
+__swc_core_binding_napi_plugin = [
+  "swc_core/plugin_transform_host_native",
+  "turbopack-ecmascript-plugins/swc_ecma_transform_plugin",
+]
+__swc_core_binding_napi_plugin_filesystem_cache = [
+  "swc_core/plugin_transform_host_native_filesystem_cache",
+]
+__swc_core_binding_napi_plugin_shared_runtime = [
+  "swc_core/plugin_transform_host_native_shared_runtime",
+]
+__swc_core_binding_napi_allocator = ["swc_core/allocator_node"]
+
+__swc_core_binding_wasm = [
+  "__swc_core",
+  "swc_core/common_concurrent",
+  "swc_core/binding_macro_wasm",
+  "swc_core/ecma_codegen",
+  "swc_core/ecma_minifier",
+  "swc_core/ecma_transforms",
+  "swc_core/ecma_transforms_typescript",
+  "swc_core/ecma_transforms_optimization",
+  "swc_core/ecma_transforms_react",
+  "swc_core/ecma_parser",
+  "swc_core/ecma_parser_typescript",
+  "swc_core/ecma_utils",
+  "swc_core/ecma_visit",
+]
+__swc_core_binding_wasm_plugin = ["swc_core/plugin_transform_host_js"]
+
+__swc_core_testing_transform = ["swc_core/testing_transform"]
+
+__turbo = []
+__turbo_tasks_malloc = ["__turbo", "turbo-tasks-malloc"]
+__turbo_tasks_malloc_custom_allocator = ["turbo-tasks-malloc/custom_allocator"]
+__turbo_tasks = ["__turbo", "turbo-tasks"]
+__turbo_tasks_tokio_tracing = ["turbo-tasks/tokio_tracing"]
+__turbo_tasks_build = ["__turbo", "turbo-tasks-build"]
+__turbo_tasks_bytes = ["__turbo", "turbo-tasks-bytes"]
+__turbo_tasks_env = ["__turbo", "turbo-tasks-env"]
+__turbo_tasks_fetch = ["__turbo", "turbo-tasks-fetch"]
+__turbo_tasks_fetch_native-tls = ["__turbo", "turbo-tasks-fetch/native-tls"]
+__turbo_tasks_fetch_rustls-tls = ["__turbo", "turbo-tasks-fetch/rustls-tls"]
+__turbo_tasks_fs = ["__turbo", "turbo-tasks-fs"]
+__turbo_tasks_fs_dynamic_embed_contents = [
+  "turbo-tasks-fs/dynamic_embed_contents",
+]
+__turbo_tasks_hash = ["__turbo", "turbo-tasks-hash"]
+__turbo_tasks_macros = ["__turbo", "turbo-tasks-macros"]
+__turbo_tasks_macros_shared = ["__turbo", "turbo-tasks-macros-shared"]
+__turbo_tasks_memory = ["__turbo", "turbo-tasks-memory"]
+__turbo_tasks_memory_print_task_invalidation = [
+  "__turbo_tasks_memory",
+  "turbo-tasks-memory/print_task_invalidation",
+]
+__turbo_tasks_testing = ["__turbo", "turbo-tasks-testing"]
+__turbo_updater = ["__turbo", "turbo-updater"]
+
+__turbopack = ["turbopack"]
+__turbopack_bench = ["__turbopack", "turbopack-bench"]
+__turbopack_nodejs = ["__turbopack", "turbopack-nodejs"]
+__turbopack_nodejs_dynamic_embed_contents = [
+  "turbopack-nodejs/dynamic_embed_contents",
+]
+__turbopack_cli_utils = ["__turbopack", "turbopack-cli-utils"]
+__turbopack_core = ["__turbopack", "turbopack-core"]
+__turbopack_core_issue_path = ["turbopack-core/issue_path"]
+__turbopack_create_test_app = ["__turbopack", "turbopack-create-test-app"]
+__turbopack_css = ["__turbopack", "turbopack-css"]
+__turbopack_browser = ["__turbopack", "turbopack-browser"]
+__turbopack_browser_dynamic_embed_contents = [
+  "turbopack-browser/dynamic_embed_contents",
+]
+__turbopack_dev_server = ["__turbopack", "turbopack-dev-server"]
+__turbopack_ecmascript = ["__turbopack", "turbopack-ecmascript"]
+# [Note]: currently all of the transform features are enabled by default
+__turbopack_ecmascript_plugin = [
+  "__turbopack",
+  "turbopack-ecmascript-plugins",
+  "turbopack-ecmascript-plugins/transform_emotion",
+]
+__turbopack_ecmascript_runtime = ["__turbopack", "turbopack-ecmascript-runtime"]
+__turbopack_ecmascript_hmr_protocol = [
+  "__turbopack",
+  "turbopack-ecmascript-hmr-protocol",
+]
+__turbopack_trace_utils = ["__turbopack", "turbopack-trace-utils"]
+__turbopack_trace_server = ["__turbopack", "turbopack-trace-server"]
+
+__turbopack_env = ["__turbopack", "turbopack-env"]
+__turbopack_image = ["__turbopack", "turbopack-image"]
+__turbopack_image_avif = ["turbopack-image/avif"]
+__turbopack_image_webp = ["turbopack-image/webp"]
+__turbopack_json = ["__turbopack", "turbopack-json"]
+__turbopack_mdx = ["__turbopack", "turbopack-mdx"]
+__turbopack_node = ["__turbopack", "turbopack-node"]
+__turbopack_node_dynamic_embed_contents = [
+  "turbopack-node/dynamic_embed_contents",
+]
+__turbopack_static = ["__turbopack", "turbopack-static"]
+__turbopack_swc_utils = ["__turbopack", "turbopack-swc-utils"]
+__turbopack_tests = []
+__turbopack_test_utils = ["__turbopack", "turbopack-test-utils"]
+
+__features = []
+__feature_mdx_rs = ["__features", "mdxjs/serializable"]
+__feature_node_file_trace = ["__features", "node-file-trace/node-api"]
+__feature_node_file_trace_cli = ["node-file-trace/cli"]
+__feature_node_file_trace_custom_allocator = [
+  "node-file-trace/custom_allocator",
+]
+__feature_auto_hash_map = ["__features", "auto-hash-map"]
+__feature_swc_ast_explorer = []
+__feature_tracing_signpost = ["__features", "tracing-signpost"]
+
+__swc_custom_transform = []
+__swc_transform_styled_components = [
+  "__swc",
+  "__swc_custom_transform",
+  "styled_components",
+]
+__swc_transform_styled_jsx = [
+  "__swc",
+  "__swc_custom_transform",
+  "swc_core/ecma_preset_env",
+  "styled_jsx",
+]
+__swc_transform_emotion = ["__swc", "__swc_custom_transform", "swc_emotion"]
+__swc_transform_relay = ["__swc", "__swc_custom_transform", "swc_relay"]
+__swc_transform_modularize_imports = [
+  "__swc",
+  "__swc_custom_transform",
+  "modularize_imports",
+]
+__swc_testing = ["__swc", "testing"]
+
+[lints]
+workspace = true
+
+[dependencies]
+mdxjs = { optional = true, workspace = true }
+modularize_imports = { optional = true, workspace = true }
+styled_components = { optional = true, workspace = true }
+styled_jsx = { optional = true, workspace = true }
+swc_core = { optional = true, workspace = true }
+swc_emotion = { optional = true, workspace = true }
+swc_relay = { optional = true, workspace = true }
+testing = { optional = true, workspace = true }
+
+auto-hash-map = { optional = true, workspace = true }
+tracing-signpost = { optional = true, workspace = true }
+
+node-file-trace = { optional = true, workspace = true }
+turbo-tasks = { optional = true, workspace = true }
+turbo-tasks-build = { optional = true, workspace = true }
+turbo-tasks-bytes = { optional = true, workspace = true }
+turbo-tasks-env = { optional = true, workspace = true }
+turbo-tasks-fetch = { optional = true, workspace = true }
+turbo-tasks-fs = { optional = true, workspace = true }
+turbo-tasks-hash = { optional = true, workspace = true }
+turbo-tasks-macros = { optional = true, workspace = true }
+turbo-tasks-macros-shared = { optional = true, workspace = true }
+turbo-tasks-malloc = { optional = true, workspace = true, default-features = false }
+turbo-tasks-memory = { optional = true, workspace = true }
+turbo-tasks-testing = { optional = true, workspace = true }
+turbo-updater = { optional = true, workspace = true }
+turbopack = { optional = true, workspace = true }
+turbopack-bench = { optional = true, workspace = true }
+turbopack-browser = { optional = true, workspace = true }
+turbopack-cli-utils = { optional = true, workspace = true }
+turbopack-core = { optional = true, workspace = true }
+turbopack-create-test-app = { optional = true, workspace = true }
+turbopack-css = { optional = true, workspace = true }
+turbopack-dev-server = { optional = true, workspace = true }
+turbopack-ecmascript = { optional = true, workspace = true }
+turbopack-ecmascript-hmr-protocol = { optional = true, workspace = true }
+turbopack-ecmascript-plugins = { optional = true, workspace = true, default-features = false }
+turbopack-ecmascript-runtime = { optional = true, workspace = true }
+turbopack-env = { optional = true, workspace = true }
+turbopack-image = { optional = true, workspace = true }
+turbopack-json = { optional = true, workspace = true }
+turbopack-mdx = { optional = true, workspace = true }
+turbopack-node = { optional = true, workspace = true }
+turbopack-nodejs = { optional = true, workspace = true }
+turbopack-static = { optional = true, workspace = true }
+turbopack-swc-utils = { optional = true, workspace = true }
+turbopack-test-utils = { optional = true, workspace = true }
+turbopack-trace-server = { optional = true, workspace = true }
+turbopack-trace-utils = { optional = true, workspace = true }

@@ -1,0 +1,17 @@
+[package]
+name = "tower-uds"
+version = "0.1.0"
+edition = "2021"
+license = "MPL-2.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { workspace = true, features = ["net"] }
+tower = { version = "0.4.13", features = ["util"] }
+
+
+[target.'cfg(target_os = "windows")'.dependencies]
+tokio-util = { workspace = true, features = ["compat"] }
+uds_windows = "1.0.2"
+async-io = "1.12.0"
