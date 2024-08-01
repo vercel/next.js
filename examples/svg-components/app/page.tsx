@@ -1,3 +1,5 @@
+"use client";
+
 import Cat from "&/svgs/cat.svg";
 import styles from "&/styles/index.module.css";
 
