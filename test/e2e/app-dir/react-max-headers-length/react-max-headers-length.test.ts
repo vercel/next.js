@@ -1,6 +1,19 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const AVERAGE_LINK_HEADER_SIZE = 105
+const LINK_HEADER_SIZE = 111
+
+/**
+ * Calculates the minimum header length that will be emitted by the server. This
+ * is calculated by taking the maximum header length and dividing it by the
+ * average header size including joining `, ` characters.
+ *
+ * @param maxLength the maximum header length
+ * @returns the minimum header length
+ */
+function calculateMinHeaderLength(maxLength) {
+  const averageHeaderSize = LINK_HEADER_SIZE + 2
+  return Math.floor(maxLength / averageHeaderSize) * averageHeaderSize - 2
+}
 
 describe('react-max-headers-length', () => {
   describe.each([0, 400, undefined, 10000])(
@@ -24,9 +37,8 @@ describe('react-max-headers-length', () => {
           // This is the default case.
           expect(header).toBeString()
 
-          expect(header.length).toBeGreaterThan(
-            Math.floor(6000 / AVERAGE_LINK_HEADER_SIZE) *
-              AVERAGE_LINK_HEADER_SIZE
+          expect(header.length).toBeGreaterThanOrEqual(
+            calculateMinHeaderLength(6000)
           )
           expect(header.length).toBeLessThanOrEqual(6000)
         } else if (reactMaxHeadersLength === 0) {
@@ -36,9 +48,9 @@ describe('react-max-headers-length', () => {
           // This is the case where the header is emitted and the length is
           // respected.
           expect(header).toBeString()
-          expect(header.length).toBeGreaterThan(
-            Math.floor(reactMaxHeadersLength / AVERAGE_LINK_HEADER_SIZE) *
-              AVERAGE_LINK_HEADER_SIZE
+
+          expect(header.length).toBeGreaterThanOrEqual(
+            calculateMinHeaderLength(reactMaxHeadersLength)
           )
           expect(header.length).toBeLessThanOrEqual(reactMaxHeadersLength)
         }
