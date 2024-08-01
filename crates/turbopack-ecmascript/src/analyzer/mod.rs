@@ -3866,6 +3866,11 @@ mod tests {
                                         queue
                                             .extend(then.effects.into_iter().rev().map(|e| (i, e)));
                                     }
+                                    ConditionalKind::Else { r#else } => {
+                                        queue.extend(
+                                            r#else.effects.into_iter().rev().map(|e| (i, e)),
+                                        );
+                                    }
                                     ConditionalKind::IfElse { then, r#else }
                                     | ConditionalKind::Ternary { then, r#else } => {
                                         queue.extend(
@@ -3873,6 +3878,18 @@ mod tests {
                                         );
                                         queue
                                             .extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                    }
+                                    ConditionalKind::IfElseMultiple { then, r#else } => {
+                                        for then in then {
+                                            queue.extend(
+                                                then.effects.into_iter().rev().map(|e| (i, e)),
+                                            );
+                                        }
+                                        for r#else in r#else {
+                                            queue.extend(
+                                                r#else.effects.into_iter().rev().map(|e| (i, e)),
+                                            );
+                                        }
                                     }
                                     ConditionalKind::And { expr }
                                     | ConditionalKind::Or { expr }
@@ -3902,6 +3919,12 @@ mod tests {
                                 resolved.push((
                                     format!("{parent} -> {i} member call"),
                                     JsValue::member_call(Box::new(obj), Box::new(prop), new_args),
+                                ));
+                            }
+                            Effect::Unreachable { .. } => {
+                                resolved.push((
+                                    format!("{parent} -> {i} unreachable"),
+                                    JsValue::unknown_empty(true, "unreachable"),
                                 ));
                             }
                             _ => {}

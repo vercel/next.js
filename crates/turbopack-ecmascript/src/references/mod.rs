@@ -134,6 +134,7 @@ use crate::{
         type_issue::SpecifiedModuleTypeIssue,
     },
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
+    utils::AstPathRange,
     EcmascriptInputTransforms, EcmascriptModuleAsset, SpecifiedModuleType, TreeShakingMode,
 };
 
@@ -861,6 +862,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         };
 
         match effect {
+            Effect::Unreachable { start_ast_path } => {
+                analysis.add_code_gen(Unreachable::new(
+                    AstPathRange::StartAfter(start_ast_path.to_vec()).cell(),
+                ));
+            }
             Effect::Conditional {
                 condition,
                 kind,
@@ -872,7 +878,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
                 macro_rules! inactive {
                     ($block:ident) => {
-                        analysis.add_code_gen(Unreachable::new(Vc::cell($block.ast_path.to_vec())));
+                        analysis.add_code_gen(Unreachable::new($block.range.clone().cell()));
                     };
                 }
                 macro_rules! condition {
@@ -904,6 +910,19 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                             active!(then);
                         }
                     },
+                    ConditionalKind::Else { r#else } => match condition.is_truthy() {
+                        Some(true) => {
+                            condition!(ConstantConditionValue::Truthy);
+                            inactive!(r#else);
+                        }
+                        Some(false) => {
+                            condition!(ConstantConditionValue::Falsy);
+                            active!(r#else);
+                        }
+                        None => {
+                            active!(r#else);
+                        }
+                    },
                     ConditionalKind::IfElse { then, r#else }
                     | ConditionalKind::Ternary { then, r#else } => match condition.is_truthy() {
                         Some(true) => {
@@ -919,6 +938,35 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         None => {
                             active!(then);
                             active!(r#else);
+                        }
+                    },
+                    ConditionalKind::IfElseMultiple { then, r#else } => match condition.is_truthy()
+                    {
+                        Some(true) => {
+                            condition!(ConstantConditionValue::Truthy);
+                            for then in then {
+                                active!(then);
+                            }
+                            for r#else in r#else {
+                                inactive!(r#else);
+                            }
+                        }
+                        Some(false) => {
+                            condition!(ConstantConditionValue::Falsy);
+                            for then in then {
+                                inactive!(then);
+                            }
+                            for r#else in r#else {
+                                active!(r#else);
+                            }
+                        }
+                        None => {
+                            for then in then {
+                                active!(then);
+                            }
+                            for r#else in r#else {
+                                active!(r#else);
+                            }
                         }
                     },
                     ConditionalKind::And { expr } => match condition.is_truthy() {

@@ -1,20 +1,26 @@
-0 -> 1 free var = FreeVar(require)
+0 -> 1 call = (...) => binPath()
 
-0 -> 2 call = require*0*("path")
+0 -> 2 free var = FreeVar(require)
+
+0 -> 3 call = require*0*("path")
 - *0* require: The require method from CommonJS
 
-0 -> 3 free var = FreeVar(require)
+0 -> 4 free var = FreeVar(require)
 
-0 -> 4 call = require*0*("path")
+0 -> 5 call = require*0*("path")
 - *0* require: The require method from CommonJS
 
-0 -> 6 free var = FreeVar(platformKey)
+0 -> 7 free var = FreeVar(platformKey)
 
-0 -> 7 call = (...) => {"pkg": pkg, "subpath": subpath}()
+0 -> 8 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
 
-0 -> 9 free var = FreeVar(require)
+0 -> 9 call = (...) => {"pkg": pkg, "subpath": subpath}()
 
-0 -> 10 member call = require*0*["resolve"](
+0 -> 11 free var = FreeVar(require)
+
+0 -> 12 member call = require*0*["resolve"](
     `${(???*1* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*2* | ???*4*)}/${(???*5* | "esbuild.exe" | ???*6*)}`
 )
 - *0* require: The require method from CommonJS
@@ -33,4 +39,6 @@
 - *6* unknown mutation
   ⚠️  This value might have side effects
 
-0 -> 11 call = (...) => binPath()
+0 -> 13 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects

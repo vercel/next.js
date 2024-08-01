@@ -1,7 +1,10 @@
 use serde::Serialize;
 use swc_core::{
     common::DUMMY_SP,
-    ecma::ast::{Expr, Lit, Str},
+    ecma::{
+        ast::{Expr, Lit, Str},
+        visit::AstParentKind,
+    },
 };
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
@@ -126,3 +129,13 @@ format_iter!(std::fmt::Octal);
 format_iter!(std::fmt::Pointer);
 format_iter!(std::fmt::UpperExp);
 format_iter!(std::fmt::UpperHex);
+
+#[turbo_tasks::value(shared, serialization = "none")]
+#[derive(Debug, Clone)]
+pub enum AstPathRange {
+    /// The ast path to the block or expression.
+    Exact(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>),
+    /// The ast path to a expression just before the range in the parent of the
+    /// specific ast path.
+    StartAfter(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>),
+}

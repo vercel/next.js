@@ -1,4 +1,42 @@
 [
+    Call {
+        func: Variable(
+            (
+                "generateBinPath",
+                #2,
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 598..615#0,
+        in_try: false,
+    },
     FreeVar {
         var: FreeVar(
             "require",
@@ -290,6 +328,38 @@
         ],
         span: 317..328#1,
         in_try: false,
+    },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    4,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+        ],
     },
     Call {
         func: Variable(
@@ -592,42 +662,36 @@
         span: 515..551#0,
         in_try: true,
     },
-    Call {
-        func: Variable(
-            (
-                "generateBinPath",
-                #2,
-            ),
-        ),
-        args: [],
-        ast_path: [
+    Unreachable {
+        start_ast_path: [
             Program(
                 Script,
             ),
             Script(
                 Body(
-                    5,
+                    4,
                 ),
             ),
             Stmt(
                 Decl,
             ),
             Decl(
-                Var,
+                Fn,
             ),
-            VarDecl(
-                Decls(
-                    0,
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    3,
                 ),
             ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
+            Stmt(
+                Return,
             ),
         ],
-        span: 598..615#0,
-        in_try: false,
     },
 ]
