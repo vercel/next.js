@@ -539,6 +539,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           fetches: z
             .object({
               fullUrl: z.boolean().optional(),
+              hmrRefreshes: z.boolean().optional(),
             })
             .optional(),
         }),
