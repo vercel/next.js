@@ -2290,6 +2290,7 @@ async fn value_visitor_inner(
             }
         }
     }
+
     let value = match v {
         JsValue::Call(
             _,

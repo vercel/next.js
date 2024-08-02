@@ -1,7 +1,15 @@
-t_i = FreeVar(import)("t_i")
+t_i = ???*0*
+- *0* item is ignored
+  ⚠️  This value might have side effects
 
-t_r = FreeVar(require)("t_r")
+t_r = ???*0*
+- *0* item is ignored
+  ⚠️  This value might have side effects
 
-w_i = FreeVar(import)("w_i")
+w_i = ???*0*
+- *0* item is ignored
+  ⚠️  This value might have side effects
 
-w_r = FreeVar(require)("w_r")
+w_r = ???*0*
+- *0* item is ignored
+  ⚠️  This value might have side effects

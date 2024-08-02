@@ -1,9 +1,12 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::{
+    collections::{BTreeMap, HashMap},
+    fmt::Display,
+};
 
 use indexmap::{IndexMap, IndexSet};
 use once_cell::sync::Lazy;
 use swc_core::{
-    common::{source_map::Pos, Span},
+    common::{comments::Comments, source_map::Pos, Span, Spanned},
     ecma::{
         ast::*,
         atoms::{js_word, JsWord},
@@ -133,6 +136,17 @@ pub(crate) struct ImportMap {
 
     /// True if the module is an ESM module due to top-level await.
     has_top_level_await: bool,
+
+    /// Locations of webpackIgnore or turbopackIgnore comments
+    /// This is a webpack feature that allows opting out of static
+    /// imports, which we should respect.
+    ///
+    /// Example:
+    /// ```js
+    /// const a = import(/* webpackIgnore: true */ "a");
+    /// const b = import(/* turbopackIgnore: true */ "b");
+    /// ```
+    turbopack_ignores: HashMap<Span, bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -180,6 +194,10 @@ impl ImportMap {
         None
     }
 
+    pub fn get_ignore(&self, span: Span) -> Option<bool> {
+        self.turbopack_ignores.get(&span).copied()
+    }
+
     // TODO this could return &str instead of String to avoid cloning
     pub fn get_binding(&self, id: &Id) -> Option<(usize, Option<RcStr>)> {
         if let Some((i, i_sym)) = self.imports.get(id) {
@@ -200,12 +218,17 @@ impl ImportMap {
     }
 
     /// Analyze ES import
-    pub(super) fn analyze(m: &Program, source: Option<Vc<Box<dyn Source>>>) -> Self {
+    pub(super) fn analyze(
+        m: &Program,
+        source: Option<Vc<Box<dyn Source>>>,
+        comments: Option<&dyn Comments>,
+    ) -> Self {
         let mut data = ImportMap::default();
 
         m.visit_with(&mut Analyzer {
             data: &mut data,
             source,
+            comments,
         });
 
         data
@@ -215,6 +238,7 @@ impl ImportMap {
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
     source: Option<Vc<Box<dyn Source>>>,
+    comments: Option<&'a dyn Comments>,
 }
 
 impl<'a> Analyzer<'a> {
@@ -407,8 +431,64 @@ impl Visit for Analyzer<'_> {
     fn visit_export_default_expr(&mut self, _: &ExportDefaultExpr) {
         self.data.has_exports = true;
     }
-    fn visit_stmt(&mut self, _: &Stmt) {
-        // don't visit children
+
+    fn visit_stmt(&mut self, n: &Stmt) {
+        if self.comments.is_some() {
+            // only visit children if we potentially need to mark import / requires
+            n.visit_children_with(self);
+        }
+    }
+
+    /// check if import or require contains an ignore comment
+    ///
+    /// We are checking for the following cases:
+    /// - import(/* webpackIgnore: true */ "a")
+    /// - require(/* webpackIgnore: true */ "a")
+    ///
+    /// We can do this by checking if any of the comment spans are between the
+    /// callee and the first argument.
+    fn visit_call_expr(&mut self, n: &CallExpr) {
+        // we can actually unwrap thanks to the optimisation above
+        // but it can't hurt to be safe...
+        if let Some(comments) = self.comments {
+            let callee_span = match &n.callee {
+                Callee::Import(Import { span, .. }) => Some(span),
+                // this assumes you cannot reassign `require`
+                Callee::Expr(box Expr::Ident(Ident { span, sym, .. })) if sym == "require" => {
+                    Some(span)
+                }
+                _ => None,
+            };
+
+            // we are interested here in the last comment with a valid directive
+            let ignore_statement = n
+                .args
+                .first()
+                .map(|arg| arg.span_lo())
+                .and_then(|comment_pos| comments.get_leading(comment_pos))
+                .iter()
+                .flatten()
+                .rev()
+                .filter_map(|comment| {
+                    println!("{:?}", comment);
+                    let (directive, value) = comment.text.trim().split_once(':')?;
+                    // support whitespace between the colon
+                    match (directive.trim(), value.trim()) {
+                        ("webpackIgnore" | "turbopackIgnore", "true") => Some(true),
+                        ("webpackIgnore" | "turbopackIgnore", "false") => Some(false),
+                        _ => None, // ignore anything else
+                    }
+                })
+                .next();
+
+            if let Some((callee_span, ignore_statement)) = callee_span.zip(ignore_statement) {
+                self.data
+                    .turbopack_ignores
+                    .insert(*callee_span, ignore_statement);
+            };
+        }
+
+        n.visit_children_with(self);
     }
 
     fn visit_program(&mut self, m: &Program) {

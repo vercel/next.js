@@ -1,7 +1,15 @@
-t_i = module<"t_i", {}>
+t_i = ???*0*
+- *0* item is ignored
+  ⚠️  This value might have side effects
 
-t_r = module<t_r, {}>
+t_r = ???*0*
+- *0* item is ignored
+  ⚠️  This value might have side effects
 
-w_i = module<"w_i", {}>
+w_i = ???*0*
+- *0* item is ignored
+  ⚠️  This value might have side effects
 
-w_r = module<w_r, {}>
+w_r = ???*0*
+- *0* item is ignored
+  ⚠️  This value might have side effects

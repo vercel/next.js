@@ -1,74 +1,34 @@
 [
     (
         "t_i",
-        Call(
-            3,
-            FreeVar(
-                "import",
-            ),
-            [
-                Constant(
-                    Str(
-                        Word(
-                            "t_i",
-                        ),
-                    ),
-                ),
-            ],
-        ),
+        Unknown {
+            original_value: None,
+            reason: "item is ignored",
+            has_side_effects: true,
+        },
     ),
     (
         "t_r",
-        Call(
-            3,
-            FreeVar(
-                "require",
-            ),
-            [
-                Constant(
-                    Str(
-                        Word(
-                            "t_r",
-                        ),
-                    ),
-                ),
-            ],
-        ),
+        Unknown {
+            original_value: None,
+            reason: "item is ignored",
+            has_side_effects: true,
+        },
     ),
     (
         "w_i",
-        Call(
-            3,
-            FreeVar(
-                "import",
-            ),
-            [
-                Constant(
-                    Str(
-                        Word(
-                            "w_i",
-                        ),
-                    ),
-                ),
-            ],
-        ),
+        Unknown {
+            original_value: None,
+            reason: "item is ignored",
+            has_side_effects: true,
+        },
     ),
     (
         "w_r",
-        Call(
-            3,
-            FreeVar(
-                "require",
-            ),
-            [
-                Constant(
-                    Str(
-                        Word(
-                            "w_r",
-                        ),
-                    ),
-                ),
-            ],
-        ),
+        Unknown {
+            original_value: None,
+            reason: "item is ignored",
+            has_side_effects: true,
+        },
     ),
 ]

@@ -3675,7 +3675,7 @@ mod tests {
     use std::{mem::take, path::PathBuf, time::Instant};
 
     use swc_core::{
-        common::Mark,
+        common::{comments::SingleThreadedComments, Mark},
         ecma::{
             ast::EsVersion, parser::parse_file_as_program, transforms::base::resolver,
             visit::VisitMutWith,
@@ -3712,11 +3712,12 @@ mod tests {
             r.block_on(async move {
                 let fm = cm.load_file(&input).unwrap();
 
+                let comments = SingleThreadedComments::default();
                 let mut m = parse_file_as_program(
                     &fm,
                     Default::default(),
                     EsVersion::latest(),
-                    None,
+                    Some(&comments),
                     &mut vec![],
                 )
                 .map_err(|err| err.into_diagnostic(handler).emit())?;
@@ -3725,7 +3726,10 @@ mod tests {
                 let top_level_mark = Mark::new();
                 m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
-                let eval_context = EvalContext::new(&m, unresolved_mark, top_level_mark, None);
+                let eval_context =
+                    EvalContext::new(&m, unresolved_mark, top_level_mark, Some(&comments), None);
+
+                println!("eval_context {:#?}", eval_context);
 
                 let mut var_graph = create_graph(&m, &eval_context);
 

@@ -322,6 +322,8 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
     )
 }
 
+/// Resolve the contents of a require call, throwing errors
+/// if we come across any unsupported syntax.
 pub fn require(args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
         if let Some(s) = args[0].as_str() {

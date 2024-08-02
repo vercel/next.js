@@ -511,6 +511,7 @@ pub(super) async fn split(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
+                        None, // TODO(arlyon): pass comments
                         Some(source),
                     );
 
@@ -633,6 +634,7 @@ pub(super) async fn part_of_module(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
+                        None, // TODO(arlyon): pass comments
                         None,
                     );
 
@@ -709,6 +711,7 @@ pub(super) async fn part_of_module(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
+                        None, // TODO(arlyon): pass comments
                         None,
                     );
                     return Ok(ParseResult::Ok {
