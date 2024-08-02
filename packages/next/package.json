@@ -1375,6 +1375,7 @@
     "./dist/compiled/postcss-modules-local-by-default": "./dist/compiled/postcss-modules-local-by-default/index.js",
     "./dist/compiled/postcss-modules-scope": "./dist/compiled/postcss-modules-scope/index.js",
     "./dist/compiled/postcss-modules-values": "./dist/compiled/postcss-modules-values/index.js",
+    "./dist/compiled/postcss-plugin-stub-for-cssnano-simple": "./dist/compiled/postcss-plugin-stub-for-cssnano-simple/index.js",
     "./dist/compiled/postcss-preset-env": "./dist/compiled/postcss-preset-env/index.cjs",
     "./dist/compiled/postcss-safe-parser": "./dist/compiled/postcss-safe-parser/safe-parse.js",
     "./dist/compiled/postcss-scss": "./dist/compiled/postcss-scss/scss-syntax.js",
@@ -1705,8 +1706,6 @@
     },
     "./dist/compiled/regenerator-runtime": "./dist/compiled/regenerator-runtime/runtime.js",
     "./dist/compiled/sass-loader": "./dist/compiled/sass-loader/cjs.js",
-    "./dist/compiled/scheduler-experimental": {},
-    "./dist/compiled/scheduler": {},
     "./dist/compiled/schema-utils2": "./dist/compiled/schema-utils2/index.js",
     "./dist/compiled/schema-utils3": "./dist/compiled/schema-utils3/index.js",
     "./dist/compiled/semver": "./dist/compiled/semver/index.js",
@@ -1747,6 +1746,19 @@
       "types": "./index.d.ts",
       "default": "./dist/server/next.js"
     },
+    "./dist/trace": "./dist/trace/index.js",
+    "./dist/build/swc": "./dist/build/swc/index.js",
+    "./dist/compiled/scheduler": "./dist/compiled/scheduler/index.js",
+    "./dist/compiled/scheduler-experimental": "./dist/compiled/scheduler-experimental/index.js",
+    "./dist/build/babel/loader": "./dist/build/babel/loader/index.js",
+    "./dist/esm/server/lib/incremental-cache": "./dist/esm/server/lib/incremental-cache/index.js",
+    "./dist/esm/server/api-utils": "./dist/esm/server/api-utils/index.js",
+    "./font": {
+      "types": "./font/index.d.ts"
+    },
+    "./font/google": "./font/google/index.js",
+    "./font/local": "./font/local/index.js",
+    "./package": "./package.json",
     "./*.json": "./*.json",
     "./*.js": "./*.js",
     "./*": "./*.js"
