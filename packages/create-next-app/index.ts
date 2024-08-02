@@ -57,6 +57,7 @@ const program = new Command(packageJson.name)
     '--import-alias <prefix/*>',
     'Specify import alias to use (default "@/*").'
   )
+  .option('--api', 'Initialize a headless API using the App Router.')
   .option('--empty', 'Initialize an empty project.')
   .option(
     '--use-npm',
@@ -437,7 +438,7 @@ async function run(): Promise<void> {
       skipInstall: opts.skipInstall,
       empty: opts.empty,
       turbo: opts.turbo,
-      api: program.api,
+      api: opts.api,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
