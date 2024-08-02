@@ -13,19 +13,6 @@ use turbo_tasks::{
     RcStr, TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
-use turbopack_core::{
-    asset::{Asset, AssetContent},
-    chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
-    context::AssetContext,
-    module::Module,
-    output::OutputAsset,
-    reference::primary_referenced_modules,
-    reference_type::{
-        EcmaScriptModulesReferenceSubType, ReferenceType, TypeScriptReferenceSubType,
-    },
-    virtual_output::VirtualOutputAsset,
-    virtual_source::VirtualSource,
-};
 use turbopack_ecmascript::{
     chunk::EcmascriptChunkPlaceable, parse::ParseResult,
     tree_shake::asset::EcmascriptModulePartAsset, EcmascriptModuleAsset, EcmascriptModuleAssetType,
@@ -299,13 +286,9 @@ pub fn parse_server_actions<C: Comments>(
 #[turbo_tasks::function]
 async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
     let parsed = if let Some(ecmascript_asset) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
+        Vc::try_resolve_sidecast::<Box<dyn Parsable>>(module).await?
     {
         ecmascript_asset.failsafe_parse()
-    } else if let Some(ecmascript_asset) =
-        Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
-    {
-        ecmascript_asset.await?.full_module.failsafe_parse()
     } else {
         return Ok(OptionActionMap::none());
     };

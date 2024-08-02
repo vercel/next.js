@@ -6,7 +6,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         availability_info::AvailabilityInfo, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingContext, ChunkingContextExt, EvaluatableAssets,
+        ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
     },
     ident::AssetIdent,
     introspect::{
@@ -26,7 +26,6 @@ use crate::{
         EcmascriptChunkType, EcmascriptExports,
     },
     utils::StringifyJs,
-    EcmascriptModuleAsset,
 };
 
 #[turbo_tasks::function]
@@ -129,14 +128,14 @@ impl ChunkGroupFilesChunkItem {
         let this = self.await?;
         let inner = this.inner.await?;
         let chunks = if let Some(ecma) =
-            Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(inner.module).await?
+            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(inner.module).await?
         {
             inner.chunking_context.evaluated_chunk_group_assets(
                 inner.module.ident(),
                 inner
                     .runtime_entries
                     .unwrap_or_else(EvaluatableAssets::empty)
-                    .with_entry(Vc::upcast(ecma)),
+                    .with_entry(ecma),
                 Value::new(AvailabilityInfo::Root),
             )
         } else {
