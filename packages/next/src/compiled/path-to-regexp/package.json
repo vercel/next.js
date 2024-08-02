@@ -1,0 +1,86 @@
+{
+  "name": "path-to-regexp",
+  "description": "Express style path to RegExp utility",
+  "version": "6.1.0",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "module": "dist.es2015/index.js",
+  "sideEffects": false,
+  "files": [
+    "dist/",
+    "dist.es2015/"
+  ],
+  "scripts": {
+    "prettier": "prettier --write",
+    "lint": "tslint \"src/**/*\" --project tsconfig.json",
+    "format": "npm run prettier -- \"{.,src/**}/*.{js,jsx,ts,tsx,json,md,yml,yaml}\"",
+    "build": "rimraf dist/ dist.es2015/ && tsc && tsc -P tsconfig.es2015.json",
+    "specs": "jest --coverage",
+    "test": "npm run build && npm run lint && npm run specs && npm run size",
+    "size": "size-limit",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "express",
+    "regexp",
+    "route",
+    "routing"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pillarjs/path-to-regexp.git"
+  },
+  "size-limit": [
+    {
+      "path": "dist/index.js",
+      "limit": "2 kB"
+    }
+  ],
+  "jest": {
+    "roots": [
+      "<rootDir>/src/"
+    ],
+    "transform": {
+      "\\.tsx?$": "ts-jest"
+    },
+    "testRegex": "(/__tests__/.*|\\.(test|spec))\\.(tsx?|jsx?)$",
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json",
+      "node"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,md,yml,yaml}": [
+      "npm run prettier",
+      "git add"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@size-limit/preset-small-lib": "^2.1.6",
+    "@types/jest": "^24.0.22",
+    "@types/node": "^12.12.7",
+    "husky": "^3.0.9",
+    "jest": "^24.9.0",
+    "lint-staged": "^9.4.2",
+    "prettier": "^1.19.1",
+    "rimraf": "^3.0.0",
+    "ts-jest": "^24.1.0",
+    "tslint": "^5.20.1",
+    "tslint-config-prettier": "^1.18.0",
+    "tslint-config-standard": "^9.0.0",
+    "typescript": "^3.7.2"
+  }
+}
