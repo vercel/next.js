@@ -83,6 +83,8 @@ export default async function submit() {
 
 ### Route Handler
 
+**It is required** that your response from a route handler contains `revalidated` field and possible `now` field too, otherwise calling `revalidatePath` will do nothing.
+
 ```ts filename="app/api/revalidate/route.ts" switcher
 import { revalidatePath } from 'next/cache'
 import type { NextRequest } from 'next/server'
