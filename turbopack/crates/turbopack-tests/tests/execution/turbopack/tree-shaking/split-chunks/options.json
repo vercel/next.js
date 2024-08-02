@@ -1,0 +1,3 @@
+{
+  "treeShakingMode": "module-fragments"
+}
