@@ -52,9 +52,25 @@ export type Manifest = {
   }[]
   scope?: string
   screenshots?: {
+    form_factor?: 'narrow' | 'wide'
+    label?: string
+    platform?:
+      | 'android'
+      | 'chromeos'
+      | 'ipados'
+      | 'ios'
+      | 'kaios'
+      | 'macos'
+      | 'windows'
+      | 'xbox'
+      | 'chrome_web_store'
+      | 'play'
+      | 'itunes'
+      | 'microsoft-inbox'
+      | 'microsoft-store'
+    sizes?: string
     src: string
     type?: string
-    sizes?: string
   }[]
   serviceworker?: {
     src?: string
