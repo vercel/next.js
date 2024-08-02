@@ -335,17 +335,17 @@ async function run(): Promise<void> {
         opts.app = getPrefOrDefault('app')
       } else {
         const styledAppDir = blue('App Router')
-        const { appRouter } = await prompts({
+        const { app } = await prompts({
           onState: onPromptState,
           type: 'toggle',
-          name: 'appRouter',
+          name: 'app',
           message: `Would you like to use ${styledAppDir}? (recommended)`,
           initial: getPrefOrDefault('app'),
           active: 'Yes',
           inactive: 'No',
         })
-        opts.app = Boolean(appRouter)
-        preferences.app = Boolean(appRouter)
+        opts.app = Boolean(app)
+        preferences.app = Boolean(app)
       }
     }
 
@@ -422,7 +422,7 @@ async function run(): Promise<void> {
       typescript: opts.typescript,
       tailwind: opts.tailwind,
       eslint: opts.eslint,
-      appRouter: opts.app,
+      app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,
       skipInstall: opts.skipInstall,
@@ -453,7 +453,7 @@ async function run(): Promise<void> {
       typescript: opts.typescript,
       eslint: opts.eslint,
       tailwind: opts.tailwind,
-      appRouter: opts.app,
+      app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,
       skipInstall: opts.skipInstall,
