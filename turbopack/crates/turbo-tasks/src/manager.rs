@@ -509,11 +509,12 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
         let this = self.pin();
         let future = async move {
-            #[allow(clippy::blocks_in_conditions)]
-            while CURRENT_TASK_STATE
-                .scope(
-                    RefCell::new(CurrentTaskState::new(this.execution_id_factory.get())),
-                    async {
+            let mut schedule_again = true;
+            while schedule_again {
+                let task_state =
+                    RefCell::new(CurrentTaskState::new(this.execution_id_factory.get()));
+                schedule_again = CURRENT_TASK_STATE
+                    .scope(task_state, async {
                         if this.stopped.load(Ordering::Acquire) {
                             return false;
                         }
@@ -560,10 +561,9 @@ impl<B: Backend + 'static> TurboTasks<B> {
                                 .await
                             })
                             .await
-                    },
-                )
-                .await
-            {}
+                    })
+                    .await;
+            }
             this.finish_primary_job();
             anyhow::Ok(())
         };
