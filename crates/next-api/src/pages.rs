@@ -51,7 +51,7 @@ use turbopack_binding::{
             source::Source,
             virtual_output::VirtualOutputAsset,
         },
-        ecmascript::{resolve::esm_resolve, EcmascriptModuleAsset},
+        ecmascript::resolve::esm_resolve,
         nodejs::NodeJsChunkingContext,
         turbopack::{
             module_options::ModuleOptionsContext,
