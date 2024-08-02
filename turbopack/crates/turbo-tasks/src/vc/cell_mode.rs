@@ -17,8 +17,12 @@ where
     /// Create a new cell.
     fn cell(value: VcReadTarget<T>) -> Vc<T>;
 
-    /// Create a type-erased `RawVc` cell given a pre-existing type-erased
-    /// `SharedReference`. In some cases, we will re-use the shared value.
+    /// Create a type-erased [`RawVc`] cell given a pre-existing type-erased
+    /// [`SharedReference`][crate::task::SharedReference].
+    ///
+    /// This is used in APIs that already have a `SharedReference`, such as in
+    /// [`ReadRef::cell`][crate::ReadRef::cell] or in [`Vc::resolve`] when
+    /// resolving a local [`Vc`]. This avoids unnecessary cloning.
     fn raw_cell(value: TypedSharedReference) -> RawVc;
 }
 

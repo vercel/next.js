@@ -1587,6 +1587,10 @@ impl CurrentCellRef {
     /// However, in most cases, the default derived implementation of
     /// `PartialEq` is used which just forwards to the inner value's
     /// `PartialEq`.
+    ///
+    /// If you already have a `SharedReference`, consider calling
+    /// [`compare_and_update_with_shared_reference`] which can re-use the
+    /// `SharedReference` object.
     pub fn compare_and_update<T>(&self, new_value: T)
     where
         T: PartialEq + VcValueType,
