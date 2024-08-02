@@ -2,6 +2,7 @@ use std::mem::take;
 
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
+use either::Either;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use turbo_tasks::{
@@ -56,7 +57,9 @@ use crate::{
 #[serde(rename_all = "camelCase")]
 #[turbo_tasks::value(serialization = "custom")]
 struct WebpackLoadersProcessingResult {
-    source: RcStr,
+    #[serde(with = "either::serde_untagged")]
+    #[turbo_tasks(trace_ignore)]
+    source: Either<RcStr, Vec<u8>>,
     map: Option<RcStr>,
     #[turbo_tasks(trace_ignore)]
     assets: Option<Vec<EmittedAsset>>,
@@ -250,7 +253,7 @@ impl WebpackLoadersProcessedAsset {
         } else {
             None
         };
-        let file = File::from(processed.source);
+        let file = either::for_both!(processed.source, source => File::from(source));
         let assets = emitted_assets_to_virtual_sources(processed.assets);
         let content = AssetContent::File(FileContent::Content(file).cell()).cell();
         Ok(ProcessWebpackLoadersResult {

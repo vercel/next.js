@@ -21,6 +21,7 @@ anyhow = { workspace = true }
 async-stream = "0.3.4"
 async-trait = { workspace = true }
 const_format = "0.2.30"
+either = { workspace = true, features = ["serde"] }
 futures = { workspace = true }
 futures-retry = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
