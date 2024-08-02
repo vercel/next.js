@@ -2498,6 +2498,8 @@ export default async function build(
 
       if (!isGenerateMode) {
         if (config.experimental.flyingShuttle) {
+          await buildTracesPromise
+
           console.log('stitching builds...')
           const stitchResult = await stitchBuilds(
             {
@@ -2752,7 +2754,7 @@ export default async function build(
           // If there was no result, there's nothing more to do.
           if (!exportResult) return
 
-          if (debugOutput) {
+          if (debugOutput || process.env.NEXT_SSG_FETCH_METRICS === '1') {
             recordFetchMetrics(exportResult)
           }
 

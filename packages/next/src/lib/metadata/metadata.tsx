@@ -105,6 +105,9 @@ export function createMetadataComponents({
       ) as Promise<void> & { status: string; value: unknown }
     metadataReady.status = 'pending'
     currentMetadataReady = metadataReady
+    // We aren't going to await this promise immediately but if it rejects early we don't
+    // want unhandled rejection errors so we attach a throwaway catch handler.
+    metadataReady.catch(() => {})
 
     // We ignore any error from metadata here because it needs to be thrown from within the Page
     // not where the metadata itself is actually rendered

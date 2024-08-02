@@ -1,0 +1,35 @@
+id: no-context
+message: Don't name variables `context`.
+note: Use a more specific name, such as chunking_context, asset_context, etc.
+severity: error
+language: Rust
+rule:
+  regex: \bcontext\b
+  any:
+    - all:
+        - inside:
+            any:
+              - kind: closure_parameters
+              - kind: parameter
+              - kind: function_item
+              - kind: let_declaration
+        - kind: identifier
+    - all:
+        - kind: field_identifier
+        - inside:
+            kind: field_declaration
+ignores:
+  - './crates/turbopack-css/**'
+  - './crates/turbopack-dev-server/**'
+  - './crates/turbopack-browser/**'
+  - './crates/turbopack-ecmascript-hmr-protocol/**'
+  - './crates/turbopack-ecmascript-plugins/**'
+  - './crates/turbopack-ecmascript-runtime/**'
+  - './crates/turbopack-json/**'
+  - './crates/turbopack-mdx/**'
+  - './crates/turbopack-node/**'
+  - './crates/turbopack-static/**'
+  - './crates/turbopack-tests/**'
+  - './crates/turbopack/**'
+  - './crates/turborepo-cache/**'
+  - './crates/turborepo-scm/**'

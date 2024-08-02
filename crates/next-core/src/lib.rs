@@ -40,7 +40,7 @@ pub mod util;
 pub use app_segment_config::{
     parse_segment_config_from_loader_tree, parse_segment_config_from_source,
 };
-pub use emit::{all_assets_from_entries, emit_all_assets, emit_assets, emit_client_assets};
+pub use emit::{all_assets_from_entries, emit_all_assets, emit_assets};
 pub use next_edge::context::{
     get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
     get_edge_compile_time_info, get_edge_resolve_options_context,

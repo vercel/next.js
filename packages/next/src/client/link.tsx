@@ -22,6 +22,7 @@ import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
 import { PrefetchKind } from './components/router-reducer/router-reducer-types'
+import { useMergedRef } from './use-merged-ref'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -432,16 +433,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           const _: never = key
         }
       })
-
-      // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      const hasWarned = React.useRef(false)
-      if (props.prefetch && !hasWarned.current && !isAppRouter) {
-        hasWarned.current = true
-        console.warn(
-          'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://nextjs.org/docs/messages/prefetch-true-deprecated'
-        )
-      }
     }
 
     if (process.env.NODE_ENV !== 'production') {
@@ -546,7 +537,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       rootMargin: '200px',
     })
 
-    const setRef = React.useCallback(
+    const setIntersectionWithResetRef = React.useCallback(
       (el: Element) => {
         // Before the link getting observed, check if visible state need to be reset
         if (previousAs.current !== as || previousHref.current !== href) {
@@ -556,15 +547,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         }
 
         setIntersectionRef(el)
-        if (childRef) {
-          if (typeof childRef === 'function') childRef(el)
-          else if (typeof childRef === 'object') {
-            childRef.current = el
-          }
-        }
       },
-      [as, childRef, href, resetVisible, setIntersectionRef]
+      [as, href, resetVisible, setIntersectionRef]
     )
+
+    const setRef = useMergedRef(setIntersectionWithResetRef, childRef)
 
     // Prefetch the URL if we haven't already and it's visible.
     React.useEffect(() => {
