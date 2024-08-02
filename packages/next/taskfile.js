@@ -1128,6 +1128,11 @@ export async function ncc_cssnano_simple_bundle(task, opts) {
       externals: bundleExternals,
     })
     .target('src/compiled/cssnano-simple')
+
+  await writeJson(join(__dirname, 'src/compiled/cssnano-simple/package.json'), {
+    name: 'cssnano-simple',
+    main: './index.js',
+  })
 }
 
 // eslint-disable-next-line camelcase

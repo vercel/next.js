@@ -1327,6 +1327,7 @@
     "./dist/compiled/cross-spawn": "./dist/compiled/cross-spawn/index.js",
     "./dist/compiled/crypto-browserify": "./dist/compiled/crypto-browserify/index.js",
     "./dist/compiled/css.escape": "./dist/compiled/css.escape/css.escape.js",
+    "./dist/compiled/cssnano-simple": "./dist/compiled/cssnano-simple/index.js",
     "./dist/compiled/data-uri-to-buffer": "./dist/compiled/data-uri-to-buffer/index.js",
     "./dist/compiled/debug": "./dist/compiled/debug/index.js",
     "./dist/compiled/devalue": "./dist/compiled/devalue/devalue.umd.js",
