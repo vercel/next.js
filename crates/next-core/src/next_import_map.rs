@@ -404,6 +404,7 @@ pub async fn get_next_edge_import_map(
             "next/app" => "next/dist/api/app".to_string(),
             "next/document" => "next/dist/api/document".to_string(),
             "next/dynamic" => "next/dist/api/dynamic".to_string(),
+            "next/form" => "next/dist/api/form".to_string(),
             "next/head" => "next/dist/api/head".to_string(),
             "next/headers" => "next/dist/api/headers".to_string(),
             "next/image" => "next/dist/api/image".to_string(),
@@ -805,17 +806,15 @@ async fn insert_next_shared_aliases(
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
-    if next_config.mdx_rs().await?.is_some() {
-        insert_alias_to_alternatives(
-            import_map,
-            mdx_import_source_file(),
-            vec![
-                request_to_import_mapping(project_path, "./mdx-components"),
-                request_to_import_mapping(project_path, "./src/mdx-components"),
-                request_to_import_mapping(project_path, "@mdx-js/react"),
-            ],
-        );
-    }
+    insert_alias_to_alternatives(
+        import_map,
+        mdx_import_source_file(),
+        vec![
+            request_to_import_mapping(project_path, "./mdx-components"),
+            request_to_import_mapping(project_path, "./src/mdx-components"),
+            request_to_import_mapping(project_path, "@mdx-js/react"),
+        ],
+    );
 
     insert_package_alias(
         import_map,

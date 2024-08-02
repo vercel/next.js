@@ -18,7 +18,6 @@ use turbopack_binding::{
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
-        ecmascript::TreeShakingMode,
         node::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -47,6 +46,7 @@ use crate::{
         get_next_client_resolved_map,
     },
     next_shared::{
+        next_js_special_exports,
         resolve::{
             get_invalid_server_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
             NextSharedRuntimeResolvePlugin,
@@ -203,6 +203,8 @@ pub async fn get_client_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
+    let next_mode = mode.await?;
+
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, mode, next_config, execution_context);
 
@@ -238,6 +240,12 @@ pub async fn get_client_module_options_context(
     let enable_webpack_loaders =
         webpack_loader_options(project_path, next_config, false, conditions).await?;
 
+    let tree_shaking_mode_for_user_code = *next_config
+        .tree_shaking_mode_for_user_code(next_mode.is_development())
+        .await?;
+    let tree_shaking_mode_for_foreign_code = *next_config
+        .tree_shaking_mode_for_foreign_code(next_mode.is_development())
+        .await?;
     let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
 
@@ -278,7 +286,8 @@ pub async fn get_client_module_options_context(
         enable_typeof_window_inlining: Some(TypeofWindow::Object),
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
-        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        tree_shaking_mode: tree_shaking_mode_for_user_code,
+        special_exports: Some(next_js_special_exports()),
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
         ..Default::default()
@@ -290,6 +299,7 @@ pub async fn get_client_module_options_context(
         enable_webpack_loaders: foreign_enable_webpack_loaders,
         enable_postcss_transform: enable_foreign_postcss_transform,
         custom_rules: foreign_next_client_rules,
+        tree_shaking_mode: tree_shaking_mode_for_foreign_code,
         // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
         ..module_options_context.clone()
     };

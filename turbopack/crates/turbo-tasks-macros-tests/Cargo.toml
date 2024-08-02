@@ -1,0 +1,17 @@
+[package]
+name = "turbo-tasks-macros-tests"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+[dev-dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+trybuild = { version = "1.0.97" }
+turbo-tasks = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

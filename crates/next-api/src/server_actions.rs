@@ -29,7 +29,8 @@ use turbopack_binding::{
             virtual_source::VirtualSource,
         },
         ecmascript::{
-            chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptModuleAsset,
+            chunk::EcmascriptChunkPlaceable, parse::ParseResult,
+            tree_shake::asset::EcmascriptModulePartAsset, EcmascriptModuleAsset,
             EcmascriptModuleAssetType,
         },
     },
@@ -246,6 +247,14 @@ async fn to_rsc_context(
         } else {
             ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)
         }
+    } else if let Some(module) =
+        Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
+    {
+        if module.await?.full_module.await?.ty == EcmascriptModuleAssetType::Ecmascript {
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
+        } else {
+            ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)
+        }
     } else {
         ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)
     };
@@ -294,14 +303,21 @@ pub fn parse_server_actions<C: Comments>(
 /// the exported action function. If not, we return a None.
 #[turbo_tasks::function]
 async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
-    let Some(ecmascript_asset) =
+    let parsed = if let Some(ecmascript_asset) =
         Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
-    else {
+    {
+        ecmascript_asset.failsafe_parse()
+    } else if let Some(ecmascript_asset) =
+        Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
+    {
+        ecmascript_asset.await?.full_module.failsafe_parse()
+    } else {
         return Ok(OptionActionMap::none());
     };
+
     let ParseResult::Ok {
         comments, program, ..
-    } = &*ecmascript_asset.parse().await?
+    } = &*parsed.await?
     else {
         // The file might be be parse-able, but this is reported separately.
         return Ok(OptionActionMap::none());

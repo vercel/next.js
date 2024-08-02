@@ -436,9 +436,8 @@ async function createComponentTreeInternal({
             injectedJS: injectedJSWithCurrentLayout,
             injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             asNotFound,
-            // The metadataReady is used to trigger any errors that were caught during metadata resolution.
-            // We only want to throw once per segment, as otherwise the error will be triggered
-            // multiple times causing an uncaught error.
+            // getMetadataReady is used to conditionally throw. In the case of parallel routes we will have more than one page
+            // but we only want to throw on the first one.
             getMetadataReady: isChildrenRouteKey
               ? getMetadataReady
               : () => Promise.resolve(),

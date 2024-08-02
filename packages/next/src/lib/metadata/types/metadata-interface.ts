@@ -309,7 +309,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * The Twitter metadata for the document.
    * @example
    * ```tsx
-   * { card: "summary_large_image", site: "@site", creator: "@creator", "images": "https://example.com/og.png" }
+   * { card: "summary_large_image", site: "@site", creator: "@creator", images: "https://example.com/og.png" }
    *
    * <meta name="twitter:card" content="summary_large_image" />
    * <meta name="twitter:site" content="@site" />
