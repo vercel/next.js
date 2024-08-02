@@ -2127,17 +2127,10 @@ export async function ncc_ws(task, opts) {
 }
 
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
-export async function path_to_regexp(task, opts) {
+export async function ncc_path_to_regexp(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('path-to-regexp/package.json')))
-    .target('src/compiled/path-to-regexp')
-  await task
-    .source(
-      join(
-        dirname(relative(__dirname, require.resolve('path-to-regexp'))),
-        '*.{js,map}'
-      )
-    )
+    .source(relative(__dirname, require.resolve('path-to-regexp')))
+    .ncc({ packageName: 'path-to-regexp', externals })
     .target('src/compiled/path-to-regexp')
 }
 
@@ -2172,12 +2165,7 @@ export async function ncc_https_proxy_agent(task, opts) {
 
 export async function precompile(task, opts) {
   await task.parallel(
-    [
-      'browser_polyfills',
-      'path_to_regexp',
-      'copy_ncced',
-      'copy_styled_jsx_assets',
-    ],
+    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
     opts
   )
 }
@@ -2267,6 +2255,7 @@ export async function ncc(task, opts) {
         'ncc_native_url',
         'ncc_neo_async',
         'ncc_ora',
+        'ncc_path_to_regexp',
         'ncc_postcss_safe_parser',
         'ncc_postcss_flexbugs_fixes',
         'ncc_postcss_preset_env',
