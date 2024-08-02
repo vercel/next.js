@@ -1747,6 +1747,7 @@
       "default": "./dist/server/next.js"
     },
     "./*.json": "./*.json",
+    "./*.js": "./*.js",
     "./*": "./*.js"
   }
 }

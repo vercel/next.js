@@ -8,6 +8,10 @@ const nextjsExportsDefaults = {
     default: './dist/server/next.js',
   },
   './*.json': './*.json',
+  // Support existing imports of .js files
+  // TODO: arguably codemoddable so maybe good to drop. Also need to adjust our imports (e.g. in resolver aliases)
+  './*.js': './*.js',
+  // Support existing imports that rely on legacy behavior where modules without extension were automatically resolved to .js modules if they existed.
   './*': './*.js',
 }
 
