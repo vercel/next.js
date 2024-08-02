@@ -75,10 +75,15 @@ module.exports = {
     },
     outputFileTracingIncludes: {
       '/api/another': ['./necessary-folder/**/*'],
+      '/api/login/\\[\\[\\.\\.\\.slug\\]\\]': [
+        './node_modules/aws-crt/dist/bin/**/*',
+      ],
     },
   },
 }
 ```
+
+Note: the key for `outputFileTracingIncludes`/`outputFileTracingExcludes` is a [glob](https://www.npmjs.com/package/picomatch#basic-globbing) so needs to have special characters escaped.
 
 - Currently, Next.js does not do anything with the emitted `.nft.json` files. The files must be read by your deployment platform, for example [Vercel](https://vercel.com), to create a minimal deployment. In a future release, a new command is planned to utilize these `.nft.json` files.
 
