@@ -77,6 +77,14 @@
   "bin": {
     "next": "./dist/bin/next"
   },
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./dist/server/next.js"
+    },
+    "./*.json": "./*.json",
+    "./*": "./*.js"
+  },
   "scripts": {
     "dev": "NEXT_SERVER_EVAL_SOURCE_MAPS=1 taskr",
     "release": "taskr release",
