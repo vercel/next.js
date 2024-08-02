@@ -837,6 +837,7 @@ describe('app dir - navigation', () => {
         // throttling the CPU to rule out flakiness based on how quickly the page loads
         cpuThrottleRate: 6,
       })
+
       const body = await browser.elementByCss('body')
       expect(await body.text()).toContain('Item 50')
       await browser.elementById('load-more').click()

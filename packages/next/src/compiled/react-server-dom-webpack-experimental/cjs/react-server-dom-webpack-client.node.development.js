@@ -22,38 +22,6 @@
         : (obj[key] = value);
       return obj;
     }
-    function printToConsole(methodName, args, badgeName) {
-      var offset = 0;
-      switch (methodName) {
-        case "dir":
-        case "dirxml":
-        case "groupEnd":
-        case "table":
-          console[methodName].apply(console, args);
-          return;
-        case "assert":
-          offset = 1;
-      }
-      args = args.slice(0);
-      "string" === typeof args[offset]
-        ? args.splice(
-            offset,
-            1,
-            "\u001b[0m\u001b[7m%c%s\u001b[0m%c " + args[offset],
-            "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-            " " + badgeName + " ",
-            ""
-          )
-        : args.splice(
-            offset,
-            0,
-            "\u001b[0m\u001b[7m%c%s\u001b[0m%c ",
-            "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-            " " + badgeName + " ",
-            ""
-          );
-      console[methodName].apply(console, args);
-    }
     function resolveClientReference(bundlerConfig, metadata) {
       if (bundlerConfig) {
         var moduleExports = bundlerConfig[metadata[0]];
@@ -1190,6 +1158,13 @@
         "" === key &&
           null === handler.value &&
           (handler.value = parentObject[key]);
+        parentObject[0] === REACT_ELEMENT_TYPE &&
+          "3" === key &&
+          "object" === typeof handler.value &&
+          null !== handler.value &&
+          handler.value.$$typeof === REACT_ELEMENT_TYPE &&
+          null === handler.value.props &&
+          (handler.value.props = parentObject[key]);
         handler.deps--;
         0 === handler.deps &&
           ((i = handler.chunk),
@@ -1484,7 +1459,8 @@
       nonce,
       temporaryReferences,
       findSourceMapURL,
-      replayConsole
+      replayConsole,
+      environmentName
     ) {
       var chunks = new Map();
       this._bundlerConfig = bundlerConfig;
@@ -1498,10 +1474,14 @@
       this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
       this._buffer = [];
       this._tempRefs = temporaryReferences;
+      bundlerConfig = void 0 === environmentName ? "Server" : environmentName;
       supportsCreateTask &&
-        (this._debugRootTask = console.createTask('"use server"'));
+        (this._debugRootTask = console.createTask(
+          '"use ' + bundlerConfig.toLowerCase() + '"'
+        ));
       this._debugFindSourceMapURL = findSourceMapURL;
       this._replayConsole = replayConsole;
+      this._rootEnvironmentName = bundlerConfig;
       this._fromJSON = createFromJSONCallback(this);
     }
     function resolveBuffer(response, id, buffer) {
@@ -1730,7 +1710,14 @@
         }
       );
     }
-    function createFakeFunction(name, filename, sourceMap, line, col) {
+    function createFakeFunction(
+      name,
+      filename,
+      sourceMap,
+      line,
+      col,
+      environmentName
+    ) {
       name || (name = "<anonymous>");
       var encodedName = JSON.stringify(name);
       1 >= line
@@ -1753,6 +1740,8 @@
       sourceMap
         ? ((col +=
             "\n//# sourceURL=rsc://React/" +
+            encodeURIComponent(environmentName) +
+            "/" +
             filename +
             "?" +
             fakeFunctionIdx++),
@@ -1767,46 +1756,86 @@
       }
       return fn;
     }
-    function buildFakeCallStack(response, stack, innerCall) {
+    function buildFakeCallStack(response, stack, environmentName, innerCall) {
       for (var i = 0; i < stack.length; i++) {
         var frame = stack[i],
-          frameKey = frame.join("-"),
+          frameKey = frame.join("-") + "-" + environmentName,
           fn = fakeFunctionCache.get(frameKey);
         if (void 0 === fn) {
           fn = frame[0];
           var filename = frame[1],
             line = frame[2];
           frame = frame[3];
-          var sourceMap = response._debugFindSourceMapURL
-            ? response._debugFindSourceMapURL(filename)
+          var findSourceMapURL = response._debugFindSourceMapURL;
+          findSourceMapURL = findSourceMapURL
+            ? findSourceMapURL(filename, environmentName)
             : null;
-          fn = createFakeFunction(fn, filename, sourceMap, line, frame);
+          fn = createFakeFunction(
+            fn,
+            filename,
+            findSourceMapURL,
+            line,
+            frame,
+            environmentName
+          );
           fakeFunctionCache.set(frameKey, fn);
         }
         innerCall = fn.bind(null, innerCall);
       }
       return innerCall;
     }
-    function initializeFakeTask(response, debugInfo) {
-      if (!supportsCreateTask) return null;
-      var cachedEntry = debugInfo.debugTask;
-      if (void 0 !== cachedEntry) return cachedEntry;
-      if (null == debugInfo.stack) return null;
-      var stack = debugInfo.stack;
-      cachedEntry =
+    function getRootTask(response, childEnvironmentName) {
+      var rootTask = response._debugRootTask;
+      return rootTask
+        ? response._rootEnvironmentName !== childEnvironmentName
+          ? ((response = console.createTask.bind(
+              console,
+              '"use ' + childEnvironmentName.toLowerCase() + '"'
+            )),
+            rootTask.run(response))
+          : rootTask
+        : null;
+    }
+    function initializeFakeTask(response, debugInfo, childEnvironmentName) {
+      if (!supportsCreateTask || null == debugInfo.stack) return null;
+      var stack = debugInfo.stack,
+        env =
+          null == debugInfo.env ? response._rootEnvironmentName : debugInfo.env;
+      if (env !== childEnvironmentName)
+        return (
+          (debugInfo =
+            null == debugInfo.owner
+              ? null
+              : initializeFakeTask(response, debugInfo.owner, env)),
+          buildFakeTask(
+            response,
+            debugInfo,
+            stack,
+            '"use ' + childEnvironmentName.toLowerCase() + '"',
+            env
+          )
+        );
+      childEnvironmentName = debugInfo.debugTask;
+      if (void 0 !== childEnvironmentName) return childEnvironmentName;
+      childEnvironmentName =
         null == debugInfo.owner
           ? null
-          : initializeFakeTask(response, debugInfo.owner);
-      var createTaskFn = console.createTask.bind(
-        console,
-        "<" + (debugInfo.name || "...") + ">"
-      );
-      stack = buildFakeCallStack(response, stack, createTaskFn);
-      null === cachedEntry
-        ? ((response = response._debugRootTask),
-          (response = null != response ? response.run(stack) : stack()))
-        : (response = cachedEntry.run(stack));
-      return (debugInfo.debugTask = response);
+          : initializeFakeTask(response, debugInfo.owner, env);
+      return (debugInfo.debugTask = buildFakeTask(
+        response,
+        childEnvironmentName,
+        stack,
+        "<" + (debugInfo.name || "...") + ">",
+        env
+      ));
+    }
+    function buildFakeTask(response, ownerTask, stack, taskName, env) {
+      taskName = console.createTask.bind(console, taskName);
+      stack = buildFakeCallStack(response, stack, env, taskName);
+      return null === ownerTask
+        ? ((response = getRootTask(response, env)),
+          null != response ? response.run(stack) : stack())
+        : ownerTask.run(stack);
     }
     function fakeJSXCallSite() {
       return Error("react-stack-top-frame");
@@ -1816,7 +1845,8 @@
         (null != debugInfo.stack &&
           (debugInfo.debugStack = createFakeJSXCallStackInDEV(
             response,
-            debugInfo.stack
+            debugInfo.stack,
+            null == debugInfo.env ? "" : debugInfo.env
           )),
         null != debugInfo.owner &&
           initializeFakeStack(response, debugInfo.owner));
@@ -1969,13 +1999,14 @@
           errorInfo = buildFakeCallStack(
             response,
             errorInfo.stack,
+            tag,
             Error.bind(
               null,
               errorInfo.message ||
                 "An error occurred in the Server Components render but no message was provided"
             )
           );
-          var rootTask = response._debugRootTask;
+          var rootTask = getRootTask(response, tag);
           errorInfo = null != rootTask ? rootTask.run(errorInfo) : errorInfo();
           errorInfo.digest = row;
           errorInfo.environmentName = tag;
@@ -1992,7 +2023,11 @@
           break;
         case 68:
           row = JSON.parse(row, response._fromJSON);
-          initializeFakeTask(response, row);
+          initializeFakeTask(
+            response,
+            row,
+            void 0 === row.env ? response._rootEnvironmentName : row.env
+          );
           initializeFakeStack(response, row);
           response = getChunk(response, id);
           (response._debugInfo || (response._debugInfo = [])).push(row);
@@ -2000,27 +2035,59 @@
         case 87:
           a: if (response._replayConsole) {
             rootTask = JSON.parse(row, response._fromJSON);
-            row = rootTask[0];
+            errorInfo = rootTask[0];
             tag = rootTask[1];
             id = rootTask[2];
-            errorInfo = rootTask[3];
-            rootTask = rootTask.slice(4);
-            row = buildFakeCallStack(
-              response,
-              tag,
-              printToConsole.bind(null, row, rootTask, errorInfo)
-            );
+            row = rootTask[3];
+            var args = rootTask.slice(4);
+            b: {
+              rootTask = 0;
+              switch (errorInfo) {
+                case "dir":
+                case "dirxml":
+                case "groupEnd":
+                case "table":
+                  errorInfo = bind$1.apply(
+                    console[errorInfo],
+                    [console].concat(args)
+                  );
+                  break b;
+                case "assert":
+                  rootTask = 1;
+              }
+              args = args.slice(0);
+              "string" === typeof args[rootTask]
+                ? args.splice(
+                    rootTask,
+                    1,
+                    "\u001b[0m\u001b[7m%c%s\u001b[0m%c " + args[rootTask],
+                    "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+                    " " + row + " ",
+                    ""
+                  )
+                : args.splice(
+                    rootTask,
+                    0,
+                    "\u001b[0m\u001b[7m%c%s\u001b[0m%c ",
+                    "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+                    " " + row + " ",
+                    ""
+                  );
+              args.unshift(console);
+              errorInfo = bind$1.apply(console[errorInfo], args);
+            }
+            tag = buildFakeCallStack(response, tag, row, errorInfo);
             if (
               null != id &&
-              ((tag = initializeFakeTask(response, id)),
+              ((errorInfo = initializeFakeTask(response, id, row)),
               initializeFakeStack(response, id),
-              null !== tag)
+              null !== errorInfo)
             ) {
-              tag.run(row);
+              errorInfo.run(tag);
               break a;
             }
-            response = response._debugRootTask;
-            null != response ? response.run(row) : row();
+            response = getRootTask(response, row);
+            null != response ? response.run(tag) : tag();
           }
           break;
         case 82:
@@ -2045,6 +2112,7 @@
           row = buildFakeCallStack(
             response,
             row.stack,
+            row.env,
             Error.bind(null, row.reason || "")
           );
           tag = response._debugRootTask;
@@ -2096,30 +2164,40 @@
               writable: !0,
               value: null
             });
-            validated = null;
+            validated = response._rootEnvironmentName;
+            null !== key && null != key.env && (validated = key.env);
+            var normalizedStackTrace = null;
             null !== stack &&
-              (validated = createFakeJSXCallStackInDEV(response, stack));
+              (normalizedStackTrace = createFakeJSXCallStackInDEV(
+                response,
+                stack,
+                validated
+              ));
             Object.defineProperty(value, "_debugStack", {
               configurable: !1,
               enumerable: !1,
               writable: !0,
-              value: validated
+              value: normalizedStackTrace
             });
-            validated = null;
+            normalizedStackTrace = null;
             supportsCreateTask &&
               null !== stack &&
               ((type = console.createTask.bind(console, getTaskName(type))),
-              (stack = buildFakeCallStack(response, stack, type)),
-              (type = null === key ? null : initializeFakeTask(response, key)),
+              (stack = buildFakeCallStack(response, stack, validated, type)),
+              (type =
+                null === key
+                  ? null
+                  : initializeFakeTask(response, key, validated)),
               null === type
                 ? ((type = response._debugRootTask),
-                  (validated = null != type ? type.run(stack) : stack()))
-                : (validated = type.run(stack)));
+                  (normalizedStackTrace =
+                    null != type ? type.run(stack) : stack()))
+                : (normalizedStackTrace = type.run(stack)));
             Object.defineProperty(value, "_debugTask", {
               configurable: !1,
               enumerable: !1,
               writable: !0,
-              value: validated
+              value: normalizedStackTrace
             });
             null !== key && initializeFakeStack(response, key);
             null !== initializingHandler
@@ -2157,6 +2235,7 @@
     var util = require("util"),
       ReactDOM = require("react-dom"),
       decoderOptions = { stream: !0 },
+      bind$1 = Function.prototype.bind,
       chunkCache = new Map(),
       ReactDOMSharedInternals =
         ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
@@ -2218,8 +2297,17 @@
       fakeFunctionCache = new Map(),
       fakeFunctionIdx = 0,
       createFakeJSXCallStack = {
-        "react-stack-bottom-frame": function (response, stack) {
-          return buildFakeCallStack(response, stack, fakeJSXCallSite)();
+        "react-stack-bottom-frame": function (
+          response,
+          stack,
+          environmentName
+        ) {
+          return buildFakeCallStack(
+            response,
+            stack,
+            environmentName,
+            fakeJSXCallSite
+          )();
         }
       },
       createFakeJSXCallStackInDEV = createFakeJSXCallStack[
@@ -2234,7 +2322,8 @@
         options && "string" === typeof options.nonce ? options.nonce : void 0,
         void 0,
         options && options.findSourceMapURL ? options.findSourceMapURL : void 0,
-        options ? !0 === options.replayConsoleLogs : !1
+        options ? !0 === options.replayConsoleLogs : !1,
+        options && options.environmentName ? options.environmentName : void 0
       );
       stream.on("data", function (chunk) {
         if ("string" === typeof chunk) {

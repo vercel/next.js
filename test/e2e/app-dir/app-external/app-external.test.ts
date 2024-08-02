@@ -229,6 +229,11 @@ describe('app dir - external dependency', () => {
       const $ = await next.render$('/esm/react-namespace-import')
       expect($('#namespace-import-esm').text()).toBe('namespace-import:esm')
     })
+
+    it('should apply serverExternalPackages inside of node_modules', async () => {
+      const html = await next.render('/transitive-external')
+      expect(html).toContain('transitive loaded a')
+    })
   })
 
   describe('mixed syntax external modules', () => {

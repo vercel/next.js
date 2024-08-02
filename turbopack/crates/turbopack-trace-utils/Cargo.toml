@@ -1,0 +1,23 @@
+[package]
+name = "turbopack-trace-utils"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+crossbeam-channel = { workspace = true }
+once_cell = { workspace = true }
+postcard = { workspace = true, features = ["alloc", "use-std"] }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["macros", "signal", "sync", "rt"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+turbo-tasks-malloc = { workspace = true }
