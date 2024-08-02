@@ -806,17 +806,15 @@ async fn insert_next_shared_aliases(
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
-    if next_config.mdx_rs().await?.is_some() {
-        insert_alias_to_alternatives(
-            import_map,
-            mdx_import_source_file(),
-            vec![
-                request_to_import_mapping(project_path, "./mdx-components"),
-                request_to_import_mapping(project_path, "./src/mdx-components"),
-                request_to_import_mapping(project_path, "@mdx-js/react"),
-            ],
-        );
-    }
+    insert_alias_to_alternatives(
+        import_map,
+        mdx_import_source_file(),
+        vec![
+            request_to_import_mapping(project_path, "./mdx-components"),
+            request_to_import_mapping(project_path, "./src/mdx-components"),
+            request_to_import_mapping(project_path, "@mdx-js/react"),
+        ],
+    );
 
     insert_package_alias(
         import_map,

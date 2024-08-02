@@ -2008,6 +2008,9 @@ name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "encode_unicode"
@@ -9076,6 +9079,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "const_format",
+ "either",
  "futures",
  "futures-retry",
  "indexmap 1.9.3",
@@ -9087,6 +9091,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "serde_with",
  "tokio",
  "tracing",
  "turbo-tasks",

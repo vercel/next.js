@@ -21,6 +21,7 @@ anyhow = { workspace = true }
 async-stream = "0.3.4"
 async-trait = { workspace = true }
 const_format = "0.2.30"
+either = { workspace = true, features = ["serde"] }
 futures = { workspace = true }
 futures-retry = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
@@ -33,6 +34,7 @@ regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 #serde_qs = { workspace = true }
+serde_with = { workspace = true, features = ["base64"] }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 turbo-tasks = { workspace = true }
