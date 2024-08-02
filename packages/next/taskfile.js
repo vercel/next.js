@@ -2323,6 +2323,7 @@ export async function ncc(task, opts) {
       'ncc_edge_runtime_ponyfill',
       'ncc_edge_runtime',
       'ncc_mswjs_interceptors',
+      'ncc_rsc_poison_packages',
     ],
     opts
   )
