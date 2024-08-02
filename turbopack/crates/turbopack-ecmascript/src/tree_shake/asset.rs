@@ -37,13 +37,7 @@ impl Parsable for EcmascriptModulePartAsset {
         let this = self.await?;
 
         let parsed = this.full_module.failsafe_parse();
-        let special_exports = this.full_module.options().await?.special_exports;
-        let split_data = split(
-            this.full_module.ident(),
-            this.full_module.source(),
-            parsed,
-            special_exports,
-        );
+        let split_data = split(this.full_module.ident(), this.full_module.source(), parsed);
         Ok(part_of_module(split_data, this.part))
     }
 }
