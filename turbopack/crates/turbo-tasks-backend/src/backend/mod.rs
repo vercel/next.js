@@ -183,26 +183,40 @@ impl Backend for TurboTasksBackend {
     fn invalidate_task(&self, _: TaskId, _: &dyn TurboTasksBackendApi<Self>) {
         todo!()
     }
-    fn invalidate_tasks(&self, _: &[TaskId], _: &dyn TurboTasksBackendApi<Self>) {
-        todo!()
+
+    fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        for task in tasks {
+            self.invalidate_task(*task, turbo_tasks);
+        }
     }
+
     fn invalidate_tasks_set(
         &self,
-        _: &AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>,
-        _: &dyn TurboTasksBackendApi<Self>,
+        tasks: &AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        todo!()
+        for task in tasks {
+            self.invalidate_task(*task, turbo_tasks);
+        }
     }
-    fn get_task_description(&self, _: TaskId) -> std::string::String {
-        todo!()
+
+    fn get_task_description(&self, task: TaskId) -> std::string::String {
+        let task_type = self
+            .task_cache
+            .lookup_reverse(&task)
+            .expect("Task not found");
+        task_type.to_string()
     }
+
     fn try_get_function_id(&self, _: TaskId) -> Option<FunctionId> {
         todo!()
     }
+
     type TaskState = ();
     fn new_task_state(&self, _task: TaskId) -> Self::TaskState {
         ()
     }
+
     fn try_start_task_execution(
         &self,
         _: TaskId,
@@ -210,6 +224,7 @@ impl Backend for TurboTasksBackend {
     ) -> std::option::Option<TaskExecutionSpec<'_>> {
         todo!()
     }
+
     fn task_execution_result(
         &self,
         _: TaskId,
@@ -218,6 +233,7 @@ impl Backend for TurboTasksBackend {
     ) {
         todo!()
     }
+
     fn task_execution_completed(
         &self,
         _: TaskId,
@@ -229,6 +245,7 @@ impl Backend for TurboTasksBackend {
     ) -> bool {
         todo!()
     }
+
     fn run_backend_job(
         &self,
         _: BackendJobId,
