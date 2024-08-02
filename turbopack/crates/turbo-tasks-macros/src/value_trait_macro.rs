@@ -10,7 +10,7 @@ use turbo_tasks_macros_shared::{
     get_trait_type_id_ident, get_trait_type_ident, ValueTraitArguments,
 };
 
-use crate::func::{DefinitionContext, NativeFn, TurboFn};
+use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let ValueTraitArguments { debug, resolved } = parse_macro_input!(args as ValueTraitArguments);
@@ -85,7 +85,14 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
         let ident = &sig.ident;
 
-        let Some(turbo_fn) = TurboFn::new(sig, DefinitionContext::ValueTrait) else {
+        // Value trait method declarations don't have `#[turbo_tasks::function]`
+        // annotations on them, though their `impl`s do. It may make sense to require it
+        // in the future when defining a default implementation.
+        let Some(turbo_fn) = TurboFn::new(
+            sig,
+            DefinitionContext::ValueTrait,
+            FunctionArguments::default(),
+        ) else {
             return quote! {
                 // An error occurred while parsing the function signature.
             }
