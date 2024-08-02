@@ -10,12 +10,14 @@ use turbopack_core::{
 };
 
 use super::{
-    chunk_item::EcmascriptModulePartChunkItem, get_part_id, split_module, Key, SplitResult,
+    chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module, split, split_module,
+    Key, SplitResult,
 };
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    parse::ParseResult,
     references::analyse_ecmascript_module,
-    AnalyzeEcmascriptModuleResult, EcmascriptModuleAsset,
+    AnalyzeEcmascriptModuleResult, EcmascriptModuleAsset, Parsable,
 };
 
 /// A reference to part of an ES module.
@@ -26,6 +28,24 @@ pub struct EcmascriptModulePartAsset {
     pub full_module: Vc<EcmascriptModuleAsset>,
     pub(crate) part: Vc<ModulePart>,
     pub(crate) import_externals: bool,
+}
+
+#[turbo_tasks::value_impl]
+impl Parsable for EcmascriptModulePartAsset {
+    #[turbo_tasks::function]
+    async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
+        let this = self.await?;
+
+        let parsed = this.full_module.failsafe_parse();
+        let special_exports = this.full_module.options().await?.special_exports;
+        let split_data = split(
+            this.full_module.ident(),
+            this.full_module.source(),
+            parsed,
+            special_exports,
+        );
+        Ok(part_of_module(split_data, this.part))
+    }
 }
 
 #[turbo_tasks::value_impl]
