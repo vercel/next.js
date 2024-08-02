@@ -33,16 +33,27 @@ To prevent creating many HTTP requests for each dynamic component, PPR is able t
 
 In Next.js 15, you can incrementally adopt Partial Prerendering in [layouts](/docs/app/building-your-application/routing/layouts-and-templates) and [pages](/docs/app/building-your-application/routing/pages) by setting the [`ppr`](/docs/app/api-reference/next-config-js/ppr) option in `next.config.js` to `incremental`, and exporting the `experimental_ppr` [route config option](/docs/app/api-reference/file-conventions/route-segment-config) at the top of the file:
 
-```js filename="next.config.ts"
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
     ppr: 'incremental'
-  }
+  },
 }
 
 export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    ppr: 'incremental'
+  },
+}
+
+module.exports = nextConfig
 ```
 
 ```tsx filename="app/page.tsx" switcher
@@ -91,7 +102,20 @@ export default function Page() {
 
 For version 14, you can enable it by adding the [`ppr`](/docs/app/api-reference/next-config-js/ppr) option to your `next.config.js` file. This will apply to all routes in your application:
 
-```js filename="next.config.js"
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    ppr: 'true'
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
     ppr: true,
