@@ -6,30 +6,10 @@ import {
 import pLimit from 'next/dist/compiled/p-limit'
 import { spans } from '../../profiling-plugin'
 
-function getEcmaVersion(environment: any) {
-  // ES 6th
-  if (
-    environment.arrowFunction ||
-    environment.const ||
-    environment.destructuring ||
-    environment.forOf ||
-    environment.module
-  ) {
-    return 2015
-  }
-
-  // ES 11th
-  if (environment.bigIntLiteral || environment.dynamicImport) {
-    return 2020
-  }
-
-  return 5
-}
-
 function buildError(error: any, file: string) {
   if (error.line) {
     return new Error(
-      `${file} from Terser\n${error.message} [${file}:${error.line},${
+      `${file} from Minifier\n${error.message} [${file}:${error.line},${
         error.col
       }]${
         error.stack ? `\n${error.stack.split('\n').slice(1).join('\n')}` : ''
@@ -38,30 +18,15 @@ function buildError(error: any, file: string) {
   }
 
   if (error.stack) {
-    return new Error(`${file} from Terser\n${error.message}\n${error.stack}`)
+    return new Error(`${file} from Minifier\n${error.message}\n${error.stack}`)
   }
 
-  return new Error(`${file} from Terser\n${error.message}`)
+  return new Error(`${file} from Minifier\n${error.message}`)
 }
 
 const debugMinify = process.env.NEXT_DEBUG_MINIFY
 
-export class TerserPlugin {
-  options: {
-    terserOptions: any
-  }
-  constructor(
-    options: {
-      terserOptions?: any
-    } = {}
-  ) {
-    const { terserOptions = {} } = options
-
-    this.options = {
-      terserOptions,
-    }
-  }
-
+export class MinifyPlugin {
   async optimize(
     compiler: any,
     compilation: any,
@@ -70,12 +35,12 @@ export class TerserPlugin {
     { SourceMapSource, RawSource }: any
   ) {
     const compilationSpan = spans.get(compilation)! || spans.get(compiler)
-    const terserSpan = compilationSpan.traceChild(
-      'terser-webpack-plugin-optimize'
+    const MinifierSpan = compilationSpan.traceChild(
+      'minify-webpack-plugin-optimize'
     )
-    terserSpan.setAttribute('compilationName', compilation.name)
+    MinifierSpan.setAttribute('compilationName', compilation.name)
 
-    return terserSpan.traceAsyncFn(async () => {
+    return MinifierSpan.traceAsyncFn(async () => {
       const assetsList = Object.keys(assets)
 
       const assetsForMinify = await Promise.all(
@@ -165,10 +130,10 @@ export class TerserPlugin {
       for (const asset of assetsForMinify) {
         scheduledTasks.push(
           limit(async () => {
-            const { name, inputSource, info, eTag } = asset
+            const { name, inputSource, eTag } = asset
             let { output } = asset
 
-            const minifySpan = terserSpan.traceChild('minify-js')
+            const minifySpan = MinifierSpan.traceChild('minify-js')
             minifySpan.setAttribute('name', name)
             minifySpan.setAttribute(
               'cache',
@@ -188,17 +153,6 @@ export class TerserPlugin {
                   name,
                   input,
                   inputSourceMap,
-                  terserOptions: { ...this.options.terserOptions },
-                }
-
-                if (typeof options.terserOptions.module === 'undefined') {
-                  if (typeof info.javascriptModule !== 'undefined') {
-                    options.terserOptions.module = info.javascriptModule
-                  } else if (/\.mjs(\?.*)?$/i.test(name)) {
-                    options.terserOptions.module = true
-                  } else if (/\.cjs(\?.*)?$/i.test(name)) {
-                    options.terserOptions.module = false
-                  }
                 }
 
                 try {
@@ -246,16 +200,10 @@ export class TerserPlugin {
 
   apply(compiler: any) {
     const { SourceMapSource, RawSource } = compiler?.webpack?.sources || sources
-    const { output } = compiler.options
-
-    if (typeof this.options.terserOptions.ecma === 'undefined') {
-      this.options.terserOptions.ecma = getEcmaVersion(output.environment || {})
-    }
-
     const pluginName = this.constructor.name
 
     compiler.hooks.thisCompilation.tap(pluginName, (compilation: any) => {
-      const cache = compilation.getCache('TerserWebpackPlugin')
+      const cache = compilation.getCache('MinifierWebpackPlugin')
 
       const handleHashForChunk = (hash: any, _chunk: any) => {
         // increment 'c' to invalidate cache
@@ -287,7 +235,7 @@ export class TerserPlugin {
         stats.hooks.print
           .for('asset.info.minimized')
           .tap(
-            'terser-webpack-plugin',
+            'minify-webpack-plugin',
             (minimized: any, { green, formatFlag }: any) =>
               // eslint-disable-next-line no-undefined
               minimized ? green(formatFlag('minimized')) : undefined
