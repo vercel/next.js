@@ -1006,7 +1006,6 @@ export async function ncc_amp_optimizer(task, opts) {
     )
     .ncc({
       externals,
-      precompiled: false,
       packageName: '@ampproject/toolbox-optimizer',
     })
     .target('src/compiled/@ampproject/toolbox-optimizer')
