@@ -273,7 +273,7 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!opts.includes('--eslint') && !args.includes('--no-eslint')) {
+    if (!opts.eslint && !args.includes('--no-eslint')) {
       if (skipPrompt) {
         opts.eslint = getPrefOrDefault('eslint')
       } else {
@@ -292,7 +292,7 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!opts.includes('--tailwind') && !args.includes('--no-tailwind')) {
+    if (!opts.tailwind && !args.includes('--no-tailwind')) {
       if (skipPrompt) {
         opts.tailwind = getPrefOrDefault('tailwind')
       } else {
@@ -311,7 +311,7 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!opts.includes('--src-dir') && !args.includes('--no-src-dir')) {
+    if (!opts.srcDir && !args.includes('--no-src-dir')) {
       if (skipPrompt) {
         opts.srcDir = getPrefOrDefault('srcDir')
       } else {
@@ -330,7 +330,7 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!opts.includes('--app') && !args.includes('--no-app')) {
+    if (!opts.app && !args.includes('--no-app')) {
       if (skipPrompt) {
         opts.app = getPrefOrDefault('app')
       } else {
