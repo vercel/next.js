@@ -31,7 +31,7 @@ export async function createApp({
   typescript,
   tailwind,
   eslint,
-  appRouter,
+  app,
   srcDir,
   importAlias,
   skipInstall,
@@ -46,7 +46,7 @@ export async function createApp({
   typescript: boolean
   tailwind: boolean
   eslint: boolean
-  appRouter: boolean
+  app: boolean
   srcDir: boolean
   importAlias: string
   skipInstall: boolean
