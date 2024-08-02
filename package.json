@@ -12,6 +12,7 @@
     "build": "turbo run build --remote-cache-timeout 60 --summarize true",
     "lerna": "lerna",
     "dev": "turbo run dev --parallel",
+    "pack-next": "node scripts/pack-next.cjs",
     "test-types": "tsc",
     "test-unit": "jest test/unit/ packages/next/ packages/font",
     "test-dev": "cross-env NEXT_TEST_MODE=dev pnpm testheadless",
@@ -58,6 +59,7 @@
     "prepare": "husky",
     "sync-react": "node ./scripts/sync-react.js",
     "update-google-fonts": "node ./scripts/update-google-fonts.js",
+    "unpack-next": "node scripts/unpack-next.cjs",
     "swc-build-native": "pnpm --filter=@next/swc build-native"
   },
   "devDependencies": {
