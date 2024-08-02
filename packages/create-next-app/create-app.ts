@@ -60,11 +60,6 @@ export async function createApp({
     ? 'app-api'
     : `${app ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`
 
-  if (api && template !== 'app-api') {
-    console.error(`Invalid template for api flag: ${red(template)}`)
-    process.exit(1)
-  }
-
   // Disable tailwind and eslint for API template
   if (api) {
     tailwind = false
