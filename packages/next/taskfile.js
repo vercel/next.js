@@ -1040,6 +1040,17 @@ export async function ncc_postcss_plugin_stub_for_cssnano_simple(task, opts) {
       externals,
     })
     .target('src/compiled/postcss-plugin-stub-for-cssnano-simple')
+
+  await writeJson(
+    join(
+      __dirname,
+      'src/compiled/postcss-plugin-stub-for-cssnano-simple/package.json'
+    ),
+    {
+      name: 'postcss-plugin-stub-for-cssnano-simple',
+      main: './index.js',
+    }
+  )
 }
 
 const babelCorePackages = {
