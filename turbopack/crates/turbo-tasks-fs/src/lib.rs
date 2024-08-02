@@ -5,7 +5,6 @@
 #![feature(io_error_more)]
 #![feature(round_char_boundary)]
 #![feature(arbitrary_self_types)]
-#![feature(lint_reasons)]
 #![allow(clippy::mutable_key_type)]
 
 pub mod attach;
