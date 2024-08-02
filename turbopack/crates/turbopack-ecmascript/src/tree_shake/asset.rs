@@ -17,7 +17,7 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     parse::ParseResult,
     references::analyse_ecmascript_module,
-    AnalyzeEcmascriptModuleResult, EcmascriptModuleAsset, Parsable,
+    Analyzable, AnalyzeEcmascriptModuleResult, EcmascriptModuleAsset, Parsable,
 };
 
 /// A reference to part of an ES module.
@@ -45,6 +45,16 @@ impl Parsable for EcmascriptModulePartAsset {
             special_exports,
         );
         Ok(part_of_module(split_data, this.part))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Analyzable for EcmascriptModulePartAsset {
+    #[turbo_tasks::function]
+    async fn analyze(self: Vc<Self>) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
+        let this = self.await?;
+        let part = this.part;
+        Ok(analyse_ecmascript_module(this.full_module, Some(part)))
     }
 }
 

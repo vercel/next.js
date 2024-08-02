@@ -260,6 +260,11 @@ pub trait Parsable {
     fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
 }
 
+#[turbo_tasks::value_trait]
+pub trait Analyzable {
+    fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
+}
+
 /// An optional [EcmascriptModuleAsset]
 #[turbo_tasks::value(transparent)]
 pub struct OptionEcmascriptModuleAsset(Option<Vc<EcmascriptModuleAsset>>);
@@ -337,6 +342,14 @@ impl Parsable for EcmascriptModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
+impl Analyzable for EcmascriptModuleAsset {
+    #[turbo_tasks::function]
+    fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
+        analyse_ecmascript_module(self, None)
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
     pub fn new(
@@ -384,11 +397,6 @@ impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
     pub async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
         Ok(self.await?.source)
-    }
-
-    #[turbo_tasks::function]
-    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyse_ecmascript_module(self, None)
     }
 
     #[turbo_tasks::function]

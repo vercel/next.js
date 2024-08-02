@@ -19,7 +19,7 @@ use crate::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
     },
-    EcmascriptModuleAsset,
+    Analyzable, EcmascriptModuleAsset,
 };
 
 /// A module derived from an original ecmascript module that only contains the

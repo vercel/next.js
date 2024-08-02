@@ -20,7 +20,7 @@ use crate::{
         esm::{EsmExport, EsmExports},
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
-    EcmascriptModuleAsset,
+    Analyzable, EcmascriptModuleAsset,
 };
 
 /// A module derived from an original ecmascript module that only contains all
