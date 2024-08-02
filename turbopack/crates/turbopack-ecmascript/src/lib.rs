@@ -255,6 +255,11 @@ pub struct EcmascriptModuleAsset {
     last_successful_parse: turbo_tasks::State<Option<ReadRef<ParseResult>>>,
 }
 
+#[turbo_tasks::value_trait]
+pub trait Parsable {
+    fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
+}
+
 /// An optional [EcmascriptModuleAsset]
 #[turbo_tasks::value(transparent)]
 pub struct OptionEcmascriptModuleAsset(Option<Vc<EcmascriptModuleAsset>>);
@@ -309,6 +314,25 @@ impl ModuleTypeResult {
             module_type,
             referenced_package_json: Some(package_json),
         })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Parsable for EcmascriptModuleAsset {
+    #[turbo_tasks::function]
+    async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
+        let real_result = self.parse();
+        let real_result_value = real_result.await?;
+        let this = self.await?;
+        let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
+            this.last_successful_parse
+                .set(Some(real_result_value.clone()));
+            real_result_value
+        } else {
+            let state_ref = this.last_successful_parse.get();
+            state_ref.as_ref().unwrap_or(&real_result_value).clone()
+        };
+        Ok(ReadRef::cell(result_value))
     }
 }
 
@@ -375,22 +399,6 @@ impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
     pub fn parse(&self) -> Vc<ParseResult> {
         parse(self.source, Value::new(self.ty), self.transforms)
-    }
-
-    #[turbo_tasks::function]
-    pub async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
-        let real_result = self.parse();
-        let real_result_value = real_result.await?;
-        let this = self.await?;
-        let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-            this.last_successful_parse
-                .set(Some(real_result_value.clone()));
-            real_result_value
-        } else {
-            let state_ref = this.last_successful_parse.get();
-            state_ref.as_ref().unwrap_or(&real_result_value).clone()
-        };
-        Ok(ReadRef::cell(result_value))
     }
 
     #[turbo_tasks::function]
