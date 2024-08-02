@@ -3,7 +3,7 @@ use std::{
     cell::RefCell,
     future::Future,
     hash::{BuildHasher, BuildHasherDefault, Hash},
-    num::NonZeroU32,
+    num::{NonZeroU32, NonZeroUsize},
     pin::Pin,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -15,7 +15,9 @@ use std::{
 use anyhow::{anyhow, bail, Result};
 use auto_hash_map::AutoMap;
 use dashmap::{mapref::entry::Entry, DashMap};
+use lru::LruCache;
 use rustc_hash::FxHasher;
+use thread_local::ThreadLocal;
 use tokio::task::futures::TaskLocalFuture;
 use tracing::trace_span;
 use turbo_prehash::{BuildHasherExt, PassThroughHash, PreHashed};
@@ -40,6 +42,17 @@ use crate::{
     task_statistics::TaskStatisticsApi,
 };
 
+type ThreadLocalTaskCache<K> =
+    ThreadLocal<RefCell<LruCache<K, TaskId, BuildHasherDefault<PassThroughHash>>>>;
+
+fn create_thread_local_task_cache<K: Hash + Eq + Send>(
+) -> RefCell<LruCache<K, TaskId, BuildHasherDefault<PassThroughHash>>> {
+    RefCell::new(LruCache::with_hasher(
+        NonZeroUsize::new(4096).unwrap(),
+        Default::default(),
+    ))
+}
+
 fn prehash_task_type(task_type: PersistentTaskType) -> PreHashed<PersistentTaskType> {
     BuildHasherDefault::<FxHasher>::prehash(&Default::default(), task_type)
 }
@@ -48,6 +61,7 @@ pub struct MemoryBackend {
     memory_tasks: NoMoveVec<Task, 13>,
     backend_jobs: NoMoveVec<Job>,
     backend_job_id_factory: IdFactoryWithReuse<BackendJobId>,
+    thread_local_task_cache: ThreadLocalTaskCache<Arc<PreHashed<PersistentTaskType>>>,
     task_cache:
         DashMap<Arc<PreHashed<PersistentTaskType>>, TaskId, BuildHasherDefault<PassThroughHash>>,
     memory_limit: AtomicUsize,
@@ -68,6 +82,7 @@ impl MemoryBackend {
             memory_tasks: NoMoveVec::new(),
             backend_jobs: NoMoveVec::new(),
             backend_job_id_factory: IdFactoryWithReuse::new(),
+            thread_local_task_cache: ThreadLocal::new(),
             task_cache: DashMap::with_hasher_and_shard_amount(
                 Default::default(),
                 (std::thread::available_parallelism().map_or(1, usize::from) * 32)
@@ -221,9 +236,10 @@ impl MemoryBackend {
         false
     }
 
-    fn insert_and_connect_fresh_task<K: Eq + Hash, H: BuildHasher + Clone>(
+    fn insert_and_connect_fresh_task<K: Eq + Hash + Clone + Send, H: BuildHasher + Clone>(
         &self,
         parent_task: TaskId,
+        thread_local_task_cache: &ThreadLocalTaskCache<K>,
         task_cache: &DashMap<K, TaskId, H>,
         key: K,
         new_id: Unused<TaskId>,
@@ -233,7 +249,7 @@ impl MemoryBackend {
         let new_id = new_id.into();
         // Safety: We have a fresh task id that nobody knows about yet
         unsafe { self.memory_tasks.insert(*new_id as usize, task) };
-        let result_task = match task_cache.entry(key) {
+        let result_task = match task_cache.entry(key.clone()) {
             Entry::Vacant(entry) => {
                 // This is the most likely case
                 entry.insert(new_id);
@@ -251,6 +267,12 @@ impl MemoryBackend {
                 task_id
             }
         };
+        {
+            let mut cache = thread_local_task_cache
+                .get_or(create_thread_local_task_cache)
+                .borrow_mut();
+            cache.put(key, result_task);
+        }
         self.connect_task_child(parent_task, result_task, turbo_tasks);
         result_task
     }
@@ -258,22 +280,36 @@ impl MemoryBackend {
     fn lookup_and_connect_task<K, Q, H: BuildHasher + Clone>(
         &self,
         parent_task: TaskId,
+        thread_local_task_cache: &ThreadLocalTaskCache<K>,
         task_cache: &DashMap<K, TaskId, H>,
         key: &Q,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Option<TaskId>
     where
-        K: Borrow<Q> + Hash + Eq,
+        K: Borrow<Q> + Hash + Clone + Eq + Send,
         Q: Hash + Eq + ?Sized,
     {
-        task_cache
+        let mut cache = thread_local_task_cache
+            .get_or(create_thread_local_task_cache)
+            .borrow_mut();
+        cache
             .get(key)
-            // Avoid holding the lock for too long
-            .map(|task_ref| *task_ref)
-            .map(|task_id| {
-                self.connect_task_child(parent_task, task_id, turbo_tasks);
-
-                task_id
+            .map(|task| *task)
+            .or_else(|| {
+                task_cache
+                    .get(&key)
+                    // Avoid holding the lock for too long
+                    .map(|task_ref| {
+                        let task = *task_ref;
+                        let key = task_ref.key().clone();
+                        drop(task_ref);
+                        // Store to thread-local cache
+                        cache.put(key, task);
+                        task
+                    })
+            })
+            .inspect(|task| {
+                self.connect_task_child(parent_task, *task, turbo_tasks);
             })
     }
 
@@ -598,9 +634,13 @@ impl Backend for MemoryBackend {
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> TaskId {
         let task_type = prehash_task_type(task_type);
-        if let Some(task) =
-            self.lookup_and_connect_task(parent_task, &self.task_cache, &task_type, turbo_tasks)
-        {
+        if let Some(task) = self.lookup_and_connect_task(
+            parent_task,
+            &self.thread_local_task_cache,
+            &self.task_cache,
+            &task_type,
+            turbo_tasks,
+        ) {
             // fast pass without creating a new task
             self.task_statistics().map(|stats| match &*task_type {
                 PersistentTaskType::ResolveNative {
@@ -678,6 +718,7 @@ impl Backend for MemoryBackend {
             );
             self.insert_and_connect_fresh_task(
                 parent_task,
+                &self.thread_local_task_cache,
                 &self.task_cache,
                 task_type,
                 id,

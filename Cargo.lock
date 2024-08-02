@@ -83,6 +83,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "allocator-api2"
+version = "0.2.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
+
+[[package]]
 name = "allsorts"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2626,6 +2632,10 @@ name = "hashbrown"
 version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290f1a1d9242c78d09ce40a5e87e7554ee637af1351968159f4952f028f75604"
+dependencies = [
+ "ahash 0.8.9",
+ "allocator-api2",
+]
 
 [[package]]
 name = "hdrhistogram"
@@ -3575,6 +3585,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03f1160296536f10c833a82dca22267d5486734230d47bf00bf435885814ba1e"
 dependencies = [
  "hashbrown 0.13.2",
+]
+
+[[package]]
+name = "lru"
+version = "0.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37ee39891760e7d94734f6f63fedc29a2e4a152f836120753a72503f09fcf904"
+dependencies = [
+ "hashbrown 0.14.3",
 ]
 
 [[package]]
@@ -6296,7 +6315,7 @@ dependencies = [
  "either",
  "indexmap 2.2.6",
  "jsonc-parser",
- "lru",
+ "lru 0.10.0",
  "napi",
  "napi-derive",
  "once_cell",
@@ -6973,7 +6992,7 @@ checksum = "5a9febebf047d1286e7b723fa2758f3229da2c103834f3eaee69833f46692612"
 dependencies = [
  "anyhow",
  "dashmap",
- "lru",
+ "lru 0.10.0",
  "normpath",
  "once_cell",
  "parking_lot",
@@ -8587,6 +8606,7 @@ dependencies = [
  "either",
  "indexmap 1.9.3",
  "loom",
+ "lru 0.12.4",
  "num_cpus",
  "once_cell",
  "parking_lot",
@@ -8599,6 +8619,7 @@ dependencies = [
  "serde",
  "serde_json",
  "smallvec",
+ "thread_local",
  "tokio",
  "tracing",
  "turbo-prehash",

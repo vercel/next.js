@@ -19,6 +19,7 @@ concurrent-queue = { workspace = true }
 dashmap = { workspace = true }
 either = { workspace = true }
 indexmap = { workspace = true }
+lru = "0.12.4"
 num_cpus = "1.13.1"
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
@@ -27,6 +28,7 @@ ref-cast = "1.0.20"
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 smallvec = { workspace = true }
+thread_local = "1.1.7"
 tokio = { workspace = true }
 tracing = { workspace = true }
 turbo-prehash = { workspace = true }
