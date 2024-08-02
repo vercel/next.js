@@ -361,6 +361,7 @@ export async function exportAppImpl(
       swrDelta: nextConfig.swrDelta,
       after: nextConfig.experimental.after ?? false,
     },
+    reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
