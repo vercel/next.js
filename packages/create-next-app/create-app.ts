@@ -58,7 +58,7 @@ export async function createApp({
   const mode: TemplateMode = typescript ? 'ts' : 'js'
   const template: TemplateType = api
     ? 'app-api'
-    : `${appRouter ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`
+    : `${app ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`
 
   if (api && template !== 'app-api') {
     console.error(`Invalid template for api flag: ${red(template)}`)
