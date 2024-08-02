@@ -83,7 +83,7 @@ module.exports = {
 }
 ```
 
-Note: the key for `outputFileTracingIncludes`/`outputFileTracingExcludes` is a [glob](https://www.npmjs.com/package/picomatch#basic-globbing) so needs to have special characters escaped.
+**Note:** The key of `outputFileTracingIncludes`/`outputFileTracingExcludes` is a [glob](https://www.npmjs.com/package/picomatch#basic-globbing), so special characters need to be escaped.
 
 - Currently, Next.js does not do anything with the emitted `.nft.json` files. The files must be read by your deployment platform, for example [Vercel](https://vercel.com), to create a minimal deployment. In a future release, a new command is planned to utilize these `.nft.json` files.
 
