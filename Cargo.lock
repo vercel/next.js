@@ -9091,6 +9091,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "serde_with",
  "tokio",
  "tracing",
  "turbo-tasks",
