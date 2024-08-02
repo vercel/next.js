@@ -147,6 +147,9 @@ export class TerserPlugin {
                 compress: true,
                 mangle: true,
                 module: 'unknown',
+                output: {
+                  comments: false,
+                },
               }
             )
 

@@ -41,16 +41,6 @@ window.console.error = (...args) => {
   }
 }
 
-if (process.env.NODE_ENV === 'development') {
-  const initializePrerenderIndicator =
-    require('./components/prerender-indicator')
-      .default as typeof import('./components/prerender-indicator').default
-
-  initializePrerenderIndicator((handlers) => {
-    window.next.isrIndicatorHandlers = handlers
-  })
-}
-
 /// <reference types="react-dom/experimental" />
 
 const appElement: HTMLElement | Document | null = document

@@ -1,0 +1,36 @@
+[package]
+name = "turbo-tasks-fetch"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+[lib]
+bench = false
+
+[features]
+default = ["native-tls"]
+# Allow to configure specific tls backend for reqwest.
+# See top level Cargo.toml for more details.
+native-tls = ["reqwest/native-tls"]
+rustls-tls = ["reqwest/rustls-tls"]
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbopack-core = { workspace = true }
+
+[dev-dependencies]
+httpmock = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-tasks-testing = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }
