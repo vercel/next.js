@@ -410,7 +410,7 @@ export const styles = css`
     margin-left: var(--size-gap-triple);
     border: none;
     background: none;
-    color: var(--color-ansi-bright-white);
+    color: var(--color-font);
     padding: 0;
     transition: opacity 0.25s ease;
     opacity: 0.7;
