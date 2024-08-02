@@ -68,6 +68,8 @@ impl ImportAnnotations {
             map.insert(key.into(), value.value.as_str().into());
         }
 
+        println!("ANNOTATIONS {:?}", map);
+
         ImportAnnotations { map }
     }
 
@@ -470,7 +472,6 @@ impl Visit for Analyzer<'_> {
                 .flatten()
                 .rev()
                 .filter_map(|comment| {
-                    println!("{:?}", comment);
                     let (directive, value) = comment.text.trim().split_once(':')?;
                     // support whitespace between the colon
                     match (directive.trim(), value.trim()) {

@@ -31,6 +31,7 @@ pub struct EsmAsyncAssetReference {
     pub issue_source: Vc<IssueSource>,
     pub in_try: bool,
     pub import_externals: bool,
+    pub ignore: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -43,6 +44,7 @@ impl EsmAsyncAssetReference {
         issue_source: Vc<IssueSource>,
         in_try: bool,
         import_externals: bool,
+        ignore: bool,
     ) -> Vc<Self> {
         Self::cell(EsmAsyncAssetReference {
             origin,
@@ -51,6 +53,7 @@ impl EsmAsyncAssetReference {
             issue_source,
             in_try,
             import_externals,
+            ignore,
         })
     }
 }
@@ -59,12 +62,14 @@ impl EsmAsyncAssetReference {
 impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        // TODO: solve here
         esm_resolve(
             self.origin,
             self.request,
             Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
             try_to_severity(self.in_try),
             Some(self.issue_source),
+            self.ignore,
         )
     }
 }
@@ -104,6 +109,7 @@ impl CodeGenerateable for EsmAsyncAssetReference {
                 Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
                 try_to_severity(self.in_try),
                 Some(self.issue_source),
+                self.ignore,
             ),
             if matches!(
                 *chunking_context.environment().chunk_loading().await?,

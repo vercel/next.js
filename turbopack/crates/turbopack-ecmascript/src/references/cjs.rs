@@ -56,6 +56,7 @@ impl ModuleReference for CjsAssetReference {
             self.request,
             Some(self.issue_source),
             try_to_severity(self.in_try),
+            false,
         )
     }
 }
@@ -81,6 +82,7 @@ pub struct CjsRequireAssetReference {
     pub path: Vc<AstPath>,
     pub issue_source: Vc<IssueSource>,
     pub in_try: bool,
+    pub ignore_import: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -92,6 +94,7 @@ impl CjsRequireAssetReference {
         path: Vc<AstPath>,
         issue_source: Vc<IssueSource>,
         in_try: bool,
+        ignore_import: bool,
     ) -> Vc<Self> {
         Self::cell(CjsRequireAssetReference {
             origin,
@@ -99,6 +102,7 @@ impl CjsRequireAssetReference {
             path,
             issue_source,
             in_try,
+            ignore_import,
         })
     }
 }
@@ -112,6 +116,7 @@ impl ModuleReference for CjsRequireAssetReference {
             self.request,
             Some(self.issue_source),
             try_to_severity(self.in_try),
+            self.ignore_import,
         )
     }
 }
@@ -145,6 +150,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
                 self.request,
                 Some(self.issue_source),
                 try_to_severity(self.in_try),
+                false,
             ),
             Value::new(ChunkItem),
         )
@@ -188,6 +194,7 @@ pub struct CjsRequireResolveAssetReference {
     pub path: Vc<AstPath>,
     pub issue_source: Vc<IssueSource>,
     pub in_try: bool,
+    pub ignore: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -199,6 +206,7 @@ impl CjsRequireResolveAssetReference {
         path: Vc<AstPath>,
         issue_source: Vc<IssueSource>,
         in_try: bool,
+        ignore: bool,
     ) -> Vc<Self> {
         Self::cell(CjsRequireResolveAssetReference {
             origin,
@@ -206,6 +214,7 @@ impl CjsRequireResolveAssetReference {
             path,
             issue_source,
             in_try,
+            ignore,
         })
     }
 }
@@ -219,6 +228,7 @@ impl ModuleReference for CjsRequireResolveAssetReference {
             self.request,
             Some(self.issue_source),
             try_to_severity(self.in_try),
+            self.ignore,
         )
     }
 }
@@ -252,6 +262,7 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
                 self.request,
                 Some(self.issue_source),
                 try_to_severity(self.in_try),
+                self.ignore,
             ),
             Value::new(ChunkItem),
         )

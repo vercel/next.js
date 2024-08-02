@@ -2,6 +2,7 @@ use anyhow::Result;
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     issue::{IssueSeverity, IssueSource},
+    module::Module,
     reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
         handle_resolve_error,
@@ -80,12 +81,22 @@ pub async fn esm_resolve(
     ty: Value<EcmaScriptModulesReferenceSubType>,
     issue_severity: Vc<IssueSeverity>,
     issue_source: Option<Vc<IssueSource>>,
+    ignore: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = Value::new(ReferenceType::EcmaScriptModules(ty.into_value()));
     let options = apply_esm_specific_options(origin.resolve_options(ty.clone()), ty.clone())
         .resolve()
         .await?;
-    specific_resolve(origin, request, options, ty, issue_severity, issue_source).await
+    specific_resolve(
+        origin,
+        request,
+        options,
+        ty,
+        issue_severity,
+        issue_source,
+        ignore,
+    )
+    .await
 }
 
 #[turbo_tasks::function]
@@ -94,13 +105,23 @@ pub async fn cjs_resolve(
     request: Vc<Request>,
     issue_source: Option<Vc<IssueSource>>,
     issue_severity: Vc<IssueSeverity>,
+    ignore: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     // TODO pass CommonJsReferenceSubType
     let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
     let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()))
         .resolve()
         .await?;
-    specific_resolve(origin, request, options, ty, issue_severity, issue_source).await
+    specific_resolve(
+        origin,
+        request,
+        options,
+        ty,
+        issue_severity,
+        issue_source,
+        ignore,
+    )
+    .await
 }
 
 async fn specific_resolve(
@@ -110,7 +131,12 @@ async fn specific_resolve(
     reference_type: Value<ReferenceType>,
     issue_severity: Vc<IssueSeverity>,
     issue_source: Option<Vc<IssueSource>>,
+    ignore: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
+    if ignore {
+        return Ok(ModuleResolveResult::ignored().cell());
+    }
+
     let result = origin.resolve_asset(request, options, reference_type.clone());
 
     handle_resolve_error(

@@ -17,7 +17,7 @@ pub mod util;
 
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     future::Future,
     mem::take,
     pin::Pin,
@@ -281,6 +281,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
         let mut references: Vec<_> = self.references.into_iter().collect();
         for r in references.iter_mut() {
+            // let x = r.resolve_reference().await.unwrap();
+            // println!("{:?}", x);
             *r = r.resolve().await?;
         }
         let mut local_references: Vec<_> = track_reexport_references
@@ -383,16 +385,23 @@ where
     HANDLER.set(handler, || GLOBALS.set(globals, f))
 }
 
+/// Analyse a provided [EcmascriptModuleAsset] and return a
+/// [AnalyzeEcmascriptModuleResult].
+///
+/// # Arguments
+/// * ignored_spans - A set of spans to ignore when analysing the module. This
+///   is useful for example to respect turbopackIgnore directives on ignores.
 #[turbo_tasks::function]
 pub(crate) async fn analyse_ecmascript_module(
     module: Vc<EcmascriptModuleAsset>,
     part: Option<Vc<ModulePart>>,
+    ignored_spans: Option<Vc<HashSet<Span>>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let span = {
         let module = module.ident().to_string().await?.to_string();
         tracing::info_span!("analyse ecmascript module", module = module)
     };
-    let result = analyse_ecmascript_module_internal(module, part)
+    let result = analyse_ecmascript_module_internal(module, part, ignored_spans)
         .instrument(span)
         .await;
 
@@ -408,6 +417,7 @@ pub(crate) async fn analyse_ecmascript_module(
 pub(crate) async fn analyse_ecmascript_module_internal(
     module: Vc<EcmascriptModuleAsset>,
     part: Option<Vc<ModulePart>>,
+    webpack_ignored_effects: Option<Vc<HashSet<Span>>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let raw_module = module.await?;
 
@@ -567,7 +577,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let mut evaluation_references = Vec::new();
 
+    println!("IMPORTS {:?}", eval_context.imports);
+
     for (i, r) in eval_context.imports.references().enumerate() {
+        println!("IMPORT {:?}", r);
         let r = EsmAssetReference::new(
             origin,
             Request::parse(Value::new(RcStr::from(&*r.module_path).into())),
@@ -604,6 +617,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             },
             special_exports,
             import_externals,
+            false,
         );
 
         import_references.push(r);
@@ -832,6 +846,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         ignore_dynamic_requests: options.ignore_dynamic_requests,
     };
 
+    #[derive(Debug)]
     enum Action {
         Effect(Effect),
         LeaveScope(u32),
@@ -1020,7 +1035,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     if *ignored == span {
                         continue;
                     }
-                }
+                };
+                if let Some(ignored) = webpack_ignored_effects {
+                    // if ignored.contains(&span) {
+                    //     continue;
+                    // }
+                };
                 let func = analysis_state.link_value(func, in_try).await?;
 
                 handle_call(
@@ -1306,6 +1326,27 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         return Ok(());
                     }
                 }
+
+                // TODO: THIS
+                let ignore = {
+                    let data = source.ident().await;
+                    let data = data.unwrap().path.await;
+                    let ignore = if pat == Pattern::Constant("./ignore.js".into()) {
+                        true
+                    } else {
+                        false
+                    };
+                    println!(
+                        "{} IMPORT FOR {:?} ({:?}) FROM {:?} {:?}",
+                        if ignore { "IGNORING" } else { "ADDING" },
+                        args,
+                        pat,
+                        *data.unwrap(),
+                        span
+                    );
+                    ignore
+                };
+
                 analysis.add_reference(EsmAsyncAssetReference::new(
                     origin,
                     Request::parse(Value::new(pat)),
@@ -1313,7 +1354,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     issue_source(source, span),
                     in_try,
                     state.import_externals,
+                    ignore,
                 ));
+
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -1343,13 +1386,36 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         return Ok(());
                     }
                 }
+
+                // TODO: THIS
+                let ignore = {
+                    let data = source.ident().await;
+                    let data = data.unwrap().path.await;
+                    let ignore = if pat == Pattern::Constant("./ignore.js".into()) {
+                        true
+                    } else {
+                        false
+                    };
+                    println!(
+                        "{} IMPORT FOR {:?} ({:?}) FROM {:?} {:?}",
+                        if ignore { "IGNORING" } else { "ADDING" },
+                        args,
+                        pat,
+                        *data.unwrap(),
+                        span
+                    );
+                    ignore
+                };
+
                 analysis.add_reference(CjsRequireAssetReference::new(
                     origin,
                     Request::parse(Value::new(pat)),
                     Vc::cell(ast_path.to_vec()),
                     issue_source(source, span),
                     in_try,
+                    ignore,
                 ));
+
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -1396,6 +1462,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     Vc::cell(ast_path.to_vec()),
                     issue_source(source, span),
                     in_try,
+                    // TODO(arlyon): pass ignore
+                    false,
                 ));
                 return Ok(());
             }
@@ -2041,6 +2109,7 @@ async fn handle_free_var_reference(
                 },
                 state.special_exports,
                 state.import_externals,
+                true,
             )
             .resolve()
             .await?;
@@ -2396,9 +2465,15 @@ async fn require_resolve_visitor(
     Ok(if args.len() == 1 {
         let pat = js_value_to_pattern(&args[0]);
         let request = Request::parse(Value::new(pat.clone()));
-        let resolved = cjs_resolve(origin, request, None, try_to_severity(in_try))
-            .resolve()
-            .await?;
+        let resolved = cjs_resolve(
+            origin,
+            request,
+            None,
+            try_to_severity(in_try),
+            /* ignore */ false,
+        )
+        .resolve()
+        .await?;
         let mut values = resolved
             .primary_modules()
             .await?
@@ -2532,6 +2607,8 @@ impl StaticAnalyser {
     }
 }
 
+/// A visitor that walks the AST and collects information about the various
+/// references a module makes to other parts of the code.
 struct ModuleReferencesVisitor<'a> {
     eval_context: &'a EvalContext,
     old_analyser: StaticAnalyser,
@@ -2834,6 +2911,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         call: &'ast CallExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
+        println!("CALL {:?}", call);
         if let Callee::Expr(expr) = &call.callee {
             if let StaticExpr::FreeVar(var) = self.old_analyser.evaluate_expr(expr) {
                 match &var[..] {

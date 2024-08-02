@@ -3733,6 +3733,8 @@ mod tests {
 
                 let mut var_graph = create_graph(&m, &eval_context);
 
+                println!("GRAPH {:#?}", var_graph);
+
                 let mut named_values = var_graph
                     .values
                     .clone()

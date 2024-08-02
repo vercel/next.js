@@ -206,7 +206,7 @@ async fn parse_internal(
             FileContent::Content(file) => match file.content().to_str() {
                 Ok(string) => {
                     let transforms = &*transforms.await?;
-                    match parse_content(
+                    match parse_file_content(
                         string.into_owned(),
                         fs_path_vc,
                         fs_path,
@@ -246,7 +246,7 @@ async fn parse_internal(
     })
 }
 
-async fn parse_content(
+async fn parse_file_content(
     string: String,
     fs_path_vc: Vc<FileSystemPath>,
     fs_path: &FileSystemPath,
@@ -433,7 +433,7 @@ async fn parse_content(
                 &parsed_program,
                 unresolved_mark,
                 top_level_mark,
-                None, // TODO(arlyon): pass comments
+                Some(&comments),
                 Some(source),
             );
 

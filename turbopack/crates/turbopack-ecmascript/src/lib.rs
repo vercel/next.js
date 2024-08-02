@@ -364,7 +364,7 @@ impl EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyse_ecmascript_module(self, None)
+        analyse_ecmascript_module(self, None, None)
     }
 
     #[turbo_tasks::function]

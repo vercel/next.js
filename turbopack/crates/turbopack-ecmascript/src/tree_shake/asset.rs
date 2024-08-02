@@ -1,4 +1,7 @@
+use std::collections::HashSet;
+
 use anyhow::{Context, Result};
+use swc_core::common::Span;
 use turbo_tasks::Vc;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -77,7 +80,7 @@ impl Module for EcmascriptModulePartAsset {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let split_data = split_module(self.full_module).await?;
 
-        let analyze = analyze(self.full_module, self.part).await?;
+        let analyze = analyze(self.full_module, self.part, None).await?;
 
         let (deps, entrypoints) = match &*split_data {
             SplitResult::Ok {
@@ -210,7 +213,7 @@ impl EcmascriptModulePartAsset {
     pub(super) async fn analyze(self: Vc<Self>) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
         let this = self.await?;
 
-        Ok(analyze(this.full_module, this.part))
+        Ok(analyze(this.full_module, this.part, None))
     }
 }
 
@@ -218,8 +221,9 @@ impl EcmascriptModulePartAsset {
 async fn analyze(
     module: Vc<EcmascriptModuleAsset>,
     part: Vc<ModulePart>,
+    ignored_spans: Option<Vc<HashSet<Span>>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-    Ok(analyse_ecmascript_module(module, Some(part)))
+    Ok(analyse_ecmascript_module(module, Some(part), ignored_spans))
 }
 
 #[turbo_tasks::value_impl]

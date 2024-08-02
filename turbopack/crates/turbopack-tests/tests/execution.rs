@@ -87,7 +87,7 @@ fn register() {
 // skip.
 #[testing::fixture("tests/execution/*/*/*", exclude("node_modules|__skipped__"))]
 fn test(resource: PathBuf) {
-    let messages = get_messages(run(resource, IssueSnapshotMode::Snapshots).unwrap());
+    let messages = get_messages(run(resource.clone(), IssueSnapshotMode::Snapshots).unwrap());
     if !messages.is_empty() {
         panic!(
             "Failed with error(s) in the following test(s):\n\n{}",
