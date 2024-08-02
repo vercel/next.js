@@ -4,6 +4,7 @@ dist
 .next
 target
 packages/next/wasm/@next
+tarballs/
 
 # dependencies
 node_modules
