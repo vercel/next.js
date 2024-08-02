@@ -58,7 +58,7 @@ interface SerializedDefineEnv {
 /**
  * Collects all environment variables that are using the `NEXT_PUBLIC_` prefix.
  */
-function getNextPublicEnvironmentVariables(): DefineEnv {
+export function getNextPublicEnvironmentVariables(): DefineEnv {
   const defineEnv: DefineEnv = {}
   for (const key in process.env) {
     if (key.startsWith('NEXT_PUBLIC_')) {
@@ -173,6 +173,9 @@ export function getDefineEnv({
         ? 'nodejs'
         : '',
     'process.env.NEXT_MINIMAL': '',
+    'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
+      config.experimental.appNavFailHandling
+    ),
     'process.env.__NEXT_APP_ISR_INDICATOR': Boolean(
       config.devIndicators.appIsrStatus
     ),

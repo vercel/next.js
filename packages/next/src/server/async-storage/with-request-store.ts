@@ -104,7 +104,7 @@ function mergeMiddlewareCookies(
 
     // Transfer cookies from ResponseCookies to RequestCookies
     for (const cookie of responseCookies.getAll()) {
-      existingCookies.set(cookie.name, cookie.value ?? '')
+      existingCookies.set(cookie)
     }
   }
 }

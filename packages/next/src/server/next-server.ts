@@ -12,10 +12,9 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest } from '../build'
-import type { FetchMetric } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../client/components/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -101,7 +100,6 @@ import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
-import { stripNextRscUnionQuery } from '../lib/url'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
 
 export * from './base-server'
@@ -118,16 +116,6 @@ const dynamicImportEsmDefault = process.env.NEXT_MINIMAL
 const dynamicRequire = process.env.NEXT_MINIMAL
   ? __non_webpack_require__
   : require
-
-function writeStdoutLine(text: string) {
-  process.stdout.write(' ' + text + '\n')
-}
-
-function formatRequestUrl(url: string, maxLength: number | undefined) {
-  return maxLength !== undefined && url.length > maxLength
-    ? url.substring(0, maxLength) + '..'
-    : url
-}
 
 export type NodeRequestHandler = BaseRequestHandler<
   IncomingMessage | NodeNextRequest,
@@ -1081,13 +1069,13 @@ export default class NextNodeServer extends BaseServer<
     return nodeFs
   }
 
-  private normalizeReq(
+  protected normalizeReq(
     req: NodeNextRequest | IncomingMessage
   ): NodeNextRequest {
     return !(req instanceof NodeNextRequest) ? new NodeNextRequest(req) : req
   }
 
-  private normalizeRes(
+  protected normalizeRes(
     res: NodeNextResponse | ServerResponse
   ): NodeNextResponse {
     return !(res instanceof NodeNextResponse) ? new NodeNextResponse(res) : res
@@ -1107,158 +1095,16 @@ export default class NextNodeServer extends BaseServer<
   private makeRequestHandler(): NodeRequestHandler {
     // This is just optimization to fire prepare as soon as possible. It will be
     // properly awaited later. We add the catch here to ensure that it does not
-    // cause a unhandled promise rejection. The promise rejection wil be
+    // cause an unhandled promise rejection. The promise rejection will be
     // handled later on via the `await` when the request handler is called.
     this.prepare().catch((err) => {
       console.error('Failed to prepare server', err)
     })
 
     const handler = super.getRequestHandler()
-    return (req, res, parsedUrl) => {
-      const normalizedReq = this.normalizeReq(req)
-      const normalizedRes = this.normalizeRes(res)
 
-      const loggingFetchesConfig = this.nextConfig.logging?.fetches
-      const enabledVerboseLogging = !!loggingFetchesConfig
-      const shouldTruncateUrl = !loggingFetchesConfig?.fullUrl
-
-      if (this.renderOpts.dev) {
-        const { blue, green, yellow, red, gray, white } =
-          require('../lib/picocolors') as typeof import('../lib/picocolors')
-
-        const { originalResponse } = normalizedRes
-
-        const reqStart = Date.now()
-        const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
-
-        const reqCallback = () => {
-          // we don't log for non-route requests
-          const routeMatch = getRequestMeta(req).match
-
-          if (!routeMatch || isMiddlewareRequest) return
-
-          // NOTE: this is only attached after handle has started, this runs
-          // after the response has been sent, so it should have it set.
-          const isRSC = getRequestMeta(normalizedReq, 'isRSCRequest')
-
-          const reqEnd = Date.now()
-          const fetchMetrics = normalizedReq.fetchMetrics || []
-          const reqDuration = reqEnd - reqStart
-
-          const statusColor = (status?: number) => {
-            if (!status || status < 200) return white
-            else if (status < 300) return green
-            else if (status < 400) return blue
-            else if (status < 500) return yellow
-            return red
-          }
-
-          const color = statusColor(res.statusCode)
-          const method = req.method || 'GET'
-          const requestUrl = req.url || ''
-          const loggingUrl = isRSC
-            ? stripNextRscUnionQuery(requestUrl)
-            : requestUrl
-
-          writeStdoutLine(
-            `${method} ${loggingUrl} ${color(
-              res.statusCode.toString()
-            )} in ${reqDuration}ms`
-          )
-
-          if (fetchMetrics.length && enabledVerboseLogging) {
-            const calcNestedLevel = (
-              prevMetrics: FetchMetric[],
-              start: number
-            ): string => {
-              let nestedLevel = 0
-
-              for (let i = 0; i < prevMetrics.length; i++) {
-                const metric = prevMetrics[i]
-                const prevMetric = prevMetrics[i - 1]
-
-                if (
-                  metric.end <= start &&
-                  !(prevMetric && prevMetric.start < metric.end)
-                ) {
-                  nestedLevel += 1
-                }
-              }
-              return nestedLevel === 0 ? ' ' : ' │ '.repeat(nestedLevel)
-            }
-
-            for (let i = 0; i < fetchMetrics.length; i++) {
-              const metric = fetchMetrics[i]
-              let { cacheStatus, cacheReason } = metric
-              let cacheReasonStr = ''
-
-              let cacheColor
-              const duration = metric.end - metric.start
-              if (cacheStatus === 'hit') {
-                cacheColor = green
-              } else {
-                cacheColor = yellow
-                const status = cacheStatus === 'skip' ? 'skipped' : 'missed'
-                cacheReasonStr = gray(
-                  `Cache ${status} reason: (${white(cacheReason)})`
-                )
-              }
-              let url = metric.url
-
-              if (url.length > 48) {
-                const parsed = new URL(url)
-                const truncatedHost = formatRequestUrl(
-                  parsed.host,
-                  shouldTruncateUrl ? 16 : undefined
-                )
-                const truncatedPath = formatRequestUrl(
-                  parsed.pathname,
-                  shouldTruncateUrl ? 24 : undefined
-                )
-                const truncatedSearch = formatRequestUrl(
-                  parsed.search,
-                  shouldTruncateUrl ? 16 : undefined
-                )
-
-                url =
-                  parsed.protocol +
-                  '//' +
-                  truncatedHost +
-                  truncatedPath +
-                  truncatedSearch
-              }
-
-              const status = cacheColor(`(cache ${cacheStatus})`)
-              const newLineLeadingChar = '│'
-              const nestedIndent = calcNestedLevel(
-                fetchMetrics.slice(0, i + 1),
-                metric.start
-              )
-
-              writeStdoutLine(
-                `${newLineLeadingChar}${nestedIndent}${white(
-                  metric.method
-                )} ${white(url)} ${metric.status} in ${duration}ms ${status}`
-              )
-              if (cacheReasonStr) {
-                const nextNestedIndent = calcNestedLevel(
-                  fetchMetrics.slice(0, i + 1),
-                  metric.start
-                )
-
-                writeStdoutLine(
-                  `${newLineLeadingChar}${nextNestedIndent}${newLineLeadingChar} ${cacheReasonStr}`
-                )
-              }
-            }
-          }
-          delete normalizedReq.fetchMetrics
-          originalResponse.off('close', reqCallback)
-        }
-        originalResponse.on('close', reqCallback)
-      }
-      return handler(normalizedReq, normalizedRes, parsedUrl)
-    }
+    return (req, res, parsedUrl) =>
+      handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
   }
 
   public async revalidate({
