@@ -1,17 +1,15 @@
 const serverExports = {
-  NextRequest: require('next/dist/server/web/spec-extension/request')
-    .NextRequest,
-  NextResponse: require('next/dist/server/web/spec-extension/response')
+  NextRequest: require('./dist/server/web/spec-extension/request').NextRequest,
+  NextResponse: require('./dist/server/web/spec-extension/response')
     .NextResponse,
-  ImageResponse: require('next/dist/server/web/spec-extension/image-response')
+  ImageResponse: require('./dist/server/web/spec-extension/image-response')
     .ImageResponse,
-  userAgentFromString: require('next/dist/server/web/spec-extension/user-agent')
+  userAgentFromString: require('./dist/server/web/spec-extension/user-agent')
     .userAgentFromString,
-  userAgent: require('next/dist/server/web/spec-extension/user-agent')
-    .userAgent,
-  URLPattern: require('next/dist/server/web/spec-extension/url-pattern')
+  userAgent: require('./dist/server/web/spec-extension/user-agent').userAgent,
+  URLPattern: require('./dist/server/web/spec-extension/url-pattern')
     .URLPattern,
-  unstable_after: require('next/dist/server/after').unstable_after,
+  unstable_after: require('./dist/server/after').unstable_after,
 }
 
 // https://nodejs.org/api/esm.html#commonjs-namespaces
