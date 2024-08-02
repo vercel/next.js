@@ -238,7 +238,7 @@ describe('Build Error Tests', () => {
           "Module not found: Can't resolve '../../public/foo/test-rect-broken.jpg"
         )
         // should contain the importing module
-        expect(stderr).toContain('./app/static-img/page.js')
+        expect(stderr).toContain('app/static-img/page.js')
         // should contain a import trace
         expect(stderr).not.toContain('Import trace for requested module')
       })
