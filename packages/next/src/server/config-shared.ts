@@ -278,10 +278,6 @@ export interface ExperimentalConfig {
   esmExternals?: boolean | 'loose'
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
-  outputFileTracingRoot?: string
-  outputFileTracingExcludes?: Record<string, string[]>
-  outputFileTracingIgnores?: string[]
-  outputFileTracingIncludes?: Record<string, string[]>
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
 
@@ -895,6 +891,24 @@ export interface NextConfig extends Record<string, any> {
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages
    */
   serverExternalPackages?: string[]
+
+  /**
+   * This is the repo root usually and only files above this
+   * directory are traced and included.
+   */
+  outputFileTracingRoot?: string
+
+  /**
+   * This allows manually excluding traced files if too many
+   * are included incorrectly on a per-page basis.
+   */
+  outputFileTracingExcludes?: Record<string, string[]>
+
+  /**
+   * This allows manually including traced files if some
+   * were not detected on a per-page basis.
+   */
+  outputFileTracingIncludes?: Record<string, string[]>
 }
 
 export const defaultConfig: NextConfig = {
@@ -953,6 +967,7 @@ export const defaultConfig: NextConfig = {
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
+  outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   experimental: {
     appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
     flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
@@ -987,7 +1002,6 @@ export const defaultConfig: NextConfig = {
     craCompat: false,
     esmExternals: true,
     fullySpecified: false,
-    outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     swcTraceProfiling: false,
     forceSwcTransforms: false,
     swcPlugins: undefined,

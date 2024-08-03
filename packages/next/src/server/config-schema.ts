@@ -307,14 +307,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         // The critter option is unknown, use z.any() here
         optimizeCss: z.union([z.boolean(), z.any()]).optional(),
         optimisticClientCache: z.boolean().optional(),
-        outputFileTracingRoot: z.string().optional(),
-        outputFileTracingExcludes: z
-          .record(z.string(), z.array(z.string()))
-          .optional(),
-        outputFileTracingIgnores: z.array(z.string()).optional(),
-        outputFileTracingIncludes: z
-          .record(z.string(), z.array(z.string()))
-          .optional(),
         parallelServerCompiles: z.boolean().optional(),
         parallelServerBuildTraces: z.boolean().optional(),
         ppr: z
@@ -565,6 +557,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     optimizeFonts: z.boolean().optional(),
     output: z.enum(['standalone', 'export']).optional(),
+    outputFileTracingRoot: z.string().optional(),
+    outputFileTracingExcludes: z
+      .record(z.string(), z.array(z.string()))
+      .optional(),
+    outputFileTracingIncludes: z
+      .record(z.string(), z.array(z.string()))
+      .optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),

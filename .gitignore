@@ -5,6 +5,7 @@ dist
 target
 packages/next/wasm/@next
 tarballs/
+packages/next/*.tgz
 
 # dependencies
 node_modules

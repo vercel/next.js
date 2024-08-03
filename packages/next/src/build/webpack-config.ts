@@ -1779,11 +1779,11 @@ export default async function getBaseWebpackConfig(
             appDir: appDir,
             pagesDir: pagesDir,
             esmExternals: config.experimental.esmExternals,
-            outputFileTracingRoot: config.experimental.outputFileTracingRoot,
+            outputFileTracingRoot: config.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
             turbotrace: config.experimental.turbotrace,
             optOutBundlingPackages,
-            traceIgnores: config.experimental.outputFileTracingIgnores || [],
+            traceIgnores: [],
             flyingShuttle: !!config.experimental.flyingShuttle,
             compilerType,
           }
