@@ -228,7 +228,7 @@ async function run(): Promise<void> {
       eslint: true,
       tailwind: true,
       app: true,
-      srcDir: false,
+      srcDir: true,
       importAlias: '@/*',
       customizeImportAlias: false,
       empty: false,
