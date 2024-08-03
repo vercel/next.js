@@ -44,20 +44,16 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
     }
 
     it('should have file hashes in trace files', async () => {
-      const deploymentsTracePath = path.join(
-        next.testDir,
+      const deploymentsTracePath =
         '.next/server/app/dashboard/deployments/[id]/page.js.nft.json'
-      )
-      const deploymentsTrace = JSON.parse(
-        await fs.promises.readFile(deploymentsTracePath, 'utf8')
-      )
-      const ssgTracePath = path.join(
-        next.testDir,
-        '.next/server/pages/ssg.js.nft.json'
-      )
-      const ssgTrace = JSON.parse(
-        await fs.promises.readFile(ssgTracePath, 'utf8')
-      )
+      const deploymentsTrace = await next.readJSON(deploymentsTracePath)
+      const dynamicClientTracePath =
+        '.next/server/app/dynamic-client/[category]/[id]/page.js.nft.json'
+      const dynamicClientTrace = await next.readJSON(dynamicClientTracePath)
+      const indexTracePath = '.next/server/pages/index.js.nft.json'
+      const indexTrace = await next.readJSON(indexTracePath)
+      const ssgTracePath = '.next/server/pages/ssg.js.nft.json'
+      const ssgTrace = await next.readJSON(ssgTracePath)
 
       expect(deploymentsTrace.fileHashes).toBeTruthy()
 
@@ -74,10 +70,53 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
       // ensure all files have corresponding fileHashes
       for (const [traceFile, traceFilePath] of [
         [deploymentsTrace, deploymentsTracePath],
+        [dynamicClientTrace, dynamicClientTracePath],
+        [indexTrace, indexTracePath],
         [ssgTrace, ssgTracePath],
       ]) {
+        // ensure client components are included in trace properly
+        const isIndexTrace = traceFilePath === indexTracePath
+        const isDynamicClientTrace = traceFilePath === dynamicClientTracePath
+
+        if (isIndexTrace || isDynamicClientTrace) {
+          const fileHashKeys = Object.keys(traceFile.fileHashes)
+          const expectedFiles = [
+            'button.js',
+            'button.module.css',
+
+            ...(isDynamicClientTrace ? ['global.css', 'style.css'] : []),
+
+            ...(isIndexTrace ? ['shared.module.css'] : []),
+          ]
+          const foundFiles = fileHashKeys.filter((item) =>
+            expectedFiles.some((expectedItem) => item.includes(expectedItem))
+          )
+
+          try {
+            expect(foundFiles.length).toBe(expectedFiles.length)
+          } catch (err) {
+            require('console').error(
+              traceFilePath,
+              'does not include all expected files',
+              JSON.stringify(
+                {
+                  expectedFiles,
+                  foundFiles,
+                },
+                null,
+                2
+              )
+            )
+            throw err
+          }
+        }
+
         for (const key of traceFile.files) {
-          const absoluteKey = path.join(path.dirname(traceFilePath), key)
+          const absoluteKey = path.join(
+            next.testDir,
+            path.dirname(traceFilePath),
+            key
+          )
           const stats = await fs.promises.stat(absoluteKey)
 
           if (

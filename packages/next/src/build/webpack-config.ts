@@ -1786,6 +1786,7 @@ export default async function getBaseWebpackConfig(
             traceIgnores: [],
             flyingShuttle: !!config.experimental.flyingShuttle,
             compilerType,
+            swcLoaderConfig: swcDefaultLoader,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files
