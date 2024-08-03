@@ -43,3 +43,38 @@ To develop locally:
 
 For instructions on how to build a project with your local version of the CLI,
 see **[Developing Using Your Local Version of Next.js](./developing-using-local-app.md)** as linking the package is not sufficient to develop locally.
+
+## Testing a local Next.js version on an application
+
+Since Turbopack doesn't support symlinks when pointing outside of the workspace directory, it can be difficult to develop against a local Next.js version. Neither `pnpm link` nor `file:` imports quite cut it. An alternative is to pack the Next.js version you want to test into a tarball and add it to the pnpm overrides of your test application. The following script will do it for you:
+
+```bash
+pnpm pack-next --release && pnpm unpack-next path/to/project
+```
+
+Or without running the build:
+
+```bash
+pnpm pack-next --no-build --release && pnpm unpack-next path/to/project
+```
+
+### Explanation of the scripts
+
+```bash
+# Generate a tarball of the Next.js version you want to test
+$ pnpm pack-next
+
+# If you need to build in release mode:
+$ pnpm pack-next --release
+# You can also pass any cargo argument to the script
+
+# To skip the `pnpm i` and `pnpm build` steps in next.js (e. g. if you are running `pnpm dev`)
+$ pnpm pack-next --no-build
+```
+
+Afterwards, you'll need to unpack the tarball into your test project. You can either manually edit the `package.json` to point to the new tarballs (see the stdout from `pack-next` script), or you can automatically unpack it with:
+
+```bash
+# Unpack the tarballs generated with pack-next into project's node_modules
+$ pnpm unpack-next path/to/project
+```
