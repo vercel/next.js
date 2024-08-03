@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('history-replace-state', () => {
+describe('ppr-history-replace-state', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
