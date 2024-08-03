@@ -1,6 +1,11 @@
 const { execSync, execFileSync, spawn } = require('child_process')
 const { existsSync } = require('fs')
+const globOrig = require('glob')
 const { join } = require('path')
+const { promisify } = require('util')
+
+const glob = promisify(globOrig)
+exports.glob = glob
 
 function exec(title, command, opts) {
   if (Array.isArray(command)) {
@@ -86,7 +91,6 @@ exports.booleanArg = booleanArg
 const DEFAULT_GLOBS = ['**', '!target', '!node_modules', '!crates', '!.turbo']
 const FORCED_GLOBS = ['package.json', 'README*', 'LICENSE*', 'LICENCE*']
 async function packageFiles(path) {
-  const { globby } = await import('globby')
   const { files = DEFAULT_GLOBS, main, bin } = require(`${path}/package.json`)
 
   const allFiles = files.concat(
@@ -99,7 +103,7 @@ async function packageFiles(path) {
     .filter((f) => !isGlob(f) && existsSync(join(path, f)))
     .map((f) => f.replace(/^\.\//, ''))
   const globFiles = allFiles.filter(isGlob)
-  const globbedFiles = await globby(globFiles, { cwd: path })
+  const globbedFiles = await glob(`+(${globFiles.join('|')})`, { cwd: path })
   const packageFiles = [...globbedFiles, ...simpleFiles].sort()
   const set = new Set()
   return packageFiles.filter((f) => {
