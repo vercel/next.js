@@ -43,6 +43,10 @@ const styles = css`
     padding: 4px;
     margin: 0;
   }
+
+  .nextjs-static-indicator-toast-wrapper button {
+    color: var(--color-font);
+  }
 `
 
 export { styles }

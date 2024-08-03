@@ -784,7 +784,7 @@ export function updateCacheNodeOnPopstateRestoration(
 
     prefetchHead: shouldUsePrefetch ? oldCacheNode.prefetchHead : null,
     prefetchRsc: shouldUsePrefetch ? oldCacheNode.prefetchRsc : null,
-    loading: shouldUsePrefetch ? oldCacheNode.loading : null,
+    loading: oldCacheNode.loading,
 
     // These are the cloned children we computed above
     parallelRoutes: newParallelRoutes,

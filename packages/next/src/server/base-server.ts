@@ -590,6 +590,7 @@ export default abstract class Server<
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
+      reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
     }
 
     // Initialize next/config with the environment configuration

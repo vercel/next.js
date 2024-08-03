@@ -964,6 +964,7 @@
     }
     function callWithDebugContextInDEV(request, task, callback, arg) {
       var componentDebugInfo = {
+        name: "",
         env: task.environmentName,
         owner: task.debugOwner
       };
@@ -1526,6 +1527,18 @@
       reader.read().then(progress).catch(error);
       return "$B" + newTask.id.toString(16);
     }
+    function isReactComponentInfo(value) {
+      return (
+        (("object" === typeof value.debugTask &&
+          null !== value.debugTask &&
+          "function" === typeof value.debugTask.run) ||
+          value.debugStack instanceof Error) &&
+        isArrayImpl(value.stack) &&
+        "string" === typeof value.name &&
+        "string" === typeof value.env &&
+        void 0 !== value.owner
+      );
+    }
     function renderModel(request, task, parent, key, value) {
       var prevKeyPath = task.keyPath,
         prevImplicitSlot = task.implicitSlot;
@@ -1783,16 +1796,7 @@
             "Only plain objects, and a few built-ins, can be passed to Client Components from Server Components. Classes or null prototypes are not supported." +
               describeObjectForErrorMessage(parent, parentPropertyName)
           );
-        if (
-          (("object" === typeof value.debugTask &&
-            null !== value.debugTask &&
-            "function" === typeof value.debugTask.run) ||
-            value.debugStack instanceof Error) &&
-          isArrayImpl(value.stack) &&
-          "string" === typeof value.name &&
-          "string" === typeof value.env &&
-          void 0 !== value.owner
-        )
+        if (isReactComponentInfo(value))
           return (
             (request = {
               name: value.name,
@@ -2101,15 +2105,15 @@
               );
             case "rejected":
               return (
-                (counter = value.reason),
+                (value = value.reason),
                 request.pendingChunks++,
-                (value = request.nextChunkId++),
-                "object" === typeof counter &&
-                null !== counter &&
-                counter.$$typeof === REACT_POSTPONE_TYPE
-                  ? emitPostponeChunk(request, value, counter)
-                  : emitErrorChunk(request, value, "", counter),
-                "$@" + value.toString(16)
+                (counter = request.nextChunkId++),
+                "object" === typeof value &&
+                null !== value &&
+                value.$$typeof === REACT_POSTPONE_TYPE
+                  ? emitPostponeChunk(request, counter, value)
+                  : emitErrorChunk(request, counter, "", value),
+                "$@" + counter.toString(16)
               );
           }
           return "$@";
@@ -2171,7 +2175,16 @@
                                               ? serializeBlob(request, value)
                                               : getIteratorFn(value)
                                                 ? Array.from(value)
-                                                : value;
+                                                : isReactComponentInfo(value)
+                                                  ? ((request = {
+                                                      name: value.name,
+                                                      env: value.env,
+                                                      owner: value.owner
+                                                    }),
+                                                    (request.stack =
+                                                      value.stack),
+                                                    request)
+                                                  : value;
       }
       if ("string" === typeof value)
         return "Z" === value[value.length - 1] && originalValue instanceof Date
@@ -2195,11 +2208,11 @@
       if ("symbol" === typeof value) {
         counter = request.writtenSymbols.get(value);
         if (void 0 !== counter) return serializeByValueID(counter);
-        counter = value.description;
+        value = value.description;
         request.pendingChunks++;
-        value = request.nextChunkId++;
-        emitSymbolChunk(request, value, counter);
-        return serializeByValueID(value);
+        counter = request.nextChunkId++;
+        emitSymbolChunk(request, counter, value);
+        return serializeByValueID(counter);
       }
       return "bigint" === typeof value
         ? "$n" + value.toString(10)
