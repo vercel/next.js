@@ -7001,6 +7001,35 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Material Symbols Outlined": {
+    "weights": ["100", "200", "300", "400", "500", "600", "700"],
+    "axes": [
+      {
+        "tag": "GRAD",
+        "min": -25,
+        "max": 200,
+        "defaultValue": 0
+      },
+      {
+        "tag": "opsz",
+        "min": 20,
+        "max": 48,
+        "defaultValue": 24
+      },
+      {
+        "tag": "FILL",
+        "min": 0,
+        "max": 1,
+        "defaultValue": 0
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
   "Maven Pro": {
     "weights": ["400", "500", "600", "700", "800", "900", "variable"],
     "styles": ["normal"],
