@@ -308,6 +308,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/diagnostics/build-diagnostics.test.ts": {
+    "passed": [
+      "build-diagnostics records build diagnostics to a file correctly",
+      "build-diagnostics records framework version to framework.json correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/lib/batcher.test.ts": {
     "passed": [
       "Batcher batch should batch multiple calls to the same key",
@@ -442,14 +452,14 @@
   },
   "packages/next/src/server/after/after-context.test.ts": {
     "passed": [
-      "createAfterContext does not hang forever if onClose failed",
-      "createAfterContext runs after() callbacks added within an after()",
-      "createAfterContext runs after() callbacks from a run() callback that resolves",
-      "createAfterContext runs after() callbacks from a run() callback that streams",
-      "createAfterContext runs after() callbacks from a run() callback that throws",
-      "createAfterContext runs all after() callbacks even if some of them threw",
-      "createAfterContext throws from after() if onClose is not provided",
-      "createAfterContext throws from after() if waitUntil is not provided"
+      "AfterContext does not hang forever if onClose failed",
+      "AfterContext runs after() callbacks added within an after()",
+      "AfterContext runs after() callbacks from a run() callback that resolves",
+      "AfterContext runs after() callbacks from a run() callback that streams",
+      "AfterContext runs after() callbacks from a run() callback that throws",
+      "AfterContext runs all after() callbacks even if some of them threw",
+      "AfterContext throws from after() if onClose is not provided",
+      "AfterContext throws from after() if waitUntil is not provided"
     ],
     "failed": [],
     "pending": [],
@@ -516,6 +526,16 @@
       "parse version info installed: 13.1.1, latest: 13.1.2, canary: 13.1.3-canary.0 yields stale-patch",
       "parse version info installed: 13.1.1-canary.7, latest: 13.1.0, canary: 13.1.1-canary.7 yields fresh",
       "parse version info installed: invalid, latest: 13.0.1, canary: 13.0.1-canary.0 yields unknown"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/lib/experimental/create-env-definitions.test.ts": {
+    "passed": [
+      "create-env-definitions should allow empty env",
+      "create-env-definitions should create env definitions"
     ],
     "failed": [],
     "pending": [],
@@ -1059,7 +1079,7 @@
       "ReactRefreshLogBox app turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo server component can recover from error thrown in the module",
-      "ReactRefreshLogBox app turbo should hide unrelated frames in stack trace with node:internal calls",
+      "ReactRefreshLogBox app turbo should hide unrelated frames in stack trace with nodejs internal calls",
       "ReactRefreshLogBox app turbo should hide unrelated frames in stack trace with unknown anonymous calls",
       "ReactRefreshLogBox app turbo should strip whitespace correctly with newline",
       "ReactRefreshLogBox app turbo unterminated JSX"
@@ -1081,7 +1101,7 @@
       "ReactRefreshLogBox app default module init error not shown",
       "ReactRefreshLogBox app default non-Error errors are handled properly",
       "ReactRefreshLogBox app default server component can recover from error thrown in the module",
-      "ReactRefreshLogBox app default should hide unrelated frames in stack trace with node:internal calls",
+      "ReactRefreshLogBox app default should hide unrelated frames in stack trace with nodejs internal calls",
       "ReactRefreshLogBox app default should hide unrelated frames in stack trace with unknown anonymous calls",
       "ReactRefreshLogBox app default should strip whitespace correctly with newline",
       "ReactRefreshLogBox app default unterminated JSX",
@@ -1275,8 +1295,6 @@
       "Error overlay - RSC build errors should error when createContext from react is used in server component",
       "Error overlay - RSC build errors should error when createFactory from react is used in server component",
       "Error overlay - RSC build errors should error when flushSync from react-dom is used in server component",
-      "Error overlay - RSC build errors should error when page component export is not valid",
-      "Error overlay - RSC build errors should error when page component export is not valid on initial load",
       "Error overlay - RSC build errors should error when unstable_batchedUpdates from react-dom is used in server component",
       "Error overlay - RSC build errors should error when useActionState from react is used in server component",
       "Error overlay - RSC build errors should error when useDeferredValue from react is used in server component",
@@ -1341,6 +1359,18 @@
       "Error Overlay for server components createContext called in Server Component should show error when React.createContext is called",
       "Error Overlay for server components createContext called in Server Component should show error when React.createContext is called in external package",
       "Error Overlay for server components createContext called in Server Component should show error when createContext is called in external package"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/acceptance-app/undefined-default-export.test.ts": {
+    "passed": [
+      "Undefined default export should error if not-found component does not have default export when trigger not-found boundary",
+      "Undefined default export should error if page component does not have default export",
+      "Undefined default export should error when page component export is not valid",
+      "Undefined default export should error when page component export is not valid on initial load"
     ],
     "failed": [],
     "pending": [],
@@ -1617,6 +1647,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/hmr-parallel-routes/hmr-parallel-routes.test.ts": {
+    "passed": ["hmr-parallel-routes should update parallel routes via HMR"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/missing-required-html-tags/index.test.ts": {
     "passed": [
       "app-dir - missing required html tags should hmr when you fix the error",
@@ -1636,6 +1673,38 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/prerender-indicator/prerender-indicator.test.ts": {
+    "passed": [
+      "prerender indicator should have prerender-indicator by default for static page",
+      "prerender indicator should hide the indicator when changing to dynamic",
+      "prerender indicator should not have the indicator on dynamic page on load",
+      "prerender indicator should not show the indicator if disabled in next.config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/server-components-hmr-cache/server-components-hmr-cache.test.ts": {
+    "passed": [
+      "server-components-hmr-cache edge runtime in after() should not use cached fetch calls for intentional refresh requests",
+      "server-components-hmr-cache edge runtime in after() should use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache edge runtime should not use cached fetch calls for intentional refresh requests",
+      "server-components-hmr-cache edge runtime should use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache edge runtime with experimental.serverComponentsHmrCache disabled in after() should not use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache edge runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache node runtime in after() should not use cached fetch calls for intentional refresh requests",
+      "server-components-hmr-cache node runtime in after() should use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache node runtime should not use cached fetch calls for intentional refresh requests",
+      "server-components-hmr-cache node runtime should use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled in after() should not use cached fetch calls for fast refresh requests",
+      "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/strict-mode-enabled-by-default/strict-mode-enabled-by-default.test.ts": {
     "passed": [],
     "failed": [],
@@ -1643,17 +1712,28 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/typed-env/typed-env.test.ts": {
+    "passed": [
+      "typed-env should have env types from next config",
+      "typed-env should rewrite env types if .env is modified"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
-      "app-dir-hmr filesystem changes should not break when renaming a folder",
       "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
       "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge)",
       "app-dir-hmr filesystem changes should update server components pages when env files is changed (nodejs)"
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "app-dir-hmr filesystem changes should not break when renaming a folder"
+    ],
     "runtimeError": false
   },
   "test/development/app-render-error-log/app-render-error-log.test.ts": {
@@ -1762,6 +1842,7 @@
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - runtime-error",
       "basic HMR, basePath: \"\" Hot Module Reloading delete a page and add it back should load the page properly",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should detect the changes and display it",
+      "basic HMR, basePath: \"\" Hot Module Reloading editing a page should not full reload when nonlatin characters are used",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should not reload unrelated pages",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should update styles correctly",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should update styles in a dynamic component correctly",
@@ -1769,32 +1850,7 @@
       "basic HMR, basePath: \"\" should have correct compile timing after fixing error",
       "basic HMR, basePath: \"\" should have correct router.isReady for auto-export page",
       "basic HMR, basePath: \"\" should have correct router.isReady for getStaticProps page",
-      "basic HMR, basePath: \"\" should show hydration error correctly",
-      "basic HMR, basePath: \"/docs\" Error Recovery should detect runtime errors on the module scope",
-      "basic HMR, basePath: \"/docs\" Error Recovery should detect syntax errors and recover",
-      "basic HMR, basePath: \"/docs\" Error Recovery should not continously poll a custom error page",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after a bad return from the render function",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after an error reported via SSR",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after exporting an invalid page",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after loader parse error in an imported file",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after undefined exported as default",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after webpack parse error in an imported file",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in getInitialProps in client",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in the render function",
-      "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - anonymous page function",
-      "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - runtime-error",
-      "basic HMR, basePath: \"/docs\" Hot Module Reloading delete a page and add it back should load the page properly",
-      "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should detect the changes and display it",
-      "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should not reload unrelated pages",
-      "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should update styles correctly",
-      "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should update styles in a dynamic component correctly",
-      "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should update styles in a stateful component correctly",
-      "basic HMR, basePath: \"/docs\" should have correct compile timing after fixing error",
-      "basic HMR, basePath: \"/docs\" should have correct router.isReady for auto-export page",
-      "basic HMR, basePath: \"/docs\" should have correct router.isReady for getStaticProps page",
-      "basic HMR, basePath: \"/docs\" should show hydration error correctly"
+      "basic HMR, basePath: \"\" should show hydration error correctly"
     ],
     "failed": [],
     "pending": [],
@@ -2180,6 +2236,20 @@
       "middlewares does not warn when returning response with literal string",
       "middlewares does not warn when returning undefined response body"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/next-config-ts/hmr/index.test.ts": {
+    "passed": ["next-config-ts - dev-hmr should output config file change"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/next-config-ts/turbo/index.test.ts": {
+    "passed": ["next-config-ts - turbopack should work with Turbopack"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -2633,6 +2703,7 @@
       "app-dir action handling should not error when a forwarded action triggers a redirect (node)",
       "app-dir action handling should not log errors for non-action form POSTs",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
+      "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
       "app-dir action handling should push new route when redirecting",
       "app-dir action handling should report errors with bad inputs correctly",
       "app-dir action handling should support .bind",
@@ -2651,6 +2722,7 @@
       "app-dir action handling should support uploading files",
       "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
       "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
+      "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
       "app-dir action handling should work with interception routes"
     ],
     "failed": [],
@@ -2755,7 +2827,7 @@
     "passed": ["app dir HMR should not cause error when removing loading.js"],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": ["app dir HMR should not cause error when removing loading.js"],
     "runtimeError": false
   },
   "test/e2e/app-dir/app-config-crossorigin/index.test.ts": {
@@ -3212,6 +3284,7 @@
       "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
       "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
       "app-dir static/dynamic handling should cache correctly handle JSON body",
+      "app-dir static/dynamic handling should cache correctly when accessing search params opts into dynamic rendering",
       "app-dir static/dynamic handling should cache correctly with POST method and revalidate",
       "app-dir static/dynamic handling should cache correctly with authorization header and revalidate",
       "app-dir static/dynamic handling should cache correctly with cookie header and revalidate",
@@ -3263,6 +3336,7 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
       "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
+      "app-dir static/dynamic handling unstable_cache should not cache new result in draft mode",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-store",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
@@ -3296,6 +3370,7 @@
       "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
       "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
       "app-dir static/dynamic handling should cache correctly handle JSON body",
+      "app-dir static/dynamic handling should cache correctly when accessing search params opts into dynamic rendering",
       "app-dir static/dynamic handling should cache correctly with POST method and revalidate",
       "app-dir static/dynamic handling should cache correctly with authorization header and revalidate",
       "app-dir static/dynamic handling should cache correctly with cookie header and revalidate",
@@ -3350,6 +3425,7 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
       "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
+      "app-dir static/dynamic handling unstable_cache should not cache new result in draft mode",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-store",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
@@ -3388,11 +3464,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app/flying-shuttle.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "should output updated trace files should skip for non-next start"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -3513,6 +3589,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app/provide-paths.test.ts": {
+    "passed": ["Provided page/app paths should skip dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app/standalone-gsp.test.ts": {
     "passed": ["should skip for non-next start"],
     "failed": [],
@@ -3604,6 +3687,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/catchall-parallel-routes-group/catchall-parallel-routes-group.test.ts": {
+    "passed": [
+      "catchall-parallel-routes-group should work without throwing any errors about invalid pages"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
     "passed": [
       "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
@@ -3666,6 +3758,8 @@
       "css-order turbo should load correct styles navigating first-client -> second",
       "css-order turbo should load correct styles navigating first-client -> second-client",
       "css-order turbo should load correct styles navigating first-client -> third",
+      "css-order turbo should load correct styles navigating global-first -> global-second",
+      "css-order turbo should load correct styles navigating global-second -> global-first",
       "css-order turbo should load correct styles navigating interleaved-a -> interleaved-b",
       "css-order turbo should load correct styles navigating interleaved-b -> interleaved-a",
       "css-order turbo should load correct styles navigating pages-first -> pages-second",
@@ -3698,6 +3792,8 @@
       "css-order turbo should load correct styles on big-interleaved-b",
       "css-order turbo should load correct styles on first",
       "css-order turbo should load correct styles on first-client",
+      "css-order turbo should load correct styles on global-first",
+      "css-order turbo should load correct styles on global-second",
       "css-order turbo should load correct styles on interleaved-a",
       "css-order turbo should load correct styles on interleaved-b",
       "css-order turbo should load correct styles on pages-first",
@@ -3761,11 +3857,33 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/dedupe-rsc-error-log/dedupe-rsc-error-log.test.ts": {
+    "passed": [
+      "dedupe-rsc-error-log should only log RSC error once for edge runtime",
+      "dedupe-rsc-error-log should only log RSC error once for nodejs runtime",
+      "dedupe-rsc-error-log should only log SSR error once for edge runtime",
+      "dedupe-rsc-error-log should only log SSR error once for nodejs runtime"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/draft-mode-middleware/draft-mode-middleware.test.ts": {
+    "passed": [
+      "app-dir - draft-mode-middleware should be able to disable draft mode with middleware present",
+      "app-dir - draft-mode-middleware should be able to enable draft mode with middleware present"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/draft-mode/draft-mode.test.ts": {
     "passed": [
       "app dir - draft mode in edge runtime should be disabled from api route handler",
       "app dir - draft mode in edge runtime should be enabled from api route handler when draft mode enabled",
-      "app dir - draft mode in edge runtime should genenerate rand when draft mode enabled",
+      "app dir - draft mode in edge runtime should generate rand when draft mode enabled",
       "app dir - draft mode in edge runtime should have set-cookie header on enable",
       "app dir - draft mode in edge runtime should have set-cookie header with redirect location",
       "app dir - draft mode in edge runtime should not perform full page navigation on router.refresh()",
@@ -3774,7 +3892,7 @@
       "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/with-cookies",
       "app dir - draft mode in nodejs runtime should be disabled from api route handler",
       "app dir - draft mode in nodejs runtime should be enabled from api route handler when draft mode enabled",
-      "app dir - draft mode in nodejs runtime should genenerate rand when draft mode enabled",
+      "app dir - draft mode in nodejs runtime should generate rand when draft mode enabled",
       "app dir - draft mode in nodejs runtime should have set-cookie header on enable",
       "app dir - draft mode in nodejs runtime should have set-cookie header with redirect location",
       "app dir - draft mode in nodejs runtime should not perform full page navigation on router.refresh()",
@@ -3859,10 +3977,13 @@
       "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components",
       "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components in edge runtime",
       "app dir - next/dynamic no SSR should support dynamic import with accessing named exports from client component",
+      "app dir - next/dynamic should directly raise error when dynamic component error on server",
       "app dir - next/dynamic should generate correct client manifest for dynamic chunks",
       "app dir - next/dynamic should handle next/dynamic in SSR correctly",
       "app dir - next/dynamic should handle next/dynamic in hydration correctly",
-      "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled"
+      "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled",
+      "app dir - next/dynamic should not render loading by default",
+      "app dir - next/dynamic should render loading by default if loading is specified and loader is slow"
     ],
     "failed": [],
     "pending": [],
@@ -4366,6 +4487,7 @@
       "app dir - metadata basic should support alternate tags",
       "app dir - metadata basic should support appLinks tags",
       "app dir - metadata basic should support apple related tags `itunes` and `appWebApp`",
+      "app dir - metadata basic should support facebook related tags",
       "app dir - metadata basic should support generateMetadata dynamic props",
       "app dir - metadata basic should support other basic tags",
       "app dir - metadata basic should support other basic tags (edge)",
@@ -4550,6 +4672,97 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/next-config-ts/config-as-async-function/index.test.ts": {
+    "passed": [
+      "next-config-ts-config-as-async-function should support config as async function"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/export-as-default/index.test.ts": {
+    "passed": [
+      "next-config-ts-export-as-default should support export { x as default }"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/export-default/index.test.ts": {
+    "passed": [
+      "next-config-ts-export-default should support export default { ... }"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/import-alias/index.test.ts": {
+    "passed": ["next-config-ts-import-alias should support import alias"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/import-from-node-modules/index.test.ts": {
+    "passed": [
+      "next-config-ts-import-from-node-modules should import from node_modules"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/import-json/index.test.ts": {
+    "passed": ["next-config-ts-import-json should support import json"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/nested-imports/index.test.ts": {
+    "passed": ["next-config-ts-nested-imports should handle nested imports"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/node-api/index.test.ts": {
+    "passed": ["next-config-ts-node-api should be able to use Node.js API"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/pkg-commonjs/index.test.ts": {
+    "passed": [
+      "next-config-ts-pkg-commonjs should handle ESM modules in CommonJS project"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/pkg-module/index.test.ts": {
+    "passed": [
+      "next-config-ts-pkg-module should handle ESM modules in CommonJS project"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/type-error/index.test.ts": {
+    "passed": [
+      "next-config-ts-type-error should throw with type error on build"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/next-config/index.test.ts": {
     "passed": [
       "app dir - next config should support importing webpack in next.config"
@@ -4563,7 +4776,7 @@
     "passed": [
       "next-dynamic-css should have correct order of global styles between layout and pages",
       "next-dynamic-css should have correct order of styles between global and css modules",
-      "next-dynamic-css should have correct order of styles on next/dymamic loaded component"
+      "next-dynamic-css should have correct order of styles on next/dynamic loaded component"
     ],
     "failed": [],
     "pending": [
@@ -4624,6 +4837,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/next-script/next-script.test.ts": {
+    "passed": [
+      "Script component with crossOrigin props should be set crossOrigin also in preload link tag"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/not-found-default/index.test.ts": {
     "passed": [
       "app dir - not found with default 404 page should be able to navigate to page calling not-found",
@@ -4673,6 +4895,15 @@
   "test/e2e/app-dir/not-found/css-precedence/index.test.ts": {
     "passed": [
       "not-found app dir css should load css while navigation between not-found and page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/not-found/default/default.test.ts": {
+    "passed": [
+      "app dir - not-found - default should has noindex in the head html"
     ],
     "failed": [],
     "pending": [],
@@ -4872,6 +5103,15 @@
   "test/e2e/app-dir/parallel-routes-css/parallel-routes-css.test.ts": {
     "passed": [
       "parallel-routes-catchall-css should properly load the Head content from multiple leaf segments"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-generate-static-params/parallel-routes-generate-static-params.test.ts": {
+    "passed": [
+      "parallel-routes-generate-static-params should render the intercepted/non-intercepted modal"
     ],
     "failed": [],
     "pending": [],
@@ -5089,6 +5329,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/ppr-navigations/prefetch-navigation/prefetch-navigation.test.ts": {
+    "passed": [
+      "prefetch-navigation is skipped in dev because there are no prefetches"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/ppr-navigations/search-params/search-params.test.ts": {
     "passed": ["search-params ppr is disabled in dev"],
     "failed": [],
@@ -5161,6 +5410,15 @@
   "test/e2e/app-dir/prefetching-not-found/prefetching-not-found.test.ts": {
     "passed": [
       "prefetching-not-found should correctly navigate to/from a global 404 page when following links with prefetch=auto"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/react-owner-stacks-svgr/react-owner-stacks-svgr.test.ts": {
+    "passed": [
+      "react-owner-stacks-svgr renders an SVG that is transformed by @svgr/webpack into a React component"
     ],
     "failed": [],
     "pending": [],
@@ -5778,6 +6036,16 @@
       "searchparams-static-bailout client component should not bailout when not using searchParams",
       "searchparams-static-bailout server component should bailout when using searchParams",
       "searchparams-static-bailout server component should not bailout when not using searchParams"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/server-actions-redirect-middleware-rewrite/server-actions-redirect-middleware-rewrite.test.ts": {
+    "passed": [
+      "app-dir - server-actions-redirect-middleware-rewrite.test should redirect correctly in edge runtime with middleware rewrite",
+      "app-dir - server-actions-redirect-middleware-rewrite.test should redirect correctly in nodejs runtime with middleware rewrite"
     ],
     "failed": [],
     "pending": [],
@@ -6445,6 +6713,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/geist-font/geist-font.test.ts": {
+    "passed": ["geist-font should work with geist font in pages router"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/getserversideprops/test/index.test.ts": {
     "passed": [
       "getServerSideProps should SSR getServerSideProps page correctly",
@@ -6790,6 +7065,16 @@
       "react version Pages Router page headers with nodejs runtime",
       "react version Pages Router page with edge runtime",
       "react version Pages Router page with nodejs runtime after hydration"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/import-meta/import-meta.test.ts": {
+    "passed": [
+      "import-meta import.meta.url should work in browser",
+      "import-meta import.meta.url should work on the server"
     ],
     "failed": [],
     "pending": [],
@@ -7322,6 +7607,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/next-config-warnings/esm-externals-false/esm-externals-false.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-warnings - esm-externals-false should warn when using ESM externals: false"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/next-font/basepath.test.ts": {
     "passed": ["next/font/google basepath preload correct files"],
     "failed": [],
@@ -7486,6 +7780,42 @@
       "og-api should work in app route",
       "og-api should work in app route in node runtime",
       "og-api should work in pages/api"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/on-request-error/basic/basic.test.ts": {
+    "passed": [
+      "on-request-error - basic app router should catch app routes error in edge runtime",
+      "on-request-error - basic app router should catch app routes error in node runtime",
+      "on-request-error - basic app router should catch client component page error in edge runtime",
+      "on-request-error - basic app router should catch client component page error in node runtime",
+      "on-request-error - basic app router should catch server component page error in edge runtime",
+      "on-request-error - basic app router should catch server component page error in node runtime",
+      "on-request-error - basic middleware should catch middleware error",
+      "on-request-error - basic pages router should catch pages router api error in edge runtime",
+      "on-request-error - basic pages router should catch pages router api error in node runtime",
+      "on-request-error - basic pages router should catch pages router page error in edge runtime",
+      "on-request-error - basic pages router should catch pages router page error in node runtime"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/on-request-error/skip-next-internal-error/skip-next-internal-error.test.ts": {
+    "passed": [
+      "on-request-error - skip-next-internal-error app router API should not catch server component not-found errors",
+      "on-request-error - skip-next-internal-error app router API should not catch server component redirect errors",
+      "on-request-error - skip-next-internal-error app router render should not catch client component dynamic usage errors",
+      "on-request-error - skip-next-internal-error app router render should not catch client component not-found errors",
+      "on-request-error - skip-next-internal-error app router render should not catch client component redirect errors",
+      "on-request-error - skip-next-internal-error app router render should not catch next dynamic no-ssr errors",
+      "on-request-error - skip-next-internal-error app router render should not catch server component dynamic usage errors",
+      "on-request-error - skip-next-internal-error app router render should not catch server component not-found errors",
+      "on-request-error - skip-next-internal-error app router render should not catch server component redirect errors"
     ],
     "failed": [],
     "pending": [],
@@ -7944,7 +8274,7 @@
       "transpile packages optional deps should not throw an error when optional deps are not installed"
     ],
     "failed": [],
-    "pending": [],
+    "pending": ["transpile packages should handle optional peer dependencies"],
     "flakey": [],
     "runtimeError": false
   },
@@ -8001,6 +8331,19 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/with-router/index.test.ts": {
+    "passed": [
+      "withRouter SSR should show an error when trying to use router methods during SSR"
+    ],
+    "failed": [],
+    "pending": [
+      "withRouter production mode allows observation of navigation events using top level Router",
+      "withRouter production mode allows observation of navigation events using top level Router deprecated behavior",
+      "withRouter production mode allows observation of navigation events using withRouter"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -10834,7 +11177,6 @@
       "Next Build production mode eslint cache lives in the user defined build directory",
       "Next Build production mode eslint caching is enabled",
       "Next Build production mode eslint ignored directories do not fail the build",
-      "Next Build production mode first time setup",
       "Next Build production mode ignore during builds",
       "Next Build production mode invalid older eslint version",
       "Next Build production mode missing Next.js plugin",
@@ -10845,6 +11187,7 @@
   },
   "test/integration/eslint/test/next-lint.test.js": {
     "passed": [
+      "Next Lint First Time Setup  creates .eslintrc.json file with a default app router configuration",
       "Next Lint First Time Setup  creates .eslintrc.json file with a default configuration",
       "Next Lint First Time Setup  installs eslint and eslint-config-next as devDependencies if missing with npm",
       "Next Lint First Time Setup  installs eslint and eslint-config-next as devDependencies if missing with pnpm",
@@ -13288,16 +13631,19 @@
       "with contentDispositionType inline dev support with next.config.js should fail when q is less than 1",
       "with contentDispositionType inline dev support with next.config.js should fail when q is missing",
       "with contentDispositionType inline dev support with next.config.js should fail when q is not a number",
+      "with contentDispositionType inline dev support with next.config.js should fail when q is not an integer",
       "with contentDispositionType inline dev support with next.config.js should fail when url fails to load an image",
       "with contentDispositionType inline dev support with next.config.js should fail when url has file protocol",
       "with contentDispositionType inline dev support with next.config.js should fail when url has ftp protocol",
       "with contentDispositionType inline dev support with next.config.js should fail when url is missing",
       "with contentDispositionType inline dev support with next.config.js should fail when url is protocol relative",
+      "with contentDispositionType inline dev support with next.config.js should fail when url is recursive",
       "with contentDispositionType inline dev support with next.config.js should fail when url is too long",
       "with contentDispositionType inline dev support with next.config.js should fail when w is 0",
       "with contentDispositionType inline dev support with next.config.js should fail when w is less than 0",
       "with contentDispositionType inline dev support with next.config.js should fail when w is missing",
       "with contentDispositionType inline dev support with next.config.js should fail when w is not a number",
+      "with contentDispositionType inline dev support with next.config.js should fail when w is not an integer",
       "with contentDispositionType inline dev support with next.config.js should fail when width is not in next.config.js",
       "with contentDispositionType inline dev support with next.config.js should handle concurrent requests",
       "with contentDispositionType inline dev support with next.config.js should handle non-ascii characters in image url",
@@ -13356,16 +13702,19 @@
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is less than 1",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is missing",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is not a number",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is not an integer",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url fails to load an image",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url has file protocol",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url has ftp protocol",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is missing",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is protocol relative",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is recursive",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is too long",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is 0",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is less than 0",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is missing",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is not a number",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is not an integer",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when width is not in next.config.js",
       "with contentDispositionType inline Production Mode Server support with next.config.js should handle concurrent requests",
       "with contentDispositionType inline Production Mode Server support with next.config.js should handle non-ascii characters in image url",
@@ -13427,16 +13776,19 @@
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when q is less than 1",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when q is missing",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when q is not a number",
+      "with dangerouslyAllowSVG config dev support with next.config.js should fail when q is not an integer",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url fails to load an image",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url has file protocol",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url has ftp protocol",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is missing",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is protocol relative",
+      "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is recursive",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is too long",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is 0",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is less than 0",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is missing",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is not a number",
+      "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is not an integer",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when width is not in next.config.js",
       "with dangerouslyAllowSVG config dev support with next.config.js should handle concurrent requests",
       "with dangerouslyAllowSVG config dev support with next.config.js should handle non-ascii characters in image url",
@@ -13492,16 +13844,19 @@
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when q is less than 1",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when q is missing",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when q is not a number",
+      "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when q is not an integer",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url fails to load an image",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url has file protocol",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url has ftp protocol",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is missing",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is protocol relative",
+      "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is recursive",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is too long",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is 0",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is less than 0",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is missing",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is not a number",
+      "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is not an integer",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when width is not in next.config.js",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should handle concurrent requests",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should handle non-ascii characters in image url",
@@ -13595,16 +13950,19 @@
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when q is less than 1",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when q is missing",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when q is not a number",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when q is not an integer",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url fails to load an image",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url has file protocol",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url has ftp protocol",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is missing",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is protocol relative",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is recursive",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is too long",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is 0",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is less than 0",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is missing",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is not a number",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is not an integer",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when width is not in next.config.js",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should handle concurrent requests",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should handle non-ascii characters in image url",
@@ -13663,16 +14021,19 @@
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when q is less than 1",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when q is missing",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when q is not a number",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when q is not an integer",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url fails to load an image",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url has file protocol",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url has ftp protocol",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is missing",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is protocol relative",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is recursive",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is too long",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is 0",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is less than 0",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is missing",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is not a number",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is not an integer",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when width is not in next.config.js",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should handle concurrent requests",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should handle non-ascii characters in image url",
@@ -13730,15 +14091,18 @@
       "with latest sharp dev support w/o next.config.js should fail when q is less than 1",
       "with latest sharp dev support w/o next.config.js should fail when q is missing",
       "with latest sharp dev support w/o next.config.js should fail when q is not a number",
+      "with latest sharp dev support w/o next.config.js should fail when q is not an integer",
       "with latest sharp dev support w/o next.config.js should fail when url has file protocol",
       "with latest sharp dev support w/o next.config.js should fail when url has ftp protocol",
       "with latest sharp dev support w/o next.config.js should fail when url is missing",
       "with latest sharp dev support w/o next.config.js should fail when url is protocol relative",
+      "with latest sharp dev support w/o next.config.js should fail when url is recursive",
       "with latest sharp dev support w/o next.config.js should fail when url is too long",
       "with latest sharp dev support w/o next.config.js should fail when w is 0",
       "with latest sharp dev support w/o next.config.js should fail when w is less than 0",
       "with latest sharp dev support w/o next.config.js should fail when w is missing",
       "with latest sharp dev support w/o next.config.js should fail when w is not a number",
+      "with latest sharp dev support w/o next.config.js should fail when w is not an integer",
       "with latest sharp dev support w/o next.config.js should fail when width is not in next.config.js",
       "with latest sharp dev support w/o next.config.js should handle non-ascii characters in image url",
       "with latest sharp dev support w/o next.config.js should maintain animated gif",
@@ -13787,16 +14151,19 @@
       "with latest sharp dev support with next.config.js should fail when q is less than 1",
       "with latest sharp dev support with next.config.js should fail when q is missing",
       "with latest sharp dev support with next.config.js should fail when q is not a number",
+      "with latest sharp dev support with next.config.js should fail when q is not an integer",
       "with latest sharp dev support with next.config.js should fail when url fails to load an image",
       "with latest sharp dev support with next.config.js should fail when url has file protocol",
       "with latest sharp dev support with next.config.js should fail when url has ftp protocol",
       "with latest sharp dev support with next.config.js should fail when url is missing",
       "with latest sharp dev support with next.config.js should fail when url is protocol relative",
+      "with latest sharp dev support with next.config.js should fail when url is recursive",
       "with latest sharp dev support with next.config.js should fail when url is too long",
       "with latest sharp dev support with next.config.js should fail when w is 0",
       "with latest sharp dev support with next.config.js should fail when w is less than 0",
       "with latest sharp dev support with next.config.js should fail when w is missing",
       "with latest sharp dev support with next.config.js should fail when w is not a number",
+      "with latest sharp dev support with next.config.js should fail when w is not an integer",
       "with latest sharp dev support with next.config.js should fail when width is not in next.config.js",
       "with latest sharp dev support with next.config.js should handle concurrent requests",
       "with latest sharp dev support with next.config.js should handle non-ascii characters in image url",
@@ -13851,15 +14218,18 @@
       "with latest sharp Production Mode Server support w/o next.config.js should fail when q is less than 1",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when q is missing",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when q is not a number",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when q is not an integer",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when url has file protocol",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when url has ftp protocol",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when url is missing",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when url is protocol relative",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when url is recursive",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when url is too long",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when w is 0",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when w is less than 0",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when w is missing",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when w is not a number",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when w is not an integer",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when width is not in next.config.js",
       "with latest sharp Production Mode Server support w/o next.config.js should handle non-ascii characters in image url",
       "with latest sharp Production Mode Server support w/o next.config.js should maintain animated gif",
@@ -13908,16 +14278,19 @@
       "with latest sharp Production Mode Server support with next.config.js should fail when q is less than 1",
       "with latest sharp Production Mode Server support with next.config.js should fail when q is missing",
       "with latest sharp Production Mode Server support with next.config.js should fail when q is not a number",
+      "with latest sharp Production Mode Server support with next.config.js should fail when q is not an integer",
       "with latest sharp Production Mode Server support with next.config.js should fail when url fails to load an image",
       "with latest sharp Production Mode Server support with next.config.js should fail when url has file protocol",
       "with latest sharp Production Mode Server support with next.config.js should fail when url has ftp protocol",
       "with latest sharp Production Mode Server support with next.config.js should fail when url is missing",
       "with latest sharp Production Mode Server support with next.config.js should fail when url is protocol relative",
+      "with latest sharp Production Mode Server support with next.config.js should fail when url is recursive",
       "with latest sharp Production Mode Server support with next.config.js should fail when url is too long",
       "with latest sharp Production Mode Server support with next.config.js should fail when w is 0",
       "with latest sharp Production Mode Server support with next.config.js should fail when w is less than 0",
       "with latest sharp Production Mode Server support with next.config.js should fail when w is missing",
       "with latest sharp Production Mode Server support with next.config.js should fail when w is not a number",
+      "with latest sharp Production Mode Server support with next.config.js should fail when w is not an integer",
       "with latest sharp Production Mode Server support with next.config.js should fail when width is not in next.config.js",
       "with latest sharp Production Mode Server support with next.config.js should handle concurrent requests",
       "with latest sharp Production Mode Server support with next.config.js should handle non-ascii characters in image url",
@@ -15857,11 +16230,12 @@
     "runtimeError": false
   },
   "test/integration/relay-graphql-swc-multi-project/test/index.test.js": {
-    "passed": [],
+    "passed": [
+      "Relay Compiler Transform - Multi Project Config development mode project-a should resolve index page correctly",
+      "Relay Compiler Transform - Multi Project Config development mode project-b should resolve index page correctly"
+    ],
     "failed": [],
     "pending": [
-      "Relay Compiler Transform - Multi Project Config development mode project-a should resolve index page correctly",
-      "Relay Compiler Transform - Multi Project Config development mode project-b should resolve index page correctly",
       "Relay Compiler Transform - Multi Project Config production mode project-a should resolve index page correctly",
       "Relay Compiler Transform - Multi Project Config production mode project-b should resolve index page correctly"
     ],
@@ -17029,19 +17403,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/with-router/test/index.test.js": {
-    "passed": [
-      "withRouter SSR should show an error when trying to use router methods during SSR"
-    ],
-    "failed": [],
-    "pending": [
-      "withRouter production mode allows observation of navigation events using top level Router",
-      "withRouter production mode allows observation of navigation events using top level Router deprecated behavior",
-      "withRouter production mode allows observation of navigation events using withRouter"
-    ],
     "flakey": [],
     "runtimeError": false
   },

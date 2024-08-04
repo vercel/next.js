@@ -361,6 +361,7 @@ export async function exportAppImpl(
       swrDelta: nextConfig.swrDelta,
       after: nextConfig.experimental.after ?? false,
     },
+    reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -672,6 +673,10 @@ export async function exportAppImpl(
 
       if (typeof result.hasPostponed !== 'undefined') {
         info.hasPostponed = result.hasPostponed
+      }
+
+      if (typeof result.fetchMetrics !== 'undefined') {
+        info.fetchMetrics = result.fetchMetrics
       }
 
       collector.byPath.set(path, info)

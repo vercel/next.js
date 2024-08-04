@@ -244,6 +244,16 @@ module.exports = {
 }
 ```
 
+### Partial Prerendering
+
+[Partial Prendering (experimental)](/docs/app/building-your-application/rendering/partial-prerendering) works by default with Next.js and is not a CDN feature. This includes deployment as a Node.js server (through `next start`) and when used with a Docker container.
+
+### Usage with CDNs
+
+When using a CDN in front on your Next.js application, the page will include `Cache-Control: private` response header when dynamic APIs are accessed. This ensures that the resulting HTML page is marked as non-cachable. If the page is fully prerendered to static, it will include `Cache-Control: public` to allow the page to be cached on the CDN.
+
+If you don't need a mix of both static and dynamic components, you can make your entire route static and cache the output HTML on a CDN. This Automatic Static Optimization is the default behavior when running `next build` if dynamic APIs are not used.
+
 </AppOnly>
 
 <PagesOnly>

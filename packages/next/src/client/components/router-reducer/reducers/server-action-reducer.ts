@@ -5,8 +5,8 @@ import type {
 } from '../../../../server/app-render/types'
 import { callServer } from '../../../app-call-server'
 import {
-  ACTION,
-  NEXT_ROUTER_STATE_TREE,
+  ACTION_HEADER,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
@@ -63,8 +63,10 @@ async function fetchServerAction(
     method: 'POST',
     headers: {
       Accept: RSC_CONTENT_TYPE_HEADER,
-      [ACTION]: actionId,
-      [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(JSON.stringify(state.tree)),
+      [ACTION_HEADER]: actionId,
+      [NEXT_ROUTER_STATE_TREE_HEADER]: encodeURIComponent(
+        JSON.stringify(state.tree)
+      ),
       ...(process.env.NEXT_DEPLOYMENT_ID
         ? {
             'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
@@ -118,19 +120,16 @@ async function fetchServerAction(
 
     if (location) {
       // if it was a redirection, then result is just a regular RSC payload
-      const [, actionFlightData] = (response as any) ?? []
       return {
-        actionFlightData: actionFlightData,
+        actionFlightData: response.f,
         redirectLocation,
         revalidatedParts,
       }
     }
 
-    // otherwise it's a tuple of [actionResult, actionFlightData]
-    const [actionResult, [, actionFlightData]] = (response as any) ?? []
     return {
-      actionResult,
-      actionFlightData,
+      actionResult: response.a,
+      actionFlightData: response.f,
       redirectLocation,
       revalidatedParts,
     }
@@ -224,7 +223,7 @@ export function serverActionReducer(
 
       for (const flightDataPath of flightData) {
         // FlightDataPath with more than two items means unexpected Flight data was returned
-        if (flightDataPath.length !== 4) {
+        if (flightDataPath.length !== 3) {
           // TODO-APP: handle this case better
           console.log('SERVER ACTION APPLY FAILED')
           return state
@@ -256,7 +255,7 @@ export function serverActionReducer(
         }
 
         // The one before last item is the router state tree patch
-        const [cacheNodeSeedData, head, layerAssets] = flightDataPath.slice(-3)
+        const [cacheNodeSeedData, head] = flightDataPath.slice(-2)
         const rsc = cacheNodeSeedData !== null ? cacheNodeSeedData[2] : null
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
@@ -271,8 +270,7 @@ export function serverActionReducer(
             undefined,
             treePatch,
             cacheNodeSeedData,
-            head,
-            layerAssets
+            head
           )
 
           await refreshInactiveParallelSegments({

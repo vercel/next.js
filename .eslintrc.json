@@ -1,4 +1,9 @@
 {
+  // This is the default eslint config that is used by IDEs. It does not use
+  // computation-heavy type-checked rules to ensure maximum responsiveness while
+  // writing code. In addition, there is .eslintrc.cli.json that does use
+  // type-checked rules, and it is used when running `pnpm lint-eslint`.
+  "$schema": "https://json.schemastore.org/eslintrc",
   "root": true,
   "parser": "@babel/eslint-parser",
   "plugins": ["react", "react-hooks", "jest", "import", "jsdoc"],
@@ -7,7 +12,8 @@
     "commonjs": true,
     "es6": true,
     "node": true,
-    "jest": true
+    "jest": true,
+    "es2020": true
   },
   "parserOptions": {
     "requireConfigFile": false,
@@ -96,7 +102,11 @@
           "error",
           {
             "args": "none",
-            "ignoreRestSiblings": true
+            "ignoreRestSiblings": true,
+            "argsIgnorePattern": "^_",
+            "caughtErrorsIgnorePattern": "^_",
+            "destructuredArrayIgnorePattern": "^_",
+            "varsIgnorePattern": "^_"
           }
         ],
         "no-use-before-define": "off",

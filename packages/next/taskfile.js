@@ -584,7 +584,7 @@ export async function ncc_react_refresh_utils(task, opts) {
   await rmrf(destDir)
   await fs.mkdir(destDir, { recursive: true })
 
-  const files = glob.sync('**/*.{js,json}', { cwd: srcDir })
+  const files = glob.sync('**/*.{js,json,map}', { cwd: srcDir })
 
   for (const file of files) {
     if (file === 'tsconfig.json') continue
@@ -623,6 +623,15 @@ export async function ncc_browserslist(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('browserslist')))
     .ncc({ packageName: 'browserslist', externals })
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // We replace the module/chunk loading code with our own implementation in Next.js.
+      file.data = source.replace(
+        /process\.env\.BROWSERSLIST_IGNORE_OLD_DATA/g,
+        'true'
+      )
+    })
     .target('src/compiled/browserslist')
 
   await fs.writeFile(nodeFile, content)
@@ -2179,7 +2188,7 @@ export async function copy_ncced(task) {
 
 export async function ncc(task, opts) {
   await task
-    .clear('compiled')
+    .clear('src/compiled')
     .parallel(
       [
         'ncc_node_html_parser',
@@ -2314,6 +2323,7 @@ export async function ncc(task, opts) {
       'ncc_edge_runtime_ponyfill',
       'ncc_edge_runtime',
       'ncc_mswjs_interceptors',
+      'ncc_rsc_poison_packages',
     ],
     opts
   )
@@ -2589,47 +2599,13 @@ export async function diagnostics(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(
-    ['precompile', 'compile', 'generate_types', 'rewrite_compiled_references'],
-    opts
-  )
+  await task.serial(['precompile', 'compile', 'generate_types'], opts)
 }
 
 export async function generate_types(task, opts) {
   await execa.command('pnpm run types', {
     stdio: 'inherit',
   })
-}
-
-/**
- * TypeScript will emit references to the compiled types used to type the implementation.
- * The declarations however don't need such detailed types.
- * We rewrite the references to reference a more lightweight solution instead.
- * @param {import('taskr').Task} task
- */
-export async function rewrite_compiled_references(task, opts) {
-  const declarationDirectory = join(__dirname, 'dist')
-  const declarationFiles = glob.sync('**/*.d.ts', { cwd: declarationDirectory })
-
-  for (const declarationFile of declarationFiles) {
-    const content = await fs.readFile(
-      join(declarationDirectory, declarationFile),
-      'utf8'
-    )
-    // Rewrite
-    // /// <reference path="../../../../types/$$compiled.internal.d.ts" />
-    // to
-    // /// <reference path="../../../../types/compiled.d.ts" />
-    if (content.indexOf('/types/$$compiled.internal.d.ts" />') !== -1) {
-      await fs.writeFile(
-        join(declarationDirectory, declarationFile),
-        content.replace(
-          /\/types\/\$\$compiled\.internal\.d\.ts" \/>/g,
-          '/types/compiled.d.ts" />'
-        )
-      )
-    }
-  }
 }
 
 export default async function (task) {

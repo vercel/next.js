@@ -66,6 +66,7 @@ export default function Home() {
       <Link href="/ssg" id="normal-ssg-link">
         normal SSG link
       </Link>
+      <Link href="/dynamic-no-cache/1">/dynamic-no-cache/1</Link>
       <div />
       <a
         href=""

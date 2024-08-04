@@ -2,7 +2,7 @@ import type { __ApiPreviewProps } from './api-utils'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../client/components/params'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type {
   NextParsedUrlQuery,
@@ -11,10 +11,14 @@ import type {
 } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from './render'
-import type { RenderOptsPartial as AppRenderOptsPartial } from './app-render/types'
+import type {
+  RenderOptsPartial as AppRenderOptsPartial,
+  ServerOnInstrumentationRequestError,
+} from './app-render/types'
 import type {
   CachedAppPageValue,
   CachedPageValue,
+  ServerComponentsHmrCache,
   ResponseCacheBase,
   ResponseCacheEntry,
   ResponseGenerator,
@@ -47,6 +51,7 @@ import type {
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './normalizers/request/pathname-normalizer'
+import type { InstrumentationModule } from './instrumentation/types'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -95,7 +100,8 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_URL,
-  NEXT_ROUTER_STATE_TREE,
+  NEXT_ROUTER_STATE_TREE_HEADER,
+  NEXT_IS_PRERENDER_HEADER,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -152,6 +158,7 @@ import {
   type WaitUntil,
 } from './after/builtin-request-context'
 import { ENCODED_TAGS } from './stream-utils/encodedTags'
+import { NextRequestHint } from './web/adapter'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -232,8 +239,6 @@ export interface Options {
    * The HTTP Server that Next.js is running behind
    */
   httpServer?: HTTPServer
-
-  isNodeDebugging?: 'brk' | boolean
 }
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
@@ -333,6 +338,7 @@ export default abstract class Server<
   protected readonly clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   protected interceptionRoutePatterns: RegExp[]
   protected nextFontManifest?: DeepReadonly<NextFontManifest>
+  protected instrumentation: InstrumentationModule | undefined
   private readonly responseCache: ResponseCacheBase
 
   protected abstract getPublicDir(): string
@@ -399,8 +405,6 @@ export default abstract class Server<
     renderOpts: LoadedRenderOpts
   ): Promise<RenderResult>
 
-  protected abstract getPrefetchRsc(pathname: string): Promise<string | null>
-
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
     requestProtocol: 'http' | 'https'
@@ -409,6 +413,14 @@ export default abstract class Server<
   protected abstract getResponseCache(options: {
     dev: boolean
   }): ResponseCacheBase
+
+  protected getServerComponentsHmrCache():
+    | ServerComponentsHmrCache
+    | undefined {
+    return this.nextConfig.experimental.serverComponentsHmrCache
+      ? (globalThis as any).__serverComponentsHmrCache
+      : undefined
+  }
 
   protected abstract loadEnvConfig(params: {
     dev: boolean
@@ -576,6 +588,9 @@ export default abstract class Server<
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
       },
+      onInstrumentationRequestError:
+        this.instrumentationOnRequestError.bind(this),
+      reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
     }
 
     // Initialize next/config with the environment configuration
@@ -816,6 +831,33 @@ export default abstract class Server<
     }
 
     return matchers
+  }
+
+  protected async instrumentationOnRequestError(
+    ...args: Parameters<ServerOnInstrumentationRequestError>
+  ) {
+    const [err, req, ctx] = args
+
+    if (this.instrumentation) {
+      try {
+        await this.instrumentation.onRequestError?.(
+          err,
+          {
+            url: req.url || '',
+            method: req.method || 'GET',
+            // Normalize middleware headers and other server request headers
+            headers:
+              req instanceof NextRequestHint
+                ? Object.fromEntries(req.headers.entries())
+                : req.headers,
+          },
+          ctx
+        )
+      } catch (handlerErr) {
+        // Log the soft error and continue, since errors can thrown from react stream handler
+        console.error('Error in instrumentation.onRequestError:', handlerErr)
+      }
+    }
   }
 
   public logError(err: Error): void {
@@ -1309,6 +1351,16 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
+      // set server components HMR cache to request meta so it can be passed
+      // down for edge functions
+      if (!getRequestMeta(req, 'serverComponentsHmrCache')) {
+        addRequestMeta(
+          req,
+          'serverComponentsHmrCache',
+          this.getServerComponentsHmrCache()
+        )
+      }
+
       // when invokePath is specified we can short short circuit resolving
       // we only honor this header if we are inside of a render worker to
       // prevent external users coercing the routing path
@@ -1540,6 +1592,8 @@ export default abstract class Server<
     if (this.prepared) return
 
     if (this.preparedPromise === null) {
+      // Get instrumentation module
+      this.instrumentation = await this.loadInstrumentationModule()
       this.preparedPromise = this.prepareImpl().then(() => {
         this.prepared = true
         this.preparedPromise = null
@@ -1548,6 +1602,7 @@ export default abstract class Server<
     return this.preparedPromise
   }
   protected async prepareImpl(): Promise<void> {}
+  protected async loadInstrumentationModule(): Promise<any> {}
 
   // Backwards compatibility
   protected async close(): Promise<void> {}
@@ -1819,7 +1874,7 @@ export default abstract class Server<
     isAppPath: boolean,
     resolvedPathname: string
   ): void {
-    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE}, ${NEXT_ROUTER_PREFETCH_HEADER}`
+    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}`
     const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
 
     let addedNextUrlToVary = false
@@ -2354,6 +2409,8 @@ export default abstract class Server<
         postponed,
         waitUntil: this.getWaitUntil(),
         onClose: res.onClose.bind(res),
+        // only available in dev
+        setAppIsrStatus: (this as any).setAppIsrStatus,
       }
 
       if (isDebugStaticShell || isDebugDynamicAccesses) {
@@ -2396,6 +2453,8 @@ export default abstract class Server<
               isRevalidate: isSSG,
               waitUntil: this.getWaitUntil(),
               onClose: res.onClose.bind(res),
+              onInstrumentationRequestError:
+                this.renderOpts.onInstrumentationRequestError,
             },
           }
 
@@ -2459,6 +2518,12 @@ export default abstract class Server<
 
             Log.error(err)
 
+            await this.instrumentationOnRequestError(err, req, {
+              routerKind: 'App Router',
+              routePath: pathname,
+              routeType: 'route',
+            })
+
             // Otherwise, send a 500 response.
             await sendResponse(req, res, handleInternalServerErrorResponse())
 
@@ -2489,18 +2554,27 @@ export default abstract class Server<
               : res
 
             // Call the built-in render method on the module.
-            result = await routeModule.render(
-              // TODO: fix this type
-              // @ts-expect-error - preexisting accepted this
-              request,
-              response,
-              {
-                page: pathname,
-                params: opts.params,
-                query,
-                renderOpts,
-              }
-            )
+            try {
+              result = await routeModule.render(
+                // TODO: fix this type
+                // @ts-expect-error - preexisting accepted this
+                request,
+                response,
+                {
+                  page: pathname,
+                  params: opts.params,
+                  query,
+                  renderOpts,
+                }
+              )
+            } catch (err) {
+              await this.instrumentationOnRequestError(err, req, {
+                routerKind: 'Pages Router',
+                routePath: pathname,
+                routeType: 'render',
+              })
+              throw err
+            }
           } else {
             const module = components.routeModule as AppPageRouteModule
 
@@ -2515,6 +2589,7 @@ export default abstract class Server<
               params: opts.params,
               query,
               renderOpts,
+              serverComponentsHmrCache: this.getServerComponentsHmrCache(),
             })
           }
         } else {
@@ -2841,6 +2916,9 @@ export default abstract class Server<
               ? 'STALE'
               : 'HIT'
       )
+      // Set a header used by the client router to signal the response is static
+      // and should respect the `static` cache staleTime value.
+      res.setHeader(NEXT_IS_PRERENDER_HEADER, '1')
     }
 
     const { value: cachedData } = cacheEntry

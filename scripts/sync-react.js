@@ -57,7 +57,7 @@ Or, run this command with no arguments to use the most recently published versio
     await fsp.readFile(path.join(cwd, 'package.json'), 'utf-8')
   )
   const devDependencies = pkgJson.devDependencies
-  const resolutions = pkgJson.resolutions
+  const pnpmOverrides = pkgJson.pnpm.overrides
   const baseVersionStr = devDependencies[
     useExperimental ? 'react-experimental-builtin' : 'react-builtin'
   ].replace(/^npm:react@/, '')
@@ -94,9 +94,9 @@ Or, run this command with no arguments to use the most recently published versio
       )
     }
   }
-  for (const [dep, version] of Object.entries(resolutions)) {
+  for (const [dep, version] of Object.entries(pnpmOverrides)) {
     if (version.endsWith(`${baseReleaseLabel}-${baseSha}-${baseDateString}`)) {
-      resolutions[dep] = version.replace(
+      pnpmOverrides[dep] = version.replace(
         `${baseReleaseLabel}-${baseSha}-${baseDateString}`,
         `${newReleaseLabel}-${newSha}-${newDateString}`
       )
@@ -176,6 +176,8 @@ Or run this command again without the --no-install flag to do both automatically
     `
     )
   }
+
+  await fsp.writeFile(path.join(cwd, '.github/.react-version'), newVersionStr)
 
   console.log(
     `Successfully updated React from ${baseSha} to ${newSha}.\n` +
