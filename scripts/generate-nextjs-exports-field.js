@@ -25,6 +25,8 @@ const nextjsExportsBase = {
   // Babel packages
   // TODO: Unclear how these are even generated e.g. couldn't find mention of plugin-syntax-jsx in taskr taskfile
   './dist/compiled/babel/*': './dist/compiled/babel/*.js',
+  // misc assets
+  './*.css': './*.css',
   // e.g. for package.json
   './*.json': './*.json',
   // Support existing imports of .js files

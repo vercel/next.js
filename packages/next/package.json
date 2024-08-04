@@ -1760,6 +1760,7 @@
     "./font/local": "./font/local/index.js",
     "./package": "./package.json",
     "./dist/compiled/babel/*": "./dist/compiled/babel/*.js",
+    "./*.css": "./*.css",
     "./*.json": "./*.json",
     "./*.js": "./*.js",
     "./*": "./*.js"
