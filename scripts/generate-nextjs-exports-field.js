@@ -22,6 +22,24 @@ const nextjsExportsBase = {
   './font/google': './font/google/index.js',
   './font/local': './font/local/index.js',
   './package': './package.json',
+  // Babel packages
+  // TODO: Unclear how these are even generated e.g. couldn't find mention of plugin-syntax-jsx in taskr taskfile
+  './dist/compiled/babel/code-frame': './dist/compiled/babel/code-frame.js',
+  './dist/compiled/babel/generator': './dist/compiled/babel/generator.js',
+  './dist/compiled/babel/traverse': './dist/compiled/babel/traverse.js',
+  './dist/compiled/babel/types': './dist/compiled/babel/types.js',
+  './dist/compiled/babel/core': './dist/compiled/babel/core.js',
+  './dist/compiled/babel/parser': './dist/compiled/babel/parser.js',
+  './dist/compiled/babel/core-lib-config':
+    './dist/compiled/babel/core-lib-config.js',
+  './dist/compiled/babel/core-lib-normalize-config':
+    './dist/compiled/babel/core-lib-normalize-config.js',
+  './dist/compiled/babel/core-lib-normalize-opts':
+    './dist/compiled/babel/core-lib-normalize-opts.js',
+  './dist/compiled/babel/core-lib-block-hoisting-plugin':
+    './dist/compiled/babel/core-lib-block-hoisting-plugin.js',
+  './dist/compiled/babel/core-lib-plugin-pass':
+    './dist/compiled/babel/core-lib-plugin-pass.js',
   // e.g. for package.json
   './*.json': './*.json',
   // Support existing imports of .js files

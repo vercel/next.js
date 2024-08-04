@@ -1053,6 +1053,7 @@ export async function ncc_postcss_plugin_stub_for_cssnano_simple(task, opts) {
   )
 }
 
+// Ensure each of these has an entrypoint in exports map
 const babelCorePackages = {
   'code-frame': 'next/dist/compiled/babel/code-frame',
   '@babel/generator': 'next/dist/compiled/babel/generator',
