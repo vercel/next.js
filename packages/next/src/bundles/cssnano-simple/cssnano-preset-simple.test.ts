@@ -114,6 +114,6 @@ describe('with escaped selector', () => {
       to: 'output.css',
     })
 
-    expect(res.css).toMatchInlineSnapshot(`".foo\\\\,2{background:blue}"`)
+    expect(res.css).toMatchInlineSnapshot(`".foo\\,2{background:blue}"`)
   })
 })
