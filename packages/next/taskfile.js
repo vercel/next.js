@@ -99,6 +99,10 @@ export async function ncc_mswjs_interceptors(task, opts) {
       relative(__dirname, require.resolve('@mswjs/interceptors/ClientRequest'))
     )
     .ncc({
+      // ncc only works on a single entrypoint i.e. doesn't support `exports`
+      // Ideally it'd use `@mswjs/interceptors/package.json` and
+      // compile all `@mswjs/interceptors/ClientRequest` entries.
+      // Make sure that the `exports` in `next/package.json` resolve this entry.
       packageName: '@mswjs/interceptors/ClientRequest',
       externals,
       target: 'es5',

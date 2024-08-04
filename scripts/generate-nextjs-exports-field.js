@@ -26,6 +26,9 @@ const nextjsExportsBase = {
   './font/google': './font/google/index.js',
   './font/local': './font/local/index.js',
   './package': './package.json',
+  // partial @mswjs/interceptors package
+  './dist/compiled/@mswjs/interceptors/ClientRequest':
+    './dist/compiled/@mswjs/interceptors/ClientRequest/index.js',
   // Babel packages
   // TODO: Unclear how these are even generated e.g. couldn't find mention of plugin-syntax-jsx in taskr taskfile
   './dist/compiled/babel/*': './dist/compiled/babel/*.js',
