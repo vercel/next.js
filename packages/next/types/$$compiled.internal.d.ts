@@ -244,7 +244,7 @@ declare module 'next/dist/compiled/picomatch' {
   import m from 'picomatch'
   export = m
 }
-declare module 'next/dist/compiled/nanoid/index.cjs' {
+declare module 'next/dist/compiled/nanoid' {
   import m from 'nanoid'
   export = m
 }
