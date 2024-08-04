@@ -12,6 +12,10 @@ const nextjsExportsBase = {
   './dist/trace': './dist/trace/index.js',
   './dist/build/swc': './dist/build/swc/index.js',
   './dist/compiled/scheduler': './dist/compiled/scheduler/index.js',
+  './dist/compiled/@next/font/google':
+    './dist/compiled/@next/font/google/index.js',
+  './dist/compiled/@next/font/local':
+    './dist/compiled/@next/font/local/index.js',
   './dist/compiled/scheduler-experimental':
     './dist/compiled/scheduler-experimental/index.js',
   './dist/build/babel/loader': './dist/build/babel/loader/index.js',
