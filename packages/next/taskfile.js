@@ -232,6 +232,10 @@ export async function copy_vercel_og(task, opts) {
           node: './index.node.js',
           default: './index.node.js',
         },
+        // TODO: Stop importing from `next/dist/compiled/@vercel/og/satori` in favor of relative import.
+        './satori': {
+          types: './satori/index.d.ts',
+        },
         './package.json': './package.json',
       },
     },

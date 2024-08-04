@@ -1297,6 +1297,9 @@
       "node": "./dist/compiled/@vercel/og/index.node.js",
       "default": "./dist/compiled/@vercel/og/index.node.js"
     },
+    "./dist/compiled/@vercel/og/satori": {
+      "types": "./dist/compiled/@vercel/og/satori/index.d.ts"
+    },
     "./dist/compiled/@vercel/og/package.json": "./dist/compiled/@vercel/og/package.json",
     "./dist/compiled/acorn": "./dist/compiled/acorn/acorn.js",
     "./dist/compiled/amphtml-validator": "./dist/compiled/amphtml-validator/index.js",
