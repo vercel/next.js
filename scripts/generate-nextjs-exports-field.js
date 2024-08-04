@@ -32,6 +32,10 @@ const nextjsExportsBase = {
   // Babel packages
   // TODO: Unclear how these are even generated e.g. couldn't find mention of plugin-syntax-jsx in taskr taskfile
   './dist/compiled/babel/*': './dist/compiled/babel/*.js',
+  // next/font support
+  // TODO: Ask sokra if we can somewhow make generic resource queries work while also having `'./*': './*.js',` in our exports which resolves every request with resource query to .js
+  './font/google/target.css?*': './next/font/google/target.css?*',
+  './font/local/target.css?*': './next/font/local/target.css?*',
   // misc assets
   './*.css': './*.css',
   // e.g. for package.json

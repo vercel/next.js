@@ -1766,6 +1766,8 @@
     "./package": "./package.json",
     "./dist/compiled/@mswjs/interceptors/ClientRequest": "./dist/compiled/@mswjs/interceptors/ClientRequest/index.js",
     "./dist/compiled/babel/*": "./dist/compiled/babel/*.js",
+    "./font/google/target.css?*": "./next/font/google/target.css?*",
+    "./font/local/target.css?*": "./next/font/local/target.css?*",
     "./*.css": "./*.css",
     "./*.json": "./*.json",
     "./*.js": "./*.js",
