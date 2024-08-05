@@ -194,6 +194,7 @@ import {
 } from './flying-shuttle/detect-changed-entries'
 import { storeShuttle } from './flying-shuttle/store-shuttle'
 import { stitchBuilds } from './flying-shuttle/stitch-builds'
+import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -2543,6 +2544,9 @@ export default async function build(
             distDir,
             shuttleDir,
           })
+
+          console.log('inlining static env')
+          await inlineStaticEnv({ distDir })
         }
       }
 
