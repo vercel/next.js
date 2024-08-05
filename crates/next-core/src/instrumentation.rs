@@ -4,7 +4,7 @@ use turbo_tasks::{RcStr, Vc};
 #[turbo_tasks::function]
 pub async fn instrumentation_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<RcStr>>> {
     let extensions = page_extensions.await?;
-    let files = ["instrumentation.", "src/instrumentation."]
+    let files = ["src/instrumentation.", "instrumentation."]
         .into_iter()
         .flat_map(|f| {
             extensions
