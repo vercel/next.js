@@ -727,6 +727,7 @@ export default async function build(
       NextBuildContext.buildId = buildId
 
       const { flyingShuttle } = config.experimental
+      const isFullFlyingShuttle = flyingShuttle?.mode === 'full'
       const isStoreOnlyFlyingShuttle = flyingShuttle?.mode === 'store-only'
 
       const shuttleDir = path.join(distDir, 'cache', 'shuttle')
@@ -868,7 +869,7 @@ export default async function build(
             unchanged: DetectedEntriesResult
           }
 
-      if (pagesPaths && flyingShuttle && !isStoreOnlyFlyingShuttle) {
+      if (pagesPaths && isFullFlyingShuttle) {
         changedPagePathsResult = await detectChangedEntries({
           pagesPaths,
           pageExtensions: config.pageExtensions,
@@ -968,7 +969,7 @@ export default async function build(
             })
           )
 
-        if (appPaths && flyingShuttle && !isStoreOnlyFlyingShuttle) {
+        if (appPaths && isFullFlyingShuttle) {
           changedAppPathsResult = await detectChangedEntries({
             appPaths,
             pageExtensions: config.pageExtensions,
@@ -2520,7 +2521,7 @@ export default async function build(
       )
 
       if (!isGenerateMode) {
-        if (flyingShuttle || isStoreOnlyFlyingShuttle) {
+        if (flyingShuttle) {
           await buildTracesPromise
 
           if (isStoreOnlyFlyingShuttle) {
