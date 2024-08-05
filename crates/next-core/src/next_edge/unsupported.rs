@@ -48,7 +48,7 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
     #[turbo_tasks::function]
     async fn result(
         &self,
-        context: Vc<FileSystemPath>,
+        root_path: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
         let request = &*request.await?;
@@ -61,7 +61,7 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
               "#
             };
             let content = AssetContent::file(File::from(code).into());
-            let source = VirtualSource::new(context, content);
+            let source = VirtualSource::new(root_path, content);
             return Ok(
                 ImportMapResult::Result(ResolveResult::source(Vc::upcast(source)).into()).into(),
             );
