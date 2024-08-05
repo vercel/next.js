@@ -667,6 +667,13 @@ export async function initialize(opts: {
 
         // assetPrefix overrides basePath for HMR path
         if (assetPrefix) {
+          // if assetPrefix is a URL, it can break HMR
+          if (assetPrefix.startsWith('http')) {
+            throw new Error(
+              `assetPrefix is a URL (${assetPrefix}), which is production-only. For more information, see https://nextjs.org/docs/app/api-reference/next-config-js/assetPrefix`
+            )
+          }
+
           hmrPrefix = normalizedAssetPrefix(assetPrefix)
         }
         const isHMRRequest = req.url.startsWith(
