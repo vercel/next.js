@@ -1755,7 +1755,8 @@ pub(crate) fn create_local_cell(value: TypedSharedReference) -> (ExecutionId, Lo
 /// local cells are always filled. The returned value can be cheaply converted
 /// with `.into()`.
 ///
-/// Panics if the ExecutionId does not match the expected value.
+/// Panics if the [`ExecutionId`] does not match the current task's
+/// `execution_id`.
 pub(crate) fn read_local_cell(
     execution_id: ExecutionId,
     local_cell_id: LocalCellId,
@@ -1766,12 +1767,28 @@ pub(crate) fn read_local_cell(
             local_cells,
             ..
         } = &*cell.borrow();
-        assert_eq!(
-            execution_id, *expected_execution_id,
-            "This Vc is local. Local Vcs must only be accessed within their own task. Resolve the \
-             Vc to convert it into a non-local version."
-        );
+        assert_eq_local_cell(execution_id, *expected_execution_id);
         // local cell ids are one-indexed (they use NonZeroU32)
         local_cells[(*local_cell_id as usize) - 1].clone()
     })
+}
+
+/// Panics if the [`ExecutionId`] does not match the current task's
+/// `execution_id`.
+pub(crate) fn assert_execution_id(execution_id: ExecutionId) {
+    CURRENT_TASK_STATE.with(|cell| {
+        let CurrentTaskState {
+            execution_id: expected_execution_id,
+            ..
+        } = &*cell.borrow();
+        assert_eq_local_cell(execution_id, *expected_execution_id);
+    })
+}
+
+fn assert_eq_local_cell(actual: ExecutionId, expected: ExecutionId) {
+    assert_eq!(
+        actual, expected,
+        "This Vc is local. Local Vcs must only be accessed within their own task. Resolve the Vc \
+         to convert it into a non-local version."
+    );
 }

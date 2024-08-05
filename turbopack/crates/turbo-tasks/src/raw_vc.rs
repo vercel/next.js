@@ -16,9 +16,12 @@ use crate::{
     backend::{CellContent, TypedCellContent},
     event::EventListener,
     id::{ExecutionId, LocalCellId},
-    manager::{read_local_cell, read_task_cell, read_task_output, TurboTasksApi},
+    manager::{
+        assert_execution_id, current_task, read_local_cell, read_task_cell, read_task_output,
+        TurboTasksApi,
+    },
     registry::{self, get_value_type},
-    turbo_tasks, CollectiblesSource, TaskId, TraitTypeId, ValueTypeId, Vc, VcValueTrait,
+    turbo_tasks, CollectiblesSource, TaskId, TraitTypeId, ValueType, ValueTypeId, Vc, VcValueTrait,
 };
 
 #[derive(Error, Debug)]
@@ -100,38 +103,31 @@ impl RawVc {
         self,
         trait_type: TraitTypeId,
     ) -> Result<Option<RawVc>, ResolveTypeError> {
-        let tt = turbo_tasks();
-        tt.notify_scheduled_tasks();
-        let mut current = self;
-        loop {
-            match current {
-                RawVc::TaskOutput(task) => {
-                    current = read_task_output(&*tt, task, false)
-                        .await
-                        .map_err(|source| ResolveTypeError::TaskError { source })?;
-                }
-                RawVc::TaskCell(task, index) => {
-                    let content = read_task_cell(&*tt, task, index)
-                        .await
-                        .map_err(|source| ResolveTypeError::ReadError { source })?;
-                    if let TypedCellContent(value_type, CellContent(Some(_))) = content {
-                        if get_value_type(value_type).has_trait(&trait_type) {
-                            return Ok(Some(RawVc::TaskCell(task, index)));
-                        } else {
-                            return Ok(None);
-                        }
-                    } else {
-                        return Err(ResolveTypeError::NoContent);
-                    }
-                }
-                RawVc::LocalCell(_, _) => todo!(),
-            }
-        }
+        self.resolve_type_inner(|value_type_id| {
+            let value_type = get_value_type(value_type_id);
+            (value_type.has_trait(&trait_type), Some(value_type))
+        })
+        .await
     }
 
     pub(crate) async fn resolve_value(
         self,
         value_type: ValueTypeId,
+    ) -> Result<Option<RawVc>, ResolveTypeError> {
+        self.resolve_type_inner(|cell_value_type| (cell_value_type == value_type, None))
+            .await
+    }
+
+    /// Helper for `resolve_trait` and `resolve_value`.
+    ///
+    /// After finding a cell, returns `Ok(Some(...))` when `conditional` returns
+    /// `true`, and `Ok(None)` when `conditional` returns `false`.
+    ///
+    /// As an optimization, `conditional` may return the `&'static ValueType` to
+    /// avoid a potential extra lookup later.
+    async fn resolve_type_inner(
+        self,
+        conditional: impl FnOnce(ValueTypeId) -> (bool, Option<&'static ValueType>),
     ) -> Result<Option<RawVc>, ResolveTypeError> {
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
@@ -147,17 +143,29 @@ impl RawVc {
                     let content = read_task_cell(&*tt, task, index)
                         .await
                         .map_err(|source| ResolveTypeError::ReadError { source })?;
-                    if let TypedCellContent(cell_value_type, CellContent(Some(_))) = content {
-                        if cell_value_type == value_type {
-                            return Ok(Some(RawVc::TaskCell(task, index)));
+                    if let TypedCellContent(value_type, CellContent(Some(_))) = content {
+                        return Ok(if conditional(value_type).0 {
+                            Some(RawVc::TaskCell(task, index))
                         } else {
-                            return Ok(None);
-                        }
+                            None
+                        });
                     } else {
                         return Err(ResolveTypeError::NoContent);
                     }
                 }
-                RawVc::LocalCell(_, _) => todo!(),
+                RawVc::LocalCell(execution_id, local_cell_id) => {
+                    let shared_reference = read_local_cell(execution_id, local_cell_id);
+                    return Ok(
+                        if let (true, value_type) = conditional(shared_reference.0) {
+                            // re-use the `ValueType` lookup from `conditional`, if it exists
+                            let value_type =
+                                value_type.unwrap_or_else(|| get_value_type(shared_reference.0));
+                            Some((value_type.raw_cell)(shared_reference))
+                        } else {
+                            None
+                        },
+                    );
+                }
             }
         }
     }
@@ -172,7 +180,7 @@ impl RawVc {
         self.resolve_inner(/* strongly_consistent */ true).await
     }
 
-    pub(crate) async fn resolve_inner(self, strongly_consistent: bool) -> Result<RawVc> {
+    async fn resolve_inner(self, strongly_consistent: bool) -> Result<RawVc> {
         let tt = turbo_tasks();
         let mut current = self;
         let mut notified = false;
@@ -203,7 +211,10 @@ impl RawVc {
     pub fn get_task_id(&self) -> TaskId {
         match self {
             RawVc::TaskOutput(t) | RawVc::TaskCell(t, _) => *t,
-            RawVc::LocalCell(_, _) => todo!(),
+            RawVc::LocalCell(execution_id, _) => {
+                assert_execution_id(*execution_id);
+                current_task("RawVc::get_task_id")
+            }
         }
     }
 }

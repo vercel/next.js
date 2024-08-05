@@ -1,6 +1,6 @@
 #![feature(arbitrary_self_types)]
 
-use turbo_tasks::Vc;
+use turbo_tasks::{debug::ValueDebug, test_helpers::current_task_for_testing, ValueDefault, Vc};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();
@@ -57,6 +57,57 @@ async fn test_return_resolved() {
     .await
 }
 
+#[turbo_tasks::value_trait]
+trait UnimplementedTrait {}
+
+#[tokio::test]
+async fn test_try_resolve_sidecast() {
+    run(&REGISTRATION, async {
+        let trait_vc: Vc<Box<dyn ValueDebug>> = Vc::upcast(Vc::<u32>::local_cell(42));
+
+        // `u32` is both a `ValueDebug` and a `ValueDefault`, so this sidecast is valid
+        let sidecast_vc = Vc::try_resolve_sidecast::<Box<dyn ValueDefault>>(trait_vc)
+            .await
+            .unwrap();
+        assert!(sidecast_vc.is_some());
+
+        // `u32` is not an `UnimplementedTrait` though, so this should return None
+        let wrongly_sidecast_vc = Vc::try_resolve_sidecast::<Box<dyn UnimplementedTrait>>(trait_vc)
+            .await
+            .unwrap();
+        assert!(wrongly_sidecast_vc.is_none());
+    })
+    .await
+}
+
+#[tokio::test]
+async fn test_try_resolve_downcast_type() {
+    run(&REGISTRATION, async {
+        let trait_vc: Vc<Box<dyn ValueDebug>> = Vc::upcast(Vc::<u32>::local_cell(42));
+
+        let downcast_vc: Vc<u32> = Vc::try_resolve_downcast_type(trait_vc)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(*downcast_vc.await.unwrap(), 42);
+
+        let wrongly_downcast_vc: Option<Vc<i64>> =
+            Vc::try_resolve_downcast_type(trait_vc).await.unwrap();
+        assert!(wrongly_downcast_vc.is_none());
+    })
+    .await
+}
+
+#[tokio::test]
+async fn test_get_task_id() {
+    run(&REGISTRATION, async {
+        // the task id as reported by the RawVc
+        let vc_task_id = Vc::into_raw(Vc::<()>::local_cell(())).get_task_id();
+        assert_eq!(vc_task_id, current_task_for_testing());
+    })
+    .await
+}
+
 #[turbo_tasks::value(eq = "manual")]
 #[derive(Default)]
 struct Untracked {
@@ -83,7 +134,7 @@ async fn get_untracked_local_cell() -> Vc<Untracked> {
 
 #[tokio::test]
 #[should_panic(expected = "Local Vcs must only be accessed within their own task")]
-async fn test_panics_on_local_cell_escape() {
+async fn test_panics_on_local_cell_escape_read() {
     run(&REGISTRATION, async {
         get_untracked_local_cell()
             .await
@@ -91,6 +142,15 @@ async fn test_panics_on_local_cell_escape() {
             .cell
             .await
             .unwrap();
+    })
+    .await
+}
+
+#[tokio::test]
+#[should_panic(expected = "Local Vcs must only be accessed within their own task")]
+async fn test_panics_on_local_cell_escape_get_task_id() {
+    run(&REGISTRATION, async {
+        Vc::into_raw(get_untracked_local_cell().await.unwrap().cell).get_task_id();
     })
     .await
 }
