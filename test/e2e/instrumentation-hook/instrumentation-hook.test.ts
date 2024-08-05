@@ -92,6 +92,12 @@ describe('Instrumentation Hook', () => {
     })
   })
 
+  describeCase('prefer-src', ({ next }) => {
+    it('prefer-src should use the src/instrumentation.js hook', async () => {
+      await check(() => next.cliOutput, /instrumentation hook on nodejs/)
+    })
+  })
+
   describeCase('general', ({ next, isNextDev }) => {
     it('should not overlap with a instrumentation page', async () => {
       const page = await next.render('/instrumentation')
