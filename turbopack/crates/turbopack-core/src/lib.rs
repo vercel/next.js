@@ -3,7 +3,6 @@
 #![feature(option_get_or_insert_default)]
 #![feature(type_alias_impl_trait)]
 #![feature(assert_matches)]
-#![feature(lint_reasons)]
 #![feature(arbitrary_self_types)]
 #![feature(iter_intersperse)]
 

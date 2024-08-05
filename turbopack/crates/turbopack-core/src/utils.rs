@@ -3,14 +3,14 @@ use std::{collections::HashSet, future::Future, hash::Hash, pin::Pin, task::Poll
 pub fn _race_pop<'a, T: 'a, F: Future<Output = T> + Unpin>(
     futures: &'a mut Vec<F>,
 ) -> impl Future<Output = Option<T>> + 'a {
-    FutureRacePop { futures }
+    _FutureRacePop { futures }
 }
 
-struct FutureRacePop<'a, T, F: Future<Output = T> + Unpin> {
+struct _FutureRacePop<'a, T, F: Future<Output = T> + Unpin> {
     futures: &'a mut Vec<F>,
 }
 
-impl<'a, T, F: Future<Output = T> + Unpin> Future for FutureRacePop<'a, T, F> {
+impl<'a, T, F: Future<Output = T> + Unpin> Future for _FutureRacePop<'a, T, F> {
     type Output = Option<T>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
