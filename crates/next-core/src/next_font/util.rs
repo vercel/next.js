@@ -43,8 +43,8 @@ pub(crate) enum FontFamilyType {
 }
 
 /// Returns a uniquely scoped version of the font family, e.g.`__Roboto_c123b8`
-/// * `ty` - Whether to generate a scoped classname for the main font or its
-///   fallback equivalent, e.g. `__Roboto_Fallback_c123b8`
+/// * `ty` - Whether to generate a scoped classname for the main font or its fallback equivalent,
+///   e.g. `__Roboto_Fallback_c123b8`
 /// * `font_family_name` - The font name to scope, e.g. `Roboto`
 /// * `request_hash` - The hash value of the font request
 #[turbo_tasks::function]

@@ -173,11 +173,10 @@ where
 
 // This is the magic that makes `Vc<T>` accept `self: Vc<Self>` methods through
 // `arbitrary_self_types`, while not allowing any other receiver type:
-// * `Vc<T>` dereferences to `*const *mut *const T`, which means that it is
-//   valid under the `arbitrary_self_types` rules.
-// * `*const *mut *const T` is not a valid receiver for any attribute access on
-//   `T`, which means that the only applicable items will be the methods
-//   declared on `self: Vc<Self>`.
+// * `Vc<T>` dereferences to `*const *mut *const T`, which means that it is valid under the
+//   `arbitrary_self_types` rules.
+// * `*const *mut *const T` is not a valid receiver for any attribute access on `T`, which means
+//   that the only applicable items will be the methods declared on `self: Vc<Self>`.
 //
 // If we had used `type Target = T` instead, `vc_t.some_attr_defined_on_t` would
 // have been accepted by the compiler.

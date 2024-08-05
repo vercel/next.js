@@ -22,8 +22,8 @@ use crate::{
 /// Computes the entry for a Next.js app route.
 /// # Arguments
 ///
-/// * `original_segment_config` - A next segment config to be specified
-///   explicitly for the given source.
+/// * `original_segment_config` - A next segment config to be specified explicitly for the given
+///   source.
 /// For some cases `source` may not be the original but the handler (dynamic
 /// metadata) which will lose segment config.
 #[turbo_tasks::function]
