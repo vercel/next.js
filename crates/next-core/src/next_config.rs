@@ -12,6 +12,7 @@ use turbopack_binding::{
             issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
             resolve::ResolveAliasMap,
         },
+        ecmascript::{OptionTreeShaking, TreeShakingMode},
         ecmascript_plugin::transform::{
             emotion::EmotionTransformConfig, relay::RelayConfig,
             styled_components::StyledComponentsTransformConfig,
@@ -27,27 +28,10 @@ use crate::{
     next_import_map::mdx_import_source_file, next_shared::transforms::ModularizeImportPackageConfig,
 };
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct NextConfigAndCustomRoutesRaw {
-    config: NextConfig,
-    custom_routes: CustomRoutesRaw,
-}
-
 #[turbo_tasks::value]
 struct NextConfigAndCustomRoutes {
     config: Vc<NextConfig>,
     custom_routes: Vc<CustomRoutes>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CustomRoutesRaw {
-    rewrites: Rewrites,
-
-    // unsupported
-    headers: Vec<Header>,
-    redirects: Vec<Redirect>,
 }
 
 #[turbo_tasks::value]
@@ -580,6 +564,8 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+
+    tree_shaking: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -1115,6 +1101,35 @@ impl NextConfig {
                 .clone()
                 .unwrap_or_default(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn tree_shaking_mode_for_foreign_code(
+        self: Vc<Self>,
+        is_development: bool,
+    ) -> Result<Vc<OptionTreeShaking>> {
+        let tree_shaking = self.await?.experimental.tree_shaking;
+
+        Ok(OptionTreeShaking(match tree_shaking {
+            Some(false) => Some(TreeShakingMode::ReexportsOnly),
+            Some(true) => Some(TreeShakingMode::ModuleFragments),
+            None => {
+                if is_development {
+                    Some(TreeShakingMode::ReexportsOnly)
+                } else {
+                    Some(TreeShakingMode::ModuleFragments)
+                }
+            }
+        })
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn tree_shaking_mode_for_user_code(
+        self: Vc<Self>,
+        _is_development: bool,
+    ) -> Result<Vc<OptionTreeShaking>> {
+        Ok(Vc::cell(Some(TreeShakingMode::ReexportsOnly)))
     }
 }
 

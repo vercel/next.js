@@ -13,7 +13,7 @@ const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
 type HTMLFormProps = HTMLProps<HTMLFormElement>
 type DisallowedFormProps = (typeof DISALLOWED_FORM_PROPS)[number]
 
-export type FormProps = {
+type InternalFormProps = {
   /**
    * `action` can be either a `string` or a function.
    * - If `action` is a string, it will be interpreted as a path or URL to navigate to when the form is submitted.
@@ -36,6 +36,11 @@ export type FormProps = {
    */
   scroll?: boolean
 } & Omit<HTMLFormProps, 'action' | DisallowedFormProps>
+
+// `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
+// isn't generated yet. It will be replaced when the webpack plugin runs.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type FormProps<RouteInferType = any> = InternalFormProps
 
 export default function Form({
   replace,

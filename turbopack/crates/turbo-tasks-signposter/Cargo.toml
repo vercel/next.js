@@ -1,0 +1,20 @@
+[package]
+name = "signposter"
+version = "0.1.0"
+description = "Bindings for the macOS Signpost API"
+license = "MPL-2.0"
+edition = "2021"
+
+[lib]
+bench = false
+
+[features]
+default = ["global"]
+global = ["dep:once_cell"]
+
+[lints]
+workspace = true
+
+[dependencies]
+once_cell = { workspace = true, optional = true }
+signposter-sys = { workspace = true }
