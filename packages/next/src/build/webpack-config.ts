@@ -732,7 +732,6 @@ export default async function getBaseWebpackConfig(
   // in store-only mode
   const { flyingShuttle } = config.experimental
   const isFullFlyingShuttle = flyingShuttle?.mode === 'full'
-  const isStoreOnlyFlyingShuttle = flyingShuttle?.mode === 'store-only'
 
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
@@ -1775,8 +1774,7 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
-      (isNodeServer ||
-        ((flyingShuttle || isStoreOnlyFlyingShuttle) && isEdgeServer)) &&
+      (isNodeServer || (flyingShuttle && isEdgeServer)) &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
