@@ -433,7 +433,7 @@ fn node_file_trace<B: Backend + 'static>(
                             ..Default::default()
                         },
                         css: CssOptionsContext {
-                            enable_raw_css: true,
+                            enable_css_transform: false,
                             ..Default::default()
                         },
                         ..Default::default()

@@ -164,12 +164,13 @@ pub struct EcmascriptOptionsContext {
 #[derive(Clone, Default)]
 #[serde(default)]
 pub struct CssOptionsContext {
-    /// This skips `GlobalCss` and `ModuleCss` module assets from being
-    /// generated in the module graph, generating only `Css` module assets.
+    /// This transform generates `GlobalCss` and `ModuleCss` module assets in
+    /// the module graph, as opposed to only `Css` module assets.
     ///
-    /// This is useful for node-file-trace, which tries to emit all assets in
-    /// the module graph, but neither asset types can be emitted directly.
-    pub enable_raw_css: bool,
+    /// Disabling this is useful for node-file-trace, which tries to emit all
+    /// assets in the module graph, but neither asset types can be emitted
+    /// directly.
+    pub enable_css_transform: bool,
     pub use_swc_css: bool,
 
     pub placeholder_for_future_extensions: (),

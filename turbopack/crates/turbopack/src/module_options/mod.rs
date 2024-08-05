@@ -80,7 +80,7 @@ impl ModuleOptions {
             enable_mdx_rs,
             css:
                 CssOptionsContext {
-                    enable_raw_css,
+                    enable_css_transform,
                     use_swc_css,
                     ..
                 },
@@ -383,7 +383,7 @@ impl ModuleOptions {
             ),
         ];
 
-        if enable_raw_css {
+        if !enable_css_transform {
             rules.extend([
                 ModuleRule::new(
                     ModuleRuleCondition::all(vec![ModuleRuleCondition::ResourcePathEndsWith(
