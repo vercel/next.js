@@ -730,9 +730,9 @@ export default async function getBaseWebpackConfig(
   }
   // we don't want to modify the outputs naming if we're
   // is store-only mode
-  const { flyingShuttle, flyingShuttleMode } = config.experimental
-  const isStoreOnlyFlyingShuttle = flyingShuttleMode === 'store-only'
-  const isFullFlyingShuttle = flyingShuttle && !isStoreOnlyFlyingShuttle
+  const { flyingShuttle } = config.experimental
+  const isFullFlyingShuttle = flyingShuttle?.mode === 'full'
+  const isStoreOnlyFlyingShuttle = flyingShuttle?.mode === 'store-only'
 
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
@@ -1790,7 +1790,7 @@ export default async function getBaseWebpackConfig(
             turbotrace: config.experimental.turbotrace,
             optOutBundlingPackages,
             traceIgnores: [],
-            flyingShuttle: flyingShuttle || isStoreOnlyFlyingShuttle,
+            flyingShuttle: Boolean(flyingShuttle),
             compilerType,
             swcLoaderConfig: swcDefaultLoader,
           }

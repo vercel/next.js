@@ -11,11 +11,13 @@ module.exports = {
       process.env.NEXT_PRIVATE_FLYING_SHUTTLE_STORE_ONLY ||
         process.env.NEXT_PRIVATE_FLYING_SHUTTLE
     ),
-    flyingShuttleMode: Boolean(
-      process.env.NEXT_PRIVATE_FLYING_SHUTTLE_STORE_ONLY
-    )
-      ? 'store-only'
-      : undefined,
+    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE_STORE_ONLY)
+      ? { mode: 'store-only' }
+      : Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE)
+        ? {
+            mode: 'full',
+          }
+        : undefined,
   },
   // output: 'standalone',
   rewrites: async () => {

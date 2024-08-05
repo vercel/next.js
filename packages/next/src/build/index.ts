@@ -726,9 +726,11 @@ export default async function build(
       )
       NextBuildContext.buildId = buildId
 
-      const { flyingShuttle, flyingShuttleMode } = config.experimental
-      const isStoreOnlyFlyingShuttle = flyingShuttleMode === 'store-only'
+      const { flyingShuttle } = config.experimental
+      const isStoreOnlyFlyingShuttle = flyingShuttle?.mode === 'store-only'
+
       const shuttleDir = path.join(distDir, 'cache', 'shuttle')
+
       if (flyingShuttle) {
         await fs.mkdir(shuttleDir, {
           recursive: true,
@@ -1708,7 +1710,7 @@ export default async function build(
                     hasSsrAmpPages: false,
                     buildTraceContext,
                     outputFileTracingRoot,
-                    isFlyingShuttle: flyingShuttle || isStoreOnlyFlyingShuttle,
+                    isFlyingShuttle: Boolean(flyingShuttle),
                   })
                   .catch((err) => {
                     console.error(err)
@@ -2411,7 +2413,7 @@ export default async function build(
           hasSsrAmpPages,
           buildTraceContext,
           outputFileTracingRoot,
-          isFlyingShuttle: flyingShuttle || isStoreOnlyFlyingShuttle,
+          isFlyingShuttle: Boolean(flyingShuttle),
         }).catch((err) => {
           console.error(err)
           process.exit(1)

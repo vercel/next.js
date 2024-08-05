@@ -212,8 +212,7 @@ export interface LoggingConfig {
 
 export interface ExperimentalConfig {
   appNavFailHandling?: boolean
-  flyingShuttle?: boolean
-  flyingShuttleMode?: 'store-only'
+  flyingShuttle?: { mode?: 'full' | 'store-only' }
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
@@ -971,7 +970,11 @@ export const defaultConfig: NextConfig = {
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   experimental: {
     appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
-    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
+    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE)
+      ? {
+          mode: 'full',
+        }
+      : undefined,
     prerenderEarlyExit: true,
     serverMinification: true,
     serverSourceMaps: false,
