@@ -43,6 +43,11 @@ impl Parsable for EcmascriptModulePartAsset {
     }
 
     #[turbo_tasks::function]
+    async fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>> {
+        Ok(self.await?.full_module.parse_original())
+    }
+
+    #[turbo_tasks::function]
     async fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>> {
         Ok(self.await?.full_module.ty())
     }

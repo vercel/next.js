@@ -278,7 +278,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
     let parsed = if let Some(ecmascript_asset) =
         Vc::try_resolve_sidecast::<Box<dyn Parsable>>(module).await?
     {
-        ecmascript_asset.failsafe_parse()
+        ecmascript_asset.parse_original()
     } else {
         return Ok(OptionActionMap::none());
     };
