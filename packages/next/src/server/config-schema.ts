@@ -294,6 +294,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         fallbackNodePolyfills: z.literal(false).optional(),
         fetchCacheKeyPrefix: z.string().optional(),
         flyingShuttle: z.boolean().optional(),
+        flyingShuttleMode: z.literal('store-only').optional(),
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),

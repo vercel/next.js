@@ -728,6 +728,11 @@ export default async function getBaseWebpackConfig(
       isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
   }
+  // we don't want to modify the outputs naming if we're
+  // is store-only mode
+  const { flyingShuttle, flyingShuttleMode } = config.experimental
+  const isStoreOnlyFlyingShuttle = flyingShuttleMode === 'store-only'
+  const isFullFlyingShuttle = flyingShuttle && !isStoreOnlyFlyingShuttle
 
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
@@ -968,7 +973,7 @@ export default async function getBaseWebpackConfig(
 
         if (isNodeServer || isEdgeServer) {
           return {
-            filename: `${isEdgeServer ? `edge-chunks${config.experimental.flyingShuttle ? `-${buildId}` : ''}/` : ''}[name].js`,
+            filename: `${isEdgeServer ? `edge-chunks${isFullFlyingShuttle ? `-${buildId}` : ''}/` : ''}[name].js`,
             chunks: 'all',
             minChunks: 2,
           }
@@ -1135,7 +1140,7 @@ export default async function getBaseWebpackConfig(
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
 
-      ...(config.experimental.flyingShuttle
+      ...(isFullFlyingShuttle
         ? {
             // ensure we only use contenthash as it's more deterministic
             filename: (p) => {
@@ -1770,7 +1775,8 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
-      (isNodeServer || (config.experimental.flyingShuttle && isEdgeServer)) &&
+      (isNodeServer ||
+        ((flyingShuttle || isStoreOnlyFlyingShuttle) && isEdgeServer)) &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
@@ -1784,7 +1790,7 @@ export default async function getBaseWebpackConfig(
             turbotrace: config.experimental.turbotrace,
             optOutBundlingPackages,
             traceIgnores: [],
-            flyingShuttle: !!config.experimental.flyingShuttle,
+            flyingShuttle: flyingShuttle || isStoreOnlyFlyingShuttle,
             compilerType,
             swcLoaderConfig: swcDefaultLoader,
           }

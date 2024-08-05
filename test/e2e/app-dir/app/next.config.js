@@ -7,6 +7,15 @@ module.exports = {
     parallelServerCompiles: true,
     parallelServerBuildTraces: true,
     webpackBuildWorker: true,
+    appNavFailHandling: Boolean(
+      process.env.NEXT_PRIVATE_FLYING_SHUTTLE_STORE_ONLY ||
+        process.env.NEXT_PRIVATE_FLYING_SHUTTLE
+    ),
+    flyingShuttleMode: Boolean(
+      process.env.NEXT_PRIVATE_FLYING_SHUTTLE_STORE_ONLY
+    )
+      ? 'store-only'
+      : undefined,
   },
   // output: 'standalone',
   rewrites: async () => {

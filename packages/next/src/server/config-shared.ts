@@ -213,6 +213,7 @@ export interface LoggingConfig {
 export interface ExperimentalConfig {
   appNavFailHandling?: boolean
   flyingShuttle?: boolean
+  flyingShuttleMode?: 'store-only'
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean

@@ -141,7 +141,10 @@ export function getDefineEnv({
 }: DefineEnvPluginOptions): SerializedDefineEnv {
   const nextPublicEnv = getNextPublicEnvironmentVariables()
 
-  if (config.experimental.flyingShuttle) {
+  if (
+    config.experimental.flyingShuttle ||
+    config.experimental.flyingShuttleMode === 'store-only'
+  ) {
     // we delay inlining these values until after the build
     // with flying shuttle enabled so we can update them
     // without invalidating entries
