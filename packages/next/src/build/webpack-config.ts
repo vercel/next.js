@@ -729,7 +729,7 @@ export default async function getBaseWebpackConfig(
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
   }
   // we don't want to modify the outputs naming if we're
-  // is store-only mode
+  // in store-only mode
   const { flyingShuttle } = config.experimental
   const isFullFlyingShuttle = flyingShuttle?.mode === 'full'
   const isStoreOnlyFlyingShuttle = flyingShuttle?.mode === 'store-only'
