@@ -22,6 +22,7 @@ export default function DeploymentsPage(props) {
   return (
     <>
       <p>hello from app/dashboard/deployments/[id]. ID is: {data.id}</p>
+      <p id="my-env">{process.env.NEXT_PUBLIC_TEST_ID}</p>
     </>
   )
 }

@@ -13,17 +13,22 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
       it('should skip for non-next start', () => {})
       return
     }
-
     const { next } = nextTestSetup({
       files: __dirname,
       dependencies: {
         nanoid: '4.0.1',
       },
       env: {
-        NEXT_PRIVATE_FLYING_SHUTTLE: 'true',
+        NEXT_PRIVATE_FLYING_SHUTTLE: '1',
       },
     })
     let initialConfig: Record<string, any> = {}
+    let testEnvId = ''
+
+    beforeEach(() => {
+      testEnvId = Math.random() + ''
+      next.env['NEXT_PUBLIC_TEST_ID'] = testEnvId
+    })
 
     beforeAll(async () => {
       const manifest = await next.readJSON(
@@ -123,6 +128,12 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
     })
 
     async function checkAppPagesNavigation() {
+      // ensure we inlined NEXT_PUBLIC_ properly
+      const index$ = await next.render$('/')
+      const deployments$ = await next.render$('/dashboard/deployments/123')
+      expect(index$('#my-env').text()).toContain(testEnvId)
+      expect(deployments$('#my-env').text()).toContain(testEnvId)
+
       const testPaths = [
         { path: '/', content: 'hello from pages/index', type: 'pages' },
         {
@@ -162,6 +173,12 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
             await browser.eval('document.documentElement.innerHTML')
           ).toContain(content)
         })
+
+        if (path === '/' || path === '/dashboard/deployments/123') {
+          expect(await browser.elementByCss('#my-env').text()).toContain(
+            testEnvId
+          )
+        }
 
         const checkNav = async (testPath: (typeof testPaths)[0]) => {
           await browser.eval(`window.next.router.push("${testPath.path}")`)
