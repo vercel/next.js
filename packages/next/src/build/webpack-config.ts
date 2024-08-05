@@ -2088,6 +2088,7 @@ export default async function getBaseWebpackConfig(
     imageLoaderFile: config.images.loaderFile,
     clientTraceMetadata: config.experimental.clientTraceMetadata,
     serverSourceMaps: config.experimental.serverSourceMaps,
+    flyingShuttle: config.experimental.flyingShuttle,
   })
 
   const cache: any = {
