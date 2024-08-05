@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use turbo_tasks::Vc;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
     module::Module,
     reference::{ModuleReferences, SingleModuleReference},
@@ -18,7 +18,7 @@ use crate::{
     parse::ParseResult,
     references::analyse_ecmascript_module,
     Analyzable, AnalyzeEcmascriptModuleResult, EcmascriptModuleAsset, EcmascriptModuleAssetType,
-    Parsable,
+    EcmascriptModuleContent, Parsable,
 };
 
 /// A reference to part of an ES module.
@@ -55,6 +55,25 @@ impl Analyzable for EcmascriptModulePartAsset {
         let this = self.await?;
         let part = this.part;
         Ok(analyse_ecmascript_module(this.full_module, Some(part)))
+    }
+
+    #[turbo_tasks::function]
+    async fn module_content_without_analysis(
+        self: Vc<Self>,
+    ) -> Result<Vc<EcmascriptModuleContent>> {
+        Ok(self.await?.full_module.module_content_without_analysis())
+    }
+
+    #[turbo_tasks::function]
+    async fn module_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Result<Vc<EcmascriptModuleContent>> {
+        Ok(self
+            .await?
+            .full_module
+            .module_content(chunking_context, async_module_info))
     }
 }
 
