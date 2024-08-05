@@ -1,3 +1,4 @@
+import isError from '../is-error'
 import { execSync } from 'child_process'
 import { getPkgManager } from './get-pkg-manager'
 import { getFormattedNodeOptionsWithoutInspect } from '../../server/lib/utils'
@@ -23,10 +24,13 @@ export function getRegistry(baseDir: string = process.cwd()) {
     if (output.startsWith('http')) {
       registry = output.endsWith('/') ? output : `${output}/`
     }
-  } catch {
-    // ignore error
-    // e.g. In an npm workspace, `npm config get registry` will throw error code ENOWORKSPACES
+  } catch (error) {
+    // In an npm workspace, `npm config get registry` will throw error code ENOWORKSPACES
+    // As this is NPM specific error, we ignore and use the default NPM registry.
     // x-ref: https://github.com/vercel/next.js/issues/47121#issuecomment-1499044345
+    if (isError(error) && error.code !== 'ENOWORKSPACES') {
+      throw error
+    }
   }
 
   return registry
