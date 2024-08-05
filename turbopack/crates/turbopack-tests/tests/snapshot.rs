@@ -22,8 +22,8 @@ use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     ecmascript::{EcmascriptInputTransform, EcmascriptModuleAsset, TreeShakingMode},
     module_options::{
-        JsxTransformOptions, ModuleOptionsContext, ModuleRule, ModuleRuleCondition,
-        ModuleRuleEffect,
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
+        ModuleRule, ModuleRuleCondition, ModuleRuleEffect,
     },
     ModuleAssetContext,
 };
@@ -243,7 +243,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         ModuleRuleCondition::ResourcePathEndsWith(".tsx".into()),
     ]);
 
-    let custom_rules = ModuleRule::new(
+    let module_rules = ModuleRule::new(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: Vc::cell(vec![
@@ -262,22 +262,31 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Vc::cell(HashMap::new()),
         compile_time_info,
         ModuleOptionsContext {
-            enable_jsx: Some(JsxTransformOptions::cell(JsxTransformOptions {
-                development: true,
+            ecmascript: EcmascriptOptionsContext {
+                enable_jsx: Some(JsxTransformOptions::cell(JsxTransformOptions {
+                    development: true,
+                    ..Default::default()
+                })),
+                ignore_dynamic_requests: true,
                 ..Default::default()
-            })),
+            },
+            css: CssOptionsContext {
+                use_swc_css: options.use_swc_css,
+                ..Default::default()
+            },
             preset_env_versions: Some(env),
-            ignore_dynamic_requests: true,
-            use_swc_css: options.use_swc_css,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
-                    use_swc_css: options.use_swc_css,
+                    css: CssOptionsContext {
+                        use_swc_css: options.use_swc_css,
+                        ..Default::default()
+                    },
                     ..Default::default()
                 }
                 .cell(),
             )],
-            custom_rules: vec![custom_rules],
+            module_rules: vec![module_rules],
             tree_shaking_mode: options.tree_shaking_mode,
             ..Default::default()
         }

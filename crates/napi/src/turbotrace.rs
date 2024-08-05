@@ -5,7 +5,8 @@ use turbopack_binding::{
     features::node_file_trace::{start, Args},
     turbo::{tasks::TurboTasks, tasks_memory::MemoryBackend},
     turbopack::turbopack::{
-        module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
+        module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
+        resolve_options_context::ResolveOptionsContext,
     },
 };
 
@@ -31,7 +32,10 @@ pub async fn run_turbo_tracing(
         Arc::new(args),
         turbo_tasks.as_ref(),
         Some(ModuleOptionsContext {
-            enable_types: true,
+            ecmascript: EcmascriptOptionsContext {
+                enable_types: true,
+                ..Default::default()
+            },
             enable_mdx: true,
             ..Default::default()
         }),
