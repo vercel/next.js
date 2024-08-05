@@ -139,11 +139,24 @@ export function getDefineEnv({
   isNodeServer,
   middlewareMatchers,
 }: DefineEnvPluginOptions): SerializedDefineEnv {
+  const nextPublicEnv = getNextPublicEnvironmentVariables()
+
+  if (config.experimental.flyingShuttle) {
+    // we delay inlining these values until after the build
+    // with flying shuttle enabled so we can update them
+    // without invalidating entries
+    for (const key in nextPublicEnv) {
+      // we inline as the key itself to avoid process.env
+      // mangling by webpack/minifier making replacing unsafe
+      nextPublicEnv[key] = key
+    }
+  }
+
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
     __NEXT_DEFINE_ENV: true,
 
-    ...getNextPublicEnvironmentVariables(),
+    ...nextPublicEnv,
     ...getNextConfigEnv(config),
     ...(!isEdgeServer
       ? {}

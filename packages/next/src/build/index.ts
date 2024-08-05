@@ -194,6 +194,7 @@ import {
 } from './flying-shuttle/detect-changed-entries'
 import { storeShuttle } from './flying-shuttle/store-shuttle'
 import { stitchBuilds } from './flying-shuttle/stitch-builds'
+import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -1262,8 +1263,7 @@ export default async function build(
         buildStage: 'start',
       })
 
-      const outputFileTracingRoot =
-        config.experimental.outputFileTracingRoot || dir
+      const outputFileTracingRoot = config.outputFileTracingRoot || dir
 
       const pagesManifestPath = path.join(
         distDir,
@@ -1387,7 +1387,7 @@ export default async function build(
         const project = await bindings.turbo.createProject(
           {
             projectPath: dir,
-            rootPath: config.experimental.outputFileTracingRoot || dir,
+            rootPath: config.outputFileTracingRoot || dir,
             nextConfig: config,
             jsConfig: await getTurbopackJsConfig(dir, config),
             watch: false,
@@ -2544,6 +2544,9 @@ export default async function build(
             distDir,
             shuttleDir,
           })
+
+          console.log('inlining static env')
+          await inlineStaticEnv({ distDir })
         }
       }
 

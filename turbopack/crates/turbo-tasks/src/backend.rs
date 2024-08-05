@@ -219,12 +219,6 @@ mod ser {
 
     impl<'de> Deserialize<'de> for PersistentTaskType {
         fn deserialize<D: ser::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-            #[derive(Deserialize)]
-            enum VariantKind {
-                Native,
-                ResolveNative,
-                ResolveTrait,
-            }
             struct Visitor;
             impl<'de> serde::de::Visitor<'de> for Visitor {
                 type Value = PersistentTaskType;

@@ -305,7 +305,6 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan,
     appDir,
     middlewareMatchers,
-    noMangling = false,
     jsConfig,
     resolvedBaseUrl,
     supportedBrowsers,
@@ -730,43 +729,6 @@ export default async function getBaseWebpackConfig(
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
   }
 
-  const terserOptions: any = {
-    parse: {
-      ecma: 8,
-    },
-    compress: {
-      ecma: 5,
-      warnings: false,
-      // The following two options are known to break valid JavaScript code
-      comparisons: false,
-      inline: 2, // https://github.com/vercel/next.js/issues/7178#issuecomment-493048965
-    },
-    mangle: {
-      safari10: true,
-      reserved: ['AbortSignal'],
-      ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
-        ? {
-            toplevel: true,
-            module: true,
-            keep_classnames: true,
-            keep_fnames: true,
-          }
-        : {}),
-    },
-    output: {
-      ecma: 5,
-      safari10: true,
-      comments: false,
-      // Fixes usage of Emoji and certain Regex
-      ascii_only: true,
-      ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
-        ? {
-            beautify: true,
-          }
-        : {}),
-    },
-  }
-
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
   // 'node_modules/meow/node_modules/object-assign' are not included.
@@ -1104,20 +1066,9 @@ export default async function getBaseWebpackConfig(
         // Minify JavaScript
         (compiler: webpack.Compiler) => {
           // @ts-ignore No typings yet
-          const {
-            TerserPlugin,
-          } = require('./webpack/plugins/terser-webpack-plugin/src/index.js')
-          new TerserPlugin({
-            terserOptions: {
-              ...terserOptions,
-              compress: {
-                ...terserOptions.compress,
-              },
-              mangle: {
-                ...terserOptions.mangle,
-              },
-            },
-          }).apply(compiler)
+          const { MinifyPlugin } =
+            require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
+          new MinifyPlugin().apply(compiler)
         },
         // Minify CSS
         (compiler: webpack.Compiler) => {
@@ -1828,11 +1779,11 @@ export default async function getBaseWebpackConfig(
             appDir: appDir,
             pagesDir: pagesDir,
             esmExternals: config.experimental.esmExternals,
-            outputFileTracingRoot: config.experimental.outputFileTracingRoot,
+            outputFileTracingRoot: config.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
             turbotrace: config.experimental.turbotrace,
             optOutBundlingPackages,
-            traceIgnores: config.experimental.outputFileTracingIgnores || [],
+            traceIgnores: [],
             flyingShuttle: !!config.experimental.flyingShuttle,
             compilerType,
           }

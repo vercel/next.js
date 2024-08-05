@@ -49,6 +49,7 @@ unsafe impl Send for Log {}
 impl Default for Log {
     fn default() -> Self {
         Log {
+            #[allow(unused_unsafe)] // This is a false positive lint.
             os_log: unsafe { addr_of!(_os_log_default) as *const _ as *mut _ },
         }
     }

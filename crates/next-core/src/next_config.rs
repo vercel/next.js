@@ -28,27 +28,10 @@ use crate::{
     next_import_map::mdx_import_source_file, next_shared::transforms::ModularizeImportPackageConfig,
 };
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct NextConfigAndCustomRoutesRaw {
-    config: NextConfig,
-    custom_routes: CustomRoutesRaw,
-}
-
 #[turbo_tasks::value]
 struct NextConfigAndCustomRoutes {
     config: Vc<NextConfig>,
     custom_routes: Vc<CustomRoutes>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CustomRoutesRaw {
-    rewrites: Rewrites,
-
-    // unsupported
-    headers: Vec<Header>,
-    redirects: Vec<Redirect>,
 }
 
 #[turbo_tasks::value]
