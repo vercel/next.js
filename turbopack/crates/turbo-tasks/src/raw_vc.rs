@@ -164,26 +164,15 @@ impl RawVc {
 
     /// See [`crate::Vc::resolve`].
     pub(crate) async fn resolve(self) -> Result<RawVc> {
-        let tt = turbo_tasks();
-        let mut current = self;
-        let mut notified = false;
-        loop {
-            match current {
-                RawVc::TaskOutput(task) => {
-                    if !notified {
-                        tt.notify_scheduled_tasks();
-                        notified = true;
-                    }
-                    current = read_task_output(&*tt, task, false).await?;
-                }
-                RawVc::TaskCell(_, _) => return Ok(current),
-                RawVc::LocalCell(_, _) => todo!(),
-            }
-        }
+        self.resolve_inner(/* strongly_consistent */ false).await
     }
 
     /// See [`crate::Vc::resolve_strongly_consistent`].
     pub(crate) async fn resolve_strongly_consistent(self) -> Result<RawVc> {
+        self.resolve_inner(/* strongly_consistent */ true).await
+    }
+
+    pub(crate) async fn resolve_inner(self, strongly_consistent: bool) -> Result<RawVc> {
         let tt = turbo_tasks();
         let mut current = self;
         let mut notified = false;
@@ -194,10 +183,14 @@ impl RawVc {
                         tt.notify_scheduled_tasks();
                         notified = true;
                     }
-                    current = read_task_output(&*tt, task, true).await?;
+                    current = read_task_output(&*tt, task, strongly_consistent).await?;
                 }
                 RawVc::TaskCell(_, _) => return Ok(current),
-                RawVc::LocalCell(_, _) => todo!(),
+                RawVc::LocalCell(execution_id, local_cell_id) => {
+                    let shared_reference = read_local_cell(execution_id, local_cell_id);
+                    let value_type = get_value_type(shared_reference.0);
+                    return Ok((value_type.raw_cell)(shared_reference));
+                }
             }
         }
     }
@@ -355,7 +348,7 @@ impl Future for ReadRawVcFuture {
                     }
                 }
                 RawVc::LocalCell(execution_id, local_cell_id) => {
-                    return Poll::Ready(Ok(read_local_cell(execution_id, local_cell_id)));
+                    return Poll::Ready(Ok(read_local_cell(execution_id, local_cell_id).into()));
                 }
             };
             // SAFETY: listener is from previous pinned this

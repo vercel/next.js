@@ -35,6 +35,7 @@ use crate::{
     magic_any::MagicAny,
     raw_vc::{CellId, RawVc},
     registry,
+    task::shared_reference::TypedSharedReference,
     trace::TraceRawVcs,
     trait_helpers::get_trait_method,
     util::StaticOrArc,
@@ -274,7 +275,7 @@ struct CurrentTaskState {
 
     /// Cells for locally allocated Vcs (`RawVc::LocalCell`). This is freed
     /// (along with `CurrentTaskState`) when the task finishes executing.
-    local_cells: Vec<TypedCellContent>,
+    local_cells: Vec<TypedSharedReference>,
 }
 
 impl CurrentTaskState {
@@ -1542,7 +1543,12 @@ pub(crate) async fn read_task_cell(
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// A reference to a task's cell with methods that allow updating the contents
+/// of the cell.
+///
+/// Mutations should not outside of the task that that owns this cell. Doing so
+/// is a logic error, and may lead to incorrect caching behavior.
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct CurrentCellRef {
     current_task: TaskId,
     index: CellId,
@@ -1719,7 +1725,7 @@ pub fn find_cell_by_type(ty: ValueTypeId) -> CurrentCellRef {
     })
 }
 
-pub(crate) fn create_local_cell(value: TypedCellContent) -> (ExecutionId, LocalCellId) {
+pub(crate) fn create_local_cell(value: TypedSharedReference) -> (ExecutionId, LocalCellId) {
     CURRENT_TASK_STATE.with(|cell| {
         let CurrentTaskState {
             execution_id,
@@ -1742,11 +1748,18 @@ pub(crate) fn create_local_cell(value: TypedCellContent) -> (ExecutionId, LocalC
     })
 }
 
+/// Returns the contents of the given local cell. Panics if a local cell is
+/// attempted to be accessed outside of its task.
+///
+/// Returns [`TypedSharedReference`] instead of [`TypedCellContent`] because
+/// local cells are always filled. The returned value can be cheaply converted
+/// with `.into()`.
+///
 /// Panics if the ExecutionId does not match the expected value.
 pub(crate) fn read_local_cell(
     execution_id: ExecutionId,
     local_cell_id: LocalCellId,
-) -> TypedCellContent {
+) -> TypedSharedReference {
     CURRENT_TASK_STATE.with(|cell| {
         let CurrentTaskState {
             execution_id: expected_execution_id,

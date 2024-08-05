@@ -25,7 +25,6 @@ pub use self::{
     traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},
 };
 use crate::{
-    backend::CellContent,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     manager::create_local_cell,
     registry,
@@ -282,10 +281,8 @@ where
         // cells aren't stored across executions, so there can be no concept of
         // "updating" the cell across multiple executions.
         let (execution_id, local_cell_id) = create_local_cell(
-            CellContent(Some(SharedReference::new(triomphe::Arc::new(
-                T::Read::target_to_repr(inner),
-            ))))
-            .into_typed(T::get_value_type_id()),
+            SharedReference::new(triomphe::Arc::new(T::Read::target_to_repr(inner)))
+                .into_typed(T::get_value_type_id()),
         );
         Vc {
             node: RawVc::LocalCell(execution_id, local_cell_id),
