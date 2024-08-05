@@ -1,31 +1,29 @@
 use anyhow::{bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use swc_core::{
+    common::GLOBALS,
+    ecma::ast::{Expr, Lit, Program},
+};
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, ValueDefault, ValueToString, Vc};
-use turbo_tasks_fs::{rope::Rope, util::join_path, File};
-use turbopack_binding::{
-    swc::core::{
-        common::GLOBALS,
-        ecma::ast::{Expr, Lit, Program},
-    },
-    turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPath},
-    turbopack::{
-        core::{
-            asset::AssetContent,
-            ident::AssetIdent,
-            issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-            module::Module,
-            source::Source,
-            virtual_source::VirtualSource,
-        },
-        ecmascript::{
-            analyzer::{JsValue, ObjectPart},
-            parse::ParseResult,
-            utils::StringifyJs,
-            EcmascriptModuleAsset,
-        },
-        turbopack::condition::ContextCondition,
-    },
+use turbo_tasks_fs::{
+    self, json::parse_json_rope_with_source_context, rope::Rope, util::join_path, File,
+    FileContent, FileSystemPath,
+};
+use turbopack_core::{
+    asset::AssetContent,
+    condition::ContextCondition,
+    ident::AssetIdent,
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    module::Module,
+    source::Source,
+    virtual_source::VirtualSource,
+};
+use turbopack_ecmascript::{
+    analyzer::{JsValue, ObjectPart},
+    parse::ParseResult,
+    utils::StringifyJs,
+    EcmascriptModuleAsset,
 };
 
 use crate::{

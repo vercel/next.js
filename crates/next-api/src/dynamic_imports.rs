@@ -4,34 +4,30 @@ use anyhow::{bail, Result};
 use futures::Future;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use swc_core::ecma::{
+    ast::{CallExpr, Callee, Expr, Ident, Lit},
+    visit::{Visit, VisitWith},
+};
 use tracing::Level;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic, VisitControlFlow},
     trace::TraceRawVcs,
     RcStr, ReadRef, TryJoinIterExt, Value, ValueToString, Vc,
 };
-use turbopack_binding::{
-    swc::core::ecma::{
-        ast::{CallExpr, Callee, Expr, Ident, Lit},
-        visit::{Visit, VisitWith},
+use turbopack_core::{
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
+        EvaluatableAsset,
     },
-    turbopack::{
-        core::{
-            chunk::{
-                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext,
-                ChunkingContextExt, EvaluatableAsset,
-            },
-            context::AssetContext,
-            issue::IssueSeverity,
-            module::Module,
-            output::OutputAssets,
-            reference::primary_referenced_modules,
-            reference_type::EcmaScriptModulesReferenceSubType,
-            resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
-        },
-        ecmascript::{parse::ParseResult, resolve::esm_resolve, EcmascriptModuleAsset},
-    },
+    context::AssetContext,
+    issue::IssueSeverity,
+    module::Module,
+    output::OutputAssets,
+    reference::primary_referenced_modules,
+    reference_type::EcmaScriptModulesReferenceSubType,
+    resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
 };
+use turbopack_ecmascript::{parse::ParseResult, resolve::esm_resolve, EcmascriptModuleAsset};
 
 async fn collect_chunk_group_inner<F, Fu>(
     dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
@@ -327,7 +323,7 @@ impl DynamicImportVisitor {
 }
 
 impl Visit for DynamicImportVisitor {
-    fn visit_import_decl(&mut self, decl: &turbopack_binding::swc::core::ecma::ast::ImportDecl) {
+    fn visit_import_decl(&mut self, decl: &swc_core::ecma::ast::ImportDecl) {
         // find import decl from next/dynamic, i.e import dynamic from 'next/dynamic'
         if decl.src.value == *"next/dynamic" {
             if let Some(specifier) = decl.specifiers.first().and_then(|s| s.as_default()) {

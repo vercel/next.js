@@ -1,17 +1,12 @@
 use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks::{TaskInput, Vc};
-use turbopack_binding::{
-    turbo::tasks::Value,
-    turbopack::{
-        core::{
-            context::AssetContext, module::Module, reference_type::ReferenceType,
-            resolve::ModulePart, source::Source,
-        },
-        r#static::StaticModuleAsset,
-        turbopack::{module_options::CustomModuleType, ModuleAssetContext},
-    },
+use turbo_tasks::{TaskInput, Value, Vc};
+use turbopack::{module_options::CustomModuleType, ModuleAssetContext};
+use turbopack_core::{
+    context::AssetContext, module::Module, reference_type::ReferenceType, resolve::ModulePart,
+    source::Source,
 };
+use turbopack_static::StaticModuleAsset;
 
 use super::source_asset::StructuredImageFileSource;
 

@@ -6,7 +6,7 @@
 use std::{cell::RefCell, mem::take, rc::Rc};
 
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{
         errors::HANDLER,
         pass::{Repeat, Repeated},

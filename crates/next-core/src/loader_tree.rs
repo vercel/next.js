@@ -9,16 +9,14 @@ use indexmap::IndexMap;
 use indoc::formatdoc;
 use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    core::{
-        context::AssetContext,
-        file_source::FileSource,
-        module::Module,
-        reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
-    },
-    ecmascript::{magic_identifier, text::TextContentFileSource, utils::StringifyJs},
-    turbopack::{transition::Transition, ModuleAssetContext},
+use turbopack::{transition::Transition, ModuleAssetContext};
+use turbopack_core::{
+    context::AssetContext,
+    file_source::FileSource,
+    module::Module,
+    reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
 };
+use turbopack_ecmascript::{magic_identifier, text::TextContentFileSource, utils::StringifyJs};
 
 use crate::{
     app_structure::{

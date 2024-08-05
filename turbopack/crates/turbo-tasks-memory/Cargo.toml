@@ -22,7 +22,6 @@ indexmap = { workspace = true }
 num_cpus = "1.13.1"
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
-priority-queue = "1.3.0"
 ref-cast = "1.0.20"
 rustc-hash = { workspace = true }
 serde = { workspace = true }

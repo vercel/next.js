@@ -1,16 +1,14 @@
 use anyhow::{bail, Context, Result};
 use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::turbopack::{
-    core::{
-        asset::{Asset, AssetContent},
-        chunk::ChunkingContext,
-        ident::AssetIdent,
-        module::Module,
-    },
-    turbopack::css::{
-        chunk::CssChunkPlaceable, CssWithPlaceholderResult, FinalCssResult, ParseCss,
-        ParseCssResult, ProcessCss,
-    },
+use turbopack::css::{
+    chunk::CssChunkPlaceable, CssWithPlaceholderResult, FinalCssResult, ParseCss, ParseCssResult,
+    ProcessCss,
+};
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    chunk::ChunkingContext,
+    ident::AssetIdent,
+    module::Module,
 };
 
 /// A [`CssClientReferenceModule`] is a marker module used to indicate which

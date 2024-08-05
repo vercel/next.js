@@ -3,21 +3,17 @@ use std::io::Write;
 use anyhow::Result;
 use indexmap::indexmap;
 use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
-    turbopack::{
-        core::{
-            asset::{Asset, AssetContent},
-            context::AssetContext,
-            module::Module,
-            reference_type::ReferenceType,
-            source::Source,
-            virtual_source::VirtualSource,
-        },
-        ecmascript::utils::StringifyJs,
-        turbopack::ModuleAssetContext,
-    },
+use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
+use turbopack::ModuleAssetContext;
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    context::AssetContext,
+    module::Module,
+    reference_type::ReferenceType,
+    source::Source,
+    virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::utils::StringifyJs;
 
 use super::app_entry::AppEntry;
 use crate::{

@@ -1,5 +1,5 @@
 use chrono::Utc;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{errors::HANDLER, Span, DUMMY_SP},
     ecma::{
         ast::*,

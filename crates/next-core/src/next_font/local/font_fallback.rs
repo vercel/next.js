@@ -4,7 +4,7 @@ use allsorts::{
 };
 use anyhow::{bail, Context, Result};
 use turbo_tasks::Vc;
-use turbopack_binding::turbo::tasks_fs::{FileContent, FileSystemPath};
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 
 use super::{
     options::{FontDescriptor, FontDescriptors, FontWeight, NextFontLocalOptions},

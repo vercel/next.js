@@ -5,10 +5,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, RcStr, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::core::issue::{IssueExt, IssueSeverity, StyledString},
-};
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
 use super::options::NextFontGoogleOptions;
 use crate::{
@@ -170,7 +168,7 @@ fn lookup_fallback(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use turbopack_binding::turbo::tasks_fs::json::parse_json_with_source_context;
+    use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{FontAdjustment, FontMetricsMap};
     use crate::next_font::google::font_fallback::{lookup_fallback, Fallback};

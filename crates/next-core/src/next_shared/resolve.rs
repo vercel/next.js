@@ -3,22 +3,19 @@ use std::collections::HashMap;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use turbo_tasks::{RcStr, Value, Vc};
-use turbo_tasks_fs::glob::Glob;
-use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::core::{
-        diagnostics::DiagnosticExt,
-        file_source::FileSource,
-        issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-        reference_type::ReferenceType,
-        resolve::{
-            parse::Request,
-            plugin::{
-                AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
-                BeforeResolvePluginCondition,
-            },
-            ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
+use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbopack_core::{
+    diagnostics::DiagnosticExt,
+    file_source::FileSource,
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    reference_type::ReferenceType,
+    resolve::{
+        parse::Request,
+        plugin::{
+            AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
+            BeforeResolvePluginCondition,
         },
+        ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
     },
 };
 
