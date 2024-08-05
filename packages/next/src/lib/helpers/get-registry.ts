@@ -23,7 +23,11 @@ export function getRegistry(baseDir: string = process.cwd()) {
     if (output.startsWith('http')) {
       registry = output.endsWith('/') ? output : `${output}/`
     }
-  } finally {
-    return registry
+  } catch {
+    // ignore error
+    // e.g. In an npm workspace, `npm config get registry` will throw error code ENOWORKSPACES
+    // x-ref: https://github.com/vercel/next.js/issues/47121#issuecomment-1499044345
   }
+
+  return registry
 }
