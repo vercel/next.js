@@ -15,13 +15,5 @@ jobs:
       - run: corepack enable
       - name: 'Issues: Send notification to Slack'
         run: node ./.github/actions/next-repo-actions/dist/issues/index.mjs
-        continue-on-error: true
-      - name: 'PRs: Send notification to Slack'
-        run: node ./.github/actions/next-repo-actions/dist/prs/index.mjs
-        continue-on-error: true
-      - name: 'Feature requests: Send notification to Slack'
-        run: node ./.github/actions/next-repo-actions/dist/feature-requests/index.mjs
-        continue-on-error: true
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
