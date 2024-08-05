@@ -25,7 +25,7 @@ import {
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../../../shared/lib/constants'
 import { join, posix } from 'path'
-import { readFile, writeFile } from 'fs/promises'
+import { readFile } from 'fs/promises'
 import type { SetupOpts } from '../../lib/router-utils/setup-dev-bundler'
 import { deleteCache } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
@@ -178,11 +178,10 @@ export class TurbopackManifestLoader {
     const json = JSON.stringify(actionManifest, null, 2)
     deleteCache(actionManifestJsonPath)
     deleteCache(actionManifestJsPath)
-    await writeFile(actionManifestJsonPath, json, 'utf-8')
-    await writeFile(
+    await writeFileAtomic(actionManifestJsonPath, json)
+    await writeFileAtomic(
       actionManifestJsPath,
-      `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`,
-      'utf-8'
+      `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`
     )
   }
 
