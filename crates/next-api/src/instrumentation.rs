@@ -38,7 +38,7 @@ use crate::{
 #[turbo_tasks::value]
 pub struct InstrumentationEndpoint {
     project: Vc<Project>,
-    context: Vc<Box<dyn AssetContext>>, //
+    context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
     is_edge: bool,
 
