@@ -53,6 +53,9 @@
   },
   // Compile rust-analyzer in a separate directory to avoid conflicts with the main project.
   "rust-analyzer.cargo.targetDir": true,
+  "rust-analyzer.server.extraEnv": {
+    "RUST_BACKTRACE": "0"
+  },
   "cSpell.words": [
     "Entrypoints",
     "napi",
