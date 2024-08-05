@@ -2,7 +2,6 @@ use anyhow::{anyhow, Result};
 use turbo_tasks::{RcStr, TryJoinIterExt, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::ecmascript::EcmascriptModuleAsset;
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_cli_utils::runtime_entry::{RuntimeEntries, RuntimeEntry};
 use turbopack_core::{

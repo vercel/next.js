@@ -20,7 +20,7 @@ use turbo_tasks_fs::{
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    ecmascript::{EcmascriptInputTransform, EcmascriptModuleAsset, TreeShakingMode},
+    ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
         ModuleRule, ModuleRuleCondition, ModuleRuleEffect,
