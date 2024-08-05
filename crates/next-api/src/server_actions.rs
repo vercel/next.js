@@ -221,18 +221,8 @@ async fn to_rsc_context(
         module.ident().with_modifier(action_modifier()),
         module.content(),
     );
-    let ty = if let Some(module) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
-    {
-        if module.await?.ty == EcmascriptModuleAssetType::Ecmascript {
-            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
-        } else {
-            ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)
-        }
-    } else if let Some(module) =
-        Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
-    {
-        if module.await?.full_module.await?.ty == EcmascriptModuleAssetType::Ecmascript {
+    let ty = if let Some(module) = Vc::try_resolve_sidecast::<Box<dyn Parsable>>(module).await? {
+        if *module.await?.ty().await? == EcmascriptModuleAssetType::Ecmascript {
             ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
         } else {
             ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)

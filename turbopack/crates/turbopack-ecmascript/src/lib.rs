@@ -253,6 +253,8 @@ pub struct EcmascriptModuleAsset {
 #[turbo_tasks::value_trait]
 pub trait Parsable {
     fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
+
+    fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>>;
 }
 
 #[turbo_tasks::value_trait]
@@ -333,6 +335,11 @@ impl Parsable for EcmascriptModuleAsset {
             state_ref.as_ref().unwrap_or(&real_result_value).clone()
         };
         Ok(ReadRef::cell(result_value))
+    }
+
+    #[turbo_tasks::function]
+    async fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>> {
+        Ok(self.await?.ty.cell())
     }
 }
 
