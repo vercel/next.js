@@ -120,6 +120,11 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 &format!("{trait_ident}::{ident}"),
                 &inline_function_path,
                 turbo_fn.is_method(),
+                // `inline_cells` is currently unsupported here because:
+                // - The `#[turbo_tasks::function]` macro needs to be present for us to read this
+                //   argument.
+                // - This only makes sense when a default implementation is present.
+                false,
             );
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
