@@ -48,6 +48,9 @@ where
     /// Convert a reference to a target type to a reference to a value.
     fn target_to_value_ref(target: &Self::Target) -> &T;
 
+    /// Convert the target type to the repr.
+    fn target_to_repr(target: Self::Target) -> Self::Repr;
+
     /// Convert a reference to a repr type to a reference to a value.
     fn repr_to_value_ref(repr: &Self::Repr) -> &T;
 }
@@ -78,6 +81,10 @@ where
     }
 
     fn target_to_value_ref(target: &Self::Target) -> &T {
+        target
+    }
+
+    fn target_to_repr(target: Self::Target) -> Self::Repr {
         target
     }
 
@@ -130,6 +137,15 @@ where
         // Safety: see `Self::value_to_target` above.
         unsafe {
             std::mem::transmute_copy::<ManuallyDrop<&Self::Target>, &T>(&ManuallyDrop::new(target))
+        }
+    }
+
+    fn target_to_repr(target: Self::Target) -> Self::Repr {
+        // Safety: see `Self::value_to_target` above.
+        unsafe {
+            std::mem::transmute_copy::<ManuallyDrop<Self::Target>, Self::Repr>(&ManuallyDrop::new(
+                target,
+            ))
         }
     }
 
