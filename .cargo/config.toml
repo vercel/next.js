@@ -31,8 +31,10 @@ rustflags = [
   "tokio_unstable",
   "-Zshare-generics=y",
   "-Zthreads=8",
+  "-Zunstable-options",
   "-Csymbol-mangling-version=v0",
-  "-Clink-arg=-fuse-ld=lld",
+  "-Clinker-flavor=gnu-lld-cc",
+  "-Clink-self-contained=+linker",
 ]
 
 [target.aarch64-unknown-linux-musl]
