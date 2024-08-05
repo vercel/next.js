@@ -1,11 +1,11 @@
-import { AsyncLocalStorage } from 'async_hooks'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { cacheScopeAsyncStorage } from '../../client/components/cache-scope-storage.external'
 
 export function createCacheScope() {
   const storage = createCacheMap()
   return {
     run: <T>(callback: () => T): T => {
-      return CacheScopeStorage.run(storage, () => callback())
+      return cacheScopeAsyncStorage.run(storage, () => callback())
     },
   }
 }
@@ -33,15 +33,12 @@ function createCacheMap(): CacheMap {
 }
 
 function isWithinCacheScope() {
-  return !!CacheScopeStorage.getStore()
+  return !!cacheScopeAsyncStorage.getStore()
 }
-
-const CacheScopeStorage: AsyncLocalStorage<CacheMap> =
-  new AsyncLocalStorage<CacheMap>()
 
 /** forked from packages/react-server/src/flight/ReactFlightServerCache.js */
 function resolveCache(): CacheMap {
-  const store = CacheScopeStorage.getStore()
+  const store = cacheScopeAsyncStorage.getStore()
   if (store) {
     return store
   }
