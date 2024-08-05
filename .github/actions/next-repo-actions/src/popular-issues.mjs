@@ -1,5 +1,6 @@
 // @ts-check
 import { context, getOctokit } from '@actions/github'
+import { info } from '@actions/core'
 
 async function run() {
   if (!process.env.GITHUB_TOKEN) throw new TypeError('GITHUB_TOKEN not set')
@@ -13,7 +14,8 @@ async function run() {
     q: `repo:${owner}/${repo} is:issue created:2024-07-29..2024-08-05 `,
   })
 
-  console.log(JSON.stringify(data.items))
+  info(`Found ${data.items.length} issues`)
+  // console.log(JSON.stringify(data.items))
 }
 
 run()
