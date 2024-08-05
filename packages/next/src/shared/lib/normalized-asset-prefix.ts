@@ -1,11 +1,10 @@
 export function normalizedAssetPrefix(assetPrefix: string | undefined): string {
-  const escapedAssetPrefix = assetPrefix?.replace(/^\/+/, '') || false
-
-  if (escapedAssetPrefix && escapedAssetPrefix.startsWith('http')) {
-    // remove protocol for socket url
-    // https://example.com/path/to/asset -> example.com/path/to/asset
-    return escapedAssetPrefix.split('://', 2)[1]
+  // if assetPrefix is a URL, we return the pathname
+  if (assetPrefix?.startsWith('http')) {
+    return new URL(assetPrefix).pathname
   }
+
+  const escapedAssetPrefix = assetPrefix?.replace(/^\/+/, '') || false
 
   // assetPrefix is set to `undefined` or '/'
   if (!escapedAssetPrefix) {

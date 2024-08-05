@@ -14,13 +14,9 @@ function getSocketProtocol(assetPrefix: string): string {
 export function getSocketUrl(assetPrefix: string | undefined): string {
   const { hostname, port } = window.location
   const protocol = getSocketProtocol(assetPrefix || '')
+  // if original assetPrefix is a URL with protocol
+  // the prefix should be normalized to pathname
   const prefix = normalizedAssetPrefix(assetPrefix)
-
-  // if original assetPrefix is a full URL with protocol
-  // we just update to use the correct `ws` protocol
-  if (assetPrefix?.startsWith('http')) {
-    return `${protocol}://${prefix}`
-  }
 
   return `${protocol}://${hostname}:${port}${prefix}`
 }
