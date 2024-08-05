@@ -1786,6 +1786,26 @@ export default async function build(
 
       const postCompileSpinner = createSpinner('Collecting page data')
 
+      if (config.experimental.flyingShuttle) {
+        // we need to copy the chunks from the shuttle folder
+        // to the distDir (we copy all server split chunks currently)
+        // this has to come before we require any page chunks as webpack
+        // cache could reference previous runtimes/chunks
+        if (await fileExists(path.join(shuttleDir, 'server'))) {
+          await recursiveCopy(
+            path.join(shuttleDir, 'server'),
+            path.join(distDir, 'server'),
+            {
+              filter(item) {
+                // we copy page chunks separately to not copy stale entries
+                return !item.match(/^[/\\](pages|app)[/\\]/)
+              },
+              overwrite: true,
+            }
+          )
+        }
+      }
+
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
       const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
 
