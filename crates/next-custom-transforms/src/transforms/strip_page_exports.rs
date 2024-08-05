@@ -51,8 +51,7 @@ impl PageMode {
 }
 
 /// A transform that either:
-/// * strips Next.js data exports (getServerSideProps, getStaticProps,
-///   getStaticPaths); or
+/// * strips Next.js data exports (getServerSideProps, getStaticProps, getStaticPaths); or
 /// * strips the default export.
 ///
 /// Note: This transform requires running `resolver` **before** running it.

@@ -66,12 +66,11 @@ pub enum NextDynamicMode {
     /// the React Loadable Webpack plugin.
     Webpack,
     /// In Turbopack mode:
-    /// * in development, each `dynamic()` call will generate a key containing
-    ///   both the imported module id and the chunks it needs. This removes the
-    ///   need for a manifest entry
-    /// * during build, each `dynamic()` call will import the module through the
-    ///   given transition, which takes care of adding an entry to the manifest
-    ///   and returning an asset that exports the entry's key.
+    /// * in development, each `dynamic()` call will generate a key containing both the imported
+    ///   module id and the chunks it needs. This removes the need for a manifest entry
+    /// * during build, each `dynamic()` call will import the module through the given transition,
+    ///   which takes care of adding an entry to the manifest and returning an asset that exports
+    ///   the entry's key.
     Turbopack { dynamic_transition_name: String },
 }
 
