@@ -162,21 +162,25 @@ First, create a component that displays a loading state when the form is pending
 
 ```tsx filename="/app/ui/search-button.tsx" switcher
 'use client'
-import { useFormStatus } from 'react'
+import { useFormStatus } from 'react-dom'
 
 export default function SearchButton() {
   const status = useFormStatus()
-  return <button type="submit">{pending ? 'Searching...' : 'Search'}</button>
+  return (
+    <button type="submit">{status.pending ? 'Searching...' : 'Search'}</button>
+  )
 }
 ```
 
 ```jsx filename="/app/ui/search-button.js" switcher
 'use client'
-import { useFormStatus } from 'react'
+import { useFormStatus } from 'react-dom'
 
 export default function SearchButton() {
   const status = useFormStatus()
-  return <button type="submit">{pending ? 'Searching...' : 'Search'}</button>
+  return (
+    <button type="submit">{status.pending ? 'Searching...' : 'Search'}</button>
+  )
 }
 ```
 
