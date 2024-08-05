@@ -76,5 +76,6 @@
   "gitlens.advanced.blame.customArguments": [
     "--ignore-revs-file",
     "${workspaceRoot}/.git-blame-ignore-revs"
-  ]
+  ],
+  "astGrep.serverPath": "node_modules/@ast-grep/cli/ast-grep"
 }
