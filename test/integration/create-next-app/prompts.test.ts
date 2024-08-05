@@ -216,4 +216,38 @@ describe('create-next-app prompts', () => {
       `)
     })
   })
+
+  it('should prompt user to confirm reset preferences', async () => {
+    await useTempDir(async (cwd) => {
+      const childProcess = createNextApp(
+        ['--reset'],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      await new Promise<void>(async (resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          resolve()
+        })
+        let output = ''
+        childProcess.stdout.on('data', (data) => {
+          output += data
+          process.stdout.write(data)
+        })
+        await check(
+          () => output,
+          /Would you like to reset the saved preferences/
+        )
+        // cursor forward, choose 'Yes' for reset preferences
+        childProcess.stdin.write('\u001b[C\n')
+        await check(
+          () => output,
+          /The preferences have been reset successfully/
+        )
+      })
+    })
+  })
 })
