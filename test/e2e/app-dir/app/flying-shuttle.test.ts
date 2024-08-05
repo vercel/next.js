@@ -19,7 +19,7 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         nanoid: '4.0.1',
       },
       env: {
-        NEXT_PRIVATE_FLYING_SHUTTLE: '1',
+        NEXT_PRIVATE_FLYING_SHUTTLE_STORE_ONLY: '1',
       },
     })
     let initialConfig: Record<string, any> = {}
@@ -248,6 +248,11 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
     }
 
     it('should only rebuild just a changed app route correctly', async () => {
+      // our initial build was built in store-only mode so
+      // enable full version in successive builds
+      delete next.env['NEXT_PRIVATE_FLYING_SHUTTLE_STORE_ONLY']
+      next.env['NEXT_PRIVATE_FLYING_SHUTTLE'] = '1'
+
       await next.stop()
 
       const dataPath = 'app/dashboard/deployments/[id]/data.json'
