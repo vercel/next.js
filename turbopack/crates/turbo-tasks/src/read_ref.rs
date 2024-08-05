@@ -10,9 +10,9 @@ use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
     debug::{ValueDebugFormat, ValueDebugFormatString},
-    macro_helpers::find_cell_by_type,
     trace::{TraceRawVcs, TraceRawVcsContext},
     triomphe_utils::unchecked_sidecast_triomphe_arc,
+    vc::VcCellMode,
     SharedReference, Vc, VcRead, VcValueType,
 };
 
@@ -244,14 +244,15 @@ where
     /// reference.
     pub fn cell(read_ref: ReadRef<T>) -> Vc<T> {
         let type_id = T::get_value_type_id();
-        let local_cell = find_cell_by_type(type_id);
         // SAFETY: `T` and `T::Read::Repr` must have equivalent memory representations,
         // guaranteed by the unsafe implementation of `VcValueType`.
-        local_cell.update_shared_reference(SharedReference::new(unsafe {
+        let value = unsafe {
             unchecked_sidecast_triomphe_arc::<T, <T::Read as VcRead<T>>::Repr>(read_ref.0)
-        }));
+        };
         Vc {
-            node: local_cell.into(),
+            node: <T::CellMode as VcCellMode<T>>::raw_cell(
+                SharedReference::new(value).typed(type_id),
+            ),
             _t: PhantomData,
         }
     }

@@ -1,5 +1,4 @@
 use std::{
-    any::Any,
     borrow::Cow,
     fmt::{self, Debug, Display, Write},
     future::Future,
@@ -22,8 +21,9 @@ use crate::{
     raw_vc::CellId,
     registry,
     trait_helpers::{get_trait_method, has_trait, traits},
+    triomphe_utils::unchecked_sidecast_triomphe_arc,
     FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdProvider, TaskIdSet, TraitRef,
-    TraitTypeId, ValueTypeId, VcValueTrait, VcValueType,
+    TraitTypeId, ValueTypeId, VcRead, VcValueTrait, VcValueType,
 };
 
 pub enum TaskType {
@@ -341,11 +341,14 @@ impl Display for CellContent {
 }
 
 impl TypedCellContent {
-    pub fn cast<T: Any + VcValueType>(self) -> Result<ReadRef<T>> {
+    pub fn cast<T: VcValueType>(self) -> Result<ReadRef<T>> {
         let data = self.1 .0.ok_or_else(|| anyhow!("Cell is empty"))?;
         let data = data
-            .downcast()
+            .downcast::<<T::Read as VcRead<T>>::Repr>()
             .map_err(|_err| anyhow!("Unexpected type in cell"))?;
+        // SAFETY: `T` and `T::Read::Repr` must have equivalent memory representations,
+        // guaranteed by the unsafe implementation of `VcValueType`.
+        let data = unsafe { unchecked_sidecast_triomphe_arc(data) };
         Ok(ReadRef::new_arc(data))
     }
 
@@ -366,10 +369,6 @@ impl TypedCellContent {
             // Safety: It is a TypedSharedReference
             TraitRef::new(shared_reference),
         )
-    }
-
-    pub fn try_cast<T: Any + VcValueType>(self) -> Option<ReadRef<T>> {
-        Some(ReadRef::new_arc(self.1 .0?.downcast().ok()?))
     }
 
     pub fn into_untyped(self) -> CellContent {

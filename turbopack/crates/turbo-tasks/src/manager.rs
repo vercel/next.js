@@ -1522,57 +1522,148 @@ pub struct CurrentCellRef {
     index: CellId,
 }
 
+type VcReadRepr<T> = <<T as VcValueType>::Read as VcRead<T>>::Repr;
+
 impl CurrentCellRef {
-    pub fn conditional_update_shared<
-        T: VcValueType + 'static,
-        F: FnOnce(Option<&T>) -> Option<T>,
-    >(
+    /// Updates the cell if the given `functor` returns a value.
+    pub fn conditional_update<T>(&self, functor: impl FnOnce(Option<&T>) -> Option<T>)
+    where
+        T: VcValueType,
+    {
+        self.conditional_update_with_shared_reference(|old_shared_reference| {
+            let old_ref = old_shared_reference
+                .and_then(|sr| sr.0.downcast_ref::<VcReadRepr<T>>())
+                .map(|content| <T::Read as VcRead<T>>::repr_to_value_ref(content));
+            let new_value = functor(old_ref)?;
+            Some(SharedReference::new(triomphe::Arc::new(
+                <T::Read as VcRead<T>>::value_to_repr(new_value),
+            )))
+        })
+    }
+
+    /// Updates the cell if the given `functor` returns a `SharedReference`.
+    pub fn conditional_update_with_shared_reference(
         &self,
-        functor: F,
+        functor: impl FnOnce(Option<&SharedReference>) -> Option<SharedReference>,
     ) {
         let tt = turbo_tasks();
-        let content = tt
-            .read_own_task_cell(self.current_task, self.index)
-            .ok()
-            .and_then(|v| v.try_cast::<T>());
-        let update =
-            functor(content.as_deref().map(|content| {
-                <<T as VcValueType>::Read as VcRead<T>>::target_to_value_ref(content)
-            }));
+        let cell_content = tt.read_own_task_cell(self.current_task, self.index).ok();
+        let update = functor(cell_content.as_ref().and_then(|cc| cc.1 .0.as_ref()));
         if let Some(update) = update {
-            tt.update_own_task_cell(
-                self.current_task,
-                self.index,
-                CellContent(Some(SharedReference::new(triomphe::Arc::new(update)))),
-            )
+            tt.update_own_task_cell(self.current_task, self.index, CellContent(Some(update)))
         }
     }
 
-    pub fn compare_and_update_shared<T: PartialEq + VcValueType + 'static>(&self, new_content: T) {
-        self.conditional_update_shared(|old_content| {
-            if let Some(old_content) = old_content {
-                if PartialEq::eq(&new_content, old_content) {
+    /// Replace the current cell's content with `new_value` if the current
+    /// content is not equal by value with the existing content.
+    ///
+    /// The comparison happens using the value itself, not the
+    /// [`VcRead::Target`] of that value.
+    ///
+    /// Take this example of a custom equality implementation on a transparent
+    /// wrapper type:
+    ///
+    /// ```
+    /// #[turbo_tasks::value(transparent, eq = "manual")]
+    /// struct Wrapper(Vec<u32>);
+    ///
+    /// impl PartialEq for Wrapper {
+    ///     fn eq(&self, other: Wrapper) {
+    ///         // Example: order doesn't matter for equality
+    ///         let (mut this, mut other) = (self.clone(), other.clone());
+    ///         this.sort_unstable();
+    ///         other.sort_unstable();
+    ///         this == other
+    ///     }
+    /// }
+    ///
+    /// impl Eq for Wrapper {}
+    /// ```
+    ///
+    /// Comparisons of `Vc<Wrapper>` used when updating the cell will use
+    /// `Wrapper`'s custom equality implementation, rather than the one
+    /// provided by the target (`Vec<u32>`) type.
+    ///
+    /// However, in most cases, the default derived implementation of
+    /// `PartialEq` is used which just forwards to the inner value's
+    /// `PartialEq`.
+    ///
+    /// If you already have a `SharedReference`, consider calling
+    /// [`compare_and_update_with_shared_reference`] which can re-use the
+    /// `SharedReference` object.
+    pub fn compare_and_update<T>(&self, new_value: T)
+    where
+        T: PartialEq + VcValueType,
+    {
+        self.conditional_update(|old_value| {
+            if let Some(old_value) = old_value {
+                if old_value == &new_value {
                     return None;
                 }
             }
-            Some(new_content)
+            Some(new_value)
         });
     }
 
-    pub fn update_shared<T: VcValueType + 'static>(&self, new_content: T) {
+    /// Replace the current cell's content with `new_shared_reference` if the
+    /// current content is not equal by value with the existing content.
+    ///
+    /// If you already have a `SharedReference`, this is a faster version of
+    /// [`CurrentCellRef::compare_and_update`].
+    ///
+    /// The [`SharedReference`] is expected to use the `<T::Read as
+    /// VcRead<T>>::Repr` type for its representation of the value.
+    pub fn compare_and_update_with_shared_reference<T>(&self, new_shared_reference: SharedReference)
+    where
+        T: VcValueType + PartialEq,
+    {
+        fn extract_sr_value<T: VcValueType>(sr: &SharedReference) -> &T {
+            <T::Read as VcRead<T>>::repr_to_value_ref(
+                sr.0.downcast_ref::<VcReadRepr<T>>()
+                    .expect("cannot update SharedReference of different type"),
+            )
+        }
+        self.conditional_update_with_shared_reference(|old_sr| {
+            if let Some(old_sr) = old_sr {
+                let old_value: &T = extract_sr_value(old_sr);
+                let new_value = extract_sr_value(&new_shared_reference);
+                if old_value == new_value {
+                    return None;
+                }
+            }
+            Some(new_shared_reference)
+        });
+    }
+
+    /// Unconditionally updates the content of the cell.
+    pub fn update<T>(&self, new_value: T)
+    where
+        T: VcValueType,
+    {
         let tt = turbo_tasks();
         tt.update_own_task_cell(
             self.current_task,
             self.index,
-            CellContent(Some(SharedReference::new(triomphe::Arc::new(new_content)))),
+            CellContent(Some(SharedReference::new(triomphe::Arc::new(
+                <T::Read as VcRead<T>>::value_to_repr(new_value),
+            )))),
         )
     }
 
-    pub fn update_shared_reference(&self, shared_ref: SharedReference) {
+    /// A faster version of [`Self::update`] if you already have a
+    /// [`SharedReference`].
+    ///
+    /// If the passed-in [`SharedReference`] is the same as the existing cell's
+    /// by identity, no update is performed.
+    ///
+    /// The [`SharedReference`] is expected to use the `<T::Read as
+    /// VcRead<T>>::Repr` type for its representation of the value.
+    pub fn update_with_shared_reference(&self, shared_ref: SharedReference) {
         let tt = turbo_tasks();
         let content = tt.read_own_task_cell(self.current_task, self.index).ok();
-        let update = if let Some(TypedCellContent(_, CellContent(shared_ref_exp))) = content {
-            shared_ref_exp.as_ref().ne(&Some(&shared_ref))
+        let update = if let Some(TypedCellContent(_, CellContent(Some(shared_ref_exp)))) = content {
+            // pointer equality (not value equality)
+            shared_ref_exp != shared_ref
         } else {
             true
         };

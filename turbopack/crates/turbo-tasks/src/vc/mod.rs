@@ -16,10 +16,9 @@ use anyhow::Result;
 use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 
-use self::cell_mode::VcCellMode;
 pub use self::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
-    cell_mode::{VcCellNewMode, VcCellSharedMode},
+    cell_mode::{VcCellMode, VcCellNewMode, VcCellSharedMode},
     default::ValueDefault,
     read::{ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::{ResolvedValue, ResolvedVc},
