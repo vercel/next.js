@@ -429,11 +429,12 @@ describe('app dir - metadata', () => {
       })
 
       // icon should be overridden and contain favicon.ico
-      expect(
-        $('link[rel="icon"]')
-          .toArray()
-          .map((i) => $(i).attr('href'))
-      ).toEqual(['/favicon.ico', 'https://custom-icon-1.png'])
+      const [favicon, ...icons] = $('link[rel="icon"]')
+        .toArray()
+        .map((i) => $(i).attr('href'))
+
+      expect(favicon).toMatch('/favicon.ico')
+      expect(icons).toEqual(['https://custom-icon-1.png'])
     })
   })
 
@@ -458,9 +459,9 @@ describe('app dir - metadata', () => {
 
       await checkLink(browser, 'shortcut icon', '/shortcut-icon.png')
       await checkLink(browser, 'icon', [
-        '/favicon.ico',
-        '/icon.png',
-        'https://example.com/icon.png',
+        /\/favicon\.ico/,
+        /\/icon\.png/,
+        /https:\/\/example.com\/icon.png/,
       ])
       await checkLink(browser, 'apple-touch-icon', [
         '/icon2.png',

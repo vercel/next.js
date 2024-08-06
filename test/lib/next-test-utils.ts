@@ -1293,7 +1293,7 @@ export const getTitle = (browser: BrowserInterface) =>
 async function checkMeta(
   browser: BrowserInterface,
   queryValue: string,
-  expected: RegExp | string | string[] | undefined | null,
+  expected: RegExp | RegExp[] | string | string[] | undefined | null,
   queryKey: string = 'property',
   tag: string = 'meta',
   domAttributeField: string = 'content'
@@ -1431,5 +1431,5 @@ export const checkMetaNameContentPair = (
 export const checkLink = (
   browser: BrowserInterface,
   rel: string,
-  content: string | string[]
+  content: string | string[] | RegExp[]
 ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
