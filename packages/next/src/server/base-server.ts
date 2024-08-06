@@ -378,7 +378,6 @@ export default abstract class Server<
     req: ServerRequest,
     parsedUrl: NextUrlWithParsedQuery
   ): void
-  protected abstract getFallback(page: string): Promise<string>
   protected abstract hasPage(pathname: string): Promise<boolean>
 
   protected abstract sendRenderResult(
@@ -2318,7 +2317,7 @@ export default abstract class Server<
     } catch {}
 
     // use existing incrementalCache instance if available
-    const incrementalCache =
+    const incrementalCache: import('./lib/incremental-cache').IncrementalCache =
       (globalThis as any).__incrementalCache ||
       (await this.getIncrementalCache({
         requestHeaders: Object.assign({}, req.headers),
@@ -2336,12 +2335,17 @@ export default abstract class Server<
        * a render that has been postponed.
        */
       postponed: string | undefined
+
+      /**
+       * Whether or not this render is a fallback render.
+       */
+      isFallback: boolean | undefined
     }
     type Renderer = (
       context: RendererContext
     ) => Promise<ResponseCacheEntry | null>
 
-    const doRender: Renderer = async ({ postponed }) => {
+    const doRender: Renderer = async ({ postponed, isFallback }) => {
       // In development, we always want to generate dynamic HTML.
       let supportsDynamicResponse: boolean =
         // If we're in development, we always support dynamic HTML, unless it's
@@ -2506,6 +2510,7 @@ export default abstract class Server<
                   body: Buffer.from(await blob.arrayBuffer()),
                   headers,
                 },
+                isFallback: false,
                 revalidate,
               }
 
@@ -2663,7 +2668,11 @@ export default abstract class Server<
 
       // Handle `isNotFound`.
       if ('isNotFound' in metadata && metadata.isNotFound) {
-        return { value: null, revalidate: metadata.revalidate }
+        return {
+          value: null,
+          revalidate: metadata.revalidate,
+          isFallback: false,
+        }
       }
 
       // Handle `isRedirect`.
@@ -2674,6 +2683,7 @@ export default abstract class Server<
             props: metadata.pageData ?? metadata.flightData,
           } satisfies CachedRedirectValue,
           revalidate: metadata.revalidate,
+          isFallback: false,
         }
       }
 
@@ -2694,6 +2704,7 @@ export default abstract class Server<
             status: res.statusCode,
           } satisfies CachedAppPageValue,
           revalidate: metadata.revalidate,
+          isFallback,
         }
       }
 
@@ -2706,14 +2717,15 @@ export default abstract class Server<
           status: isAppPath ? res.statusCode : undefined,
         } satisfies CachedPageValue,
         revalidate: metadata.revalidate,
+        isFallback,
       }
     }
 
-    const responseGenerator: ResponseGenerator = async (
+    const responseGenerator: ResponseGenerator = async ({
       hasResolved,
       previousCacheEntry,
-      isRevalidating
-    ): Promise<ResponseCacheEntry | null> => {
+      isRevalidating,
+    }): Promise<ResponseCacheEntry | null> => {
       const isProduction = !this.renderOpts.dev
       const didRespond = hasResolved || res.sent
 
@@ -2823,37 +2835,33 @@ export default abstract class Server<
           throw new NoFallbackError()
         }
 
-        if (!isNextDataRequest) {
-          // Production already emitted the fallback as static HTML.
-          if (isProduction) {
-            const html = await this.getFallback(
-              locale ? `/${locale}${pathname}` : pathname
-            )
+        if (!isNextDataRequest && !isRSCRequest) {
+          const key = isProduction
+            ? isAppPath
+              ? pathname
+              : locale
+                ? `/${locale}${pathname}`
+                : pathname
+            : null
 
-            return {
-              value: {
-                kind: CachedRouteKind.PAGES,
-                html: RenderResult.fromStatic(html),
-                pageData: {},
-                status: undefined,
-                headers: undefined,
-              },
-            }
-          }
-          // We need to generate the fallback on-demand for development.
-          else {
-            query.__nextFallback = 'true'
+          return this.responseCache.get(
+            key,
+            async () => {
+              query.__nextFallback = 'true'
 
-            // We pass `undefined` as there cannot be a postponed state in
-            // development.
-            const result = await doRender({ postponed: undefined })
-            if (!result) {
-              return null
+              return doRender({
+                // We pass `undefined` as rendering a fallback isn't resumed here.
+                postponed: undefined,
+                isFallback: true,
+              })
+            },
+            {
+              routeKind: isAppPath ? RouteKind.APP_PAGE : RouteKind.PAGES,
+              incrementalCache,
+              isRoutePPREnabled,
+              isFallback: true,
             }
-            // Prevent caching this result
-            delete result.revalidate
-            return result
-          }
+          )
         }
       }
 
@@ -2864,6 +2872,7 @@ export default abstract class Server<
           !isOnDemandRevalidate && !isRevalidating && minimalPostponed
             ? minimalPostponed
             : undefined,
+        isFallback: false,
       }
 
       // When we're in minimal mode, if we're trying to debug the static shell,
@@ -2874,6 +2883,7 @@ export default abstract class Server<
       ) {
         return {
           revalidate: 1,
+          isFallback: false,
           value: {
             kind: CachedRouteKind.PAGES,
             html: RenderResult.fromStatic(''),
@@ -2910,6 +2920,7 @@ export default abstract class Server<
         isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
         isRoutePPREnabled,
+        isFallback: false,
       }
     )
 
@@ -3252,7 +3263,10 @@ export default abstract class Server<
       // Perform the render again, but this time, provide the postponed state.
       // We don't await because we want the result to start streaming now, and
       // we've already chained the transformer's readable to the render result.
-      doRender({ postponed: cachedData.postponed })
+      doRender({
+        postponed: cachedData.postponed,
+        isFallback: false,
+      })
         .then(async (result) => {
           if (!result) {
             throw new Error('Invariant: expected a result to be returned')
