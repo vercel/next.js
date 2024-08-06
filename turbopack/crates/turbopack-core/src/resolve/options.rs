@@ -425,37 +425,20 @@ impl ImportMap {
                 .as_ref()
                 .and_then(|req| self.map.lookup(req).next());
 
-            // TODO This causes a rustc MIR panic with our current nightly
-            // let results = lookup_rel
-            //     .into_iter()
-            //     .chain(lookup_rel_parent.into_iter())
-            //     .chain(lookup.into_iter())
-            //     .map(async |result: super::AliasMatch<Vc<ImportMapping>>| {
-            //         import_mapping_to_result(
-            //             result.try_join_into_self().await?,
-            //             lookup_path,
-            //             request,
-            //         )
-            //         .await
-            //     })
-            //     .try_join()
-            //     .await?;
-
-            let mut results = Vec::with_capacity(1);
-            for result in lookup_rel
+            let results = lookup_rel
                 .into_iter()
                 .chain(lookup_rel_parent.into_iter())
                 .chain(lookup.into_iter())
-            {
-                results.push(
+                .map(async |result: super::AliasMatch<Vc<ImportMapping>>| {
                     import_mapping_to_result(
                         result.try_join_into_self().await?,
                         lookup_path,
                         request,
                     )
-                    .await?,
-                );
-            }
+                    .await
+                })
+                .try_join()
+                .await?;
 
             Ok(match results.len() {
                 0 => ImportMapResult::NoEntry,
