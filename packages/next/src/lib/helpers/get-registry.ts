@@ -42,11 +42,9 @@ export function getRegistry(baseDir: string = process.cwd()) {
     }
 
     try {
-      // x-ref: https://github.com/npm/cli/issues/6099#issuecomment-1847584792
-      const output = runConfigGetRegistry(pkgManager, [
-        '--workspaces=false',
-        '--include-workspace-root',
-      ])
+      // run command under the context of the root project only
+      // x-ref: https://github.com/npm/statusboard/issues/371#issue-920669998
+      const output = runConfigGetRegistry(pkgManager, ['--no-workspaces'])
 
       if (output.startsWith('http')) {
         registry = addTrailingSlash(output)
