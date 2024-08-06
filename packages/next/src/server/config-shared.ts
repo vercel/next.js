@@ -506,6 +506,11 @@ export interface ExperimentalConfig {
   staticGenerationRetryCount?: number
 
   /**
+   * The amount of pages to export per worker during static generation.
+   */
+  staticGenerationMaxConcurrency?: number
+
+  /**
    * Allows previously fetched data to be re-used when editing server components.
    */
   serverComponentsHmrCache?: boolean
@@ -1045,6 +1050,7 @@ export const defaultConfig: NextConfig = {
     after: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
+    staticGenerationMaxConcurrency: 2,
   },
   bundlePagesRouterDependencies: false,
 }

@@ -438,6 +438,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             .optional(),
         ]),
         staticGenerationRetryCount: z.number().int().optional(),
+        staticGenerationMaxConcurrency: z.number().int().optional(),
         typedEnv: z.boolean().optional(),
         serverComponentsHmrCache: z.boolean().optional(),
       })

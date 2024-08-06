@@ -168,19 +168,23 @@ describe('Build Output', () => {
               / \/slow-static\/.+\/.+(?: \(\d+ ms\))?| \[\+\d+ more paths\]/g
             )
 
-            // Check that there are some paths printed
-            expect(matches.length).toBeGreaterThan(0)
-
-            // Check that each match (except the last one) contains a duration
-            // This explicitly doesn't check for specific paths as workers
-            // process paths in a non-deterministic order
-            matches.slice(0, -1).forEach((match) => {
-              expect(match).toMatch(/ \(\d+ ms\)/)
-            })
-
-            // Check that the last match is "[+2 more paths]"
-            const lastMatch = matches[matches.length - 1]
-            expect(lastMatch).toBe(' [+2 more paths]')
+            for (const check of [
+              // summary
+              expect.stringMatching(
+                /\/\[propsDuration\]\/\[renderDuration\] \(\d+ ms\)/
+              ),
+              // ordered by duration, includes duration
+              expect.stringMatching(/\/2000\/10 \(\d+ ms\)$/),
+              expect.stringMatching(/\/10\/1000 \(\d+ ms\)$/),
+              expect.stringMatching(/\/300\/10 \(\d+ ms\)$/),
+              // max of 7 preview paths
+              ' [+2 more paths]',
+            ]) {
+              // the order isn't guaranteed on the timing tests as while() is being
+              // used in the render so can block the thread of other renders sharing
+              // the same worker
+              expect(matches).toContainEqual(check)
+            }
           })
 
           it('should not emit extracted comments', async () => {

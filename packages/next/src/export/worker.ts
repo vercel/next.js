@@ -351,106 +351,124 @@ export async function exportPages(
 
   renderOpts.incrementalCache = incrementalCache
 
-  let maxAttempts = nextConfig.experimental.staticGenerationRetryCount ?? 1
+  const maxConcurrency =
+    nextConfig.experimental.staticGenerationMaxConcurrency ?? 2
+  const results: ExportPagesResult = []
 
-  return Promise.all(
-    paths.map(async (path) => {
-      const pathMap = exportPathMap[path]
+  const exportPageWithRetry = async (path: string, maxAttempts: number) => {
+    const pathMap = exportPathMap[path]
+    const { page } = exportPathMap[path]
+    const pageKey = page !== path ? `${page}: ${path}` : path
+    let attempt = 0
+    let result
 
-      const { page } = exportPathMap[path]
-      const pageKey = page !== path ? `${page}: ${path}` : path
+    while (attempt < maxAttempts) {
+      try {
+        result = await Promise.race<ExportPageResult | undefined>([
+          exportPage({
+            path,
+            pathMap,
+            distDir,
+            outDir,
+            pagesDataDir,
+            renderOpts,
+            ampValidatorPath:
+              nextConfig.experimental.amp?.validator || undefined,
+            trailingSlash: nextConfig.trailingSlash,
+            serverRuntimeConfig: nextConfig.serverRuntimeConfig,
+            subFolders: nextConfig.trailingSlash && !options.buildExport,
+            buildExport: options.buildExport,
+            optimizeFonts: nextConfig.optimizeFonts,
+            optimizeCss: nextConfig.experimental.optimizeCss,
+            disableOptimizedLoading:
+              nextConfig.experimental.disableOptimizedLoading,
+            parentSpanId: input.parentSpanId,
+            httpAgentOptions: nextConfig.httpAgentOptions,
+            debugOutput: options.debugOutput,
+            enableExperimentalReact: needsExperimentalReact(nextConfig),
+          }),
+          // If exporting the page takes longer than the timeout, reject the promise.
+          new Promise((_, reject) => {
+            setTimeout(() => {
+              reject(new TimeoutError())
+            }, nextConfig.staticPageGenerationTimeout * 1000)
+          }),
+        ])
 
-      let result
+        // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,
+        // or immediately fail the build, depending on user configuration. We might also continue on and attempt other pages.
+        if (result && 'error' in result) {
+          throw new ExportError()
+        }
 
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        try {
-          result = await Promise.race<ExportPageResult | undefined>([
-            exportPage({
-              path,
-              pathMap,
-              distDir,
-              outDir,
-              pagesDataDir,
-              renderOpts,
-              ampValidatorPath:
-                nextConfig.experimental.amp?.validator || undefined,
-              trailingSlash: nextConfig.trailingSlash,
-              serverRuntimeConfig: nextConfig.serverRuntimeConfig,
-              subFolders: nextConfig.trailingSlash && !options.buildExport,
-              buildExport: options.buildExport,
-              optimizeFonts: nextConfig.optimizeFonts,
-              optimizeCss: nextConfig.experimental.optimizeCss,
-              disableOptimizedLoading:
-                nextConfig.experimental.disableOptimizedLoading,
-              parentSpanId: input.parentSpanId,
-              httpAgentOptions: nextConfig.httpAgentOptions,
-              debugOutput: options.debugOutput,
-              enableExperimentalReact: needsExperimentalReact(nextConfig),
-            }),
-            // If exporting the page takes longer than the timeout, reject the promise.
-            new Promise((_, reject) => {
-              setTimeout(() => {
-                reject(new TimeoutError())
-              }, nextConfig.staticPageGenerationTimeout * 1000)
-            }),
-          ])
+        // If the export succeeds, break out of the retry loop
+        break
+      } catch (err) {
+        // The only error that should be caught here is an ExportError, as `exportPage` doesn't throw and instead returns an object with an `error` property.
+        // This is an overly cautious check to ensure that we don't accidentally catch an unexpected error.
+        if (!(err instanceof ExportError || err instanceof TimeoutError)) {
+          throw err
+        }
 
-          // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,
-          // or immediately fail the build, depending on user configuration. We might also continue on and attempt other pages.
-          if (result && 'error' in result) {
-            throw new ExportError()
+        if (err instanceof TimeoutError) {
+          // If the export times out, we will restart the worker up to 3 times.
+          maxAttempts = 3
+        }
+
+        // We've reached the maximum number of attempts
+        if (attempt >= maxAttempts - 1) {
+          // Log a message if we've reached the maximum number of attempts.
+          // We only care to do this if maxAttempts was configured.
+          if (maxAttempts > 0) {
+            console.info(
+              `Failed to build ${pageKey} after ${maxAttempts} attempts.`
+            )
           }
-
-          // If the export succeeds, break out of the retry loop
-          break
-        } catch (err) {
-          // The only error that should be caught here is an ExportError, as `exportPage` doesn't throw and instead returns an object with an `error` property.
-          // This is an overly cautious check to ensure that we don't accidentally catch an unexpected error.
-          if (!(err instanceof ExportError || err instanceof TimeoutError)) {
-            throw err
-          }
-
-          if (err instanceof TimeoutError) {
-            // If the export times out, we will restart the worker up to 3 times.
-            maxAttempts = 3
-          }
-
-          // We've reached the maximum number of attempts
-          if (attempt >= maxAttempts - 1) {
-            // Log a message if we've reached the maximum number of attempts.
-            // We only care to do this if maxAttempts was configured.
-            if (maxAttempts > 0) {
-              console.info(
-                `Failed to build ${pageKey} after ${maxAttempts} attempts.`
-              )
-            }
-            // If prerenderEarlyExit is enabled, we'll exit the build immediately.
-            if (nextConfig.experimental.prerenderEarlyExit) {
-              throw new ExportError(
-                `Export encountered an error on ${pageKey}, exiting the build.`
-              )
-            } else {
-              // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
-            }
+          // If prerenderEarlyExit is enabled, we'll exit the build immediately.
+          if (nextConfig.experimental.prerenderEarlyExit) {
+            throw new ExportError(
+              `Export encountered an error on ${pageKey}, exiting the build.`
+            )
           } else {
-            // Otherwise, we have more attempts to make. Wait before retrying
-            if (err instanceof TimeoutError) {
-              console.info(
-                `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}) because it took more than ${nextConfig.staticPageGenerationTimeout} seconds. Retrying again shortly.`
-              )
-            } else {
-              console.info(
-                `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}). Retrying again shortly.`
-              )
-            }
-            await new Promise((r) => setTimeout(r, Math.random() * 500))
+            // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
           }
+        } else {
+          // Otherwise, we have more attempts to make. Wait before retrying
+          if (err instanceof TimeoutError) {
+            console.info(
+              `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}) because it took more than ${nextConfig.staticPageGenerationTimeout} seconds. Retrying again shortly.`
+            )
+          } else {
+            console.info(
+              `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}). Retrying again shortly.`
+            )
+          }
+          await new Promise((r) => setTimeout(r, Math.random() * 500))
         }
       }
 
-      return { result, path, pageKey }
-    })
-  )
+      attempt++
+    }
+
+    return { result, path, pageKey }
+  }
+
+  for (let i = 0; i < paths.length; i += maxConcurrency) {
+    const subset = paths.slice(i, i + maxConcurrency)
+
+    const subsetResults = await Promise.all(
+      subset.map((path) =>
+        exportPageWithRetry(
+          path,
+          nextConfig.experimental.staticGenerationRetryCount ?? 1
+        )
+      )
+    )
+
+    results.push(...subsetResults)
+  }
+
+  return results
 }
 
 async function exportPage(
