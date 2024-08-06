@@ -65,6 +65,7 @@ impl CodeGenerateable for Unreachable {
                         *stmt = Stmt::Block(BlockStmt {
                             span: stmt.span(),
                             stmts: replacement,
+                            ..Default::default()
                         });
                     }),
                 ]

@@ -2628,7 +2628,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
     ) {
         let path = Vc::cell(as_parent_path(ast_path));
         self.analysis.add_code_gen(EsmModuleItem::new(path));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_named_export<'ast: 'r, 'r>(
@@ -2693,7 +2693,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         }
 
         self.analysis.add_code_gen(EsmModuleItem::new(path));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_export_decl<'ast: 'r, 'r>(
@@ -2707,7 +2707,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         });
         self.analysis
             .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_export_default_expr<'ast: 'r, 'r>(
@@ -2721,7 +2721,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         );
         self.analysis
             .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_export_default_decl<'ast: 'r, 'r>(
@@ -2748,7 +2748,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         }
         self.analysis
             .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_import_decl<'ast: 'r, 'r>(
@@ -2758,7 +2758,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
     ) {
         let path = Vc::cell(as_parent_path(ast_path));
         let src = import.src.value.to_string();
-        import.visit_children_with_path(self, ast_path);
+        import.visit_children_with_ast_path(self, ast_path);
         if import.type_only {
             return;
         }
@@ -2821,7 +2821,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
                 }
             }
         }
-        decl.visit_children_with_path(self, ast_path);
+        decl.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_call_expr<'ast: 'r, 'r>(
@@ -2860,7 +2860,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
                 }
             }
         }
-        call.visit_children_with_path(self, ast_path);
+        call.visit_children_with_ast_path(self, ast_path);
     }
 }
 
