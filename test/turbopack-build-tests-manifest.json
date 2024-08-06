@@ -455,6 +455,7 @@
         "app dir - external dependency app route should resolve next/server api from external esm package",
         "app dir - external dependency mixed syntax external modules should handle mixed module in server and client components",
         "app dir - external dependency mixed syntax external modules should handle mixed module with next/dynamic",
+        "app dir - external dependency react in external esm packages should apply serverExternalPackages inside of node_modules",
         "app dir - external dependency react in external esm packages should support namespace import with ESM packages",
         "app dir - external dependency react in external esm packages should use the same react in client app",
         "app dir - external dependency react in external esm packages should use the same react in edge server app",
@@ -836,6 +837,7 @@
         "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
         "app-dir static/dynamic handling should infer a fetchCache of force-no-store when force-dynamic is used",
         "app-dir static/dynamic handling should keep querystring on static page",
+        "app-dir static/dynamic handling should log fetch metrics to the diagnostics directory",
         "app-dir static/dynamic handling should not cache correctly with POST method request init",
         "app-dir static/dynamic handling should not cache non-ok statusCode",
         "app-dir static/dynamic handling should not error with dynamic server usage with force-static",
@@ -898,7 +900,6 @@
       "passed": [
         "app-dir static/dynamic handling Incremental cache limits should load data only at build time even if response data size is greater than 2MB and FetchCache is possible",
         "app-dir static/dynamic handling fetch `cache` should supercede dynamic config when force-dynamic is used",
-        "app-dir static/dynamic handling fetchCache config should supercede dynamic config when force-dynamic is used",
         "app-dir static/dynamic handling force-dynamic should supercede a \"default\" cache value",
         "app-dir static/dynamic handling it should revalidate correctly with edge route handler",
         "app-dir static/dynamic handling it should revalidate correctly with node route handler",
@@ -939,6 +940,7 @@
         "app-dir static/dynamic handling should honor force-static with fetch cache: no-store correctly",
         "app-dir static/dynamic handling should infer a fetchCache of force-no-store when force-dynamic is used",
         "app-dir static/dynamic handling should keep querystring on static page",
+        "app-dir static/dynamic handling should log fetch metrics to the diagnostics directory",
         "app-dir static/dynamic handling should navigate to static path correctly",
         "app-dir static/dynamic handling should not cache correctly with POST method request init",
         "app-dir static/dynamic handling should not cache non-ok statusCode",
@@ -990,6 +992,7 @@
         "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - with suspense boundary"
       ],
       "failed": [
+        "app-dir static/dynamic handling fetchCache config should supercede dynamic config when force-dynamic is used",
         "app-dir static/dynamic handling should output HTML/RSC files for static paths"
       ],
       "pending": [
@@ -2037,7 +2040,19 @@
         "mdx with-mdx-rs pages directory should work in initial html",
         "mdx with-mdx-rs pages directory should work in initial html with mdx import",
         "mdx with-mdx-rs pages directory should work using browser",
-        "mdx with-mdx-rs pages directory should work using browser with mdx import"
+        "mdx with-mdx-rs pages directory should work using browser with mdx import",
+        "mdx without-mdx-rs app directory should allow importing client components",
+        "mdx without-mdx-rs app directory should allow overriding components",
+        "mdx without-mdx-rs app directory should work in initial html",
+        "mdx without-mdx-rs app directory should work in initial html with mdx import",
+        "mdx without-mdx-rs app directory should work using browser",
+        "mdx without-mdx-rs app directory should work using browser with mdx import",
+        "mdx without-mdx-rs app directory should work with next/image",
+        "mdx without-mdx-rs pages directory should allow overriding components",
+        "mdx without-mdx-rs pages directory should work in initial html",
+        "mdx without-mdx-rs pages directory should work in initial html with mdx import",
+        "mdx without-mdx-rs pages directory should work using browser",
+        "mdx without-mdx-rs pages directory should work using browser with mdx import"
       ],
       "failed": [],
       "pending": [],
@@ -2467,11 +2482,42 @@
         "app dir - next/font app dir - next-font preconnect should not preconnect when css is used but no fonts",
         "app dir - next/font app dir - next-font preload should preload correctly with client components",
         "app dir - next/font app dir - next-font preload should preload correctly with layout using fonts",
-        "app dir - next/font app dir - next-font preload should preload correctly with page using fonts"
-      ],
-      "failed": [
+        "app dir - next/font app dir - next-font preload should preload correctly with page using fonts",
         "app dir - next/font app dir - next-font preload should preload correctly with server components"
       ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-form/basepath/next-form-basepath.test.ts": {
+      "passed": [
+        "app dir - form - with basepath should add basePath to `action`",
+        "app dir - form - with basepath should not add basePath to a submitter's formAction"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-form/default/next-form.test.ts": {
+      "passed": [
+        "app dir - form does not navigate if preventDefault is called in onSubmit",
+        "app dir - form does not push a new history entry if `replace` is passed",
+        "app dir - form functions passed to action runs client action",
+        "app dir - form functions passed to action runs server action",
+        "app dir - form functions passed to action runs server action (closure)",
+        "app dir - form functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
+        "app dir - form functions passed to formAction runs server action (closure) from submitter and doesn't warn about unsupported attributes",
+        "app dir - form functions passed to formAction runs server action from submitter and doesn't warn about unsupported attributes",
+        "app dir - form should soft-navigate on submit and show the prefetched loading state",
+        "app dir - form should soft-navigate to the formAction url of the submitter",
+        "app dir - form unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
+        "app dir - form unsupported attributes on submitter should warn if submitter sets \"formMethod\" to an unsupported value and fall back to default submit behavior",
+        "app dir - form unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
+        "app dir - form url-encodes file inputs, but warns about them"
+      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -2767,13 +2813,12 @@
     },
     "test/e2e/app-dir/parallel-routes-catchall/parallel-routes-catchall.test.ts": {
       "passed": [
+        "parallel-routes-catchall should match both the catch-all page & slot",
         "parallel-routes-catchall should match correctly when defining an explicit page & slot",
+        "parallel-routes-catchall should match correctly when defining an explicit page but no slot",
         "parallel-routes-catchall should match correctly when defining an explicit slot but no page"
       ],
-      "failed": [
-        "parallel-routes-catchall should match both the catch-all page & slot",
-        "parallel-routes-catchall should match correctly when defining an explicit page but no slot"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -3067,6 +3112,13 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/ppr-history-replace-state/ppr-history-replace-state.test.ts": {
+      "passed": ["ppr-history-replace-state should not remount component"],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/ppr-incremental/ppr-incremental.test.ts": {
       "passed": [
         "ppr-incremental ppr disabled / should not have the dynamic content hidden /",
@@ -3267,6 +3319,18 @@
     "test/e2e/app-dir/prefetching-not-found/prefetching-not-found.test.ts": {
       "passed": [
         "prefetching-not-found should correctly navigate to/from a global 404 page when following links with prefetch=auto"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/react-max-headers-length/react-max-headers-length.test.ts": {
+      "passed": [
+        "react-max-headers-length reactMaxHeadersLength = 0 should respect reactMaxHeadersLength",
+        "react-max-headers-length reactMaxHeadersLength = 10000 should respect reactMaxHeadersLength",
+        "react-max-headers-length reactMaxHeadersLength = 400 should respect reactMaxHeadersLength",
+        "react-max-headers-length reactMaxHeadersLength = undefined should respect reactMaxHeadersLength"
       ],
       "failed": [],
       "pending": [],
@@ -6940,6 +7004,7 @@
       "passed": [],
       "failed": [],
       "pending": [
+        "app type checking production mode should generate route types correctly and report form errors",
         "app type checking production mode should generate route types correctly and report link error",
         "app type checking production mode should generate route types correctly and report router API errors",
         "app type checking production mode should type check invalid entry exports"
@@ -7410,9 +7475,7 @@
       "runtimeError": false
     },
     "test/integration/create-next-app/examples.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app --example should create if --example value is default",
         "create-next-app --example should create on valid Next.js example name",
         "create-next-app --example should create with GitHub URL",
@@ -7423,84 +7486,86 @@
         "create-next-app --example should not create if --example flag value is invalid",
         "create-next-app --example should use --example-path over the GitHub URL"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/index.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app should not create if the target directory is not empty",
         "create-next-app should not create if the target directory is not writable",
         "create-next-app should not install dependencies if --skip-install"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/bun.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app with package manager bun should use bun for --use-bun flag",
         "create-next-app with package manager bun should use bun for --use-bun flag with example",
         "create-next-app with package manager bun should use bun when user-agent is bun",
         "create-next-app with package manager bun should use bun when user-agent is bun with example"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/npm.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app with package manager npm should use npm for --use-npm flag",
         "create-next-app with package manager npm should use npm for --use-npm flag with example",
         "create-next-app with package manager npm should use npm when user-agent is npm",
         "create-next-app with package manager npm should use npm when user-agent is npm with example"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/pnpm.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag",
         "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag with example",
         "create-next-app with package manager pnpm should use pnpm when user-agent is pnpm",
         "create-next-app with package manager pnpm should use pnpm when user-agent is pnpm with example"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/yarn.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app with package manager yarn should use yarn for --use-yarn flag",
         "create-next-app with package manager yarn should use yarn for --use-yarn flag with example",
         "create-next-app with package manager yarn should use yarn when user-agent is yarn",
         "create-next-app with package manager yarn should use yarn when user-agent is yarn with example"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/prompts.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
+        "create-next-app prompts should not prompt user for choice and use defaults if --yes is defined",
         "create-next-app prompts should prompt user for choice if --import-alias is absent",
         "create-next-app prompts should prompt user for choice if --js or --ts flag is absent",
         "create-next-app prompts should prompt user for choice if --tailwind is absent",
-        "create-next-app prompts should prompt user for choice if directory name is absent"
+        "create-next-app prompts should prompt user for choice if directory name is absent",
+        "create-next-app prompts should prompt user to confirm reset preferences"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/templates/app.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app --app (App Router) should create JavaScript project with --js flag",
         "create-next-app --app (App Router) should create TailwindCSS project with --tailwind flag",
         "create-next-app --app (App Router) should create TypeScript project with --ts flag",
@@ -7509,13 +7574,13 @@
         "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag",
         "create-next-app --app (App Router) should enable turbopack dev with --turbo flag"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/templates/pages.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app --no-app (Pages Router) should create JavaScript project with --js flag",
         "create-next-app --no-app (Pages Router) should create TailwindCSS project with --tailwind flag",
         "create-next-app --no-app (Pages Router) should create TypeScript project with --ts flag",
@@ -7524,15 +7589,17 @@
         "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag",
         "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbo flag"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/critical-css/test/index.test.js": {
       "passed": [
         "CSS optimization for SSR apps production mode should have all CSS files in manifest",
-        "CSS optimization for SSR apps production mode should not inline non-critical css",
         "CSS optimization for SSR apps production mode should inline critical CSS",
-        "CSS optimization for SSR apps production mode should inline critical CSS (dynamic)"
+        "CSS optimization for SSR apps production mode should inline critical CSS (dynamic)",
+        "CSS optimization for SSR apps production mode should not inline non-critical css"
       ],
       "failed": [],
       "pending": [],
@@ -7641,32 +7708,32 @@
     "test/integration/css-modules/test/index.test.js": {
       "passed": [
         "3rd Party CSS Module Support production mode should have compiled successfully",
+        "3rd Party CSS Module Support production mode should've emitted a single CSS file",
+        "3rd Party CSS Module Support production mode should've injected the CSS on server render",
         "Basic CSS Module Support production mode should have compiled successfully",
+        "Basic CSS Module Support production mode should've emitted a single CSS file",
+        "Basic CSS Module Support production mode should've injected the CSS on server render",
         "CSS Module Composes Usage (Basic) production mode should have compiled successfully",
+        "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
         "Can hot reload CSS Module without losing state should update CSS color without remounting <input>",
         "Catch-all Route CSS Module Usage production mode should apply styles correctly",
         "Catch-all Route CSS Module Usage production mode should have compiled successfully",
+        "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
         "Dynamic Route CSS Module Usage production mode should apply styles correctly",
         "Dynamic Route CSS Module Usage production mode should have compiled successfully",
+        "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file",
         "Has CSS Module in computed styles in Development should have CSS for page",
         "Has CSS Module in computed styles in Production production mode should have CSS for page",
         "Has CSS Module in computed styles in Production production mode should have compiled successfully",
         "Valid CSS Module Usage from within node_modules production mode should have compiled successfully",
-        "3rd Party CSS Module Support production mode should've emitted a single CSS file",
-        "3rd Party CSS Module Support production mode should've injected the CSS on server render",
-        "Basic CSS Module Support production mode should've emitted a single CSS file",
-        "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
         "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
-        "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
-        "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file",
-        "Basic CSS Module Support production mode should've injected the CSS on server render",
         "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
       ],
       "failed": [
         "CSS Module Composes Usage (External) production mode should have compiled successfully",
         "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
-        "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
         "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
+        "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
         "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
       ],
       "pending": [
@@ -7678,22 +7745,6 @@
     },
     "test/integration/css/test/basic-global-support.test.js": {
       "passed": [
-        "Basic Global Support production mode useLightnincsss(false) should compile successfully",
-        "Basic Global Support production mode useLightnincsss(true) should compile successfully",
-        "Basic Global Support with special characters in path production mode useLightnincsss(false) should compile successfully",
-        "Basic Global Support with special characters in path production mode useLightnincsss(true) should compile successfully",
-        "Basic Global Support with src/ dir production mode useLightnincsss(false) should compile successfully",
-        "Basic Global Support with src/ dir production mode useLightnincsss(true) should compile successfully",
-        "CSS URL via `file-loader` and asset prefix (1) production mode should compile successfully",
-        "CSS URL via `file-loader` and asset prefix (2) production mode should compile successfully",
-        "CSS URL via `file-loader` production mode useLightnincsss(false) should compile successfully",
-        "CSS URL via `file-loader` production mode useLightnincsss(true) should compile successfully",
-        "Multi Global Support (reversed) production mode useLightnincsss(false) should compile successfully",
-        "Multi Global Support (reversed) production mode useLightnincsss(true) should compile successfully",
-        "Multi Global Support production mode useLightnincsss(false) should compile successfully",
-        "Multi Global Support production mode useLightnincsss(true) should compile successfully",
-        "Nested @import() Global Support production mode useLightnincsss(false) should compile successfully",
-        "Nested @import() Global Support production mode useLightnincsss(true) should compile successfully",
         "Basic Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
         "Basic Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
         "Basic Global Support with special characters in path production mode useLightnincsss(false) should've emitted a single CSS file",
@@ -7733,14 +7784,14 @@
         "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should compile successfully",
         "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have CSS for page",
         "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have compiled successfully",
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should've preloaded the CSS file and injected it in <head>",
         "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have CSS for page",
         "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have compiled successfully",
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should've preloaded the CSS file and injected it in <head>",
         "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have compiled successfully",
         "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have the correct color on mount after navigation",
         "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have compiled successfully",
-        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have the correct color on mount after navigation",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should've preloaded the CSS file and injected it in <head>",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should've preloaded the CSS file and injected it in <head>"
+        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have the correct color on mount after navigation"
       ],
       "failed": [
         "CSS Property Ordering production mode useLightnincsss(false) should have compiled successfully",
@@ -9153,6 +9204,7 @@
         "Next Lint format flag \"compact\" creates a file respecting the chosen format",
         "Next Lint format flag \"json\" creates a file respecting the chosen format",
         "Next Lint format flag supports additional user-defined formats",
+        "Next Lint format flag supports async formatters",
         "Next Lint lint files with cjs and mjs file extension",
         "Next Lint max warnings flag does not error when warnings do not exceed threshold",
         "Next Lint max warnings flag errors when warnings exceed threshold",
@@ -12573,11 +12625,13 @@
         "Invalid hrefs production mode should not have a race condition with a click handler",
         "Invalid hrefs production mode should preload with child ref with React.createRef",
         "Invalid hrefs production mode should preload with child ref with function",
+        "Invalid hrefs production mode should preload with child ref with function that returns a cleanup function",
         "Invalid hrefs production mode should preload with forwardRef"
       ],
       "failed": [],
       "pending": [
         "Invalid hrefs development mode should handle child ref that is a function",
+        "Invalid hrefs development mode should handle child ref that is a function that returns a cleanup function",
         "Invalid hrefs development mode should handle child ref with React.createRef",
         "Invalid hrefs development mode should not have a race condition with a click handler",
         "Invalid hrefs development mode should not show error for class component as child of next/link",
@@ -13120,6 +13174,7 @@
         "Image Component Default Tests production mode should apply filter style after image loads",
         "Image Component Default Tests production mode should apply style inheritance for img elements but not wrapper elements",
         "Image Component Default Tests production mode should be valid HTML",
+        "Image Component Default Tests production mode should call callback ref cleanups when unmounting",
         "Image Component Default Tests production mode should callback native onError even when error before hydration",
         "Image Component Default Tests production mode should callback native onError when error occurred while loading image",
         "Image Component Default Tests production mode should callback native onLoad with sythetic event",
@@ -13163,6 +13218,7 @@
         "Image Component Default Tests development mode should apply filter style after image loads",
         "Image Component Default Tests development mode should apply style inheritance for img elements but not wrapper elements",
         "Image Component Default Tests development mode should be valid HTML",
+        "Image Component Default Tests development mode should call callback ref cleanups when unmounting",
         "Image Component Default Tests development mode should callback native onError even when error before hydration",
         "Image Component Default Tests development mode should callback native onError when error occurred while loading image",
         "Image Component Default Tests development mode should callback native onLoad with sythetic event",
@@ -14153,10 +14209,10 @@
     },
     "test/integration/react-profiling-mode/test/index.test.js": {
       "passed": [
-        "React Profiling Mode production mode without config enabled should not have used the react-dom profiling bundle",
         "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for client component",
         "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for pages",
-        "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for server component"
+        "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for server component",
+        "React Profiling Mode production mode without config enabled should not have used the react-dom profiling bundle"
       ],
       "failed": [],
       "pending": [],
@@ -14797,6 +14853,9 @@
         "config telemetry production mode detects output config for session start",
         "config telemetry production mode detects rewrites, headers, and redirects for next build",
         "config telemetry production mode emits telemetry for `next lint`",
+        "config telemetry production mode emits telemetry for configured React Compiler options",
+        "config telemetry production mode emits telemetry for default React Compiler options",
+        "config telemetry production mode emits telemetry for enabled React Compiler",
         "config telemetry production mode emits telemetry for lint during build",
         "config telemetry production mode emits telemetry for lint during build when '--no-lint' is specified",
         "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
@@ -15704,7 +15763,9 @@
         "deployment-id-handling disabled should not append dpl query to all assets for /from-app",
         "deployment-id-handling disabled should not append dpl query to all assets for /from-app/edge",
         "deployment-id-handling disabled should not append dpl query to all assets for /pages-edge",
+        "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should contain deployment id in RSC payload request headers",
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should have deployment id env available",
+        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should contain deployment id in RSC payload request headers",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should have deployment id env available"
       ],
       "failed": [
@@ -15712,12 +15773,10 @@
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app",
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app/edge",
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should append dpl query to all assets correctly for /pages-edge",
-        "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should contain deployment id in RSC payload request headers",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app/edge",
-        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /pages-edge",
-        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should contain deployment id in RSC payload request headers"
+        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /pages-edge"
       ],
       "pending": [],
       "flakey": [],
@@ -16409,7 +16468,10 @@
       "runtimeError": false
     },
     "test/production/terser-class-static-blocks/terser-class-static-blocks.test.ts": {
-      "passed": ["terser-class-static-blocks should work using cheerio"],
+      "passed": [
+        "terser-class-static-blocks should have stripped away all comments",
+        "terser-class-static-blocks should work using cheerio"
+      ],
       "failed": [],
       "pending": [],
       "flakey": [],
