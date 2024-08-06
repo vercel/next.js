@@ -4,7 +4,7 @@ use allsorts::{
 };
 use anyhow::{bail, Context, Result};
 use turbo_tasks::Vc;
-use turbopack_binding::turbo::tasks_fs::{FileContent, FileSystemPath};
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 
 use super::{
     options::{FontDescriptor, FontDescriptors, FontWeight, NextFontLocalOptions},
@@ -145,8 +145,8 @@ fn calc_average_width(font: &mut Font<DynamicFontTableProvider>) -> Option<f32> 
 /// font file:
 /// - Most of the text will have normal weight, use the one closest to 400
 /// - Most of the text will have normal style, prefer normal over italic
-/// - If two font files have the same distance from normal weight, the thinner
-///   one will most likely be the bulk of the text
+/// - If two font files have the same distance from normal weight, the thinner one will most likely
+///   be the bulk of the text
 fn pick_font_for_fallback_generation(
     font_descriptors: &FontDescriptors,
 ) -> Result<&FontDescriptor> {

@@ -2,8 +2,10 @@ use std::mem::take;
 
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
+use either::Either;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
+use serde_with::serde_as;
 use turbo_tasks::{
     trace::TraceRawVcs, Completion, RcStr, TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
 };
@@ -52,11 +54,20 @@ use crate::{
     AssetsForSourceMapping,
 };
 
+#[serde_as]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+struct BytesBase64 {
+    #[serde_as(as = "serde_with::base64::Base64")]
+    binary: Vec<u8>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[turbo_tasks::value(serialization = "custom")]
 struct WebpackLoadersProcessingResult {
-    source: RcStr,
+    #[serde(with = "either::serde_untagged")]
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    source: Either<RcStr, BytesBase64>,
     map: Option<RcStr>,
     #[turbo_tasks(trace_ignore)]
     assets: Option<Vec<EmittedAsset>>,
@@ -250,7 +261,10 @@ impl WebpackLoadersProcessedAsset {
         } else {
             None
         };
-        let file = File::from(processed.source);
+        let file = match processed.source {
+            Either::Left(str) => File::from(str),
+            Either::Right(bytes) => File::from(bytes.binary),
+        };
         let assets = emitted_assets_to_virtual_sources(processed.assets);
         let content = AssetContent::File(FileContent::Content(file).cell()).cell();
         Ok(ProcessWebpackLoadersResult {

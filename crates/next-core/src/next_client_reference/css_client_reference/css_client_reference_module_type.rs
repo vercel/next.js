@@ -1,16 +1,14 @@
 use anyhow::{bail, Result};
 use turbo_tasks::{Value, Vc};
-use turbopack_binding::turbopack::{
-    core::{
-        module::Module,
-        reference_type::{CssReferenceSubType, ReferenceType},
-        resolve::ModulePart,
-        source::Source,
-    },
-    turbopack::{
-        css::chunk::CssChunkPlaceable, module_options::CustomModuleType, transition::Transition,
-        ModuleAssetContext,
-    },
+use turbopack::{
+    css::chunk::CssChunkPlaceable, module_options::CustomModuleType, transition::Transition,
+    ModuleAssetContext,
+};
+use turbopack_core::{
+    module::Module,
+    reference_type::{CssReferenceSubType, ReferenceType},
+    resolve::ModulePart,
+    source::Source,
 };
 
 use super::css_client_reference_module::CssClientReferenceModule;

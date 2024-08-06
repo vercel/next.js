@@ -82,7 +82,8 @@
       "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts",
       "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts",
       "test/e2e/app-dir/app-client-cache/client-cache.original.test.ts",
-      "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts"
+      "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts",
+      "test/e2e/app-dir/react-max-headers-length/react-max-headers-length.test.ts"
     ]
   }
 }

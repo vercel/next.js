@@ -194,6 +194,7 @@ import {
 } from './flying-shuttle/detect-changed-entries'
 import { storeShuttle } from './flying-shuttle/store-shuttle'
 import { stitchBuilds } from './flying-shuttle/stitch-builds'
+import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -725,9 +726,13 @@ export default async function build(
       )
       NextBuildContext.buildId = buildId
 
+      const { flyingShuttle } = config.experimental
+      const isFullFlyingShuttle = flyingShuttle?.mode === 'full'
+      const isStoreOnlyFlyingShuttle = flyingShuttle?.mode === 'store-only'
+
       const shuttleDir = path.join(distDir, 'cache', 'shuttle')
 
-      if (config.experimental.flyingShuttle) {
+      if (flyingShuttle) {
         await fs.mkdir(shuttleDir, {
           recursive: true,
         })
@@ -864,7 +869,7 @@ export default async function build(
             unchanged: DetectedEntriesResult
           }
 
-      if (pagesPaths && config.experimental.flyingShuttle) {
+      if (pagesPaths && isFullFlyingShuttle) {
         changedPagePathsResult = await detectChangedEntries({
           pagesPaths,
           pageExtensions: config.pageExtensions,
@@ -964,7 +969,7 @@ export default async function build(
             })
           )
 
-        if (appPaths && config.experimental.flyingShuttle) {
+        if (appPaths && isFullFlyingShuttle) {
           changedAppPathsResult = await detectChangedEntries({
             appPaths,
             pageExtensions: config.pageExtensions,
@@ -1197,7 +1202,7 @@ export default async function build(
         )
         const filterPaths: string[] = []
 
-        if (config.experimental.flyingShuttle) {
+        if (flyingShuttle) {
           filterPaths.push(
             ...[
               // client filter always has all app paths
@@ -1262,8 +1267,7 @@ export default async function build(
         buildStage: 'start',
       })
 
-      const outputFileTracingRoot =
-        config.experimental.outputFileTracingRoot || dir
+      const outputFileTracingRoot = config.outputFileTracingRoot || dir
 
       const pagesManifestPath = path.join(
         distDir,
@@ -1387,7 +1391,7 @@ export default async function build(
         const project = await bindings.turbo.createProject(
           {
             projectPath: dir,
-            rootPath: config.experimental.outputFileTracingRoot || dir,
+            rootPath: config.outputFileTracingRoot || dir,
             nextConfig: config,
             jsConfig: await getTurbopackJsConfig(dir, config),
             watch: false,
@@ -1707,7 +1711,7 @@ export default async function build(
                     hasSsrAmpPages: false,
                     buildTraceContext,
                     outputFileTracingRoot,
-                    isFlyingShuttle: !!config.experimental.flyingShuttle,
+                    isFlyingShuttle: Boolean(flyingShuttle),
                   })
                   .catch((err) => {
                     console.error(err)
@@ -1785,6 +1789,26 @@ export default async function build(
       }
 
       const postCompileSpinner = createSpinner('Collecting page data')
+
+      if (config.experimental.flyingShuttle) {
+        // we need to copy the chunks from the shuttle folder
+        // to the distDir (we copy all server split chunks currently)
+        // this has to come before we require any page chunks as webpack
+        // cache could reference previous runtimes/chunks
+        if (await fileExists(path.join(shuttleDir, 'server'))) {
+          await recursiveCopy(
+            path.join(shuttleDir, 'server'),
+            path.join(distDir, 'server'),
+            {
+              filter(item) {
+                // we copy page chunks separately to not copy stale entries
+                return !item.match(/^[/\\](pages|app)[/\\]/)
+              },
+              overwrite: true,
+            }
+          )
+        }
+      }
 
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
       const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
@@ -2390,7 +2414,7 @@ export default async function build(
           hasSsrAmpPages,
           buildTraceContext,
           outputFileTracingRoot,
-          isFlyingShuttle: !!config.experimental.flyingShuttle,
+          isFlyingShuttle: Boolean(flyingShuttle),
         }).catch((err) => {
           console.error(err)
           process.exit(1)
@@ -2497,45 +2521,49 @@ export default async function build(
       )
 
       if (!isGenerateMode) {
-        if (config.experimental.flyingShuttle) {
+        if (flyingShuttle) {
           await buildTracesPromise
 
-          console.log('stitching builds...')
-          const stitchResult = await stitchBuilds(
-            {
-              config,
-              buildId,
-              distDir,
-              shuttleDir,
-              rewrites,
-              redirects,
-              edgePreviewProps: {
-                __NEXT_PREVIEW_MODE_ID:
-                  NextBuildContext.previewProps!.previewModeId,
-                __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
-                  NextBuildContext.previewProps!.previewModeEncryptionKey,
-                __NEXT_PREVIEW_MODE_SIGNING_KEY:
-                  NextBuildContext.previewProps!.previewModeSigningKey,
+          if (isStoreOnlyFlyingShuttle) {
+            console.log('skipping stitching builds due to store-only mode')
+          } else {
+            console.log('stitching builds...')
+            const stitchResult = await stitchBuilds(
+              {
+                config,
+                buildId,
+                distDir,
+                shuttleDir,
+                rewrites,
+                redirects,
+                edgePreviewProps: {
+                  __NEXT_PREVIEW_MODE_ID:
+                    NextBuildContext.previewProps!.previewModeId,
+                  __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
+                    NextBuildContext.previewProps!.previewModeEncryptionKey,
+                  __NEXT_PREVIEW_MODE_SIGNING_KEY:
+                    NextBuildContext.previewProps!.previewModeSigningKey,
+                },
+                encryptionKey,
+                allowedErrorRate:
+                  config.experimental.clientRouterFilterAllowedRate,
               },
-              encryptionKey,
-              allowedErrorRate:
-                config.experimental.clientRouterFilterAllowedRate,
-            },
-            {
-              changed: {
-                pages: changedPagePathsResult?.changed.pages || [],
-                app: changedAppPathsResult?.changed.app || [],
-              },
-              unchanged: {
-                pages: changedPagePathsResult?.unchanged.pages || [],
-                app: changedAppPathsResult?.unchanged.app || [],
-              },
-              pageExtensions: config.pageExtensions,
+              {
+                changed: {
+                  pages: changedPagePathsResult?.changed.pages || [],
+                  app: changedAppPathsResult?.changed.app || [],
+                },
+                unchanged: {
+                  pages: changedPagePathsResult?.unchanged.pages || [],
+                  app: changedAppPathsResult?.unchanged.app || [],
+                },
+                pageExtensions: config.pageExtensions,
+              }
+            )
+            // reload pagesManifest since it's been updated on disk
+            if (stitchResult.pagesManifest) {
+              pagesManifest = stitchResult.pagesManifest
             }
-          )
-          // reload pagesManifest since it's been updated on disk
-          if (stitchResult.pagesManifest) {
-            pagesManifest = stitchResult.pagesManifest
           }
 
           console.log('storing shuttle')
@@ -2544,6 +2572,9 @@ export default async function build(
             distDir,
             shuttleDir,
           })
+
+          console.log('inlining static env')
+          await inlineStaticEnv({ distDir })
         }
       }
 

@@ -1562,6 +1562,9 @@
         null != debugInfo.owner &&
           initializeFakeStack(response, debugInfo.owner));
     }
+    function getCurrentStackInDEV() {
+      return "";
+    }
     function mergeBuffer(buffer, lastChunk) {
       for (
         var l = buffer.length, byteLength = lastChunk.length, i = 0;
@@ -1656,39 +1659,39 @@
           break;
         case 72:
           id = buffer[0];
-          buffer = buffer.slice(1);
-          response = JSON.parse(buffer, response._fromJSON);
-          buffer = ReactDOMSharedInternals.d;
+          var model = buffer.slice(1);
+          response = JSON.parse(model, response._fromJSON);
+          model = ReactDOMSharedInternals.d;
           switch (id) {
             case "D":
-              buffer.D(response);
+              model.D(response);
               break;
             case "C":
               "string" === typeof response
-                ? buffer.C(response)
-                : buffer.C(response[0], response[1]);
+                ? model.C(response)
+                : model.C(response[0], response[1]);
               break;
             case "L":
               id = response[0];
-              tag = response[1];
+              var as = response[1];
               3 === response.length
-                ? buffer.L(id, tag, response[2])
-                : buffer.L(id, tag);
+                ? model.L(id, as, response[2])
+                : model.L(id, as);
               break;
             case "m":
               "string" === typeof response
-                ? buffer.m(response)
-                : buffer.m(response[0], response[1]);
+                ? model.m(response)
+                : model.m(response[0], response[1]);
               break;
             case "X":
               "string" === typeof response
-                ? buffer.X(response)
-                : buffer.X(response[0], response[1]);
+                ? model.X(response)
+                : model.X(response[0], response[1]);
               break;
             case "S":
               "string" === typeof response
-                ? buffer.S(response)
-                : buffer.S(
+                ? model.S(response)
+                : model.S(
                     response[0],
                     0 === response[1] ? void 0 : response[1],
                     3 === response.length ? response[2] : void 0
@@ -1696,103 +1699,113 @@
               break;
             case "M":
               "string" === typeof response
-                ? buffer.M(response)
-                : buffer.M(response[0], response[1]);
+                ? model.M(response)
+                : model.M(response[0], response[1]);
           }
           break;
         case 69:
-          stringDecoder = JSON.parse(buffer);
-          tag = stringDecoder.digest;
-          chunk = stringDecoder.env;
-          buffer = Error(
-            stringDecoder.message ||
+          tag = JSON.parse(buffer);
+          as = tag.digest;
+          buffer = tag.env;
+          model = Error(
+            tag.message ||
               "An error occurred in the Server Components render but no message was provided"
           );
-          stringDecoder = stringDecoder.stack;
-          row = buffer.name + ": " + buffer.message;
-          if (stringDecoder)
-            for (i = 0; i < stringDecoder.length; i++) {
-              var frame = stringDecoder[i],
-                name = frame[0],
-                filename = frame[1],
-                line = frame[2];
+          tag = tag.stack;
+          chunk = model.name + ": " + model.message;
+          if (tag)
+            for (
+              stringDecoder = 0;
+              stringDecoder < tag.length;
+              stringDecoder++
+            ) {
+              var frame = tag[stringDecoder];
+              row = frame[0];
+              i = frame[1];
+              var line = frame[2];
               frame = frame[3];
-              row = name
-                ? row +
+              chunk = row
+                ? chunk +
                   ("\n    at " +
-                    name +
+                    row +
                     " (" +
-                    filename +
+                    i +
                     ":" +
                     line +
                     ":" +
                     frame +
                     ")")
-                : row + ("\n    at " + filename + ":" + line + ":" + frame);
+                : chunk + ("\n    at " + i + ":" + line + ":" + frame);
             }
-          buffer.stack = row;
-          buffer.digest = tag;
-          buffer.environmentName = chunk;
-          tag = response._chunks;
-          (chunk = tag.get(id))
-            ? triggerErrorOnChunk(chunk, buffer)
-            : tag.set(id, new Chunk("rejected", null, buffer, response));
+          model.stack = chunk;
+          model.digest = as;
+          model.environmentName = buffer;
+          as = response._chunks;
+          (buffer = as.get(id))
+            ? triggerErrorOnChunk(buffer, model)
+            : as.set(id, new Chunk("rejected", null, model, response));
           break;
         case 84:
-          tag = response._chunks;
-          (chunk = tag.get(id)) && "pending" !== chunk.status
-            ? chunk.reason.enqueueValue(buffer)
-            : tag.set(id, new Chunk("fulfilled", buffer, null, response));
+          model = response._chunks;
+          (as = model.get(id)) && "pending" !== as.status
+            ? as.reason.enqueueValue(buffer)
+            : model.set(id, new Chunk("fulfilled", buffer, null, response));
           break;
         case 68:
-          buffer = JSON.parse(buffer, response._fromJSON);
-          initializeFakeStack(response, buffer);
+          model = JSON.parse(buffer, response._fromJSON);
+          initializeFakeStack(response, model);
           response = getChunk(response, id);
-          (response._debugInfo || (response._debugInfo = [])).push(buffer);
+          (response._debugInfo || (response._debugInfo = [])).push(model);
           break;
         case 87:
           if (response._replayConsole) {
             buffer = JSON.parse(buffer, response._fromJSON);
             response = buffer[0];
             id = buffer[3];
-            tag = buffer.slice(4);
-            b: {
-              buffer = 0;
-              switch (response) {
-                case "dir":
-                case "dirxml":
-                case "groupEnd":
-                case "table":
-                  response = bind.apply(
-                    console[response],
-                    [console].concat(tag)
-                  );
-                  break b;
-                case "assert":
-                  buffer = 1;
+            buffer = buffer.slice(4);
+            tag = ReactSharedInternals.getCurrentStack;
+            ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
+            try {
+              a: {
+                chunk = 0;
+                switch (response) {
+                  case "dir":
+                  case "dirxml":
+                  case "groupEnd":
+                  case "table":
+                    model = bind.apply(
+                      console[response],
+                      [console].concat(buffer)
+                    );
+                    break a;
+                  case "assert":
+                    chunk = 1;
+                }
+                as = buffer.slice(0);
+                "string" === typeof as[chunk]
+                  ? as.splice(
+                      chunk,
+                      1,
+                      "%c%s%c " + as[chunk],
+                      "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+                      " " + id + " ",
+                      ""
+                    )
+                  : as.splice(
+                      chunk,
+                      0,
+                      "%c%s%c ",
+                      "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+                      " " + id + " ",
+                      ""
+                    );
+                as.unshift(console);
+                model = bind.apply(console[response], as);
               }
-              tag = tag.slice(0);
-              "string" === typeof tag[buffer]
-                ? tag.splice(
-                    buffer,
-                    1,
-                    "%c%s%c " + tag[buffer],
-                    "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-                    " " + id + " ",
-                    ""
-                  )
-                : tag.splice(
-                    buffer,
-                    0,
-                    "%c%s%c ",
-                    "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-                    " " + id + " ",
-                    ""
-                  );
-              tag.unshift(console);
-              response = bind.apply(console[response], tag);
+              model();
+            } finally {
+              ReactSharedInternals.getCurrentStack = tag;
             }
-            response();
           }
           break;
         case 82:
@@ -1813,10 +1826,10 @@
             response.reason.close("" === buffer ? '"$undefined"' : buffer);
           break;
         default:
-          (tag = response._chunks),
-            (chunk = tag.get(id))
-              ? resolveModelChunk(chunk, buffer)
-              : tag.set(
+          (model = response._chunks),
+            (as = model.get(id))
+              ? resolveModelChunk(as, buffer)
+              : model.set(
                   id,
                   new Chunk("resolved_model", buffer, null, response)
                 );
@@ -1996,6 +2009,7 @@
       reader.read().then(progress).catch(error);
     }
     var ReactDOM = require("react-dom"),
+      React = require("react"),
       decoderOptions = { stream: !0 },
       bind = Function.prototype.bind,
       chunkCache = new Map(),
@@ -2024,6 +2038,10 @@
       ObjectPrototype = Object.prototype,
       knownServerReferences = new WeakMap(),
       REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
+    new ("function" === typeof WeakMap ? WeakMap : Map)();
+    var ReactSharedInternals =
+      React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
+      React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
     Chunk.prototype = Object.create(Promise.prototype);
     Chunk.prototype.then = function (resolve, reject) {
       switch (this.status) {

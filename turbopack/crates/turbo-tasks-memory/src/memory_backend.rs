@@ -270,10 +270,8 @@ impl MemoryBackend {
             .get(key)
             // Avoid holding the lock for too long
             .map(|task_ref| *task_ref)
-            .map(|task_id| {
+            .inspect(|&task_id| {
                 self.connect_task_child(parent_task, task_id, turbo_tasks);
-
-                task_id
             })
     }
 

@@ -1,6 +1,5 @@
 #![feature(async_closure)]
 #![feature(min_specialization)]
-#![feature(lint_reasons)]
 #![feature(arbitrary_self_types)]
 #![feature(extract_if)]
 

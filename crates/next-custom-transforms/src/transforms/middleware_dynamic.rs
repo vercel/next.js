@@ -1,5 +1,10 @@
-use swc_core::{ecma::visit::VisitMutWith, quote};
-use turbopack_binding::swc::core::ecma::{ast::*, visit::VisitMut};
+use swc_core::{
+    ecma::{
+        ast::*,
+        visit::{VisitMut, VisitMutWith},
+    },
+    quote,
+};
 
 enum WrappedExpr {
     Eval,
