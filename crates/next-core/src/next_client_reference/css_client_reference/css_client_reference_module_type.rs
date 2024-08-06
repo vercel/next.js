@@ -34,14 +34,14 @@ impl CustomModuleType for CssClientReferenceModuleType {
     async fn create_module(
         &self,
         source: Vc<Box<dyn Source>>,
-        context: Vc<ModuleAssetContext>,
+        module_asset_context: Vc<ModuleAssetContext>,
         _part: Option<Vc<ModulePart>>,
     ) -> Result<Vc<Box<dyn Module>>> {
         let client_module = self
             .client_transition
             .process(
                 source,
-                context,
+                module_asset_context,
                 Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
             )
             .module();

@@ -920,11 +920,11 @@ impl Project {
             .as_ref()
             .map(|app_project| app_project.client_transition_name());
 
-        let context = self.middleware_context();
+        let middleware_asset_context = self.middleware_context();
 
         Ok(MiddlewareEndpoint::new(
             self,
-            context,
+            middleware_asset_context,
             source,
             app_dir,
             ecmascript_client_reference_transition_name,
@@ -1034,7 +1034,7 @@ impl Project {
             .as_ref()
             .map(|app_project| app_project.client_transition_name());
 
-        let context = if is_edge {
+        let instrumentation_asset_context = if is_edge {
             self.edge_instrumentation_context()
         } else {
             self.node_instrumentation_context()
@@ -1042,7 +1042,7 @@ impl Project {
 
         Ok(InstrumentationEndpoint::new(
             self,
-            context,
+            instrumentation_asset_context,
             source,
             is_edge,
             app_dir,
