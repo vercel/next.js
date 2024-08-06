@@ -26,14 +26,19 @@ describe('normalizedAssetPrefix', () => {
     expect(normalizedAssetPrefix('path/to/asset')).toBe('/path/to/asset')
   })
 
-  it('should return a URL without protocol when assetPrefix is a URL', () => {
-    // TODO: this is for comparison, remove this before PR merge
-    expect(normalizedAssetPrefix('https://example.com/path/to/asset')).not.toBe(
-      '/https://example.com/path/to/asset'
-    )
+  it('should remove all trailing slash(es) when assetPrefix has one', () => {
+    expect(normalizedAssetPrefix('/path/to/asset///')).toBe('/path/to/asset')
+  })
 
+  it('should return the URL when assetPrefix is a URL', () => {
     expect(normalizedAssetPrefix('https://example.com/path/to/asset')).toBe(
-      'example.com/path/to/asset'
+      'https://example.com/path/to/asset'
+    )
+  })
+
+  it('should not leave a trailing slash when assetPrefix is a URL with no pathname', () => {
+    expect(normalizedAssetPrefix('https://example.com')).toBe(
+      'https://example.com'
     )
   })
 })
