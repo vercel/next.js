@@ -459,9 +459,9 @@ describe('app dir - metadata', () => {
 
       await checkLink(browser, 'shortcut icon', '/shortcut-icon.png')
       await checkLink(browser, 'icon', [
-        /\/favicon\.ico/,
-        /\/icon\.png/,
-        /https:\/\/example.com\/icon.png/,
+        expect.stringMatching(/favicon\.ico/),
+        '/icon.png',
+        'https://example.com/icon.png',
       ])
       await checkLink(browser, 'apple-touch-icon', [
         '/icon2.png',

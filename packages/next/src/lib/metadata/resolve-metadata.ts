@@ -112,10 +112,10 @@ function mergeStaticMetadata(
 
   if (target.icons) {
     if (icon) {
-      target.icons.icon.unshift(...icon)
+      // target.icons.icon.unshift(...icon)
     }
     if (apple) {
-      target.icons.apple.unshift(...apple)
+      // target.icons.apple.unshift(...apple)
     }
   }
 
