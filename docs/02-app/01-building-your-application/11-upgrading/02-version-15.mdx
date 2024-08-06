@@ -25,7 +25,10 @@ pnpm up next@rc react@rc react-dom@rc eslint-config-next@rc
 bun add next@rc react@rc react-dom@rc eslint-config-next@rc
 ```
 
-> **Good to know:** If you are using TypeScript, ensure you also upgrade `@types/react` and `@types/react-dom` to their latest versions.
+> **Good to know:**
+>
+> - If you see a peer dependencies warning, you may need to update `react` and `react-dom` to the suggested versions, or you use the `--force` or `--legacy-peer-deps` flag to ignore the warning. This won't be necessary once both Next.js 15 and React 19 are stable.
+> - If you are using TypeScript, ensure you also upgrade `@types/react` and `@types/react-dom` to their latest versions.
 
 ## Minimum React version
 
