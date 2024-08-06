@@ -19,7 +19,6 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     utils::StringifyJs,
-    EcmascriptModuleAsset,
 };
 
 use crate::next_app::AppPage;

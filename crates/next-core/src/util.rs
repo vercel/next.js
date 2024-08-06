@@ -23,7 +23,7 @@ use turbopack_ecmascript::{
     analyzer::{JsValue, ObjectPart},
     parse::ParseResult,
     utils::StringifyJs,
-    EcmascriptModuleAsset,
+    Parsable,
 };
 
 use crate::{

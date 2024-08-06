@@ -27,7 +27,7 @@ use turbopack_core::{
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
 };
-use turbopack_ecmascript::{parse::ParseResult, resolve::esm_resolve, EcmascriptModuleAsset};
+use turbopack_ecmascript::{parse::ParseResult, resolve::esm_resolve, Parsable};
 
 async fn collect_chunk_group_inner<F, Fu>(
     dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,

@@ -13,9 +13,21 @@ use turbo_tasks::{
     RcStr, TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    context::AssetContext,
+    module::Module,
+    output::OutputAsset,
+    reference::primary_referenced_modules,
+    reference_type::{
+        EcmaScriptModulesReferenceSubType, ReferenceType, TypeScriptReferenceSubType,
+    },
+    virtual_output::VirtualOutputAsset,
+    virtual_source::VirtualSource,
+};
 use turbopack_ecmascript::{
-    chunk::EcmascriptChunkPlaceable, parse::ParseResult,
-    tree_shake::asset::EcmascriptModulePartAsset, EcmascriptModuleAsset, EcmascriptModuleAssetType,
+    chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptModuleAssetType, Parsable,
 };
 
 /// Scans the RSC entry point's full module graph looking for exported Server
