@@ -84,21 +84,21 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "0.96.9", features = [
+swc_core = { version = "0.100.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "0.36.0" }
+testing = { version = "0.39.0" }
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.16.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "0.2.5"
-modularize_imports = { version = "0.68.7" }
-styled_components = { version = "0.96.6" }
-styled_jsx = { version = "0.73.10" }
-swc_emotion = { version = "0.72.6" }
-swc_relay = { version = "0.44.5" }
+modularize_imports = { version = "0.68.21" }
+styled_components = { version = "0.96.20" }
+styled_jsx = { version = "0.73.29" }
+swc_emotion = { version = "0.72.18" }
+swc_relay = { version = "0.44.22" }
 
 # General Deps
 
