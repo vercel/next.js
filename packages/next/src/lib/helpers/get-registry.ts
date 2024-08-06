@@ -34,11 +34,9 @@ export function getRegistry(baseDir: string = process.cwd()) {
       registry = output.endsWith('/') ? output : `${output}/`
     }
   } catch (err) {
-    if (err instanceof Error) {
-      throw new Error(`Failed to get registry from "${pkgManager}".`, {
-        cause: err,
-      })
-    }
+    throw new Error(`Failed to get registry from "${pkgManager}".`, {
+      cause: err,
+    })
   }
 
   return registry
