@@ -3,34 +3,30 @@ use std::iter::once;
 use anyhow::Result;
 use indexmap::IndexMap;
 use turbo_tasks::{RcStr, Value, Vc};
-use turbo_tasks_fs::FileSystem;
-use turbopack_binding::{
-    turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
-    turbopack::{
-        browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext},
-        core::{
-            chunk::ChunkingContext,
-            compile_time_info::{
-                CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
-                FreeVarReferences,
-            },
-            environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
-            free_var_references,
-            resolve::{parse::Request, pattern::Pattern},
-        },
-        node::{
-            execution_context::ExecutionContext,
-            transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
-        },
-        turbopack::{
-            condition::ContextCondition,
-            module_options::{
-                module_options_context::ModuleOptionsContext, JsxTransformOptions, ModuleRule,
-                TypeofWindow, TypescriptTransformOptions,
-            },
-            resolve_options_context::ResolveOptionsContext,
-        },
+use turbo_tasks_env::EnvMap;
+use turbo_tasks_fs::{FileSystem, FileSystemPath};
+use turbopack::{
+    module_options::{
+        module_options_context::ModuleOptionsContext, CssOptionsContext, EcmascriptOptionsContext,
+        JsxTransformOptions, ModuleRule, TypeofWindow, TypescriptTransformOptions,
     },
+    resolve_options_context::ResolveOptionsContext,
+};
+use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
+use turbopack_core::{
+    chunk::ChunkingContext,
+    compile_time_info::{
+        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
+        FreeVarReferences,
+    },
+    condition::ContextCondition,
+    environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
+    free_var_references,
+    resolve::{parse::Request, pattern::Pattern},
+};
+use turbopack_node::{
+    execution_context::ExecutionContext,
+    transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
 };
 
 use super::transforms::get_next_client_transforms_rules;
@@ -187,10 +183,8 @@ pub async fn get_client_resolve_options_context(
 fn internal_assets_conditions() -> ContextCondition {
     ContextCondition::any(vec![
         ContextCondition::InPath(next_js_fs().root()),
-        ContextCondition::InPath(
-            turbopack_binding::turbopack::ecmascript_runtime::embed_fs().root(),
-        ),
-        ContextCondition::InPath(turbopack_binding::turbopack::node::embed_js::embed_fs().root()),
+        ContextCondition::InPath(turbopack_ecmascript_runtime::embed_fs().root()),
+        ContextCondition::InPath(turbopack_node::embed_js::embed_fs().root()),
     ])
 }
 
@@ -283,7 +277,10 @@ pub async fn get_client_module_options_context(
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
 
     let module_options_context = ModuleOptionsContext {
-        enable_typeof_window_inlining: Some(TypeofWindow::Object),
+        ecmascript: EcmascriptOptionsContext {
+            enable_typeof_window_inlining: Some(TypeofWindow::Object),
+            ..Default::default()
+        },
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: tree_shaking_mode_for_user_code,
@@ -295,10 +292,13 @@ pub async fn get_client_module_options_context(
 
     // node_modules context
     let foreign_codes_options_context = ModuleOptionsContext {
-        enable_typeof_window_inlining: None,
+        ecmascript: EcmascriptOptionsContext {
+            enable_typeof_window_inlining: None,
+            ..module_options_context.ecmascript
+        },
         enable_webpack_loaders: foreign_enable_webpack_loaders,
         enable_postcss_transform: enable_foreign_postcss_transform,
-        custom_rules: foreign_next_client_rules,
+        module_rules: foreign_next_client_rules,
         tree_shaking_mode: tree_shaking_mode_for_foreign_code,
         // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
         ..module_options_context.clone()
@@ -308,11 +308,18 @@ pub async fn get_client_module_options_context(
         // We don't need to resolve React Refresh for each module. Instead,
         // we try resolve it once at the root and pass down a context to all
         // the modules.
-        enable_jsx: Some(jsx_runtime_options),
+        ecmascript: EcmascriptOptionsContext {
+            enable_jsx: Some(jsx_runtime_options),
+            enable_typescript_transform: Some(tsconfig),
+            enable_decorators: Some(decorators_options),
+            ..module_options_context.ecmascript.clone()
+        },
         enable_webpack_loaders,
-        enable_typescript_transform: Some(tsconfig),
         enable_mdx_rs,
-        decorators: Some(decorators_options),
+        css: CssOptionsContext {
+            use_swc_css,
+            ..module_options_context.css
+        },
         rules: vec![
             (
                 foreign_code_context_condition(next_config, project_path).await?,
@@ -321,15 +328,19 @@ pub async fn get_client_module_options_context(
             (
                 internal_assets_conditions(),
                 ModuleOptionsContext {
-                    enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
-                    enable_jsx: Some(JsxTransformOptions::default().cell()),
+                    ecmascript: EcmascriptOptionsContext {
+                        enable_typescript_transform: Some(
+                            TypescriptTransformOptions::default().cell(),
+                        ),
+                        enable_jsx: Some(JsxTransformOptions::default().cell()),
+                        ..module_options_context.ecmascript.clone()
+                    },
                     ..module_options_context.clone()
                 }
                 .cell(),
             ),
         ],
-        custom_rules: next_client_rules,
-        use_swc_css,
+        module_rules: next_client_rules,
         ..module_options_context
     }
     .cell();

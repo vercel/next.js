@@ -1,4 +1,4 @@
-use turbopack_binding::swc::core::ecma::{
+use swc_core::ecma::{
     ast::{Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXElementName, JSXOpeningElement},
     atoms::JsWord,
     visit::Fold,

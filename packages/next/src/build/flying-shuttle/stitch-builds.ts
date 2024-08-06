@@ -78,19 +78,6 @@ export async function stitchBuilds(
     pagesManifest?: PagesManifest
   } = {}
 
-  // we need to copy the chunks from the shuttle folder
-  // to the distDir (we copy all server split chunks currently)
-  await recursiveCopy(
-    path.join(shuttleDir, 'server'),
-    path.join(distDir, 'server'),
-    {
-      filter(item) {
-        // we copy page chunks separately to not copy stale entries
-        return !item.match(/^[/\\](pages|app)[/\\]/)
-      },
-      overwrite: true,
-    }
-  )
   // copy static chunks (this includes stale chunks but won't be loaded)
   // unless referenced
   await recursiveCopy(

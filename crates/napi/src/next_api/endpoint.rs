@@ -8,9 +8,7 @@ use next_api::{
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, ReadRef, Vc};
-use turbopack_binding::turbopack::core::{
-    diagnostics::PlainDiagnostic, error::PrettyPrintError, issue::PlainIssue,
-};
+use turbopack_core::{diagnostics::PlainDiagnostic, error::PrettyPrintError, issue::PlainIssue};
 
 use super::utils::{
     get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,

@@ -1,17 +1,13 @@
 use anyhow::Result;
 use indexmap::indexmap;
 use turbo_tasks::{RcStr, Value, ValueToString, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::{
-        core::{
-            context::AssetContext,
-            module::Module,
-            reference_type::{EntryReferenceSubType, ReferenceType},
-            source::Source,
-        },
-        turbopack::ModuleAssetContext,
-    },
+use turbo_tasks_fs::FileSystemPath;
+use turbopack::ModuleAssetContext;
+use turbopack_core::{
+    context::AssetContext,
+    module::Module,
+    reference_type::{EntryReferenceSubType, ReferenceType},
+    source::Source,
 };
 
 use crate::{
@@ -26,8 +22,8 @@ use crate::{
 /// Computes the entry for a Next.js app route.
 /// # Arguments
 ///
-/// * `original_segment_config` - A next segment config to be specified
-///   explicitly for the given source.
+/// * `original_segment_config` - A next segment config to be specified explicitly for the given
+///   source.
 /// For some cases `source` may not be the original but the handler (dynamic
 /// metadata) which will lose segment config.
 #[turbo_tasks::function]

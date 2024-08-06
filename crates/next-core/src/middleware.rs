@@ -2,9 +2,7 @@ use anyhow::Result;
 use indexmap::indexmap;
 use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::core::{
-    context::AssetContext, module::Module, reference_type::ReferenceType,
-};
+use turbopack_core::{context::AssetContext, module::Module, reference_type::ReferenceType};
 
 use crate::util::load_next_js_template;
 

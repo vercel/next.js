@@ -1,18 +1,16 @@
 use anyhow::{bail, Result};
 use turbo_tasks::{RcStr, Value, Vc};
-use turbopack_binding::turbopack::{
-    core::{
-        context::ProcessResult,
-        file_source::FileSource,
-        reference_type::{EntryReferenceSubType, ReferenceType},
-        source::Source,
-    },
-    ecmascript::chunk::EcmascriptChunkPlaceable,
-    turbopack::{
-        transition::{ContextTransition, Transition},
-        ModuleAssetContext,
-    },
+use turbopack::{
+    transition::{ContextTransition, Transition},
+    ModuleAssetContext,
 };
+use turbopack_core::{
+    context::ProcessResult,
+    file_source::FileSource,
+    reference_type::{EntryReferenceSubType, ReferenceType},
+    source::Source,
+};
+use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use super::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule;
 

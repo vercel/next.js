@@ -7,14 +7,12 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, Completion, RcStr, State, TryFlatJoinIterExt,
     TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
-use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::core::{
-        asset::Asset,
-        output::{OutputAsset, OutputAssets},
-        source_map::{GenerateSourceMap, OptionSourceMap},
-        version::VersionedContent,
-    },
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::{
+    asset::Asset,
+    output::{OutputAsset, OutputAssets},
+    source_map::{GenerateSourceMap, OptionSourceMap},
+    version::VersionedContent,
 };
 
 /// An unresolved output assets operation. We need to pass an operation here as
