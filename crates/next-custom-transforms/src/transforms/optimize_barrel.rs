@@ -279,7 +279,6 @@ impl Fold for OptimizeBarrel {
                     decl: Decl::Var(Box::new(VarDecl {
                         span: DUMMY_SP,
                         kind: VarDeclKind::Const,
-                        declare: false,
                         decls: vec![VarDeclarator {
                             span: DUMMY_SP,
                             name: Pat::Ident(BindingIdent {
@@ -293,6 +292,7 @@ impl Fold for OptimizeBarrel {
                             })))),
                             definite: false,
                         }],
+                        ..Default::default()
                     })),
                 })));
             }

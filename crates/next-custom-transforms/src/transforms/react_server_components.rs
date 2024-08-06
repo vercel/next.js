@@ -165,7 +165,7 @@ impl<C: Comments> ReactServerComponents<C> {
                         }))),
                         definite: false,
                     }],
-                    declare: false,
+                    ..Default::default()
                 })))),
                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
@@ -173,7 +173,7 @@ impl<C: Comments> ReactServerComponents<C> {
                         span: DUMMY_SP,
                         left: MemberExpr {
                             span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(quote_ident!("module"))),
+                            obj: Box::new(Expr::Ident(quote_ident!("module").into())),
                             prop: MemberProp::Ident(quote_ident!("exports")),
                         }
                         .into(),
@@ -182,7 +182,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("createProxy").as_callee(),
                             args: vec![filepath.as_arg()],
-                            type_args: Default::default(),
+                            ..Default::default()
                         })),
                     })),
                 })),
