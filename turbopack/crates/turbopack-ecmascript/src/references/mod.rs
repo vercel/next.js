@@ -653,7 +653,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
             }
 
-            program.visit_with_path(&mut visitor, &mut Default::default());
+            program.visit_with_ast_path(&mut visitor, &mut Default::default());
 
             (
                 visitor.webpack_runtime,

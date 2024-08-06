@@ -161,7 +161,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("require").as_callee(),
                             args: vec![quote_str!("private-next-rsc-mod-ref-proxy").as_arg()],
-                            type_args: Default::default(),
+                            ..Default::default()
                         }))),
                         definite: false,
                     }],

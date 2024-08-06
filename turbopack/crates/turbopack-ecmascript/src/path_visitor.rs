@@ -4,7 +4,7 @@ use swc_core::{
     common::pass::AstKindPath,
     ecma::{
         ast::*,
-        visit::{AstParentKind, VisitMut, VisitMutAstPath, VisitMutWith, VisitMutWithPath},
+        visit::{AstParentKind, VisitMut, VisitMutAstPath, VisitMutWith, VisitMutWithAstPath},
     },
 };
 
@@ -80,7 +80,7 @@ impl<'a, 'b> ApplyVisitors<'a, 'b> {
     fn visit_if_required<N>(&mut self, n: &mut N, ast_path: &mut AstKindPath<AstParentKind>)
     where
         N: for<'aa> VisitMutWith<dyn VisitMut + Send + Sync + 'aa>
-            + for<'aa, 'bb> VisitMutWithPath<ApplyVisitors<'aa, 'bb>>,
+            + for<'aa, 'bb> VisitMutWithAstPath<ApplyVisitors<'aa, 'bb>>,
     {
         let mut index = self.index;
         let mut current_visitors = self.visitors.as_ref();
@@ -168,7 +168,7 @@ mod tests {
             codegen::{text_writer::JsWriter, Emitter},
             parser::parse_file_as_module,
             transforms::base::resolver,
-            visit::{fields::*, AstParentKind, VisitMut, VisitMutWith, VisitMutWithPath},
+            visit::{fields::*, AstParentKind, VisitMut, VisitMutWith, VisitMutWithAstPath},
         },
         testing::run_test,
     };
@@ -263,7 +263,7 @@ mod tests {
                 let bar_replacer = replacer("bar", "bar-success");
 
                 let mut m = m.clone();
-                m.visit_mut_with_path(
+                m.visit_mut_with_ast_path(
                     &mut ApplyVisitors::new(vec![(&path, &bar_replacer)]),
                     &mut Default::default(),
                 );
@@ -288,7 +288,7 @@ mod tests {
                 let bar_replacer = replacer("bar", "bar-success");
 
                 let mut m = m.clone();
-                m.visit_mut_with_path(
+                m.visit_mut_with_ast_path(
                     &mut ApplyVisitors::new(vec![(&wrong_path, &bar_replacer)]),
                     &mut Default::default(),
                 );
