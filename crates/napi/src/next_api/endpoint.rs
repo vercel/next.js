@@ -109,8 +109,8 @@ async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     let issues = get_issues(source).await?;
     let diagnostics = get_diagnostics(source).await?;
 
-    let result = if issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
-        result.ok()
+    let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
+        None
     } else {
         Some(result?)
     };
