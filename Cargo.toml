@@ -84,7 +84,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "0.100.0", features = [
+swc_core = { version = "0.100.1", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
@@ -97,7 +97,7 @@ mdxjs = "0.2.5"
 modularize_imports = { version = "0.68.21" }
 styled_components = { version = "0.96.20" }
 styled_jsx = { version = "0.73.29" }
-swc_emotion = { version = "0.72.18" }
+swc_emotion = { version = "0.72.19" }
 swc_relay = { version = "0.44.22" }
 
 # General Deps
