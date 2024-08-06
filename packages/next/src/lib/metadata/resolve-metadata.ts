@@ -98,24 +98,27 @@ function mergeStaticMetadata(
   target: ResolvedMetadata,
   staticFilesMetadata: StaticMetadata,
   metadataContext: MetadataContext,
-  titleTemplates: TitleTemplates
+  titleTemplates: TitleTemplates,
+  isLastSegment: boolean
 ) {
   if (!staticFilesMetadata) return
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
-  // file based metadata is specified and current level metadata icons is not specified
-  if ((icon || apple) && !target.icons) {
-    target.icons = {
-      icon: icon || [],
-      apple: apple || [],
-    }
-  }
 
-  if (target.icons) {
-    if (icon) {
-      // target.icons.icon.unshift(...icon)
-    }
-    if (apple) {
-      // target.icons.apple.unshift(...apple)
+  // Only pick up the static metadata if the current level is the last segment
+  if (isLastSegment) {
+    // file based metadata is specified and current level metadata icons is not specified
+    if (target.icons) {
+      if (icon) {
+        target.icons.icon.unshift(...icon)
+      }
+      if (apple) {
+        target.icons.apple.unshift(...apple)
+      }
+    } else if (icon || apple) {
+      target.icons = {
+        icon: icon || [],
+        apple: apple || [],
+      }
     }
   }
 
@@ -155,6 +158,7 @@ function mergeMetadata({
   titleTemplates,
   metadataContext,
   buildState,
+  isLastSegment,
 }: {
   source: Metadata | null
   target: ResolvedMetadata
@@ -162,6 +166,7 @@ function mergeMetadata({
   titleTemplates: TitleTemplates
   metadataContext: MetadataContext
   buildState: BuildState
+  isLastSegment: boolean
 }): void {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
@@ -284,7 +289,8 @@ function mergeMetadata({
     target,
     staticFilesMetadata,
     metadataContext,
-    titleTemplates
+    titleTemplates,
+    isLastSegment
   )
 }
 
@@ -794,6 +800,7 @@ export async function accumulateMetadata(
       staticFilesMetadata,
       titleTemplates,
       buildState,
+      isLastSegment: i === metadataItems.length - 1,
     })
 
     // If the layout is the same layer with page, skip the leaf layout and leaf page
