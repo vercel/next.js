@@ -16,7 +16,8 @@ export default function Page() {
       <Link href="/dashboard">Dashboard</Link>
       <p id="react-version">{React.version}</p>
       <Button>Click me!</Button>
-      <p id="my-env">{process.env.NEXT_PUBLIC_TEST_ID}</p>
+      <span id="my-env">{process.env.NEXT_PUBLIC_TEST_ID}</span>
+      <span id="my-other-env">{`${process.env.NEXT_PUBLIC_TEST_ID}-suffix`}</span>
     </>
   )
 }
