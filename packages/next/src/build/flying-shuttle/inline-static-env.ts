@@ -30,21 +30,24 @@ export async function inlineStaticEnv({ distDir }: { distDir: string }) {
         await inlineSema.acquire()
         const filepath = path.join(parentDir, file)
         const content = await fs.promises.readFile(filepath, 'utf8')
-        // TODO: should we support process.env['NEXT_PUBLIC_KEY'] format?
+
         await fs.promises.writeFile(
           filepath,
-          content.replace(/['"`]?[\w]{1,}\.env\.[\w]{1,}['"`]?/g, (match) => {
-            const matchParts = match.split('.')
-            let normalizedMatch = `process.env.${matchParts[2].replace(
-              // remove ending quote if present
-              /['"`]$/,
-              ''
-            )}`
-            if (staticEnv[normalizedMatch]) {
-              return JSON.stringify(staticEnv[normalizedMatch])
-            }
-            return match
-          })
+          content
+            // if a NEXT_PUBLIC_ reference is present but the value isn't
+            // provided in the env it won't be replaced so we normalize
+            // it to globalThis to avoid minify/mangling for future inlining
+            .replace(/[\w]{1,}\.env\.NEXT_PUBLIC_[\w]{1,}/g, (match) => {
+              return `globalThis.${match.split('.').pop()}`
+            })
+            .replace(/globalThis\.[\w]{1,}/g, (match) => {
+              let normalizedMatch = `process.env.${match.substring('globalThis.'.length)}`
+
+              if (staticEnv[normalizedMatch]) {
+                return JSON.stringify(staticEnv[normalizedMatch])
+              }
+              return match
+            })
         )
         inlineSema.release()
       })
