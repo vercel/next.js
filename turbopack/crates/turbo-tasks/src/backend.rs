@@ -320,6 +320,14 @@ impl PersistentTaskType {
             } => format!("{}::{}", registry::get_trait(*trait_id).name, fn_name).into(),
         }
     }
+
+    pub fn try_get_function_id(&self) -> Option<FunctionId> {
+        match self {
+            PersistentTaskType::Native { fn_type, .. }
+            | PersistentTaskType::ResolveNative { fn_type, .. } => Some(*fn_type),
+            PersistentTaskType::ResolveTrait { .. } => None,
+        }
+    }
 }
 
 pub struct TaskExecutionSpec<'a> {
@@ -570,6 +578,10 @@ pub trait Backend: Sync + Send {
         parent_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
+
+    /// For persistent tasks with associated [`NativeFunction`][turbo_tasks::NativeFunction]s,
+    /// return the [`FunctionId`].
+    fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId>;
 
     fn connect_task(
         &self,
