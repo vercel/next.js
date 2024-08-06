@@ -40,14 +40,14 @@ use swc_core::{
         comments::{CommentKind, Comments},
         errors::{DiagnosticId, Handler, HANDLER},
         pass::AstNodePath,
-        source_map::Pos,
+        source_map::SmallPos,
         Globals, Span, Spanned, GLOBALS,
     },
     ecma::{
         ast::*,
         visit::{
             fields::{AssignExprField, AssignTargetField, SimpleAssignTargetField},
-            AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithPath,
+            AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithAstPath,
         },
     },
 };
