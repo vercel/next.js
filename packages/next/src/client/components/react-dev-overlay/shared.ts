@@ -19,8 +19,10 @@ export interface OverlayState {
   rootLayoutMissingTags: typeof window.__next_root_layout_missing_tags
   versionInfo: VersionInfo
   notFound: boolean
+  staticIndicator: boolean
 }
 
+export const ACTION_STATIC_INDICATOR = 'static-indicator'
 export const ACTION_BUILD_OK = 'build-ok'
 export const ACTION_BUILD_ERROR = 'build-error'
 export const ACTION_BEFORE_REFRESH = 'before-fast-refresh'
@@ -28,6 +30,11 @@ export const ACTION_REFRESH = 'fast-refresh'
 export const ACTION_VERSION_INFO = 'version-info'
 export const ACTION_UNHANDLED_ERROR = 'unhandled-error'
 export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
+
+interface StaticIndicatorAction {
+  type: typeof ACTION_STATIC_INDICATOR
+  staticIndicator: boolean
+}
 
 interface BuildOkAction {
   type: typeof ACTION_BUILD_OK
@@ -69,6 +76,7 @@ export type BusEvent =
   | UnhandledErrorAction
   | UnhandledRejectionAction
   | VersionInfoAction
+  | StaticIndicatorAction
 
 function pushErrorFilterDuplicates(
   errors: SupportedErrorEvent[],
@@ -88,6 +96,7 @@ export const INITIAL_OVERLAY_STATE: OverlayState = {
   buildError: null,
   errors: [],
   notFound: false,
+  staticIndicator: false,
   refreshState: { type: 'idle' },
   rootLayoutMissingTags: [],
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
@@ -96,6 +105,9 @@ export const INITIAL_OVERLAY_STATE: OverlayState = {
 export function useErrorOverlayReducer() {
   return useReducer((_state: OverlayState, action: BusEvent): OverlayState => {
     switch (action.type) {
+      case ACTION_STATIC_INDICATOR: {
+        return { ..._state, staticIndicator: action.staticIndicator }
+      }
       case ACTION_BUILD_OK: {
         return { ..._state, buildError: null }
       }

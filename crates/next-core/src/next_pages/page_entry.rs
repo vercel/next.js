@@ -3,26 +3,18 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indexmap::indexmap;
 use serde::Serialize;
-use turbo_tasks::{RcStr, Vc};
-use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::{
-    turbo::{
-        tasks::Value,
-        tasks_fs::{rope::RopeBuilder, File},
-    },
-    turbopack::{
-        core::{
-            asset::{Asset, AssetContent},
-            context::AssetContext,
-            file_source::FileSource,
-            module::Module,
-            reference_type::{EntryReferenceSubType, ReferenceType},
-            source::Source,
-            virtual_source::VirtualSource,
-        },
-        ecmascript::utils::StringifyJs,
-    },
+use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    context::AssetContext,
+    file_source::FileSource,
+    module::Module,
+    reference_type::{EntryReferenceSubType, ReferenceType},
+    source::Source,
+    virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::utils::StringifyJs;
 
 use crate::{
     next_config::NextConfig,
@@ -188,7 +180,7 @@ async fn process_global_item(
 
 #[turbo_tasks::function]
 async fn wrap_edge_page(
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
     page: RcStr,
@@ -245,12 +237,12 @@ async fn wrap_edge_page(
 
     let inner_assets = indexmap! {
         INNER.into() => entry,
-        INNER_DOCUMENT.into() => process_global_item(pages_structure.document(), reference_type.clone(), context),
-        INNER_APP.into() => process_global_item(pages_structure.app(), reference_type.clone(), context),
-        INNER_ERROR.into() => process_global_item(pages_structure.error(), reference_type.clone(), context),
+        INNER_DOCUMENT.into() => process_global_item(pages_structure.document(), reference_type.clone(), asset_context),
+        INNER_APP.into() => process_global_item(pages_structure.app(), reference_type.clone(), asset_context),
+        INNER_ERROR.into() => process_global_item(pages_structure.error(), reference_type.clone(), asset_context),
     };
 
-    let wrapped = context
+    let wrapped = asset_context
         .process(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
@@ -258,7 +250,7 @@ async fn wrap_edge_page(
         .module();
 
     Ok(wrap_edge_entry(
-        context,
+        asset_context,
         project_root,
         wrapped,
         pathname.clone(),

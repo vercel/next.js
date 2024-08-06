@@ -3,21 +3,17 @@ use std::io::Write;
 use anyhow::Result;
 use indexmap::indexmap;
 use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
-    turbopack::{
-        core::{
-            asset::{Asset, AssetContent},
-            context::AssetContext,
-            module::Module,
-            reference_type::ReferenceType,
-            source::Source,
-            virtual_source::VirtualSource,
-        },
-        ecmascript::utils::StringifyJs,
-        turbopack::ModuleAssetContext,
-    },
+use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
+use turbopack::ModuleAssetContext;
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    context::AssetContext,
+    module::Module,
+    reference_type::ReferenceType,
+    source::Source,
+    virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::utils::StringifyJs;
 
 use super::app_entry::AppEntry;
 use crate::{
@@ -43,7 +39,7 @@ pub async fn get_app_page_entry(
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_loader_tree(loader_tree);
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
-    let context = if is_edge {
+    let module_asset_context = if is_edge {
         edge_context
     } else {
         nodejs_context
@@ -52,9 +48,13 @@ pub async fn get_app_page_entry(
     let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
 
     let base_path = next_config.await?.base_path.clone();
-    let loader_tree =
-        LoaderTreeModule::build(loader_tree, context, server_component_transition, base_path)
-            .await?;
+    let loader_tree = LoaderTreeModule::build(
+        loader_tree,
+        module_asset_context,
+        server_component_transition,
+        base_path,
+    )
+    .await?;
 
     let LoaderTreeModule {
         inner_assets,
@@ -111,7 +111,7 @@ pub async fn get_app_page_entry(
         AssetContent::file(file.into()),
     );
 
-    let mut rsc_entry = context
+    let mut rsc_entry = module_asset_context
         .process(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
@@ -120,7 +120,7 @@ pub async fn get_app_page_entry(
 
     if is_edge {
         rsc_entry = wrap_edge_page(
-            Vc::upcast(context),
+            Vc::upcast(module_asset_context),
             project_root,
             rsc_entry,
             page,
@@ -139,7 +139,7 @@ pub async fn get_app_page_entry(
 
 #[turbo_tasks::function]
 async fn wrap_edge_page(
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
     page: AppPage,
@@ -189,7 +189,7 @@ async fn wrap_edge_page(
         INNER.into() => entry
     };
 
-    let wrapped = context
+    let wrapped = asset_context
         .process(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
@@ -197,7 +197,7 @@ async fn wrap_edge_page(
         .module();
 
     Ok(wrap_edge_entry(
-        context,
+        asset_context,
         project_root,
         wrapped,
         AppPath::from(page).to_string().into(),

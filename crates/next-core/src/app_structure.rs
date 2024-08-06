@@ -14,11 +14,9 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, RcStr, TaskInput,
     TryJoinIterExt, ValueToString, Vc,
 };
-use turbopack_binding::{
-    turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath},
-    turbopack::core::issue::{
-        Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
-    },
+use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
+use turbopack_core::issue::{
+    Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
 };
 
 use crate::{
@@ -325,7 +323,8 @@ async fn get_directory_tree_internal(
     let mut metadata_twitter = Vec::new();
 
     for (basename, entry) in entries {
-        match *entry {
+        let entry = entry.resolve_symlink().await?;
+        match entry {
             DirectoryEntry::File(file) => {
                 let file = file.resolve().await?;
                 // Do not process .d.ts files as routes

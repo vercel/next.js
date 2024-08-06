@@ -5,35 +5,30 @@ use futures::FutureExt;
 use indexmap::IndexMap;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::{
-    turbo::{
-        tasks::{Completion, Value},
-        tasks_bytes::stream::SingleValue,
-        tasks_env::{CommandLineProcessEnv, ProcessEnv},
-        tasks_fetch::{fetch, HttpResponseBody},
-        tasks_fs::{
-            json::parse_json_with_source_context, DiskFileSystem, File, FileContent, FileSystem,
-            FileSystemPath,
-        },
+use turbo_tasks::{Completion, RcStr, Value, Vc};
+use turbo_tasks_bytes::stream::SingleValue;
+use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
+use turbo_tasks_fetch::{fetch, HttpResponseBody};
+use turbo_tasks_fs::{
+    json::parse_json_with_source_context, DiskFileSystem, File, FileContent, FileSystem,
+    FileSystemPath,
+};
+use turbopack::evaluate_context::node_evaluate_asset_context;
+use turbopack_core::{
+    asset::AssetContent,
+    context::AssetContext,
+    ident::AssetIdent,
+    issue::{IssueExt, IssueSeverity},
+    reference_type::{InnerAssets, ReferenceType},
+    resolve::{
+        options::{ImportMapResult, ImportMapping, ImportMappingReplacement},
+        parse::Request,
+        ResolveResult,
     },
-    turbopack::{
-        core::{
-            asset::AssetContent,
-            context::AssetContext,
-            ident::AssetIdent,
-            issue::{IssueExt, IssueSeverity},
-            reference_type::{InnerAssets, ReferenceType},
-            resolve::{
-                options::{ImportMapResult, ImportMapping, ImportMappingReplacement},
-                parse::Request,
-                ResolveResult,
-            },
-            virtual_source::VirtualSource,
-        },
-        node::{debug::should_debug, evaluate::evaluate, execution_context::ExecutionContext},
-        turbopack::evaluate_context::node_evaluate_asset_context,
-    },
+    virtual_source::VirtualSource,
+};
+use turbopack_node::{
+    debug::should_debug, evaluate::evaluate, execution_context::ExecutionContext,
 };
 
 use self::{
@@ -489,7 +484,7 @@ async fn get_stylesheet_url_from_options(
     let mut css_url: Option<String> = None;
     #[cfg(debug_assertions)]
     {
-        use turbopack_binding::turbo::tasks_env::{CommandLineProcessEnv, ProcessEnv};
+        use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 
         let env = CommandLineProcessEnv::new();
         if let Some(url) = &*env.read("TURBOPACK_TEST_ONLY_MOCK_SERVER".into()).await? {
@@ -655,9 +650,10 @@ async fn get_mock_stylesheet(
         project_path: _,
         chunking_context,
     } = *execution_context.await?;
-    let context = node_evaluate_asset_context(execution_context, None, None, "next_font".into());
+    let asset_context =
+        node_evaluate_asset_context(execution_context, None, None, "next_font".into());
     let loader_path = mock_fs.root().join("loader.js".into());
-    let mocked_response_asset = context
+    let mocked_response_asset = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
                 loader_path,
@@ -683,7 +679,7 @@ async fn get_mock_stylesheet(
         root,
         env,
         AssetIdent::from_path(loader_path),
-        context,
+        asset_context,
         chunking_context,
         None,
         vec![],

@@ -1,8 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use indexmap::{indexset, IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::turbo::tasks::{trace::TraceRawVcs, Value};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, Value, Vc};
 
 use super::request::{NextFontRequest, OneOrManyStrings};
 
@@ -196,7 +195,7 @@ mod tests {
     use anyhow::Result;
     use indexmap::IndexMap;
     use turbo_tasks::RcStr;
-    use turbopack_binding::turbo::tasks_fs::json::parse_json_with_source_context;
+    use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{options_from_request, FontDataEntry, NextFontGoogleOptions};
     use crate::next_font::google::{options::FontWeights, request::NextFontRequest};

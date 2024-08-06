@@ -785,7 +785,7 @@ export default class DevServer extends Server {
       []
     )
       .then((res) => {
-        const { paths: staticPaths = [], fallback } = res.value
+        const { prerenderedRoutes: staticPaths = [], fallback } = res.value
         if (!isAppPath && this.nextConfig.output === 'export') {
           if (fallback === 'blocking') {
             throw new Error(
@@ -801,7 +801,7 @@ export default class DevServer extends Server {
           staticPaths: string[]
           fallbackMode: FallbackMode
         } = {
-          staticPaths,
+          staticPaths: staticPaths.map((route) => route.path),
           fallbackMode:
             fallback === 'blocking'
               ? 'blocking'

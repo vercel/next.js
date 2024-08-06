@@ -350,7 +350,7 @@ async function generateDynamicRSCPayload(
   if (!options?.skipFlight) {
     const preloadCallbacks: PreloadCallbacks = []
 
-    const [MetadataTree, MetadataOutlet] = createMetadataComponents({
+    const [MetadataTree, getMetadataReady] = createMetadataComponents({
       tree: loaderTree,
       query,
       metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
@@ -379,7 +379,7 @@ async function generateDynamicRSCPayload(
         injectedFontPreloadTags: new Set(),
         rootLayoutIncluded: false,
         asNotFound: ctx.isNotFoundPath || options?.asNotFound,
-        metadataOutlet: <MetadataOutlet />,
+        getMetadataReady,
         preloadCallbacks,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
@@ -486,7 +486,7 @@ async function getRSCPayload(
     query
   )
 
-  const [MetadataTree, MetadataOutlet] = createMetadataComponents({
+  const [MetadataTree, getMetadataReady] = createMetadataComponents({
     tree,
     errorType: asNotFound ? 'not-found' : undefined,
     query,
@@ -509,7 +509,7 @@ async function getRSCPayload(
     injectedFontPreloadTags,
     rootLayoutIncluded: false,
     asNotFound: asNotFound,
-    metadataOutlet: <MetadataOutlet />,
+    getMetadataReady,
     missingSlots,
     preloadCallbacks,
   })
@@ -1106,7 +1106,7 @@ async function renderToHTMLOrFlightImpl(
         streamOptions: {
           onError: htmlRendererErrorHandler,
           onHeaders,
-          maxHeadersLength: 600,
+          maxHeadersLength: renderOpts.reactMaxHeadersLength,
           nonce,
           // When debugging the static shell, client-side rendering should be
           // disabled to prevent blanking out the page.

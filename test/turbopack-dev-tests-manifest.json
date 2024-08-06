@@ -2827,7 +2827,7 @@
     "passed": ["app dir HMR should not cause error when removing loading.js"],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": ["app dir HMR should not cause error when removing loading.js"],
     "runtimeError": false
   },
   "test/e2e/app-dir/app-config-crossorigin/index.test.ts": {

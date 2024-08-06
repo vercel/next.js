@@ -205,7 +205,7 @@ export async function collectBuildTraces({
   }
 
   const { outputFileTracingIncludes = {}, outputFileTracingExcludes = {} } =
-    config.experimental
+    config
   const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
   const includeGlobKeys = Object.keys(outputFileTracingIncludes)
 
@@ -319,7 +319,6 @@ export async function collectBuildTraces({
 
         ...(isStandalone ? [] : TRACE_IGNORES),
         ...additionalIgnores,
-        ...(config.experimental.outputFileTracingIgnores || []),
       ]
 
       const sharedIgnoresFn = makeIgnoreFn(sharedIgnores)
