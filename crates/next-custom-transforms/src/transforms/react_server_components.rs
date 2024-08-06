@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf, rc::Rc};
+use std::{collections::HashMap, path::PathBuf, rc::Rc, sync::Arc};
 
 use regex::Regex;
 use serde::Deserialize;
@@ -860,7 +860,7 @@ pub fn server_components_assert(
 /// Runs react server component transform for the module proxy, as well as
 /// running assertion.
 pub fn server_components<C: Comments>(
-    filename: FileName,
+    filename: Arc<FileName>,
     config: Config,
     comments: C,
     app_dir: Option<PathBuf>,
@@ -872,7 +872,7 @@ pub fn server_components<C: Comments>(
     as_folder(ReactServerComponents {
         is_react_server_layer,
         comments,
-        filepath: match filename {
+        filepath: match &*filename {
             FileName::Custom(path) => format!("<{path}>"),
             _ => filename.to_string(),
         },

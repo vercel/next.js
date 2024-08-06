@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use pathdiff::diff_paths;
 use swc_core::{
@@ -27,7 +30,7 @@ pub fn next_dynamic(
     is_react_server_layer: bool,
     prefer_esm: bool,
     mode: NextDynamicMode,
-    filename: FileName,
+    filename: Arc<FileName>,
     pages_or_app_dir: Option<PathBuf>,
 ) -> impl Fold {
     NextDynamicPatcher {
@@ -81,7 +84,7 @@ struct NextDynamicPatcher {
     is_react_server_layer: bool,
     prefer_esm: bool,
     pages_or_app_dir: Option<PathBuf>,
-    filename: FileName,
+    filename: Arc<FileName>,
     dynamic_bindings: Vec<Id>,
     is_next_dynamic_first_arg: bool,
     dynamically_imported_specifier: Option<(String, Span)>,
