@@ -35,7 +35,7 @@ export type Manifest = {
   id?: string
   lang?: string
   launch_handler?: {
-    client_mode?: ClientModeEnum | ClientModeEnum[]
+    client_mode: ClientModeEnum | ClientModeEnum[]
   }
   name?: string
   orientation?:
@@ -79,20 +79,13 @@ export type Manifest = {
     type?: string
     sizes?: string
   }[]
-  serviceworker?: {
-    src?: string
-    scope?: string
-    type?: string
-    update_via_cache?: 'import' | 'none' | 'all'
-  }
   share_target?: {
-    action?: string
-    method?: 'get' | 'post'
+    action: string
+    method?: 'get' | 'post' | 'GET' | 'POST'
     enctype?:
       | 'application/x-www-form-urlencoded'
       | 'multipart/form-data'
-      | 'text/plain'
-    params?: {
+    params: {
       title?: string
       text?: string
       url?: string
