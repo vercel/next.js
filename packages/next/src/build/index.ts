@@ -1790,7 +1790,7 @@ export default async function build(
 
       const postCompileSpinner = createSpinner('Collecting page data')
 
-      if (config.experimental.flyingShuttle) {
+      if (isFullFlyingShuttle) {
         // we need to copy the chunks from the shuttle folder
         // to the distDir (we copy all server split chunks currently)
         // this has to come before we require any page chunks as webpack
