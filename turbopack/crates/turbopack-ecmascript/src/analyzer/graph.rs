@@ -1155,7 +1155,7 @@ impl VisitAstPath for Analyzer<'_> {
                                 Some(right)
                             }
                             AssignOp::AddAssign => {
-                                let left = self.eval_context.eval(&Expr::Ident(key.clone()));
+                                let left = self.eval_context.eval(&Expr::Ident(key.clone().into()));
 
                                 let right = self.eval_context.eval(&n.right);
 

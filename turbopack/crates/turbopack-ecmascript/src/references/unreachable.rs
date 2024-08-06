@@ -140,6 +140,7 @@ impl<'a> VisitMut for ExtractDeclarations<'a> {
             kind,
             declare,
             decls,
+            ctxt,
         } = decl;
         if self.in_nested_block_scope && !matches!(kind, VarDeclKind::Var) {
             return;
@@ -168,6 +169,7 @@ impl<'a> VisitMut for ExtractDeclarations<'a> {
             span: *span,
             kind: *kind,
             declare: *declare,
+            ctxt: *ctxt,
             decls,
         }))));
     }
