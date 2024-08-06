@@ -33,7 +33,13 @@ export function getRegistry(baseDir: string = process.cwd()) {
     if (output.startsWith('http')) {
       registry = output.endsWith('/') ? output : `${output}/`
     }
-  } finally {
-    return registry
+  } catch (err) {
+    if (err instanceof Error) {
+      throw new Error(
+        `Failed to get registry from "${pkgManager}".\n\n${err.message}`
+      )
+    }
   }
+
+  return registry
 }
