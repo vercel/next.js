@@ -1,5 +1,5 @@
 use std::{
-    net::{TcpListener, TcpStream},
+    net::{SocketAddr, SocketAddrV4, TcpListener, TcpStream},
     sync::{Arc, Mutex},
     thread::spawn,
 };
@@ -115,8 +115,12 @@ struct ConnectionState {
     last_update_generation: usize,
 }
 
-pub fn serve(store: Arc<StoreContainer>) {
-    let server = TcpListener::bind("127.0.0.1:5747").unwrap();
+pub fn serve(store: Arc<StoreContainer>, port: u16) {
+    let server = TcpListener::bind(SocketAddr::V4(SocketAddrV4::new(
+        std::net::Ipv4Addr::new(127, 0, 0, 1),
+        port,
+    )))
+    .unwrap();
     for stream in server.incoming() {
         let store = store.clone();
 

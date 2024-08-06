@@ -28,7 +28,7 @@ impl Display for OutputContent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             OutputContent::Empty => write!(f, "empty"),
-            OutputContent::Link(raw_vc) => write!(f, "link {}", raw_vc),
+            OutputContent::Link(raw_vc) => write!(f, "link {:?}", raw_vc),
             OutputContent::Error(err) => write!(f, "error {}", err),
             OutputContent::Panic(Some(message)) => write!(f, "panic {}", message),
             OutputContent::Panic(None) => write!(f, "panic"),

@@ -41,7 +41,7 @@ struct SerializableTaskCell(Option<Option<TypedSharedReference>>);
 impl From<SerializableTaskCell> for TaskCell {
     fn from(val: SerializableTaskCell) -> Self {
         match val.0 {
-            Some(d) => TaskCell::Content(CellContent(d.map(|d| d.untyped().1))),
+            Some(d) => TaskCell::Content(d.map(TypedSharedReference::into_untyped).into()),
             None => TaskCell::NeedComputation,
         }
     }
@@ -56,7 +56,7 @@ impl Serialize for TaskCells {
         for (cell_id, cell) in &self.0 {
             let task_cell = SerializableTaskCell(match cell {
                 TaskCell::Content(CellContent(opt)) => {
-                    Some(opt.as_ref().map(|d| d.typed(cell_id.type_id)))
+                    Some(opt.clone().map(|d| d.into_typed(cell_id.type_id)))
                 }
                 TaskCell::NeedComputation => None,
             });

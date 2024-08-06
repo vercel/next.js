@@ -3,10 +3,8 @@ use std::mem::take;
 use anyhow::{bail, Result};
 use serde_json::Value as JsonValue;
 use turbo_tasks::Vc;
-use turbopack_binding::turbopack::{
-    node::transforms::webpack::WebpackLoaderItem,
-    turbopack::module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules},
-};
+use turbopack::module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules};
+use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 #[turbo_tasks::function]
 pub async fn maybe_add_sass_loader(

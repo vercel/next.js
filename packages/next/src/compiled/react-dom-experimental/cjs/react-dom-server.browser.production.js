@@ -5493,24 +5493,6 @@ function erroredReplay(
     errorInfo
   );
 }
-function erroredTask(request, boundary, error, errorInfo) {
-  "object" === typeof error &&
-  null !== error &&
-  error.$$typeof === REACT_POSTPONE_TYPE
-    ? (logPostpone(request, error.message, errorInfo), (errorInfo = "POSTPONE"))
-    : (errorInfo = logRecoverableError(request, error, errorInfo));
-  null === boundary
-    ? fatalError(request, error)
-    : (boundary.pendingTasks--,
-      4 !== boundary.status &&
-        ((boundary.status = 4),
-        (boundary.errorDigest = errorInfo),
-        untrackBoundary(request, boundary),
-        boundary.parentFlushed &&
-          request.clientRenderedBoundaries.push(boundary)));
-  request.allPendingTasks--;
-  0 === request.allPendingTasks && completeAll(request);
-}
 function abortTaskSoft(task) {
   var boundary = task.blockedBoundary;
   task = task.blockedSegment;
@@ -5568,34 +5550,38 @@ function abortTask(task, request, error) {
   }
   if (null === boundary) {
     if (((boundary = {}), 2 !== request.status && 3 !== request.status)) {
-      task = task.replay;
-      if (null === task) {
+      var replay = task.replay;
+      if (null === replay) {
         "object" === typeof error &&
         null !== error &&
         error.$$typeof === REACT_POSTPONE_TYPE
-          ? ((task = Error(formatProdErrorMessage(501, error.message))),
-            logRecoverableError(request, task, boundary),
-            fatalError(request, task))
+          ? ((replay = request.trackedPostpones),
+            null !== replay && null !== segment
+              ? (logPostpone(request, error.message, boundary),
+                trackPostpone(request, replay, task, segment),
+                finishedTask(request, null, segment))
+              : ((task = Error(formatProdErrorMessage(501, error.message))),
+                logRecoverableError(request, task, boundary),
+                fatalError(request, task)))
           : (logRecoverableError(request, error, boundary),
             fatalError(request, error));
         return;
       }
-      task.pendingTasks--;
-      0 === task.pendingTasks &&
-        0 < task.nodes.length &&
+      replay.pendingTasks--;
+      0 === replay.pendingTasks &&
+        0 < replay.nodes.length &&
         ("object" === typeof error &&
         null !== error &&
         error.$$typeof === REACT_POSTPONE_TYPE
-          ? (logPostpone(request, error.message, boundary),
-            (boundary = "POSTPONE"))
-          : (boundary = logRecoverableError(request, error, boundary)),
+          ? (logPostpone(request, error.message, boundary), (task = "POSTPONE"))
+          : (task = logRecoverableError(request, error, boundary)),
         abortRemainingReplayNodes(
           request,
           null,
-          task.nodes,
-          task.slots,
+          replay.nodes,
+          replay.slots,
           error,
-          boundary
+          task
         ));
       request.pendingRootTasks--;
       0 === request.pendingRootTasks && completeShell(request);
@@ -5745,37 +5731,38 @@ function finishedTask(request, boundary, segment) {
   request.allPendingTasks--;
   0 === request.allPendingTasks && completeAll(request);
 }
-function performWork(request$jscomp$0) {
-  if (3 !== request$jscomp$0.status && 2 !== request$jscomp$0.status) {
+function performWork(request$jscomp$1) {
+  if (3 !== request$jscomp$1.status && 2 !== request$jscomp$1.status) {
     var prevContext = currentActiveSnapshot,
       prevDispatcher = ReactSharedInternals.H;
     ReactSharedInternals.H = HooksDispatcher;
     var prevAsyncDispatcher = ReactSharedInternals.A;
     ReactSharedInternals.A = DefaultAsyncDispatcher;
     var prevRequest = currentRequest;
-    currentRequest = request$jscomp$0;
+    currentRequest = request$jscomp$1;
     var prevResumableState = currentResumableState;
-    currentResumableState = request$jscomp$0.resumableState;
+    currentResumableState = request$jscomp$1.resumableState;
     try {
-      var pingedTasks = request$jscomp$0.pingedTasks,
+      var pingedTasks = request$jscomp$1.pingedTasks,
         i;
       for (i = 0; i < pingedTasks.length; i++) {
         var task = pingedTasks[i],
-          request = request$jscomp$0,
+          request = request$jscomp$1,
           segment = task.blockedSegment;
         if (null === segment) {
+          var request$jscomp$0 = request;
           if (0 !== task.replay.pendingTasks) {
             switchContext(task.context);
             try {
               "number" === typeof task.replay.slots
                 ? resumeNode(
-                    request,
+                    request$jscomp$0,
                     task,
                     task.replay.slots,
                     task.node,
                     task.childIndex
                   )
-                : retryNode(request, task);
+                : retryNode(request$jscomp$0, task);
               if (
                 1 === task.replay.pendingTasks &&
                 0 < task.replay.nodes.length
@@ -5783,7 +5770,7 @@ function performWork(request$jscomp$0) {
                 throw Error(formatProdErrorMessage(488));
               task.replay.pendingTasks--;
               task.abortSet.delete(task);
-              finishedTask(request, task.blockedBoundary, null);
+              finishedTask(request$jscomp$0, task.blockedBoundary, null);
             } catch (thrownValue) {
               resetHooksState();
               var x =
@@ -5803,23 +5790,26 @@ function performWork(request$jscomp$0) {
                 task.abortSet.delete(task);
                 var errorInfo = getThrownInfo(task.componentStack);
                 erroredReplay(
-                  request,
+                  request$jscomp$0,
                   task.blockedBoundary,
-                  x === AbortSigil ? request.fatalError : x,
+                  x === AbortSigil ? request$jscomp$0.fatalError : x,
                   errorInfo,
                   task.replay.nodes,
                   task.replay.slots
                 );
-                request.pendingRootTasks--;
-                0 === request.pendingRootTasks && completeShell(request);
-                request.allPendingTasks--;
-                0 === request.allPendingTasks && completeAll(request);
+                request$jscomp$0.pendingRootTasks--;
+                0 === request$jscomp$0.pendingRootTasks &&
+                  completeShell(request$jscomp$0);
+                request$jscomp$0.allPendingTasks--;
+                0 === request$jscomp$0.allPendingTasks &&
+                  completeAll(request$jscomp$0);
               }
             } finally {
             }
           }
         } else
           a: {
+            request$jscomp$0 = void 0;
             var segment$jscomp$0 = segment;
             if (0 === segment$jscomp$0.status) {
               segment$jscomp$0.status = 6;
@@ -5841,7 +5831,9 @@ function performWork(request$jscomp$0) {
                 var x$jscomp$0 =
                   thrownValue === SuspenseException
                     ? getSuspendedThenable()
-                    : thrownValue;
+                    : thrownValue === AbortSigil
+                      ? request.fatalError
+                      : thrownValue;
                 if ("object" === typeof x$jscomp$0 && null !== x$jscomp$0) {
                   if ("function" === typeof x$jscomp$0.then) {
                     segment$jscomp$0.status = 0;
@@ -5874,32 +5866,44 @@ function performWork(request$jscomp$0) {
                 }
                 var errorInfo$jscomp$0 = getThrownInfo(task.componentStack);
                 task.abortSet.delete(task);
-                x$jscomp$0 === AbortSigil
-                  ? ((segment$jscomp$0.status = 3),
-                    erroredTask(
+                segment$jscomp$0.status = 4;
+                var boundary = task.blockedBoundary;
+                "object" === typeof x$jscomp$0 &&
+                null !== x$jscomp$0 &&
+                x$jscomp$0.$$typeof === REACT_POSTPONE_TYPE
+                  ? (logPostpone(
                       request,
-                      task.blockedBoundary,
-                      request.fatalError,
+                      x$jscomp$0.message,
                       errorInfo$jscomp$0
-                    ))
-                  : ((segment$jscomp$0.status = 4),
-                    erroredTask(
+                    ),
+                    (request$jscomp$0 = "POSTPONE"))
+                  : (request$jscomp$0 = logRecoverableError(
                       request,
-                      task.blockedBoundary,
                       x$jscomp$0,
                       errorInfo$jscomp$0
                     ));
+                null === boundary
+                  ? fatalError(request, x$jscomp$0)
+                  : (boundary.pendingTasks--,
+                    4 !== boundary.status &&
+                      ((boundary.status = 4),
+                      (boundary.errorDigest = request$jscomp$0),
+                      untrackBoundary(request, boundary),
+                      boundary.parentFlushed &&
+                        request.clientRenderedBoundaries.push(boundary)));
+                request.allPendingTasks--;
+                0 === request.allPendingTasks && completeAll(request);
               } finally {
               }
             }
           }
       }
       pingedTasks.splice(0, i);
-      null !== request$jscomp$0.destination &&
-        flushCompletedQueues(request$jscomp$0, request$jscomp$0.destination);
+      null !== request$jscomp$1.destination &&
+        flushCompletedQueues(request$jscomp$1, request$jscomp$1.destination);
     } catch (error) {
-      logRecoverableError(request$jscomp$0, error, {}),
-        fatalError(request$jscomp$0, error);
+      logRecoverableError(request$jscomp$1, error, {}),
+        fatalError(request$jscomp$1, error);
     } finally {
       (currentResumableState = prevResumableState),
         (ReactSharedInternals.H = prevDispatcher),
@@ -6464,12 +6468,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.0.0-experimental-3208e73e-20240730" !== isomorphicReactPackageVersion)
+  if ("19.0.0-experimental-06d0b89e-20240801" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.0.0-experimental-3208e73e-20240730"
+        "19.0.0-experimental-06d0b89e-20240801"
       )
     );
 }
@@ -6674,4 +6678,4 @@ exports.resume = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.0.0-experimental-3208e73e-20240730";
+exports.version = "19.0.0-experimental-06d0b89e-20240801";
