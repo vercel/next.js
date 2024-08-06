@@ -23,15 +23,14 @@ mod viewer;
 fn main() {
     let args: HashSet<String> = std::env::args().skip(1).collect();
 
-    let arg = args
-        .iter()
-        .next()
-        .expect("missing argument: trace file path");
+    let mut iter = args.iter();
+    let arg = iter.next().expect("missing argument: trace file path");
+    let port = iter.next().map_or(5747, |s| s.parse().unwrap());
 
     let store = Arc::new(StoreContainer::new());
     let reader = TraceReader::spawn(store.clone(), arg.into());
 
-    serve(store);
+    serve(store, port);
 
     reader.join().unwrap();
 }

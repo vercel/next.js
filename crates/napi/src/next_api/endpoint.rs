@@ -8,7 +8,7 @@ use next_api::{
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, ReadRef, Vc, VcValueType};
-use turbopack_binding::turbopack::core::{
+use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
     issue::{IssueSeverity, PlainIssue},

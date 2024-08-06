@@ -2,22 +2,20 @@ use anyhow::{bail, Result};
 use indoc::formatdoc;
 use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    core::{
-        asset::{Asset, AssetContent},
-        chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
-        ident::AssetIdent,
-        module::Module,
-        reference::ModuleReferences,
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
+    ident::AssetIdent,
+    module::Module,
+    reference::ModuleReferences,
+};
+use turbopack_ecmascript::{
+    chunk::{
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, EcmascriptExports,
     },
-    ecmascript::{chunk::EcmascriptChunkType, references::esm::EsmExports},
-    turbopack::ecmascript::{
-        chunk::{
-            EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-            EcmascriptExports,
-        },
-        utils::StringifyJs,
-    },
+    references::esm::EsmExports,
+    utils::StringifyJs,
 };
 
 use super::server_component_reference::NextServerComponentModuleReference;
@@ -75,7 +73,7 @@ impl ChunkableModule for NextServerComponentModule {
     async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>>> {
+    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         Ok(Vc::upcast(
             BuildServerComponentChunkItem {
                 chunking_context,

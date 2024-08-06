@@ -3,26 +3,18 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indexmap::indexmap;
 use serde::Serialize;
-use turbo_tasks::{RcStr, Vc};
-use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::{
-    turbo::{
-        tasks::Value,
-        tasks_fs::{rope::RopeBuilder, File},
-    },
-    turbopack::{
-        core::{
-            asset::{Asset, AssetContent},
-            context::AssetContext,
-            file_source::FileSource,
-            module::Module,
-            reference_type::{EntryReferenceSubType, ReferenceType},
-            source::Source,
-            virtual_source::VirtualSource,
-        },
-        ecmascript::utils::StringifyJs,
-    },
+use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    context::AssetContext,
+    file_source::FileSource,
+    module::Module,
+    reference_type::{EntryReferenceSubType, ReferenceType},
+    source::Source,
+    virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::utils::StringifyJs;
 
 use crate::{
     next_config::NextConfig,

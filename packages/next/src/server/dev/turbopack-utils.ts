@@ -246,7 +246,9 @@ export function processIssues(
 
     if (issue.severity !== 'warning') {
       relevantIssues.add(formatted)
-      if (logErrors && isWellKnownError(issue)) {
+
+      // if we throw the issue it will most likely get handed and logged elsewhere
+      if (logErrors && !throwIssue && isWellKnownError(issue)) {
         Log.error(formatted)
       }
     }
