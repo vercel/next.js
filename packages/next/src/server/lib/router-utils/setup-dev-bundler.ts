@@ -89,7 +89,6 @@ import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
-import { NEXT_PATCH_SYMBOL } from '../patch-fetch'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -105,6 +104,7 @@ export type SetupOpts = {
   nextConfig: NextConfigComplete
   port: number
   onCleanup: (listener: () => Promise<void>) => void
+  resetFetch: () => void
 }
 
 export type ServerFields = {
@@ -154,7 +154,7 @@ export async function propagateServerField(
 }
 
 async function startWatcher(opts: SetupOpts) {
-  const { nextConfig, appDir, pagesDir, dir } = opts
+  const { nextConfig, appDir, pagesDir, dir, resetFetch } = opts
   const { useFileSystemPublicRoutes } = nextConfig
   const usingTypeScript = await verifyTypeScript(opts)
 
@@ -183,13 +183,6 @@ async function startWatcher(opts: SetupOpts) {
     logging: nextConfig.logging !== false,
   })
 
-  const originalFetch = global.fetch
-  const resetFetch = () => {
-    global.fetch = originalFetch
-    // @ts-ignore
-    global[NEXT_PATCH_SYMBOL] = false
-  }
-
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
     ? await createHotReloaderTurbopack(opts, serverFields, distDir, resetFetch)
     : new HotReloaderWebpack(opts.dir, {
@@ -202,7 +195,7 @@ async function startWatcher(opts: SetupOpts) {
         telemetry: opts.telemetry,
         rewrites: opts.fsChecker.rewrites,
         previewProps: opts.fsChecker.prerenderManifest.preview,
-        resetFetch: resetFetch,
+        resetFetch,
       })
 
   await hotReloader.start()
