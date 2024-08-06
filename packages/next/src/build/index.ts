@@ -1202,7 +1202,7 @@ export default async function build(
         )
         const filterPaths: string[] = []
 
-        if (flyingShuttle) {
+        if (isFullFlyingShuttle) {
           filterPaths.push(
             ...[
               // client filter always has all app paths
