@@ -4,6 +4,7 @@ const {
   booleanArg,
   exec,
   execAsyncWithOutput,
+  glob,
   packageFiles,
 } = require('./pack-util.cjs')
 const fs = require('fs')
@@ -17,8 +18,6 @@ const NEXT_PACKAGES = `${CWD}/packages`
 const noBuild = booleanArg(args, '--no-build')
 
 ;(async () => {
-  const { globby } = await import('globby')
-
   // the debuginfo on macos is much smaller, so we don't typically need to strip
   const DEFAULT_PACK_NEXT_COMPRESS =
     process.platform === 'darwin' ? 'none' : 'strip'
@@ -47,7 +46,10 @@ const noBuild = booleanArg(args, '--no-build')
   const NEXT_BA_TARBALL = `${TARBALLS}/next-bundle-analyzer.tar`
 
   async function nextSwcBinaries() {
-    return await globby([`${NEXT_PACKAGES}/next-swc/native/*.node`])
+    return await glob('next-swc/native/*.node', {
+      cwd: NEXT_PACKAGES,
+      absolute: true,
+    })
   }
 
   // We use neither:
