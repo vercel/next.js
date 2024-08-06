@@ -47,7 +47,7 @@ export type TwitterAppDescriptor = {
   name?: string
 }
 
-export type TwitterImage = string | TwitterImageDescriptor | URL
+type TwitterImage = string | TwitterImageDescriptor | URL
 type TwitterImageDescriptor = {
   url: string | URL
   alt?: string
