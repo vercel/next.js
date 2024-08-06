@@ -3,23 +3,19 @@ use std::collections::{BTreeMap, HashMap};
 use anyhow::{Context, Result};
 use indexmap::{indexmap, IndexMap};
 use turbo_tasks::{RcStr, Value, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{FileSystem, FileSystemPath},
-    turbopack::{
-        core::{
-            reference_type::{CommonJsReferenceSubType, ReferenceType},
-            resolve::{
-                node::node_cjs_resolve_options,
-                options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
-                parse::Request,
-                pattern::Pattern,
-                resolve, AliasPattern, ExternalType, ResolveAliasMap, SubpathValue,
-            },
-            source::Source,
-        },
-        node::execution_context::ExecutionContext,
+use turbo_tasks_fs::{FileSystem, FileSystemPath};
+use turbopack_core::{
+    reference_type::{CommonJsReferenceSubType, ReferenceType},
+    resolve::{
+        node::node_cjs_resolve_options,
+        options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
+        parse::Request,
+        pattern::Pattern,
+        resolve, AliasPattern, ExternalType, ResolveAliasMap, SubpathValue,
     },
+    source::Source,
 };
+use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
     embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
@@ -806,17 +802,15 @@ async fn insert_next_shared_aliases(
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
-    if next_config.mdx_rs().await?.is_some() {
-        insert_alias_to_alternatives(
-            import_map,
-            mdx_import_source_file(),
-            vec![
-                request_to_import_mapping(project_path, "./mdx-components"),
-                request_to_import_mapping(project_path, "./src/mdx-components"),
-                request_to_import_mapping(project_path, "@mdx-js/react"),
-            ],
-        );
-    }
+    insert_alias_to_alternatives(
+        import_map,
+        mdx_import_source_file(),
+        vec![
+            request_to_import_mapping(project_path, "./mdx-components"),
+            request_to_import_mapping(project_path, "./src/mdx-components"),
+            request_to_import_mapping(project_path, "@mdx-js/react"),
+        ],
+    );
 
     insert_package_alias(
         import_map,
@@ -912,7 +906,7 @@ async fn insert_next_shared_aliases(
     insert_package_alias(
         import_map,
         "@vercel/turbopack-node/",
-        turbopack_binding::turbopack::node::embed_js::embed_fs().root(),
+        turbopack_node::embed_js::embed_fs().root(),
     );
 
     let image_config = next_config.image_config().await?;
@@ -1044,7 +1038,7 @@ fn insert_turbopack_dev_alias(import_map: &mut ImportMap) {
     insert_package_alias(
         import_map,
         "@vercel/turbopack-ecmascript-runtime/",
-        turbopack_binding::turbopack::ecmascript_runtime::embed_fs().root(),
+        turbopack_ecmascript_runtime::embed_fs().root(),
     );
 }
 

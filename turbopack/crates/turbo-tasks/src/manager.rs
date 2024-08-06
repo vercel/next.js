@@ -30,11 +30,12 @@ use crate::{
     },
     capture_future::{self, CaptureFuture},
     event::{Event, EventListener},
-    id::{BackendJobId, FunctionId, TraitTypeId},
-    id_factory::IdFactoryWithReuse,
+    id::{BackendJobId, ExecutionId, FunctionId, LocalCellId, TraitTypeId},
+    id_factory::{IdFactory, IdFactoryWithReuse},
     magic_any::MagicAny,
     raw_vc::{CellId, RawVc},
     registry,
+    task::shared_reference::TypedSharedReference,
     trace::TraceRawVcs,
     trait_helpers::get_trait_method,
     util::StaticOrArc,
@@ -243,6 +244,7 @@ pub struct TurboTasks<B: Backend + 'static> {
     this: Weak<Self>,
     backend: B,
     task_id_factory: IdFactoryWithReuse<TaskId>,
+    execution_id_factory: IdFactory<ExecutionId>,
     stopped: AtomicBool,
     currently_scheduled_tasks: AtomicUsize,
     currently_scheduled_foreground_jobs: AtomicUsize,
@@ -257,7 +259,6 @@ pub struct TurboTasks<B: Backend + 'static> {
     program_start: Instant,
 }
 
-#[derive(Default)]
 struct CurrentTaskState {
     /// Affected tasks, that are tracked during task execution. These tasks will
     /// be invalidated when the execution finishes or before reading a cell
@@ -266,6 +267,26 @@ struct CurrentTaskState {
 
     /// True if the current task has state in cells
     stateful: bool,
+
+    /// A unique identifier created for each unique `CurrentTaskState`. Used to
+    /// check that [`CurrentTaskState::local_cells`] are valid for the current
+    /// `RawVc::LocalCell`.
+    execution_id: ExecutionId,
+
+    /// Cells for locally allocated Vcs (`RawVc::LocalCell`). This is freed
+    /// (along with `CurrentTaskState`) when the task finishes executing.
+    local_cells: Vec<TypedSharedReference>,
+}
+
+impl CurrentTaskState {
+    fn new(execution_id: ExecutionId) -> Self {
+        Self {
+            tasks_to_notify: Vec::new(),
+            stateful: false,
+            execution_id,
+            local_cells: Vec::new(),
+        }
+    }
 }
 
 // TODO implement our own thread pool and make these thread locals instead
@@ -293,6 +314,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             this: this.clone(),
             backend,
             task_id_factory,
+            execution_id_factory: IdFactory::new(),
             stopped: AtomicBool::new(false),
             currently_scheduled_tasks: AtomicUsize::new(0),
             currently_scheduled_background_jobs: AtomicUsize::new(0),
@@ -488,57 +510,61 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
         let this = self.pin();
         let future = async move {
-            #[allow(clippy::blocks_in_conditions)]
-            while CURRENT_TASK_STATE
-                .scope(Default::default(), async {
-                    if this.stopped.load(Ordering::Acquire) {
-                        return false;
-                    }
+            let mut schedule_again = true;
+            while schedule_again {
+                let task_state =
+                    RefCell::new(CurrentTaskState::new(this.execution_id_factory.get()));
+                schedule_again = CURRENT_TASK_STATE
+                    .scope(task_state, async {
+                        if this.stopped.load(Ordering::Acquire) {
+                            return false;
+                        }
 
-                    // Setup thread locals
-                    CELL_COUNTERS
-                        .scope(Default::default(), async {
-                            let Some(TaskExecutionSpec { future, span }) =
-                                this.backend.try_start_task_execution(task_id, &*this)
-                            else {
-                                return false;
-                            };
+                        // Setup thread locals
+                        CELL_COUNTERS
+                            .scope(Default::default(), async {
+                                let Some(TaskExecutionSpec { future, span }) =
+                                    this.backend.try_start_task_execution(task_id, &*this)
+                                else {
+                                    return false;
+                                };
 
-                            async {
-                                let (result, duration, memory_usage) =
-                                    CaptureFuture::new(AssertUnwindSafe(future).catch_unwind())
-                                        .await;
+                                async {
+                                    let (result, duration, memory_usage) =
+                                        CaptureFuture::new(AssertUnwindSafe(future).catch_unwind())
+                                            .await;
 
-                                let result = result.map_err(|any| match any.downcast::<String>() {
-                                    Ok(owned) => Some(Cow::Owned(*owned)),
-                                    Err(any) => match any.downcast::<&'static str>() {
-                                        Ok(str) => Some(Cow::Borrowed(*str)),
-                                        Err(_) => None,
-                                    },
-                                });
-                                this.backend.task_execution_result(task_id, result, &*this);
-                                let stateful = this.finish_current_task_state();
-                                let cell_counters =
-                                    CELL_COUNTERS.with(|cc| take(&mut *cc.borrow_mut()));
-                                let schedule_again = this.backend.task_execution_completed(
-                                    task_id,
-                                    duration,
-                                    memory_usage,
-                                    cell_counters,
-                                    stateful,
-                                    &*this,
-                                );
-                                // task_execution_completed might need to notify tasks
-                                this.notify_scheduled_tasks();
-                                schedule_again
-                            }
-                            .instrument(span)
+                                    let result =
+                                        result.map_err(|any| match any.downcast::<String>() {
+                                            Ok(owned) => Some(Cow::Owned(*owned)),
+                                            Err(any) => match any.downcast::<&'static str>() {
+                                                Ok(str) => Some(Cow::Borrowed(*str)),
+                                                Err(_) => None,
+                                            },
+                                        });
+                                    this.backend.task_execution_result(task_id, result, &*this);
+                                    let stateful = this.finish_current_task_state();
+                                    let cell_counters =
+                                        CELL_COUNTERS.with(|cc| take(&mut *cc.borrow_mut()));
+                                    let schedule_again = this.backend.task_execution_completed(
+                                        task_id,
+                                        duration,
+                                        memory_usage,
+                                        cell_counters,
+                                        stateful,
+                                        &*this,
+                                    );
+                                    // task_execution_completed might need to notify tasks
+                                    this.notify_scheduled_tasks();
+                                    schedule_again
+                                }
+                                .instrument(span)
+                                .await
+                            })
                             .await
-                        })
-                        .await
-                })
-                .await
-            {}
+                    })
+                    .await;
+            }
             this.finish_primary_job();
             anyhow::Ok(())
         };
@@ -841,6 +867,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             let CurrentTaskState {
                 tasks_to_notify,
                 stateful,
+                ..
             } = &mut *cell.borrow_mut();
             (*stateful, take(tasks_to_notify))
         });
@@ -1516,63 +1543,159 @@ pub(crate) async fn read_task_cell(
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// A reference to a task's cell with methods that allow updating the contents
+/// of the cell.
+///
+/// Mutations should not outside of the task that that owns this cell. Doing so
+/// is a logic error, and may lead to incorrect caching behavior.
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct CurrentCellRef {
     current_task: TaskId,
     index: CellId,
 }
 
+type VcReadRepr<T> = <<T as VcValueType>::Read as VcRead<T>>::Repr;
+
 impl CurrentCellRef {
-    pub fn conditional_update_shared<
-        T: VcValueType + 'static,
-        F: FnOnce(Option<&T>) -> Option<T>,
-    >(
+    /// Updates the cell if the given `functor` returns a value.
+    pub fn conditional_update<T>(&self, functor: impl FnOnce(Option<&T>) -> Option<T>)
+    where
+        T: VcValueType,
+    {
+        self.conditional_update_with_shared_reference(|old_shared_reference| {
+            let old_ref = old_shared_reference
+                .and_then(|sr| sr.0.downcast_ref::<VcReadRepr<T>>())
+                .map(|content| <T::Read as VcRead<T>>::repr_to_value_ref(content));
+            let new_value = functor(old_ref)?;
+            Some(SharedReference::new(triomphe::Arc::new(
+                <T::Read as VcRead<T>>::value_to_repr(new_value),
+            )))
+        })
+    }
+
+    /// Updates the cell if the given `functor` returns a `SharedReference`.
+    pub fn conditional_update_with_shared_reference(
         &self,
-        functor: F,
+        functor: impl FnOnce(Option<&SharedReference>) -> Option<SharedReference>,
     ) {
         let tt = turbo_tasks();
-        let content = tt
-            .read_own_task_cell(self.current_task, self.index)
-            .ok()
-            .and_then(|v| v.try_cast::<T>());
-        let update =
-            functor(content.as_deref().map(|content| {
-                <<T as VcValueType>::Read as VcRead<T>>::target_to_value_ref(content)
-            }));
+        let cell_content = tt.read_own_task_cell(self.current_task, self.index).ok();
+        let update = functor(cell_content.as_ref().and_then(|cc| cc.1 .0.as_ref()));
         if let Some(update) = update {
-            tt.update_own_task_cell(
-                self.current_task,
-                self.index,
-                CellContent(Some(SharedReference::new(triomphe::Arc::new(update)))),
-            )
+            tt.update_own_task_cell(self.current_task, self.index, CellContent(Some(update)))
         }
     }
 
-    pub fn compare_and_update_shared<T: PartialEq + VcValueType + 'static>(&self, new_content: T) {
-        self.conditional_update_shared(|old_content| {
-            if let Some(old_content) = old_content {
-                if PartialEq::eq(&new_content, old_content) {
+    /// Replace the current cell's content with `new_value` if the current
+    /// content is not equal by value with the existing content.
+    ///
+    /// The comparison happens using the value itself, not the
+    /// [`VcRead::Target`] of that value.
+    ///
+    /// Take this example of a custom equality implementation on a transparent
+    /// wrapper type:
+    ///
+    /// ```
+    /// #[turbo_tasks::value(transparent, eq = "manual")]
+    /// struct Wrapper(Vec<u32>);
+    ///
+    /// impl PartialEq for Wrapper {
+    ///     fn eq(&self, other: Wrapper) {
+    ///         // Example: order doesn't matter for equality
+    ///         let (mut this, mut other) = (self.clone(), other.clone());
+    ///         this.sort_unstable();
+    ///         other.sort_unstable();
+    ///         this == other
+    ///     }
+    /// }
+    ///
+    /// impl Eq for Wrapper {}
+    /// ```
+    ///
+    /// Comparisons of `Vc<Wrapper>` used when updating the cell will use
+    /// `Wrapper`'s custom equality implementation, rather than the one
+    /// provided by the target (`Vec<u32>`) type.
+    ///
+    /// However, in most cases, the default derived implementation of
+    /// `PartialEq` is used which just forwards to the inner value's
+    /// `PartialEq`.
+    ///
+    /// If you already have a `SharedReference`, consider calling
+    /// [`compare_and_update_with_shared_reference`] which can re-use the
+    /// `SharedReference` object.
+    pub fn compare_and_update<T>(&self, new_value: T)
+    where
+        T: PartialEq + VcValueType,
+    {
+        self.conditional_update(|old_value| {
+            if let Some(old_value) = old_value {
+                if old_value == &new_value {
                     return None;
                 }
             }
-            Some(new_content)
+            Some(new_value)
         });
     }
 
-    pub fn update_shared<T: VcValueType + 'static>(&self, new_content: T) {
+    /// Replace the current cell's content with `new_shared_reference` if the
+    /// current content is not equal by value with the existing content.
+    ///
+    /// If you already have a `SharedReference`, this is a faster version of
+    /// [`CurrentCellRef::compare_and_update`].
+    ///
+    /// The [`SharedReference`] is expected to use the `<T::Read as
+    /// VcRead<T>>::Repr` type for its representation of the value.
+    pub fn compare_and_update_with_shared_reference<T>(&self, new_shared_reference: SharedReference)
+    where
+        T: VcValueType + PartialEq,
+    {
+        fn extract_sr_value<T: VcValueType>(sr: &SharedReference) -> &T {
+            <T::Read as VcRead<T>>::repr_to_value_ref(
+                sr.0.downcast_ref::<VcReadRepr<T>>()
+                    .expect("cannot update SharedReference of different type"),
+            )
+        }
+        self.conditional_update_with_shared_reference(|old_sr| {
+            if let Some(old_sr) = old_sr {
+                let old_value: &T = extract_sr_value(old_sr);
+                let new_value = extract_sr_value(&new_shared_reference);
+                if old_value == new_value {
+                    return None;
+                }
+            }
+            Some(new_shared_reference)
+        });
+    }
+
+    /// Unconditionally updates the content of the cell.
+    pub fn update<T>(&self, new_value: T)
+    where
+        T: VcValueType,
+    {
         let tt = turbo_tasks();
         tt.update_own_task_cell(
             self.current_task,
             self.index,
-            CellContent(Some(SharedReference::new(triomphe::Arc::new(new_content)))),
+            CellContent(Some(SharedReference::new(triomphe::Arc::new(
+                <T::Read as VcRead<T>>::value_to_repr(new_value),
+            )))),
         )
     }
 
-    pub fn update_shared_reference(&self, shared_ref: SharedReference) {
+    /// A faster version of [`Self::update`] if you already have a
+    /// [`SharedReference`].
+    ///
+    /// If the passed-in [`SharedReference`] is the same as the existing cell's
+    /// by identity, no update is performed.
+    ///
+    /// The [`SharedReference`] is expected to use the `<T::Read as
+    /// VcRead<T>>::Repr` type for its representation of the value.
+    pub fn update_with_shared_reference(&self, shared_ref: SharedReference) {
         let tt = turbo_tasks();
         let content = tt.read_own_task_cell(self.current_task, self.index).ok();
-        let update = if let Some(TypedCellContent(_, CellContent(shared_ref_exp))) = content {
-            shared_ref_exp.as_ref().ne(&Some(&shared_ref))
+        let update = if let Some(TypedCellContent(_, CellContent(Some(shared_ref_exp)))) = content {
+            // pointer equality (not value equality)
+            shared_ref_exp != shared_ref
         } else {
             true
         };
@@ -1600,4 +1723,72 @@ pub fn find_cell_by_type(ty: ValueTypeId) -> CurrentCellRef {
             index: CellId { type_id: ty, index },
         }
     })
+}
+
+pub(crate) fn create_local_cell(value: TypedSharedReference) -> (ExecutionId, LocalCellId) {
+    CURRENT_TASK_STATE.with(|cell| {
+        let CurrentTaskState {
+            execution_id,
+            local_cells,
+            ..
+        } = &mut *cell.borrow_mut();
+
+        // store in the task-local arena
+        local_cells.push(value);
+
+        // generate a one-indexed id
+        let raw_local_cell_id = local_cells.len();
+        let local_cell_id = if cfg!(debug_assertions) {
+            LocalCellId::from(u32::try_from(raw_local_cell_id).unwrap())
+        } else {
+            unsafe { LocalCellId::new_unchecked(raw_local_cell_id as u32) }
+        };
+
+        (*execution_id, local_cell_id)
+    })
+}
+
+/// Returns the contents of the given local cell. Panics if a local cell is
+/// attempted to be accessed outside of its task.
+///
+/// Returns [`TypedSharedReference`] instead of [`TypedCellContent`] because
+/// local cells are always filled. The returned value can be cheaply converted
+/// with `.into()`.
+///
+/// Panics if the [`ExecutionId`] does not match the current task's
+/// `execution_id`.
+pub(crate) fn read_local_cell(
+    execution_id: ExecutionId,
+    local_cell_id: LocalCellId,
+) -> TypedSharedReference {
+    CURRENT_TASK_STATE.with(|cell| {
+        let CurrentTaskState {
+            execution_id: expected_execution_id,
+            local_cells,
+            ..
+        } = &*cell.borrow();
+        assert_eq_local_cell(execution_id, *expected_execution_id);
+        // local cell ids are one-indexed (they use NonZeroU32)
+        local_cells[(*local_cell_id as usize) - 1].clone()
+    })
+}
+
+/// Panics if the [`ExecutionId`] does not match the current task's
+/// `execution_id`.
+pub(crate) fn assert_execution_id(execution_id: ExecutionId) {
+    CURRENT_TASK_STATE.with(|cell| {
+        let CurrentTaskState {
+            execution_id: expected_execution_id,
+            ..
+        } = &*cell.borrow();
+        assert_eq_local_cell(execution_id, *expected_execution_id);
+    })
+}
+
+fn assert_eq_local_cell(actual: ExecutionId, expected: ExecutionId) {
+    assert_eq!(
+        actual, expected,
+        "This Vc is local. Local Vcs must only be accessed within their own task. Resolve the Vc \
+         to convert it into a non-local version."
+    );
 }

@@ -1,16 +1,14 @@
 use anyhow::{bail, Result};
 use turbo_tasks::{Value, Vc};
-use turbopack_binding::turbopack::{
-    core::{
-        module::Module,
-        reference_type::{CssReferenceSubType, ReferenceType},
-        resolve::ModulePart,
-        source::Source,
-    },
-    turbopack::{
-        css::chunk::CssChunkPlaceable, module_options::CustomModuleType, transition::Transition,
-        ModuleAssetContext,
-    },
+use turbopack::{
+    css::chunk::CssChunkPlaceable, module_options::CustomModuleType, transition::Transition,
+    ModuleAssetContext,
+};
+use turbopack_core::{
+    module::Module,
+    reference_type::{CssReferenceSubType, ReferenceType},
+    resolve::ModulePart,
+    source::Source,
 };
 
 use super::css_client_reference_module::CssClientReferenceModule;
@@ -36,14 +34,14 @@ impl CustomModuleType for CssClientReferenceModuleType {
     async fn create_module(
         &self,
         source: Vc<Box<dyn Source>>,
-        context: Vc<ModuleAssetContext>,
+        module_asset_context: Vc<ModuleAssetContext>,
         _part: Option<Vc<ModulePart>>,
     ) -> Result<Vc<Box<dyn Module>>> {
         let client_module = self
             .client_transition
             .process(
                 source,
-                context,
+                module_asset_context,
                 Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
             )
             .module();

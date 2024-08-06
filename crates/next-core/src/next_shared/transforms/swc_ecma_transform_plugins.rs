@@ -3,7 +3,7 @@ use anyhow::Result;
 use turbo_tasks::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::turbopack::module_options::ModuleRule;
+use turbopack::module_options::ModuleRule;
 
 use crate::next_config::NextConfig;
 
@@ -38,17 +38,15 @@ pub async fn get_swc_ecma_transform_rule_impl(
     use anyhow::{bail, Context};
     use turbo_tasks::Value;
     use turbo_tasks_fs::FileContent;
-    use turbopack_binding::turbopack::{
-        core::{
-            asset::Asset,
-            issue::IssueSeverity,
-            reference_type::{CommonJsReferenceSubType, ReferenceType},
-            resolve::{handle_resolve_error, parse::Request, pattern::Pattern, resolve},
-        },
-        ecmascript_plugin::transform::swc_ecma_transform_plugins::{
-            SwcEcmaTransformPluginsTransformer, SwcPluginModule,
-        },
-        turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
+    use turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext};
+    use turbopack_core::{
+        asset::Asset,
+        issue::IssueSeverity,
+        reference_type::{CommonJsReferenceSubType, ReferenceType},
+        resolve::{handle_resolve_error, parse::Request, pattern::Pattern, resolve},
+    };
+    use turbopack_ecmascript_plugins::transform::swc_ecma_transform_plugins::{
+        SwcEcmaTransformPluginsTransformer, SwcPluginModule,
     };
 
     use crate::next_shared::transforms::get_ecma_transform_rule;

@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use pathdiff::diff_paths;
-use swc_core::quote;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{errors::HANDLER, FileName, Span, DUMMY_SP},
     ecma::{
         ast::{
@@ -14,6 +13,7 @@ use turbopack_binding::swc::core::{
         utils::{private_ident, quote_ident, ExprFactory},
         visit::{Fold, FoldWith},
     },
+    quote,
 };
 
 /// Creates a SWC visitor to transform `next/dynamic` calls to have the
@@ -66,12 +66,11 @@ pub enum NextDynamicMode {
     /// the React Loadable Webpack plugin.
     Webpack,
     /// In Turbopack mode:
-    /// * in development, each `dynamic()` call will generate a key containing
-    ///   both the imported module id and the chunks it needs. This removes the
-    ///   need for a manifest entry
-    /// * during build, each `dynamic()` call will import the module through the
-    ///   given transition, which takes care of adding an entry to the manifest
-    ///   and returning an asset that exports the entry's key.
+    /// * in development, each `dynamic()` call will generate a key containing both the imported
+    ///   module id and the chunks it needs. This removes the need for a manifest entry
+    /// * during build, each `dynamic()` call will import the module through the given transition,
+    ///   which takes care of adding an entry to the manifest and returning an asset that exports
+    ///   the entry's key.
     Turbopack { dynamic_transition_name: String },
 }
 

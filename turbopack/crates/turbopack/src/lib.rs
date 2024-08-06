@@ -682,8 +682,14 @@ impl AssetContext for ModuleAssetContext {
             })
             .await?;
 
-        let result =
-            replace_externals(result, this.module_options_context.await?.import_externals).await?;
+        let result = replace_externals(
+            result,
+            this.module_options_context
+                .await?
+                .ecmascript
+                .import_externals,
+        )
+        .await?;
 
         Ok(result.cell())
     }

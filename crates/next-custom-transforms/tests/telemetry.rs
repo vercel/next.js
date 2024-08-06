@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 use fxhash::FxHashSet;
 use next_custom_transforms::transforms::next_ssg::next_ssg;
 use once_cell::sync::Lazy;
-use turbopack_binding::swc::core::{
+use swc_core::{
     base::{try_with_handler, Compiler},
     common::{comments::SingleThreadedComments, FileName, FilePathMapping, SourceMap, GLOBALS},
     ecma::transforms::base::pass::noop,

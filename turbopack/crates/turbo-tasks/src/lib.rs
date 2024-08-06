@@ -5,12 +5,12 @@
 //! - functions: Unit of execution, invalidation and reexecution.
 //! - values: Data created, stored and returned by functions.
 //! - traits: Traits that define a set of functions on values.
-//! - collectibles: Values emitted in functions that bubble up the call graph
-//!   and can be collected in parent functions.
+//! - collectibles: Values emitted in functions that bubble up the call graph and can be collected
+//!   in parent functions.
 //!
 //! It also defines some derived elements from that:
-//! - cells: The locations in functions where values are stored. The content of
-//!   a cell can change after the reexecution of a function.
+//! - cells: The locations in functions where values are stored. The content of a cell can change
+//!   after the reexecution of a function.
 //! - Vcs: A reference to a cell in a function or a return value of a function.
 //! - task: An instance of a function together with its arguments.
 //!
