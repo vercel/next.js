@@ -201,7 +201,7 @@ impl Fold for Analyzer<'_> {
         tracing::trace!(
             "ssg: Handling `{}{:?}`; in_data_fn = {:?}",
             f.ident.sym,
-            f.ident.span.ctxt,
+            f.ident.ctxt,
             self.in_data_fn
         );
 

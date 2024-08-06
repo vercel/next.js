@@ -351,11 +351,7 @@ impl Fold for NextDynamicPatcher {
                                     },
                                     _ => None,
                                 } {
-                                    if let Some(Ident {
-                                        sym,
-                                        span: _,
-                                        optional: _,
-                                    }) = match key {
+                                    if let Some(IdentName { sym, span: _ }) = match key {
                                         PropName::Ident(ident) => Some(ident),
                                         _ => None,
                                     } {
@@ -511,7 +507,10 @@ impl NextDynamicPatcher {
                             ImportSpecifier::Named(ImportNamedSpecifier {
                                 span: DUMMY_SP,
                                 local: chunks_ident,
-                                imported: Some(Ident::new("chunks".into(), DUMMY_SP).into()),
+                                imported: Some(
+                                    Ident::new("chunks".into(), DUMMY_SP, Default::default())
+                                        .into(),
+                                ),
                                 is_type_only: false,
                             }),
                         ],
@@ -535,7 +534,12 @@ impl NextDynamicPatcher {
                             span: DUMMY_SP,
                             local: id_ident,
                             imported: Some(
-                                Ident::new("__turbopack_module_id__".into(), DUMMY_SP).into(),
+                                Ident::new(
+                                    "__turbopack_module_id__".into(),
+                                    DUMMY_SP,
+                                    Default::default(),
+                                )
+                                .into(),
                             ),
                             is_type_only: false,
                         })],
@@ -560,7 +564,12 @@ impl NextDynamicPatcher {
                             span: DUMMY_SP,
                             local: id_ident,
                             imported: Some(
-                                Ident::new("__turbopack_module_id__".into(), DUMMY_SP).into(),
+                                Ident::new(
+                                    "__turbopack_module_id__".into(),
+                                    DUMMY_SP,
+                                    Default::default(),
+                                )
+                                .into(),
                             ),
                             is_type_only: false,
                         })],
@@ -584,7 +593,12 @@ impl NextDynamicPatcher {
                             span: DUMMY_SP,
                             local: id_ident,
                             imported: Some(
-                                Ident::new("__turbopack_module_id__".into(), DUMMY_SP).into(),
+                                Ident::new(
+                                    "__turbopack_module_id__".into(),
+                                    DUMMY_SP,
+                                    Default::default(),
+                                )
+                                .into(),
                             ),
                             is_type_only: false,
                         })],
@@ -617,9 +631,8 @@ fn exec_expr_when_resolve_weak_available(expr: &Expr) -> Expr {
         span: DUMMY_SP,
         op: UnaryOp::TypeOf, // 'typeof' operator
         arg: Box::new(Expr::Ident(Ident {
-            span: DUMMY_SP,
             sym: quote_ident!("require.resolveWeak").sym,
-            optional: false,
+            ..Default::default()
         })),
     });
 
