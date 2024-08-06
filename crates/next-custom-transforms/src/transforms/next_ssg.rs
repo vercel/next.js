@@ -392,7 +392,7 @@ impl Fold for NextSsg {
                     tracing::trace!(
                         "Dropping import `{}{:?}` because it should be removed",
                         local.sym,
-                        local.span.ctxt
+                        local.ctxt
                     );
 
                     self.state.should_run_again = true;
@@ -466,7 +466,7 @@ impl Fold for NextSsg {
                 let mut var = Some(VarDeclarator {
                     span: DUMMY_SP,
                     name: Pat::Ident(
-                        Ident::new(
+                        IdentName::new(
                             if self.state.is_prerenderer {
                                 "__N_SSG".into()
                             } else {
@@ -498,8 +498,8 @@ impl Fold for NextSsg {
                                 decl: Decl::Var(Box::new(VarDecl {
                                     span: DUMMY_SP,
                                     kind: VarDeclKind::Var,
-                                    declare: Default::default(),
                                     decls: vec![var],
+                                    ..Default::default()
                                 })),
                             })))
                         }
@@ -578,7 +578,7 @@ impl Fold for NextSsg {
                         tracing::trace!(
                             "Dropping var `{}{:?}` because it should be removed",
                             name.id.sym,
-                            name.id.span.ctxt
+                            name.id.ctxt
                         );
 
                         return Pat::Invalid(Invalid { span: DUMMY_SP });

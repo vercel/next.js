@@ -192,7 +192,9 @@ impl<C: Comments> ServerActions<C> {
                 new_params.push(Param {
                     span: DUMMY_SP,
                     decorators: vec![],
-                    pat: Pat::Ident(Ident::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+                    pat: Pat::Ident(
+                        IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into(),
+                    ),
                 });
 
                 // Also prepend the decryption decl into the body.
@@ -201,7 +203,7 @@ impl<C: Comments> ServerActions<C> {
                 let mut pats = vec![];
                 for i in 0..ids_from_closure.len() {
                     pats.push(Some(Pat::Ident(
-                        Ident::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
+                        IdentName::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
                     )));
                 }
                 let decryption_decl = VarDecl {
@@ -230,6 +232,7 @@ impl<C: Comments> ServerActions<C> {
                         }))),
                         definite: Default::default(),
                     }],
+                    ..Default::default()
                 };
 
                 match &mut new_body {
@@ -246,6 +249,7 @@ impl<C: Comments> ServerActions<C> {
                                     arg: Some(body_expr.take()),
                                 }),
                             ],
+                            ..Default::default()
                         });
                     }
                 }
@@ -275,14 +279,14 @@ impl<C: Comments> ServerActions<C> {
                                         span: DUMMY_SP,
                                         arg: Some(expr),
                                     })],
+                                    ..Default::default()
                                 }),
                             },
                             decorators: vec![],
                             span: DUMMY_SP,
                             is_generator: false,
                             is_async: true,
-                            type_params: None,
-                            return_type: None,
+                            ..Default::default()
                         }),
                         declare: Default::default(),
                     }
@@ -1645,11 +1649,12 @@ impl VisitMut for ClosureReplacer<'_> {
             let name = Name::from(&*i);
             if let Some(index) = self.used_ids.iter().position(|used_id| *used_id == name) {
                 *n = PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                    key: PropName::Ident(i.clone()),
+                    key: PropName::Ident(i.clone().into()),
                     value: Box::new(Expr::Ident(Ident::new(
                         // $$ACTION_ARG_0
                         format!("$$ACTION_ARG_{index}").into(),
                         DUMMY_SP,
+                        Default::default(),
                     ))),
                 })));
             }
