@@ -281,6 +281,10 @@ pub async fn get_client_module_options_context(
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
             ..Default::default()
         },
+        css: CssOptionsContext {
+            enable_css_transform: true,
+            ..Default::default()
+        },
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: tree_shaking_mode_for_user_code,
@@ -318,6 +322,7 @@ pub async fn get_client_module_options_context(
         enable_mdx_rs,
         css: CssOptionsContext {
             use_swc_css,
+            enable_css_transform: true,
             ..module_options_context.css
         },
         rules: vec![

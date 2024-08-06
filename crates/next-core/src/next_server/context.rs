@@ -490,6 +490,7 @@ pub async fn get_server_module_options_context(
         execution_context: Some(execution_context),
         css: CssOptionsContext {
             use_swc_css,
+            enable_css_transform: true,
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
@@ -898,6 +899,10 @@ pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
         ecmascript: EcmascriptOptionsContext {
             enable_typescript_transform: Some(Default::default()),
             esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
+            ..Default::default()
+        },
+        css: CssOptionsContext {
+            enable_css_transform: true,
             ..Default::default()
         },
         tree_shaking_mode: Some(TreeShakingMode::ModuleFragments),

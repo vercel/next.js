@@ -1,6 +1,9 @@
 use turbo_tasks::Vc;
 use turbopack::{
-    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
+    module_options::{
+        CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
+        TypescriptTransformOptions,
+    },
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -13,6 +16,10 @@ pub fn get_runtime_asset_context(environment: Vc<Environment>) -> Vc<Box<dyn Ass
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
+            ..Default::default()
+        },
+        css: CssOptionsContext {
+            enable_css_transform: true,
             ..Default::default()
         },
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),

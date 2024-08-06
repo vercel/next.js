@@ -22,7 +22,7 @@ use turbo_tasks_fs::{
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     ecmascript::TreeShakingMode,
-    module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
+    module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -285,12 +285,20 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                 import_externals: true,
                 ..Default::default()
             },
+            css: CssOptionsContext {
+                enable_css_transform: true,
+                ..Default::default()
+            },
             preset_env_versions: Some(env),
             tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
                     tree_shaking_mode: options.tree_shaking_mode,
+                    css: CssOptionsContext {
+                        enable_css_transform: true,
+                        ..Default::default()
+                    },
                     ..Default::default()
                 }
                 .cell(),

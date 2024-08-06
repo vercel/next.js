@@ -6,8 +6,8 @@ use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
-        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
-        ModuleRuleCondition, ModuleRuleEffect,
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
+        ModuleRule, ModuleRuleCondition, ModuleRuleEffect,
     },
     ModuleAssetContext,
 };
@@ -106,6 +106,10 @@ async fn get_client_module_options_context(
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        css: CssOptionsContext {
+            enable_css_transform: true,
+            ..Default::default()
+        },
         ..Default::default()
     };
 

@@ -15,7 +15,7 @@ use turbopack_node::execution_context::ExecutionContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
-    module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
+    module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
     transition::TransitionsByName,
     ModuleAssetContext,
 };
@@ -92,6 +92,10 @@ pub async fn node_evaluate_asset_context(
             tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
             ecmascript: EcmascriptOptionsContext {
                 enable_typescript_transform: Some(Default::default()),
+                ..Default::default()
+            },
+            css: CssOptionsContext {
+                enable_css_transform: true,
                 ..Default::default()
             },
             ..Default::default()

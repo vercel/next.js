@@ -33,7 +33,7 @@ use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit_with_completion,
-    module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
+    module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
     rebase::RebasedAsset,
     register, ModuleAssetContext,
 };
@@ -430,10 +430,6 @@ fn node_file_trace<B: Backend + 'static>(
                     ModuleOptionsContext {
                         ecmascript: EcmascriptOptionsContext {
                             enable_types: true,
-                            ..Default::default()
-                        },
-                        css: CssOptionsContext {
-                            enable_css_transform: false,
                             ..Default::default()
                         },
                         ..Default::default()
