@@ -4,10 +4,21 @@
 - All pull requests should be opened against `canary`.
 - The changes on the `canary` branch are published to the `@canary` tag on npm regularly.
 
-To develop locally:
+## Dependencies
 
-1. Install Rust and Cargo via [rustup](https://rustup.rs).
-1. Install the [GitHub CLI](https://github.com/cli/cli#installation).
+- Install Rust and Cargo via [rustup](https://rustup.rs).
+- Install the [GitHub CLI](https://github.com/cli/cli#installation).
+- Enable pnpm:
+  ```
+  corepack enable pnpm
+  ```
+- (Linux) Install LLD, the LLVM linker:
+  ```
+  sudo apt install lld
+  ```
+
+## Local Development
+
 1. Clone the Next.js repository (download only recent commits for faster clone):
    ```
    gh repo clone vercel/next.js -- --filter=blob:none --branch canary --single-branch
@@ -15,10 +26,6 @@ To develop locally:
 1. Create a new branch:
    ```
    git checkout -b MY_BRANCH_NAME origin/canary
-   ```
-1. Enable pnpm:
-   ```
-   corepack enable pnpm
    ```
 1. Install the dependencies with:
    ```
