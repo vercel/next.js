@@ -9,7 +9,7 @@ use swc_core::{
     ecma::{
         ast::{
             op, ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee,
-            Expr, ExprOrSpread, ExprStmt, Id, Ident, ImportDecl, ImportDefaultSpecifier,
+            Expr, ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportDefaultSpecifier,
             ImportNamedSpecifier, ImportSpecifier, KeyValueProp, Lit, ModuleDecl, ModuleItem,
             ObjectLit, Prop, PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp,
         },
@@ -328,7 +328,10 @@ impl Fold for NextDynamicPatcher {
 
                     let mut props =
                         vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                            key: PropName::Ident(Ident::new("loadableGenerated".into(), DUMMY_SP)),
+                            key: PropName::Ident(IdentName::new(
+                                "loadableGenerated".into(),
+                                DUMMY_SP,
+                            )),
                             value: generated,
                         })))];
 
@@ -402,7 +405,7 @@ impl Fold for NextDynamicPatcher {
                                     raw: None,
                                 }))),
                             }],
-                            type_args: Default::default(),
+                            ..Default::default()
                         });
 
                         let side_effect_free_loader_arg = Expr::Arrow(ArrowExpr {
@@ -416,11 +419,11 @@ impl Fold for NextDynamicPatcher {
                                         &require_resolve_weak_expr,
                                     )),
                                 })],
+                                ..Default::default()
                             })),
                             is_async: true,
                             is_generator: false,
-                            type_params: None,
-                            return_type: None,
+                            ..Default::default()
                         });
 
                         expr.args[0] = side_effect_free_loader_arg.as_arg();
@@ -448,7 +451,7 @@ impl Fold for NextDynamicPatcher {
 
 fn module_id_options(module_id: Expr) -> Vec<PropOrSpread> {
     vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-        key: PropName::Ident(Ident::new("modules".into(), DUMMY_SP)),
+        key: PropName::Ident(IdentName::new("modules".into(), DUMMY_SP)),
         value: Box::new(Expr::Array(ArrayLit {
             elems: vec![Some(ExprOrSpread {
                 expr: Box::new(module_id),
@@ -461,7 +464,7 @@ fn module_id_options(module_id: Expr) -> Vec<PropOrSpread> {
 
 fn webpack_options(module_id: Expr) -> Vec<PropOrSpread> {
     vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-        key: PropName::Ident(Ident::new("webpack".into(), DUMMY_SP)),
+        key: PropName::Ident(IdentName::new("webpack".into(), DUMMY_SP)),
         value: Box::new(Expr::Arrow(ArrowExpr {
             params: vec![],
             body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Array(ArrayLit {
@@ -474,8 +477,7 @@ fn webpack_options(module_id: Expr) -> Vec<PropOrSpread> {
             is_async: false,
             is_generator: false,
             span: DUMMY_SP,
-            return_type: None,
-            type_params: None,
+            ..Default::default()
         })),
     })))]
 }
