@@ -251,7 +251,7 @@ pub struct EcmascriptModuleAsset {
 }
 
 #[turbo_tasks::value_trait]
-pub trait Parsable {
+pub trait EcmascriptParsable {
     fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
 
     fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>>;
@@ -260,7 +260,7 @@ pub trait Parsable {
 }
 
 #[turbo_tasks::value_trait]
-pub trait Analyzable {
+pub trait EcmascriptAnalyzable {
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
 
     /// Generates module contents without an analysis pass. This is useful for
@@ -333,7 +333,7 @@ impl ModuleTypeResult {
 }
 
 #[turbo_tasks::value_impl]
-impl Parsable for EcmascriptModuleAsset {
+impl EcmascriptParsable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
         let real_result = self.parse();
@@ -362,7 +362,7 @@ impl Parsable for EcmascriptModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Analyzable for EcmascriptModuleAsset {
+impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
         analyse_ecmascript_module(self, None)

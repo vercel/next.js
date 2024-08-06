@@ -135,7 +135,7 @@ use crate::{
     },
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
     utils::AstPathRange,
-    EcmascriptInputTransforms, EcmascriptModuleAsset, Parsable, SpecifiedModuleType,
+    EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptParsable, SpecifiedModuleType,
     TreeShakingMode,
 };
 

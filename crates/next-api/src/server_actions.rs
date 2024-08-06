@@ -27,7 +27,8 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
-    chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptModuleAssetType, Parsable,
+    chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptModuleAssetType,
+    EcmascriptParsable,
 };
 
 /// Scans the RSC entry point's full module graph looking for exported Server
@@ -233,7 +234,9 @@ async fn to_rsc_context(
         module.ident().with_modifier(action_modifier()),
         module.content(),
     );
-    let ty = if let Some(module) = Vc::try_resolve_sidecast::<Box<dyn Parsable>>(module).await? {
+    let ty = if let Some(module) =
+        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
+    {
         if *module.ty().await? == EcmascriptModuleAssetType::Ecmascript {
             ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
         } else {
@@ -288,7 +291,7 @@ pub fn parse_server_actions<C: Comments>(
 #[turbo_tasks::function]
 async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
     let parsed = if let Some(ecmascript_asset) =
-        Vc::try_resolve_sidecast::<Box<dyn Parsable>>(module).await?
+        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
     {
         ecmascript_asset.parse_original()
     } else {

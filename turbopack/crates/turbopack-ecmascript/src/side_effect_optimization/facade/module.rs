@@ -20,7 +20,7 @@ use crate::{
         esm::{EsmExport, EsmExports},
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
-    Analyzable,
+    EcmascriptAnalyzable,
 };
 
 /// A module derived from an original ecmascript module that only contains all
@@ -72,7 +72,7 @@ impl Module for EcmascriptModuleFacadeModule {
         let references = match &*self.ty.await? {
             ModulePart::Evaluation => {
                 let Some(module) =
-                    Vc::try_resolve_sidecast::<Box<dyn Analyzable>>(self.module).await?
+                    Vc::try_resolve_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module).await?
                 else {
                     bail!(
                         "Expected EcmascriptModuleAsset for a EcmascriptModuleFacadeModule with \
@@ -90,7 +90,7 @@ impl Module for EcmascriptModuleFacadeModule {
             }
             ModulePart::Exports => {
                 let Some(module) =
-                    Vc::try_resolve_sidecast::<Box<dyn Analyzable>>(self.module).await?
+                    Vc::try_resolve_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module).await?
                 else {
                     bail!(
                         "Expected EcmascriptModuleAsset for a EcmascriptModuleFacadeModule with \
