@@ -33,21 +33,14 @@ export async function inlineStaticEnv({ distDir }: { distDir: string }) {
 
         await fs.promises.writeFile(
           filepath,
-          content
-            // if a NEXT_PUBLIC_ reference is present but the value isn't
-            // provided in the env it won't be replaced so we normalize
-            // it to globalThis to avoid minify/mangling for future inlining
-            .replace(/[\w]{1,}\.env\.NEXT_PUBLIC_[\w]{1,}/g, (match) => {
-              return `globalThis.${match.split('.').pop()}`
-            })
-            .replace(/globalThis\.[\w]{1,}/g, (match) => {
-              let normalizedMatch = `process.env.${match.substring('globalThis.'.length)}`
+          content.replace(/[\w]{1,}\.env\.NEXT_PUBLIC_[\w]{1,}/g, (match) => {
+            let normalizedMatch = `process.env.${match.split('.').pop()}`
 
-              if (staticEnv[normalizedMatch]) {
-                return JSON.stringify(staticEnv[normalizedMatch])
-              }
-              return match
-            })
+            if (staticEnv[normalizedMatch]) {
+              return JSON.stringify(staticEnv[normalizedMatch])
+            }
+            return match
+          })
         )
         inlineSema.release()
       })
