@@ -227,7 +227,7 @@ impl<C: Comments> ServerActions<C> {
                                     generate_action_id(&self.file_name, &export_name).as_arg(),
                                     quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                                 ],
-                                type_args: None,
+                                ..Default::default()
                             })),
                         }))),
                         definite: Default::default(),
@@ -320,7 +320,9 @@ impl<C: Comments> ServerActions<C> {
                 new_params.push(Param {
                     span: DUMMY_SP,
                     decorators: vec![],
-                    pat: Pat::Ident(Ident::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+                    pat: Pat::Ident(
+                        IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into(),
+                    ),
                 });
 
                 // Also prepend the decryption decl into the body.
@@ -329,13 +331,12 @@ impl<C: Comments> ServerActions<C> {
                 let mut pats = vec![];
                 for i in 0..ids_from_closure.len() {
                     pats.push(Some(Pat::Ident(
-                        Ident::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
+                        IdentName::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
                     )));
                 }
                 let decryption_decl = VarDecl {
                     span: DUMMY_SP,
                     kind: VarDeclKind::Var,
-                    declare: false,
                     decls: vec![VarDeclarator {
                         span: DUMMY_SP,
                         name: Pat::Array(ArrayPat {
@@ -353,11 +354,12 @@ impl<C: Comments> ServerActions<C> {
                                     generate_action_id(&self.file_name, &export_name).as_arg(),
                                     quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                                 ],
-                                type_args: None,
+                                ..Default::default()
                             })),
                         }))),
                         definite: Default::default(),
                     }],
+                    ..Default::default()
                 };
 
                 if let Some(body) = &mut new_body {
@@ -366,6 +368,7 @@ impl<C: Comments> ServerActions<C> {
                     new_body = Some(BlockStmt {
                         span: DUMMY_SP,
                         stmts: vec![decryption_decl.into()],
+                        ..Default::default()
                     });
                 }
             }
@@ -474,7 +477,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             match f.ident.as_mut() {
                 None => {
                     let action_name = gen_ident(&mut self.reference_index);
-                    let ident = Ident::new(action_name, DUMMY_SP);
+                    let ident = Ident::new(action_name, DUMMY_SP, Default::default());
                     f.ident.insert(ident)
                 }
                 Some(i) => i,
@@ -573,13 +576,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.rewrite_fn_decl_to_proxy_decl = Some(VarDecl {
                 span: DUMMY_SP,
                 kind: VarDeclKind::Var,
-                declare: false,
                 decls: vec![VarDeclarator {
                     span: DUMMY_SP,
                     name: Pat::Ident(f.ident.clone().into()),
                     init: maybe_new_expr,
                     definite: false,
                 }],
+                ..Default::default()
             });
         }
     }
@@ -841,8 +844,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 self.exported_idents.push((ident.to_id(), "default".into()));
                             } else {
                                 // export default function() {}
-                                let new_ident =
-                                    Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
+                                let new_ident = Ident::new(
+                                    gen_ident(&mut self.reference_index),
+                                    DUMMY_SP,
+                                    Default::default(),
+                                );
                                 f.ident = Some(new_ident.clone());
                                 self.exported_idents
                                     .push((new_ident.to_id(), "default".into()));
@@ -860,8 +866,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     disallowed_export_span = default_expr.span;
                                 } else {
                                     // export default async () => {}
-                                    let new_ident =
-                                        Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
+                                    let new_ident = Ident::new(
+                                        gen_ident(&mut self.reference_index),
+                                        DUMMY_SP,
+                                        Default::default(),
+                                    );
 
                                     self.exported_idents
                                         .push((new_ident.to_id(), "default".into()));
@@ -879,8 +888,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }
                             Expr::Call(call) => {
                                 // export default fn()
-                                let new_ident =
-                                    Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
+                                let new_ident = Ident::new(
+                                    gen_ident(&mut self.reference_index),
+                                    DUMMY_SP,
+                                    Default::default(),
+                                );
 
                                 self.exported_idents
                                     .push((new_ident.to_id(), "default".into()));
@@ -965,7 +977,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
 
             for (id, export_name) in self.exported_idents.iter() {
-                let ident = Ident::new(id.0.clone(), DUMMY_SP.with_ctxt(id.1));
+                let ident = Ident::new(id.0.clone(), DUMMY_SP, id.1);
 
                 if !self.config.is_react_server_layer {
                     let action_id = generate_action_id(&self.file_name, export_name);
@@ -1340,11 +1352,11 @@ fn annotate_ident_as_action(
                                 })),
                             },
                         ],
-                        type_args: None,
+                        ..Default::default()
                     })),
                 },
             ],
-            type_args: Default::default(),
+            ..Default::default()
         })
     }
 }
