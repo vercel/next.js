@@ -6,13 +6,16 @@ import type { OutgoingHttpHeaders } from 'http'
 import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import type { FontConfig } from '../server/font-utils'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
-import type { Span } from '../trace'
 import type { Revalidate } from '../server/lib/revalidate'
-import type { NextEnabledDirectories } from '../server/base-server'
+import type {
+  NextEnabledDirectories,
+  RequestLifecycleOpts,
+} from '../server/base-server'
 import type {
   SerializableTurborepoAccessTraceResult,
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
+import type { FetchMetrics } from '../server/base-http'
 
 export interface AmpValidation {
   page: string
@@ -82,6 +85,7 @@ export type ExportRouteResult =
       ssgNotFound?: boolean
       hasEmptyPrelude?: boolean
       hasPostponed?: boolean
+      fetchMetrics?: FetchMetrics
     }
   | {
       error: boolean
@@ -97,6 +101,7 @@ export type WorkerRenderOptsPartial = PagesRenderOptsPartial &
   AppRenderOptsPartial
 
 export type WorkerRenderOpts = WorkerRenderOptsPartial &
+  RequestLifecycleOpts &
   LoadComponentsReturnType
 
 export type ExportWorker = (
@@ -107,14 +112,13 @@ export interface ExportAppOptions {
   outdir: string
   enabledDirectories: NextEnabledDirectories
   silent?: boolean
-  threads?: number
   debugOutput?: boolean
   pages?: string[]
   buildExport: boolean
   statusMessage?: string
   exportPageWorker?: ExportWorker
   exportAppPageWorker?: ExportWorker
-  endWorker?: () => Promise<void>
+  endWorker: () => Promise<void>
   nextConfig?: NextConfigComplete
   hasOutdirFromCli?: boolean
 }
@@ -153,6 +157,8 @@ export type ExportAppResult = {
        * If the page has postponed when using PPR.
        */
       hasPostponed?: boolean
+
+      fetchMetrics?: FetchMetrics
     }
   >
 
@@ -171,9 +177,3 @@ export type ExportAppResult = {
    */
   turborepoAccessTraceResults: Map<string, TurborepoAccessTraceResult>
 }
-
-export type ExportAppWorker = (
-  dir: string,
-  options: ExportAppOptions,
-  span: Span
-) => Promise<ExportAppResult | null>

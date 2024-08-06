@@ -31,12 +31,18 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -47,6 +53,9 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
+                head: null,
+                prefetchHead: null,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -57,6 +66,9 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
+                          head: null,
+                          prefetchHead: null,
+                          loading: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -84,7 +96,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
     cache.rsc = existingCache.rsc
     cache.prefetchRsc = existingCache.prefetchRsc
     // Create a copy of the existing cache with the rsc applied.
-    fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath, false)
+    fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath)
 
     // Invalidate the cache below the flight segment path. This should remove the 'about' node.
     invalidateCacheBelowFlightSegmentPath(
@@ -95,6 +107,9 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
 
     const expectedCache: CacheNode = {
       lazyData: null,
+      head: null,
+      prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -103,6 +118,9 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
               'linking',
               {
                 lazyData: null,
+                head: null,
+                prefetchHead: null,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -111,9 +129,12 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                         '',
                         {
                           lazyData: null,
+                          loading: null,
                           parallelRoutes: new Map(),
                           rsc: <React.Fragment>Page</React.Fragment>,
                           prefetchRsc: null,
+                          head: null,
+                          prefetchHead: null,
                         },
                       ],
                     ]),

@@ -26,13 +26,13 @@ import child_process from 'child_process'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-// @ts-ignore
 import shellQuote from 'next/dist/compiled/shell-quote'
 
 function isTerminalEditor(editor: string) {
   switch (editor) {
     case 'vi':
     case 'vim':
+    case 'nvim':
     case 'emacs':
     case 'nano': {
       return true
@@ -100,6 +100,7 @@ const COMMON_EDITORS_LINUX = {
   'rubymine.sh': 'rubymine',
   sublime_text: 'sublime_text',
   vim: 'vim',
+  nvim: 'nvim',
   'webstorm.sh': 'webstorm',
   'goland.sh': 'goland',
   'rider.sh': 'rider',
@@ -161,6 +162,7 @@ function getArgumentsForLineNumber(
       return ['-n' + lineNumber, '-c' + colNumber, fileName]
     }
     case 'vim':
+    case 'nvim':
     case 'mvim':
     case 'joe':
     case 'gvim': {

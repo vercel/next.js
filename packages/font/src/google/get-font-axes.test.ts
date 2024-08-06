@@ -21,7 +21,7 @@ describe('getFontAxes errors', () => {
     expect(() => getFontAxes('Roboto Flex', ['variable'], [], ['INVALID']))
       .toThrowErrorMatchingInlineSnapshot(`
       "Invalid axes value \`INVALID\` for font \`Roboto Flex\`.
-      Available axes: \`GRAD\`, \`XTRA\`, \`YOPQ\`, \`YTAS\`, \`YTDE\`, \`YTFI\`, \`YTLC\`, \`YTUC\`, \`opsz\`, \`slnt\`, \`wdth\`"
+      Available axes: \`GRAD\`, \`XOPQ\`, \`XTRA\`, \`YOPQ\`, \`YTAS\`, \`YTDE\`, \`YTFI\`, \`YTLC\`, \`YTUC\`, \`opsz\`, \`slnt\`, \`wdth\`"
     `)
   })
 })

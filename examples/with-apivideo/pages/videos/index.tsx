@@ -54,7 +54,7 @@ export default function Videos() {
         {!videosResponse && !error && <div>Loading...</div>}
         {error && (
           <div className="error">
-            An error occured trying to fetch your videos. Be sure to have you
+            An error occurred trying to fetch your videos. Be sure to have you
             API key set in your .env file this way: <i>API_KEY=YOUR_API_KEY</i>
           </div>
         )}

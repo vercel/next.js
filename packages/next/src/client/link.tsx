@@ -22,6 +22,7 @@ import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
 import { PrefetchKind } from './components/router-reducer/router-reducer-types'
+import { useMergedRef } from './use-merged-ref'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -57,7 +58,7 @@ type InternalLinkProps = {
    */
   scroll?: boolean
   /**
-   * Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md), [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md) or [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md).
+   * Update the path of the current page without rerunning [`getStaticProps`](https://nextjs.org/docs/pages/building-your-application/data-fetching/get-static-props), [`getServerSideProps`](https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props) or [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props).
    *
    * @defaultValue `false`
    */
@@ -70,12 +71,20 @@ type InternalLinkProps = {
   passHref?: boolean
   /**
    * Prefetch the page in the background.
-   * Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded.
-   * Prefetch can be disabled by passing `prefetch={false}`. When `prefetch` is set to `false`, prefetching will still occur on hover. Pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md) will preload `JSON` files with the data for faster page transitions. Prefetching is only enabled in production.
+   * Any `<Link />` that is in the viewport (initially or through scroll) will be prefetched.
+   * Prefetch can be disabled by passing `prefetch={false}`. Prefetching is only enabled in production.
    *
-   * @defaultValue `true`
+   * In App Router:
+   * - `null` (default): For statically generated pages, this will prefetch the full React Server Component data. For dynamic pages, this will prefetch up to the nearest route segment with a [`loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading) file. If there is no loading file, it will not fetch the full tree to avoid fetching too much data.
+   * - `true`: This will prefetch the full React Server Component data for all route segments, regardless of whether they contain a segment with `loading.js`.
+   * - `false`: This will not prefetch any data, even on hover.
+   *
+   * In Pages Router:
+   * - `true` (default): The full route & its data will be prefetched.
+   * - `false`: Prefetching will not happen when entering the viewport, but will still happen on hover.
+   * @defaultValue `true` (pages router) or `null` (app router)
    */
-  prefetch?: boolean
+  prefetch?: boolean | null
   /**
    * The active locale is automatically prepended. `locale` allows for providing a different locale.
    * When `false` `href` has to include the locale as the default behavior is disabled.
@@ -146,9 +155,9 @@ function prefetch(
       typeof options.locale !== 'undefined'
         ? options.locale
         : // Otherwise fallback to the router's locale.
-        'locale' in router
-        ? router.locale
-        : undefined
+          'locale' in router
+          ? router.locale
+          : undefined
 
     const prefetchedKey = href + '%' + as + '%' + locale
 
@@ -161,15 +170,21 @@ function prefetch(
     prefetched.add(prefetchedKey)
   }
 
-  const prefetchPromise = isAppRouter
-    ? (router as AppRouterInstance).prefetch(href, appOptions)
-    : (router as NextRouter).prefetch(href, as, options)
+  const doPrefetch = async () => {
+    if (isAppRouter) {
+      // note that `appRouter.prefetch()` is currently sync,
+      // so we have to wrap this call in an async function to be able to catch() errors below.
+      return (router as AppRouterInstance).prefetch(href, appOptions)
+    } else {
+      return (router as NextRouter).prefetch(href, as, options)
+    }
+  }
 
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
   // want to force navigation since this is only a prefetch
-  Promise.resolve(prefetchPromise).catch((err) => {
+  doPrefetch().catch((err) => {
     if (process.env.NODE_ENV !== 'production') {
       // rethrow to show invalid URL errors
       throw err
@@ -418,16 +433,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           const _: never = key
         }
       })
-
-      // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      const hasWarned = React.useRef(false)
-      if (props.prefetch && !hasWarned.current && !isAppRouter) {
-        hasWarned.current = true
-        console.warn(
-          'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://nextjs.org/docs/messages/prefetch-true-deprecated'
-        )
-      }
     }
 
     if (process.env.NODE_ENV !== 'production') {
@@ -532,7 +537,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       rootMargin: '200px',
     })
 
-    const setRef = React.useCallback(
+    const setIntersectionWithResetRef = React.useCallback(
       (el: Element) => {
         // Before the link getting observed, check if visible state need to be reset
         if (previousAs.current !== as || previousHref.current !== href) {
@@ -542,15 +547,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         }
 
         setIntersectionRef(el)
-        if (childRef) {
-          if (typeof childRef === 'function') childRef(el)
-          else if (typeof childRef === 'object') {
-            childRef.current = el
-          }
-        }
       },
-      [as, childRef, href, resetVisible, setIntersectionRef]
+      [as, href, resetVisible, setIntersectionRef]
     )
+
+    const setRef = useMergedRef(setIntersectionWithResetRef, childRef)
 
     // Prefetch the URL if we haven't already and it's visible.
     React.useEffect(() => {

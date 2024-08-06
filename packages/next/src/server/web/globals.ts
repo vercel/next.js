@@ -1,17 +1,46 @@
+import type {
+  InstrumentationModule,
+  InstrumentationOnRequestError,
+} from '../instrumentation/types'
+
 declare const _ENTRIES: any
 
-async function registerInstrumentation() {
-  if (
+export async function getEdgeInstrumentationModule(): Promise<
+  InstrumentationModule | undefined
+> {
+  const instrumentation =
     '_ENTRIES' in globalThis &&
     _ENTRIES.middleware_instrumentation &&
-    _ENTRIES.middleware_instrumentation.register
-  ) {
+    (await _ENTRIES.middleware_instrumentation)
+
+  return instrumentation
+}
+
+let instrumentationModulePromise: Promise<any> | null = null
+async function registerInstrumentation() {
+  if (!instrumentationModulePromise) {
+    instrumentationModulePromise = getEdgeInstrumentationModule()
+  }
+  const instrumentation = await instrumentationModulePromise
+  if (instrumentation?.register) {
     try {
-      await _ENTRIES.middleware_instrumentation.register()
+      await instrumentation.register()
     } catch (err: any) {
       err.message = `An error occurred while loading instrumentation hook: ${err.message}`
       throw err
     }
+  }
+}
+
+export async function edgeInstrumentationOnRequestError(
+  ...args: Parameters<InstrumentationOnRequestError>
+) {
+  const instrumentation = await getEdgeInstrumentationModule()
+  try {
+    await instrumentation?.onRequestError?.(...args)
+  } catch (err) {
+    // Log the soft error and continue, since the original error has already been thrown
+    console.error('Error in instrumentation.onRequestError:', err)
   }
 }
 

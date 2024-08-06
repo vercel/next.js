@@ -41,8 +41,10 @@ For smaller applications, you can create a `sitemap.xml` file and place it in th
 
 You can use the `sitemap.(js|ts)` file convention to programmatically **generate** a sitemap by exporting a default function that returns an array of URLs. If using TypeScript, a [`Sitemap`](#returns) type is available.
 
+> **Good to know**: `sitemap.js` is a special Route Handlers that is cached by default unless it uses a [dynamic function](/docs/app/building-your-application/caching#dynamic-functions) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
+
 ```ts filename="app/sitemap.ts" switcher
-import { MetadataRoute } from 'next'
+import type { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
@@ -118,6 +120,90 @@ Output:
 </urlset>
 ```
 
+### Generate a localized Sitemap
+
+```ts filename="app/sitemap.ts" switcher
+import type { MetadataRoute } from 'next'
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  return [
+    {
+      url: 'https://acme.com',
+      lastModified: new Date(),
+      alternates: {
+        languages: {
+          es: 'https://acme.com/es',
+          de: 'https://acme.com/de',
+        },
+      },
+    },
+    {
+      url: 'https://acme.com/about',
+      lastModified: new Date(),
+      alternates: {
+        languages: {
+          es: 'https://acme.com/es/about',
+          de: 'https://acme.com/de/about',
+        },
+      },
+    },
+    {
+      url: 'https://acme.com/blog',
+      lastModified: new Date(),
+      alternates: {
+        languages: {
+          es: 'https://acme.com/es/blog',
+          de: 'https://acme.com/de/blog',
+        },
+      },
+    },
+  ]
+}
+```
+
+Output:
+
+```xml filename="acme.com/sitemap.xml"
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://acme.com</loc>
+    <xhtml:link
+      rel="alternate"
+      hreflang="es"
+      href="https://acme.com/es"/>
+    <xhtml:link
+      rel="alternate"
+      hreflang="de"
+      href="https://acme.com/de"/>
+    <lastmod>2023-04-06T15:02:24.021Z</lastmod>
+  </url>
+  <url>
+    <loc>https://acme.com/about</loc>
+    <xhtml:link
+      rel="alternate"
+      hreflang="es"
+      href="https://acme.com/es/about"/>
+    <xhtml:link
+      rel="alternate"
+      hreflang="de"
+      href="https://acme.com/de/about"/>
+    <lastmod>2023-04-06T15:02:24.021Z</lastmod>
+  </url>
+  <url>
+    <loc>https://acme.com/blog</loc>
+    <xhtml:link
+      rel="alternate"
+      hreflang="es"
+      href="https://acme.com/es/blog"/>
+    <xhtml:link
+      rel="alternate"
+      hreflang="de"
+      href="https://acme.com/de/blog"/>
+    <lastmod>2023-04-06T15:02:24.021Z</lastmod>
+  </url>
+</urlset>
+```
+
 ### Generating multiple sitemaps
 
 While a single sitemap will work for most applications. For large web applications, you may need to split a sitemap into multiple files.
@@ -130,6 +216,7 @@ There are two ways you can create multiple sitemaps:
 For example, to split a sitemap using `generateSitemaps`, return an array of objects with the sitemap `id`. Then, use the `id` to generate the unique sitemaps.
 
 ```ts filename="app/product/sitemap.ts" switcher
+import type { MetadataRoute } from 'next'
 import { BASE_URL } from '@/app/lib/constants'
 
 export async function generateSitemaps() {
@@ -149,7 +236,7 @@ export default async function sitemap({
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
   return products.map((product) => ({
-    url: `${BASE_URL}/product/${id}`,
+    url: `${BASE_URL}/product/${product.id}`,
     lastModified: product.date,
   }))
 }
@@ -171,15 +258,13 @@ export default async function sitemap({ id }) {
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
   return products.map((product) => ({
-    url: `${BASE_URL}/product/${id}`
+    url: `${BASE_URL}/product/${product.id}`,
     lastModified: product.date,
   }))
 }
 ```
 
-In production, your generated sitemaps will be available at `/.../sitemap/[id].xml`. For example, `/product/sitemap/1.xml`.
-
-In development, you can view the generated sitemap on `/.../sitemap.xml/[id]`. For example, `/product/sitemap.xml/1`. This difference is temporary and will follow the production format.
+Your generated sitemaps will be available at `/.../sitemap/[id]`. For example, `/product/sitemap/1.xml`.
 
 See the [`generateSitemaps` API reference](/docs/app/api-reference/functions/generate-sitemaps) for more information.
 
@@ -200,12 +285,16 @@ type Sitemap = Array<{
     | 'yearly'
     | 'never'
   priority?: number
+  alternates?: {
+    languages?: Languages<string>
+  }
 }>
 ```
 
 ## Version History
 
-| Version   | Changes                                                      |
-| --------- | ------------------------------------------------------------ |
-| `v13.4.5` | Add `changeFrequency` and `priority` attributes to sitemaps. |
-| `v13.3.0` | `sitemap` introduced.                                        |
+| Version    | Changes                                                      |
+| ---------- | ------------------------------------------------------------ |
+| `v14.2.0`  | Add localizations support.                                   |
+| `v13.4.14` | Add `changeFrequency` and `priority` attributes to sitemaps. |
+| `v13.3.0`  | `sitemap` introduced.                                        |

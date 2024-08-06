@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { v4 as uuidv4 } from "uuid";
+import { uuid as uuidv4 } from "uuidv4";
 
 export function getAllUsers(req) {
   // For demo purpose only. You are not likely to have to return all users.

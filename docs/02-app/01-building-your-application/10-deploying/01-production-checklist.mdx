@@ -39,13 +39,13 @@ While building your application, we recommend using the following features to en
 
 <AppOnly>
 
-- **[Layouts](/docs/app/building-your-application/routing/pages-and-layouts#layouts):** Use layouts to share UI across pages and enable [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) on navigation.
+- **[Layouts](/docs/app/building-your-application/routing/layouts-and-templates#layouts):** Use layouts to share UI across pages and enable [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) on navigation.
 - **[`<Link>` component](/docs/app/building-your-application/routing/linking-and-navigating#link-component):** Use the `<Link>` component for [client-side navigation and prefetching](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works).
 - **[Error Handling](/docs/app/building-your-application/routing/error-handling):** Gracefully handle [catch-all errors](/docs/app/building-your-application/routing/error-handling) and [404 errors](/docs/app/api-reference/file-conventions/not-found) in production by creating custom error pages.
 - **[Composition Patterns](/docs/app/building-your-application/rendering/composition-patterns):** Follow the recommended composition patterns for Server and Client Components, and check the placement of your [`"use client"` boundaries](/docs/app/building-your-application/rendering/composition-patterns#moving-client-components-down-the-tree) to avoid unnecessarily increasing your client-side JavaScript bundle.
-- **[Dynamic Functions](/docs/app/building-your-application/rendering/server-components#dynamic-functions):** Be aware that dynamic functions like [`cookies()`](/docs/app/api-reference/functions/cookies) and the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop will opt the entire route into [Dynamic Rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) (or your whole application if used in the [Root Layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required)). Ensure dynamic function usage is intentional and wrap them in `<Suspense>` boundaries where appropriate.
+- **[Dynamic Functions](/docs/app/building-your-application/rendering/server-components#dynamic-functions):** Be aware that dynamic functions like [`cookies()`](/docs/app/api-reference/functions/cookies) and the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop will opt the entire route into [Dynamic Rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) (or your whole application if used in the [Root Layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required)). Ensure dynamic function usage is intentional and wrap them in `<Suspense>` boundaries where appropriate.
 
-> **Good to know**: [Partial Prerendering (Experimental)](/blog/next-14#partial-prerendering-preview) will allow parts of a route to be dynamic without opting the whole route into dynamic rendering.
+> **Good to know**: [Partial Prerendering (experimental)](/blog/next-14#partial-prerendering-preview) will allow parts of a route to be dynamic without opting the whole route into dynamic rendering.
 
 </AppOnly>
 
@@ -60,10 +60,10 @@ While building your application, we recommend using the following features to en
 
 <AppOnly>
 
-- **[Server Components](/docs/app/building-your-application/data-fetching/patterns#fetching-data-on-the-server):** Leverage the benefits of fetching data on the server using Server Components.
+- **[Server Components](/docs/app/building-your-application/data-fetching/fetching#should-i-fetch-data-on-the-server-or-the-client):** Leverage the benefits of fetching data on the server using Server Components.
 - **[Route Handlers](/docs/app/building-your-application/routing/route-handlers):** Use Route Handlers to access your backend resources from Client Components. But do not call Route Handlers from Server Components to avoid an additional server request.
 - **[Streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming):** Use Loading UI and React Suspense to progressively send UI from the server to the client, and prevent the whole route from blocking while data is being fetched.
-- **[Parallel Data Fetching](/docs/app/building-your-application/data-fetching/patterns#parallel-and-sequential-data-fetching):** Reduce network waterfalls by fetching data in parallel, where appropriate. Also, consider [preloading data](/docs/app/building-your-application/data-fetching/patterns#preloading-data) where appropriate.
+- **[Parallel Data Fetching](/docs/app/building-your-application/data-fetching/fetching#parallel-and-sequential-data-fetching):** Reduce network waterfalls by fetching data in parallel, where appropriate. Also, consider [preloading data](/docs/app/building-your-application/data-fetching/fetching#preloading-data) where appropriate.
 - **[Data Caching](/docs/app/building-your-application/caching#data-cache):** Verify whether your data requests are being cached or not, and opt into caching, where appropriate. Ensure requests that don't use `fetch` are [cached](/docs/app/api-reference/functions/unstable_cache).
 - **[Static Images](/docs/app/building-your-application/optimizing/static-assets):** Use the `public` directory to automatically cache your application's static assets, e.g. images.
 
@@ -95,8 +95,8 @@ While building your application, we recommend using the following features to en
 
 <AppOnly>
 
-- **[Tainting](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client):** Prevent sensitive data from being exposed to the client by tainting data objects and/or specific values.
-- **[Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#authentication-and-authorization):** Ensure users are authorized to call Server Actions. Review the the recommended [security practices](/blog/security-nextjs-server-components-actions).
+- **[Tainting](/docs/app/building-your-application/data-fetching/fetching#preventing-sensitive-data-from-being-exposed-to-the-client):** Prevent sensitive data from being exposed to the client by tainting data objects and/or specific values.
+- **[Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#authentication-and-authorization):** Ensure users are authorized to call Server Actions. Review the recommended [security practices](/blog/security-nextjs-server-components-actions).
 
 </AppOnly>
 
@@ -139,9 +139,9 @@ Before going to production, you can run `next build` to build your application l
 
 ### Analyzing bundles
 
-Use the [`@next/bundle-analyzer` plugin](/docs/app/building-your-application/optimizing/bundle-analyzer) to analyze the size of your JavaScript bundles and identify large modules and dependencies that might be impacting your application's performance.
+Use the [`@next/bundle-analyzer` plugin](/docs/app/building-your-application/optimizing/package-bundling#analyzing-javascript-bundles) to analyze the size of your JavaScript bundles and identify large modules and dependencies that might be impacting your application's performance.
 
-Additionally, the following tools can you understand the impact of adding new dependencies to your application:
+Additionally, the following tools can help you understand the impact of adding new dependencies to your application:
 
 - [Import Cost](https://marketplace.visualstudio.com/items?itemName=wix.vscode-import-cost)
 - [Package Phobia](https://packagephobia.com/)

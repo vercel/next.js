@@ -19,8 +19,8 @@ export default function BirdsPage() {
           bird === "stork"
             ? 0.5 + Math.random()
             : bird === "flamingo"
-            ? 0.25 + Math.random()
-            : 1 + Math.random() - 0.5;
+              ? 0.25 + Math.random()
+              : 1 + Math.random() - 0.5;
 
         return {
           key: index,

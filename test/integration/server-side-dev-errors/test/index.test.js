@@ -4,11 +4,11 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
+  assertHasRedbox,
   killApp,
   findPort,
   launchApp,
   check,
-  hasRedbox,
   getRedboxSource,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
@@ -60,11 +60,11 @@ describe('server-side dev errors', () => {
           : err
       }, 'success')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(gspPage, content)
-      await hasRedbox(browser)
+      await assertHasRedbox(browser)
     } finally {
       await fs.writeFile(gspPage, content)
     }
@@ -92,11 +92,11 @@ describe('server-side dev errors', () => {
           : err
       }, 'success')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(gsspPage, content)
-      await hasRedbox(browser)
+      await assertHasRedbox(browser)
     } finally {
       await fs.writeFile(gsspPage, content)
     }
@@ -124,11 +124,11 @@ describe('server-side dev errors', () => {
           : err
       }, 'success')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(dynamicGsspPage, content)
-      await hasRedbox(browser)
+      await assertHasRedbox(browser)
     } finally {
       await fs.writeFile(dynamicGsspPage, content)
     }
@@ -149,18 +149,18 @@ describe('server-side dev errors', () => {
         const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/api/hello.js') &&
-          err.includes('2:2') &&
+          err.includes('2:3') &&
           err.includes('default') &&
           err.includes('missingVar')
           ? 'success'
           : err
       }, 'success')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(apiPage, content)
-      await hasRedbox(browser)
+      await assertHasRedbox(browser)
     } finally {
       await fs.writeFile(apiPage, content)
     }
@@ -181,18 +181,18 @@ describe('server-side dev errors', () => {
         const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/api/blog/[slug].js') &&
-          err.includes('2:2') &&
+          err.includes('2:3') &&
           err.includes('default') &&
           err.includes('missingVar')
           ? 'success'
           : err
       }, 'success')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(dynamicApiPage, content)
-      await hasRedbox(browser)
+      await assertHasRedbox(browser)
     } finally {
       await fs.writeFile(dynamicApiPage, content)
     }

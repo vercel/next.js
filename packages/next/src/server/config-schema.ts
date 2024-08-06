@@ -4,14 +4,21 @@ import { VALID_LOADERS } from '../shared/lib/image-config'
 import { z } from 'next/dist/compiled/zod'
 import type zod from 'next/dist/compiled/zod'
 
-import type { SizeLimit } from '../../types'
-import type { ExportPathMap, TurboLoaderItem, TurboRule } from './config-shared'
+import type { SizeLimit } from '../types'
+import type {
+  ExportPathMap,
+  TurboLoaderItem,
+  TurboRuleConfigItem,
+  TurboRuleConfigItemOptions,
+  TurboRuleConfigItemOrShortcut,
+} from './config-shared'
 import type {
   Header,
   Rewrite,
   RouteHas,
   Redirect,
 } from '../lib/load-custom-routes'
+import { SUPPORTED_TEST_RUNNERS_LIST } from '../cli/next-test'
 
 // A custom zod schema for the SizeLimit type
 const zSizeLimit = z.custom<SizeLimit>((val) => {
@@ -28,8 +35,8 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     query: z.any(), // NextParsedUrlQuery
     // private optional properties
     _isAppDir: z.boolean().optional(),
-    _isAppPrefetch: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
+    _isRoutePPREnabled: z.boolean().optional(),
   })
 )
 
@@ -99,13 +106,23 @@ const zTurboLoaderItem: zod.ZodType<TurboLoaderItem> = z.union([
   }),
 ])
 
-const zTurboRule: zod.ZodType<TurboRule> = z.union([
-  z.array(zTurboLoaderItem),
+const zTurboRuleConfigItemOptions: zod.ZodType<TurboRuleConfigItemOptions> =
   z.object({
     loaders: z.array(zTurboLoaderItem),
-    as: z.string(),
-  }),
+    as: z.string().optional(),
+  })
+
+const zTurboRuleConfigItem: zod.ZodType<TurboRuleConfigItem> = z.union([
+  z.literal(false),
+  z.record(
+    z.string(),
+    z.lazy(() => zTurboRuleConfigItem)
+  ),
+  zTurboRuleConfigItemOptions,
 ])
+
+const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurboRuleConfigItemOrShortcut> =
+  z.union([z.array(zTurboLoaderItem), zTurboRuleConfigItem])
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
@@ -114,9 +131,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         canonicalBase: z.string().optional(),
       })
       .optional(),
-    analyticsId: z.string().optional(), // TODO: remove in the next major version
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
+    bundlePagesRouterDependencies: z.boolean().optional(),
     cacheHandler: z.string().min(1).optional(),
     cacheMaxMemorySize: z.number().optional(),
     cleanDistDir: z.boolean().optional(),
@@ -206,8 +223,10 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     crossOrigin: z
       .union([z.literal('anonymous'), z.literal('use-credentials')])
       .optional(),
+    deploymentId: z.string().optional(),
     devIndicators: z
       .object({
+        appIsrStatus: z.boolean().optional(),
         buildActivity: z.boolean().optional(),
         buildActivityPosition: z
           .union([
@@ -230,7 +249,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z
       .strictObject({
+        after: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),
+        appIsrStatus: z.boolean().optional(),
+        appNavFailHandling: z.boolean().optional(),
+        preloadEntriesOnStart: z.boolean().optional(),
         adjustFontFallbacks: z.boolean().optional(),
         adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
         allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
@@ -242,6 +265,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             validator: z.string().optional(),
           })
           .optional(),
+        staleTimes: z
+          .object({
+            dynamic: z.number().optional(),
+            static: z.number().optional(),
+          })
+          .optional(),
         clientRouterFilter: z.boolean().optional(),
         clientRouterFilterRedirects: z.boolean().optional(),
         clientRouterFilterAllowedRate: z.number().optional(),
@@ -249,9 +278,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         memoryBasedWorkersCount: z.boolean().optional(),
         craCompat: z.boolean().optional(),
         caseSensitiveRoutes: z.boolean().optional(),
-        useDeploymentId: z.boolean().optional(),
-        useDeploymentIdServerActions: z.boolean().optional(),
-        deploymentId: z.string().optional(),
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
         esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
@@ -267,6 +293,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         externalMiddlewareRewritesResolve: z.boolean().optional(),
         fallbackNodePolyfills: z.literal(false).optional(),
         fetchCacheKeyPrefix: z.string().optional(),
+        flyingShuttle: z
+          .strictObject({
+            mode: z
+              .union([z.literal('full'), z.literal('store-only')])
+              .optional(),
+          })
+          .optional(),
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),
@@ -275,24 +308,20 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         linkNoTouchStart: z.boolean().optional(),
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
+        cssChunking: z.enum(['strict', 'loose']).optional(),
         nextScriptWorkers: z.boolean().optional(),
         // The critter option is unknown, use z.any() here
         optimizeCss: z.union([z.boolean(), z.any()]).optional(),
         optimisticClientCache: z.boolean().optional(),
-        outputFileTracingRoot: z.string().optional(),
-        outputFileTracingExcludes: z
-          .record(z.string(), z.array(z.string()))
-          .optional(),
-        outputFileTracingIgnores: z.array(z.string()).optional(),
-        outputFileTracingIncludes: z
-          .record(z.string(), z.array(z.string()))
-          .optional(),
         parallelServerCompiles: z.boolean().optional(),
         parallelServerBuildTraces: z.boolean().optional(),
-        ppr: z.boolean().optional(),
+        ppr: z
+          .union([z.boolean(), z.literal('incremental')])
+          .readonly()
+          .optional(),
         taint: z.boolean().optional(),
+        prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
-        serverComponentsExternalPackages: z.array(z.string()).optional(),
         scrollRestoration: z.boolean().optional(),
         sri: z
           .object({
@@ -300,7 +329,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           })
           .optional(),
         strictNextHead: z.boolean().optional(),
-        swcMinify: z.boolean().optional(),
         swcPlugins: z
           // The specific swc plugin's option is unknown, use z.any() here
           .array(z.tuple([z.string(), z.record(z.string(), z.any())]))
@@ -321,13 +349,29 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             ])
           )
           .optional(),
-        mdxRs: z.boolean().optional(),
+        // This is partial set of mdx-rs transform options we support, aligned
+        // with next_core::next_config::MdxRsOptions. Ensure both types are kept in sync.
+        mdxRs: z
+          .union([
+            z.boolean(),
+            z.object({
+              development: z.boolean().optional(),
+              jsxRuntime: z.string().optional(),
+              jsxImportSource: z.string().optional(),
+              providerImportSource: z.string().optional(),
+              mdxType: z.enum(['gfm', 'commonmark']).optional(),
+            }),
+          ])
+          .optional(),
         typedRoutes: z.boolean().optional(),
         webpackBuildWorker: z.boolean().optional(),
+        webpackMemoryOptimizations: z.boolean().optional(),
         turbo: z
           .object({
             loaders: z.record(z.string(), z.array(zTurboLoaderItem)).optional(),
-            rules: z.record(z.string(), zTurboRule).optional(),
+            rules: z
+              .record(z.string(), zTurboRuleConfigItemOrShortcut)
+              .optional(),
             resolveAlias: z
               .record(
                 z.string(),
@@ -341,11 +385,16 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
                 ])
               )
               .optional(),
+            resolveExtensions: z.array(z.string()).optional(),
+            useSwcCss: z.boolean().optional(),
+            treeShaking: z.boolean().optional(),
+            memoryLimit: z.number().optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),
         optimizeServerReact: z.boolean().optional(),
         instrumentationHook: z.boolean().optional(),
+        clientTraceMetadata: z.array(z.string()).optional(),
         turbotrace: z
           .object({
             logLevel: z
@@ -369,11 +418,28 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         serverMinification: z.boolean().optional(),
         serverSourceMaps: z.boolean().optional(),
-        bundlePagesExternals: z.boolean().optional(),
-        staticWorkerRequestDeduping: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),
         useLightningcss: z.boolean().optional(),
-        missingSuspenseWithCSRBailout: z.boolean().optional(),
+        useEarlyImport: z.boolean().optional(),
+        testProxy: z.boolean().optional(),
+        defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
+        allowDevelopmentBuild: z.literal(true).optional(),
+        reactCompiler: z.union([
+          z.boolean(),
+          z
+            .object({
+              compilationMode: z
+                .enum(['infer', 'annotation', 'all'])
+                .optional(),
+              panicThreshold: z
+                .enum(['ALL_ERRORS', 'CRITICAL_ERRORS', 'NONE'])
+                .optional(),
+            })
+            .optional(),
+        ]),
+        staticGenerationRetryCount: z.number().int().optional(),
+        typedEnv: z.boolean().optional(),
+        serverComponentsHmrCache: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z
@@ -467,13 +533,17 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       })
       .optional(),
     logging: z
-      .object({
-        fetches: z
-          .object({
-            fullUrl: z.boolean().optional(),
-          })
-          .optional(),
-      })
+      .union([
+        z.object({
+          fetches: z
+            .object({
+              fullUrl: z.boolean().optional(),
+              hmrRefreshes: z.boolean().optional(),
+            })
+            .optional(),
+        }),
+        z.literal(false),
+      ])
       .optional(),
     modularizeImports: z
       .record(
@@ -493,13 +563,20 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     optimizeFonts: z.boolean().optional(),
     output: z.enum(['standalone', 'export']).optional(),
-    outputFileTracing: z.boolean().optional(),
+    outputFileTracingRoot: z.string().optional(),
+    outputFileTracingExcludes: z
+      .record(z.string(), z.array(z.string()))
+      .optional(),
+    outputFileTracingIncludes: z
+      .record(z.string(), z.array(z.string()))
+      .optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
     publicRuntimeConfig: z.record(z.string(), z.any()).optional(),
     reactProductionProfiling: z.boolean().optional(),
     reactStrictMode: z.boolean().nullable().optional(),
+    reactMaxHeadersLength: z.number().nonnegative().int().optional(),
     redirects: z
       .function()
       .args()
@@ -523,11 +600,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     // saas option is unknown, use z.any() here
     sassOptions: z.record(z.string(), z.any()).optional(),
+    serverExternalPackages: z.array(z.string()).optional(),
     serverRuntimeConfig: z.record(z.string(), z.any()).optional(),
     skipMiddlewareUrlNormalize: z.boolean().optional(),
     skipTrailingSlashRedirect: z.boolean().optional(),
     staticPageGenerationTimeout: z.number().optional(),
-    swcMinify: z.boolean().optional(),
+    swrDelta: z.number().optional(),
     target: z.string().optional(),
     trailingSlash: z.boolean().optional(),
     transpilePackages: z.array(z.string()).optional(),

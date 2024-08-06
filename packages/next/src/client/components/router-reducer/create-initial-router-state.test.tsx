@@ -35,29 +35,32 @@ describe('createInitialRouterState', () => {
 
     const state = createInitialRouterState({
       buildId,
-      initialTree,
+      initialFlightData: [
+        [initialTree, ['', {}, children, null], <title>Test</title>],
+      ],
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
-      initialHead: <title>Test</title>,
       couldBeIntercepted: false,
     })
 
     const state2 = createInitialRouterState({
       buildId,
-      initialTree,
+      initialFlightData: [
+        [initialTree, ['', {}, children, null], <title>Test</title>],
+      ],
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
-      initialHead: <title>Test</title>,
     })
 
     const expectedCache: CacheNode = {
       lazyData: null,
       rsc: children,
       prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -76,7 +79,9 @@ describe('createInitialRouterState', () => {
                           rsc: null,
                           prefetchRsc: null,
                           parallelRoutes: new Map(),
+                          loading: null,
                           head: <title>Test</title>,
+                          prefetchHead: null,
                         },
                       ],
                     ]),
@@ -85,6 +90,9 @@ describe('createInitialRouterState', () => {
                 lazyData: null,
                 rsc: null,
                 prefetchRsc: null,
+                head: null,
+                prefetchHead: null,
+                loading: null,
               },
             ],
           ]),
@@ -104,7 +112,7 @@ describe('createInitialRouterState', () => {
             data: expect.any(Promise),
             prefetchTime: expect.any(Number),
             kind: PrefetchKind.AUTO,
-            lastUsedTime: null,
+            lastUsedTime: expect.any(Number),
             treeAtTimeOfPrefetch: initialTree,
             status: PrefetchCacheEntryStatus.fresh,
           },

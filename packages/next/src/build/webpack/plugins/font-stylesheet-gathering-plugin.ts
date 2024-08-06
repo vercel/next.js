@@ -11,7 +11,7 @@ import type { FontManifest } from '../../../server/font-utils'
 import postcss from 'postcss'
 import minifier from 'next/dist/compiled/cssnano-simple'
 import {
-  FONT_MANIFEST,
+  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   OPTIMIZED_FONT_PROVIDERS,
 } from '../../../shared/lib/constants'
 import * as Log from '../../output/log'
@@ -151,7 +151,7 @@ export class FontStylesheetGatheringPlugin {
 
             if (buildInfo) {
               buildInfo.valueDependencies.set(
-                FONT_MANIFEST,
+                AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
                 this.gatheredStylesheets
               )
             }
@@ -187,8 +187,9 @@ export class FontStylesheetGatheringPlugin {
 
           const fontUrls = new Set<string>()
           modules.forEach((module: any) => {
-            const fontDependencies =
-              module?.buildInfo?.valueDependencies?.get(FONT_MANIFEST)
+            const fontDependencies = module?.buildInfo?.valueDependencies?.get(
+              AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
+            )
             if (fontDependencies) {
               fontDependencies.forEach((v: string) => fontUrls.add(v))
             }
@@ -229,9 +230,10 @@ export class FontStylesheetGatheringPlugin {
           }
 
           // @ts-expect-error invalid assets type
-          compilation.assets[FONT_MANIFEST] = new sources.RawSource(
-            JSON.stringify(this.manifestContent, null, '  ')
-          )
+          compilation.assets[AUTOMATIC_FONT_OPTIMIZATION_MANIFEST] =
+            new sources.RawSource(
+              JSON.stringify(this.manifestContent, null, '  ')
+            )
 
           modulesFinished()
         }
@@ -246,9 +248,10 @@ export class FontStylesheetGatheringPlugin {
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {
-          assets['../' + FONT_MANIFEST] = new sources.RawSource(
-            JSON.stringify(this.manifestContent, null, '  ')
-          )
+          assets['../' + AUTOMATIC_FONT_OPTIMIZATION_MANIFEST] =
+            new sources.RawSource(
+              JSON.stringify(this.manifestContent, null, '  ')
+            )
         }
       )
     })

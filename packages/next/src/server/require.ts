@@ -1,6 +1,6 @@
 import path from 'path'
 import {
-  FONT_MANIFEST,
+  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
   APP_PATHS_MANIFEST,
@@ -105,11 +105,11 @@ export function getPagePath(
   return pagePath
 }
 
-export function requirePage(
+export async function requirePage(
   page: string,
   distDir: string,
   isAppPath: boolean
-): any {
+): Promise<any> {
   const pagePath = getPagePath(page, distDir, undefined, isAppPath)
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8').catch((err) => {
@@ -134,7 +134,7 @@ export function requirePage(
 export function requireFontManifest(distDir: string) {
   const serverBuildPath = path.join(distDir, SERVER_DIRECTORY)
   const fontManifest = loadManifest(
-    path.join(serverBuildPath, FONT_MANIFEST)
+    path.join(serverBuildPath, AUTOMATIC_FONT_OPTIMIZATION_MANIFEST)
   ) as FontManifest
   return fontManifest
 }

@@ -76,24 +76,27 @@ function runTests(route, routePath) {
 }
 
 describe('SSG Prerender No Revalidate', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir, [])
-      appPort = await findPort()
-      stderr = ''
-      app = await nextStart(appDir, appPort, {
-        onStderr: (msg) => {
-          stderr += msg
-        },
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        await nextBuild(appDir, [])
+        appPort = await findPort()
+        stderr = ''
+        app = await nextStart(appDir, appPort, {
+          onStderr: (msg) => {
+            stderr += msg
+          },
+        })
+        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       })
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(() => killApp(app))
+      afterAll(() => killApp(app))
 
-    runTests('/', '/')
-    runTests('/named', '/named')
-    runTests('/nested', '/nested')
-    runTests('/nested/named', '/nested/named')
-  })
+      runTests('/', '/')
+      runTests('/named', '/named')
+      runTests('/nested', '/nested')
+      runTests('/nested/named', '/nested/named')
+    }
+  )
 })

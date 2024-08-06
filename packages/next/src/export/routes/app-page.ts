@@ -16,8 +16,12 @@ import {
   RSC_SUFFIX,
 } from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
-import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
+import { lazyRenderAppPage } from '../../server/route-modules/app-page/module.render'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
+import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
+import type { FetchMetrics } from '../../server/base-http'
+import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -40,15 +44,18 @@ export async function exportAppPage(
   isDynamicError: boolean,
   fileWriter: FileWriter
 ): Promise<ExportRouteResult> {
+  let isDefaultNotFound = false
   // If the page is `/_not-found`, then we should update the page to be `/404`.
-  if (page === '/_not-found') {
+  // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
+  if (page === '/_not-found/page') {
+    isDefaultNotFound = true
     pathname = '/404'
   }
 
   try {
     const result = await lazyRenderAppPage(
-      req,
-      res,
+      new NodeNextRequest(req),
+      new NodeNextResponse(res),
       pathname,
       query,
       renderOpts
@@ -57,10 +64,16 @@ export async function exportAppPage(
     const html = result.toUnchunkedString()
 
     const { metadata } = result
-    const { flightData, revalidate = false, postponed, fetchTags } = metadata
+    const {
+      flightData,
+      revalidate = false,
+      postponed,
+      fetchTags,
+      fetchMetrics,
+    } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
-    if (postponed && !renderOpts.experimental.ppr) {
+    if (postponed && !renderOpts.experimental.isRoutePPREnabled) {
       throw new Error('Invariant: page postponed without PPR being enabled')
     }
 
@@ -80,7 +93,7 @@ export async function exportAppPage(
         })
       }
 
-      return { revalidate: 0 }
+      return { revalidate: 0, fetchMetrics }
     }
     // If page data isn't available, it means that the page couldn't be rendered
     // properly.
@@ -89,8 +102,9 @@ export async function exportAppPage(
     }
     // If PPR is enabled, we want to emit a prefetch rsc file for the page
     // instead of the standard rsc. This is because the standard rsc will
-    // contain the dynamic data.
-    else if (renderOpts.experimental.ppr) {
+    // contain the dynamic data. We do this if any routes have PPR enabled so
+    // that the cache read/write is the same.
+    else if (renderOpts.experimental.isRoutePPREnabled) {
       // If PPR is enabled, we should emit the flight data as the prefetch
       // payload.
       await fileWriter(
@@ -109,11 +123,8 @@ export async function exportAppPage(
 
     const headers: OutgoingHttpHeaders = { ...metadata.headers }
 
-    // When PPR is enabled, we should grab the headers from the mocked response
-    // and add it to the headers.
-    if (renderOpts.experimental.ppr) {
-      Object.assign(headers, res.getHeaders())
-    }
+    // If we're writing the file to disk, we know it's a prerender.
+    headers[NEXT_IS_PRERENDER_HEADER] = '1'
 
     if (fetchTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = fetchTags
@@ -127,12 +138,27 @@ export async function exportAppPage(
       'utf8'
     )
 
+    const isParallelRoute = /\/@\w+/.test(page)
+    const isNonSuccessfulStatusCode = res.statusCode > 300
+
+    // When PPR is enabled, we don't always send 200 for routes that have been
+    // pregenerated, so we should grab the status code from the mocked
+    // response.
+    let status: number | undefined = renderOpts.experimental.isRoutePPREnabled
+      ? res.statusCode
+      : undefined
+
+    if (isDefaultNotFound) {
+      // Override the default /_not-found page status code to 404
+      status = 404
+    } else if (isNonSuccessfulStatusCode && !isParallelRoute) {
+      // If it's parallel route the status from mock response is 404
+      status = res.statusCode
+    }
+
     // Writing the request metadata to a file.
     const meta: RouteMetadata = {
-      // When PPR is enabled, we don't always send 200 for routes that have been
-      // pregenerated, so we should grab the status code from the mocked
-      // response.
-      status: renderOpts.experimental.ppr ? res.statusCode : undefined,
+      status,
       headers,
       postponed,
     }
@@ -149,33 +175,34 @@ export async function exportAppPage(
       hasEmptyPrelude: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
       revalidate,
+      fetchMetrics,
     }
   } catch (err) {
     if (!isDynamicUsageError(err)) {
       throw err
     }
 
-    // If enabled, we should fail rendering if a client side rendering bailout
+    // We should fail rendering if a client side rendering bailout
     // occurred at the page level.
-    if (
-      renderOpts.experimental.missingSuspenseWithCSRBailout &&
-      isBailoutToCSRError(err)
-    ) {
+    if (isBailoutToCSRError(err)) {
       throw err
     }
 
+    let fetchMetrics: FetchMetrics | undefined
+
     if (debugOutput) {
-      const { dynamicUsageDescription, dynamicUsageStack } = (renderOpts as any)
-        .store
+      const store = (renderOpts as any).store as StaticGenerationStore
+      const { dynamicUsageDescription, dynamicUsageStack } = store
+      fetchMetrics = store.fetchMetrics
 
       logDynamicUsageWarning({
         path,
-        description: dynamicUsageDescription,
+        description: dynamicUsageDescription ?? '',
         stack: dynamicUsageStack,
       })
     }
 
-    return { revalidate: 0 }
+    return { revalidate: 0, fetchMetrics }
   }
 }
 
