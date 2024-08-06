@@ -854,6 +854,7 @@ impl Analyzer<'_> {
             return_type,
             span: _,
             type_params,
+            ctxt: _,
         } = arrow_expr;
         let mut iter = args.iter();
         for (i, param) in params.iter().enumerate() {
@@ -910,6 +911,7 @@ impl Analyzer<'_> {
             return_type,
             span: _,
             type_params,
+            ctxt: _,
         } = function;
         for (i, param) in params.iter().enumerate() {
             let mut ast_path = ast_path.with_guard(AstParentNodeRef::Function(
