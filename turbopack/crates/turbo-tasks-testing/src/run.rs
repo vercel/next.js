@@ -1,19 +1,23 @@
-use std::{future::Future, sync::OnceLock};
+use std::{
+    future::Future,
+    sync::{Arc, OnceLock},
+};
 
-use turbo_tasks::{trace::TraceRawVcs, TurboTasks};
-use turbo_tasks_memory::MemoryBackend;
+use turbo_tasks::{run_once, trace::TraceRawVcs, TurboTasksApi};
 
 pub struct Registration {
     execution_lock: OnceLock<()>,
     func: fn(),
+    create_turbo_tasks: fn() -> Arc<dyn TurboTasksApi>,
 }
 
 impl Registration {
     #[doc(hidden)]
-    pub const fn new(func: fn()) -> Self {
+    pub const fn new(create_turbo_tasks: fn() -> Arc<dyn TurboTasksApi>, func: fn()) -> Self {
         Registration {
             execution_lock: OnceLock::new(),
             func,
+            create_turbo_tasks,
         }
     }
 
@@ -23,11 +27,23 @@ impl Registration {
     pub fn ensure_registered(&self) {
         self.execution_lock.get_or_init(self.func);
     }
+
+    pub fn create_turbo_tasks(&self) -> Arc<dyn TurboTasksApi> {
+        (self.create_turbo_tasks)()
+    }
 }
 
 #[macro_export]
 macro_rules! register {
     ($($other_register_fns:expr),* $(,)?) => {{
+        use turbo_tasks::TurboTasksApi;
+        use std::sync::Arc;
+        fn create_turbo_tasks() -> Arc<dyn TurboTasksApi> {
+            include!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/tests/test_config.trs"
+            ))
+        }
         fn register_impl() {
             $($other_register_fns();)*
             turbo_tasks::register();
@@ -38,7 +54,7 @@ macro_rules! register {
                 ".rs",
             ));
         }
-        turbo_tasks_testing::Registration::new(register_impl)
+        turbo_tasks_testing::Registration::new(create_turbo_tasks, register_impl)
     }};
 }
 
@@ -47,6 +63,6 @@ where
     T: TraceRawVcs + Send + 'static,
 {
     registration.ensure_registered();
-    let tt = TurboTasks::new(MemoryBackend::default());
-    tt.run_once(async move { Ok(fut.await) }).await.unwrap()
+    let tt = registration.create_turbo_tasks();
+    run_once(tt, async move { Ok(fut.await) }).await.unwrap()
 }
