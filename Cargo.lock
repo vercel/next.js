@@ -8587,6 +8587,7 @@ dependencies = [
  "turbo-tasks-build",
  "turbo-tasks-hash",
  "turbo-tasks-malloc",
+ "turbo-tasks-testing",
 ]
 
 [[package]]
