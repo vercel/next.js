@@ -9,7 +9,7 @@ static REGISTRATION: Registration = register!();
 #[tokio::test]
 async fn basic() {
     run(&REGISTRATION, || async {
-        // let input = Value { value: 42 }.cell();
+        let input = Value { value: 42 }.cell();
         // let output = func(input);
         // assert_eq!(output.await?.value, 42);
 
