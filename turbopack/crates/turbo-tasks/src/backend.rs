@@ -92,12 +92,93 @@ impl Display for CachedTaskType {
 }
 
 mod ser {
+    use std::any::Any;
+
     use serde::{
+        de::{self},
         ser::{SerializeSeq, SerializeTuple},
         Deserialize, Deserializer, Serialize, Serializer,
     };
 
     use super::*;
+
+    impl Serialize for TypedCellContent {
+        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let value_type = registry::get_value_type(self.0);
+            let serializable = if let Some(value) = &self.1 .0 {
+                value_type.any_as_serializable(&value.0)
+            } else {
+                None
+            };
+            let mut state = serializer.serialize_tuple(3)?;
+            state.serialize_element(registry::get_value_type_global_name(self.0))?;
+            if let Some(serializable) = serializable {
+                state.serialize_element(&true)?;
+                state.serialize_element(serializable)?;
+            } else {
+                state.serialize_element(&false)?;
+                state.serialize_element(&())?;
+            }
+            state.end()
+        }
+    }
+
+    impl<'de> Deserialize<'de> for TypedCellContent {
+        fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            struct Visitor;
+
+            impl<'de> serde::de::Visitor<'de> for Visitor {
+                type Value = TypedCellContent;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    write!(formatter, "a valid TypedCellContent")
+                }
+
+                fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
+                where
+                    A: de::SeqAccess<'de>,
+                {
+                    let value_type = seq
+                        .next_element()?
+                        .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                    let value_type = registry::get_value_type_id_by_global_name(value_type)
+                        .ok_or_else(|| de::Error::custom("Unknown value type"))?;
+                    let has_value: bool = seq
+                        .next_element()?
+                        .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                    if has_value {
+                        let seed = registry::get_value_type(value_type)
+                            .get_any_deserialize_seed()
+                            .ok_or_else(|| {
+                                de::Error::custom("Value type doesn't support deserialization")
+                            })?;
+                        let value = seq
+                            .next_element_seed(seed)?
+                            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                        let arc: triomphe::Arc<dyn Any + Send + Sync> =
+                            todo!("convert Box<dyn T> to Arc<dyn T>");
+                        Ok(TypedCellContent(
+                            value_type,
+                            CellContent(Some(SharedReference(arc))),
+                        ))
+                    } else {
+                        let () = seq
+                            .next_element()?
+                            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                        Ok(TypedCellContent(value_type, CellContent(None)))
+                    }
+                }
+            }
+
+            deserializer.deserialize_tuple(2, Visitor)
+        }
+    }
 
     enum FunctionAndArg<'a> {
         Owned {
