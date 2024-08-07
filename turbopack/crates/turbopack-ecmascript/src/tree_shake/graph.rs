@@ -578,6 +578,7 @@ impl DepGraph {
                                     Some(ModuleExportName::Ident(Ident::new(
                                         "default".into(),
                                         DUMMY_SP,
+                                        Default::default(),
                                     ))),
                                     quote_ident!("default"),
                                     Some(ModuleExportName::Ident(s.exported.clone())),
@@ -743,13 +744,13 @@ impl DepGraph {
                                     VarDecl {
                                         span: DUMMY_SP,
                                         kind: VarDeclKind::Const,
-                                        declare: false,
                                         decls: vec![VarDeclarator {
                                             span: DUMMY_SP,
                                             name: default_var.clone().into(),
                                             init: Some(export.expr.clone()),
                                             definite: false,
                                         }],
+                                        ..Default::default()
                                     },
                                 )))),
                                 ..Default::default()
@@ -1159,7 +1160,11 @@ pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {
     ObjectLit {
         span: DUMMY_SP,
         props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-            key: PropName::Ident(Ident::new(ASSERT_CHUNK_KEY.into(), DUMMY_SP)),
+            key: PropName::Ident(Ident::new(
+                ASSERT_CHUNK_KEY.into(),
+                DUMMY_SP,
+                Default::default(),
+            )),
             value: match dep {
                 PartId::ModuleEvaluation => "module evaluation".into(),
                 PartId::Exports => "exports".into(),
