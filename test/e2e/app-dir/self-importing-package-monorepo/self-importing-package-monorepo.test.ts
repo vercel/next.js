@@ -1,11 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('self-importing-package-monorepo', () => {
+  const dependencies = (global as any).isNextDeploy
+    ? // `link` is incompatible with the npm version used when this test is deployed
+      {
+        'internal-pkg': 'file:./internal-pkg',
+      }
+    : {
+        'internal-pkg': 'link:./internal-pkg',
+      }
   const { next } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      'internal-pkg': 'link:./internal-pkg',
-    },
+    dependencies,
     packageJson: {
       name: 'next-app',
       exports: {
