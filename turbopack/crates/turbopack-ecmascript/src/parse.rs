@@ -275,7 +275,7 @@ async fn parse_content(
     let parser_handler = Handler::with_emitter(true, false, emitter.clone());
     let globals = Arc::new(Globals::new());
     let globals_ref = &globals;
-    let helpers = GLOBALS.set(globals_ref, || Helpers::new(true));
+
     let mut result = WrapFuture::new(
         async {
             let file_name = FileName::Custom(ident.to_string());
@@ -448,7 +448,7 @@ async fn parse_content(
         },
         |f, cx| {
             GLOBALS.set(globals_ref, || {
-                HANDLER.set(&handler, || HELPERS.set(&helpers, || f.poll(cx)))
+                HANDLER.set(&handler, || HELPERS.set(&Helpers::new(true), || f.poll(cx)))
             })
         },
     )
