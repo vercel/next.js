@@ -444,29 +444,20 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
   apiRouteWarnings.set(apiRoute, 1)
 }
 
-const warnedUnsupportedValueMap = new LRUCache<string, boolean>({ max: 250 })
-
 function warnAboutUnsupportedValue(
   pageFilePath: string,
   page: string | undefined,
   error: UnsupportedValueError
 ) {
-  if (warnedUnsupportedValueMap.has(pageFilePath)) {
-    return
-  }
-
-  Log.warn(
+  throw new Error(
     `Next.js can't recognize the exported \`config\` field in ` +
       (page ? `route "${page}"` : `"${pageFilePath}"`) +
       ':\n' +
       error.message +
       (error.path ? ` at "${error.path}"` : '') +
       '.\n' +
-      'The default config will be used instead.\n' +
       'Read More - https://nextjs.org/docs/messages/invalid-page-config'
   )
-
-  warnedUnsupportedValueMap.set(pageFilePath, true)
 }
 
 /**
