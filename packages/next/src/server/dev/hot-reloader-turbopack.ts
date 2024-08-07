@@ -90,7 +90,7 @@ const isTestMode = !!(
   process.env.DEBUG
 )
 
-const sessionId = Math.round(Math.random() * 100 + Date.now())
+const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 export async function createHotReloaderTurbopack(
   opts: SetupOpts,
