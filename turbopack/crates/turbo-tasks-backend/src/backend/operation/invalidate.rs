@@ -76,6 +76,7 @@ impl Operation for InvalidateOperation {
                             }
                             None => false,
                         };
+                        #[allow(clippy::collapsible_if)]
                         if task.add(CachedDataItem::Dirty { value: () }) {
                             if !in_progress && task.add(CachedDataItem::new_scheduled(task_id)) {
                                 ctx.turbo_tasks.schedule(task_id)
