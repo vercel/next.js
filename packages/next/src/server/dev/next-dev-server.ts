@@ -5,7 +5,7 @@ import type { Params } from '../../client/components/params'
 import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
-import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
+import type { MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
@@ -69,6 +69,7 @@ import { decorateServerError } from '../../shared/lib/error-source'
 import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
+import { FallbackMode } from '../../lib/fallback'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -736,7 +737,7 @@ export default class DevServer extends Server {
     isAppPath: boolean
   }): Promise<{
     staticPaths?: string[]
-    fallbackMode?: false | 'static' | 'blocking'
+    fallbackMode?: FallbackMode
   }> {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
@@ -771,6 +772,7 @@ export default class DevServer extends Server {
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
+          nextConfigOutput: this.nextConfig.output,
         })
         return pathsResult
       } finally {
@@ -787,27 +789,23 @@ export default class DevServer extends Server {
       .then((res) => {
         const { prerenderedRoutes: staticPaths = [], fallback } = res.value
         if (!isAppPath && this.nextConfig.output === 'export') {
-          if (fallback === 'blocking') {
+          if (fallback === FallbackMode.BLOCKING_RENDER) {
             throw new Error(
               'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
             )
-          } else if (fallback === true) {
+          } else if (fallback === FallbackMode.SERVE_PRERENDER) {
             throw new Error(
               'getStaticPaths with "fallback: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
             )
           }
         }
+
         const value: {
           staticPaths: string[]
           fallbackMode: FallbackMode
         } = {
           staticPaths: staticPaths.map((route) => route.path),
-          fallbackMode:
-            fallback === 'blocking'
-              ? 'blocking'
-              : fallback === true
-                ? 'static'
-                : fallback,
+          fallbackMode: fallback ?? FallbackMode.NOT_FOUND,
         }
         this.staticPathsCache.set(pathname, value)
         return value
