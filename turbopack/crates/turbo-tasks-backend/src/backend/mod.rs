@@ -39,8 +39,8 @@ use self::{
 };
 use crate::{
     data::{
-        CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate, InProgressState,
-        OutputValue,
+        CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate, CellRef,
+        InProgressState, OutputValue,
     },
     get, remove,
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc},
@@ -129,7 +129,7 @@ impl TurboTasksBackend {
                 snapshot_request
                     .suspended_operations
                     .insert(operation.clone().into());
-                let value = self.in_progress_operations.fetch_sub(1, Ordering::AcqRel);
+                let value = self.in_progress_operations.fetch_sub(1, Ordering::AcqRel) - 1;
                 assert!((value & SNAPSHOT_REQUESTED_BIT) != 0);
                 if value == SNAPSHOT_REQUESTED_BIT {
                     self.operations_suspended.notify_all();
@@ -145,11 +145,46 @@ impl TurboTasksBackend {
             }
         }
     }
+
+    pub(crate) fn start_operation(&self) -> OperationGuard<'_> {
+        let fetch_add = self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
+        if (fetch_add & SNAPSHOT_REQUESTED_BIT) != 0 {
+            let mut snapshot_request = self.snapshot_request.lock();
+            if snapshot_request.snapshot_requested {
+                let value = self.in_progress_operations.fetch_sub(1, Ordering::AcqRel) - 1;
+                if value == SNAPSHOT_REQUESTED_BIT {
+                    self.operations_suspended.notify_all();
+                }
+                self.snapshot_completed
+                    .wait_while(&mut snapshot_request, |snapshot_request| {
+                        snapshot_request.snapshot_requested
+                    });
+                self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
+            }
+        }
+        OperationGuard { backend: self }
+    }
+}
+
+pub(crate) struct OperationGuard<'a> {
+    backend: &'a TurboTasksBackend,
+}
+
+impl<'a> Drop for OperationGuard<'a> {
+    fn drop(&mut self) {
+        let fetch_sub = self
+            .backend
+            .in_progress_operations
+            .fetch_sub(1, Ordering::AcqRel);
+        if fetch_sub - 1 == SNAPSHOT_REQUESTED_BIT {
+            self.backend.operations_suspended.notify_all();
+        }
+    }
 }
 
 // Operations
 impl TurboTasksBackend {
-    pub fn connect_child(
+    fn connect_child(
         &self,
         parent_task: TaskId,
         child_task: TaskId,
@@ -162,23 +197,95 @@ impl TurboTasksBackend {
         );
     }
 
-    pub fn update_cell(
+    fn try_read_task_output(
         &self,
         task_id: TaskId,
-        cell: CellId,
-        content: CellContent,
+        reader: Option<TaskId>,
+        consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) {
-        operation::UpdateCellOperation::run(
-            task_id,
-            cell,
-            content,
-            self.execute_context(turbo_tasks),
-        );
+    ) -> Result<Result<RawVc, EventListener>> {
+        let ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task_id);
+
+        if let Some(in_progress) = get!(task, InProgress) {
+            match in_progress {
+                InProgressState::Scheduled { done_event, .. }
+                | InProgressState::InProgress { done_event, .. } => {
+                    let listener = done_event.listen();
+                    return Ok(Err(listener));
+                }
+            }
+        }
+
+        if matches!(consistency, ReadConsistency::Strong) {
+            todo!("Handle strongly consistent read: {task:#?}");
+        }
+
+        if let Some(output) = get!(task, Output) {
+            let result = match output {
+                OutputValue::Cell(cell) => Some(Ok(Ok(RawVc::TaskCell(cell.task, cell.cell)))),
+                OutputValue::Output(task) => Some(Ok(Ok(RawVc::TaskOutput(*task)))),
+                OutputValue::Error | OutputValue::Panic => {
+                    if let Some(error) = get!(task, Error) {
+                        Some(Err(error.clone().into()))
+                    } else {
+                        None
+                    }
+                }
+            };
+            if let Some(result) = result {
+                if let Some(reader) = reader {
+                    task.add(CachedDataItem::OutputDependent {
+                        task: reader,
+                        value: (),
+                    });
+                    drop(task);
+
+                    let mut reader_task = ctx.task(reader);
+                    reader_task.add(CachedDataItem::OutputDependency {
+                        target: task_id,
+                        value: (),
+                    });
+                }
+
+                return result;
+            }
+        }
+
+        todo!("Output of is not available, recompute task: {task:#?}");
     }
 
-    pub fn invalidate(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
-        operation::InvalidateOperation::run(smallvec![task_id], self.execute_context(turbo_tasks));
+    fn try_read_task_cell(
+        &self,
+        task_id: TaskId,
+        reader: Option<TaskId>,
+        cell: CellId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) -> Result<Result<TypedCellContent, EventListener>> {
+        let ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task_id);
+        if let Some(content) = get!(task, CellData { cell }) {
+            let content = content.clone();
+            if let Some(reader) = reader {
+                task.add(CachedDataItem::CellDependent {
+                    cell,
+                    task: reader,
+                    value: (),
+                });
+                drop(task);
+                let mut reader_task = ctx.task(reader);
+                reader_task.add(CachedDataItem::CellDependency {
+                    target: CellRef {
+                        task: task_id,
+                        cell,
+                    },
+                    value: (),
+                });
+            }
+            return Ok(Ok(CellContent(Some(content)).into_typed(cell.type_id)));
+        }
+
+        todo!("Cell {cell:?} is not available, recompute task or error: {task:#?}");
     }
 }
 
@@ -241,7 +348,7 @@ impl Backend for TurboTasksBackend {
     }
 
     fn invalidate_task(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
-        self.invalidate(task_id, turbo_tasks);
+        operation::InvalidateOperation::run(smallvec![task_id], self.execute_context(turbo_tasks));
     }
 
     fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
@@ -287,12 +394,16 @@ impl Backend for TurboTasksBackend {
         {
             let ctx = self.execute_context(turbo_tasks);
             let mut task = ctx.task(task_id);
-            let Some(InProgressState::Scheduled {
+            let Some(in_progress) = remove!(task, InProgress) else {
+                return None;
+            };
+            let InProgressState::Scheduled {
                 clean,
                 done_event,
                 start_event,
-            }) = remove!(task, InProgress)
+            } = in_progress
             else {
+                task.add(CachedDataItem::InProgress { value: in_progress });
                 return None;
             };
             task.add(CachedDataItem::InProgress {
@@ -407,7 +518,7 @@ impl Backend for TurboTasksBackend {
         let Some(CachedDataItemValue::InProgress { value: in_progress }) =
             task.remove(&CachedDataItemKey::InProgress {})
         else {
-            panic!("Task execution completed, but task is not in progress");
+            panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
         let InProgressState::InProgress {
             done_event,
@@ -415,7 +526,7 @@ impl Backend for TurboTasksBackend {
             stale,
         } = in_progress
         else {
-            panic!("Task execution completed, but task is not in progress");
+            panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
 
         // TODO handle cell counters
@@ -442,60 +553,34 @@ impl Backend for TurboTasksBackend {
     ) -> Pin<Box<(dyn Future<Output = ()> + Send + 'static)>> {
         todo!()
     }
+
     fn try_read_task_output(
         &self,
-        _: TaskId,
-        _: TaskId,
-        _: ReadConsistency,
-        _: &dyn TurboTasksBackendApi<Self>,
+        task_id: TaskId,
+        reader: TaskId,
+        consistency: ReadConsistency,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>> {
-        todo!()
+        self.try_read_task_output(task_id, Some(reader), consistency, turbo_tasks)
     }
+
     fn try_read_task_output_untracked(
         &self,
         task_id: TaskId,
         consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>> {
-        let ctx = self.execute_context(turbo_tasks);
-        let task = ctx.task(task_id);
-
-        if let Some(in_progress) = get!(task, InProgress) {
-            match in_progress {
-                InProgressState::Scheduled { done_event, .. }
-                | InProgressState::InProgress { done_event, .. } => {
-                    let listener = done_event.listen();
-                    return Ok(Err(listener));
-                }
-            }
-        }
-
-        if matches!(consistency, ReadConsistency::Strong) {
-            todo!("Handle strongly consistent read");
-        }
-
-        if let Some(output) = get!(task, Output) {
-            match output {
-                OutputValue::Cell(cell) => return Ok(Ok(RawVc::TaskCell(cell.task, cell.cell))),
-                OutputValue::Output(task) => return Ok(Ok(RawVc::TaskOutput(*task))),
-                OutputValue::Error | OutputValue::Panic => {
-                    if let Some(error) = get!(task, Error) {
-                        return Err(error.clone().into());
-                    }
-                }
-            }
-        }
-
-        todo!("Output is not available, recompute task");
+        self.try_read_task_output(task_id, None, consistency, turbo_tasks)
     }
+
     fn try_read_task_cell(
         &self,
-        _: TaskId,
-        _: CellId,
-        _: TaskId,
-        _: &dyn TurboTasksBackendApi<Self>,
+        task_id: TaskId,
+        cell: CellId,
+        reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
-        todo!()
+        self.try_read_task_cell(task_id, Some(reader), cell, turbo_tasks)
     }
 
     fn try_read_task_cell_untracked(
@@ -504,14 +589,7 @@ impl Backend for TurboTasksBackend {
         cell: CellId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
-        let ctx = self.execute_context(turbo_tasks);
-        let task = ctx.task(task_id);
-        if let Some(content) = get!(task, CellData { cell }) {
-            return Ok(Ok(
-                CellContent(Some(content.clone())).into_typed(cell.type_id)
-            ));
-        }
-        todo!("Cell {cell:?} from {task_id:?} is not available, recompute task or error");
+        self.try_read_task_cell(task_id, None, cell, turbo_tasks)
     }
 
     fn try_read_own_task_cell_untracked(
@@ -567,7 +645,12 @@ impl Backend for TurboTasksBackend {
         content: CellContent,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        self.update_cell(task_id, cell, content, turbo_tasks);
+        operation::UpdateCellOperation::run(
+            task_id,
+            cell,
+            content,
+            self.execute_context(turbo_tasks),
+        );
     }
 
     fn connect_task(&self, _: TaskId, _: TaskId, _: &dyn TurboTasksBackendApi<Self>) {
