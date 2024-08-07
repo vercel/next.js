@@ -1,3 +1,4 @@
+mod helpers;
 mod operation;
 mod storage;
 
@@ -16,25 +17,32 @@ use std::{
 
 use anyhow::Result;
 use auto_hash_map::{AutoMap, AutoSet};
+use dashmap::DashMap;
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHasher;
+use smallvec::smallvec;
 use turbo_tasks::{
     backend::{
         Backend, BackendJobId, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskType,
         TypedCellContent,
     },
     event::EventListener,
+    registry,
     util::IdFactoryWithReuse,
     CellId, FunctionId, RawVc, ReadConsistency, TaskId, TraitTypeId, TurboTasksBackendApi,
     ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
 use self::{
-    operation::{AnyOperation, ExecuteContext, Operation},
+    operation::{AnyOperation, ExecuteContext},
     storage::Storage,
 };
 use crate::{
-    data::{CachedDataItem, CachedDataUpdate},
+    data::{
+        CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate, InProgressState,
+        OutputValue,
+    },
+    get, remove,
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc},
 };
 
@@ -60,6 +68,7 @@ pub struct TurboTasksBackend {
 
     persisted_task_cache_log: Mutex<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
     task_cache: BiMap<Arc<CachedTaskType>, TaskId>,
+    transient_tasks: DashMap<TaskId, Arc<tokio::sync::Mutex<TransientTaskType>>>,
 
     persisted_storage_log: Mutex<ChunkedVec<CachedDataUpdate>>,
     storage: Storage<TaskId, CachedDataItem>,
@@ -91,6 +100,7 @@ impl TurboTasksBackend {
             ),
             persisted_task_cache_log: Mutex::new(ChunkedVec::new()),
             task_cache: BiMap::new(),
+            transient_tasks: DashMap::new(),
             persisted_storage_log: Mutex::new(ChunkedVec::new()),
             storage: Storage::new(),
             in_progress_operations: AtomicUsize::new(0),
@@ -100,12 +110,15 @@ impl TurboTasksBackend {
         }
     }
 
-    fn run_operation(
-        &self,
-        operation: impl Operation,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) {
-        operation.execute(ExecuteContext::new(self, turbo_tasks));
+    fn execute_context<'a>(
+        &'a self,
+        turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
+    ) -> ExecuteContext<'a> {
+        ExecuteContext::new(self, turbo_tasks)
+    }
+
+    fn suspending_requested(&self) -> bool {
+        (self.in_progress_operations.load(Ordering::Relaxed) & SNAPSHOT_REQUESTED_BIT) != 0
     }
 
     fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
@@ -142,10 +155,30 @@ impl TurboTasksBackend {
         child_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        self.run_operation(
-            operation::ConnectChildOperation::new(parent_task, child_task),
-            turbo_tasks,
+        operation::ConnectChildOperation::run(
+            parent_task,
+            child_task,
+            self.execute_context(turbo_tasks),
         );
+    }
+
+    pub fn update_cell(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        content: CellContent,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        operation::UpdateCellOperation::run(
+            task_id,
+            cell,
+            content,
+            self.execute_context(turbo_tasks),
+        );
+    }
+
+    pub fn invalidate(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        operation::InvalidateOperation::run(smallvec![task_id], self.execute_context(turbo_tasks));
     }
 }
 
@@ -180,14 +213,15 @@ impl Backend for TurboTasksBackend {
         task_id
     }
 
-    fn invalidate_task(&self, _: TaskId, _: &dyn TurboTasksBackendApi<Self>) {
-        todo!()
+    fn invalidate_task(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.invalidate(task_id, turbo_tasks);
     }
 
     fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
-        for task in tasks {
-            self.invalidate_task(*task, turbo_tasks);
-        }
+        operation::InvalidateOperation::run(
+            tasks.iter().copied().collect(),
+            self.execute_context(turbo_tasks),
+        );
     }
 
     fn invalidate_tasks_set(
@@ -195,9 +229,10 @@ impl Backend for TurboTasksBackend {
         tasks: &AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        for task in tasks {
-            self.invalidate_task(*task, turbo_tasks);
-        }
+        operation::InvalidateOperation::run(
+            tasks.iter().copied().collect(),
+            self.execute_context(turbo_tasks),
+        );
     }
 
     fn get_task_description(&self, task: TaskId) -> std::string::String {
@@ -219,31 +254,158 @@ impl Backend for TurboTasksBackend {
 
     fn try_start_task_execution(
         &self,
-        _: TaskId,
-        _: &dyn TurboTasksBackendApi<Self>,
-    ) -> std::option::Option<TaskExecutionSpec<'_>> {
-        todo!()
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) -> Option<TaskExecutionSpec<'_>> {
+        {
+            let ctx = self.execute_context(turbo_tasks);
+            let mut task = ctx.task(task_id);
+            let Some(InProgressState::Scheduled {
+                clean,
+                done_event,
+                start_event,
+            }) = remove!(task, InProgress)
+            else {
+                return None;
+            };
+            task.add(CachedDataItem::InProgress {
+                value: InProgressState::InProgress {
+                    clean,
+                    stale: false,
+                    done_event,
+                },
+            });
+            start_event.notify(usize::MAX);
+        }
+        let (span, future) = if let Some(task_type) = self.task_cache.lookup_reverse(&task_id) {
+            match &*task_type {
+                CachedTaskType::Native { fn_type, this, arg } => (
+                    registry::get_function(*fn_type).span(),
+                    registry::get_function(*fn_type).execute(*this, &**arg),
+                ),
+                CachedTaskType::ResolveNative { fn_type, .. } => {
+                    let span = registry::get_function(*fn_type).resolve_span();
+                    let turbo_tasks = turbo_tasks.pin();
+                    (
+                        span,
+                        Box::pin(async move {
+                            let CachedTaskType::ResolveNative { fn_type, this, arg } = &*task_type
+                            else {
+                                unreachable!()
+                            };
+                            CachedTaskType::run_resolve_native(
+                                *fn_type,
+                                *this,
+                                &**arg,
+                                task_id.persistence(),
+                                turbo_tasks,
+                            )
+                            .await
+                        }) as Pin<Box<dyn Future<Output = _> + Send + '_>>,
+                    )
+                }
+                CachedTaskType::ResolveTrait {
+                    trait_type,
+                    method_name,
+                    ..
+                } => {
+                    let span = registry::get_trait(*trait_type).resolve_span(&**method_name);
+                    let turbo_tasks = turbo_tasks.pin();
+                    (
+                        span,
+                        Box::pin(async move {
+                            let CachedTaskType::ResolveTrait {
+                                trait_type,
+                                method_name,
+                                this,
+                                arg,
+                            } = &*task_type
+                            else {
+                                unreachable!()
+                            };
+                            CachedTaskType::run_resolve_trait(
+                                *trait_type,
+                                method_name.clone(),
+                                *this,
+                                &**arg,
+                                task_id.persistence(),
+                                turbo_tasks,
+                            )
+                            .await
+                        }) as Pin<Box<dyn Future<Output = _> + Send + '_>>,
+                    )
+                }
+            }
+        } else if let Some(task_type) = self.transient_tasks.get(&task_id) {
+            let task_type = task_type.clone();
+            let span = tracing::trace_span!("turbo_tasks::root_task");
+            let future = Box::pin(async move {
+                let mut task_type = task_type.lock().await;
+                match &mut *task_type {
+                    TransientTaskType::Root(f) => {
+                        let future = f();
+                        drop(task_type);
+                        future.await
+                    }
+                    TransientTaskType::Once(future) => future.await,
+                }
+            }) as Pin<Box<dyn Future<Output = _> + Send + '_>>;
+            (span, future)
+        } else {
+            return None;
+        };
+        Some(TaskExecutionSpec { future, span })
     }
 
     fn task_execution_result(
         &self,
-        _: TaskId,
-        _: Result<Result<RawVc, turbo_tasks::Error>, std::option::Option<Cow<'static, str>>>,
-        _: &dyn TurboTasksBackendApi<Self>,
+        task_id: TaskId,
+        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        todo!()
+        operation::UpdateOutputOperation::run(task_id, result, self.execute_context(turbo_tasks));
     }
 
     fn task_execution_completed(
         &self,
-        _: TaskId,
-        _: Duration,
-        _: usize,
-        _: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
-        _: bool,
-        _: &dyn TurboTasksBackendApi<Self>,
+        task_id: TaskId,
+        duration: Duration,
+        memory_usage: usize,
+        cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        stateful: bool,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool {
-        todo!()
+        let ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task_id);
+        let Some(CachedDataItemValue::InProgress { value: in_progress }) =
+            task.remove(&CachedDataItemKey::InProgress {})
+        else {
+            panic!("Task execution completed, but task is not in progress");
+        };
+        let InProgressState::InProgress {
+            done_event,
+            clean,
+            stale,
+        } = in_progress
+        else {
+            panic!("Task execution completed, but task is not in progress");
+        };
+
+        // TODO handle cell counters
+
+        if stale {
+            task.add(CachedDataItem::InProgress {
+                value: InProgressState::InProgress {
+                    clean: false,
+                    stale: false,
+                    done_event,
+                },
+            });
+        } else {
+            done_event.notify(usize::MAX);
+        }
+
+        stale
     }
 
     fn run_backend_job(
@@ -259,16 +421,45 @@ impl Backend for TurboTasksBackend {
         _: TaskId,
         _: ReadConsistency,
         _: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<RawVc, EventListener>, turbo_tasks::Error> {
+    ) -> Result<Result<RawVc, EventListener>> {
         todo!()
     }
     fn try_read_task_output_untracked(
         &self,
-        _: TaskId,
-        _: ReadConsistency,
-        _: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<RawVc, EventListener>, turbo_tasks::Error> {
-        todo!()
+        task_id: TaskId,
+        consistency: ReadConsistency,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) -> Result<Result<RawVc, EventListener>> {
+        let ctx = self.execute_context(turbo_tasks);
+        let task = ctx.task(task_id);
+
+        if let Some(in_progress) = get!(task, InProgress) {
+            match in_progress {
+                InProgressState::Scheduled { done_event, .. }
+                | InProgressState::InProgress { done_event, .. } => {
+                    let listener = done_event.listen();
+                    return Ok(Err(listener));
+                }
+            }
+        }
+
+        if matches!(consistency, ReadConsistency::Strong) {
+            todo!("Handle strongly consistent read");
+        }
+
+        if let Some(output) = get!(task, Output) {
+            match output {
+                OutputValue::Cell(cell) => return Ok(Ok(RawVc::TaskCell(cell.task, cell.cell))),
+                OutputValue::Output(task) => return Ok(Ok(RawVc::TaskOutput(*task))),
+                OutputValue::Error | OutputValue::Panic => {
+                    if let Some(error) = get!(task, Error) {
+                        return Err(error.clone().into());
+                    }
+                }
+            }
+        }
+
+        todo!("Output is not available, recompute task");
     }
     fn try_read_task_cell(
         &self,
@@ -276,17 +467,26 @@ impl Backend for TurboTasksBackend {
         _: CellId,
         _: TaskId,
         _: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<TypedCellContent, EventListener>, turbo_tasks::Error> {
+    ) -> Result<Result<TypedCellContent, EventListener>> {
         todo!()
     }
+
     fn try_read_task_cell_untracked(
         &self,
-        _: TaskId,
-        _: CellId,
-        _: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<TypedCellContent, EventListener>, turbo_tasks::Error> {
-        todo!()
+        task_id: TaskId,
+        cell: CellId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) -> Result<Result<TypedCellContent, EventListener>> {
+        let ctx = self.execute_context(turbo_tasks);
+        let task = ctx.task(task_id);
+        if let Some(content) = get!(task, CellData { cell }) {
+            return Ok(Ok(
+                CellContent(Some(content.clone())).into_typed(cell.type_id)
+            ));
+        }
+        todo!("Cell is not available, recompute task or error");
     }
+
     fn read_task_collectibles(
         &self,
         _: TaskId,
@@ -296,6 +496,7 @@ impl Backend for TurboTasksBackend {
     ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
         todo!()
     }
+
     fn emit_collectible(
         &self,
         _: TraitTypeId,
@@ -305,6 +506,7 @@ impl Backend for TurboTasksBackend {
     ) {
         todo!()
     }
+
     fn unemit_collectible(
         &self,
         _: TraitTypeId,
@@ -315,15 +517,17 @@ impl Backend for TurboTasksBackend {
     ) {
         todo!()
     }
+
     fn update_task_cell(
         &self,
-        _: TaskId,
-        _: CellId,
-        _: CellContent,
-        _: &dyn TurboTasksBackendApi<Self>,
+        task_id: TaskId,
+        cell: CellId,
+        content: CellContent,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        todo!()
+        self.update_cell(task_id, cell, content, turbo_tasks);
     }
+
     fn get_or_create_transient_task(
         &self,
         _: CachedTaskType,
@@ -337,10 +541,18 @@ impl Backend for TurboTasksBackend {
     }
     fn create_transient_task(
         &self,
-        _: TransientTaskType,
-        _: &dyn TurboTasksBackendApi<Self>,
+        task_type: TransientTaskType,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
-        todo!()
+        let task_id = self.transient_task_id_factory.get();
+        self.transient_tasks
+            .insert(task_id, Arc::new(tokio::sync::Mutex::new(task_type)));
+        {
+            let mut task = self.storage.access_mut(task_id);
+            task.add(CachedDataItem::new_scheduled(task_id));
+        }
+        turbo_tasks.schedule(task_id);
+        task_id
     }
     fn dispose_root_task(&self, _: TaskId, _: &dyn TurboTasksBackendApi<Self>) {
         todo!()
