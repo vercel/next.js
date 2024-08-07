@@ -546,53 +546,17 @@ const staticWorkerExposedMethods = [
   'hasCustomGetInitialProps',
   'isPageStatic',
   'getDefinedNamedExports',
-  'exportPage',
+  'exportPages',
 ] as const
 type StaticWorker = typeof import('./worker') & Worker
-type PageDataCollectionKeys = Exclude<
-  (typeof staticWorkerExposedMethods)[number],
-  'exportPage'
->
-
-function createStaticWorker(config: NextConfigComplete): StaticWorker {
-  let infoPrinted = false
-  const timeout = config.staticPageGenerationTimeout || 0
-
+export function createStaticWorker(
+  config: NextConfigComplete,
+  onActivity?: () => void
+): StaticWorker {
   return new Worker(staticWorkerPath, {
-    timeout: timeout * 1000,
     logger: Log,
-    onRestart: (method, args, attempts) => {
-      if (method === 'exportPage') {
-        const [arg] = args as Parameters<StaticWorker['exportPage']>
-        const pagePath = arg.path
-        if (attempts >= 3) {
-          throw new Error(
-            `Static page generation for ${pagePath} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
-          )
-        }
-        Log.warn(
-          `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
-        )
-      } else {
-        const [arg] = args as Parameters<StaticWorker[PageDataCollectionKeys]>
-        const pagePath = arg.page
-        if (attempts >= 2) {
-          throw new Error(
-            `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
-          )
-        }
-        Log.warn(
-          `Restarted collecting page data for ${pagePath} because it took more than ${timeout} seconds`
-        )
-      }
-      if (!infoPrinted) {
-        Log.warn(
-          'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
-        )
-        infoPrinted = true
-      }
-    },
     numWorkers: getNumberOfWorkers(config),
+    onActivity,
     forkOptions: {
       env: process.env,
     },
@@ -622,21 +586,13 @@ async function writeFullyStaticExport(
       enabledDirectories,
       silent: true,
       outdir: path.join(dir, configOutDir),
-      // The worker already explicitly binds `this` to each of the
-      // exposed methods.
-      exportAppPageWorker: appWorker?.exportPage,
-      exportPageWorker: pagesWorker?.exportPage,
-      endWorker: async () => {
-        await pagesWorker.end()
-        await appWorker.end()
-      },
+      numWorkers: getNumberOfWorkers(config),
     },
     nextBuildSpan
   )
 
-  // ensure the worker is not left hanging
-  pagesWorker.close()
-  appWorker.close()
+  pagesWorker.end()
+  appWorker.end()
 }
 
 async function getBuildId(
@@ -1857,8 +1813,7 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      const pagesStaticWorkers = createStaticWorker(config)
-      const appStaticWorkers = appDir ? createStaticWorker(config) : undefined
+      const worker = createStaticWorker(config)
 
       const analysisBegin = process.hrtime()
       const staticCheckSpan = nextBuildSpan.traceChild('static-check')
@@ -1896,7 +1851,7 @@ export default async function build(
           nonStaticErrorPageSpan.traceAsyncFn(
             async () =>
               hasCustomErrorPage &&
-              (await pagesStaticWorkers.hasCustomGetInitialProps({
+              (await worker.hasCustomGetInitialProps({
                 page: '/_error',
                 distDir,
                 runtimeEnvConfig,
@@ -1907,7 +1862,7 @@ export default async function build(
         const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
           async () =>
             hasCustomErrorPage &&
-            pagesStaticWorkers.isPageStatic({
+            worker.isPageStatic({
               dir,
               page: '/_error',
               distDir,
@@ -1923,15 +1878,16 @@ export default async function build(
 
         const appPageToCheck = '/_app'
 
-        const customAppGetInitialPropsPromise =
-          pagesStaticWorkers.hasCustomGetInitialProps({
+        const customAppGetInitialPropsPromise = worker.hasCustomGetInitialProps(
+          {
             page: appPageToCheck,
             distDir,
             runtimeEnvConfig,
             checkingApp: true,
-          })
+          }
+        )
 
-        const namedExportsPromise = pagesStaticWorkers.getDefinedNamedExports({
+        const namedExportsPromise = worker.getDefinedNamedExports({
           page: appPageToCheck,
           distDir,
           runtimeEnvConfig,
@@ -2106,11 +2062,7 @@ export default async function build(
                         checkPageSpan.traceChild('is-page-static')
                       let workerResult = await isPageStaticSpan.traceAsyncFn(
                         () => {
-                          return (
-                            pageType === 'app'
-                              ? appStaticWorkers
-                              : pagesStaticWorkers
-                          )!.isPageStatic({
+                          return worker.isPageStatic({
                             dir,
                             page,
                             originalAppPath,
@@ -2763,20 +2715,13 @@ export default async function build(
           const exportOptions: ExportAppOptions = {
             nextConfig: exportConfig,
             enabledDirectories,
-            silent: false,
+            silent: true,
             buildExport: true,
             debugOutput,
             pages: combinedPages,
             outdir: path.join(distDir, 'export'),
             statusMessage: 'Generating static pages',
-            // The worker already explicitly binds `this` to each of the
-            // exposed methods.
-            exportAppPageWorker: appStaticWorkers?.exportPage,
-            exportPageWorker: pagesStaticWorkers?.exportPage,
-            endWorker: async () => {
-              await pagesStaticWorkers.end()
-              await appStaticWorkers?.end()
-            },
+            numWorkers: getNumberOfWorkers(exportConfig),
           }
 
           const exportResult = await exportApp(
@@ -3348,8 +3293,7 @@ export default async function build(
       let buildTracesSpinner = createSpinner(`Collecting build traces`)
 
       // ensure the worker is not left hanging
-      pagesStaticWorkers.close()
-      appStaticWorkers?.close()
+      worker.end()
 
       const analysisEnd = process.hrtime(analysisBegin)
       telemetry.record(
