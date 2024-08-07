@@ -23,7 +23,7 @@ pub async fn middleware_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<
 
 #[turbo_tasks::function]
 pub async fn get_middleware_module(
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     userland_module: Vc<Box<dyn Module>>,
 ) -> Result<Vc<Box<dyn Module>>> {
@@ -46,7 +46,7 @@ pub async fn get_middleware_module(
         INNER.into() => userland_module
     };
 
-    let module = context
+    let module = asset_context
         .process(
             source,
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),

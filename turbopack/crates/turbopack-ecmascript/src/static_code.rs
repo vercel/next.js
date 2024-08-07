@@ -8,7 +8,7 @@ use turbopack_core::{
     reference_type::ReferenceType,
 };
 
-use crate::EcmascriptModuleAsset;
+use crate::EcmascriptAnalyzable;
 
 /// Static ECMAScript file code, to be used as part of some code.
 ///
@@ -17,7 +17,7 @@ use crate::EcmascriptModuleAsset;
 #[turbo_tasks::value]
 pub struct StaticEcmascriptCode {
     asset_context: Vc<Box<dyn AssetContext>>,
-    asset: Vc<EcmascriptModuleAsset>,
+    asset: Vc<Box<dyn EcmascriptAnalyzable>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -34,7 +34,7 @@ impl StaticEcmascriptCode {
                 Value::new(ReferenceType::Runtime),
             )
             .module();
-        let Some(asset) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
+        let Some(asset) = Vc::try_resolve_sidecast::<Box<dyn EcmascriptAnalyzable>>(module).await?
         else {
             bail!("asset is not an Ecmascript module")
         };

@@ -60,6 +60,8 @@ impl VersionedContentMap {
 
 #[turbo_tasks::value_impl]
 impl VersionedContentMap {
+    /// Inserts output assets into the map and returns a completion that when
+    /// awaited will emit the assets that were inserted.
     #[turbo_tasks::function]
     pub async fn insert_output_assets(
         self: Vc<Self>,

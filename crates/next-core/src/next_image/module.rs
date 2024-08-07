@@ -39,10 +39,10 @@ impl StructuredImageModuleType {
     pub(crate) async fn create_module(
         source: Vc<Box<dyn Source>>,
         blur_placeholder_mode: BlurPlaceholderMode,
-        context: Vc<ModuleAssetContext>,
+        module_asset_context: Vc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let static_asset = StaticModuleAsset::new(source, Vc::upcast(context));
-        let module = context
+        let static_asset = StaticModuleAsset::new(source, Vc::upcast(module_asset_context));
+        let module = module_asset_context
             .process(
                 Vc::upcast(
                     StructuredImageFileSource {
@@ -73,9 +73,13 @@ impl CustomModuleType for StructuredImageModuleType {
     fn create_module(
         &self,
         source: Vc<Box<dyn Source>>,
-        context: Vc<ModuleAssetContext>,
+        module_asset_context: Vc<ModuleAssetContext>,
         _part: Option<Vc<ModulePart>>,
     ) -> Vc<Box<dyn Module>> {
-        StructuredImageModuleType::create_module(source, self.blur_placeholder_mode, context)
+        StructuredImageModuleType::create_module(
+            source,
+            self.blur_placeholder_mode,
+            module_asset_context,
+        )
     }
 }

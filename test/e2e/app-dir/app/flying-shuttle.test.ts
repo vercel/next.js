@@ -171,7 +171,11 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
       const index$ = await next.render$('/')
       const deployments$ = await next.render$('/dashboard/deployments/123')
       expect(index$('#my-env').text()).toContain(testEnvId)
+      expect(index$('#my-other-env').text()).toContain(`${testEnvId}-suffix`)
       expect(deployments$('#my-env').text()).toContain(testEnvId)
+      expect(deployments$('#my-other-env').text()).toContain(
+        `${testEnvId}-suffix`
+      )
 
       const testPaths = [
         { path: '/', content: 'hello from pages/index', type: 'pages' },
