@@ -512,39 +512,22 @@ async function exportAppImpl(
   // Chunk filtered pages into smaller groups, and call the export worker on each group.
   // We've set an arbitrary minimum of 25 pages per chunk to ensure that even setups
   // with only a few static pages can leverage a shared incremental cache.
-  const chunks = []
   const minChunkSize = 25
-
   // Calculate the number of workers needed to ensure each chunk has at least minChunkSize pages
   const numWorkers = Math.min(
     options.numWorkers,
     Math.ceil(filteredPaths.length / minChunkSize)
   )
-
   // Calculate the chunk size based on the number of workers
   const chunkSize = Math.ceil(filteredPaths.length / numWorkers)
-
-  let currentChunk = []
-  for (let i = 0; i < filteredPaths.length; i++) {
-    currentChunk.push(filteredPaths[i])
-
-    // If the current chunk reaches the calculated chunk size or we're at the end of the list
-    if (currentChunk.length >= chunkSize || i === filteredPaths.length - 1) {
-      chunks.push(currentChunk)
-      currentChunk = []
-    }
-  }
-
-  // Evenly distribute remaining pages among existing chunks
-  let remainingPages = chunks.flat().slice(numWorkers * chunkSize)
-  for (let i = 0; remainingPages.length > 0; i = (i + 1) % chunks.length) {
-    if (remainingPages.length > 0) {
-      const page = remainingPages.shift()
-      if (page) {
-        chunks[i].push(page)
-      }
-    }
-  }
+  const chunks = Array.from({ length: numWorkers }, (_, i) =>
+    filteredPaths.slice(i * chunkSize, (i + 1) * chunkSize)
+  )
+  // Distribute remaining pages
+  const remainingPages = filteredPaths.slice(numWorkers * chunkSize)
+  remainingPages.forEach((page, index) => {
+    chunks[index % chunks.length].push(page)
+  })
 
   const progress = createProgress(
     filteredPaths.length,
