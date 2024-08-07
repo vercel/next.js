@@ -436,16 +436,6 @@ pub fn should_skip_tree_shaking(m: &Program) -> bool {
                     }
                 }
 
-                // Skip sever actions
-                ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                    expr: box Expr::Lit(Lit::Str(Str { value, .. })),
-                    ..
-                })) => {
-                    if value == "use server" {
-                        return true;
-                    }
-                }
-
                 _ => {}
             }
         }
@@ -472,16 +462,6 @@ struct ShouldSkip {
 }
 
 impl Visit for ShouldSkip {
-    fn visit_expr_stmt(&mut self, e: &ExprStmt) {
-        e.visit_children_with(self);
-
-        if let Expr::Lit(Lit::Str(Str { value, .. })) = &*e.expr {
-            if value == "use server" {
-                self.skip = true;
-            }
-        }
-    }
-
     fn visit_stmt(&mut self, n: &Stmt) {
         if self.skip {
             return;
