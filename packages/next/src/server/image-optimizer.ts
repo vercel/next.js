@@ -217,7 +217,6 @@ export class ImageOptimizerCache {
     const parsedUrl = parseUrl(url)
     if (parsedUrl) {
       const decodedPathname = decodeURIComponent(parsedUrl.pathname)
-      console.log('decodedPathname', decodedPathname)
       if (/\/_next\/image($|\/)/.test(decodedPathname)) {
         return {
           errorMessage: '"url" parameter cannot be recursive',
