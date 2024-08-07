@@ -510,9 +510,11 @@ async function exportAppImpl(
   const failedExportAttemptsByPage: Map<string, boolean> = new Map()
 
   // Chunk filtered pages into smaller groups, and call the export worker on each group.
-  // We've set an arbitrary minimum of 25 pages per chunk to ensure that even setups
-  // with only a few static pages can leverage a shared incremental cache.
-  const minChunkSize = 25
+  // We've set a default minimum of 25 pages per chunk to ensure that even setups
+  // with only a few static pages can leverage a shared incremental cache, however this
+  // value can be configured.
+  const minChunkSize =
+    nextConfig.experimental.staticGenerationMinPagesPerWorker ?? 25
   // Calculate the number of workers needed to ensure each chunk has at least minChunkSize pages
   const numWorkers = Math.min(
     options.numWorkers,

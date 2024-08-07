@@ -511,6 +511,11 @@ export interface ExperimentalConfig {
   staticGenerationMaxConcurrency?: number
 
   /**
+   * The minimum number of pages to be chunked into each export worker.
+   */
+  staticGenerationMinPagesPerWorker?: number
+
+  /**
    * Allows previously fetched data to be re-used when editing server components.
    */
   serverComponentsHmrCache?: boolean
@@ -1050,7 +1055,8 @@ export const defaultConfig: NextConfig = {
     after: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
-    staticGenerationMaxConcurrency: 2,
+    staticGenerationMaxConcurrency: 8,
+    staticGenerationMinPagesPerWorker: 25,
   },
   bundlePagesRouterDependencies: false,
 }
