@@ -222,6 +222,7 @@ impl<'a> VisitMut for ExtractDeclarations<'a> {
                 definite: false,
             }],
             kind: VarDeclKind::Let,
+            ..Default::default()
         }))));
     }
 

@@ -1553,7 +1553,7 @@ impl VisitAstPath for Analyzer<'_> {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::VarDeclarator(n, VarDeclaratorField::Init));
 
-            self.visit_opt_expr(n.init.as_ref(), &mut ast_path);
+            self.visit_opt_expr(&n.init, &mut ast_path);
         }
     }
 
