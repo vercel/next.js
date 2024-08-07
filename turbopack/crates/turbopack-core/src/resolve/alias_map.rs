@@ -197,6 +197,13 @@ impl<T> AliasMap<T> {
     where
         T: Debug,
     {
+        if matches!(request, Pattern::Alternatives(_)) {
+            panic!(
+                "AliasMap::lookup must not be called on alternatives, received {:?}",
+                request
+            );
+        }
+
         // Invariant: prefixes should be sorted by increasing length (base lengths),
         // according to PATTERN_KEY_COMPARE. Since we're using a prefix tree, this is
         // the default behavior of the common prefix iterator.
