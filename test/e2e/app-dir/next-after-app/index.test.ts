@@ -26,25 +26,42 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
 
   if (skipped) return
 
+  const filesToPatchRuntime = [
+    'app/layout.js',
+    'app/route/route.js',
+    'app/route-streaming/route.js',
+  ]
+  const replaceRuntime = (contents: string, file: string) => {
+    const placeholder = `// export const runtime = 'REPLACE_ME'`
+
+    if (!contents.includes(placeholder)) {
+      throw new Error(`Placeholder "${placeholder}" not found in ${file}`)
+    }
+
+    return contents.replace(
+      placeholder,
+      `export const runtime = '${runtimeValue}'`
+    )
+  }
+
+  const runtimePatches = new Map<
+    string,
+    string | ((contents: string) => string)
+  >(
+    filesToPatchRuntime.map(
+      (file) =>
+        [file, (contents: string) => replaceRuntime(contents, file)] as const
+    )
+  )
+
   {
     const originalContents: Record<string, string> = {}
 
     beforeAll(async () => {
-      const placeholder = `// export const runtime = 'REPLACE_ME'`
-
-      const filesToPatch = ['app/layout.js', 'app/route/route.js']
-
-      for (const file of filesToPatch) {
+      for (const file of filesToPatchRuntime) {
         await next.patchFile(file, (contents) => {
-          if (!contents.includes(placeholder)) {
-            throw new Error(`Placeholder "${placeholder}" not found in ${file}`)
-          }
           originalContents[file] = contents
-
-          return contents.replace(
-            placeholder,
-            `export const runtime = '${runtimeValue}'`
-          )
+          return replaceRuntime(contents, file)
         })
       }
     })
@@ -289,6 +306,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     const { cleanup } = await sandbox(
       next,
       new Map([
+        ...runtimePatches,
         [
           // this needs to be injected as early as possible, before the server tries to read the context
           // (which may be even before we load the page component in dev mode)
@@ -330,12 +348,14 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
           const { session, cleanup } = await sandbox(
             next,
             new Map([
+              ...runtimePatches,
               [
                 'app/static/page.js',
-                (await next.readFile('app/static/page.js')).replace(
-                  `// export const dynamic = 'REPLACE_ME'`,
-                  `export const dynamic = '${dynamicValue}'`
-                ),
+                (contents) =>
+                  contents.replace(
+                    `// export const dynamic = 'REPLACE_ME'`,
+                    `export const dynamic = '${dynamicValue}'`
+                  ),
               ],
             ]),
             '/static'
@@ -357,12 +377,10 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
         const { session, cleanup } = await sandbox(
           next,
           new Map([
+            ...runtimePatches,
             [
               'app/invalid-in-client/page.js',
-              (await next.readFile('app/invalid-in-client/page.js')).replace(
-                `// 'use client'`,
-                `'use client'`
-              ),
+              (contents) => contents.replace(`// 'use client'`, `'use client'`),
             ],
           ]),
           '/invalid-in-client'
