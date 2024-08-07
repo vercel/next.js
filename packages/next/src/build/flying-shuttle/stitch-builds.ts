@@ -31,9 +31,11 @@ import {
   ROUTES_MANIFEST,
 } from '../../shared/lib/constants'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import type { NextConfigComplete } from '../../server/config-shared'
 
 export async function stitchBuilds(
   {
+    config,
     distDir,
     shuttleDir,
     buildId,
@@ -43,6 +45,7 @@ export async function stitchBuilds(
     encryptionKey,
     edgePreviewProps,
   }: {
+    config: NextConfigComplete
     buildId: string
     distDir: string
     shuttleDir: string
@@ -64,7 +67,7 @@ export async function stitchBuilds(
 ): Promise<{
   pagesManifest?: PagesManifest
 }> {
-  if (!(await hasShuttle(shuttleDir))) {
+  if (!(await hasShuttle(config, shuttleDir))) {
     // no shuttle directory nothing to stitch
     return {}
   }
@@ -75,19 +78,6 @@ export async function stitchBuilds(
     pagesManifest?: PagesManifest
   } = {}
 
-  // we need to copy the chunks from the shuttle folder
-  // to the distDir (we copy all server split chunks currently)
-  await recursiveCopy(
-    path.join(shuttleDir, 'server'),
-    path.join(distDir, 'server'),
-    {
-      filter(item) {
-        // we copy page chunks separately to not copy stale entries
-        return !item.match(/^[/\\](pages|app)[/\\]/)
-      },
-      overwrite: true,
-    }
-  )
   // copy static chunks (this includes stale chunks but won't be loaded)
   // unless referenced
   await recursiveCopy(

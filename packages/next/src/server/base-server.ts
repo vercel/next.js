@@ -2,7 +2,7 @@ import type { __ApiPreviewProps } from './api-utils'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../client/components/params'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type {
   NextParsedUrlQuery,
@@ -590,6 +590,7 @@ export default abstract class Server<
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
+      reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
     }
 
     // Initialize next/config with the environment configuration

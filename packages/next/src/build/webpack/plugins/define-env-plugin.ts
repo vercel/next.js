@@ -58,7 +58,7 @@ interface SerializedDefineEnv {
 /**
  * Collects all environment variables that are using the `NEXT_PUBLIC_` prefix.
  */
-function getNextPublicEnvironmentVariables(): DefineEnv {
+export function getNextPublicEnvironmentVariables(): DefineEnv {
   const defineEnv: DefineEnv = {}
   for (const key in process.env) {
     if (key.startsWith('NEXT_PUBLIC_')) {
@@ -139,12 +139,15 @@ export function getDefineEnv({
   isNodeServer,
   middlewareMatchers,
 }: DefineEnvPluginOptions): SerializedDefineEnv {
+  const nextPublicEnv = getNextPublicEnvironmentVariables()
+  const nextConfigEnv = getNextConfigEnv(config)
+
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
     __NEXT_DEFINE_ENV: true,
 
-    ...getNextPublicEnvironmentVariables(),
-    ...getNextConfigEnv(config),
+    ...nextPublicEnv,
+    ...nextConfigEnv,
     ...(!isEdgeServer
       ? {}
       : {
@@ -200,8 +203,9 @@ export function getDefineEnv({
         ? 5 * 60 // 5 minutes
         : config.experimental.staleTimes?.static
     ),
-    'process.env.__NEXT_FLYING_SHUTTLE':
-      config.experimental.flyingShuttle ?? false,
+    'process.env.__NEXT_FLYING_SHUTTLE': Boolean(
+      config.experimental.flyingShuttle
+    ),
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
       config.experimental.clientRouterFilter ?? true,
     'process.env.__NEXT_CLIENT_ROUTER_S_FILTER':
@@ -276,7 +280,21 @@ export function getDefineEnv({
         }
       : undefined),
   }
-  return serializeDefineEnv(defineEnv)
+  const serializedDefineEnv = serializeDefineEnv(defineEnv)
+
+  if (Boolean(config.experimental.flyingShuttle)) {
+    // we delay inlining these values until after the build
+    // with flying shuttle enabled so we can update them
+    // without invalidating entries
+    for (const key in nextPublicEnv) {
+      if (key in nextConfigEnv) {
+        continue
+      }
+      serializedDefineEnv[key] = key
+    }
+  }
+
+  return serializedDefineEnv
 }
 
 export function getDefineEnvPlugin(options: DefineEnvPluginOptions) {

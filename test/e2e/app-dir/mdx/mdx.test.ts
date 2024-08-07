@@ -1,10 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-for (const type of [
-  'with-mdx-rs',
-  // only mdx-rs should work with turbopack
-  ...(process.env.TURBOPACK ? [] : ['without-mdx-rs']),
-]) {
+for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
   describe(`mdx ${type}`, () => {
     const { next } = nextTestSetup({
       files: __dirname,

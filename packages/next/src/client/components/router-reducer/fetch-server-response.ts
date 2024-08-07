@@ -79,6 +79,7 @@ export async function fetchServerResponse(
     [NEXT_ROUTER_STATE_TREE_HEADER]: string
     [NEXT_URL]?: string
     [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
+    'x-deployment-id'?: string
     [NEXT_HMR_REFRESH_HEADER]?: '1'
     // A header that is only added in test mode to assert on fetch priority
     'Next-Test-Fetch-Priority'?: RequestInit['priority']
@@ -107,6 +108,10 @@ export async function fetchServerResponse(
 
   if (nextUrl) {
     headers[NEXT_URL] = nextUrl
+  }
+
+  if (process.env.NEXT_DEPLOYMENT_ID) {
+    headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
   }
 
   const uniqueCacheQuery = hexHash(
@@ -178,6 +183,14 @@ export async function fetchServerResponse(
       }
 
       return doMpaNavigation(responseUrl.toString())
+    }
+
+    // We may navigate to a page that requires a different Webpack runtime.
+    // In prod, every page will have the same Webpack runtime.
+    // In dev, the Webpack runtime is minimal for each page.
+    // We need to ensure the Webpack runtime is updated before executing client-side JS of the new page.
+    if (process.env.NODE_ENV !== 'production' && !process.env.TURBOPACK) {
+      await require('../react-dev-overlay/app/hot-reloader-client').waitForWebpackRuntimeHotUpdate()
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
