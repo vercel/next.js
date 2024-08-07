@@ -3,13 +3,19 @@ mod invalidate;
 mod update_cell;
 mod update_output;
 
-use std::mem::take;
+use std::{
+    fmt::{Debug, Formatter},
+    mem::take,
+};
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{KeyValuePair, TaskId, TurboTasksBackendApi};
 
 use super::{storage::StorageWriteGuard, TurboTasksBackend};
-use crate::data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate};
+use crate::{
+    backend::OperationGuard,
+    data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate},
+};
 
 pub trait Operation:
     Serialize
@@ -18,13 +24,14 @@ pub trait Operation:
     + TryFrom<AnyOperation, Error = ()>
     + Into<AnyOperation>
 {
-    fn execute(self, ctx: ExecuteContext<'_>);
+    fn execute(self, ctx: &ExecuteContext<'_>);
 }
 
-#[derive(Clone, Copy)]
 pub struct ExecuteContext<'a> {
     backend: &'a TurboTasksBackend,
     turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
+    #[allow(dead_code)]
+    operation_guard: Option<OperationGuard<'a>>,
     parent: Option<(&'a AnyOperation, &'a ExecuteContext<'a>)>,
 }
 
@@ -36,6 +43,7 @@ impl<'a> ExecuteContext<'a> {
         Self {
             backend,
             turbo_tasks,
+            operation_guard: Some(backend.start_operation()),
             parent: None,
         }
     }
@@ -46,6 +54,10 @@ impl<'a> ExecuteContext<'a> {
             task_id,
             backend: self.backend,
         }
+    }
+
+    pub fn schedule(&self, task_id: TaskId) {
+        self.turbo_tasks.schedule(task_id);
     }
 
     pub fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&self, op: &T) {
@@ -79,6 +91,7 @@ impl<'a> ExecuteContext<'a> {
         let inner_ctx = ExecuteContext {
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
+            operation_guard: None,
             parent: Some((&parent_op, self)),
         };
         run(inner_ctx);
@@ -90,6 +103,20 @@ pub struct TaskGuard<'a> {
     task_id: TaskId,
     task: StorageWriteGuard<'a, TaskId, CachedDataItem>,
     backend: &'a TurboTasksBackend,
+}
+
+impl<'a> Debug for TaskGuard<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut d = f.debug_struct("TaskGuard");
+        d.field("task_id", &self.task_id);
+        if let Some(task_type) = self.backend.task_cache.lookup_reverse(&self.task_id) {
+            d.field("task_type", &task_type);
+        };
+        for (key, value) in self.task.iter() {
+            d.field(&format!("{:?}", key), &value);
+        }
+        d.finish()
+    }
 }
 
 impl<'a> TaskGuard<'a> {
@@ -225,7 +252,7 @@ pub enum AnyOperation {
 }
 
 impl AnyOperation {
-    fn execute(self, ctx: ExecuteContext<'_>) {
+    fn execute(self, ctx: &ExecuteContext<'_>) {
         match self {
             AnyOperation::ConnectChild(op) => op.execute(ctx),
             AnyOperation::Invalidate(op) => op.execute(ctx),
