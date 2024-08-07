@@ -125,39 +125,38 @@ describe('AMP SSG Support', () => {
     }
   )
   describe('export mode', () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        let buildId
+    ;(process.env.TURBOPACK_DEV || process.env.__NEXT_EXPERIMENTAL_PPR
+      ? describe.skip
+      : describe)('production mode', () => {
+      let buildId
 
-        beforeAll(async () => {
-          nextConfig.write(`module.exports = { output: 'export' }`)
-          await nextBuild(appDir)
-          buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-        })
+      beforeAll(async () => {
+        nextConfig.write(`module.exports = { output: 'export' }`)
+        await nextBuild(appDir)
+        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      })
 
-        afterAll(() => nextConfig.delete())
+      afterAll(() => nextConfig.delete())
 
-        it('should have copied SSG files correctly', async () => {
-          const outFile = (file) => join(appDir, 'out', file)
+      it('should have copied SSG files correctly', async () => {
+        const outFile = (file) => join(appDir, 'out', file)
 
-          expect(await fsExists(outFile('amp.html'))).toBe(true)
-          expect(await fsExists(outFile('index.html'))).toBe(true)
-          expect(await fsExists(outFile('hybrid.html'))).toBe(true)
-          expect(await fsExists(outFile('amp.amp.html'))).toBe(false)
-          expect(await fsExists(outFile('hybrid.amp.html'))).toBe(true)
-          expect(await fsExists(outFile('blog/post-1.html'))).toBe(true)
-          expect(await fsExists(outFile('blog/post-1.amp.html'))).toBe(true)
+        expect(await fsExists(outFile('amp.html'))).toBe(true)
+        expect(await fsExists(outFile('index.html'))).toBe(true)
+        expect(await fsExists(outFile('hybrid.html'))).toBe(true)
+        expect(await fsExists(outFile('amp.amp.html'))).toBe(false)
+        expect(await fsExists(outFile('hybrid.amp.html'))).toBe(true)
+        expect(await fsExists(outFile('blog/post-1.html'))).toBe(true)
+        expect(await fsExists(outFile('blog/post-1.amp.html'))).toBe(true)
 
-          expect(
-            await fsExists(outFile(join('_next/data', buildId, 'amp.json')))
-          ).toBe(true)
+        expect(
+          await fsExists(outFile(join('_next/data', buildId, 'amp.json')))
+        ).toBe(true)
 
-          expect(
-            await fsExists(outFile(join('_next/data', buildId, 'hybrid.json')))
-          ).toBe(true)
-        })
-      }
-    )
+        expect(
+          await fsExists(outFile(join('_next/data', buildId, 'hybrid.json')))
+        ).toBe(true)
+      })
+    })
   })
 })

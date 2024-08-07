@@ -37,12 +37,6 @@ describe('dynamic-data', () => {
       expect($('#page').text()).toBe('run')
       // we expect there to be no suspense boundary in fallback state
       expect($('#boundary').html()).toBeNull()
-    } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
-      // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
-      expect($('#layout').text()).toBe('build')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be a suspense boundary in fallback state
-      expect($('#boundary').html()).not.toBeNull()
     } else {
       // in static generation we expect the entire page to be rendered at runtime
       expect($('#layout').text()).toBe('run')
@@ -72,13 +66,6 @@ describe('dynamic-data', () => {
       expect($('#layout').text()).toBe('run')
       expect($('#page').text()).toBe('run')
       // we expect there to be no suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
-    } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
-      // @TODO this should actually be build but there is a bug in how we do segment level dynamic in PPR at the moment
-      // see note in create-component-tree
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be a suspense boundary in fallback state
       expect($('#boundary').html()).toBeNull()
     } else {
       // in static generation we expect the entire page to be rendered at runtime
@@ -110,12 +97,6 @@ describe('dynamic-data', () => {
       expect($('#page').text()).toBe('run')
       // we expect there to be no suspense boundary in fallback state
       expect($('#boundary').html()).toBeNull()
-    } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
-      // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
-      expect($('#layout').text()).toBe('build')
-      expect($('#page').text()).toBe('build')
-      // we expect there to be a suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
     } else {
       // in static generation we expect the entire page to be rendered at runtime
       expect($('#layout').text()).toBe('build')
@@ -146,12 +127,6 @@ describe('dynamic-data', () => {
       expect($('#page').text()).toBe('run')
       // we don't assert the state of the fallback because it can depend on the timing
       // of when streaming starts and how fast the client references resolve
-    } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
-      // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
-      expect($('#layout').text()).toBe('build')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be a suspense boundary in fallback state
-      expect($('#boundary').html()).not.toBeNull()
     } else {
       // in static generation we expect the entire page to be rendered at runtime
       expect($('#layout').text()).toBe('run')

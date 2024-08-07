@@ -23,7 +23,11 @@ describe('custom server', () => {
   describe('with app dir', () => {
     it('should render app with react rc', async () => {
       const $ = await next.render$(`/1`)
-      expect($('body').text()).toMatch(/app: .+-rc/)
+      if (process.env.__NEXT_EXPERIMENTAL_PPR) {
+        expect($('body').text()).toMatch(/app: .+-experimental/)
+      } else {
+        expect($('body').text()).toMatch(/app: .+-rc/)
+      }
     })
 
     it('should render pages with installed react', async () => {
