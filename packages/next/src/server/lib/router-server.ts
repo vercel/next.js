@@ -668,7 +668,14 @@ export async function initialize(opts: {
         // assetPrefix overrides basePath for HMR path
         if (assetPrefix) {
           hmrPrefix = normalizedAssetPrefix(assetPrefix)
+
+          if (URL.canParse(hmrPrefix)) {
+            // pathname without trailing slash
+            // or if is '/', replace to '' to not conflict
+            hmrPrefix = new URL(hmrPrefix).pathname.replace(/\/$/, '')
+          }
         }
+
         const isHMRRequest = req.url.startsWith(
           ensureLeadingSlash(`${hmrPrefix}/_next/webpack-hmr`)
         )
