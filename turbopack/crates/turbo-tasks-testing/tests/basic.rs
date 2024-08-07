@@ -9,9 +9,12 @@ static REGISTRATION: Registration = register!();
 #[tokio::test]
 async fn basic() {
     run(&REGISTRATION, || async {
+        let output1 = func_without_args();
+        // assert_eq!(output1.await?.value, 123);
+
         let input = Value { value: 42 }.cell();
-        let output = func(input);
-        // assert_eq!(output.await?.value, 42);
+        let output2 = func(input);
+        // assert_eq!(output2.await?.value, 42);
 
         anyhow::Ok(())
     })
@@ -27,5 +30,11 @@ struct Value {
 #[turbo_tasks::function]
 async fn func(input: Vc<Value>) -> Result<Vc<Value>> {
     let value = input.await?.value;
+    Ok(Value { value }.cell())
+}
+
+#[turbo_tasks::function]
+async fn func_without_args() -> Result<Vc<Value>> {
+    let value = 123;
     Ok(Value { value }.cell())
 }
