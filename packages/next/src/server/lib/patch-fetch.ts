@@ -635,13 +635,12 @@ export function createPatchedFetcher(
                   console.warn(`Failed to set fetch cache`, input, error)
                 )
             }
-            try {
-              return res
-            } finally {
-              if (!deferUnlockUntilCacheIsSet) {
-                await handleUnlock()
-              }
+
+            if (!deferUnlockUntilCacheIsSet) {
+              await handleUnlock()
             }
+
+            return res
           })
         }
 
