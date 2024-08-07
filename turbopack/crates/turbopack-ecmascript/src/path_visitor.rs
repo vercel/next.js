@@ -99,7 +99,7 @@ impl<'a, 'b> ApplyVisitors<'a, 'b> {
                 if current {
                     // Potentially skip visiting this sub tree
                     if nested_visitors_start < visitors.len() {
-                        n.visit_mut_children_with_path(
+                        n.visit_mut_children_with_ast_path(
                             &mut ApplyVisitors {
                                 // We only select visitors starting from `nested_visitors_start`
                                 // which maintains the invariant.
@@ -128,7 +128,7 @@ impl<'a, 'b> ApplyVisitors<'a, 'b> {
             }
         }
         // Ast path is unchanged, just keep visiting
-        n.visit_mut_children_with_path(self, ast_path);
+        n.visit_mut_children_with_ast_path(self, ast_path);
     }
 }
 

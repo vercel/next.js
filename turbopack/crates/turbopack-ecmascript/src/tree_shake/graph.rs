@@ -318,7 +318,11 @@ impl DepGraph {
 
                             let s = ExportSpecifier::Named(ExportNamedSpecifier {
                                 span: DUMMY_SP,
-                                orig: ModuleExportName::Ident(Ident::new(export.clone(), DUMMY_SP)),
+                                orig: ModuleExportName::Ident(Ident::new(
+                                    export.clone(),
+                                    DUMMY_SP,
+                                    Default::default(),
+                                )),
                                 exported: None,
                                 is_type_only: false,
                             });
