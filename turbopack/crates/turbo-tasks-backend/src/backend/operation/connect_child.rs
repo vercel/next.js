@@ -6,7 +6,9 @@ use crate::data::CachedDataItem;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum ConnectChildOperation {
-    Todo,
+    ScheduleTask {
+        task_id: TaskId,
+    },
     #[default]
     Done,
     // TODO Add aggregated edge
@@ -20,19 +22,28 @@ impl ConnectChildOperation {
             value: (),
         }) {
             // TODO add aggregated edge
-            ConnectChildOperation::Todo.execute(ctx);
+            // TODO check for active
+            ConnectChildOperation::ScheduleTask {
+                task_id: child_task,
+            }
+            .execute(&ctx);
         }
     }
 }
 
 impl Operation for ConnectChildOperation {
-    fn execute(mut self, ctx: ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
-                ConnectChildOperation::Todo => {
-                    self = ConnectChildOperation::Done;
-                    continue;
+                ConnectChildOperation::ScheduleTask { task_id } => {
+                    {
+                        let mut task = ctx.task(task_id);
+                        task.add(CachedDataItem::new_scheduled(task_id));
+                    }
+                    ctx.schedule(task_id);
+
+                    return;
                 }
                 ConnectChildOperation::Done => {
                     return;

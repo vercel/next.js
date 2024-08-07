@@ -21,12 +21,12 @@ pub enum InvalidateOperation {
 
 impl InvalidateOperation {
     pub fn run(task_ids: SmallVec<[TaskId; 4]>, ctx: ExecuteContext<'_>) {
-        InvalidateOperation::MakeDirty { task_ids }.execute(ctx)
+        InvalidateOperation::MakeDirty { task_ids }.execute(&ctx)
     }
 }
 
 impl Operation for InvalidateOperation {
-    fn execute(self, ctx: ExecuteContext<'_>) {
+    fn execute(self, ctx: &ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
