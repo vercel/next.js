@@ -427,7 +427,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
-      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true node run-tests.js --timings -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-ppr-integration'
     secrets: inherit
 
@@ -442,7 +442,7 @@ jobs:
         group: [1/4, 2/4, 3/4, 4/4]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
       stepName: 'test-ppr-dev-${{ matrix.group }}'
     secrets: inherit
 
@@ -457,7 +457,7 @@ jobs:
         group: [1/4, 2/4, 3/4, 4/4]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
       stepName: 'test-ppr-prod-${{ matrix.group }}'
     secrets: inherit
 
