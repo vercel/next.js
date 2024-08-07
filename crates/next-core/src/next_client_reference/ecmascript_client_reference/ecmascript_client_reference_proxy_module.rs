@@ -4,25 +4,23 @@ use anyhow::{bail, Context, Result};
 use indoc::writedoc;
 use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
-use turbopack_binding::turbopack::{
-    core::{
-        asset::{Asset, AssetContent},
-        chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
-        code_builder::CodeBuilder,
-        context::AssetContext,
-        ident::AssetIdent,
-        module::Module,
-        reference::{ModuleReferences, SingleModuleReference},
-        reference_type::ReferenceType,
-        virtual_source::VirtualSource,
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    code_builder::CodeBuilder,
+    context::AssetContext,
+    ident::AssetIdent,
+    module::Module,
+    reference::{ModuleReferences, SingleModuleReference},
+    reference_type::ReferenceType,
+    virtual_source::VirtualSource,
+};
+use turbopack_ecmascript::{
+    chunk::{
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, EcmascriptExports,
     },
-    ecmascript::{
-        chunk::{
-            EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-            EcmascriptChunkType, EcmascriptExports,
-        },
-        utils::StringifyJs,
-    },
+    utils::StringifyJs,
 };
 
 use super::ecmascript_client_reference_module::EcmascriptClientReferenceModule;

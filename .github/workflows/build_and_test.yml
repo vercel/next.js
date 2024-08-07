@@ -159,6 +159,17 @@ jobs:
       stepName: 'rust-doc-check'
     secrets: inherit
 
+  ast-grep:
+    needs: ['changes', 'build-next']
+    runs-on: ubuntu-latest
+    name: ast-grep lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: ast-grep lint step
+        uses: ast-grep/action@v1.5.0
+        with:
+          version: 0.25.6
+
   devlow-bench:
     name: Run devlow benchmarks
     needs: ['changes', 'build-next', 'build-native']

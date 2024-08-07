@@ -32,6 +32,9 @@ importers:
       '@actions/core':
         specifier: 1.10.1
         version: 1.10.1
+      '@ast-grep/cli':
+        specifier: 0.25.6
+        version: 0.25.6
       '@babel/core':
         specifier: 7.22.5
         version: 7.22.5
@@ -783,7 +786,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.0.0-canary.101
+        specifier: 15.0.0-canary.106
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -844,7 +847,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.0.0-canary.101
+        specifier: 15.0.0-canary.106
         version: link:../next-env
       '@swc/counter':
         specifier: 0.1.3
@@ -975,16 +978,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 15.0.0-canary.101
+        specifier: 15.0.0-canary.106
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.0.0-canary.101
+        specifier: 15.0.0-canary.106
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.0.0-canary.101
+        specifier: 15.0.0-canary.106
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.0.0-canary.101
+        specifier: 15.0.0-canary.106
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1597,7 +1600,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.0.0-canary.101
+        specifier: 15.0.0-canary.106
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -1766,6 +1769,53 @@ packages:
 
   '@ampproject/toolbox-validator-rules@2.8.0':
     resolution: {integrity: sha512-kbInwnzpEPVZkKigpKFkF/DQ2LsuZ5b8vrEFHjJ4P+meKVQg2QF/UWAQpIMMdjGe1AQBT+DWm91n9UyjgqfnWQ==}
+
+  '@ast-grep/cli-darwin-arm64@0.25.6':
+    resolution: {integrity: sha512-CghK2SMxOgz7o797024tTe/RWolgJHTd+JM1y1Wp6IbZ0uxvOuW2RvOlu7S3DV16xO/MK6QHRxfVWUzIsxGvkQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@ast-grep/cli-darwin-x64@0.25.6':
+    resolution: {integrity: sha512-kfEt5Tz0sQn1QpUg4BBDrn7yoMX38Q8GJ6/edF5wzwCLkxhGFZHwdULZIL4ol27CKWNtaUzl2kOSLJOjOqXtuA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@ast-grep/cli-linux-arm64-gnu@0.25.6':
+    resolution: {integrity: sha512-4mt/JWKJdsI6oc6zMgQPm4kmlGXkA23HXh9+Lz7iunQrsxVUgGID4DvocnjATJNfQvpOLvarvne5wUwUjJDzoA==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+
+  '@ast-grep/cli-linux-x64-gnu@0.25.6':
+    resolution: {integrity: sha512-ZBrrOsELQSqNXlQiQH3u0d+smfUJRmmE1aAZ3Lnr94Rc+pm5+e6fErxhKDlgUDtz92WubEPi+skUxSFnqYmgaQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+
+  '@ast-grep/cli-win32-arm64-msvc@0.25.6':
+    resolution: {integrity: sha512-+HVBCVqZscuc+k8GB6miCVCMr6gkhAnmrerXHBKY1moXKlJjyG3KnEH082vhh4BT+Q0jtixpGiIcBShZ+yDLPQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@ast-grep/cli-win32-ia32-msvc@0.25.6':
+    resolution: {integrity: sha512-1wbyjQgYnoWxGRLSF1rxF+g4oktorwSlyM1s3933+3ythziIULXwFxiRqhGcdaVGlK+RgRAfFI/CpRbQPBKZtg==}
+    engines: {node: '>= 10'}
+    cpu: [ia32]
+    os: [win32]
+
+  '@ast-grep/cli-win32-x64-msvc@0.25.6':
+    resolution: {integrity: sha512-Qre0J2A1dZmGd7BgUvHyQVkG90uicjudW1FPI8rRd8PZZxSyLlbtsD7K/0P+i6Y7vMsvEmXLoG8KVUvFCQIDGQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@ast-grep/cli@0.25.6':
+    resolution: {integrity: sha512-N9yV8ZPlICB2wyZX2rgMg4zbJQwp6U5LySLOeFEVhVUsGP5Tkhv0h/vRcO20xFix24wb1qZ2exeD1VgGqMB6Ww==}
+    engines: {node: '>= 12.0.0'}
+    hasBin: true
 
   '@babel/cli@7.21.5':
     resolution: {integrity: sha512-TOKytQ9uQW9c4np8F+P7ZfPINy5Kv+pizDIUwSVH8X5zHgYHV4AA8HE5LA450xXeu4jEfmUckTYvv1I4S26M/g==}
@@ -15260,6 +15310,39 @@ snapshots:
     dependencies:
       cross-fetch: 3.1.2
 
+  '@ast-grep/cli-darwin-arm64@0.25.6':
+    optional: true
+
+  '@ast-grep/cli-darwin-x64@0.25.6':
+    optional: true
+
+  '@ast-grep/cli-linux-arm64-gnu@0.25.6':
+    optional: true
+
+  '@ast-grep/cli-linux-x64-gnu@0.25.6':
+    optional: true
+
+  '@ast-grep/cli-win32-arm64-msvc@0.25.6':
+    optional: true
+
+  '@ast-grep/cli-win32-ia32-msvc@0.25.6':
+    optional: true
+
+  '@ast-grep/cli-win32-x64-msvc@0.25.6':
+    optional: true
+
+  '@ast-grep/cli@0.25.6':
+    dependencies:
+      detect-libc: 2.0.3
+    optionalDependencies:
+      '@ast-grep/cli-darwin-arm64': 0.25.6
+      '@ast-grep/cli-darwin-x64': 0.25.6
+      '@ast-grep/cli-linux-arm64-gnu': 0.25.6
+      '@ast-grep/cli-linux-x64-gnu': 0.25.6
+      '@ast-grep/cli-win32-arm64-msvc': 0.25.6
+      '@ast-grep/cli-win32-ia32-msvc': 0.25.6
+      '@ast-grep/cli-win32-x64-msvc': 0.25.6
+
   '@babel/cli@7.21.5(@babel/core@7.22.5)':
     dependencies:
       '@babel/core': 7.22.5
@@ -22371,8 +22454,7 @@ snapshots:
 
   detect-libc@1.0.3: {}
 
-  detect-libc@2.0.3:
-    optional: true
+  detect-libc@2.0.3: {}
 
   detect-newline@3.1.0: {}
 

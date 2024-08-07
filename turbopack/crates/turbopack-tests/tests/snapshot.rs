@@ -20,10 +20,10 @@ use turbo_tasks_fs::{
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    ecmascript::{EcmascriptInputTransform, EcmascriptModuleAsset, TreeShakingMode},
+    ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
-        JsxTransformOptions, ModuleOptionsContext, ModuleRule, ModuleRuleCondition,
-        ModuleRuleEffect,
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
+        ModuleRule, ModuleRuleCondition, ModuleRuleEffect,
     },
     ModuleAssetContext,
 };
@@ -32,7 +32,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAssetExt, EvaluatableAssets, MinifyType,
+        EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets, MinifyType,
     },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -243,7 +243,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         ModuleRuleCondition::ResourcePathEndsWith(".tsx".into()),
     ]);
 
-    let custom_rules = ModuleRule::new(
+    let module_rules = ModuleRule::new(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: Vc::cell(vec![
@@ -262,22 +262,31 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Vc::cell(HashMap::new()),
         compile_time_info,
         ModuleOptionsContext {
-            enable_jsx: Some(JsxTransformOptions::cell(JsxTransformOptions {
-                development: true,
+            ecmascript: EcmascriptOptionsContext {
+                enable_jsx: Some(JsxTransformOptions::cell(JsxTransformOptions {
+                    development: true,
+                    ..Default::default()
+                })),
+                ignore_dynamic_requests: true,
                 ..Default::default()
-            })),
+            },
+            css: CssOptionsContext {
+                use_swc_css: options.use_swc_css,
+                ..Default::default()
+            },
             preset_env_versions: Some(env),
-            ignore_dynamic_requests: true,
-            use_swc_css: options.use_swc_css,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
-                    use_swc_css: options.use_swc_css,
+                    css: CssOptionsContext {
+                        use_swc_css: options.use_swc_css,
+                        ..Default::default()
+                    },
                     ..Default::default()
                 }
                 .cell(),
             )],
-            custom_rules: vec![custom_rules],
+            module_rules: vec![module_rules],
             tree_shaking_mode: options.tree_shaking_mode,
             ..Default::default()
         }
@@ -351,12 +360,12 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .module();
 
     let chunks = if let Some(ecmascript) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(entry_module).await?
+        Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
     {
         // TODO: Load runtime entries from snapshots
         match options.runtime {
             Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
-                ecmascript.ident(),
+                entry_module.ident(),
                 runtime_entries
                     .unwrap_or_else(EvaluatableAssets::empty)
                     .with_entry(Vc::upcast(ecmascript)),
@@ -381,7 +390,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                                         .into(),
                                 )
                                 .with_extension("entry.js".into()),
-                            Vc::upcast(ecmascript),
+                            entry_module,
                             runtime_entries
                                 .unwrap_or_else(EvaluatableAssets::empty)
                                 .with_entry(Vc::upcast(ecmascript)),

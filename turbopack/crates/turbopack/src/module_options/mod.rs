@@ -64,29 +64,35 @@ impl ModuleOptions {
         resolve_options_context: Vc<ResolveOptionsContext>,
     ) -> Result<Vc<ModuleOptions>> {
         let ModuleOptionsContext {
-            enable_jsx,
-            enable_types,
-            tree_shaking_mode,
-            ref enable_typescript_transform,
-            ref decorators,
+            ecmascript:
+                EcmascriptOptionsContext {
+                    enable_jsx,
+                    enable_types,
+                    ref enable_typescript_transform,
+                    ref enable_decorators,
+                    ignore_dynamic_requests,
+                    import_externals,
+                    esm_url_rewrite_behavior,
+                    ref enable_typeof_window_inlining,
+                    ..
+                },
             enable_mdx,
             enable_mdx_rs,
-            enable_raw_css,
+            css:
+                CssOptionsContext {
+                    enable_raw_css,
+                    use_swc_css,
+                    ..
+                },
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
             preset_env_versions,
-            ref custom_rules,
+            ref module_rules,
             execution_context,
             ref rules,
-            esm_url_rewrite_behavior,
-            special_exports,
-            import_externals,
-            ignore_dynamic_requests,
-            use_swc_css,
-            ref enable_typeof_window_inlining,
+            tree_shaking_mode,
             ..
         } = *module_options_context.await?;
-        let special_exports = special_exports.unwrap_or_default();
 
         if !rules.is_empty() {
             let path_value = path.await?;
@@ -125,7 +131,6 @@ impl ModuleOptions {
             tree_shaking_mode,
             url_rewrite_behavior: esm_url_rewrite_behavior,
             import_externals,
-            special_exports,
             ignore_dynamic_requests,
             refresh,
             ..Default::default()
@@ -154,7 +159,7 @@ impl ModuleOptions {
             None
         };
 
-        let decorators_transform = if let Some(options) = &decorators {
+        let decorators_transform = if let Some(options) = &enable_decorators {
             let options = options.await?;
             options
                 .decorators_kind
@@ -581,7 +586,7 @@ impl ModuleOptions {
             }
         }
 
-        rules.extend(custom_rules.iter().cloned());
+        rules.extend(module_rules.iter().cloned());
 
         Ok(ModuleOptions::cell(ModuleOptions { rules }))
     }

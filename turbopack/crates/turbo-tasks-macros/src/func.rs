@@ -1,11 +1,17 @@
-use proc_macro2::Ident;
+use std::collections::HashSet;
+
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::{quote, quote_spanned};
 use syn::{
+    parenthesized,
+    parse::{Parse, ParseStream},
     parse_quote,
     punctuated::{Pair, Punctuated},
     spanned::Spanned,
-    AngleBracketedGenericArguments, Block, Expr, ExprPath, FnArg, GenericArgument, Pat, PatIdent,
-    PatType, Path, PathArguments, PathSegment, Receiver, ReturnType, Signature, Token, Type,
-    TypeGroup, TypePath, TypeTuple,
+    token::Paren,
+    AngleBracketedGenericArguments, Block, Expr, ExprPath, FnArg, GenericArgument, Meta, Pat,
+    PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, ReturnType, Signature, Token,
+    Type, TypeGroup, TypePath, TypeTuple,
 };
 
 #[derive(Debug)]
@@ -16,6 +22,8 @@ pub struct TurboFn {
     output: Type,
     this: Option<Input>,
     inputs: Vec<Input>,
+    /// Should we check that the return type contains a `ResolvedValue`?
+    resolved: Option<Span>,
 }
 
 #[derive(Debug)]
@@ -28,6 +36,7 @@ impl TurboFn {
     pub fn new(
         original_signature: &Signature,
         definition_context: DefinitionContext,
+        args: FunctionArguments,
     ) -> Option<TurboFn> {
         if !original_signature.generics.params.is_empty() {
             original_signature
@@ -247,6 +256,7 @@ impl TurboFn {
             output,
             this,
             inputs,
+            resolved: args.resolved,
         })
     }
 
@@ -310,15 +320,38 @@ impl TurboFn {
         })
     }
 
+    fn get_assertions(&self) -> TokenStream {
+        if let Some(span) = self.resolved {
+            let return_type = &self.output;
+            quote_spanned! {
+                span =>
+                {
+                    fn assert_returns_resolved_value<
+                        ReturnType,
+                        Rv,
+                    >() where
+                        ReturnType: turbo_tasks::task::TaskOutput<Return = Vc<Rv>>,
+                        Rv: turbo_tasks::ResolvedValue + Send,
+                    {}
+                    assert_returns_resolved_value::<#return_type, _>()
+                }
+            }
+        } else {
+            quote! {}
+        }
+    }
+
     /// The block of the exposed function for a dynamic dispatch call to the
     /// given trait.
     pub fn dynamic_block(&self, trait_type_id_ident: &Ident) -> Block {
         let ident = &self.ident;
         let output = &self.output;
+        let assertions = self.get_assertions();
         if let Some(converted_this) = self.converted_this() {
             let inputs = self.inputs();
             parse_quote! {
                 {
+                    #assertions
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::trait_call(
                             *#trait_type_id_ident,
@@ -343,9 +376,11 @@ impl TurboFn {
     pub fn static_block(&self, native_function_id_ident: &Ident) -> Block {
         let output = &self.output;
         let inputs = self.inputs();
+        let assertions = self.get_assertions();
         if let Some(converted_this) = self.converted_this() {
             parse_quote! {
                 {
+                    #assertions
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_this_call(
                             *#native_function_id_ident,
@@ -358,6 +393,7 @@ impl TurboFn {
         } else {
             parse_quote! {
                 {
+                    #assertions
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
                             *#native_function_id_ident,
@@ -371,6 +407,103 @@ impl TurboFn {
 
     pub(crate) fn is_method(&self) -> bool {
         self.this.is_some()
+    }
+}
+
+/// An indication of what kind of IO this function does. Currently only used for
+/// static analysis, and ignored within this macro.
+#[derive(Hash, PartialEq, Eq)]
+enum IoMarker {
+    Filesystem,
+    Network,
+}
+
+/// Unwraps a parenthesized set of tokens.
+///
+/// Syn's lower-level [`parenthesized`] macro which this uses requires a
+/// [`ParseStream`] and cannot be used with [`parse_macro_input`],
+/// [`syn::parse2`] or anything else accepting a [`TokenStream`]. This can be
+/// used with those [`TokenStream`]-based parsing APIs.
+pub struct Parenthesized<T: Parse> {
+    pub _paren_token: Paren,
+    pub inner: T,
+}
+
+impl<T: Parse> Parse for Parenthesized<T> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let inner;
+        Ok(Self {
+            _paren_token: parenthesized!(inner in input),
+            inner: <T>::parse(&inner)?,
+        })
+    }
+}
+
+/// A newtype wrapper for [`Option<Parenthesized>`][Parenthesized] that
+/// implements [`Parse`].
+pub struct MaybeParenthesized<T: Parse> {
+    pub parenthesized: Option<Parenthesized<T>>,
+}
+
+impl<T: Parse> Parse for MaybeParenthesized<T> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(Self {
+            parenthesized: if input.peek(Paren) {
+                Some(Parenthesized::<T>::parse(input)?)
+            } else {
+                None
+            },
+        })
+    }
+}
+
+/// Arguments to the `#[turbo_tasks::function]` macro.
+#[derive(Default)]
+pub struct FunctionArguments {
+    /// Manually annotated metadata about what kind of IO this function does.
+    /// Currently only used by some static analysis tools. May be exposed via
+    /// `tracing` or used as part of an optimization heuristic in the
+    /// future.
+    ///
+    /// This should only be used by the task that directly performs the IO.
+    /// Tasks that transitively perform IO should not be manually annotated.
+    io_markers: HashSet<IoMarker>,
+    /// Should we check that the return type contains a `ResolvedValue`? This is
+    /// a span for error reporting reasons.
+    resolved: Option<Span>,
+}
+
+impl Parse for FunctionArguments {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut parsed_args = FunctionArguments::default();
+        let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
+        for meta in punctuated {
+            match (
+                meta.path()
+                    .get_ident()
+                    .map(ToString::to_string)
+                    .as_deref()
+                    .unwrap_or_default(),
+                &meta,
+            ) {
+                ("fs", Meta::Path(_)) => {
+                    parsed_args.io_markers.insert(IoMarker::Filesystem);
+                }
+                ("network", Meta::Path(_)) => {
+                    parsed_args.io_markers.insert(IoMarker::Network);
+                }
+                ("resolved", Meta::Path(_)) => {
+                    parsed_args.resolved = Some(meta.span());
+                }
+                (_, meta) => {
+                    return Err(syn::Error::new_spanned(
+                        meta,
+                        "unexpected token, expected one of: \"fs\", \"network\", \"resolved\"",
+                    ))
+                }
+            }
+        }
+        Ok(parsed_args)
     }
 }
 
