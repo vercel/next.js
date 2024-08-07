@@ -53,8 +53,8 @@ function getExistingCacheEntry(
   prefetchCache: Map<string, PrefetchCacheEntry>
 ): PrefetchCacheEntry | undefined {
   const interceptionCacheKey = createPrefetchCacheKey(url, kind, nextUrl)
-  const fullDataCacheKey = createPrefetchCacheKey(url, PrefetchKind.FULL)
-  const autoCacheKey = createPrefetchCacheKey(url, kind)
+  const cacheKeyWithParams = createPrefetchCacheKey(url, PrefetchKind.FULL)
+  const cacheKey = createPrefetchCacheKey(url, kind)
 
   // We first check if there's a more specific interception route prefetch entry
   // This is because when we detect a prefetch that corresponds with an interception route, we prefix it with nextUrl (see `createPrefetchCacheKey`)
@@ -64,21 +64,22 @@ function getExistingCacheEntry(
   }
 
   // Check for full data cache entry if search params are present.
-  if (url.search && prefetchCache.has(fullDataCacheKey)) {
-    return prefetchCache.get(fullDataCacheKey)
+  if (url.search && prefetchCache.has(cacheKeyWithParams)) {
+    return prefetchCache.get(cacheKeyWithParams)
   }
 
-  // Check for auto prefetch data
-  const autoPrefetchData = prefetchCache.get(autoCacheKey)
-  if (autoPrefetchData) {
-    // if there are no search params, we can return whatever was in the prefetch.
+  // Check for prefetch data associated with the requested kind
+  const prefetchData = prefetchCache.get(cacheKey)
+  if (prefetchData) {
+    // if there are no search params, we can return whatever was in the prefetch
     // if there were search params, we should ensure that the prefetch we're using was "auto",
-    // as we wouldn't want to clobber a full prefetch with an auto prefetch.
-    if (!url.search || autoPrefetchData.kind === PrefetchKind.AUTO) {
-      return autoPrefetchData
+    // because that will contain the shareable loading data (and not the full RSC data)
+    if (!url.search || prefetchData.kind === PrefetchKind.AUTO) {
+      return prefetchData
     }
   }
 
+  // Nothing was found, return undefined, which will trigger a new prefetch request
   return undefined
 }
 
