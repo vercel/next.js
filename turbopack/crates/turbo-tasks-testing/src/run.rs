@@ -1,8 +1,10 @@
 use std::{
+    fmt::Debug,
     future::Future,
     sync::{Arc, OnceLock},
 };
 
+use anyhow::Result;
 use turbo_tasks::{run_once, trace::TraceRawVcs, TurboTasksApi};
 
 pub struct Registration {
@@ -58,11 +60,33 @@ macro_rules! register {
     }};
 }
 
-pub async fn run<T>(registration: &Registration, fut: impl Future<Output = T> + Send + 'static) -> T
+pub async fn run_without_cache_check<T>(
+    registration: &Registration,
+    fut: impl Future<Output = T> + Send + 'static,
+) -> T
 where
     T: TraceRawVcs + Send + 'static,
 {
     registration.ensure_registered();
     let tt = registration.create_turbo_tasks();
     run_once(tt, async move { Ok(fut.await) }).await.unwrap()
+}
+
+pub async fn run<T, F>(
+    registration: &Registration,
+    fut: impl Fn() -> F + Send + 'static,
+) -> Result<()>
+where
+    F: Future<Output = Result<T>> + Send + 'static,
+    T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
+{
+    registration.ensure_registered();
+    let tt = registration.create_turbo_tasks();
+    let first = run_once(tt.clone(), fut()).await?;
+    let second = run_once(tt, fut()).await?;
+    assert_eq!(first, second);
+    let tt = registration.create_turbo_tasks();
+    let third = run_once(tt, fut()).await?;
+    assert_eq!(first, third);
+    Ok(())
 }
