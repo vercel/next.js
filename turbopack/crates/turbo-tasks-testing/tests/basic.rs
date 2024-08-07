@@ -10,11 +10,11 @@ static REGISTRATION: Registration = register!();
 async fn basic() {
     run(&REGISTRATION, || async {
         let output1 = func_without_args();
-        // assert_eq!(output1.await?.value, 123);
+        assert_eq!(output1.await?.value, 123);
 
         let input = Value { value: 42 }.cell();
         let output2 = func(input);
-        // assert_eq!(output2.await?.value, 42);
+        assert_eq!(output2.await?.value, 42);
 
         anyhow::Ok(())
     })
