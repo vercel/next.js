@@ -1,5 +1,6 @@
 use std::{
     hash::{BuildHasherDefault, Hash},
+    mem::take,
     ops::{Deref, DerefMut},
     thread::available_parallelism,
 };
@@ -44,13 +45,37 @@ impl<T: KeyValuePair> InnerStorage<T> {
         }
     }
 
-    pub fn upsert(&mut self, item: T) -> Option<T::Value> {
+    pub fn insert(&mut self, item: T) -> Option<T::Value> {
         let (key, value) = item.into_key_and_value();
         self.map.insert(key, value)
     }
 
     pub fn remove(&mut self, key: &T::Key) -> Option<T::Value> {
         self.map.remove(key)
+    }
+
+    pub fn get(&self, key: &T::Key) -> Option<&T::Value> {
+        self.map.get(key)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&T::Key, &T::Value)> {
+        self.map.iter()
+    }
+}
+
+impl<T: KeyValuePair + Default> InnerStorage<T>
+where
+    T::Value: PartialEq,
+{
+    pub fn has(&self, item: &mut T) -> bool {
+        let (key, value) = take(item).into_key_and_value();
+        let result = if let Some(stored_value) = self.map.get(&key) {
+            *stored_value == value
+        } else {
+            false
+        };
+        *item = T::from_key_and_value(key, value);
+        result
     }
 }
 
@@ -98,4 +123,40 @@ impl<'a, K: Eq + Hash, T: KeyValuePair> DerefMut for StorageWriteGuard<'a, K, T>
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut *self.inner
     }
+}
+
+#[macro_export]
+macro_rules! get {
+    ($task:ident, $key:ident $input:tt) => {
+        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.get(&$crate::data::CachedDataItemKey::$key $input).as_ref() {
+            Some(value)
+        } else {
+            None
+        }
+    };
+    ($task:ident, $key:ident) => {
+        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.get(&$crate::data::CachedDataItemKey::$key {}).as_ref() {
+            Some(value)
+        } else {
+            None
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! remove {
+    ($task:ident, $key:ident $input:tt) => {
+        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove(&$crate::data::CachedDataItemKey::$key $input) {
+            Some(value)
+        } else {
+            None
+        }
+    };
+    ($task:ident, $key:ident) => {
+        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove(&$crate::data::CachedDataItemKey::$key {}) {
+            Some(value)
+        } else {
+            None
+        }
+    };
 }

@@ -1,9 +1,9 @@
-use turbo_tasks::{util::SharedError, CellId, KeyValuePair, SharedReference, TaskId};
+use turbo_tasks::{event::Event, util::SharedError, CellId, KeyValuePair, SharedReference, TaskId};
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct CellRef {
-    task: TaskId,
-    cell: CellId,
+    pub task: TaskId,
+    pub cell: CellId,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -11,6 +11,7 @@ pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
     Error,
+    Panic,
 }
 impl OutputValue {
     fn is_transient(&self) -> bool {
@@ -18,6 +19,7 @@ impl OutputValue {
             OutputValue::Cell(cell) => cell.task.is_transient(),
             OutputValue::Output(task) => task.is_transient(),
             OutputValue::Error => false,
+            OutputValue::Panic => false,
         }
     }
 }
@@ -29,10 +31,24 @@ pub enum RootType {
     ReadingStronglyConsistent,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum InProgressState {
-    Scheduled { clean: bool },
-    InProgress { clean: bool, stale: bool },
+    Scheduled {
+        clean: bool,
+        done_event: Event,
+        start_event: Event,
+    },
+    InProgress {
+        clean: bool,
+        stale: bool,
+        done_event: Event,
+    },
+}
+
+impl Clone for InProgressState {
+    fn clone(&self) -> Self {
+        panic!("InProgressState cannot be cloned");
+    }
 }
 
 #[derive(Debug, Clone, KeyValuePair)]
@@ -168,6 +184,16 @@ impl CachedDataItem {
             CachedDataItem::OutdatedOutputDependency { .. } => false,
             CachedDataItem::OutdatedCellDependency { .. } => false,
             CachedDataItem::Error { .. } => false,
+        }
+    }
+
+    pub fn new_scheduled(task_id: TaskId) -> Self {
+        CachedDataItem::InProgress {
+            value: InProgressState::Scheduled {
+                clean: false,
+                done_event: Event::new(move || format!("{} done_event", task_id)),
+                start_event: Event::new(move || format!("{} start_event", task_id)),
+            },
         }
     }
 }

@@ -1,4 +1,9 @@
 mod connect_child;
+mod invalidate;
+mod update_cell;
+mod update_output;
+
+use std::mem::take;
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{KeyValuePair, TaskId, TurboTasksBackendApi};
@@ -6,13 +11,21 @@ use turbo_tasks::{KeyValuePair, TaskId, TurboTasksBackendApi};
 use super::{storage::StorageWriteGuard, TurboTasksBackend};
 use crate::data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate};
 
-pub trait Operation: Serialize + for<'de> Deserialize<'de> {
+pub trait Operation:
+    Serialize
+    + for<'de> Deserialize<'de>
+    + Default
+    + TryFrom<AnyOperation, Error = ()>
+    + Into<AnyOperation>
+{
     fn execute(self, ctx: ExecuteContext<'_>);
 }
 
+#[derive(Clone, Copy)]
 pub struct ExecuteContext<'a> {
     backend: &'a TurboTasksBackend,
     turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
+    parent: Option<(&'a AnyOperation, &'a ExecuteContext<'a>)>,
 }
 
 impl<'a> ExecuteContext<'a> {
@@ -23,6 +36,7 @@ impl<'a> ExecuteContext<'a> {
         Self {
             backend,
             turbo_tasks,
+            parent: None,
         }
     }
 
@@ -34,8 +48,41 @@ impl<'a> ExecuteContext<'a> {
         }
     }
 
-    pub fn operation_suspend_point(&self, f: impl FnOnce() -> AnyOperation) {
-        self.backend.operation_suspend_point(f)
+    pub fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&self, op: &T) {
+        if self.parent.is_some() {
+            self.backend.operation_suspend_point(|| {
+                let mut nested = Vec::new();
+                nested.push(op.clone().into());
+                let mut cur = self;
+                while let Some((op, parent_ctx)) = cur.parent {
+                    nested.push(op.clone());
+                    cur = parent_ctx;
+                }
+                AnyOperation::Nested(nested)
+            });
+        } else {
+            self.backend.operation_suspend_point(|| op.clone().into());
+        }
+    }
+
+    pub fn suspending_requested(&self) -> bool {
+        self.backend.suspending_requested()
+    }
+
+    pub fn run_operation(
+        &self,
+        parent_op_ref: &mut impl Operation,
+        run: impl FnOnce(ExecuteContext<'_>),
+    ) {
+        let parent_op = take(parent_op_ref);
+        let parent_op: AnyOperation = parent_op.into();
+        let inner_ctx = ExecuteContext {
+            backend: self.backend,
+            turbo_tasks: self.turbo_tasks,
+            parent: Some((&parent_op, self)),
+        };
+        run(inner_ctx);
+        *parent_op_ref = parent_op.try_into().unwrap();
     }
 }
 
@@ -79,13 +126,13 @@ impl<'a> TaskGuard<'a> {
         }
     }
 
-    pub fn upsert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
+    pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
         let (key, value) = item.into_key_and_value();
         if !key.is_persistent() {
             self.task
-                .upsert(CachedDataItem::from_key_and_value(key, value))
+                .insert(CachedDataItem::from_key_and_value(key, value))
         } else if value.is_persistent() {
-            let old = self.task.upsert(CachedDataItem::from_key_and_value(
+            let old = self.task.insert(CachedDataItem::from_key_and_value(
                 key.clone(),
                 value.clone(),
             ));
@@ -100,7 +147,7 @@ impl<'a> TaskGuard<'a> {
             old
         } else {
             let item = CachedDataItem::from_key_and_value(key.clone(), value);
-            if let Some(old) = self.task.upsert(item) {
+            if let Some(old) = self.task.insert(item) {
                 if old.is_persistent() {
                     self.backend
                         .persisted_storage_log
@@ -137,6 +184,14 @@ impl<'a> TaskGuard<'a> {
             None
         }
     }
+
+    pub fn get(&self, key: &CachedDataItemKey) -> Option<&CachedDataItemValue> {
+        self.task.get(key)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
+        self.task.iter()
+    }
 }
 
 macro_rules! impl_operation {
@@ -147,29 +202,44 @@ macro_rules! impl_operation {
             }
         }
 
+        impl TryFrom<AnyOperation> for $type_path {
+            type Error = ();
+
+            fn try_from(op: AnyOperation) -> Result<Self, Self::Error> {
+                match op {
+                    AnyOperation::$name(op) => Ok(op),
+                    _ => Err(()),
+                }
+            }
+        }
+
         pub use $type_path;
     };
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub enum AnyOperation {
     ConnectChild(connect_child::ConnectChildOperation),
+    Invalidate(invalidate::InvalidateOperation),
+    Nested(Vec<AnyOperation>),
 }
 
-impl Operation for AnyOperation {
+impl AnyOperation {
     fn execute(self, ctx: ExecuteContext<'_>) {
         match self {
             AnyOperation::ConnectChild(op) => op.execute(ctx),
+            AnyOperation::Invalidate(op) => op.execute(ctx),
+            AnyOperation::Nested(ops) => {
+                for op in ops {
+                    op.execute(ctx);
+                }
+            }
         }
     }
 }
 
 impl_operation!(ConnectChild connect_child::ConnectChildOperation);
+impl_operation!(Invalidate invalidate::InvalidateOperation);
 
-#[macro_export(local_inner_macros)]
-macro_rules! suspend_point {
-    ($self:expr, $ctx:expr, $op:expr) => {
-        $self = $op;
-        $ctx.operation_suspend_point(|| $self.clone().into());
-    };
-}
+pub use update_cell::UpdateCellOperation;
+pub use update_output::UpdateOutputOperation;
