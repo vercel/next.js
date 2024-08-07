@@ -515,6 +515,8 @@ export function createPatchedFetcher(
         const normalizedRevalidate =
           typeof finalRevalidate !== 'number' ? CACHE_ONE_YEAR : finalRevalidate
 
+        let handleUnlock = () => Promise.resolve()
+
         const doOriginalFetch = async (
           isStale?: boolean,
           cacheReasonOverride?: string
@@ -564,6 +566,8 @@ export function createPatchedFetcher(
             next: { ...init?.next, fetchType: 'origin', fetchIdx },
           }
 
+          let deferUnlockUntilCacheIsSet = false
+
           return originFetch(input, clonedInit).then(async (res) => {
             if (!isStale) {
               trackFetchMetric(staticGenerationStore, {
@@ -585,6 +589,10 @@ export function createPatchedFetcher(
               cacheKey &&
               (isCacheableRevalidate || requestStore?.serverComponentsHmrCache)
             ) {
+              if (isCacheableRevalidate) {
+                deferUnlockUntilCacheIsSet = true
+              }
+
               res
                 .clone()
                 .arrayBuffer()
@@ -619,17 +627,24 @@ export function createPatchedFetcher(
                         tags,
                       }
                     )
+
+                    await handleUnlock()
                   }
                 })
                 .catch((error) =>
                   console.warn(`Failed to set fetch cache`, input, error)
                 )
             }
-            return res
+            try {
+              return res
+            } finally {
+              if (!deferUnlockUntilCacheIsSet) {
+                await handleUnlock()
+              }
+            }
           })
         }
 
-        let handleUnlock = () => Promise.resolve()
         let cacheReasonOverride
         let isForegroundRevalidate = false
         let isHmrRefreshCache = false
@@ -775,15 +790,12 @@ export function createPatchedFetcher(
             return res.clone()
           }
           return (staticGenerationStore.pendingRevalidates[cacheKey] =
-            doOriginalFetch(true, cacheReasonOverride).finally(async () => {
+            doOriginalFetch(true, cacheReasonOverride).finally(() => {
               staticGenerationStore.pendingRevalidates ??= {}
               delete staticGenerationStore.pendingRevalidates[cacheKey || '']
-              await handleUnlock()
             }))
         } else {
-          return doOriginalFetch(false, cacheReasonOverride).finally(
-            handleUnlock
-          )
+          return doOriginalFetch(false, cacheReasonOverride)
         }
       }
     )

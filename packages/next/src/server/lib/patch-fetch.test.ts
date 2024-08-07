@@ -40,7 +40,7 @@ describe('createPatchedFetcher', () => {
       get: jest.fn(),
       set: jest.fn(() => resolveIncrementalCacheSet()),
       generateCacheKey: jest.fn(() => 'test-cache-key'),
-      lock: jest.fn(),
+      lock: jest.fn(() => resolveIncrementalCacheSet),
     } as unknown as IncrementalCache
 
     // We only need to provide a few of the StaticGenerationStore properties.
