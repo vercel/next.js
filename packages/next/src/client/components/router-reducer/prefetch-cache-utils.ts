@@ -15,10 +15,10 @@ import type { FetchServerResponseResult } from '../../../server/app-render/types
  * @param nextUrl - an internal URL, primarily used for handling rewrites. Defaults to '/'.
  * @return The generated prefetch cache key.
  */
-function createPrefetchCacheKey(
+function createPrefetchCacheKeyImpl(
   url: URL,
-  prefetchKind: PrefetchKind | undefined,
-  nextUrl?: string | null
+  includeSearchParams: boolean,
+  prefix?: string | null
 ) {
   // Initially we only use the pathname as the cache key. We don't want to include
   // search params so that multiple URLs with the same search parameter can re-use
@@ -30,56 +30,68 @@ function createPrefetchCacheKey(
   // In the auto case, since loading.js & layout.js won't have access to search params,
   // we can safely re-use that cache entry. But for full prefetches, we should not
   // re-use the cache entry as the response may differ.
-  // TODO: Investigate how this should work with PPR. For now, PPR always keys on the full URL.
-  if (prefetchKind === PrefetchKind.FULL || process.env.__NEXT_PPR) {
+  if (includeSearchParams) {
     // if we have a full prefetch, we can include the search param in the key,
     // as we'll be getting back a full response. The server might have read the search
     // params when generating the full response.
     pathnameFromUrl += url.search
   }
 
-  // nextUrl is used as a cache key delimiter since entries can vary based on the Next-URL header
-  if (nextUrl) {
-    return `${nextUrl}%${pathnameFromUrl}`
+  if (prefix) {
+    return `${prefix}%${pathnameFromUrl}`
   }
 
   return pathnameFromUrl
 }
 
-function getExistingCacheEntry(
+function createPrefetchCacheKey(
   url: URL,
   kind: PrefetchKind | undefined,
+  nextUrl?: string | null
+) {
+  return createPrefetchCacheKeyImpl(url, kind === PrefetchKind.FULL, nextUrl)
+}
+
+function getExistingCacheEntry(
+  url: URL,
+  kind: PrefetchKind = PrefetchKind.TEMPORARY,
   nextUrl: string | null,
   prefetchCache: Map<string, PrefetchCacheEntry>
 ): PrefetchCacheEntry | undefined {
-  const interceptionCacheKey = createPrefetchCacheKey(url, kind, nextUrl)
-  const cacheKeyWithParams = createPrefetchCacheKey(url, PrefetchKind.FULL)
-  const cacheKey = createPrefetchCacheKey(url, kind)
-
   // We first check if there's a more specific interception route prefetch entry
   // This is because when we detect a prefetch that corresponds with an interception route, we prefix it with nextUrl (see `createPrefetchCacheKey`)
   // to avoid conflicts with other pages that may have the same URL but render different things depending on the `Next-URL` header.
-  if (prefetchCache.has(interceptionCacheKey)) {
-    return prefetchCache.get(interceptionCacheKey)
-  }
+  for (const maybeNextUrl of [nextUrl, null]) {
+    const cacheKeyWithParams = createPrefetchCacheKeyImpl(
+      url,
+      true,
+      maybeNextUrl
+    )
+    const cacheKeyWithoutParams = createPrefetchCacheKeyImpl(
+      url,
+      false,
+      maybeNextUrl
+    )
 
-  // Check for full data cache entry if search params are present.
-  if (url.search && prefetchCache.has(cacheKeyWithParams)) {
-    return prefetchCache.get(cacheKeyWithParams)
-  }
+    // returning the param-less entry (when search params are present) is only valid if the requested prefetch is "auto"
+    // because it's safe to share the loading state across different search params
+    if (
+      url.search &&
+      prefetchCache.has(cacheKeyWithoutParams) &&
+      (kind === PrefetchKind.AUTO || kind === PrefetchKind.TEMPORARY)
+    ) {
+      return prefetchCache.get(cacheKeyWithoutParams)
+    }
 
-  // Check for prefetch data associated with the requested kind
-  const prefetchData = prefetchCache.get(cacheKey)
-  if (prefetchData) {
-    // if there are no search params, we can return whatever was in the prefetch
-    // if there were search params, we should ensure that the prefetch we're using was "auto",
-    // because that will contain the shareable loading data (and not the full RSC data)
-    if (!url.search || prefetchData.kind === PrefetchKind.AUTO) {
-      return prefetchData
+    const cacheKeyToUse = url.search
+      ? cacheKeyWithParams
+      : cacheKeyWithoutParams
+
+    if (prefetchCache.has(cacheKeyToUse)) {
+      return prefetchCache.get(cacheKeyToUse)
     }
   }
 
-  // Nothing was found, return undefined, which will trigger a new prefetch request
   return undefined
 }
 
@@ -161,10 +173,11 @@ function prefixExistingPrefetchCacheEntry({
   url,
   nextUrl,
   prefetchCache,
+  existingCacheKey,
 }: Pick<ReadonlyReducerState, 'nextUrl' | 'prefetchCache'> & {
   url: URL
+  existingCacheKey: string
 }) {
-  const existingCacheKey = createPrefetchCacheKey(url, undefined)
   const existingCacheEntry = prefetchCache.get(existingCacheKey)
   if (!existingCacheEntry) {
     // no-op -- there wasn't an entry to move
@@ -255,6 +268,7 @@ function createLazyPrefetchEntry({
         // Determine if we need to prefix the cache key with the nextUrl
         newCacheKey = prefixExistingPrefetchCacheEntry({
           url,
+          existingCacheKey: prefetchCacheKey,
           nextUrl,
           prefetchCache,
         })
