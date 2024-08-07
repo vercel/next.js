@@ -142,7 +142,11 @@ impl LoaderTreeBuilder {
         metadata: &Metadata,
         global_metadata: Option<&GlobalMetadata>,
     ) -> Result<()> {
-        if metadata.is_empty() {
+        if metadata.is_empty()
+            && global_metadata
+                .map(|global| global.is_empty())
+                .unwrap_or_default()
+        {
             return Ok(());
         }
         let Metadata {

@@ -13,8 +13,12 @@ import type { OpenGraph } from './types/opengraph-types'
 import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
-import type { AbsoluteTemplateString } from './types/metadata-types'
+import type {
+  AbsoluteTemplateString,
+  IconDescriptor,
+} from './types/metadata-types'
 import type { ParsedUrlQuery } from 'querystring'
+import type { StaticMetadata } from './types/icons'
 
 import {
   createDefaultMetadata,
@@ -43,8 +47,6 @@ import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
-
-type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
 
 type MetadataResolver = (
   parent: ResolvingMetadata
@@ -77,23 +79,17 @@ type PageProps = {
   searchParams: { [key: string]: any }
 }
 
-function hasIconsProperty(
-  icons: Metadata['icons'],
-  prop: 'icon' | 'apple'
-): boolean {
-  if (!icons) return false
-  if (prop === 'icon') {
-    // Detect if icons.icon will be presented, icons array and icons string will all be merged into icons.icon
-    return !!(
-      typeof icons === 'string' ||
-      icons instanceof URL ||
-      Array.isArray(icons) ||
-      (prop in icons && icons[prop])
-    )
-  } else {
-    // Detect if icons.apple will be presented, only icons.apple will be merged into icons.apple
-    return !!(typeof icons === 'object' && prop in icons && icons[prop])
+function isFavicon(icon: IconDescriptor | undefined): boolean {
+  if (!icon) {
+    return false
   }
+
+  // turbopack appends a hash to all images
+  return (
+    (icon.url === '/favicon.ico' ||
+      icon.url.toString().startsWith('/favicon.ico?')) &&
+    icon.type === 'image/x-icon'
+  )
 }
 
 function mergeStaticMetadata(
@@ -101,20 +97,30 @@ function mergeStaticMetadata(
   target: ResolvedMetadata,
   staticFilesMetadata: StaticMetadata,
   metadataContext: MetadataContext,
-  titleTemplates: TitleTemplates
+  titleTemplates: TitleTemplates,
+  isLastSegment: boolean
 ) {
   if (!staticFilesMetadata) return
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
-  // file based metadata is specified and current level metadata icons is not specified
-  if (
-    (icon && !hasIconsProperty(source?.icons, 'icon')) ||
-    (apple && !hasIconsProperty(source?.icons, 'apple'))
-  ) {
-    target.icons = {
-      icon: icon || [],
-      apple: apple || [],
+
+  // Only pick up the static metadata if the current level is the last segment
+  if (isLastSegment) {
+    // file based metadata is specified and current level metadata icons is not specified
+    if (target.icons) {
+      if (icon) {
+        target.icons.icon.unshift(...icon)
+      }
+      if (apple) {
+        target.icons.apple.unshift(...apple)
+      }
+    } else if (icon || apple) {
+      target.icons = {
+        icon: icon || [],
+        apple: apple || [],
+      }
     }
   }
+
   // file based metadata is specified and current level metadata twitter.images is not specified
   if (twitter && !source?.twitter?.hasOwnProperty('images')) {
     const resolvedTwitter = resolveTwitter(
@@ -151,6 +157,7 @@ function mergeMetadata({
   titleTemplates,
   metadataContext,
   buildState,
+  isLastSegment,
 }: {
   source: Metadata | null
   target: ResolvedMetadata
@@ -158,6 +165,7 @@ function mergeMetadata({
   titleTemplates: TitleTemplates
   metadataContext: MetadataContext
   buildState: BuildState
+  isLastSegment: boolean
 }): void {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
@@ -276,7 +284,8 @@ function mergeMetadata({
     target,
     staticFilesMetadata,
     metadataContext,
-    titleTemplates
+    titleTemplates,
+    isLastSegment
   )
 }
 
@@ -378,7 +387,10 @@ async function collectStaticImagesFiles(
     : undefined
 }
 
-async function resolveStaticMetadata(components: ComponentsType, props: any) {
+async function resolveStaticMetadata(
+  components: ComponentsType,
+  props: any
+): Promise<StaticMetadata> {
   const { metadata } = components
   if (!metadata) return null
 
@@ -568,6 +580,7 @@ function inheritFromMetadata(
 const commonOgKeys = ['title', 'description', 'images'] as const
 function postProcessMetadata(
   metadata: ResolvedMetadata,
+  favicon: any,
   titleTemplates: TitleTemplates,
   metadataContext: MetadataContext
 ): ResolvedMetadata {
@@ -624,6 +637,17 @@ function postProcessMetadata(
   inheritFromMetadata(openGraph, metadata)
   inheritFromMetadata(twitter, metadata)
 
+  if (favicon) {
+    if (!metadata.icons) {
+      metadata.icons = {
+        icon: [],
+        apple: [],
+      }
+    }
+
+    metadata.icons.icon.unshift(favicon)
+  }
+
   return metadata
 }
 
@@ -676,7 +700,7 @@ async function getMetadataFromExport<Data, ResolvedData>(
     // Only preload at the beginning when resolves are empty
     if (!dynamicMetadataResolvers.length) {
       for (let j = currentIndex; j < metadataItems.length; j++) {
-        const preloadMetadataExport = getPreloadMetadataExport(metadataItems[j]) // metadataItems[j][0]
+        const preloadMetadataExport = getPreloadMetadataExport(metadataItems[j])
         // call each `generateMetadata function concurrently and stash their resolver
         if (typeof preloadMetadataExport === 'function') {
           collectMetadataExportPreloading<Data, ResolvedData>(
@@ -743,8 +767,17 @@ export async function accumulateMetadata(
   const buildState = {
     warnings: new Set<string>(),
   }
+
+  let favicon
   for (let i = 0; i < metadataItems.length; i++) {
     const staticFilesMetadata = metadataItems[i][1]
+
+    // Treat favicon as special case, it should be the first icon in the list
+    // i <= 1 represents root layout, and if current page is also at root
+    if (i <= 1 && isFavicon(staticFilesMetadata?.icon?.[0])) {
+      const iconMod = staticFilesMetadata?.icon?.shift()
+      if (i === 0) favicon = iconMod
+    }
 
     const metadata = await getMetadataFromExport<Metadata, ResolvedMetadata>(
       (metadataItem) => metadataItem[0],
@@ -762,6 +795,7 @@ export async function accumulateMetadata(
       staticFilesMetadata,
       titleTemplates,
       buildState,
+      isLastSegment: i === metadataItems.length - 1,
     })
 
     // If the layout is the same layer with page, skip the leaf layout and leaf page
@@ -782,7 +816,12 @@ export async function accumulateMetadata(
     }
   }
 
-  return postProcessMetadata(resolvedMetadata, titleTemplates, metadataContext)
+  return postProcessMetadata(
+    resolvedMetadata,
+    favicon,
+    titleTemplates,
+    metadataContext
+  )
 }
 
 export async function accumulateViewport(

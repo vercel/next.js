@@ -769,17 +769,6 @@ async fn directory_tree_to_loader_tree(
         .then_some(components.page)
         .flatten()
     {
-        // When resolving metadata with corresponding module
-        // (https://github.com/vercel/next.js/blob/aa1ee5995cdd92cc9a2236ce4b6aa2b67c9d32b2/packages/next/src/lib/metadata/resolve-metadata.ts#L340)
-        // layout takes precedence over page (https://github.com/vercel/next.js/blob/aa1ee5995cdd92cc9a2236ce4b6aa2b67c9d32b2/packages/next/src/server/lib/app-dir-module.ts#L22)
-        // If the component have layout and page both, do not attach same metadata to
-        // the page.
-        let metadata = if components.layout.is_some() {
-            Default::default()
-        } else {
-            components.metadata.clone()
-        };
-
         tree.parallel_routes.insert(
             "children".to_string(),
             LoaderTree {
@@ -788,7 +777,7 @@ async fn directory_tree_to_loader_tree(
                 parallel_routes: IndexMap::new(),
                 components: Components {
                     page: Some(page),
-                    metadata,
+                    metadata: components.metadata,
                     ..Default::default()
                 }
                 .cell(),
