@@ -853,6 +853,8 @@ impl Pattern {
         }
     }
 
+    /// Same as `match_internal`, but additionally pushing matched dynamic elements into the given
+    /// result list.
     fn match_collect_internal<'a>(
         &self,
         mut value: &'a str,
@@ -925,6 +927,11 @@ impl Pattern {
                             value = new_value;
                             any_offset = new_any_offset;
                         }
+                    }
+                }
+                if let Some(offset) = any_offset {
+                    if offset == value.len() {
+                        dynamics.push_back(value);
                     }
                 }
                 MatchResult::Consumed {
@@ -2242,6 +2249,18 @@ mod tests {
             )
             .as_deref(),
             None,
+        );
+        assert_eq!(
+            Pattern::Concatenation(vec![Pattern::Constant("./sub/".into()), Pattern::Dynamic])
+                .match_apply_template(
+                    "./sub/file1",
+                    &Pattern::Concatenation(vec![
+                        Pattern::Constant("@/sub/".into()),
+                        Pattern::Dynamic
+                    ])
+                )
+                .as_deref(),
+            Some("@/sub/file1"),
         );
     }
 }
