@@ -1,6 +1,6 @@
 {
   "private": true,
   "dependencies": {
-    "my-package": "file:./my-package.tgz"
+    "my-package": "file:./my-package.tar"
   }
 }

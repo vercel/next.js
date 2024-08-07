@@ -5,7 +5,7 @@ describe('self-importing-package', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      'internal-pkg': `file:${path.join(__dirname, 'internal-pkg.tgz')}`,
+      'internal-pkg': `file:${path.join(__dirname, 'internal-pkg.tar')}`,
     },
   })
 
