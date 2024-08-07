@@ -213,6 +213,33 @@ impl Backend for TurboTasksBackend {
         task_id
     }
 
+    fn get_or_create_transient_task(
+        &self,
+        task_type: CachedTaskType,
+        parent_task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) -> TaskId {
+        if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
+            self.connect_child(parent_task, task_id, turbo_tasks);
+            return task_id;
+        }
+
+        let task_type = Arc::new(task_type);
+        let task_id = self.transient_task_id_factory.get();
+        if let Err(existing_task_id) = self.task_cache.try_insert(task_type, task_id) {
+            // Safety: We just created the id and failed to insert it.
+            unsafe {
+                self.transient_task_id_factory.reuse(task_id);
+            }
+            self.connect_child(parent_task, existing_task_id, turbo_tasks);
+            return existing_task_id;
+        }
+
+        self.connect_child(parent_task, task_id, turbo_tasks);
+
+        task_id
+    }
+
     fn invalidate_task(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
         self.invalidate(task_id, turbo_tasks);
     }
@@ -543,14 +570,6 @@ impl Backend for TurboTasksBackend {
         self.update_cell(task_id, cell, content, turbo_tasks);
     }
 
-    fn get_or_create_transient_task(
-        &self,
-        _: CachedTaskType,
-        _: TaskId,
-        _: &dyn TurboTasksBackendApi<Self>,
-    ) -> TaskId {
-        todo!()
-    }
     fn connect_task(&self, _: TaskId, _: TaskId, _: &dyn TurboTasksBackendApi<Self>) {
         todo!()
     }
