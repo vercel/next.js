@@ -109,6 +109,7 @@ impl<'a> TaskGuard<'a> {
         if !item.is_persistent() {
             self.task.add(item)
         } else {
+            #[allow(clippy::collapsible_if)]
             if self.task.add(item.clone()) {
                 let (key, value) = item.into_key_and_value();
                 self.backend
