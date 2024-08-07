@@ -491,7 +491,22 @@ impl Backend for TurboTasksBackend {
                 CellContent(Some(content.clone())).into_typed(cell.type_id)
             ));
         }
-        todo!("Cell is not available, recompute task or error");
+        todo!("Cell {cell:?} from {task_id:?} is not available, recompute task or error");
+    }
+
+    fn try_read_own_task_cell_untracked(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) -> Result<TypedCellContent> {
+        let ctx = self.execute_context(turbo_tasks);
+        let task = ctx.task(task_id);
+        if let Some(content) = get!(task, CellData { cell }) {
+            Ok(CellContent(Some(content.clone())).into_typed(cell.type_id))
+        } else {
+            Ok(CellContent(None).into_typed(cell.type_id))
+        }
     }
 
     fn read_task_collectibles(
