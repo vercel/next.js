@@ -1,4 +1,8 @@
-use std::{collections::HashSet, fmt::Display, mem::take};
+use std::{
+    collections::{HashSet, VecDeque},
+    fmt::Display,
+    mem::take,
+};
 
 use anyhow::Result;
 use lazy_static::lazy_static;
@@ -849,6 +853,88 @@ impl Pattern {
         }
     }
 
+    fn match_collect_internal<'a>(
+        &self,
+        mut value: &'a str,
+        mut any_offset: Option<usize>,
+        dynamics: &mut VecDeque<&'a str>,
+    ) -> MatchResult<'a> {
+        match self {
+            Pattern::Constant(c) => {
+                if let Some(offset) = any_offset {
+                    if let Some(index) = value.find(&**c) {
+                        if index <= offset {
+                            if index > 0 {
+                                dynamics.push_back(&value[..index]);
+                            }
+                            MatchResult::Consumed {
+                                remaining: &value[index + c.len()..],
+                                any_offset: None,
+                            }
+                        } else {
+                            MatchResult::None
+                        }
+                    } else if offset >= value.len() {
+                        MatchResult::Partial
+                    } else {
+                        MatchResult::None
+                    }
+                } else if value.starts_with(&**c) {
+                    MatchResult::Consumed {
+                        remaining: &value[c.len()..],
+                        any_offset: None,
+                    }
+                } else if c.starts_with(value) {
+                    MatchResult::Partial
+                } else {
+                    MatchResult::None
+                }
+            }
+            Pattern::Dynamic => {
+                lazy_static! {
+                    static ref FORBIDDEN: Regex =
+                        Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap();
+                    static ref FORBIDDEN_MATCH: Regex = Regex::new(r"\.d\.ts$|\.map$").unwrap();
+                }
+                if let Some(m) = FORBIDDEN.find(value) {
+                    MatchResult::Consumed {
+                        remaining: value,
+                        any_offset: Some(m.start()),
+                    }
+                } else if FORBIDDEN_MATCH.find(value).is_some() {
+                    MatchResult::Partial
+                } else {
+                    MatchResult::Consumed {
+                        remaining: value,
+                        any_offset: Some(value.len()),
+                    }
+                }
+            }
+            Pattern::Alternatives(_) => {
+                panic!("for matching a Pattern must be normalized {:?}", self)
+            }
+            Pattern::Concatenation(list) => {
+                for part in list {
+                    match part.match_collect_internal(value, any_offset, dynamics) {
+                        MatchResult::None => return MatchResult::None,
+                        MatchResult::Partial => return MatchResult::Partial,
+                        MatchResult::Consumed {
+                            remaining: new_value,
+                            any_offset: new_any_offset,
+                        } => {
+                            value = new_value;
+                            any_offset = new_any_offset;
+                        }
+                    }
+                }
+                MatchResult::Consumed {
+                    remaining: value,
+                    any_offset,
+                }
+            }
+        }
+    }
+
     pub fn next_constants<'a>(&'a self, value: &str) -> Option<Vec<(&'a str, bool)>> {
         if let Pattern::Alternatives(list) = self {
             let mut results = Vec::new();
@@ -991,6 +1077,59 @@ impl Pattern {
         }
         replaced
     }
+
+    /// Matches the given string against self, and applies the match onto the target pattern.
+    ///
+    /// The two patterns should have a similar structure (same number of alternatives and dynamics)
+    /// and only differ in the constant contents.
+    pub fn match_apply_template(&self, value: &str, target: &Pattern) -> Option<String> {
+        let match_idx = self.match_position(value)?;
+        let source = match self {
+            Pattern::Alternatives(list) => list.get(match_idx),
+            Pattern::Constant(_) | Pattern::Dynamic | Pattern::Concatenation(_)
+                if match_idx == 0 =>
+            {
+                Some(self)
+            }
+            _ => None,
+        }?;
+        let target = match target {
+            Pattern::Alternatives(list) => list.get(match_idx),
+            Pattern::Constant(_) | Pattern::Dynamic | Pattern::Concatenation(_)
+                if match_idx == 0 =>
+            {
+                Some(target)
+            }
+            _ => None,
+        }?;
+
+        let mut dynamics = VecDeque::new();
+        // This is definitely a match, because it matched above in `self.match_position(value)`
+        source.match_collect_internal(value, None, &mut dynamics);
+
+        let mut result = "".to_string();
+        match target {
+            Pattern::Constant(c) => result.push_str(c),
+            Pattern::Dynamic => result.push_str(dynamics.pop_front()?),
+            Pattern::Concatenation(list) => {
+                for c in list {
+                    match c {
+                        Pattern::Constant(c) => result.push_str(c),
+                        Pattern::Dynamic => result.push_str(dynamics.pop_front()?),
+                        Pattern::Alternatives(_) | Pattern::Concatenation(_) => {
+                            panic!("Pattern must be normalized")
+                        }
+                    }
+                }
+            }
+            Pattern::Alternatives(_) => panic!("Pattern must be normalized"),
+        }
+        if !dynamics.is_empty() {
+            return None;
+        }
+
+        Some(result)
+    }
 }
 
 impl Pattern {
@@ -1007,7 +1146,7 @@ impl Pattern {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 enum MatchResult<'a> {
     /// No match
     None,
@@ -1081,7 +1220,7 @@ impl<'a> MatchResult<'a> {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 enum NextConstantUntilResult<'a, 'b> {
     NoMatch,
     PartialDynamic,
@@ -2049,6 +2188,60 @@ mod tests {
                     ])
                 ]),
             ])
+        );
+    }
+
+    #[test]
+    fn match_apply_template() {
+        assert_eq!(
+            Pattern::Concatenation(vec![
+                Pattern::Constant("a/b/".into()),
+                Pattern::Dynamic,
+                Pattern::Constant(".ts".into()),
+            ])
+            .match_apply_template(
+                "a/b/foo.ts",
+                &Pattern::Concatenation(vec![
+                    Pattern::Constant("@/a/b/".into()),
+                    Pattern::Dynamic,
+                    Pattern::Constant(".js".into()),
+                ])
+            )
+            .as_deref(),
+            Some("@/a/b/foo.js")
+        );
+        assert_eq!(
+            Pattern::Concatenation(vec![
+                Pattern::Constant("b/".into()),
+                Pattern::Dynamic,
+                Pattern::Constant(".ts".into()),
+            ])
+            .match_apply_template(
+                "a/b/foo.ts",
+                &Pattern::Concatenation(vec![
+                    Pattern::Constant("@/a/b/".into()),
+                    Pattern::Dynamic,
+                    Pattern::Constant(".js".into()),
+                ])
+            )
+            .as_deref(),
+            None,
+        );
+        assert_eq!(
+            Pattern::Concatenation(vec![
+                Pattern::Constant("a/b/".into()),
+                Pattern::Dynamic,
+                Pattern::Constant(".ts".into()),
+            ])
+            .match_apply_template(
+                "a/b/foo.ts",
+                &Pattern::Concatenation(vec![
+                    Pattern::Constant("@/a/b/x".into()),
+                    Pattern::Constant(".js".into()),
+                ])
+            )
+            .as_deref(),
+            None,
         );
     }
 }
