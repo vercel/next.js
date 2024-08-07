@@ -47,9 +47,7 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
   const hasAlternates = data.some(
     (item) => Object.keys(item.alternates ?? {}).length > 0
   )
-  const hasImages = data.some(
-    (item) => Object.keys(item.images ?? {}).length > 0
-  )
+  const hasImages = data.some((item) => Boolean(item.images?.length))
 
   let content = ''
   content += '<?xml version="1.0" encoding="UTF-8"?>\n'

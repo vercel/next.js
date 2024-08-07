@@ -11,7 +11,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: 'https://example.com/about',
       lastModified: '2024-01-01',
-      images: ['https://example.com/image.jpg'],
+      images: [
+        'https://example.com/image1.jpg',
+        'https://example.com/image2.jpg',
+      ],
     },
   ]
 }
