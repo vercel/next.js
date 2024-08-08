@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor, retry } from 'next-test-utils'
-import type { Page, Request } from 'playwright'
+import type { Page, Request, Route } from 'playwright'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 const browserConfigWithFixedTime = {
@@ -461,6 +461,37 @@ describe('app dir - prefetching', () => {
         expect(dashboardRequests[0].priority).toBe('low') // the first request is the prefetch
         expect(dashboardRequests[1].priority).toBe('auto') // the second request is the lazy fetch to fill in missing data
       })
+    })
+
+    it('should respect multiple prefetch types to the same URL', async () => {
+      let interceptRequests = false
+
+      const browser = await next.browser('/prefetch-race', {
+        beforePageLoad(page: Page) {
+          page.route('**/force-dynamic/**', async (route: Route) => {
+            if (!interceptRequests) {
+              return route.continue()
+            }
+
+            const request = route.request()
+            const headers = await request.allHeaders()
+
+            if (headers['rsc'] === '1') {
+              // intentionally stall the request,
+              // as after the initial page load, there shouldn't be any additional fetches
+              // since the data should already be available.
+            } else {
+              await route.continue()
+            }
+          })
+        },
+      })
+
+      await browser.waitForIdleNetwork()
+      interceptRequests = true
+
+      await browser.elementByCss('[href="/force-dynamic/test-page"]').click()
+      await browser.waitForElementByCss('#test-page')
     })
   })
 })
