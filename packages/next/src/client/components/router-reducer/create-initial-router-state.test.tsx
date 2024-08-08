@@ -115,6 +115,7 @@ describe('createInitialRouterState', () => {
             lastUsedTime: expect.any(Number),
             treeAtTimeOfPrefetch: initialTree,
             status: PrefetchCacheEntryStatus.fresh,
+            pathname: '/linking',
           },
         ],
       ]),
