@@ -55,11 +55,10 @@ function fillCacheHelper(
         head: null,
         prefetchHead: null,
         loading,
-        parallelRoutes: fillLazyItems
-          ? existingChildCacheNode
+        parallelRoutes:
+          fillLazyItems && existingChildCacheNode
             ? new Map(existingChildCacheNode.parallelRoutes)
-            : new Map()
-          : new Map(),
+            : new Map(),
       }
 
       if (existingChildCacheNode && fillLazyItems) {

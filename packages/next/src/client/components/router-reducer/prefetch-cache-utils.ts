@@ -8,6 +8,14 @@ import {
 import { prefetchQueue } from './reducers/prefetch-reducer'
 import type { FetchServerResponseResult } from '../../../server/app-render/types'
 
+export type AliasedPrefetchCacheEntry = PrefetchCacheEntry & {
+  /** This is a special property that signals to the router that it should only apply
+   * the loading state on the prefetched data. This can happen when you have a full prefetch
+   * and want to re-use its loading state for a page that corresponds with the same segment but
+   * has different search params */
+  aliased?: boolean
+}
+
 /**
  * Creates a cache key for the router prefetch cache
  *
@@ -57,7 +65,7 @@ function getExistingCacheEntry(
   kind: PrefetchKind = PrefetchKind.TEMPORARY,
   nextUrl: string | null,
   prefetchCache: Map<string, PrefetchCacheEntry>
-): PrefetchCacheEntry | undefined {
+): AliasedPrefetchCacheEntry | undefined {
   // We first check if there's a more specific interception route prefetch entry
   // This is because when we detect a prefetch that corresponds with an interception route, we prefix it with nextUrl (see `createPrefetchCacheKey`)
   // to avoid conflicts with other pages that may have the same URL but render different things depending on the `Next-URL` header.
@@ -93,7 +101,7 @@ function getExistingCacheEntry(
       // expected to be used when navigating to the exact URL without params.
       // TODO: This is a bit of a hack. Another option to explore is to have a separate cache for loading states,
       // which is a bit more aligned with the future goal of per-segment cache entries, but that's a bit more complex.
-      return { ...entryWithoutParams, usePartialData: true }
+      return { ...entryWithoutParams, aliased: true }
     }
 
     // We check for the cache entry with search params first, as it's more specific.
@@ -126,7 +134,7 @@ export function getOrCreatePrefetchCacheEntry({
 > & {
   url: URL
   kind?: PrefetchKind
-}): PrefetchCacheEntry {
+}): AliasedPrefetchCacheEntry {
   const existingCacheEntry = getExistingCacheEntry(
     url,
     kind,

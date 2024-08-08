@@ -210,9 +210,9 @@ function navigateReducer_noPPR(
           const cache: CacheNode = createEmptyCacheNode()
           let applied = false
 
-          // The prefetch cache signaled that we should only fill in the cache with the
+          // The prefetch cache entry was aliased -- this signals that we only fill in the cache with the
           // loading state and not the actual parallel route seed data.
-          if (prefetchValues.usePartialData) {
+          if (prefetchValues.aliased) {
             // Root render
             if (flightDataPath.length === 3) {
               // Fill in the cache with the new loading / rsc data
@@ -436,7 +436,7 @@ function navigateReducer_PPR(
             // via updateCacheNodeOnNavigation. The current structure is just
             // an incremental step.
             flightDataPath.length === 3 &&
-            !prefetchValues.usePartialData
+            !prefetchValues.aliased
           ) {
             const prefetchedTree: FlightRouterState = flightDataPath[0]
             const seedData = flightDataPath[1]
@@ -509,9 +509,9 @@ function navigateReducer_PPR(
             const cache: CacheNode = createEmptyCacheNode()
             let applied = false
 
-            // The prefetch cache signaled that we should only fill in the cache with the
+            // The prefetch cache entry was aliased -- this signals that we only fill in the cache with the
             // loading state and not the actual parallel route seed data.
-            if (prefetchValues.usePartialData) {
+            if (prefetchValues.aliased) {
               // Root render
               if (flightDataPath.length === 3) {
                 // Fill in the cache with the new loading / rsc data
