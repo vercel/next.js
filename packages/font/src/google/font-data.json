@@ -1965,7 +1965,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["cyrillic-ext", "latin", "latin-ext", "vietnamese"]
+    "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "Bruno Ace": {
     "weights": ["400"],
@@ -5063,13 +5063,13 @@
       "900",
       "variable"
     ],
-    "styles": ["normal"],
+    "styles": ["normal", "italic"],
     "axes": [
       {
-        "tag": "slnt",
-        "min": -10,
-        "max": 0,
-        "defaultValue": 0
+        "tag": "opsz",
+        "min": 14,
+        "max": 32,
+        "defaultValue": 14
       },
       {
         "tag": "wght",
@@ -10685,7 +10685,7 @@
   "Philosopher": {
     "weights": ["400", "700"],
     "styles": ["normal", "italic"],
-    "subsets": ["cyrillic", "cyrillic-ext", "latin", "vietnamese"]
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
   },
   "Phudu": {
     "weights": ["300", "400", "500", "600", "700", "800", "900", "variable"],
@@ -12234,6 +12234,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
+  },
+  "Sankofa Display": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "Sansita": {
     "weights": ["400", "700", "800", "900"],
@@ -14399,6 +14404,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin"]
+  },
+  "Zain": {
+    "weights": ["200", "300", "400", "700", "800", "900"],
+    "styles": ["normal"],
+    "subsets": ["arabic", "latin"]
   },
   "Zen Antique": {
     "weights": ["400"],
