@@ -95,7 +95,7 @@ const nextFontGoogleFontLoader: FontLoader = async ({
     }
 
     // CSS Variables may be set on a body tag, ignore them to keep the CSS module pure
-    fontFaceDeclarations = fontFaceDeclarations.split('body {')[0]
+    fontFaceDeclarations = fontFaceDeclarations.split('body {', 1)[0]
 
     // Find font files to download, provide the array of subsets we want to preload if preloading is enabled
     const fontFiles = findFontFilesInCss(

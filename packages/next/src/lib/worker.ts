@@ -1,6 +1,9 @@
-import { ChildProcess } from 'child_process'
+import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
-import { getNodeOptionsWithoutInspect } from '../server/lib/utils'
+import {
+  getParsedNodeOptionsWithoutInspect,
+  formatNodeOptions,
+} from '../server/lib/utils'
 type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
 
 const RESTARTED = Symbol('restarted')
@@ -20,12 +23,14 @@ export class Worker {
     workerPath: string,
     options: FarmOptions & {
       timeout?: number
+      onActivity?: () => void
       onRestart?: (method: string, args: any[], attempts: number) => void
+      logger?: Pick<typeof console, 'error' | 'info' | 'warn'>
       exposedMethods: ReadonlyArray<string>
       enableWorkerThreads?: boolean
     }
   ) {
-    let { timeout, onRestart, ...farmOptions } = options
+    let { timeout, onRestart, logger = console, ...farmOptions } = options
 
     let restartPromise: Promise<typeof RESTARTED>
     let resolveRestartPromise: (arg: typeof RESTARTED) => void
@@ -34,6 +39,12 @@ export class Worker {
     this._worker = undefined
 
     const createWorker = () => {
+      // Get the node options without inspect and also remove the
+      // --max-old-space-size flag as it can cause memory issues.
+      const nodeOptions = getParsedNodeOptionsWithoutInspect()
+      delete nodeOptions['max-old-space-size']
+      delete nodeOptions['max_old_space_size']
+
       this._worker = new JestWorker(workerPath, {
         ...farmOptions,
         forkOptions: {
@@ -41,11 +52,7 @@ export class Worker {
           env: {
             ...((farmOptions.forkOptions?.env || {}) as any),
             ...process.env,
-            // we don't pass down NODE_OPTIONS as it can
-            // extra memory usage
-            NODE_OPTIONS: getNodeOptionsWithoutInspect()
-              .replace(/--max-old-space-size=[\d]{1,}/, '')
-              .trim(),
+            NODE_OPTIONS: formatNodeOptions(nodeOptions),
           } as any,
         },
       }) as JestWorker
@@ -68,11 +75,23 @@ export class Worker {
           _child?: ChildProcess
         }[]) {
           worker._child?.on('exit', (code, signal) => {
-            // log unexpected exit if .end() wasn't called
-            if ((code || signal) && this._worker) {
-              console.error(
-                `Static worker unexpectedly exited with code: ${code} and signal: ${signal}`
+            if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
+              logger.error(
+                `Static worker exited with code: ${code} and signal: ${signal}`
               )
+            }
+          })
+
+          // if a child process emits a particular message, we track that as activity
+          // so the parent process can keep track of progress
+          worker._child?.on('message', ([, data]: [number, unknown]) => {
+            if (
+              data &&
+              typeof data === 'object' &&
+              'type' in data &&
+              data.type === 'activity'
+            ) {
+              onActivity()
             }
           })
         }
@@ -88,6 +107,11 @@ export class Worker {
       if (!worker) return
       const resolve = resolveRestartPromise
       createWorker()
+      logger.warn(
+        `Sending SIGTERM signal to static worker due to timeout${
+          timeout ? ` of ${timeout / 1000} seconds` : ''
+        }. Subsequent errors may be a result of the worker exiting.`
+      )
       worker.end().then(() => {
         resolve(RESTARTED)
       })
@@ -97,6 +121,8 @@ export class Worker {
 
     const onActivity = () => {
       if (hangingTimer) clearTimeout(hangingTimer)
+      if (options.onActivity) options.onActivity()
+
       hangingTimer = activeTasks > 0 && setTimeout(onHanging, timeout)
     }
 

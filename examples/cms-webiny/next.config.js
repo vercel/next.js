@@ -1,5 +1,11 @@
 module.exports = {
   images: {
-    domains: ['d16nhgqznszc7v.cloudfront.net'],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "myaccount.cloudfront.net",
+        port: "",
+      },
+    ],
   },
-}
+};

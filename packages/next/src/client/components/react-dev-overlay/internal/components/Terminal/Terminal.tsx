@@ -8,7 +8,7 @@ export type TerminalProps = { content: string }
 function getFile(lines: string[]) {
   const contentFileName = lines.shift()
   if (!contentFileName) return null
-  const [fileName, line, column] = contentFileName.split(':')
+  const [fileName, line, column] = contentFileName.split(':', 3)
 
   const parsedLine = Number(line)
   const parsedColumn = Number(column)
@@ -89,8 +89,8 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
               ...(entry.decoration === 'bold'
                 ? { fontWeight: 800 }
                 : entry.decoration === 'italic'
-                ? { fontStyle: 'italic' }
-                : undefined),
+                  ? { fontStyle: 'italic' }
+                  : undefined),
             }}
           >
             <HotlinkedText text={entry.content} />

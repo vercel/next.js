@@ -1,13 +1,19 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
-import { toNodeOutgoingHttpHeaders } from '../web/utils'
+import type { FetchMetrics } from './index'
 
+import { toNodeOutgoingHttpHeaders } from '../web/utils'
 import { BaseNextRequest, BaseNextResponse } from './index'
+import { DetachedPromise } from '../../lib/detached-promise'
+import type { NextRequestHint } from '../web/adapter'
+import { CloseController, trackBodyConsumed } from '../web/web-on-close'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   public request: Request
   public headers: IncomingHttpHeaders
+  public fetchMetrics?: FetchMetrics
 
-  constructor(request: Request) {
+  constructor(request: NextRequestHint) {
     const url = new URL(request.url)
 
     super(
@@ -16,6 +22,7 @@ export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
       request.clone().body
     )
     this.request = request
+    this.fetchMetrics = request.fetchMetrics
 
     this.headers = {}
     for (const [name, value] of request.headers.entries()) {
@@ -31,28 +38,16 @@ export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
 export class WebNextResponse extends BaseNextResponse<WritableStream> {
   private headers = new Headers()
   private textBody: string | undefined = undefined
-  private _sent = false
 
-  private sendPromise = new Promise<void>((resolve) => {
-    this.sendResolve = resolve
-  })
-  private sendResolve?: () => void
-  private response = this.sendPromise.then(() => {
-    return new Response(this.textBody ?? this.transformStream.readable, {
-      headers: this.headers,
-      status: this.statusCode,
-      statusText: this.statusMessage,
-    })
-  })
+  private closeController = new CloseController()
 
   public statusCode: number | undefined
   public statusMessage: string | undefined
 
-  get sent() {
-    return this._sent
-  }
-
-  constructor(public transformStream = new TransformStream()) {
+  constructor(
+    public transformStream = new TransformStream(),
+    private trackOnClose = false
+  ) {
     super(transformStream.writable)
   }
 
@@ -70,7 +65,7 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
   }
 
   getHeaderValues(name: string): string[] | undefined {
-    // https://developer.mozilla.org/en-US/docs/Web/API/Headers/get#example
+    // https://developer.mozilla.org/docs/Web/API/Headers/get#example
     return this.getHeader(name)
       ?.split(',')
       .map((v) => v.trimStart())
@@ -98,12 +93,55 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
     return this
   }
 
-  send() {
-    this.sendResolve?.()
+  private readonly sendPromise = new DetachedPromise<void>()
+
+  private _sent = false
+  public send() {
+    this.sendPromise.resolve()
     this._sent = true
   }
 
-  toResponse() {
-    return this.response
+  get sent() {
+    return this._sent
+  }
+
+  public async toResponse() {
+    // If we haven't called `send` yet, wait for it to be called.
+    if (!this.sent) await this.sendPromise.promise
+
+    const body = this.textBody ?? this.transformStream.readable
+
+    let bodyInit: BodyInit = body
+
+    const canAddListenersLater = typeof bodyInit !== 'string'
+    const shouldTrackBody =
+      this.trackOnClose &&
+      (canAddListenersLater ? true : this.closeController.listeners > 0)
+
+    if (shouldTrackBody) {
+      bodyInit = trackBodyConsumed(body, () => {
+        this.closeController.dispatchClose()
+      })
+    }
+
+    return new Response(bodyInit, {
+      headers: this.headers,
+      status: this.statusCode,
+      statusText: this.statusMessage,
+    })
+  }
+
+  public onClose(callback: () => void) {
+    if (!this.trackOnClose) {
+      throw new InvariantError(
+        'Cannot call onClose on a WebNextResponse initialized with `trackOnClose = false`'
+      )
+    }
+    if (this.closeController.isClosed) {
+      throw new InvariantError(
+        'Cannot call onClose on a WebNextResponse that is already closed'
+      )
+    }
+    return this.closeController.onClose(callback)
   }
 }

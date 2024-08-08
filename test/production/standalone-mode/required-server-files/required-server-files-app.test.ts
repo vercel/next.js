@@ -3,18 +3,19 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   fetchViaHTTP,
   findPort,
   initNextServerScript,
   killApp,
 } from 'next-test-utils'
+import { ChildProcess } from 'child_process'
 
-describe('should set-up next', () => {
+describe('required server files app router', () => {
   let next: NextInstance
-  let server
-  let appPort
+  let server: ChildProcess
+  let appPort: number | string
 
   const setupNext = async ({
     nextEnv,
@@ -30,6 +31,7 @@ describe('should set-up next', () => {
       files: {
         app: new FileRef(join(__dirname, 'app')),
         lib: new FileRef(join(__dirname, 'lib')),
+        'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
         'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
         'data.txt': new FileRef(join(__dirname, 'data.txt')),
         '.env': new FileRef(join(__dirname, '.env')),
@@ -37,6 +39,8 @@ describe('should set-up next', () => {
         '.env.production': new FileRef(join(__dirname, '.env.production')),
       },
       nextConfig: {
+        cacheHandler: './cache-handler.js',
+        cacheMaxMemorySize: 0,
         eslint: {
           ignoreDuringBuilds: true,
         },
@@ -69,9 +73,10 @@ describe('should set-up next', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('port:', `minimalMode: ${minimalMode},port:`)
+      (await fs.readFile(testServer, 'utf8')).replace(
+        'port:',
+        `minimalMode: ${minimalMode},port:`
+      )
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -79,7 +84,7 @@ describe('should set-up next', () => {
       /- Local:/,
       {
         ...process.env,
-        PORT: appPort,
+        PORT: `${appPort}`,
       },
       undefined,
       {
@@ -192,6 +197,26 @@ describe('should set-up next', () => {
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',
       })
+      expect(res.status).toBe(200)
+      expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
+    }
+  })
+
+  it('should not send invalid soft tags to cache handler', async () => {
+    for (const path of [
+      '/ssr/first',
+      '/ssr/second',
+      '/api/ssr/first',
+      '/api/ssr/second',
+    ]) {
+      const res = await fetchViaHTTP(
+        appPort,
+        path,
+        { hello: 'world' },
+        {
+          redirect: 'manual',
+        }
+      )
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
     }

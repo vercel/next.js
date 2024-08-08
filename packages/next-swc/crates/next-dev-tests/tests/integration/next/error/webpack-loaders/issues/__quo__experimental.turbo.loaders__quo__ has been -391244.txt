@@ -1,3 +1,0 @@
-error - [config] [project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/error/webpack-loaders/input/next.config.js  "experimental.turbo.loaders" has been replaced by "experimental.turbo.rules"
-  The new option is similar, but the key should be a glob instead of an extension.
-  Example: loaders: { ".mdx": ["mdx-loader"] } -> rules: { "*.mdx": ["mdx-loader"] }

@@ -16,13 +16,12 @@
     "typescript",
     "typescriptreact"
   ],
-  // Disable Jest autoRun as otherwise it will start running all tests the first time.
-  "jest.autoRun": "off",
+  // Set Jest runMode to on-demand as otherwise it will start running all tests the first time.
+  // Equivalent to deprecated option "jest.autoRun": "off"
+  "jest.runMode": "on-demand",
   // Debugging.
   "debug.javascript.unmapMissingSources": true,
   "files.exclude": {
-    "**/node_modules": false,
-    "node_modules": true,
     "*[!test]**/node_modules": true
   },
   // Ensure enough terminal history is preserved when running tests.
@@ -53,22 +52,18 @@
     "*.tsx": "$(capture).test.ts, $(capture).test.tsx"
   },
   // Compile rust-analyzer in a separate directory to avoid conflicts with the main project.
-  "rust-analyzer.checkOnSave.extraEnv": {
-    "CARGO_TARGET_DIR": "target/rust-analyzer"
-  },
+  "rust-analyzer.cargo.targetDir": true,
   "rust-analyzer.server.extraEnv": {
-    "CARGO_TARGET_DIR": "target/rust-analyzer",
     "RUST_BACKTRACE": "0"
-  },
-  "rust-analyzer.cargo.extraEnv": {
-    "CARGO_TARGET_DIR": "target/rust_analyzer"
   },
   "cSpell.words": [
     "Entrypoints",
     "napi",
     "nextjs",
     "opentelemetry",
+    "prerendered",
     "Threadsafe",
+    "Turbopack",
     "zipkin"
   ],
   "grammarly.selectors": [
@@ -77,5 +72,10 @@
       "scheme": "file"
     }
   ],
-  "typescript.tsdk": "node_modules/typescript/lib"
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "gitlens.advanced.blame.customArguments": [
+    "--ignore-revs-file",
+    "${workspaceRoot}/.git-blame-ignore-revs"
+  ],
+  "astGrep.serverPath": "node_modules/@ast-grep/cli/ast-grep"
 }

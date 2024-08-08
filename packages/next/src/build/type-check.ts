@@ -11,12 +11,12 @@ import { eventTypeCheckCompleted } from '../telemetry/events'
 import isError from '../lib/is-error'
 
 /**
- * typescript will be loaded in "next/lib/verifyTypeScriptSetup" and
+ * typescript will be loaded in "next/lib/verify-typescript-setup" and
  * then passed to "next/lib/typescript/runTypeCheck" as a parameter.
  *
  * Since it is impossible to pass a function from main thread to a worker,
  * instead of running "next/lib/typescript/runTypeCheck" in a worker,
- * we will run entire "next/lib/verifyTypeScriptSetup" in a worker instead.
+ * we will run entire "next/lib/verify-typescript-setup" in a worker instead.
  */
 function verifyTypeScriptSetup(
   dir: string,
@@ -31,14 +31,14 @@ function verifyTypeScriptSetup(
   hasPagesDir: boolean
 ) {
   const typeCheckWorker = new JestWorker(
-    require.resolve('../lib/verifyTypeScriptSetup'),
+    require.resolve('../lib/verify-typescript-setup'),
     {
       numWorkers: 1,
       enableWorkerThreads,
       maxRetries: 0,
     }
   ) as JestWorker & {
-    verifyTypeScriptSetup: typeof import('../lib/verifyTypeScriptSetup').verifyTypeScriptSetup
+    verifyTypeScriptSetup: typeof import('../lib/verify-typescript-setup').verifyTypeScriptSetup
   }
 
   typeCheckWorker.getStdout().pipe(process.stdout)
@@ -59,6 +59,11 @@ function verifyTypeScriptSetup(
     .then((result) => {
       typeCheckWorker.end()
       return result
+    })
+    .catch(() => {
+      // The error is already logged in the worker, we simply exit the main thread to prevent the
+      // `Jest worker encountered 1 child process exceptions, exceeding retry limit` from showing up
+      process.exit(1)
     })
 }
 

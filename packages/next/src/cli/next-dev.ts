@@ -1,58 +1,93 @@
 #!/usr/bin/env node
-import arg from 'next/dist/compiled/arg/index.js'
+
+import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import {
-  genRouterWorkerExecArgv,
-  getNodeOptionsWithoutInspect,
+  RESTART_EXIT_CODE,
+  getNodeDebugType,
+  getParsedDebugAddress,
+  getMaxOldSpaceSize,
+  getParsedNodeOptionsWithoutInspect,
+  printAndExit,
+  formatNodeOptions,
+  formatDebugAddress,
 } from '../server/lib/utils'
-import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
-import { CliCommand } from '../lib/commands'
 import { getProjectDir } from '../lib/get-project-dir'
-import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import { NextConfigComplete } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 import { setGlobal, traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
-import loadConfig, { getEnabledExperimentalFeatures } from '../server/config'
+import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
-import Watchpack from 'watchpack'
-import { initialEnv } from '@next/env'
-import { getValidatedArgs } from '../lib/get-validated-args'
-import { Worker } from 'next/dist/compiled/jest-worker'
-import type { ChildProcess } from 'child_process'
-import { checkIsNodeDebugging } from '../server/lib/is-node-debugging'
 import { createSelfSignedCertificate } from '../lib/mkcert'
+import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
-import { loadEnvConfig } from '@next/env'
-import { trace } from '../trace'
+import { initialEnv } from '@next/env'
+import { fork } from 'child_process'
+import type { ChildProcess } from 'child_process'
+import {
+  getReservedPortExplanation,
+  isPortIsReserved,
+} from '../lib/helpers/get-reserved-port'
+import os from 'os'
+import { once } from 'node:events'
+import { clearTimeout } from 'timers'
+
+export type NextDevOptions = {
+  turbo?: boolean
+  port: number
+  hostname?: string
+  experimentalHttps?: boolean
+  experimentalHttpsKey?: string
+  experimentalHttpsCert?: string
+  experimentalHttpsCa?: string
+  experimentalUploadTrace?: string
+}
+
+type PortSource = 'cli' | 'default' | 'env'
 
 let dir: string
+let child: undefined | ChildProcess
 let config: NextConfigComplete
 let isTurboSession = false
 let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
-const handleSessionStop = async () => {
+// How long should we wait for the child to cleanly exit after sending
+// SIGINT/SIGTERM to the child process before sending SIGKILL?
+const CHILD_EXIT_TIMEOUT_MS = parseInt(
+  process.env.NEXT_EXIT_TIMEOUT_MS ?? '100',
+  10
+)
+
+const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
+  if (signal != null && child?.pid) child.kill(signal)
   if (sessionStopHandled) return
   sessionStopHandled = true
+
+  if (
+    signal != null &&
+    child?.pid &&
+    child.exitCode === null &&
+    child.signalCode === null
+  ) {
+    let exitTimeout = setTimeout(() => {
+      child?.kill('SIGKILL')
+    }, CHILD_EXIT_TIMEOUT_MS)
+    await once(child, 'exit').catch(() => {})
+    clearTimeout(exitTimeout)
+  }
 
   try {
     const { eventCliSessionStopped } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    config =
-      config ||
-      (await loadConfig(
-        PHASE_DEVELOPMENT_SERVER,
-        dir,
-        undefined,
-        undefined,
-        true
-      ))
+    config = config || (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir))
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -94,7 +129,6 @@ const handleSessionStop = async () => {
     uploadTrace({
       traceUploadUrl,
       mode: 'dev',
-      isTurboSession,
       projectDir: dir,
       distDir: config.distDir,
     })
@@ -107,149 +141,18 @@ const handleSessionStop = async () => {
   process.exit(0)
 }
 
-process.on('SIGINT', handleSessionStop)
-process.on('SIGTERM', handleSessionStop)
+process.on('SIGINT', () => handleSessionStop('SIGINT'))
+process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
 
-function watchConfigFiles(
-  dirToWatch: string,
-  onChange: (filename: string) => void
-) {
-  const wp = new Watchpack()
-  wp.watch({ files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)) })
-  wp.on('change', onChange)
-}
+// exit event must be synchronous
+process.on('exit', () => child?.kill('SIGKILL'))
 
-type StartServerWorker = Worker &
-  Pick<typeof import('../server/lib/start-server'), 'startServer'>
-
-async function createRouterWorker(fullConfig: NextConfigComplete): Promise<{
-  worker: StartServerWorker
-  cleanup: () => Promise<void>
-}> {
-  const isNodeDebugging = checkIsNodeDebugging()
-  const worker = new Worker(require.resolve('../server/lib/start-server'), {
-    numWorkers: 1,
-    // TODO: do we want to allow more than 8 OOM restarts?
-    maxRetries: 8,
-    forkOptions: {
-      execArgv: await genRouterWorkerExecArgv(
-        isNodeDebugging === undefined ? false : isNodeDebugging
-      ),
-      env: {
-        FORCE_COLOR: '1',
-        ...(initialEnv as any),
-        NODE_OPTIONS: getNodeOptionsWithoutInspect(),
-        ...(process.env.NEXT_CPU_PROF
-          ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
-          : {}),
-        WATCHPACK_WATCHER_LIMIT: '20',
-        TURBOPACK: process.env.TURBOPACK,
-        __NEXT_PRIVATE_PREBUNDLED_REACT: !!fullConfig.experimental.serverActions
-          ? 'experimental'
-          : 'next',
-      },
-    },
-    exposedMethods: ['startServer'],
-  }) as Worker &
-    Pick<typeof import('../server/lib/start-server'), 'startServer'>
-
-  const cleanup = () => {
-    for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
-      _child?: ChildProcess
-    }[]) {
-      curWorker._child?.kill('SIGINT')
-    }
-    process.exit(0)
-  }
-
-  // If the child routing worker exits we need to exit the entire process
-  for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
-    _child?: ChildProcess
-  }[]) {
-    curWorker._child?.on('exit', cleanup)
-  }
-
-  process.on('exit', cleanup)
-  process.on('SIGINT', cleanup)
-  process.on('SIGTERM', cleanup)
-  process.on('uncaughtException', cleanup)
-  process.on('unhandledRejection', cleanup)
-
-  const workerStdout = worker.getStdout()
-  const workerStderr = worker.getStderr()
-
-  workerStdout.on('data', (data) => {
-    process.stdout.write(data)
-  })
-  workerStderr.on('data', (data) => {
-    process.stderr.write(data)
-  })
-
-  return {
-    worker,
-    cleanup: async () => {
-      // Remove process listeners for childprocess too.
-      for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
-        _child?: ChildProcess
-      }[]) {
-        curWorker._child?.off('exit', cleanup)
-      }
-      process.off('exit', cleanup)
-      process.off('SIGINT', cleanup)
-      process.off('SIGTERM', cleanup)
-      process.off('uncaughtException', cleanup)
-      process.off('unhandledRejection', cleanup)
-      await worker.end()
-    },
-  }
-}
-
-const nextDev: CliCommand = async (argv) => {
-  const validArgs: arg.Spec = {
-    // Types
-    '--help': Boolean,
-    '--port': Number,
-    '--hostname': String,
-    '--turbo': Boolean,
-    '--experimental-turbo': Boolean,
-    '--experimental-https': Boolean,
-    '--experimental-https-key': String,
-    '--experimental-https-cert': String,
-    '--experimental-test-proxy': Boolean,
-    '--experimental-upload-trace': String,
-
-    // To align current messages with native binary.
-    // Will need to adjust subcommand later.
-    '--show-all': Boolean,
-    '--root': String,
-
-    // Aliases
-    '-h': '--help',
-    '-p': '--port',
-    '-H': '--hostname',
-  }
-  const args = getValidatedArgs(validArgs, argv)
-  if (args['--help']) {
-    console.log(`
-      Description
-        Starts the application in development mode (hot-code reloading, error
-        reporting, etc.)
-
-      Usage
-        $ next dev <dir> -p <port number>
-
-      <dir> represents the directory of the Next.js application.
-      If no directory is provided, the current directory will be used.
-
-      Options
-        --port, -p      A port number on which to start the application
-        --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
-        --experimental-upload-trace=<trace-url>  [EXPERIMENTAL] Report a subset of the debugging trace to a remote http url. Includes sensitive data. Disabled by default and url must be provided.
-        --help, -h      Displays this message
-    `)
-    process.exit(0)
-  }
-  dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || args._[0])
+const nextDev = async (
+  options: NextDevOptions,
+  portSource: PortSource,
+  directory?: string
+) => {
+  dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
 
   // Check if pages dir exists and warn if not
   if (!(await fileExists(dir, FileType.Directory))) {
@@ -294,43 +197,26 @@ const nextDev: CliCommand = async (argv) => {
     }
   }
 
-  const port = getPort(args)
+  const port = options.port
+
+  if (isPortIsReserved(port)) {
+    printAndExit(getReservedPortExplanation(port), 1)
+  }
+
   // If neither --port nor PORT were specified, it's okay to retry new ports.
-  const allowRetry =
-    args['--port'] === undefined && process.env.PORT === undefined
+  const allowRetry = portSource === 'default'
 
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
-  const host = args['--hostname']
+  const host = options.hostname
 
-  const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
-  let expFeatureInfo: string[] = []
-  config = await loadConfig(
-    PHASE_DEVELOPMENT_SERVER,
-    dir,
-    undefined,
-    undefined,
-    undefined,
-    (userConfig) => {
-      const userNextConfigExperimental = getEnabledExperimentalFeatures(
-        userConfig.experimental
-      )
-      expFeatureInfo = userNextConfigExperimental.sort(
-        (a, b) => a.length - b.length
-      )
-    }
-  )
-
-  let envInfo: string[] = []
-  if (loadedEnvFiles.length > 0) {
-    envInfo = loadedEnvFiles.map((f) => f.path)
-  }
-
-  const isExperimentalTestProxy = args['--experimental-test-proxy']
-
-  if (args['--experimental-upload-trace']) {
-    traceUploadUrl = args['--experimental-upload-trace']
+  if (
+    options.experimentalUploadTrace &&
+    !process.env.NEXT_TRACE_UPLOAD_DISABLED
+  ) {
+    traceUploadUrl = options.experimentalUploadTrace
   }
 
   const devServerOptions: StartServerOptions = {
@@ -339,91 +225,135 @@ const nextDev: CliCommand = async (argv) => {
     allowRetry,
     isDev: true,
     hostname: host,
-    isExperimentalTestProxy,
-    envInfo,
-    expFeatureInfo,
   }
 
-  if (args['--turbo']) {
+  if (options.turbo) {
     process.env.TURBOPACK = '1'
   }
+
+  isTurboSession = !!process.env.TURBOPACK
 
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
   setGlobal('distDir', distDir)
 
+  const startServerPath = require.resolve('../server/lib/start-server')
+
+  async function startServer(startServerOptions: StartServerOptions) {
+    return new Promise<void>((resolve) => {
+      let resolved = false
+      const defaultEnv = (initialEnv || process.env) as typeof process.env
+
+      const nodeOptions = getParsedNodeOptionsWithoutInspect()
+      const nodeDebugType = getNodeDebugType()
+
+      let maxOldSpaceSize: string | number | undefined = getMaxOldSpaceSize()
+      if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
+        const totalMem = os.totalmem()
+        const totalMemInMB = Math.floor(totalMem / 1024 / 1024)
+        maxOldSpaceSize = Math.floor(totalMemInMB * 0.5).toString()
+
+        nodeOptions['max-old-space-size'] = maxOldSpaceSize
+
+        // Ensure the max_old_space_size is not also set.
+        delete nodeOptions['max_old_space_size']
+      }
+
+      if (nodeDebugType) {
+        const address = getParsedDebugAddress()
+        address.port = address.port + 1
+        nodeOptions[nodeDebugType] = formatDebugAddress(address)
+      }
+
+      child = fork(startServerPath, {
+        stdio: 'inherit',
+        env: {
+          ...defaultEnv,
+          TURBOPACK: process.env.TURBOPACK,
+          NEXT_PRIVATE_WORKER: '1',
+          NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
+            ? startServerOptions.selfSignedCertificate.rootCA
+            : defaultEnv.NODE_EXTRA_CA_CERTS,
+          NODE_OPTIONS: formatNodeOptions(nodeOptions),
+        },
+      })
+
+      child.on('message', (msg: any) => {
+        if (msg && typeof msg === 'object') {
+          if (msg.nextWorkerReady) {
+            child?.send({ nextWorkerOptions: startServerOptions })
+          } else if (msg.nextServerReady && !resolved) {
+            resolved = true
+            resolve()
+          }
+        }
+      })
+
+      child.on('exit', async (code, signal) => {
+        if (sessionStopHandled || signal) {
+          return
+        }
+        if (code === RESTART_EXIT_CODE) {
+          // Starting the dev server will overwrite the `.next/trace` file, so we
+          // must upload the existing contents before restarting the server to
+          // preserve the metrics.
+          if (traceUploadUrl) {
+            uploadTrace({
+              traceUploadUrl,
+              mode: 'dev',
+              projectDir: dir,
+              distDir: config.distDir,
+              sync: true,
+            })
+          }
+          return startServer(startServerOptions)
+        }
+        // Call handler (e.g. upload telemetry). Don't try to send a signal to
+        // the child, as it has already exited.
+        await handleSessionStop(/* signal */ null)
+      })
+    })
+  }
+
   const runDevServer = async (reboot: boolean) => {
     try {
-      const workerInit = await createRouterWorker(config)
-
-      if (!!args['--experimental-https']) {
+      if (!!options.experimentalHttps) {
         Log.warn(
-          'Self-signed certificates are currently an experimental feature, use at your own risk.'
+          'Self-signed certificates are currently an experimental feature, use with caution.'
         )
 
-        let certificate: { key: string; cert: string } | undefined
+        let certificate: SelfSignedCertificate | undefined
 
-        if (
-          args['--experimental-https-key'] &&
-          args['--experimental-https-cert']
-        ) {
+        const key = options.experimentalHttpsKey
+        const cert = options.experimentalHttpsCert
+        const rootCA = options.experimentalHttpsCa
+
+        if (key && cert) {
           certificate = {
-            key: path.resolve(args['--experimental-https-key']),
-            cert: path.resolve(args['--experimental-https-cert']),
+            key: path.resolve(key),
+            cert: path.resolve(cert),
+            rootCA: rootCA ? path.resolve(rootCA) : undefined,
           }
         } else {
           certificate = await createSelfSignedCertificate(host)
         }
 
-        await workerInit.worker.startServer({
+        await startServer({
           ...devServerOptions,
           selfSignedCertificate: certificate,
         })
       } else {
-        await workerInit.worker.startServer(devServerOptions)
+        await startServer(devServerOptions)
       }
 
       await preflight(reboot)
-      return {
-        cleanup: workerInit.cleanup,
-      }
     } catch (err) {
       console.error(err)
       process.exit(1)
     }
   }
 
-  let runningServer: Awaited<ReturnType<typeof runDevServer>> | undefined
-
-  watchConfigFiles(devServerOptions.dir, async (filename) => {
-    if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
-      Log.info(
-        `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
-      )
-      return
-    }
-    // Adding a new line to avoid the logs going directly after the spinner in `next build`
-    Log.warn('')
-    Log.warn(
-      `Found a change in ${path.basename(
-        filename
-      )}. Restarting the server to apply the changes...`
-    )
-
-    try {
-      if (runningServer) {
-        await runningServer.cleanup()
-      }
-      runningServer = await runDevServer(true)
-    } catch (err) {
-      console.error(err)
-      process.exit(1)
-    }
-  })
-
-  await trace('start-dev-server').traceAsyncFn(async (_) => {
-    runningServer = await runDevServer(false)
-  })
+  await runDevServer(false)
 }
 
 export { nextDev }

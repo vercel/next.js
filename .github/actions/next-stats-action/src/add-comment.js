@@ -24,6 +24,8 @@ const shortenLabel = (itemKey) =>
     : itemKey
 
 const twoMB = 2 * 1024 * 1024
+const ONE_HUNDRED_BYTES = 100
+const ONE_HUNDRED_MS = 100
 
 module.exports = async function addComment(
   results = [],
@@ -82,24 +84,21 @@ module.exports = async function addComment(
         // otherwise only show gzip values
         else if (!isGzipItem && !groupKey.match(gzipIgnoreRegex)) return
 
-        if (
-          !itemKey.startsWith('buildDuration') ||
-          (isBenchmark && itemKey.match(/req\/sec/))
-        ) {
-          if (typeof mainItemVal === 'number') mainRepoTotal += mainItemVal
-          if (typeof diffItemVal === 'number') diffRepoTotal += diffItemVal
-        }
-
         // calculate the change
         if (mainItemVal !== diffItemVal) {
           if (
             typeof mainItemVal === 'number' &&
             typeof diffItemVal === 'number'
           ) {
-            change = round(diffItemVal - mainItemVal, 2)
+            const roundedValue = round(diffItemVal - mainItemVal, 2)
 
             // check if there is still a change after rounding
-            if (change !== 0) {
+            if (
+              roundedValue !== 0 &&
+              ((prettyType === 'ms' && roundedValue > ONE_HUNDRED_MS) ||
+                (prettyType === 'bytes' && roundedValue > ONE_HUNDRED_BYTES))
+            ) {
+              change = roundedValue
               const absChange = Math.abs(change)
               const warnIfNegative = isBenchmark && itemKey.match(/req\/sec/)
               const warn = warnIfNegative
@@ -107,15 +106,25 @@ module.exports = async function addComment(
                   ? '⚠️ '
                   : ''
                 : change > 0
-                ? '⚠️ '
-                : ''
+                  ? '⚠️ '
+                  : ''
               change = `${warn}${change < 0 ? '-' : '+'}${
                 useRawValue ? absChange : prettify(absChange, prettyType)
               }`
+            } else {
+              change = 'N/A'
             }
           } else {
             change = 'N/A'
           }
+        }
+
+        if (
+          (change !== 'N/A' && !itemKey.startsWith('buildDuration')) ||
+          (isBenchmark && itemKey.match(/req\/sec/))
+        ) {
+          if (typeof mainItemVal === 'number') mainRepoTotal += mainItemVal
+          if (typeof diffItemVal === 'number') diffRepoTotal += diffItemVal
         }
 
         groupTable += `| ${
@@ -169,8 +178,7 @@ module.exports = async function addComment(
 
     // add diffs
     if (result.diffs) {
-      const diffHeading = '#### Diffs\n'
-      let diffContent = diffHeading
+      let diffContent = ''
 
       Object.keys(result.diffs).forEach((itemKey) => {
         const curDiff = result.diffs[itemKey]
@@ -187,8 +195,11 @@ module.exports = async function addComment(
         diffContent += `\n</details>\n`
       })
 
-      if (diffContent !== diffHeading) {
+      if (diffContent.length > 0) {
+        resultContent += `<details>\n`
+        resultContent += `<summary><strong>Diff details</strong></summary>\n\n`
         resultContent += diffContent
+        resultContent += `\n</details>\n\n`
       }
     }
     let increaseDecreaseNote = ''
@@ -199,7 +210,7 @@ module.exports = async function addComment(
       increaseDecreaseNote = ' (Decrease detected ✓)'
     }
 
-    comment += `<details>\n`
+    comment += `<details open>\n`
     comment += `<summary><strong>${result.title}</strong>${increaseDecreaseNote}</summary>\n\n<br/>\n\n`
     comment += resultContent
     comment += '</details>\n'

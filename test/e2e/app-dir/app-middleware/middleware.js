@@ -44,6 +44,31 @@ export async function middleware(request) {
     return NextResponse.rewrite(request.nextUrl)
   }
 
+  if (request.nextUrl.pathname === '/rsc-cookies') {
+    const res = NextResponse.next()
+    res.cookies.set('rsc-cookie-value-1', `${Math.random()}`)
+    res.cookies.set('rsc-cookie-value-2', `${Math.random()}`)
+
+    return res
+  }
+
+  if (request.nextUrl.pathname === '/rsc-cookies/cookie-options') {
+    const res = NextResponse.next()
+    res.cookies.set('rsc-secure-cookie', `${Math.random()}`, {
+      secure: true,
+      httpOnly: true,
+    })
+
+    return res
+  }
+
+  if (request.nextUrl.pathname === '/rsc-cookies-delete') {
+    const res = NextResponse.next()
+    res.cookies.delete('rsc-cookie-value-1')
+
+    return res
+  }
+
   return NextResponse.next({
     request: {
       headers: headersFromRequest,

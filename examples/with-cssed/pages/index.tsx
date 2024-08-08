@@ -1,8 +1,8 @@
-import { css } from 'cssed/macro'
-import Head from 'next/head'
-import { useState } from 'react'
+import { css } from "cssed/macro";
+import Head from "next/head";
+import { useState } from "react";
 
-import { dark, light } from '../lib/theme'
+import { dark, light } from "../lib/theme";
 
 const styles = css`
   .box {
@@ -19,18 +19,18 @@ const styles = css`
     background-color: ${dark};
   }
   .dark::before {
-    content: '🌚';
+    content: "🌚";
   }
   .light {
     background-color: ${light};
   }
   .light::before {
-    content: '🌞';
+    content: "🌞";
   }
-`
+`;
 
 export default function Home() {
-  const [isDark, setDark] = useState(false)
+  const [isDark, setDark] = useState(false);
 
   return (
     <>
@@ -39,10 +39,10 @@ export default function Home() {
       </Head>
       <div
         onClick={() => setDark((prevState) => !prevState)}
-        className={styles.box + ' ' + (isDark ? styles.dark : styles.light)}
+        className={styles.box + " " + (isDark ? styles.dark : styles.light)}
       >
         Cssed demo
       </div>
     </>
-  )
+  );
 }

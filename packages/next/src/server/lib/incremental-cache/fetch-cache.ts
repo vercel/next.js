@@ -1,4 +1,5 @@
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
+import type { IncrementalCacheValue } from '../../response-cache'
 
 import LRUCache from 'next/dist/compiled/lru-cache'
 import {
@@ -23,10 +24,55 @@ const CACHE_REVALIDATE_HEADER = 'x-vercel-revalidate' as const
 const CACHE_FETCH_URL_HEADER = 'x-vercel-cache-item-name' as const
 const CACHE_CONTROL_VALUE_HEADER = 'x-vercel-cache-control' as const
 
+const DEBUG = Boolean(process.env.NEXT_PRIVATE_DEBUG_CACHE)
+
+async function fetchRetryWithTimeout(
+  url: Parameters<typeof fetch>[0],
+  init: Parameters<typeof fetch>[1],
+  retryIndex = 0
+): Promise<Response> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => {
+    controller.abort()
+  }, 500)
+
+  return fetch(url, {
+    ...(init || {}),
+    signal: controller.signal,
+  })
+    .catch((err) => {
+      if (retryIndex === 3) {
+        throw err
+      } else {
+        if (DEBUG) {
+          console.log(`Fetch failed for ${url} retry ${retryIndex}`)
+        }
+        return fetchRetryWithTimeout(url, init, retryIndex + 1)
+      }
+    })
+    .finally(() => {
+      clearTimeout(timeout)
+    })
+}
+
 export default class FetchCache implements CacheHandler {
   private headers: Record<string, string>
   private cacheEndpoint?: string
-  private debug: boolean
+
+  private hasMatchingTags(arr1: string[], arr2: string[]) {
+    if (arr1.length !== arr2.length) return false
+
+    const set1 = new Set(arr1)
+    const set2 = new Set(arr2)
+
+    if (set1.size !== set2.size) return false
+
+    for (let tag of set1) {
+      if (!set2.has(tag)) return false
+    }
+
+    return true
+  }
 
   static isAvailable(ctx: {
     _requestHeaders: CacheHandlerContext['_requestHeaders']
@@ -37,7 +83,6 @@ export default class FetchCache implements CacheHandler {
   }
 
   constructor(ctx: CacheHandlerContext) {
-    this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.headers = {}
     this.headers['Content-Type'] = 'application/json'
 
@@ -58,23 +103,23 @@ export default class FetchCache implements CacheHandler {
       process.env.SUSPENSE_CACHE_BASEPATH
 
     if (process.env.SUSPENSE_CACHE_AUTH_TOKEN) {
-      this.headers[
-        'Authorization'
-      ] = `Bearer ${process.env.SUSPENSE_CACHE_AUTH_TOKEN}`
+      this.headers['Authorization'] =
+        `Bearer ${process.env.SUSPENSE_CACHE_AUTH_TOKEN}`
     }
 
     if (scHost) {
-      this.cacheEndpoint = `https://${scHost}${scBasePath || ''}`
-      if (this.debug) {
+      const scProto = process.env.SUSPENSE_CACHE_PROTO || 'https'
+      this.cacheEndpoint = `${scProto}://${scHost}${scBasePath || ''}`
+      if (DEBUG) {
         console.log('using cache endpoint', this.cacheEndpoint)
       }
-    } else if (this.debug) {
+    } else if (DEBUG) {
       console.log('no cache endpoint available')
     }
 
     if (ctx.maxMemoryCacheSize) {
       if (!memoryCache) {
-        if (this.debug) {
+        if (DEBUG) {
           console.log('using memory store for fetch cache')
         }
 
@@ -94,33 +139,48 @@ export default class FetchCache implements CacheHandler {
             }
             // rough estimate of size of cache value
             return (
-              value.html.length + (JSON.stringify(value.pageData)?.length || 0)
+              value.html.length +
+              (JSON.stringify(
+                value.kind === 'APP_PAGE' ? value.rscData : value.pageData
+              )?.length || 0)
             )
           },
         })
       }
     } else {
-      if (this.debug) {
+      if (DEBUG) {
         console.log('not using memory store for fetch cache')
       }
     }
   }
 
-  public async revalidateTag(tag: string) {
-    if (this.debug) {
-      console.log('revalidateTag', tag)
+  public resetRequestCache(): void {
+    memoryCache?.reset()
+  }
+
+  public async revalidateTag(
+    ...args: Parameters<CacheHandler['revalidateTag']>
+  ) {
+    let [tags] = args
+    tags = typeof tags === 'string' ? [tags] : tags
+    if (DEBUG) {
+      console.log('revalidateTag', tags)
     }
 
+    if (!tags.length) return
+
     if (Date.now() < rateLimitedUntil) {
-      if (this.debug) {
+      if (DEBUG) {
         console.log('rate limited ', rateLimitedUntil)
       }
       return
     }
 
     try {
-      const res = await fetch(
-        `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tag}`,
+      const res = await fetchRetryWithTimeout(
+        `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tags
+          .map((tag) => encodeURIComponent(tag))
+          .join(',')}`,
         {
           method: 'POST',
           headers: this.headers,
@@ -138,41 +198,37 @@ export default class FetchCache implements CacheHandler {
         throw new Error(`Request failed with status ${res.status}.`)
       }
     } catch (err) {
-      console.warn(`Failed to revalidate tag ${tag}`, err)
+      console.warn(`Failed to revalidate tag ${tags}`, err)
     }
   }
 
-  public async get(
-    key: string,
-    ctx: {
-      tags?: string[]
-      softTags?: string[]
-      fetchCache?: boolean
-      fetchUrl?: string
-      fetchIdx?: number
-    }
-  ) {
-    const { tags, softTags, fetchCache, fetchIdx, fetchUrl } = ctx
+  public async get(...args: Parameters<CacheHandler['get']>) {
+    const [key, ctx = {}] = args
+    const { tags, softTags, kindHint, fetchIdx, fetchUrl } = ctx
 
-    if (!fetchCache) return null
+    if (kindHint !== 'fetch') {
+      return null
+    }
 
     if (Date.now() < rateLimitedUntil) {
-      if (this.debug) {
+      if (DEBUG) {
         console.log('rate limited')
       }
       return null
     }
 
+    // memory cache is cleared at the end of each request
+    // so that revalidate events are pulled from upstream
+    // on successive requests
     let data = memoryCache?.get(key)
 
-    // memory cache data is only leveraged for up to 1 seconds
-    // so that revalidation events can be pulled from source
-    if (Date.now() - (data?.lastModified || 0) > 2000) {
-      data = undefined
-    }
+    const hasFetchKindAndMatchingTags =
+      data?.value?.kind === 'FETCH' &&
+      this.hasMatchingTags(tags ?? [], data.value.tags ?? [])
 
-    // get data from fetch cache
-    if (!data && this.cacheEndpoint) {
+    // Get data from fetch cache. Also check if new tags have been
+    // specified with the same cache key (fetch URL)
+    if (this.cacheEndpoint && (!data || !hasFetchKindAndMatchingTags)) {
       try {
         const start = Date.now()
         const fetchParams: NextFetchCacheParams = {
@@ -201,7 +257,7 @@ export default class FetchCache implements CacheHandler {
         }
 
         if (res.status === 404) {
-          if (this.debug) {
+          if (DEBUG) {
             console.log(
               `no fetch cache entry for ${key}, duration: ${
                 Date.now() - start
@@ -216,11 +272,21 @@ export default class FetchCache implements CacheHandler {
           throw new Error(`invalid response from cache ${res.status}`)
         }
 
-        const cached = await res.json()
+        const cached: IncrementalCacheValue = await res.json()
 
         if (!cached || cached.kind !== 'FETCH') {
-          this.debug && console.log({ cached })
-          throw new Error(`invalid cache value`)
+          DEBUG && console.log({ cached })
+          throw new Error('invalid cache value')
+        }
+
+        // if new tags were specified, merge those tags to the existing tags
+        if (cached.kind === 'FETCH') {
+          cached.tags ??= []
+          for (const tag of tags ?? []) {
+            if (!cached.tags.includes(tag)) {
+              cached.tags.push(tag)
+            }
+          }
         }
 
         const cacheState = res.headers.get(CACHE_STATE_HEADER)
@@ -236,7 +302,7 @@ export default class FetchCache implements CacheHandler {
               : Date.now() - parseInt(age || '0', 10) * 1000,
         }
 
-        if (this.debug) {
+        if (DEBUG) {
           console.log(
             `got fetch cache entry for ${key}, duration: ${
               Date.now() - start
@@ -253,7 +319,7 @@ export default class FetchCache implements CacheHandler {
         }
       } catch (err) {
         // unable to get data from fetch-cache
-        if (this.debug) {
+        if (DEBUG) {
           console.error(`Failed to get from fetch-cache`, err)
         }
       }
@@ -262,25 +328,33 @@ export default class FetchCache implements CacheHandler {
     return data || null
   }
 
-  public async set(
-    key: string,
-    data: CacheHandlerValue['value'],
-    {
-      fetchCache,
-      fetchIdx,
-      fetchUrl,
-      tags,
-    }: {
-      tags?: string[]
-      fetchCache?: boolean
-      fetchUrl?: string
-      fetchIdx?: number
+  public async set(...args: Parameters<CacheHandler['set']>) {
+    const [key, data, ctx] = args
+
+    const newValue = data?.kind === 'FETCH' ? data.data : undefined
+    const existingCache = memoryCache?.get(key)
+    const existingValue = existingCache?.value
+    if (
+      existingValue?.kind === 'FETCH' &&
+      Object.keys(existingValue.data).every(
+        (field) =>
+          JSON.stringify(
+            (existingValue.data as Record<string, string | Object>)[field]
+          ) ===
+          JSON.stringify((newValue as Record<string, string | Object>)[field])
+      )
+    ) {
+      if (DEBUG) {
+        console.log(`skipping cache set for ${key} as not modified`)
+      }
+      return
     }
-  ) {
+
+    const { fetchCache, fetchIdx, fetchUrl, tags } = ctx
     if (!fetchCache) return
 
     if (Date.now() < rateLimitedUntil) {
-      if (this.debug) {
+      if (DEBUG) {
         console.log('rate limited')
       }
       return
@@ -312,7 +386,7 @@ export default class FetchCache implements CacheHandler {
           tags: undefined,
         })
 
-        if (this.debug) {
+        if (DEBUG) {
           console.log('set cache', key)
         }
         const fetchParams: NextFetchCacheParams = {
@@ -341,11 +415,11 @@ export default class FetchCache implements CacheHandler {
         }
 
         if (!res.ok) {
-          this.debug && console.log(await res.text())
+          DEBUG && console.log(await res.text())
           throw new Error(`invalid response ${res.status}`)
         }
 
-        if (this.debug) {
+        if (DEBUG) {
           console.log(
             `successfully set to fetch-cache for ${key}, duration: ${
               Date.now() - start
@@ -354,7 +428,7 @@ export default class FetchCache implements CacheHandler {
         }
       } catch (err) {
         // unable to set to fetch-cache
-        if (this.debug) {
+        if (DEBUG) {
           console.error(`Failed to update fetch cache`, err)
         }
       }

@@ -1,13 +1,13 @@
-import { Inter } from 'next/font/google'
-import Header from '@/components/header'
-import Analytics from '@/components/analytics'
+import { Inter } from "next/font/google";
+import Header from "@/components/header";
+import Analytics from "@/components/analytics";
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ["latin"] });
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html>
@@ -17,5 +17,5 @@ export default function RootLayout({
       </body>
       <Analytics />
     </html>
-  )
+  );
 }

@@ -80,24 +80,29 @@ const runTests = () => {
 }
 
 describe('Error no pageProps', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-  describe('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

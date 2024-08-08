@@ -1,5 +1,5 @@
 // This file should be ignored
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 
 export default function favicon() {
   return new ImageResponse(

@@ -1,17 +1,17 @@
-import Avatar from './avatar'
-import Date from './date'
-import CoverImage from './cover-image'
-import Link from 'next/link'
-import AuthorType from '../types/authorType'
+import Avatar from "./avatar";
+import Date from "./date";
+import CoverImage from "./cover-image";
+import Link from "next/link";
+import AuthorType from "../types/authorType";
 
 type Props = {
-  title: string
-  coverImage: string
-  date: string
-  excerpt: string
-  author: AuthorType
-  slug: string
-}
+  title: string;
+  coverImage: string;
+  date: string;
+  excerpt: string;
+  author: AuthorType;
+  slug: string;
+};
 
 export default function PostPreview({
   title,
@@ -42,5 +42,5 @@ export default function PostPreview({
       />
       <Avatar author={author} />
     </div>
-  )
+  );
 }

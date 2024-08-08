@@ -7,9 +7,9 @@ import {
   TEST_PROJECT_NAME,
   TEST_TEAM_NAME,
   TEST_TOKEN,
-} from '../../../scripts/reset-vercel-project.mjs'
+} from '../../../scripts/reset-project.mjs'
 import fetch from 'node-fetch'
-import { Span } from 'next/src/trace'
+import { Span } from 'next/dist/trace'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -22,6 +22,7 @@ export class NextDeployInstance extends NextInstance {
   }
 
   public async setup(parentSpan: Span) {
+    super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
 
     // ensure Vercel CLI is installed
@@ -34,11 +35,30 @@ export class NextDeployInstance extends NextInstance {
         stdio: 'inherit',
       })
     }
-    const vercelFlags = ['--scope', TEST_TEAM_NAME]
-    const vercelEnv = { ...process.env, TOKEN: TEST_TOKEN }
+
+    const vercelFlags = []
+
+    // If the team name is available in the environment, use it as the scope.
+    if (TEST_TEAM_NAME) {
+      vercelFlags.push('--scope', TEST_TEAM_NAME)
+    }
+
+    const vercelEnv = { ...process.env }
+
+    // If the token is available in the environment, use it as the token in the
+    // environment.
+    if (TEST_TOKEN) {
+      vercelEnv.TOKEN = TEST_TOKEN
+    }
 
     // create auth file in CI
     if (process.env.NEXT_TEST_JOB) {
+      if (!TEST_TOKEN && !TEST_TEAM_NAME) {
+        throw new Error(
+          'Missing TEST_TOKEN and TEST_TEAM_NAME environment variables for CI'
+        )
+      }
+
       const vcConfigDir = path.join(os.homedir(), '.vercel')
       await fs.ensureDir(vcConfigDir)
       await fs.writeFile(
@@ -56,6 +76,7 @@ export class NextDeployInstance extends NextInstance {
       {
         cwd: this.testDir,
         env: vercelEnv,
+        reject: false,
       }
     )
 
@@ -88,6 +109,8 @@ export class NextDeployInstance extends NextInstance {
         'NEXT_PRIVATE_TEST_MODE=e2e',
         '--build-env',
         'NEXT_TELEMETRY_DISABLED=1',
+        '--build-env',
+        'VERCEL_NEXT_BUNDLED_SERVER=1',
         ...additionalEnv,
         '--force',
         ...vercelFlags,
@@ -95,12 +118,13 @@ export class NextDeployInstance extends NextInstance {
       {
         cwd: this.testDir,
         env: vercelEnv,
+        reject: false,
       }
     )
 
     if (deployRes.exitCode !== 0) {
       throw new Error(
-        `Failed to deploy project ${linkRes.stdout} ${linkRes.stderr} (${linkRes.exitCode})`
+        `Failed to deploy project ${deployRes.stdout} ${deployRes.stderr} (${deployRes.exitCode})`
       )
     }
     // the CLI gives just the deployment URL back when not a TTY
@@ -123,25 +147,25 @@ export class NextDeployInstance extends NextInstance {
 
     require('console').log(`Got buildId: ${this._buildId}`)
 
-    const cliOutputRes = await fetch(
-      `https://vercel.com/api/v1/deployments/${this._parsedUrl.hostname}/events?builds=1&direction=backward`,
+    // Use the vercel inspect command to get the CLI output from the build.
+    const buildLogs = await execa(
+      'vercel',
+      ['inspect', '--logs', this._url, ...vercelFlags],
       {
-        headers: {
-          Authorization: `Bearer ${TEST_TOKEN}`,
-        },
+        env: vercelEnv,
+        reject: false,
       }
     )
-
-    if (!cliOutputRes.ok) {
-      throw new Error(
-        `Failed to get build output: ${await cliOutputRes.text()} (${
-          cliOutputRes.status
-        })`
-      )
+    if (buildLogs.exitCode !== 0) {
+      throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
     }
-    this._cliOutput = (await cliOutputRes.json())
-      .map((line) => line.text || '')
-      .join('\n')
+
+    // Use the stdout from the logs command as the CLI output. The CLI will
+    // output other unrelated logs to stderr.
+
+    // TODO: Combine with runtime logs (via `vercel logs`)
+    // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
+    this._cliOutput = buildLogs.stdout + buildLogs.stderr
   }
 
   public get cliOutput() {
@@ -152,7 +176,10 @@ export class NextDeployInstance extends NextInstance {
     // no-op as the deployment is created during setup()
   }
 
-  public async patchFile(filename: string, content: string): Promise<void> {
+  public async patchFile(
+    filename: string,
+    content: string
+  ): Promise<{ newFile: boolean }> {
     throw new Error('patchFile is not available in deploy test mode')
   }
   public async readFile(filename: string): Promise<string> {

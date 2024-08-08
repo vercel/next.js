@@ -10,22 +10,23 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
 import {
+  assertNoRedbox,
   launchApp,
   killApp,
   findPort,
   nextBuild,
   nextStart,
   fetchViaHTTP,
+  File,
   renderViaHTTP,
   getBrowserBodyText,
   waitFor,
   normalizeRegEx,
-  nextExport,
-  hasRedbox,
   check,
 } from 'next-test-utils'
 
 let appDir = join(__dirname, '..')
+const nextConfig = new File(join(appDir, 'next.config.js'))
 const nextConfigPath = join(appDir, 'next.config.js')
 let externalServerHits = new Set()
 let nextConfigRestoreContent
@@ -38,7 +39,7 @@ let buildId
 let appPort
 let app
 
-const runTests = (isDev = false, isTurbo = false) => {
+const runTests = (isDev = false) => {
   it.each([
     {
       path: '/to-ANOTHER',
@@ -78,9 +79,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   )
 
   it('should successfully rewrite a WebSocket request', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const messages = []
     const ws = await new Promise((resolve, reject) => {
       let socket = new WebSocket(`ws://localhost:${appPort}/to-websocket`)
@@ -104,9 +102,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should successfully rewrite a WebSocket request to a page', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const messages = []
     try {
       const ws = await new Promise((resolve, reject) => {
@@ -147,9 +142,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should handle has query encoding correctly', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     for (const expected of [
       {
         post: 'first',
@@ -192,9 +184,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should handle external beforeFiles rewrite correctly', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/overridden')
     const html = await res.text()
 
@@ -213,9 +202,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should handle beforeFiles rewrite to dynamic route correctly', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/nfl')
     const html = await res.text()
 
@@ -242,9 +228,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should handle beforeFiles rewrite to partly dynamic route correctly', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/nfl')
     const html = await res.text()
 
@@ -282,9 +265,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should resolveHref correctly navigating through history', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const browser = await webdriver(appPort, '/')
     await browser.eval('window.beforeNav = 1')
 
@@ -316,7 +296,7 @@ const runTests = (isDev = false, isTurbo = false) => {
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
     if (isDev) {
-      expect(await hasRedbox(browser, false)).toBe(false)
+      await assertNoRedbox(browser)
     }
   })
 
@@ -340,9 +320,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should not hang when proxy rewrite fails', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/to-nowhere', undefined, {
       timeout: 5000,
     })
@@ -363,9 +340,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should provide params correctly for rewrite to auto-export non-dynamic page', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const browser = await webdriver(
       appPort,
       '/rewriting-to-another-auto-export/first'
@@ -391,9 +365,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should handle param like headers properly', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/my-other-header/my-path')
     expect(res.headers.get('x-path')).toBe('my-path')
     expect(res.headers.get('somemy-path')).toBe('hi')
@@ -412,9 +383,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should not match dynamic route immediately after applying header', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/blog/post-321')
     expect(res.headers.get('x-something')).toBe('applied-everywhere')
 
@@ -581,9 +549,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should have correct encoding for params with catchall rewrite', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const html = await renderViaHTTP(
       appPort,
       '/catchall-rewrite/hello%20world%3Fw%3D24%26focalpoint%3Dcenter?a=b'
@@ -606,9 +571,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should have correct header for catchall rewrite', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/catchall-header/hello/world?a=b')
     const headerValue = res.headers.get('x-value')
     expect(headerValue).toBe('hello/world')
@@ -634,9 +596,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should have correctly encoded params in query for redirect', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(
       appPort,
       '/query-redirect/hello%20world%3Fw%3D24%26focalpoint%3Dcenter/world?a=b',
@@ -744,9 +703,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should work with rewrite when only specifying href', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const browser = await webdriver(appPort, '/nav')
     await browser.eval('window.beforeNav = 1')
     await browser
@@ -763,9 +719,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should work with rewrite when only specifying href and ends in dynamic route', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const browser = await webdriver(appPort, '/nav')
     await browser.eval('window.beforeNav = 1')
     await browser
@@ -795,9 +748,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should match /_next file after rewrite', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     await renderViaHTTP(appPort, '/hello')
     const data = await renderViaHTTP(
       appPort,
@@ -816,52 +766,34 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should apply headers for exact match', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/add-header')
     expect(res.headers.get('x-custom-header')).toBe('hello world')
     expect(res.headers.get('x-another-header')).toBe('hello again')
   })
 
   it('should apply headers for multi match', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/my-headers/first')
     expect(res.headers.get('x-first-header')).toBe('first')
     expect(res.headers.get('x-second-header')).toBe('second')
   })
 
   it('should apply params for header key/values', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/my-other-header/first')
     expect(res.headers.get('x-path')).toBe('first')
     expect(res.headers.get('somefirst')).toBe('hi')
   })
 
   it('should support URL for header key/values', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/without-params/url')
     expect(res.headers.get('x-origin')).toBe('https://example.com')
   })
 
   it('should apply params header key/values with URL', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/with-params/url/first')
     expect(res.headers.get('x-url')).toBe('https://example.com/first')
   })
 
   it('should apply params header key/values with URL that has port', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/with-params/url2/first')
     expect(res.headers.get('x-url')).toBe(
       'https://example.com:8080?hello=first'
@@ -869,9 +801,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should support named pattern for header key/values', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/named-pattern/hello')
     expect(res.headers.get('x-something')).toBe('value=hello')
     expect(res.headers.get('path-hello')).toBe('end')
@@ -934,9 +863,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should have correctly encoded query in location and refresh headers', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(
       appPort,
       // Query unencoded is ?テスト=あ
@@ -976,9 +902,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should handle encoded value in the pathname correctly', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(
       appPort,
       '/redirect/me/to-about/' + encodeURI('\\google.com'),
@@ -1054,9 +977,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should match missing header headers correctly', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/missing-headers-1', undefined, {
       headers: {
         'x-my-header': 'hello world!!',
@@ -1072,9 +992,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should match missing query headers correctly', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/missing-headers-2', {
       'my-query': 'hellooo',
     })
@@ -1088,9 +1005,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should match missing cookie headers correctly', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/missing-headers-3', undefined, {
       headers: {
         cookie: 'loggedIn=true',
@@ -1327,9 +1241,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should match has rewrite correctly before files', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res1 = await fetchViaHTTP(appPort, '/hello')
     expect(res1.status).toBe(200)
     const $1 = cheerio.load(await res1.text())
@@ -1497,9 +1408,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should match has header for header correctly', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/has-header-1', undefined, {
       headers: {
         'x-my-header': 'hello world!!',
@@ -1516,9 +1424,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should match has query for header correctly', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(
       appPort,
       '/has-header-2',
@@ -1539,9 +1444,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should match has cookie for header correctly', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/has-header-3', undefined, {
       headers: {
         cookie: 'loggedIn=true',
@@ -1558,9 +1460,6 @@ const runTests = (isDev = false, isTurbo = false) => {
   })
 
   it('should match has host for header correctly', async () => {
-    // TODO: remove once test failure has been fixed
-    if (isTurbo) return
-
     const res = await fetchViaHTTP(appPort, '/has-header-4', undefined, {
       headers: {
         host: 'example.com',
@@ -2658,9 +2557,11 @@ const runTests = (isDev = false, isTurbo = false) => {
         rsc: {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',
-          varyHeader:
-            'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
+          didPostponeHeader: 'x-nextjs-postponed',
+          varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
           prefetchHeader: 'Next-Router-Prefetch',
+          prefetchSuffix: '.prefetch.rsc',
+          suffix: '.rsc',
         },
       })
     })
@@ -2734,37 +2635,39 @@ describe('Custom routes', () => {
     externalServer.close()
     await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
   })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      let nextConfigContent
 
-  describe('dev mode', () => {
-    let nextConfigContent
+      beforeAll(async () => {
+        // ensure cache with rewrites disabled doesn't persist
+        // after enabling rewrites
+        await fs.remove(join(appDir, '.next'))
+        nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
+        await fs.writeFile(
+          nextConfigPath,
+          nextConfigContent.replace('// no-rewrites comment', 'return []')
+        )
 
-    beforeAll(async () => {
-      // ensure cache with rewrites disabled doesn't persist
-      // after enabling rewrites
-      await fs.remove(join(appDir, '.next'))
-      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-      await fs.writeFile(
-        nextConfigPath,
-        nextConfigContent.replace('// no-rewrites comment', 'return []')
-      )
+        const tempPort = await findPort()
+        const tempApp = await launchApp(appDir, tempPort)
+        await renderViaHTTP(tempPort, '/')
 
-      const tempPort = await findPort()
-      const tempApp = await launchApp(appDir, tempPort)
-      await renderViaHTTP(tempPort, '/')
+        await killApp(tempApp)
+        await fs.writeFile(nextConfigPath, nextConfigContent)
 
-      await killApp(tempApp)
-      await fs.writeFile(nextConfigPath, nextConfigContent)
-
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      buildId = 'development'
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfigPath, nextConfigContent)
-      await killApp(app)
-    })
-    runTests(true)
-  })
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+        buildId = 'development'
+      })
+      afterAll(async () => {
+        await fs.writeFile(nextConfigPath, nextConfigContent)
+        await killApp(app)
+      })
+      runTests(true)
+    }
+  )
 
   describe('no-op rewrite', () => {
     beforeAll(async () => {
@@ -2785,92 +2688,34 @@ describe('Custom routes', () => {
       )
     })
   })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
+          appDir,
+          ['-d'],
+          {
+            stdout: true,
+            stderr: true,
+          }
+        )
+        stdout = buildStdout
+        stderr = buildStderr
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      })
+      afterAll(() => killApp(app))
+      runTests()
 
-  describe('server mode', () => {
-    beforeAll(async () => {
-      const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
-        appDir,
-        ['-d'],
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
-      stdout = buildStdout
-      stderr = buildStderr
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(() => killApp(app))
-    runTests()
-
-    it('should not show warning for custom routes when not next export', async () => {
-      expect(stderr).not.toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application detected`
-      )
-    })
-
-    it('should not show warning for experimental has usage', async () => {
-      expect(stderr).not.toContain(
-        "'has' route field support is still experimental and not covered by semver, use at your own risk."
-      )
-    })
-  })
-
-  describe('export', () => {
-    let exportStderr = ''
-    let exportVercelStderr = ''
-
-    beforeAll(async () => {
-      const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
-        appDir,
-        ['-d'],
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
-      const exportResult = await nextExport(
-        appDir,
-        { outdir: join(appDir, 'out') },
-        { stderr: true }
-      )
-      const exportVercelResult = await nextExport(
-        appDir,
-        { outdir: join(appDir, 'out') },
-        {
-          stderr: true,
-          env: {
-            NOW_BUILDER: '1',
-          },
-        }
-      )
-
-      stdout = buildStdout
-      stderr = buildStderr
-      exportStderr = exportResult.stderr
-      exportVercelStderr = exportVercelResult.stderr
-    })
-
-    it('should not show warning for custom routes when not next export', async () => {
-      expect(stderr).not.toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application detected`
-      )
-    })
-
-    it('should not show warning for custom routes when next export on Vercel', async () => {
-      expect(exportVercelStderr).not.toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application detected`
-      )
-    })
-
-    it('should show warning for custom routes with next export', async () => {
-      expect(exportStderr).toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application, detected (rewrites, redirects, headers)`
-      )
-    })
-  })
+      it('should not show warning for custom routes when not next export', async () => {
+        expect(stderr).not.toContain(
+          `rewrites, redirects, and headers are not applied when exporting your application detected`
+        )
+      })
+    }
+  )
 
   describe('should load custom routes when only one type is used', () => {
     const runSoloTests = (isDev) => {
@@ -2967,12 +2812,46 @@ describe('Custom routes', () => {
       })
     }
 
-    describe('dev mode', () => {
-      runSoloTests(true)
-    })
-
-    describe('production mode', () => {
-      runSoloTests()
-    })
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        runSoloTests(true)
+      }
+    )
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        runSoloTests()
+      }
+    )
   })
+})
+
+describe('export', () => {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        nextConfig.replace('// REPLACEME', `output: 'export',`)
+        const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
+          appDir,
+          ['-d'],
+          {
+            stdout: true,
+            stderr: true,
+          }
+        )
+
+        stdout = buildStdout
+        stderr = buildStderr
+      })
+      afterAll(() => nextConfig.restore())
+
+      it('should not show warning for custom routes when not next export', async () => {
+        expect(stderr).not.toContain(
+          `rewrites, redirects, and headers are not applied when exporting your application detected`
+        )
+      })
+    }
+  )
 })

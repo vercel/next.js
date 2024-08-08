@@ -3,29 +3,37 @@ import type { NextWorkerFixture, FetchHandler } from './next-worker-fixture'
 import type { NextOptions } from './next-options'
 import type { FetchHandlerResult } from '../proxy'
 import { handleRoute } from './page-route'
+import { reportFetch } from './report'
 
 export interface NextFixture {
   onFetch: (handler: FetchHandler) => void
 }
 
 class NextFixtureImpl implements NextFixture {
+  public readonly testId: string
   private fetchHandlers: FetchHandler[] = []
 
   constructor(
-    public testId: string,
+    private testInfo: TestInfo,
     private options: NextOptions,
     private worker: NextWorkerFixture,
     private page: Page
   ) {
+    this.testId = testInfo.testId
+    worker.onFetch(this.testId, this.handleFetch.bind(this))
+  }
+
+  async setup(): Promise<void> {
     const testHeaders = {
-      'Next-Test-Proxy-Port': String(worker.proxyPort),
-      'Next-Test-Data': testId,
+      'Next-Test-Proxy-Port': String(this.worker.proxyPort),
+      'Next-Test-Data': this.testId,
     }
-    const handleFetch = this.handleFetch.bind(this)
-    worker.onFetch(testId, handleFetch)
-    this.page.route('**', (route) =>
-      handleRoute(route, page, testHeaders, handleFetch)
-    )
+
+    await this.page
+      .context()
+      .route('**', (route) =>
+        handleRoute(route, this.page, testHeaders, this.handleFetch.bind(this))
+      )
   }
 
   teardown(): void {
@@ -37,16 +45,18 @@ class NextFixtureImpl implements NextFixture {
   }
 
   private async handleFetch(request: Request): Promise<FetchHandlerResult> {
-    for (const handler of this.fetchHandlers.slice().reverse()) {
-      const result = handler(request)
-      if (result) {
-        return result
+    return reportFetch(this.testInfo, request, async (req) => {
+      for (const handler of this.fetchHandlers.slice().reverse()) {
+        const result = await handler(req.clone())
+        if (result) {
+          return result
+        }
       }
-    }
-    if (this.options.fetchLoopback) {
-      return fetch(request)
-    }
-    return undefined
+      if (this.options.fetchLoopback) {
+        return fetch(req.clone())
+      }
+      return undefined
+    })
   }
 }
 
@@ -64,13 +74,9 @@ export async function applyNextFixture(
     page: Page
   }
 ): Promise<void> {
-  const fixture = new NextFixtureImpl(
-    testInfo.testId,
-    nextOptions,
-    nextWorker,
-    page
-  )
+  const fixture = new NextFixtureImpl(testInfo, nextOptions, nextWorker, page)
 
+  await fixture.setup()
   await use(fixture)
 
   fixture.teardown()

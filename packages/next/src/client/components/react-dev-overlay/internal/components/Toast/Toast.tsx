@@ -2,7 +2,7 @@ import * as React from 'react'
 
 export type ToastProps = {
   children?: React.ReactNode
-  onClick?: (ev: React.MouseEvent<HTMLDivElement, MouseEvent>) => void
+  onClick?: () => void
   className?: string
 }
 
@@ -10,9 +10,17 @@ export const Toast: React.FC<ToastProps> = function Toast({
   onClick,
   children,
   className,
+  ...props
 }) {
   return (
-    <div data-nextjs-toast onClick={onClick} className={className}>
+    <div
+      {...props}
+      onClick={(e) => {
+        e.preventDefault()
+        return onClick?.()
+      }}
+      className={`nextjs-toast${className ? ' ' + className : ''}`}
+    >
       <div data-nextjs-toast-wrapper>{children}</div>
     </div>
   )

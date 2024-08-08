@@ -65,6 +65,11 @@ describe('Read-only source HMR', () => {
       const originalContent = await fs.readFile(pagePath, 'utf8')
       const editedContent = originalContent.replace('Hello World', 'COOL page')
 
+      if (process.env.TURBOPACK) {
+        // TODO Turbopack needs a bit to start watching
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
+
       await writeReadOnlyFile(pagePath, editedContent)
       await check(() => getBrowserBodyText(browser), /COOL page/)
 
@@ -86,8 +91,12 @@ describe('Read-only source HMR', () => {
 
       const originalContent = await fs.readFile(pagePath, 'utf8')
 
-      await fs.remove(pagePath)
+      if (process.env.TURBOPACK) {
+        // TODO Turbopack needs a bit to start watching
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
 
+      await fs.remove(pagePath)
       await writeReadOnlyFile(pagePath, originalContent)
       await check(() => getBrowserBodyText(browser), /Hello World/)
     } finally {
@@ -106,7 +115,7 @@ describe('Read-only source HMR', () => {
         newPagePath,
         `
         const New = () => <p>New page</p>
-  
+
         export default New
       `
       )

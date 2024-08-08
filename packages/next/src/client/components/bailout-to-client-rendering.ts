@@ -1,16 +1,11 @@
-import { suspense } from '../../shared/lib/lazy-dynamic/dynamic-no-ssr'
+import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
-export function bailoutToClientRendering(): boolean | never {
+export function bailoutToClientRendering(reason: string): void | never {
   const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
-  if (staticGenerationStore?.forceStatic) {
-    return true
-  }
+  if (staticGenerationStore?.forceStatic) return
 
-  if (staticGenerationStore?.isStaticGeneration) {
-    suspense()
-  }
-
-  return false
+  if (staticGenerationStore?.isStaticGeneration)
+    throw new BailoutToCSRError(reason)
 }

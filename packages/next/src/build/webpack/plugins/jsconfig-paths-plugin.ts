@@ -4,8 +4,9 @@
  * https://github.com/microsoft/TypeScript/blob/214df64e287804577afa1fea0184c18c40f7d1ca/LICENSE.txt
  */
 import path from 'path'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { debug } from 'next/dist/compiled/debug'
+import type { ResolvedBaseUrl } from '../../load-jsconfig'
 
 const log = debug('next:jsconfig-paths-plugin')
 
@@ -168,10 +169,10 @@ type Paths = { [match: string]: string[] }
  */
 export class JsConfigPathsPlugin implements webpack.ResolvePluginInstance {
   paths: Paths
-  resolvedBaseUrl: string
+  resolvedBaseUrl: ResolvedBaseUrl
   jsConfigPlugin: true
 
-  constructor(paths: Paths, resolvedBaseUrl: string) {
+  constructor(paths: Paths, resolvedBaseUrl: ResolvedBaseUrl) {
     this.paths = paths
     this.resolvedBaseUrl = resolvedBaseUrl
     this.jsConfigPlugin = true
@@ -189,6 +190,10 @@ export class JsConfigPathsPlugin implements webpack.ResolvePluginInstance {
           resolveContext: any,
           callback: (err?: any, result?: any) => void
         ) => {
+          const resolvedBaseUrl = this.resolvedBaseUrl
+          if (resolvedBaseUrl === undefined) {
+            return callback()
+          }
           const paths = this.paths
           const pathsKeys = Object.keys(paths)
 
@@ -248,7 +253,7 @@ export class JsConfigPathsPlugin implements webpack.ResolvePluginInstance {
                 // try next path candidate
                 return pathCallback()
               }
-              const candidate = path.join(this.resolvedBaseUrl, curPath)
+              const candidate = path.join(resolvedBaseUrl.baseUrl, curPath)
               const obj = Object.assign({}, request, {
                 request: candidate,
               })

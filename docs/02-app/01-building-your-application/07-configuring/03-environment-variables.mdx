@@ -14,14 +14,14 @@ description: Learn to add and access environment variables in your Next.js appli
 
 Next.js comes with built-in support for environment variables, which allows you to do the following:
 
-- [Use `.env.local` to load environment variables](#loading-environment-variables)
+- [Use `.env` to load environment variables](#loading-environment-variables)
 - [Bundle environment variables for the browser by prefixing with `NEXT_PUBLIC_`](#bundling-environment-variables-for-the-browser)
 
 ## Loading Environment Variables
 
-Next.js has built-in support for loading environment variables from `.env.local` into `process.env`.
+Next.js has built-in support for loading environment variables from `.env*` files into `process.env`.
 
-```txt filename=".env.local"
+```txt filename=".env"
 DB_HOST=localhost
 DB_USER=myuser
 DB_PASS=mypassword
@@ -48,7 +48,24 @@ export async function getStaticProps() {
 
 <AppOnly>
 
-This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Route Handlers](/docs/app/building-your-application/routing/route-handlers).
+> **Note**: Next.js also supports multiline variables inside of your `.env*` files:
+>
+> ```bash
+> # .env
+>
+> # you can write with line breaks
+> PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
+> ...
+> Kh9NV...
+> ...
+> -----END DSA PRIVATE KEY-----"
+>
+> # or with `\n` inside double quotes
+> PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nKh9NV...\n-----END DSA PRIVATE KEY-----\n"
+> ```
+
+> **Note**: If you are using a `/src` folder, please note that Next.js will load the .env files **only** from the parent folder and **not** from the `/src` folder.
+> This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Route Handlers](/docs/app/building-your-application/routing/route-handlers).
 
 For example:
 
@@ -65,16 +82,64 @@ export async function GET() {
 
 </AppOnly>
 
+### Loading Environment Variables with `@next/env`
+
+If you need to load environment variables outside of the Next.js runtime, such as in a root config file for an ORM or test runner, you can use the `@next/env` package.
+
+This package is used internally by Next.js to load environment variables from `.env*` files.
+
+To use it, install the package and use the `loadEnvConfig` function to load the environment variables:
+
+```bash
+npm install @next/env
+```
+
+```tsx filename="envConfig.ts" switcher
+import { loadEnvConfig } from '@next/env'
+
+const projectDir = process.cwd()
+loadEnvConfig(projectDir)
+```
+
+```jsx filename="envConfig.js" switcher
+import { loadEnvConfig } from '@next/env'
+
+const projectDir = process.cwd()
+loadEnvConfig(projectDir)
+```
+
+Then, you can import the configuration where needed. For example:
+
+```tsx filename="orm.config.ts" switcher
+import './envConfig.ts'
+
+export default defineConfig({
+  dbCredentials: {
+    connectionString: process.env.DATABASE_URL!,
+  },
+})
+```
+
+```jsx filename="orm.config.js" switcher
+import './envConfig.js'
+
+export default defineConfig({
+  dbCredentials: {
+    connectionString: process.env.DATABASE_URL,
+  },
+})
+```
+
 ### Referencing Other Variables
 
 Next.js will automatically expand variables that use `$` to reference other variables e.g. `$VARIABLE` inside of your `.env*` files. This allows you to reference other secrets. For example:
 
 ```txt filename=".env"
 TWITTER_USER=nextjs
-TWITTER_URL=https://twitter.com/$TWITTER_USER
+TWITTER_URL=https://x.com/$TWITTER_USER
 ```
 
-In the above example, `process.env.TWITTER_URL` would be set to `https://twitter.com/nextjs`.
+In the above example, `process.env.TWITTER_URL` would be set to `https://x.com/nextjs`.
 
 > **Good to know**: If you need to use variable with a `$` in the actual value, it needs to be escaped e.g. `\$`.
 
@@ -118,27 +183,53 @@ const env = process.env
 setupAnalyticsService(env.NEXT_PUBLIC_ANALYTICS_ID)
 ```
 
+### Runtime Environment Variables
+
+Next.js can support both build time and runtime environment variables.
+
+**By default, environment variables are only available on the server**. To expose an environment variable to the browser, it must be prefixed with `NEXT_PUBLIC_`. However, these public environment variables will be inlined into the JavaScript bundle during `next build`.
+
+To read runtime environment variables, we recommend using `getServerSideProps` or [incrementally adopting the App Router](/docs/app/building-your-application/upgrading/app-router-migration). With the App Router, we can safely read environment variables on the server during dynamic rendering. This allows you to use a singular Docker image that can be promoted through multiple environments with different values.
+
+```jsx
+import { unstable_noStore as noStore } from 'next/cache'
+
+export default function Component() {
+  noStore()
+  // cookies(), headers(), and other dynamic functions
+  // will also opt into dynamic rendering, meaning
+  // this env variable is evaluated at runtime
+  const value = process.env.MY_VALUE
+  // ...
+}
+```
+
+**Good to know:**
+
+- You can run code on server startup using the [`register` function](/docs/app/building-your-application/optimizing/instrumentation).
+- We do not recommend using the [runtimeConfig](/docs/pages/api-reference/next-config-js/runtime-configuration) option, as this does not work with the standalone output mode. Instead, we recommend [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router.
+
 ## Default Environment Variables
 
-In general only one `.env.local` file is needed. However, sometimes you might want to add some defaults for the `development` (`next dev`) or `production` (`next start`) environment.
+Typically, only `.env*` file is needed. However, sometimes you might want to add some defaults for the `development` (`next dev`) or `production` (`next start`) environment.
 
 Next.js allows you to set defaults in `.env` (all environments), `.env.development` (development environment), and `.env.production` (production environment).
 
-`.env.local` always overrides the defaults set.
-
-> **Good to know**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored.
+> **Good to know**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. All `.env` files are excluded in `.gitignore` by default, allowing you to opt-into committing these values to your repository.
 
 ## Environment Variables on Vercel
 
-When deploying your Next.js application to [Vercel](https://vercel.com), Environment Variables can be configured [in the Project Settings](https://vercel.com/docs/concepts/projects/environment-variables?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
+When deploying your Next.js application to [Vercel](https://vercel.com), Environment Variables can be configured [in the Project Settings](https://vercel.com/docs/projects/environment-variables?utm_medium=docs&utm_source=next-site&utm_campaign=next-website).
 
 All types of Environment Variables should be configured there. Even Environment Variables used in Development – which can be [downloaded onto your local device](https://vercel.com/docs/concepts/projects/environment-variables#development-environment-variables?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) afterwards.
 
 If you've configured [Development Environment Variables](https://vercel.com/docs/concepts/projects/environment-variables#development-environment-variables?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) you can pull them into a `.env.local` for usage on your local machine using the following command:
 
 ```bash filename="Terminal"
-vercel env pull .env.local
+vercel env pull
 ```
+
+> **Good to know**: When deploying your Next.js application to [Vercel](https://vercel.com), your environment variables in `.env*` files will not be made available to Edge Runtime, unless their name are prefixed with `NEXT_PUBLIC_`. We strongly recommend managing your environment variables in [Project Settings](https://vercel.com/docs/projects/environment-variables?utm_medium=docs&utm_source=next-site&utm_campaign=next-website) instead, from where all environment variables are available.
 
 ## Test Environment Variables
 
@@ -180,3 +271,9 @@ For example, if `NODE_ENV` is `development` and you define a variable in both `.
 
 - If you are using a [`/src` directory](/docs/app/building-your-application/configuring/src-directory), `.env.*` files should remain in the root of your project.
 - If the environment variable `NODE_ENV` is unassigned, Next.js automatically assigns `development` when running the `next dev` command, or `production` for all other commands.
+
+## Version History
+
+| Version  | Changes                                       |
+| -------- | --------------------------------------------- |
+| `v9.4.0` | Support `.env` and `NEXT_PUBLIC_` introduced. |

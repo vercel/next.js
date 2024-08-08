@@ -1,24 +1,24 @@
 async function fetchAPI(query, { variables, preview } = {}) {
-  const res = await fetch('https://graphql.umbraco.io', {
-    method: 'POST',
+  const res = await fetch("https://graphql.umbraco.io", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'Api-Key': process.env.UMBRACO_API_KEY,
-      'Umb-Project-Alias': process.env.UMBRACO_PROJECT_ALIAS,
+      "Content-Type": "application/json",
+      "Api-Key": process.env.UMBRACO_API_KEY,
+      "Umb-Project-Alias": process.env.UMBRACO_PROJECT_ALIAS,
     },
     body: JSON.stringify({
       query,
       variables,
     }),
-  })
-  const json = await res.json()
+  });
+  const json = await res.json();
 
   if (json.errors) {
-    console.error(json.errors)
-    throw new Error('Failed to fetch API')
+    console.error(json.errors);
+    throw new Error("Failed to fetch API");
   }
 
-  return json.data
+  return json.data;
 }
 
 export async function getPreviewPostBySlug(slug) {
@@ -34,9 +34,9 @@ export async function getPreviewPostBySlug(slug) {
       variables: {
         slug,
       },
-    }
-  )
-  return data.post
+    },
+  );
+  return data.post;
 }
 
 export async function getAllPostsWithSlug() {
@@ -50,8 +50,8 @@ export async function getAllPostsWithSlug() {
         }
       }
     }
-  `)
-  return data.allPost.edges.map((x) => x.node)
+  `);
+  return data.allPost.edges.map((x) => x.node);
 }
 
 export async function getAllPostsForHome(preview) {
@@ -86,9 +86,9 @@ export async function getAllPostsForHome(preview) {
       variables: {
         preview,
       },
-    }
-  )
-  return data.allPost.edges.map((e) => e.node)
+    },
+  );
+  return data.allPost.edges.map((e) => e.node);
 }
 
 export async function getPostAndMorePosts(slug, preview) {
@@ -142,12 +142,12 @@ export async function getPostAndMorePosts(slug, preview) {
       preview,
       variables: {
         preview,
-        slug: `/${slug.join('/')}/`,
+        slug: `/${slug.join("/")}/`,
       },
-    }
-  )
+    },
+  );
   return {
     post: data.post,
     morePosts: data.morePosts.edges.map((e) => e.node),
-  }
+  };
 }

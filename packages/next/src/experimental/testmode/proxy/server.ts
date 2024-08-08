@@ -5,17 +5,14 @@ import { UNHANDLED } from './types'
 import type { FetchHandler } from './fetch-api'
 import { handleFetch } from './fetch-api'
 
-function readBody(req: IncomingMessage): Promise<Buffer> {
-  return new Promise<Buffer>((resolve, reject) => {
-    const acc: Buffer[] = []
-    req.on('data', (chunk) => {
-      acc.push(chunk)
-    })
-    req.on('end', () => {
-      resolve(Buffer.concat(acc))
-    })
-    req.on('error', reject)
-  })
+async function readBody(req: IncomingMessage): Promise<Buffer> {
+  const acc: Buffer[] = []
+
+  for await (const chunk of req) {
+    acc.push(chunk)
+  }
+
+  return Buffer.concat(acc)
 }
 
 export async function createProxyServer({
@@ -61,7 +58,7 @@ export async function createProxyServer({
   })
 
   await new Promise((resolve) => {
-    server.listen(0, 'localhost', () => {
+    server.listen(0, '::', () => {
       resolve(undefined)
     })
   })

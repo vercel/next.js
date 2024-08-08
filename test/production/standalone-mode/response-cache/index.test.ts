@@ -3,7 +3,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   killApp,
   findPort,
@@ -15,6 +15,7 @@ import {
 describe('minimal-mode-response-cache', () => {
   let next: NextInstance
   let server
+  let port
   let appPort
   let output = ''
 
@@ -60,14 +61,14 @@ describe('minimal-mode-response-cache', () => {
         .replace('console.error(err)', `console.error('top-level', err)`)
         .replace('port:', 'minimalMode: true,port:')
     )
-    appPort = await findPort()
+    port = await findPort()
     server = await initNextServerScript(
       testServer,
       /- Local:/,
       {
         ...process.env,
         HOSTNAME: '',
-        PORT: appPort,
+        PORT: port.toString(),
       },
       undefined,
       {
@@ -80,6 +81,7 @@ describe('minimal-mode-response-cache', () => {
         },
       }
     )
+    appPort = `http://127.0.0.1:${port}`
   })
   afterAll(async () => {
     await next.destroy()
@@ -128,25 +130,22 @@ describe('minimal-mode-response-cache', () => {
       headers,
     })
     const content1 = await res1.text()
+    expect(res1.headers.get('content-type')).toContain('text/x-component')
     expect(content1).not.toContain('<html')
     expect(content1).toContain('app-another')
-    expect(res1.headers.get('content-type')).toContain('text/x-component')
 
     const res2 = await fetchViaHTTP(appPort, '/app-another', undefined, {
       headers,
     })
     const content2 = await res2.text()
+    expect(res2.headers.get('content-type')).toContain('text/html')
     expect(content2).toContain('<html')
     expect(content2).toContain('app-another')
-    expect(res2.headers.get('content-type')).toContain('text/html')
   })
 
   it('should have correct "Started server on" log', async () => {
     expect(output).toContain(`- Local:`)
-    let pattern = new RegExp(
-      `Local:\\s*http://localhost:${appPort}|Local:\\s*http://127.0.0.1:${appPort}|Local: http://\\[::1\\]:${appPort}`
-    )
-    expect(output).toMatch(pattern)
+    expect(output).toContain(`http://localhost:${port}`)
   })
 
   it('should have correct responses', async () => {

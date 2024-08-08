@@ -20,7 +20,7 @@ const installCheckVisible = (browser) => {
         watcherDiv.querySelector('div').className.indexOf('visible') > -1
       )
       if (window.showedBuilder) clearInterval(window.checkInterval)
-    }, 50)
+    }, 5)
   })()`)
 }
 
@@ -73,15 +73,16 @@ describe('Build Activity Indicator', () => {
       expect(html).toMatch(/__next-build-watcher/)
       await browser.close()
     })
-
-    it('Shows the build indicator when a page is built during navigation', async () => {
-      const browser = await webdriver(appPort, '/')
-      await installCheckVisible(browser)
-      await browser.elementByCss('#to-a').click()
-      await waitFor(500)
-      const wasVisible = await browser.eval('window.showedBuilder')
-      expect(wasVisible).toBe(true)
-      await browser.close()
+    ;(process.env.TURBOPACK ? describe.skip : describe)('webpack only', () => {
+      it('Shows the build indicator when a page is built during navigation', async () => {
+        const browser = await webdriver(appPort, '/')
+        await installCheckVisible(browser)
+        await browser.elementByCss('#to-a').click()
+        await waitFor(500)
+        const wasVisible = await browser.eval('window.showedBuilder')
+        expect(wasVisible).toBe(true)
+        await browser.close()
+      })
     })
 
     it('Shows build indicator when page is built from modifying', async () => {

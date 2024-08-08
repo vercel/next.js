@@ -155,7 +155,7 @@ This example `sizes` could have a dramatic effect on performance metrics. Withou
 Learn more about `srcset` and `sizes`:
 
 - [web.dev](https://web.dev/learn/design/responsive-images/#sizes)
-- [mdn](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes)
+- [mdn](https://developer.mozilla.org/docs/Web/HTML/Element/img#attr-sizes)
 
 ### quality
 
@@ -192,7 +192,7 @@ In some cases, you may need more advanced usage. The `<Image />` component optio
 
 ### style
 
-Allows [passing CSS styles](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/style) to the underlying image element.
+Allows [passing CSS styles](https://developer.mozilla.org/docs/Web/HTML/Element/style) to the underlying image element.
 
 Note that all `layout` modes apply their own styles to the image element, and these automatic styles take precedence over the `style` prop.
 
@@ -202,13 +202,13 @@ Also keep in mind that the required `width` and `height` props can interact with
 
 Defines how the image will fit into its parent container when using `layout="fill"`.
 
-This value is passed to the [object-fit CSS property](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit) for the `src` image.
+This value is passed to the [object-fit CSS property](https://developer.mozilla.org/docs/Web/CSS/object-fit) for the `src` image.
 
 ### objectPosition
 
 Defines how the image is positioned within its parent element when using `layout="fill"`.
 
-This value is passed to the [object-position CSS property](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position) applied to the image.
+This value is passed to the [object-position CSS property](https://developer.mozilla.org/docs/Web/CSS/object-position) applied to the image.
 
 ### onLoadingComplete
 
@@ -216,8 +216,8 @@ A callback function that is invoked once the image is completely loaded and the 
 
 The `onLoadingComplete` function accepts one parameter, an object with the following properties:
 
-- [`naturalWidth`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalWidth)
-- [`naturalHeight`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalHeight)
+- [`naturalWidth`](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/naturalWidth)
+- [`naturalHeight`](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/naturalHeight)
 
 ### loading
 
@@ -234,11 +234,11 @@ the viewport.
 
 When `eager`, load the image immediately.
 
-[Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-loading)
+[Learn more](https://developer.mozilla.org/docs/Web/HTML/Element/img#attr-loading)
 
 ### blurDataURL
 
-A [Data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs) to
+A [Data URL](https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs) to
 be used as a placeholder image before the `src` image successfully loads. Only takes effect when combined
 with [`placeholder="blur"`](#placeholder).
 
@@ -259,7 +259,7 @@ A string (with similar syntax to the margin property) that acts as the bounding 
 
 If the image is nested in a scrollable parent element other than the root document, you will also need to assign the [lazyRoot](#lazyroot) prop.
 
-[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
+[Learn more](https://developer.mozilla.org/docs/Web/API/IntersectionObserver/rootMargin)
 
 ### lazyRoot
 
@@ -311,7 +311,7 @@ const Example = () => {
 }
 ```
 
-[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/root)
+[Learn more](https://developer.mozilla.org/docs/Web/API/IntersectionObserver/root)
 
 ### unoptimized
 
@@ -379,13 +379,14 @@ module.exports = {
       {
         protocol: 'https',
         hostname: '**.example.com',
+        port: '',
       },
     ],
   },
 }
 ```
 
-> **Good to know**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
+> **Good to know**: The example above will ensure the `src` property of `next/legacy/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol, port, or unmatched hostname will respond with 400 Bad Request.
 
 Wildcard patterns can be used for both `pathname` and `hostname` and have the following syntax:
 
@@ -394,9 +395,11 @@ Wildcard patterns can be used for both `pathname` and `hostname` and have the fo
 
 The `**` syntax does not work in the middle of the pattern.
 
+> **Good to know**: When omitting `protocol`, `port` or `pathname`, then the wildcard `**` is implied. This is not recommended because it may allow malicious actors to optimize urls you did not intend.
+
 ### Domains
 
-> **Warning**: We recommend configuring strict [`remotePatterns`](#remote-patterns) instead of `domains` in order to protect your application from malicious users. Only use `domains` if you own all the content served from the domain.
+> **Warning**: Deprecated since Next.js 14 in favor of strict [`remotePatterns`](#remote-patterns) in order to protect your application from malicious users. Only use `domains` if you own all the content served from the domain.
 
 Similar to [`remotePatterns`](#remote-patterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images.
 
@@ -440,8 +443,6 @@ If you need a different provider, you can use the [`loader`](#loader) prop with 
 
 > Images can not be optimized at build time using [`output: 'export'`](/docs/pages/building-your-application/deploying/static-exports), only on-demand. To use `next/legacy/image` with `output: 'export'`, you will need to use a different loader than the default. [Read more in the discussion.](https://github.com/vercel/next.js/discussions/19065)
 
-> The `next/legacy/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment. When using `next start` in your production environment, it is strongly recommended that you install [`sharp`](https://www.npmjs.com/package/sharp) by running `npm i sharp` in your project directory. This is not necessary for Vercel deployments, as `sharp` is installed automatically.
-
 ## Advanced
 
 The following configuration is for advanced use cases and is usually not necessary. If you choose to configure the properties below, you will override any changes to the Next.js defaults in future updates.
@@ -462,7 +463,7 @@ module.exports = {
 
 ### Image Sizes
 
-You can specify a list of image widths using the `images.imageSizes` property in your `next.config.js` file. These widths are concatenated with the array of [device sizes](#device-sizes) to form the full array of sizes used to generate image [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset)s.
+You can specify a list of image widths using the `images.imageSizes` property in your `next.config.js` file. These widths are concatenated with the array of [device sizes](#device-sizes) to form the full array of sizes used to generate image [srcset](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/srcset)s.
 
 The reason there are two separate lists is that imageSizes is only used for images which provide a [`sizes`](#sizes) prop, which indicates that the image is less than the full width of the screen. **Therefore, the sizes in imageSizes should all be smaller than the smallest size in deviceSizes.**
 
@@ -519,7 +520,7 @@ The cache status of an image can be determined by reading the value of the `x-ne
 The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimum-cache-ttl) configuration or the upstream image `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred. The `max-age` is also passed-through to any downstream clients including CDNs and browsers.
 
 - You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
-- You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
+- You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#image-sizes) to reduce the total number of possible generated images.
 - You can configure [formats](#acceptable-formats) to disable multiple formats in favor of a single image format.
 
 ### Minimum Cache TTL
@@ -542,7 +543,7 @@ There is no mechanism to invalidate the cache at this time, so its best to keep 
 
 ### Disable Static Imports
 
-The default behavior allows you to import static files such as `import icon from './icon.png` and then pass that to the `src` property.
+The default behavior allows you to import static files such as `import icon from './icon.png'` and then pass that to the `src` property.
 
 In some cases, you may wish to disable this feature if it conflicts with other plugins that expect the import to behave differently.
 
@@ -558,9 +559,11 @@ module.exports = {
 
 ### Dangerously Allow SVG
 
-The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/app/api-reference/next-config-js/headers).
+The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/app/api-reference/next-config-js/headers#content-security-policy).
 
-If you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` inside your `next.config.js`:
+Therefore, we recommended using the [`unoptimized`](#unoptimized) prop when the [`src`](#src) prop is known to be SVG. This happens automatically when `src` ends with `".svg"`.
+
+However, if you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` inside your `next.config.js`:
 
 ```js filename="next.config.js"
 module.exports = {
@@ -573,6 +576,22 @@ module.exports = {
 ```
 
 In addition, it is strongly recommended to also set `contentDispositionType` to force the browser to download the image, as well as `contentSecurityPolicy` to prevent scripts embedded in the image from executing.
+
+### `contentDispositionType`
+
+The default [loader](#loader) sets the [`Content-Disposition`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Disposition#as_a_response_header_for_the_main_body) header to `attachment` for added protection since the API can serve arbitrary remote images.
+
+The default value is `attachment` which forces the browser to download the image when visiting directly. This is particularly important when [`dangerouslyAllowSVG`](#dangerously-allow-svg) is true.
+
+You can optionally configure `inline` to allow the browser to render the image when visiting directly, without downloading it.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    contentDispositionType: 'inline',
+  },
+}
+```
 
 ### Animated Images
 

@@ -25,10 +25,8 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type ws from 'next/dist/compiled/ws'
 import { isMiddlewareFilename } from '../../build/utils'
 import type { VersionInfo } from './parse-version-info'
-import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  HMR_ACTION_TYPES,
-} from './hot-reloader-types'
+import type { HMR_ACTION_TYPES } from './hot-reloader-types'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {
@@ -173,6 +171,7 @@ export class WebpackHotMiddleware {
 
   onEdgeServerDone = (statsResult: webpack.Stats) => {
     if (!isMiddlewareStats(statsResult)) {
+      this.onServerInvalid()
       this.onServerDone(statsResult)
       return
     }

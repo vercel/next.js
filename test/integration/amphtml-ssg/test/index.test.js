@@ -7,14 +7,15 @@ import { validateAMP } from 'amp-test-utils'
 import {
   nextBuild,
   renderViaHTTP,
+  File,
   findPort,
   launchApp,
   killApp,
   nextStart,
-  nextExport,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
+const nextConfig = new File(join(appDir, 'next.config.js'))
 let builtServerPagesDir
 let appPort
 let app
@@ -98,52 +99,65 @@ const runTests = (isDev = false) => {
 }
 
 describe('AMP SSG Support', () => {
-  describe('server mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      // TODO: use browser instead to do checks that now need filesystem access
-      builtServerPagesDir = join(appDir, '.next', 'server', 'pages')
-    })
-    afterAll(() => killApp(app))
-    runTests()
-  })
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-    runTests(true)
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+        // TODO: use browser instead to do checks that now need filesystem access
+        builtServerPagesDir = join(appDir, '.next', 'server', 'pages')
+      })
+      afterAll(() => killApp(app))
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
+      runTests(true)
+    }
+  )
   describe('export mode', () => {
-    let buildId
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        let buildId
 
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      await nextExport(appDir, { outdir: join(appDir, 'out') })
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
+        beforeAll(async () => {
+          nextConfig.write(`module.exports = { output: 'export' }`)
+          await nextBuild(appDir)
+          buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        })
 
-    it('should have copied SSG files correctly', async () => {
-      const outFile = (file) => join(appDir, 'out', file)
+        afterAll(() => nextConfig.delete())
 
-      expect(await fsExists(outFile('amp.html'))).toBe(true)
-      expect(await fsExists(outFile('index.html'))).toBe(true)
-      expect(await fsExists(outFile('hybrid.html'))).toBe(true)
-      expect(await fsExists(outFile('amp.amp.html'))).toBe(false)
-      expect(await fsExists(outFile('hybrid.amp.html'))).toBe(true)
-      expect(await fsExists(outFile('blog/post-1.html'))).toBe(true)
-      expect(await fsExists(outFile('blog/post-1.amp.html'))).toBe(true)
+        it('should have copied SSG files correctly', async () => {
+          const outFile = (file) => join(appDir, 'out', file)
 
-      expect(
-        await fsExists(outFile(join('_next/data', buildId, 'amp.json')))
-      ).toBe(true)
+          expect(await fsExists(outFile('amp.html'))).toBe(true)
+          expect(await fsExists(outFile('index.html'))).toBe(true)
+          expect(await fsExists(outFile('hybrid.html'))).toBe(true)
+          expect(await fsExists(outFile('amp.amp.html'))).toBe(false)
+          expect(await fsExists(outFile('hybrid.amp.html'))).toBe(true)
+          expect(await fsExists(outFile('blog/post-1.html'))).toBe(true)
+          expect(await fsExists(outFile('blog/post-1.amp.html'))).toBe(true)
 
-      expect(
-        await fsExists(outFile(join('_next/data', buildId, 'hybrid.json')))
-      ).toBe(true)
-    })
+          expect(
+            await fsExists(outFile(join('_next/data', buildId, 'amp.json')))
+          ).toBe(true)
+
+          expect(
+            await fsExists(outFile(join('_next/data', buildId, 'hybrid.json')))
+          ).toBe(true)
+        })
+      }
+    )
   })
 })

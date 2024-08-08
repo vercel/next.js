@@ -85,32 +85,37 @@ function runTests() {
 }
 
 describe('i18n Support', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.restore()
-    })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+        nextConfig.restore()
+      })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+        nextConfig.restore()
+      })
 
-  describe('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.restore()
-    })
-
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

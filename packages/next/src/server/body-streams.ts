@@ -1,5 +1,6 @@
 import type { IncomingMessage } from 'http'
-import { PassThrough, Readable } from 'stream'
+import type { Readable } from 'stream'
+import { PassThrough } from 'stream'
 
 export function requestToBodyStream(
   context: { ReadableStream: typeof ReadableStream },
@@ -7,12 +8,11 @@ export function requestToBodyStream(
   stream: Readable
 ) {
   return new context.ReadableStream({
-    start(controller) {
-      stream.on('data', (chunk) =>
-        controller.enqueue(new KUint8Array([...new Uint8Array(chunk)]))
-      )
-      stream.on('end', () => controller.close())
-      stream.on('error', (err) => controller.error(err))
+    start: async (controller) => {
+      for await (const chunk of stream) {
+        controller.enqueue(new KUint8Array(chunk))
+      }
+      controller.close()
     },
   })
 }

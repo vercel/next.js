@@ -51,9 +51,9 @@ export type ItunesApp = {
 }
 
 // Viewport meta structure
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag
+// https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
 // intentionally leaving out user-scalable, use a string if you want that behavior
-export type Viewport = {
+export type ViewportLayout = {
   width?: string | number
   height?: string | number
   initialScale?: number
@@ -86,6 +86,20 @@ export type ResolvedAppleWebApp = {
   title?: string | null
   startupImage?: AppleImageDescriptor[] | null
   statusBarStyle?: 'default' | 'black' | 'black-translucent'
+}
+
+export type Facebook = FacebookAppId | FacebookAdmins
+export type FacebookAppId = {
+  appId: string
+  admins?: never
+}
+export type FacebookAdmins = {
+  appId?: never
+  admins: string | string[]
+}
+export type ResolvedFacebook = {
+  appId?: string
+  admins?: string[]
 }
 
 // Format Detection

@@ -1,5 +1,5 @@
-import { adaptForAppRouterInstance } from './adapters.shared-runtime'
-import { NextRouter } from './router'
+import type { NextRouter } from './router'
+import { adaptForAppRouterInstance } from './adapters'
 
 describe('adaptForAppRouterInstance', () => {
   beforeEach(() => jest.resetAllMocks())

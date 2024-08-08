@@ -1,60 +1,60 @@
-import { NextApiRequest, NextApiResponse } from 'next'
-import { TodoItem } from '../../../db/models/todoItems'
-import tigrisDb from '../../../lib/tigris'
+import { NextApiRequest, NextApiResponse } from "next";
+import { TodoItem } from "../../../db/models/todoItems";
+import tigrisDb from "../../../lib/tigris";
 
 type Data = {
-  result?: TodoItem
-  error?: string
-}
+  result?: TodoItem;
+  error?: string;
+};
 
 async function handleGet(
   req: NextApiRequest,
   res: NextApiResponse<Data>,
-  itemId: number
+  itemId: number,
 ) {
   try {
-    const itemsCollection = tigrisDb.getCollection<TodoItem>(TodoItem)
-    const item = await itemsCollection.findOne({ filter: { id: itemId } })
+    const itemsCollection = tigrisDb.getCollection<TodoItem>(TodoItem);
+    const item = await itemsCollection.findOne({ filter: { id: itemId } });
     if (!item) {
-      res.status(404).json({ error: 'No item found' })
+      res.status(404).json({ error: "No item found" });
     } else {
-      res.status(200).json({ result: item })
+      res.status(200).json({ result: item });
     }
   } catch (err) {
-    const error = err as Error
-    res.status(500).json({ error: error.message })
+    const error = err as Error;
+    res.status(500).json({ error: error.message });
   }
 }
 
 async function handlePut(req: NextApiRequest, res: NextApiResponse<Data>) {
   try {
-    const item = JSON.parse(req.body) as TodoItem
-    const itemsCollection = tigrisDb.getCollection<TodoItem>(TodoItem)
-    const updated = await itemsCollection.insertOrReplaceOne(item)
-    res.status(200).json({ result: updated })
+    const item = JSON.parse(req.body) as TodoItem;
+    const itemsCollection = tigrisDb.getCollection<TodoItem>(TodoItem);
+    const updated = await itemsCollection.insertOrReplaceOne(item);
+    res.status(200).json({ result: updated });
   } catch (err) {
-    const error = err as Error
-    res.status(500).json({ error: error.message })
+    const error = err as Error;
+    res.status(500).json({ error: error.message });
   }
 }
 
 async function handleDelete(
   req: NextApiRequest,
   res: NextApiResponse<Data>,
-  itemId: number
+  itemId: number,
 ) {
   try {
-    const itemsCollection = tigrisDb.getCollection<TodoItem>(TodoItem)
+    const itemsCollection = tigrisDb.getCollection<TodoItem>(TodoItem);
     const status = (await itemsCollection.deleteOne({ filter: { id: itemId } }))
-      .status
-    if (status === 'deleted') {
-      res.status(200).json({})
+      .status;
+    if (status === "deleted") {
+      res.status(200).json({});
     } else {
-      res.status(500).json({ error: `Failed to delete ${itemId}` })
+      res.status(500).json({ error: `Failed to delete ${itemId}` });
     }
   } catch (err) {
-    const error = err as Error
-    res.status(500).json({ error: error.message })
+    const error = err as Error;
+    res.status(500).json({ error: error.message });
   }
 }
 
@@ -63,21 +63,21 @@ async function handleDelete(
 // DELETE /api/item/[id] -- deletes the item in collection where id = [id]
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<Data>
+  res: NextApiResponse<Data>,
 ) {
-  const { id } = req.query
+  const { id } = req.query;
   switch (req.method) {
-    case 'GET':
-      await handleGet(req, res, Number(id))
-      break
-    case 'PUT':
-      await handlePut(req, res)
-      break
-    case 'DELETE':
-      await handleDelete(req, res, Number(id))
-      break
+    case "GET":
+      await handleGet(req, res, Number(id));
+      break;
+    case "PUT":
+      await handlePut(req, res);
+      break;
+    case "DELETE":
+      await handleDelete(req, res, Number(id));
+      break;
     default:
-      res.setHeader('Allow', ['GET', 'PUT', 'DELETE'])
-      res.status(405).end(`Method ${req.method} Not Allowed`)
+      res.setHeader("Allow", ["GET", "PUT", "DELETE"]);
+      res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }

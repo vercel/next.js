@@ -3,7 +3,7 @@ title: Pages and Layouts
 description: Create your first page and shared layout with the Pages Router.
 ---
 
-The Pages Router has a file-system based router built on the [concept of pages](/docs/pages/building-your-application/routing/pages-and-layouts).
+The Pages Router has a file-system based router built on the concept of pages.
 
 When a file is added to the `pages` directory, it's automatically available as a route.
 
@@ -101,7 +101,7 @@ Page.getLayout = function getLayout(page) {
 ```jsx filename="pages/_app.js"
 export default function MyApp({ Component, pageProps }) {
   // Use the layout defined at the page level, if available
-  const getLayout = Component.getLayout || ((page) => page)
+  const getLayout = Component.getLayout ?? ((page) => page)
 
   return getLayout(<Component {...pageProps} />)
 }

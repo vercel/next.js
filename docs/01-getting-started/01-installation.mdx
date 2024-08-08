@@ -10,12 +10,12 @@ related:
 
 System Requirements:
 
-- [Node.js 16.14](https://nodejs.org/) or later.
+- [Node.js 18.18](https://nodejs.org/) or later.
 - macOS, Windows (including WSL), and Linux are supported.
 
 ## Automatic Installation
 
-We recommend starting a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
+We recommend starting a new Next.js app using [`create-next-app`](/docs/app/api-reference/create-next-app), which sets up everything automatically for you. To create a project, run:
 
 ```bash filename="Terminal"
 npx create-next-app@latest
@@ -28,13 +28,16 @@ What is your project named? my-app
 Would you like to use TypeScript? No / Yes
 Would you like to use ESLint? No / Yes
 Would you like to use Tailwind CSS? No / Yes
-Would you like to use `src/` directory? No / Yes
+Would you like your code inside a `src/` directory? No / Yes
 Would you like to use App Router? (recommended) No / Yes
-Would you like to customize the default import alias? No / Yes
+Would you like to use Turbopack for `next dev`?  No / Yes
+Would you like to customize the import alias (`@/*` by default)? No / Yes
 What import alias would you like configured? @/*
 ```
 
-After the prompts, `create-next-app` will create a folder with your project name and install the required dependencies.
+After the prompts, [`create-next-app`](/docs/app/api-reference/create-next-app) will create a folder with your project name and install the required dependencies.
+
+If you're new to Next.js, see the [project structure](/docs/getting-started/project-structure) docs for an overview of all the possible files and folders in your application.
 
 > **Good to know**:
 >
@@ -87,7 +90,7 @@ Create an `app/` folder, then add a `layout.tsx` and `page.tsx` file. These will
   height="363"
 />
 
-Create a [root layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required) inside `app/layout.tsx` with the required `<html>` and `<body>` tags:
+Create a [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required) inside `app/layout.tsx` with the required `<html>` and `<body>` tags:
 
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({
@@ -189,4 +192,4 @@ Create a `public` folder to store static assets such as images, fonts, etc. File
 
 1. Run `npm run dev` to start the development server.
 2. Visit `http://localhost:3000` to view your application.
-3. Edit `app/layout.tsx` (or `pages/index.tsx`) file and save it to see the updated result in your browser.
+3. Edit `app/page.tsx` (or `pages/index.tsx`) file and save it to see the updated result in your browser.

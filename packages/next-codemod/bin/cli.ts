@@ -136,6 +136,18 @@ const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'new-link',
   },
   {
+    name: 'next-og-import: Transforms imports from `next/server` to `next/og` for usage of Dynamic OG Image Generation.',
+    value: 'next-og-import',
+  },
+  {
+    name: 'metadata-to-viewport-export: Migrates certain viewport related metadata from the `metadata` export to a new `viewport` export.',
+    value: 'metadata-to-viewport-export',
+  },
+  {
+    name: 'next-dynamic-access-named-export: Transforms dynamic imports that return the named export itself to a module like object.',
+    value: 'next-dynamic-access-named-export',
+  },
+  {
     name: 'next-image-to-legacy-image: safely migrate Next.js 10, 11, 12 applications importing `next/image` to the renamed `next/legacy/image` import in Next.js 13',
     value: 'next-image-to-legacy-image',
   },

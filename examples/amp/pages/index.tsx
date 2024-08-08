@@ -1,14 +1,14 @@
-import Head from 'next/head'
-import { useAmp } from 'next/amp'
-import Layout from '../components/Layout'
-import Byline from '../components/Byline'
+import Head from "next/head";
+import { useAmp } from "next/amp";
+import Layout from "../components/Layout";
+import Byline from "../components/Byline";
 
 export const config = {
   amp: true,
-}
+};
 
 export default function IndexPage() {
-  const isAmp = useAmp()
+  const isAmp = useAmp();
 
   return (
     <Layout>
@@ -35,7 +35,7 @@ export default function IndexPage() {
         ></amp-img>
       </amp-img>
       <p>
-        Cat ipsum dolor <a href={isAmp ? '/dog?amp=1' : '/dog'}>sit amet</a>,
+        Cat ipsum dolor <a href={isAmp ? "/dog?amp=1" : "/dog"}>sit amet</a>,
         eat grass, throw it back up but refuse to leave cardboard box or groom
         yourself 4 hours - checked, have your beauty sleep 18 hours - checked,
         be fabulous for the rest of the day - checked!. Hide from vacuum
@@ -233,5 +233,5 @@ export default function IndexPage() {
         }
       `}</style>
     </Layout>
-  )
+  );
 }

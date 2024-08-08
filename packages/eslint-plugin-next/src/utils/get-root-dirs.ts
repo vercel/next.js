@@ -1,4 +1,4 @@
-import * as glob from 'glob'
+import { globSync } from 'fast-glob'
 import type { Rule } from 'eslint'
 
 /**
@@ -7,14 +7,14 @@ import type { Rule } from 'eslint'
 const processRootDir = (rootDir: string): string[] => {
   // Ensures we only match folders.
   if (!rootDir.endsWith('/')) rootDir += '/'
-  return glob.sync(rootDir)
+  return globSync(rootDir)
 }
 
 /**
  * Gets one or more Root, returns an array of root directories.
  */
 export const getRootDirs = (context: Rule.RuleContext) => {
-  let rootDirs = [context.getCwd()]
+  let rootDirs = [context.cwd]
 
   const nextSettings: { rootDir?: string | string[] } =
     context.settings.next || {}

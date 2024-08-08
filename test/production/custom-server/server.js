@@ -2,12 +2,13 @@ const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
 const getPort = require('get-port')
+const quiet = process.env.USE_QUIET === 'true'
 
 async function main() {
   const port = await getPort()
   const hostname = 'localhost'
   // when using middleware `hostname` and `port` must be provided below
-  const app = next({ hostname, port })
+  const app = next({ hostname, port, quiet })
   const handle = app.getRequestHandler()
 
   app.prepare().then(() => {
@@ -22,6 +23,8 @@ async function main() {
           await app.render(req, res, '/a', query)
         } else if (pathname === '/b') {
           await app.render(req, res, '/page-b', query)
+        } else if (pathname === '/error') {
+          await app.render(req, res, '/page-error')
         } else {
           await handle(req, res, parsedUrl)
         }
@@ -30,7 +33,7 @@ async function main() {
         res.statusCode = 500
         res.end('Internal Server Error')
       }
-    }).listen(port, '0.0.0.0', (err) => {
+    }).listen(port, undefined, (err) => {
       if (err) throw err
       // Start mode
       console.log(`- Local: http://${hostname}:${port}`)

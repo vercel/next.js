@@ -14,7 +14,7 @@ description: Next.js supports API Routes, which allow you to build your API with
 
 </details>
 
-> **Good to know**: If you are using the App Router, you can use [Server Components](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating) or [Route Handlers](/docs/app/building-your-application/routing/route-handlers) instead of API Routes.
+> **Good to know**: If you are using the App Router, you can use [Server Components](/docs/app/building-your-application/rendering/server-components) or [Route Handlers](/docs/app/building-your-application/routing/route-handlers) instead of API Routes.
 
 API routes provide a solution to build a **public API** with Next.js.
 
@@ -45,7 +45,7 @@ export default function handler(req, res) {
 
 > **Good to know**:
 >
-> - API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with the [CORS request helpers](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors).
+> - API Routes [do not specify CORS headers](https://developer.mozilla.org/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with the [CORS request helpers](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors).
 
 - API Routes can't be used with [static exports](/docs/pages/building-your-application/deploying/static-exports). However, [Route Handlers](/docs/app/building-your-application/routing/route-handlers) in the App Router can.
   > - API Routes will be affected by [`pageExtensions` configuration](/docs/pages/api-reference/next-config-js/pageExtensions) in `next.config.js`.
@@ -58,8 +58,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 }
 ```
 
-- `req`: An instance of [http.IncomingMessage](https://nodejs.org/api/http.html#class-httpincomingmessage), plus some [pre-built middlewares](/docs/pages/api-reference/functions/next-server)
-- `res`: An instance of [http.ServerResponse](https://nodejs.org/api/http.html#class-httpserverresponse), plus some [helper functions](/docs/pages/api-reference/functions/next-server)
+- `req`: An instance of [http.IncomingMessage](https://nodejs.org/api/http.html#class-httpincomingmessage)
+- `res`: An instance of [http.ServerResponse](https://nodejs.org/api/http.html#class-httpserverresponse)
 
 ## HTTP Methods
 
@@ -175,7 +175,7 @@ The [Server Response object](https://nodejs.org/api/http.html#http_class_http_se
 The included helpers are:
 
 - `res.status(code)` - A function to set the status code. `code` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
-- `res.json(body)` - Sends a JSON response. `body` must be a [serializable object](https://developer.mozilla.org/en-US/docs/Glossary/Serialization)
+- `res.json(body)` - Sends a JSON response. `body` must be a [serializable object](https://developer.mozilla.org/docs/Glossary/Serialization)
 - `res.send(body)` - Sends the HTTP response. `body` can be a `string`, an `object` or a `Buffer`
 - `res.redirect([status,] path)` - Redirects to a specified path or URL. `status` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes). If not specified, `status` defaults to "307" "Temporary redirect".
 - `res.revalidate(urlPath)` - [Revalidate a page on demand](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation) using `getStaticProps`. `urlPath` must be a `string`.
@@ -209,7 +209,7 @@ export default function handler(req, res) {
 
 ### Sending a JSON response
 
-When sending a response back to the client you can send a JSON response, this must be a [serializable object](https://developer.mozilla.org/en-US/docs/Glossary/Serialization).
+When sending a response back to the client you can send a JSON response, this must be a [serializable object](https://developer.mozilla.org/docs/Glossary/Serialization).
 In a real world application you might want to let the client know the status of the request depending on the result of the requested endpoint.
 
 The following example sends a JSON response with the status code `200` (`OK`) and the result of the async operation. It's contained in a try catch block to handle any errors that may occur, with the appropriate status code and error message caught and sent back to the client:
@@ -217,7 +217,10 @@ The following example sends a JSON response with the status code `200` (`OK`) an
 ```ts filename="pages/api/hello.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
     const result = await someAsyncOperation()
     res.status(200).json({ result })
@@ -228,7 +231,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 ```
 
 ```js filename="pages/api/hello.js" switcher
-export default function handler(req, res) {
+export default async function handler(req, res) {
   try {
     const result = await someAsyncOperation()
     res.status(200).json({ result })
@@ -247,7 +250,10 @@ The following example sends a HTTP response with the status code `200` (`OK`) an
 ```ts filename="pages/api/hello.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
     const result = await someAsyncOperation()
     res.status(200).send({ result })
@@ -258,7 +264,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 ```
 
 ```js filename="pages/api/hello.js" switcher
-export default function handler(req, res) {
+export default async function handler(req, res) {
   try {
     const result = await someAsyncOperation()
     res.status(200).send({ result })
@@ -277,7 +283,10 @@ The following example redirects the client to the `/` path if the form is succes
 ```ts filename="pages/api/hello.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const { name, message } = req.body
 
   try {
@@ -290,7 +299,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 ```
 
 ```js filename="pages/api/hello.js" switcher
-export default function handler(req, res) {
+export default async function handler(req, res) {
   const { name, message } = req.body
 
   try {

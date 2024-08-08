@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs'
-import chalk from 'next/dist/compiled/chalk'
+import { bold, cyan, white } from '../picocolors'
 import * as CommentJson from 'next/dist/compiled/comment-json'
 import semver from 'next/dist/compiled/semver'
 import os from 'os'
@@ -9,7 +9,7 @@ import * as Log from '../../build/output/log'
 
 type DesiredCompilerOptionsShape = {
   [K in keyof CompilerOptions]:
-    | { suggested: any }
+    | { suggested: any; reason?: string }
     | {
         parsedValue?: any
         parsedValues?: Array<any>
@@ -20,9 +20,14 @@ type DesiredCompilerOptionsShape = {
 
 function getDesiredCompilerOptions(
   ts: typeof import('typescript'),
-  userTsConfig?: { compilerOptions?: CompilerOptions }
+  tsOptions?: CompilerOptions
 ): DesiredCompilerOptionsShape {
   const o: DesiredCompilerOptionsShape = {
+    target: {
+      suggested: 'ES2017',
+      reason:
+        'For top-level `await`. Note: Next.js only polyfills for the esmodules target.',
+    },
     // These are suggested values and will be set when not present in the
     // tsconfig.json
     lib: { suggested: ['dom', 'dom.iterable', 'esnext'] },
@@ -40,14 +45,11 @@ function getDesiredCompilerOptions(
     // These values are required and cannot be changed by the user
     // Keep this in sync with the webpack config
     // 'parsedValue' matches the output value from ts.parseJsonConfigFileContent()
-    esModuleInterop: {
-      value: true,
-      reason: 'requirement for SWC / babel',
-    },
     module: {
       parsedValue: ts.ModuleKind.ESNext,
       // All of these values work:
       parsedValues: [
+        semver.gte(ts.version, '5.4.0') && (ts.ModuleKind as any).Preserve,
         ts.ModuleKind.ES2020,
         ts.ModuleKind.ESNext,
         ts.ModuleKind.CommonJS,
@@ -58,29 +60,48 @@ function getDesiredCompilerOptions(
       value: 'esnext',
       reason: 'for dynamic import() support',
     },
-    moduleResolution: {
-      // In TypeScript 5.0, `NodeJs` has renamed to `Node10`
-      parsedValue:
-        ts.ModuleResolutionKind.Bundler ??
-        ts.ModuleResolutionKind.NodeNext ??
-        (ts.ModuleResolutionKind as any).Node10 ??
-        ts.ModuleResolutionKind.NodeJs,
-      // All of these values work:
-      parsedValues: [
-        (ts.ModuleResolutionKind as any).Node10 ??
-          ts.ModuleResolutionKind.NodeJs,
-        // only newer TypeScript versions have this field, it
-        // will be filtered for new versions of TypeScript
-        (ts.ModuleResolutionKind as any).Node12,
-        ts.ModuleResolutionKind.Node16,
-        ts.ModuleResolutionKind.NodeNext,
-        ts.ModuleResolutionKind.Bundler,
-      ].filter((val) => typeof val !== 'undefined'),
-      value: 'node',
-      reason: 'to match webpack resolution',
-    },
-    resolveJsonModule: { value: true, reason: 'to match webpack resolution' },
-    ...(userTsConfig?.compilerOptions?.verbatimModuleSyntax === true
+    // TODO: Semver check not needed once Next.js repo uses 5.4.
+    ...(semver.gte(ts.version, '5.4.0') &&
+    tsOptions?.module === (ts.ModuleKind as any).Preserve
+      ? {
+          // TypeScript 5.4 introduced `Preserve`. Using `Preserve` implies
+          // - `moduleResolution` is `Bundler`
+          // - `esModuleInterop` is `true`
+          // - `resolveJsonModule` is `true`
+          // This means that if the user is using Preserve, they don't need these options
+        }
+      : {
+          esModuleInterop: {
+            value: true,
+            reason: 'requirement for SWC / babel',
+          },
+          moduleResolution: {
+            // In TypeScript 5.0, `NodeJs` has renamed to `Node10`
+            parsedValue:
+              ts.ModuleResolutionKind.Bundler ??
+              ts.ModuleResolutionKind.NodeNext ??
+              (ts.ModuleResolutionKind as any).Node10 ??
+              ts.ModuleResolutionKind.NodeJs,
+            // All of these values work:
+            parsedValues: [
+              (ts.ModuleResolutionKind as any).Node10 ??
+                ts.ModuleResolutionKind.NodeJs,
+              // only newer TypeScript versions have this field, it
+              // will be filtered for new versions of TypeScript
+              (ts.ModuleResolutionKind as any).Node12,
+              ts.ModuleResolutionKind.Node16,
+              ts.ModuleResolutionKind.NodeNext,
+              ts.ModuleResolutionKind.Bundler,
+            ].filter((val) => typeof val !== 'undefined'),
+            value: 'node',
+            reason: 'to match webpack resolution',
+          },
+          resolveJsonModule: {
+            value: true,
+            reason: 'to match webpack resolution',
+          },
+        }),
+    ...(tsOptions?.verbatimModuleSyntax === true
       ? undefined
       : {
           isolatedModules: {
@@ -119,7 +140,7 @@ export async function writeConfigurationDefaults(
   ts: typeof import('typescript'),
   tsConfigPath: string,
   isFirstTimeSetup: boolean,
-  isAppDirEnabled: boolean,
+  hasAppDir: boolean,
   distDir: string,
   hasPagesDir: boolean
 ): Promise<void> {
@@ -139,7 +160,7 @@ export async function writeConfigurationDefaults(
     isFirstTimeSetup = true
   }
 
-  const desiredCompilerOptions = getDesiredCompilerOptions(ts, userTsConfig)
+  const desiredCompilerOptions = getDesiredCompilerOptions(ts, tsOptions)
 
   const suggestedActions: string[] = []
   const requiredActions: string[] = []
@@ -152,7 +173,10 @@ export async function writeConfigurationDefaults(
         }
         userTsConfig.compilerOptions[optionKey] = check.suggested
         suggestedActions.push(
-          chalk.cyan(optionKey) + ' was set to ' + chalk.bold(check.suggested)
+          cyan(optionKey) +
+            ' was set to ' +
+            bold(check.suggested) +
+            (check.reason ? ` (${check.reason})` : '')
         )
       }
     } else if ('value' in check) {
@@ -161,17 +185,17 @@ export async function writeConfigurationDefaults(
         !('parsedValues' in check
           ? check.parsedValues?.includes(ev)
           : 'parsedValue' in check
-          ? check.parsedValue === ev
-          : check.value === ev)
+            ? check.parsedValue === ev
+            : check.value === ev)
       ) {
         if (!userTsConfig.compilerOptions) {
           userTsConfig.compilerOptions = {}
         }
         userTsConfig.compilerOptions[optionKey] = check.value
         requiredActions.push(
-          chalk.cyan(optionKey) +
+          cyan(optionKey) +
             ' was set to ' +
-            chalk.bold(check.value) +
+            bold(check.value) +
             ` (${check.reason})`
         )
       }
@@ -184,29 +208,50 @@ export async function writeConfigurationDefaults(
   const nextAppTypes = `${distDir}/types/**/*.ts`
 
   if (!('include' in rawConfig)) {
-    userTsConfig.include = isAppDirEnabled
+    userTsConfig.include = hasAppDir
       ? ['next-env.d.ts', nextAppTypes, '**/*.ts', '**/*.tsx']
       : ['next-env.d.ts', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
-      chalk.cyan('include') +
+      cyan('include') +
         ' was set to ' +
-        chalk.bold(
-          isAppDirEnabled
+        bold(
+          hasAppDir
             ? `['next-env.d.ts', '${nextAppTypes}', '**/*.ts', '**/*.tsx']`
             : `['next-env.d.ts', '**/*.ts', '**/*.tsx']`
         )
     )
-  } else if (isAppDirEnabled && !rawConfig.include.includes(nextAppTypes)) {
-    userTsConfig.include.push(nextAppTypes)
-    suggestedActions.push(
-      chalk.cyan('include') +
-        ' was updated to add ' +
-        chalk.bold(`'${nextAppTypes}'`)
-    )
+  } else if (hasAppDir && !rawConfig.include.includes(nextAppTypes)) {
+    if (!Array.isArray(userTsConfig.include)) {
+      userTsConfig.include = []
+    }
+    // rawConfig will resolve all extends and include paths (ex: tsconfig.json, tsconfig.base.json, etc.)
+    // if it doesn't match userTsConfig then update the userTsConfig to add the
+    // rawConfig's includes in addition to nextAppTypes
+    if (
+      rawConfig.include.length !== userTsConfig.include.length ||
+      JSON.stringify(rawConfig.include.sort()) !==
+        JSON.stringify(userTsConfig.include.sort())
+    ) {
+      userTsConfig.include.push(...rawConfig.include, nextAppTypes)
+      suggestedActions.push(
+        cyan('include') +
+          ' was set to ' +
+          bold(
+            `[${[...rawConfig.include, nextAppTypes]
+              .map((i) => `'${i}'`)
+              .join(', ')}]`
+          )
+      )
+    } else {
+      userTsConfig.include.push(nextAppTypes)
+      suggestedActions.push(
+        cyan('include') + ' was updated to add ' + bold(`'${nextAppTypes}'`)
+      )
+    }
   }
 
   // Enable the Next.js typescript plugin.
-  if (isAppDirEnabled) {
+  if (hasAppDir) {
     // Check if the config or the resolved config has the plugin already.
     const plugins = [
       ...(Array.isArray(tsOptions.plugins) ? tsOptions.plugins : []),
@@ -230,9 +275,9 @@ export async function writeConfigurationDefaults(
         (!rawConfig.compilerOptions || !rawConfig.compilerOptions.plugins))
     ) {
       Log.info(
-        `\nYour ${chalk.bold(
+        `\nYour ${bold(
           'tsconfig.json'
-        )} extends another configuration, which means we cannot add the Next.js TypeScript plugin automatically. To improve your development experience, we recommend adding the Next.js plugin (\`${chalk.cyan(
+        )} extends another configuration, which means we cannot add the Next.js TypeScript plugin automatically. To improve your development experience, we recommend adding the Next.js plugin (\`${cyan(
           '"plugins": [{ "name": "next" }]'
         )}\`) manually to your TypeScript configuration. Learn more: https://nextjs.org/docs/app/building-your-application/configuring/typescript#the-typescript-plugin\n`
       )
@@ -242,24 +287,21 @@ export async function writeConfigurationDefaults(
       }
       userTsConfig.compilerOptions.plugins.push({ name: 'next' })
       suggestedActions.push(
-        chalk.cyan('plugins') +
-          ' was updated to add ' +
-          chalk.bold(`{ name: 'next' }`)
+        cyan('plugins') + ' was updated to add ' + bold(`{ name: 'next' }`)
       )
     }
 
-    // If `strict` is set to `false` or `strictNullChecks` is set to `false`,
+    // If `strict` is set to `false` and `strictNullChecks` is set to `false`,
     // then set `strictNullChecks` to `true`.
     if (
       hasPagesDir &&
-      isAppDirEnabled &&
-      userTsConfig.compilerOptions &&
-      !userTsConfig.compilerOptions.strict &&
-      !('strictNullChecks' in userTsConfig.compilerOptions)
+      hasAppDir &&
+      !tsOptions.strict &&
+      !('strictNullChecks' in tsOptions)
     ) {
       userTsConfig.compilerOptions.strictNullChecks = true
       suggestedActions.push(
-        chalk.cyan('strictNullChecks') + ' was set to ' + chalk.bold(`true`)
+        cyan('strictNullChecks') + ' was set to ' + bold(`true`)
       )
     }
   }
@@ -267,7 +309,7 @@ export async function writeConfigurationDefaults(
   if (!('exclude' in rawConfig)) {
     userTsConfig.exclude = ['node_modules']
     suggestedActions.push(
-      chalk.cyan('exclude') + ' was set to ' + chalk.bold(`['node_modules']`)
+      cyan('exclude') + ' was set to ' + bold(`['node_modules']`)
     )
   }
 
@@ -283,7 +325,7 @@ export async function writeConfigurationDefaults(
   Log.info('')
   if (isFirstTimeSetup) {
     Log.info(
-      `We detected TypeScript in your project and created a ${chalk.cyan(
+      `We detected TypeScript in your project and created a ${cyan(
         'tsconfig.json'
       )} file for you.`
     )
@@ -291,17 +333,20 @@ export async function writeConfigurationDefaults(
   }
 
   Log.info(
-    `We detected TypeScript in your project and reconfigured your ${chalk.cyan(
+    `We detected TypeScript in your project and reconfigured your ${cyan(
       'tsconfig.json'
-    )} file for you. Strict-mode is set to ${chalk.cyan('false')} by default.`
+    )} file for you.${
+      userTsConfig.compilerOptions?.strict
+        ? ''
+        : ` Strict-mode is set to ${cyan('false')} by default.`
+    }`
   )
+
   if (suggestedActions.length) {
     Log.info(
-      `The following suggested values were added to your ${chalk.cyan(
+      `The following suggested values were added to your ${cyan(
         'tsconfig.json'
-      )}. These values ${chalk.cyan(
-        'can be changed'
-      )} to fit your project's needs:\n`
+      )}. These values ${cyan('can be changed')} to fit your project's needs:\n`
     )
 
     suggestedActions.forEach((action) => Log.info(`\t- ${action}`))
@@ -311,9 +356,9 @@ export async function writeConfigurationDefaults(
 
   if (requiredActions.length) {
     Log.info(
-      `The following ${chalk.white(
-        'mandatory changes'
-      )} were made to your ${chalk.cyan('tsconfig.json')}:\n`
+      `The following ${white('mandatory changes')} were made to your ${cyan(
+        'tsconfig.json'
+      )}:\n`
     )
 
     requiredActions.forEach((action) => Log.info(`\t- ${action}`))

@@ -9,6 +9,6 @@
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "recoil": "0.7.6"
+    "recoil": "0.7.7"
   }
 }

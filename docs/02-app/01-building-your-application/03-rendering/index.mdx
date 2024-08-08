@@ -39,7 +39,7 @@ Understanding these differences is key to effectively using React and Next.js. W
 Broadly speaking, all websites follow the same **Request-Response Lifecycle**:
 
 1. **User Action:** The user interacts with a web application. This could be clicking a link, submitting a form, or typing a URL directly into the browser's address bar.
-2. **HTTP Request:** The client sends an [HTTP](https://developer.mozilla.org/en-US/docs/Web/HTTP) request to the server that contains necessary information about what resources are being requested, what method is being used (e.g. `GET`, `POST`), and additional data if necessary.
+2. **HTTP Request:** The client sends an [HTTP](https://developer.mozilla.org/docs/Web/HTTP) request to the server that contains necessary information about what resources are being requested, what method is being used (e.g. `GET`, `POST`), and additional data if necessary.
 3. **Server:** The server processes the request and responds with the appropriate resources. This process may take a couple of steps like routing, fetching data, etc.
 4. **HTTP Response:** After processing the request, the server sends an HTTP response back to the client. This response contains a status code (which tells the client whether the request was successful or not) and requested resources (e.g. HTML, CSS, JavaScript, static assets, etc).
 5. **Client:** The client parses the resources to render the user interface.
@@ -63,7 +63,7 @@ It may be helpful to think about module graphs as a visual representation of how
 
 {/* For example, if you have a file called `Page.jsx` that imports a file called `Button.jsx` on the server, the module graph would look something like this: - Diagram - */}
 
-You can use the React `"use client"` convention to define the boundary. There's also a `"use server"` convention, which tells React to do some computational work on the server while on the client.
+You can use the React `"use client"` convention to define the boundary. There's also a `"use server"` convention, which tells React to do some computational work on the server.
 
 ## Building Hybrid Applications
 

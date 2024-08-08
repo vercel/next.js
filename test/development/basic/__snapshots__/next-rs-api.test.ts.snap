@@ -1,154 +1,155 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`next.rs api should allow to write app Node.js page to disk: diagnostics 1`] = `Array []`;
+exports[`next.rs api should allow to write app Node.js page to disk: diagnostics 1`] = `[]`;
 
-exports[`next.rs api should allow to write app Node.js page to disk: issues 1`] = `Array []`;
+exports[`next.rs api should allow to write app Node.js page to disk: issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write app Node.js page to disk: rsc diagnostics 1`] = `Array []`;
+exports[`next.rs api should allow to write app Node.js page to disk: rsc diagnostics 1`] = `[]`;
 
-exports[`next.rs api should allow to write app Node.js page to disk: rsc issues 1`] = `Array []`;
+exports[`next.rs api should allow to write app Node.js page to disk: rsc issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write app Node.js route to disk: diagnostics 1`] = `Array []`;
+exports[`next.rs api should allow to write app Node.js route to disk: diagnostics 1`] = `[]`;
 
-exports[`next.rs api should allow to write app Node.js route to disk: issues 1`] = `Array []`;
+exports[`next.rs api should allow to write app Node.js route to disk: issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write app edge route to disk: diagnostics 1`] = `Array []`;
+exports[`next.rs api should allow to write app edge page to disk: diagnostics 1`] = `[]`;
 
-exports[`next.rs api should allow to write app edge route to disk: issues 1`] = `Array []`;
+exports[`next.rs api should allow to write app edge page to disk: issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages Node.js api to disk: diagnostics 1`] = `Array []`;
+exports[`next.rs api should allow to write app edge page to disk: rsc diagnostics 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages Node.js api to disk: issues 1`] = `Array []`;
+exports[`next.rs api should allow to write app edge page to disk: rsc issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages Node.js page to disk: data diagnostics 1`] = `Array []`;
+exports[`next.rs api should allow to write app edge route to disk: diagnostics 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages Node.js page to disk: data issues 1`] = `Array []`;
+exports[`next.rs api should allow to write app edge route to disk: issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages Node.js page to disk: diagnostics 1`] = `Array []`;
+exports[`next.rs api should allow to write pages Node.js api to disk: diagnostics 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages Node.js page to disk: issues 1`] = `Array []`;
+exports[`next.rs api should allow to write pages Node.js api to disk: issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages edge api to disk: diagnostics 1`] = `Array []`;
+exports[`next.rs api should allow to write pages Node.js page to disk: data diagnostics 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages edge api to disk: issues 1`] = `Array []`;
+exports[`next.rs api should allow to write pages Node.js page to disk: data issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages edge page to disk: data diagnostics 1`] = `Array []`;
+exports[`next.rs api should allow to write pages Node.js page to disk: diagnostics 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages edge page to disk: data issues 1`] = `Array []`;
+exports[`next.rs api should allow to write pages Node.js page to disk: issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages edge page to disk: diagnostics 1`] = `Array []`;
+exports[`next.rs api should allow to write pages edge api to disk: diagnostics 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages edge page to disk: issues 1`] = `Array []`;
+exports[`next.rs api should allow to write pages edge api to disk: issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write root page to disk: data diagnostics 1`] = `Array []`;
+exports[`next.rs api should allow to write pages edge page to disk: data diagnostics 1`] = `[]`;
 
-exports[`next.rs api should allow to write root page to disk: data issues 1`] = `Array []`;
+exports[`next.rs api should allow to write pages edge page to disk: data issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write root page to disk: diagnostics 1`] = `Array []`;
+exports[`next.rs api should allow to write pages edge page to disk: diagnostics 1`] = `[]`;
 
-exports[`next.rs api should allow to write root page to disk: issues 1`] = `Array []`;
+exports[`next.rs api should allow to write pages edge page to disk: issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write root page to disk: data diagnostics 1`] = `[]`;
+
+exports[`next.rs api should allow to write root page to disk: data issues 1`] = `[]`;
+
+exports[`next.rs api should allow to write root page to disk: diagnostics 1`] = `[]`;
+
+exports[`next.rs api should allow to write root page to disk: issues 1`] = `[]`;
 
 exports[`next.rs api should detect the correct routes: diagnostics 1`] = `
-Array [
-  Object {
+[
+  {
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
+    "payload": {
       "modularizeImports": "true",
     },
   },
-  Object {
+  {
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
+    "payload": {
       "platform-triplet": "true",
     },
   },
-  Object {
+  {
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
+    "payload": {
       "skipMiddlewareUrlNormalize": "false",
     },
   },
-  Object {
+  {
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
+    "payload": {
       "skipTrailingSlashRedirect": "false",
     },
   },
-  Object {
+  {
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
+    "payload": {
       "swcEmotion": "false",
     },
   },
-  Object {
+  {
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
+    "payload": {
       "swcExperimentalDecorators": "false",
     },
   },
-  Object {
+  {
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
+    "payload": {
       "swcImportSource": "false",
     },
   },
-  Object {
+  {
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
-      "swcMinify": "true",
-    },
-  },
-  Object {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
+    "payload": {
       "swcReactRemoveProperties": "false",
     },
   },
-  Object {
+  {
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
+    "payload": {
       "swcRelay": "false",
     },
   },
-  Object {
+  {
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
+    "payload": {
       "swcRemoveConsole": "false",
     },
   },
-  Object {
+  {
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
+    "payload": {
       "swcStyledComponents": "false",
     },
   },
-  Object {
+  {
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
+    "payload": {
       "transpilePackages": "false",
     },
   },
-  Object {
+  {
     "category": "NextFeatureTelemetry_category_tbd",
     "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": Object {
+    "payload": {
       "turbotrace": "false",
     },
   },
 ]
 `;
 
-exports[`next.rs api should detect the correct routes: issues 1`] = `Array []`;
+exports[`next.rs api should detect the correct routes: issues 1`] = `[]`;

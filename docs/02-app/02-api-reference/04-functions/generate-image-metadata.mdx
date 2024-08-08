@@ -40,11 +40,10 @@ export function generateImageMetadata({ params }) {
 | `app/shop/icon.js`              | `/shop`     | `undefined`               |
 | `app/shop/[slug]/icon.js`       | `/shop/1`   | `{ slug: '1' }`           |
 | `app/shop/[tag]/[item]/icon.js` | `/shop/1/2` | `{ tag: '1', item: '2' }` |
-| `app/shop/[...slug]/icon.js`    | `/shop/1/2` | `{ slug: ['1', '2'] }`    |
 
 ## Returns
 
-The `generateImageMetadata` function should return an `array` of objects containing the image's metadata such as `alt` and `size`. In addition, each item **must** include an `id` value will be passed to the props of the image generating function.
+The `generateImageMetadata` function should return an `array` of objects containing the image's metadata such as `alt` and `size`. In addition, each item **must** include an `id` value which will be passed to the props of the image generating function.
 
 | Image Metadata Object | Type                                |
 | --------------------- | ----------------------------------- |
@@ -54,7 +53,7 @@ The `generateImageMetadata` function should return an `array` of objects contain
 | `contentType`         | `string`                            |
 
 ```tsx filename="icon.tsx" switcher
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 
 export function generateImageMetadata() {
   return [
@@ -94,7 +93,7 @@ export default function Icon({ id }: { id: string }) {
 ```
 
 ```jsx filename="icon.js" switcher
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 
 export function generateImageMetadata() {
   return [
@@ -140,7 +139,7 @@ export default function Icon({ id }) {
 This example uses the `params` object and external data to generate multiple [Open Graph images](/docs/app/api-reference/file-conventions/metadata/opengraph-image) for a route segment.
 
 ```tsx filename="app/products/[id]/opengraph-image.tsx" switcher
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 import { getCaptionForImage, getOGImages } from '@/app/utils/images'
 
 export async function generateImageMetadata({
@@ -186,7 +185,7 @@ export default async function Image({
 ```
 
 ```jsx filename="app/products/[id]/opengraph-image.js" switcher
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 import { getCaptionForImage, getOGImages } from '@/app/utils/images'
 
 export async function generateImageMetadata({ params }) {

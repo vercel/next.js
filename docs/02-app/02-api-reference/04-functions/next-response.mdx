@@ -3,11 +3,13 @@ title: NextResponse
 description: API Reference for NextResponse.
 ---
 
-NextResponse extends the [Web Response API](https://developer.mozilla.org/en-US/docs/Web/API/Response) with additional convenience methods.
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+NextResponse extends the [Web Response API](https://developer.mozilla.org/docs/Web/API/Response) with additional convenience methods.
 
 ## `cookies`
 
-Read or mutate the [`Set-Cookie`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie) header of the response.
+Read or mutate the [`Set-Cookie`](https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie) header of the response.
 
 ### `set(name, value)`
 
@@ -82,7 +84,7 @@ export async function GET(request) {
 
 ## `redirect()`
 
-Produce a response that redirects to a [URL](https://developer.mozilla.org/en-US/docs/Web/API/URL).
+Produce a response that redirects to a [URL](https://developer.mozilla.org/docs/Web/API/URL).
 
 ```ts
 import { NextResponse } from 'next/server'
@@ -90,7 +92,7 @@ import { NextResponse } from 'next/server'
 return NextResponse.redirect(new URL('/new', request.url))
 ```
 
-The [URL](https://developer.mozilla.org/en-US/docs/Web/API/URL) can be created and modified before being used in the `NextResponse.redirect()` method. For example, you can use the `request.nextUrl` property to get the current URL, and then modify it to redirect to a different URL.
+The [URL](https://developer.mozilla.org/docs/Web/API/URL) can be created and modified before being used in the `NextResponse.redirect()` method. For example, you can use the `request.nextUrl` property to get the current URL, and then modify it to redirect to a different URL.
 
 ```ts
 import { NextResponse } from 'next/server'
@@ -105,7 +107,7 @@ return NextResponse.redirect(loginUrl)
 
 ## `rewrite()`
 
-Produce a response that rewrites (proxies) the given [URL](https://developer.mozilla.org/en-US/docs/Web/API/URL) while preserving the original URL.
+Produce a response that rewrites (proxies) the given [URL](https://developer.mozilla.org/docs/Web/API/URL) while preserving the original URL.
 
 ```ts
 import { NextResponse } from 'next/server'

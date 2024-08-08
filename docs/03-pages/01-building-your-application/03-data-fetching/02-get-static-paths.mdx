@@ -1,6 +1,6 @@
 ---
 title: getStaticPaths
-description: Fetch data and generate static pages with `getStaticProps`. Learn more about this API for data fetching in Next.js.
+description: Fetch data and generate static pages with `getStaticPaths`. Learn more about this API for data fetching in Next.js.
 ---
 
 If a page has [Dynamic Routes](/docs/pages/building-your-application/routing/dynamic-routes) and uses `getStaticProps`, it needs to define a list of paths to be statically generated.
@@ -30,7 +30,7 @@ export const getStaticPaths = (async () => {
     ],
     fallback: true, // false or "blocking"
   }
-}) satisfies getStaticPaths
+}) satisfies GetStaticPaths
 
 export const getStaticProps = (async (context) => {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')

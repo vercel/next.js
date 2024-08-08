@@ -6,11 +6,11 @@ import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
 import {
   nextBuild,
+  File,
   findPort,
   nextStart,
   killApp,
   waitFor,
-  nextExport,
   stopApp,
   startStaticServer,
   launchApp,
@@ -21,6 +21,7 @@ import {
 
 const appDir = join(__dirname, '../app')
 const outdir = join(appDir, 'out')
+const nextConfig = new File(join(appDir, 'next.config.js'))
 let appPort
 let app
 
@@ -382,8 +383,8 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       await browser.eval(`(function() {
         window.beforeNav = 1
         window.next.router.push("${item.href}"${
-        item.as ? `, "${item.as}"` : ''
-      })
+          item.as ? `, "${item.as}"` : ''
+        })
       })()`)
 
       await check(
@@ -439,39 +440,41 @@ describe('404 handling', () => {
         isDev: true,
       })
     })
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        describe('next start', () => {
+          beforeAll(async () => {
+            await nextBuild(appDir, [], nextOpts)
+            appPort = await findPort()
+            app = await nextStart(appDir, appPort, nextOpts)
+          })
+          afterAll(() => killApp(app))
 
-    describe('production', () => {
-      beforeAll(async () => {
-        await nextBuild(appDir, [], nextOpts)
-      })
-      describe('next start', () => {
-        beforeAll(async () => {
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort, nextOpts)
-        })
-        afterAll(() => killApp(app))
-
-        runTests({
-          isPages404,
-        })
-      })
-
-      describe('next export', () => {
-        beforeAll(async () => {
-          await nextExport(appDir, { outdir }, nextOpts)
-          app = await startStaticServer(outdir, join(outdir, '404.html'))
-          appPort = app.address().port
-        })
-        afterAll(() => {
-          stopApp(app)
+          runTests({
+            isPages404,
+          })
         })
 
-        runTests({
-          isPages404,
-          isExport: true,
+        describe('next export', () => {
+          beforeAll(async () => {
+            nextConfig.write(`module.exports = { output: 'export' }`)
+            await nextBuild(appDir, [], nextOpts)
+            app = await startStaticServer(outdir, join(outdir, '404.html'))
+            appPort = app.address().port
+          })
+          afterAll(async () => {
+            await stopApp(app)
+            nextConfig.restore()
+          })
+
+          runTests({
+            isPages404,
+            isExport: true,
+          })
         })
-      })
-    })
+      }
+    )
   }
 
   describe('custom _error', () => {
@@ -479,14 +482,17 @@ describe('404 handling', () => {
   })
 
   describe('pages/404', () => {
-    const pagesErr = join(appDir, 'pages/_error.js')
-    const pages404 = join(appDir, 'pages/404.js')
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        const pagesErr = join(appDir, 'pages/_error.js')
+        const pages404 = join(appDir, 'pages/404.js')
 
-    beforeAll(async () => {
-      await fs.move(pagesErr, pagesErr + '.bak')
-      await fs.writeFile(
-        pages404,
-        `
+        beforeAll(async () => {
+          await fs.move(pagesErr, pagesErr + '.bak')
+          await fs.writeFile(
+            pages404,
+            `
           if (typeof window !== 'undefined') {
             window.errorLoad = true
           }
@@ -494,14 +500,16 @@ describe('404 handling', () => {
             return <p id='error'>custom 404</p>
           }
         `
-      )
-      await nextBuild(appDir, [], nextOpts)
-    })
-    afterAll(async () => {
-      await fs.move(pagesErr + '.bak', pagesErr)
-      await fs.remove(pages404)
-    })
+          )
+          await nextBuild(appDir, [], nextOpts)
+        })
+        afterAll(async () => {
+          await fs.move(pagesErr + '.bak', pagesErr)
+          await fs.remove(pages404)
+        })
 
-    devStartAndExport(true)
+        devStartAndExport(true)
+      }
+    )
   })
 })

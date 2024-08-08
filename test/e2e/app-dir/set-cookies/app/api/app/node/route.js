@@ -1,4 +1,4 @@
-import cookies from '../../../../cookies'
+import cookies from '../../../../cookies.mjs'
 
 export async function GET() {
   const headers = new Headers()

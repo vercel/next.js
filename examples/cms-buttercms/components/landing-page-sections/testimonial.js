@@ -12,5 +12,5 @@ export default function Testimonial({ quote, name, title }) {
         <p>{title}</p>
       </div>
     </div>
-  )
+  );
 }

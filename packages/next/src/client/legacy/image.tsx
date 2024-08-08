@@ -7,13 +7,15 @@ import React, {
   useContext,
   useMemo,
   useState,
+  type JSX,
 } from 'react'
-import Head from '../../shared/lib/head'
 import {
-  ImageConfigComplete,
   imageConfigDefault,
-  LoaderValue,
   VALID_LOADERS,
+} from '../../shared/lib/image-config'
+import type {
+  ImageConfigComplete,
+  LoaderValue,
 } from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
@@ -256,7 +258,7 @@ export type ImageProps = Omit<
   quality?: SafeNumber
   priority?: boolean
   loading?: LoadingValue
-  lazyRoot?: React.RefObject<HTMLElement> | null
+  lazyRoot?: React.RefObject<HTMLElement | null> | null
   lazyBoundary?: string
   placeholder?: PlaceholderValue
   blurDataURL?: string
@@ -672,7 +674,7 @@ export default function Image({
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src.startsWith('data:') || src.startsWith('blob:')) {
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    // https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
     isLazy = false
   }
@@ -976,16 +978,6 @@ export default function Image({
     }
   }
 
-  const linkProps: React.DetailedHTMLProps<
-    React.LinkHTMLAttributes<HTMLLinkElement>,
-    HTMLLinkElement
-  > = {
-    imageSrcSet: imgAttributes.srcSet,
-    imageSizes: imgAttributes.sizes,
-    crossOrigin: rest.crossOrigin,
-    referrerPolicy: rest.referrerPolicy,
-  }
-
   const useLayoutEffect =
     typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
   const onLoadingCompleteRef = useRef(onLoadingComplete)
@@ -1052,27 +1044,6 @@ export default function Image({
         ) : null}
         <ImageElement {...imgElementArgs} />
       </span>
-      {priority ? (
-        // Note how we omit the `href` attribute, as it would only be relevant
-        // for browsers that do not support `imagesrcset`, and in those cases
-        // it would likely cause the incorrect image to be preloaded.
-        //
-        // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
-        <Head>
-          <link
-            key={
-              '__nimg-' +
-              imgAttributes.src +
-              imgAttributes.srcSet +
-              imgAttributes.sizes
-            }
-            rel="preload"
-            as="image"
-            href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            {...linkProps}
-          />
-        </Head>
-      ) : null}
     </>
   )
 }

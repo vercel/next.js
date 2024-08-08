@@ -1,14 +1,14 @@
-import { useUser } from '@auth0/nextjs-auth0/client'
-import Layout from '../components/layout'
+import { useUser } from "@auth0/nextjs-auth0/client";
+import Layout from "../components/layout";
 
 const About = () => {
-  const { user, isLoading } = useUser()
+  const { user, isLoading } = useUser();
 
   return (
     <Layout user={user} loading={isLoading}>
       <h1>About</h1>
       <p>
-        This project shows different ways to display Profile info: using{' '}
+        This project shows different ways to display Profile info: using{" "}
         <i>Client rendered</i>, <i>Server rendered</i>, and <i>API rendered</i>
       </p>
       <p>
@@ -18,7 +18,7 @@ const About = () => {
         display it
       </p>
     </Layout>
-  )
-}
+  );
+};
 
-export default About
+export default About;

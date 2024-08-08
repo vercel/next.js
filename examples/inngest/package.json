@@ -1,0 +1,24 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm:dev:*\"",
+    "dev:next": "next dev",
+    "dev:inngest": "npx inngest-cli@latest dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "inngest": "latest",
+    "next": "latest",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.7.0",
+    "@types/react": "18.2.23",
+    "@types/react-dom": "18.2.7",
+    "concurrently": "^8.2.1",
+    "encoding": "^0.1.13",
+    "typescript": "5.2.2"
+  }
+}

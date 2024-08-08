@@ -86,35 +86,194 @@
 
 import type webpack from 'webpack'
 
+import path from 'path'
+import { transform } from '../../swc'
+
+// This is a in-memory cache for the mapping of barrel exports. This only applies
+// to the packages that we optimize. It will never change (e.g. upgrading packages)
+// during the lifetime of the server so we can safely cache it.
+// There is also no need to collect the cache for the same reason.
+const barrelTransformMappingCache = new Map<
+  string,
+  {
+    exportList: [string, string, string][]
+    wildcardExports: string[]
+    isClientEntry: boolean
+  } | null
+>()
+
+async function getBarrelMapping(
+  resourcePath: string,
+  swcCacheDir: string,
+  resolve: (context: string, request: string) => Promise<string>,
+  fs: {
+    readFile: (
+      path: string,
+      callback: (err: any, data: string | Buffer | undefined) => void
+    ) => void
+  }
+) {
+  if (barrelTransformMappingCache.has(resourcePath)) {
+    return barrelTransformMappingCache.get(resourcePath)!
+  }
+
+  // This is a SWC transform specifically for `optimizeBarrelExports`. We don't
+  // care about other things but the export map only.
+  async function transpileSource(
+    filename: string,
+    source: string,
+    isWildcard: boolean
+  ) {
+    const isTypeScript = filename.endsWith('.ts') || filename.endsWith('.tsx')
+    return new Promise<string>((res) =>
+      transform(source, {
+        filename,
+        inputSourceMap: undefined,
+        sourceFileName: filename,
+        optimizeBarrelExports: {
+          wildcard: isWildcard,
+        },
+        jsc: {
+          parser: {
+            syntax: isTypeScript ? 'typescript' : 'ecmascript',
+            [isTypeScript ? 'tsx' : 'jsx']: true,
+          },
+          experimental: {
+            cacheRoot: swcCacheDir,
+          },
+        },
+      }).then((output) => {
+        res(output.code)
+      })
+    )
+  }
+
+  // Avoid circular `export *` dependencies
+  const visited = new Set<string>()
+  async function getMatches(
+    file: string,
+    isWildcard: boolean,
+    isClientEntry: boolean
+  ) {
+    if (visited.has(file)) {
+      return null
+    }
+    visited.add(file)
+
+    const source = await new Promise<string>((res, rej) => {
+      fs.readFile(file, (err, data) => {
+        if (err || data === undefined) {
+          rej(err)
+        } else {
+          res(data.toString())
+        }
+      })
+    })
+
+    const output = await transpileSource(file, source, isWildcard)
+
+    const matches = output.match(
+      /^([^]*)export (const|var) __next_private_export_map__ = ('[^']+'|"[^"]+")/
+    )
+    if (!matches) {
+      return null
+    }
+
+    const matchedDirectives = output.match(
+      /^([^]*)export (const|var) __next_private_directive_list__ = '([^']+)'/
+    )
+    const directiveList = matchedDirectives
+      ? JSON.parse(matchedDirectives[3])
+      : []
+    // "use client" in barrel files has to be transferred to the target file.
+    isClientEntry = directiveList.includes('use client')
+
+    let exportList = JSON.parse(matches[3].slice(1, -1)) as [
+      string,
+      string,
+      string,
+    ][]
+    const wildcardExports = [
+      ...output.matchAll(/export \* from "([^"]+)"/g),
+    ].map((match) => match[1])
+
+    // In the wildcard case, if the value is exported from another file, we
+    // redirect to that file (decl[0]). Otherwise, export from the current
+    // file itself.
+    if (isWildcard) {
+      for (const decl of exportList) {
+        decl[1] = file
+        decl[2] = decl[0]
+      }
+    }
+
+    // This recursively handles the wildcard exports (e.g. `export * from './a'`)
+    if (wildcardExports.length) {
+      await Promise.all(
+        wildcardExports.map(async (req) => {
+          const targetPath = await resolve(
+            path.dirname(file),
+            req.replace('__barrel_optimize__?names=__PLACEHOLDER__!=!', '')
+          )
+
+          const targetMatches = await getMatches(
+            targetPath,
+            true,
+            isClientEntry
+          )
+
+          if (targetMatches) {
+            // Merge the export list
+            exportList = exportList.concat(targetMatches.exportList)
+          }
+        })
+      )
+    }
+
+    return {
+      exportList,
+      wildcardExports,
+      isClientEntry,
+    }
+  }
+
+  const res = await getMatches(resourcePath, false, false)
+  barrelTransformMappingCache.set(resourcePath, res)
+
+  return res
+}
+
 const NextBarrelLoader = async function (
   this: webpack.LoaderContext<{
     names: string[]
-    wildcard: boolean
+    swcCacheDir: string
   }>
 ) {
   this.async()
-  const { names, wildcard } = this.getOptions()
+  this.cacheable(true)
 
-  const source = await new Promise<string>((resolve, reject) => {
-    this.loadModule(
-      `__barrel_transform__${wildcard ? '?wildcard' : ''}!=!${
-        this.resourcePath
-      }`,
-      (err, src) => {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(src)
-        }
-      }
-    )
+  const { names, swcCacheDir } = this.getOptions()
+
+  // For barrel optimizations, we always prefer the "module" field over the
+  // "main" field because ESM handling is more robust with better tree-shaking.
+  const resolve = this.getResolve({
+    mainFields: ['module', 'main'],
   })
 
-  const matches = source.match(
-    /^([^]*)export const __next_private_export_map__ = ('[^']+'|"[^"]+")/
+  const mapping = await getBarrelMapping(
+    this.resourcePath,
+    swcCacheDir,
+    resolve,
+    this.fs
   )
 
-  if (!matches) {
+  // `resolve` adds all sub-paths to the dependency graph. However, we already
+  // cached the mapping and we assume them to not change. So, we can safely
+  // clear the dependencies here to avoid unnecessary watchers which turned out
+  // to be very expensive.
+  this.clearDependencies()
+
+  if (!mapping) {
     // This file isn't a barrel and we can't apply any optimizations. Let's re-export everything.
     // Since this loader accepts `names` and the request is keyed with `names`, we can't simply
     // return the original source here. That will create these imports with different names as
@@ -123,36 +282,19 @@ const NextBarrelLoader = async function (
     return
   }
 
-  const wildcardExports = [...source.matchAll(/export \* from "([^"]+)"/g)]
-
-  // It needs to keep the prefix for comments and directives like "use client".
-  const prefix = matches[1]
-
-  const exportList = JSON.parse(matches[2].slice(1, -1)) as [
-    string,
-    string,
-    string
-  ][]
+  const exportList = mapping.exportList
+  const isClientEntry = mapping.isClientEntry
   const exportMap = new Map<string, [string, string]>()
-  for (const [name, path, orig] of exportList) {
-    exportMap.set(name, [path, orig])
+  for (const [name, filePath, orig] of exportList) {
+    exportMap.set(name, [filePath, orig])
   }
 
-  let output = prefix
+  let output = ''
   let missedNames: string[] = []
   for (const name of names) {
     // If the name matches
     if (exportMap.has(name)) {
       const decl = exportMap.get(name)!
-
-      // In the wildcard case, if the value is exported from another file, we
-      // redirect to that file (decl[0]). Otherwise, export from the current
-      // file itself (this.resourcePath).
-      if (wildcard && !decl[0]) {
-        // E.g. the file contains `export const a = 1`
-        decl[0] = this.resourcePath
-        decl[1] = name
-      }
 
       if (decl[1] === '*') {
         output += `\nexport * as ${name} from ${JSON.stringify(decl[0])}`
@@ -174,13 +316,17 @@ const NextBarrelLoader = async function (
 
   // These are from wildcard exports.
   if (missedNames.length > 0) {
-    for (const match of wildcardExports) {
-      const path = match[1]
-
+    for (const req of mapping.wildcardExports) {
       output += `\nexport * from ${JSON.stringify(
-        path.replace('__PLACEHOLDER__', missedNames.join(',') + '&wildcard')
+        req.replace('__PLACEHOLDER__', missedNames.join(',') + '&wildcard')
       )}`
     }
+  }
+
+  // When it has `"use client"` inherited from its barrel files, we need to
+  // prefix it to this target file as well.
+  if (isClientEntry) {
+    output = `"use client";\n${output}`
   }
 
   this.callback(null, output)

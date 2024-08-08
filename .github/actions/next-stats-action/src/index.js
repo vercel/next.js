@@ -1,5 +1,6 @@
 const path = require('path')
-const fs = require('fs-extra')
+const fs = require('fs/promises')
+const { existsSync } = require('fs')
 const exec = require('./util/exec')
 const logger = require('./util/logger')
 const runConfigs = require('./run')
@@ -21,7 +22,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
 ;(async () => {
   try {
-    if (await fs.pathExists(path.join(__dirname, '../SKIP_NEXT_STATS.txt'))) {
+    if (existsSync(path.join(__dirname, '../SKIP_NEXT_STATS.txt'))) {
       console.log(
         'SKIP_NEXT_STATS.txt file present, exiting stats generation..'
       )
@@ -100,7 +101,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
     for (const dir of repoDirs) {
       logger(`Running initial build for ${dir}`)
       if (!actionInfo.skipClone) {
-        const usePnpm = await fs.pathExists(path.join(dir, 'pnpm-lock.yaml'))
+        const usePnpm = existsSync(path.join(dir, 'pnpm-lock.yaml'))
 
         if (!statsConfig.skipInitialInstall) {
           await exec.spawnPromise(
@@ -121,20 +122,18 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       }
 
       await fs
-        .copy(
+        .cp(
           path.join(__dirname, '../native'),
-          path.join(dir, 'packages/next-swc/native')
+          path.join(dir, 'packages/next-swc/native'),
+          { recursive: true, force: true }
         )
         .catch(console.error)
-
-      console.log(await exec(`ls ${path.join(__dirname, '../native')}`))
-      console.log(await exec(`cd ${dir} && ls ${dir}/packages/next-swc/native`))
 
       logger(`Linking packages in ${dir}`)
       const isMainRepo = dir === mainRepoDir
       const pkgPaths = await linkPackages({
         repoDir: dir,
-        nextSwcVersion: isMainRepo ? mainNextSwcVersion : undefined,
+        nextSwcVersion: isMainRepo ? mainNextSwcVersion : null,
       })
 
       if (isMainRepo) mainRepoPkgPaths = pkgPaths

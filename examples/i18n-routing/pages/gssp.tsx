@@ -1,14 +1,14 @@
-import type { GetServerSideProps, InferGetServerSidePropsType } from 'next'
+import type { GetServerSideProps, InferGetServerSidePropsType } from "next";
 
-import Link from 'next/link'
-import { useRouter } from 'next/router'
-import LocaleSwitcher from '../components/locale-switcher'
+import Link from "next/link";
+import { useRouter } from "next/router";
+import LocaleSwitcher from "../components/locale-switcher";
 
-type GsspPageProps = InferGetServerSidePropsType<typeof getServerSideProps>
+type GsspPageProps = InferGetServerSidePropsType<typeof getServerSideProps>;
 
 export default function GsspPage(props: GsspPageProps) {
-  const router = useRouter()
-  const { defaultLocale } = router
+  const router = useRouter();
+  const { defaultLocale } = router;
 
   return (
     <div>
@@ -28,13 +28,13 @@ export default function GsspPage(props: GsspPageProps) {
       <Link href="/">To index page</Link>
       <br />
     </div>
-  )
+  );
 }
 
 type Props = {
-  locale?: string
-  locales?: string[]
-}
+  locale?: string;
+  locales?: string[];
+};
 
 export const getServerSideProps: GetServerSideProps<Props> = async ({
   locale,
@@ -45,5 +45,5 @@ export const getServerSideProps: GetServerSideProps<Props> = async ({
       locale,
       locales,
     },
-  }
-}
+  };
+};

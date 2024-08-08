@@ -1,4 +1,4 @@
-import { API, FileInfo, JSXElement, Options } from 'jscodeshift'
+import type { API, FileInfo, JSXElement, Options } from 'jscodeshift'
 
 export const indexContext = {
   multipleRenderRoots: false,

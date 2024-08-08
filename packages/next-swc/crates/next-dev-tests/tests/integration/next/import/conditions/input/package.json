@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "edge-then-node": "file:edge-then-node",
-    "node-then-edge": "file:node-then-edge"
-  }
-}

@@ -1,4 +1,4 @@
-import { ConfigPlugin, JssConfig } from '..'
+import { ConfigPlugin, JssConfig } from "..";
 
 /**
  * This plugin will set config props based on scjssconfig.json.
@@ -6,24 +6,24 @@ import { ConfigPlugin, JssConfig } from '..'
  * or are depending on environment variables instead (production).
  */
 class ScJssConfigPlugin implements ConfigPlugin {
-  order = 1
+  order = 1;
 
   async exec(config: JssConfig) {
-    let scJssConfig
+    let scJssConfig;
     try {
-      scJssConfig = require('scjssconfig.json')
+      scJssConfig = require("scjssconfig.json");
     } catch (e) {
-      return config
+      return config;
     }
 
-    if (!scJssConfig) return config
+    if (!scJssConfig) return config;
 
     return Object.assign({}, config, {
       sitecoreApiKey: config.sitecoreApiKey || scJssConfig.sitecore?.apiKey,
       sitecoreApiHost:
         config.sitecoreApiHost || scJssConfig.sitecore?.layoutServiceHost,
-    })
+    });
   }
 }
 
-export const scjssconfigPlugin = new ScJssConfigPlugin()
+export const scjssconfigPlugin = new ScJssConfigPlugin();

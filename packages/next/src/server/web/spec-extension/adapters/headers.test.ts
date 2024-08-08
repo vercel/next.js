@@ -1,8 +1,5 @@
 import type { IncomingHttpHeaders } from 'http'
 
-// We use `Headers` here which is provided by the polyfill.
-import '../../../node-polyfill-fetch'
-
 import { HeadersAdapter, ReadonlyHeadersError } from './headers'
 
 describe('HeadersAdapter', () => {
@@ -242,16 +239,16 @@ describe('HeadersAdapter', () => {
       // These methods are not available on the sealed instance
       expect(() =>
         (sealed as any).append('x-custom-header', 'custom2')
-      ).toThrowError(ReadonlyHeadersError)
+      ).toThrow(ReadonlyHeadersError)
       expect(() =>
         (sealed as any).append('x-custom-header', 'custom2')
-      ).toThrowError(ReadonlyHeadersError)
-      expect(() => (sealed as any).delete('x-custom-header')).toThrowError(
+      ).toThrow(ReadonlyHeadersError)
+      expect(() => (sealed as any).delete('x-custom-header')).toThrow(
         ReadonlyHeadersError
       )
-      expect(() =>
-        (sealed as any).set('x-custom-header', 'custom2')
-      ).toThrowError(ReadonlyHeadersError)
+      expect(() => (sealed as any).set('x-custom-header', 'custom2')).toThrow(
+        ReadonlyHeadersError
+      )
 
       expect(sealed.get('content-type')).toBe('application/json')
       expect(sealed.get('x-custom-header')).toBe('custom')
@@ -269,13 +266,13 @@ describe('HeadersAdapter', () => {
       // These methods are not available on the sealed instance
       expect(() =>
         (sealed as any).append('x-custom-header', 'custom2')
-      ).toThrowError(ReadonlyHeadersError)
-      expect(() => (sealed as any).delete('x-custom-header')).toThrowError(
+      ).toThrow(ReadonlyHeadersError)
+      expect(() => (sealed as any).delete('x-custom-header')).toThrow(
         ReadonlyHeadersError
       )
-      expect(() =>
-        (sealed as any).set('x-custom-header', 'custom2')
-      ).toThrowError(ReadonlyHeadersError)
+      expect(() => (sealed as any).set('x-custom-header', 'custom2')).toThrow(
+        ReadonlyHeadersError
+      )
 
       // Ensure nothing was actually changed.
       expect(sealed.get('content-type')).toBe('application/json')
@@ -296,13 +293,13 @@ describe('HeadersAdapter', () => {
       // These methods are not available on the sealed instance
       expect(() =>
         (sealed as any).append('x-custom-header', 'custom2')
-      ).toThrowError(ReadonlyHeadersError)
-      expect(() => (sealed as any).delete('x-custom-header')).toThrowError(
+      ).toThrow(ReadonlyHeadersError)
+      expect(() => (sealed as any).delete('x-custom-header')).toThrow(
         ReadonlyHeadersError
       )
-      expect(() =>
-        (sealed as any).set('x-custom-header', 'custom2')
-      ).toThrowError(ReadonlyHeadersError)
+      expect(() => (sealed as any).set('x-custom-header', 'custom2')).toThrow(
+        ReadonlyHeadersError
+      )
 
       // Ensure nothing was actually changed.
       expect(sealed.get('content-type')).toBe('application/json')

@@ -2,15 +2,15 @@ import {
   ComponentParams,
   ComponentRendering,
   SitecoreContextValue,
-} from '@sitecore-jss/sitecore-jss-nextjs'
+} from "@sitecore-jss/sitecore-jss-nextjs";
 
 /**
  * Shared component props
  */
 export type ComponentProps = {
-  rendering: ComponentRendering
-  params: ComponentParams
-}
+  rendering: ComponentRendering;
+  params: ComponentParams;
+};
 
 /**
  * Component props with context
@@ -19,5 +19,5 @@ export type ComponentProps = {
  * @example const { sitecoreContext } = useSitecoreContext()
  */
 export type ComponentWithContextProps = ComponentProps & {
-  sitecoreContext: SitecoreContextValue
-}
+  sitecoreContext: SitecoreContextValue;
+};

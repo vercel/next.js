@@ -1,4 +1,4 @@
-import DotCmsImage from './dotcms-image'
+import DotCmsImage from "./dotcms-image";
 
 export default function Avatar({ name, picture }) {
   return (
@@ -15,5 +15,5 @@ export default function Avatar({ name, picture }) {
       </div>
       <div className="text-xl font-bold">{name}</div>
     </div>
-  )
+  );
 }

@@ -1,8 +1,7 @@
 import { createNext, FileRef } from 'e2e-utils'
-import webdriver from 'next-webdriver'
-import { NextInstance } from 'test/lib/next-modes/base'
+import webdriver, { BrowserInterface } from 'next-webdriver'
+import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
-import { BrowserInterface } from 'test/lib/browsers/base'
 import { check } from 'next-test-utils'
 
 describe('client-dev-overlay', () => {

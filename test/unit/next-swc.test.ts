@@ -1,5 +1,7 @@
 /* eslint-env jest */
 import { transform } from 'next/dist/build/swc'
+import path from 'path'
+import fsp from 'fs/promises'
 
 const swc = async (code) => {
   let output = await transform(code)
@@ -28,7 +30,7 @@ describe('next/swc', () => {
             if (Array.isArray(arr)) return arr;
         }
         function _iterable_to_array_limit(arr, i) {
-            var _i = arr == null ? null : typeof Symbol !== \\"undefined\\" && arr[Symbol.iterator] || arr[\\"@@iterator\\"];
+            var _i = arr == null ? null : typeof Symbol !== "undefined" && arr[Symbol.iterator] || arr["@@iterator"];
             if (_i == null) return;
             var _arr = [];
             var _n = true;
@@ -44,7 +46,7 @@ describe('next/swc', () => {
                 _e = err;
             } finally{
                 try {
-                    if (!_n && _i[\\"return\\"] != null) _i[\\"return\\"]();
+                    if (!_n && _i["return"] != null) _i["return"]();
                 } finally{
                     if (_d) throw _e;
                 }
@@ -52,20 +54,20 @@ describe('next/swc', () => {
             return _arr;
         }
         function _non_iterable_rest() {
-            throw new TypeError(\\"Invalid attempt to destructure non-iterable instance.\\\\\\\\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.\\");
+            throw new TypeError("Invalid attempt to destructure non-iterable instance.\\\\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
         }
         function _sliced_to_array(arr, i) {
             return _array_with_holes(arr) || _iterable_to_array_limit(arr, i) || _unsupported_iterable_to_array(arr, i) || _non_iterable_rest();
         }
         function _unsupported_iterable_to_array(o, minLen) {
             if (!o) return;
-            if (typeof o === \\"string\\") return _array_like_to_array(o, minLen);
+            if (typeof o === "string") return _array_like_to_array(o, minLen);
             var n = Object.prototype.toString.call(o).slice(8, -1);
-            if (n === \\"Object\\" && o.constructor) n = o.constructor.name;
-            if (n === \\"Map\\" || n === \\"Set\\") return Array.from(n);
-            if (n === \\"Arguments\\" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _array_like_to_array(o, minLen);
+            if (n === "Object" && o.constructor) n = o.constructor.name;
+            if (n === "Map" || n === "Set") return Array.from(n);
+            if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _array_like_to_array(o, minLen);
         }
-        import { useState } from \\"react\\";
+        import { useState } from 'react';
         var _useState = _sliced_to_array(useState(0), 2), count = _useState[0], setCount = _useState[1];
         "
       `)
@@ -89,26 +91,40 @@ describe('next/swc', () => {
             if (Array.isArray(arr)) return arr;
         }
         function _iterable_to_array(iter) {
-            if (typeof Symbol !== \\"undefined\\" && iter[Symbol.iterator] != null || iter[\\"@@iterator\\"] != null) return Array.from(iter);
+            if (typeof Symbol !== "undefined" && iter[Symbol.iterator] != null || iter["@@iterator"] != null) return Array.from(iter);
         }
         function _non_iterable_rest() {
-            throw new TypeError(\\"Invalid attempt to destructure non-iterable instance.\\\\\\\\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.\\");
+            throw new TypeError("Invalid attempt to destructure non-iterable instance.\\\\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
         }
         function _to_array(arr) {
             return _array_with_holes(arr) || _iterable_to_array(arr) || _unsupported_iterable_to_array(arr) || _non_iterable_rest();
         }
         function _unsupported_iterable_to_array(o, minLen) {
             if (!o) return;
-            if (typeof o === \\"string\\") return _array_like_to_array(o, minLen);
+            if (typeof o === "string") return _array_like_to_array(o, minLen);
             var n = Object.prototype.toString.call(o).slice(8, -1);
-            if (n === \\"Object\\" && o.constructor) n = o.constructor.name;
-            if (n === \\"Map\\" || n === \\"Set\\") return Array.from(n);
-            if (n === \\"Arguments\\" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _array_like_to_array(o, minLen);
+            if (n === "Object" && o.constructor) n = o.constructor.name;
+            if (n === "Map" || n === "Set") return Array.from(n);
+            if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _array_like_to_array(o, minLen);
         }
-        import { useState } from \\"react\\";
+        import { useState } from 'react';
         var _useState = _to_array(useState(0)), copy = _useState.slice(0);
         "
       `)
+    })
+  })
+
+  describe('private env replacement', () => {
+    it('__NEXT_REQUIRED_NODE_VERSION is replaced', async () => {
+      const pkgDir = path.dirname(require.resolve('next/package.json'))
+      const nextEntryContent = await fsp.readFile(
+        path.join(pkgDir, 'dist/bin/next'),
+        'utf8'
+      )
+      expect(nextEntryContent).not.toContain('__NEXT_REQUIRED_NODE_VERSION')
+      expect(nextEntryContent).toMatch(
+        /For Next.js, Node.js version >= v\$\{"\d+\.\d+\.\d*"\}/
+      )
     })
   })
 })

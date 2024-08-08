@@ -1,10 +1,12 @@
-import '../../server/web/globals'
 import type { AdapterOptions } from '../../server/web/adapter'
+
+import '../../server/web/globals'
+
 import { adapter } from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
+import { wrapApiHandler } from '../../server/api-utils'
 
 // Import the userland code.
-// @ts-expect-error - replaced by webpack/turbopack loader
 import handler from 'VAR_USERLAND'
 
 const page = 'VAR_DEFINITION_PAGE'
@@ -22,6 +24,6 @@ export default function (
     ...opts,
     IncrementalCache,
     page: 'VAR_DEFINITION_PATHNAME',
-    handler,
+    handler: wrapApiHandler(page, handler),
   })
 }

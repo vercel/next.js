@@ -8,10 +8,6 @@ import { outdent } from 'outdent'
 describe('Error Overlay for server components', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 
@@ -258,19 +254,12 @@ describe('Error Overlay for server components', () => {
       )
 
       await check(async () => {
-        expect(
-          await browser
-            .waitForElementByCss('#nextjs__container_errors_desc')
-            .text()
-        ).toContain(
-          'experimental_useOptimistic only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
-        )
+        const html = await browser.eval('document.documentElement.innerHTML')
+        expect(html).toContain('experimental_useOptimistic')
         return 'success'
       }, 'success')
 
-      expect(next.cliOutput).toContain(
-        'experimental_useOptimistic only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
-      )
+      expect(next.cliOutput).toContain('experimental_useOptimistic')
 
       await cleanup()
     })
@@ -528,17 +517,16 @@ describe('Error Overlay for server components', () => {
     })
   })
 
-  describe('Next.js component hooks called in Server Component', () => {
+  describe('Next.js navigation client hooks called in Server Component', () => {
     it.each([
-      // TODO-APP: add test for useParams
-      // ["useParams"],
+      ['useParams'],
       ['useRouter'],
+      ['usePathname'],
       ['useSearchParams'],
       ['useSelectedLayoutSegment'],
       ['useSelectedLayoutSegments'],
-      ['usePathname'],
     ])('should show error when %s is called', async (hook: string) => {
-      const { browser, cleanup } = await sandbox(
+      const { session, cleanup } = await sandbox(
         next,
         new Map([
           [
@@ -546,7 +534,6 @@ describe('Error Overlay for server components', () => {
             outdent`
               import { ${hook} } from 'next/navigation'
               export default function Page() {
-                ${hook}()
                 return "Hello world"
               }
             `,
@@ -554,19 +541,15 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      await check(async () => {
-        expect(
-          await browser
-            .waitForElementByCss('#nextjs__container_errors_desc')
-            .text()
-        ).toContain(
-          `Error: ${hook} only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
-        )
-        return 'success'
-      }, 'success')
-
-      expect(next.cliOutput).toContain(
-        `Error: ${hook} only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
+      await session.assertHasRedbox()
+      // In webpack when the message too long it gets truncated with `  | ` with new lines.
+      // So we need to check for the first part of the message.
+      const normalizedSource = await session.getRedboxSource()
+      expect(normalizedSource).toContain(
+        `You're importing a component that needs \`${hook}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+      )
+      expect(normalizedSource).toContain(
+        `import { ${hook} } from 'next/navigation'`
       )
 
       await cleanup()

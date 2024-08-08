@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 services:
   with-docker-multi-env-development:
@@ -7,4 +7,4 @@ services:
       dockerfile: docker/development/Dockerfile
     image: with-docker-multi-env-development
     ports:
-      - '3001:3000'
+      - "3001:3000"

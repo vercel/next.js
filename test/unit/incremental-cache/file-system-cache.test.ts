@@ -9,6 +9,7 @@ describe('FileSystemCache', () => {
   it('set image route', async () => {
     const fsCache = new FileSystemCache({
       _appDir: true,
+      _pagesDir: true,
       _requestHeaders: {},
       flushToDisk: true,
       fs: nodeFs,
@@ -33,13 +34,90 @@ describe('FileSystemCache', () => {
       {}
     )
 
-    expect((await fsCache.get('icon.png')).value).toEqual({
+    expect((await fsCache.get('icon.png'))?.value).toEqual({
       body: binary,
       headers: {
         'Content-Type': 'image/png',
       },
       status: 200,
       kind: 'ROUTE',
+    })
+  })
+})
+
+describe('FileSystemCache (isrMemory 0)', () => {
+  const fsCache = new FileSystemCache({
+    _appDir: true,
+    _pagesDir: true,
+    _requestHeaders: {},
+    flushToDisk: true,
+    fs: nodeFs,
+    serverDistDir: cacheDir,
+    revalidatedTags: [],
+    maxMemoryCacheSize: 0, // disable memory cache
+  })
+
+  it('should cache fetch', async () => {
+    await fsCache.set(
+      'fetch-cache',
+      {
+        kind: 'FETCH',
+        data: {
+          headers: {},
+          body: 'MTcwMDA1NjM4MQ==',
+          status: 200,
+          url: 'http://my-api.local',
+        },
+        revalidate: 30,
+      },
+      {
+        fetchCache: true,
+        revalidate: 30,
+        fetchUrl: 'http://my-api.local',
+        fetchIdx: 5,
+        tags: ['server-time'],
+      }
+    )
+
+    const res = await fsCache.get('fetch-cache', {
+      tags: ['server-time'],
+      kindHint: 'fetch',
+    })
+
+    expect(res?.value).toEqual({
+      kind: 'FETCH',
+      data: {
+        headers: {},
+        body: 'MTcwMDA1NjM4MQ==',
+        status: 200,
+        url: 'http://my-api.local',
+      },
+      revalidate: 30,
+      tags: ['server-time'],
+    })
+  })
+
+  it('should cache unstable_cache', async () => {
+    await fsCache.set(
+      'unstable-cache',
+      {
+        kind: 'FETCH',
+        data: { headers: {}, body: '1700056381', status: 200, url: '' },
+        revalidate: 30,
+      },
+      { revalidate: 30, fetchCache: true, tags: ['server-time2'] }
+    )
+
+    const res = await fsCache.get('unstable-cache', {
+      tags: ['server-time'],
+      kindHint: 'fetch',
+    })
+
+    expect(res?.value).toEqual({
+      kind: 'FETCH',
+      data: { headers: {}, body: '1700056381', status: 200, url: '' },
+      revalidate: 30,
+      tags: ['server-time2'],
     })
   })
 })

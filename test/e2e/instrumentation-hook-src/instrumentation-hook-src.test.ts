@@ -1,18 +1,21 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
-
-createNextDescribe(
-  'instrumentation-hook-src',
-  {
-    files: __dirname,
-    nextConfig: {
-      experimental: {
-        instrumentationHook: true,
+describe('instrumentation-hook-rsc', () => {
+  describe('instrumentation', () => {
+    const { next, isNextDev, skipped } = nextTestSetup({
+      files: __dirname,
+      nextConfig: {
+        experimental: {
+          instrumentationHook: true,
+        },
       },
-    },
-    skipDeployment: true,
-  },
-  ({ next, isNextDev }) => {
+      skipDeployment: true,
+    })
+
+    if (skipped) {
+      return
+    }
+
     it('should run the instrumentation hook', async () => {
       await next.render('/')
       await check(() => next.cliOutput, /instrumentation hook/)
@@ -54,5 +57,5 @@ createNextDescribe(
         await check(() => next.cliOutput, /bread/)
       })
     }
-  }
-)
+  })
+})

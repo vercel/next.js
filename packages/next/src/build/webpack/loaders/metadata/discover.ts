@@ -6,9 +6,11 @@ import path from 'path'
 import { stringify } from 'querystring'
 import { STATIC_METADATA_IMAGES } from '../../../../lib/metadata/is-metadata-route'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
-import { MetadataResolver } from '../next-app-loader'
+import type { MetadataResolver } from '../next-app-loader'
+import type { PageExtensions } from '../../../page-extensions-type'
 
 const METADATA_TYPE = 'metadata'
+const NUMERIC_SUFFIX_ARRAY = Array(10).fill(0)
 
 // Produce all compositions with filename (icon, apple-icon, etc.) with extensions (png, jpg, etc.)
 async function enumMetadataFiles(
@@ -26,11 +28,10 @@ async function enumMetadataFiles(
 ): Promise<string[]> {
   const collectedFiles: string[] = []
 
+  // Collect <filename>.<ext>, <filename>[].<ext>
   const possibleFileNames = [filename].concat(
     numericSuffix
-      ? Array(10)
-          .fill(0)
-          .map((_, index) => filename + index)
+      ? NUMERIC_SUFFIX_ARRAY.map((_, index) => filename + index)
       : []
   )
   for (const name of possibleFileNames) {
@@ -55,7 +56,7 @@ export async function createStaticMetadataFromRoute(
     segment: string
     metadataResolver: MetadataResolver
     isRootLayoutOrRootPage: boolean
-    pageExtensions: string[]
+    pageExtensions: PageExtensions
     basePath: string
   }
 ) {
@@ -90,14 +91,15 @@ export async function createStaticMetadataFromRoute(
       return
     }
 
+    const isFavicon = type === 'favicon'
     const resolvedMetadataFiles = await enumMetadataFiles(
       resolvedDir,
       STATIC_METADATA_IMAGES[type].filename,
       [
         ...STATIC_METADATA_IMAGES[type].extensions,
-        ...(type === 'favicon' ? [] : pageExtensions),
+        ...(isFavicon ? [] : pageExtensions),
       ],
-      { metadataResolver, numericSuffix: true }
+      { metadataResolver, numericSuffix: !isFavicon }
     )
     resolvedMetadataFiles
       .sort((a, b) => a.localeCompare(b))
@@ -124,7 +126,7 @@ export async function createStaticMetadataFromRoute(
       })
   }
 
-  // Intentially make these serial to reuse directory access cache.
+  // Intentionally make these serial to reuse directory access cache.
   await collectIconModuleIfExists('icon')
   await collectIconModuleIfExists('apple')
   await collectIconModuleIfExists('openGraph')

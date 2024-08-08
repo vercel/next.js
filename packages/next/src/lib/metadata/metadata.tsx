@@ -1,4 +1,8 @@
-import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
+import type { ParsedUrlQuery } from 'querystring'
+import type {
+  AppRenderContext,
+  GetDynamicParamFromSegment,
+} from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 
 import React from 'react'
@@ -6,8 +10,10 @@ import {
   AppleWebAppMeta,
   FormatDetectionMeta,
   ItunesMeta,
-  BasicMetadata,
+  BasicMeta,
+  ViewportMeta,
   VerificationMeta,
+  FacebookMeta,
 } from './generate/basic'
 import { AlternatesMetadata } from './generate/alternate'
 import {
@@ -18,9 +24,23 @@ import {
 import { IconsMetadata } from './generate/icons'
 import { resolveMetadata } from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
-import { ResolvedMetadata } from './types/metadata-interface'
-import { createDefaultMetadata } from './default-metadata'
+import type {
+  ResolvedMetadata,
+  ResolvedViewport,
+} from './types/metadata-interface'
 import { isNotFoundError } from '../../client/components/not-found'
+import type { MetadataContext } from './types/resolvers'
+
+export function createMetadataContext(
+  pathname: string,
+  renderOpts: AppRenderContext['renderOpts']
+): MetadataContext {
+  return {
+    pathname,
+    trailingSlash: renderOpts.trailingSlash,
+    isStandaloneMode: renderOpts.nextConfigOutput === 'standalone',
+  }
+}
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -30,105 +50,161 @@ import { isNotFoundError } from '../../client/components/not-found'
 // and the error will be caught by the error boundary and trigger fallbacks.
 export function createMetadataComponents({
   tree,
-  pathname,
-  searchParams,
+  query,
+  metadataContext,
   getDynamicParamFromSegment,
-  appUsingSizeAdjust,
+  appUsingSizeAdjustment,
   errorType,
+  createDynamicallyTrackedSearchParams,
 }: {
   tree: LoaderTree
-  pathname: string
-  searchParams: { [key: string]: any }
+  query: ParsedUrlQuery
+  metadataContext: MetadataContext
   getDynamicParamFromSegment: GetDynamicParamFromSegment
-  appUsingSizeAdjust: boolean
+  appUsingSizeAdjustment: boolean
   errorType?: 'not-found' | 'redirect'
-}): [React.ComponentType, React.ComponentType] {
-  const metadataContext = {
-    pathname,
-  }
-
-  let resolve: (value: Error | undefined) => void | undefined
-  // Only use promise.resolve here to avoid unhandled rejections
-  const metadataErrorResolving = new Promise<Error | undefined>((res) => {
-    resolve = res
-  })
+  createDynamicallyTrackedSearchParams: (
+    searchParams: ParsedUrlQuery
+  ) => ParsedUrlQuery
+}): [React.ComponentType, () => Promise<void>] {
+  let currentMetadataReady:
+    | null
+    | (Promise<void> & {
+        status?: string
+        value?: unknown
+      }) = null
 
   async function MetadataTree() {
-    const defaultMetadata = createDefaultMetadata()
-    let metadata: ResolvedMetadata | undefined = defaultMetadata
-    let error: any
-    const errorMetadataItem: [null, null] = [null, null]
-    const errorConvention = errorType === 'redirect' ? undefined : errorType
-
-    const [resolvedMetadata, resolvedError] = await resolveMetadata({
+    const pendingMetadata = getResolvedMetadata(
       tree,
-      parentParams: {},
-      metadataItems: [],
-      errorMetadataItem,
-      searchParams,
+      query,
       getDynamicParamFromSegment,
-      errorConvention,
       metadataContext,
-    })
-    if (!resolvedError) {
-      metadata = resolvedMetadata
-      resolve(undefined)
-    } else {
-      error = resolvedError
-      // If the error triggers in initial metadata resolving, re-resolve with proper error type.
-      // They'll be saved for flight data, when hydrates, it will replaces the SSR'd metadata with this.
-      // for not-found error: resolve not-found metadata
-      if (!errorType && isNotFoundError(resolvedError)) {
-        const [notFoundMetadata, notFoundMetadataError] = await resolveMetadata(
-          {
-            tree,
-            parentParams: {},
-            metadataItems: [],
-            errorMetadataItem,
-            searchParams,
-            getDynamicParamFromSegment,
-            errorConvention: 'not-found',
-            metadataContext,
+      createDynamicallyTrackedSearchParams,
+      errorType
+    )
+
+    // We construct this instrumented promise to allow React.use to synchronously unwrap
+    // it if it has already settled.
+    const metadataReady: Promise<void> & { status: string; value: unknown } =
+      pendingMetadata.then(
+        ([error]) => {
+          if (error) {
+            metadataReady.status = 'rejected'
+            metadataReady.value = error
+            throw error
           }
-        )
-        metadata = notFoundMetadata
-        error = notFoundMetadataError || error
-      }
-      resolve(error)
-    }
+          metadataReady.status = 'fulfilled'
+          metadataReady.value = undefined
+        },
+        (error) => {
+          metadataReady.status = 'rejected'
+          metadataReady.value = error
+          throw error
+        }
+      ) as Promise<void> & { status: string; value: unknown }
+    metadataReady.status = 'pending'
+    currentMetadataReady = metadataReady
+    // We aren't going to await this promise immediately but if it rejects early we don't
+    // want unhandled rejection errors so we attach a throwaway catch handler.
+    metadataReady.catch(() => {})
 
-    const elements = MetaFilter([
-      BasicMetadata({ metadata }),
-      AlternatesMetadata({ alternates: metadata.alternates }),
-      ItunesMeta({ itunes: metadata.itunes }),
-      FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
-      VerificationMeta({ verification: metadata.verification }),
-      AppleWebAppMeta({ appleWebApp: metadata.appleWebApp }),
-      OpenGraphMetadata({ openGraph: metadata.openGraph }),
-      TwitterMetadata({ twitter: metadata.twitter }),
-      AppLinksMeta({ appLinks: metadata.appLinks }),
-      IconsMetadata({ icons: metadata.icons }),
-    ])
-
-    if (appUsingSizeAdjust) elements.push(<meta name="next-size-adjust" />)
+    // We ignore any error from metadata here because it needs to be thrown from within the Page
+    // not where the metadata itself is actually rendered
+    const [, elements] = await pendingMetadata
 
     return (
       <>
         {elements.map((el, index) => {
           return React.cloneElement(el as React.ReactElement, { key: index })
         })}
+        {appUsingSizeAdjustment ? <meta name="next-size-adjust" /> : null}
       </>
     )
   }
 
-  async function MetadataOutlet() {
-    const error = await metadataErrorResolving
-    if (error) {
-      throw error
-    }
-    return null
+  function getMetadataReady() {
+    return Promise.resolve().then(() => {
+      if (currentMetadataReady) {
+        return currentMetadataReady
+      }
+      throw new Error(
+        'getMetadataReady was called before MetadataTree rendered'
+      )
+    })
   }
 
-  // @ts-expect-error async server components
-  return [MetadataTree, MetadataOutlet]
+  return [MetadataTree, getMetadataReady]
+}
+
+async function getResolvedMetadata(
+  tree: LoaderTree,
+  query: ParsedUrlQuery,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  metadataContext: MetadataContext,
+  createDynamicallyTrackedSearchParams: (
+    searchParams: ParsedUrlQuery
+  ) => ParsedUrlQuery,
+  errorType?: 'not-found' | 'redirect'
+): Promise<[any, Array<React.ReactNode>]> {
+  const errorMetadataItem: [null, null, null] = [null, null, null]
+  const errorConvention = errorType === 'redirect' ? undefined : errorType
+  const searchParams = createDynamicallyTrackedSearchParams(query)
+
+  const [error, metadata, viewport] = await resolveMetadata({
+    tree,
+    parentParams: {},
+    metadataItems: [],
+    errorMetadataItem,
+    searchParams,
+    getDynamicParamFromSegment,
+    errorConvention,
+    metadataContext,
+  })
+  if (!error) {
+    return [null, createMetadataElements(metadata, viewport)]
+  } else {
+    // If a not-found error is triggered during metadata resolution, we want to capture the metadata
+    // for the not-found route instead of whatever triggered the error. For all error types, we resolve an
+    // error, which will cause the outlet to throw it so it'll be handled by an error boundary
+    // (either an actual error, or an internal error that renders UI such as the NotFoundBoundary).
+    if (!errorType && isNotFoundError(error)) {
+      const [notFoundMetadataError, notFoundMetadata, notFoundViewport] =
+        await resolveMetadata({
+          tree,
+          parentParams: {},
+          metadataItems: [],
+          errorMetadataItem,
+          searchParams,
+          getDynamicParamFromSegment,
+          errorConvention: 'not-found',
+          metadataContext,
+        })
+      return [
+        notFoundMetadataError || error,
+        createMetadataElements(notFoundMetadata, notFoundViewport),
+      ]
+    }
+    return [error, []]
+  }
+}
+
+function createMetadataElements(
+  metadata: ResolvedMetadata,
+  viewport: ResolvedViewport
+) {
+  return MetaFilter([
+    ViewportMeta({ viewport: viewport }),
+    BasicMeta({ metadata }),
+    AlternatesMetadata({ alternates: metadata.alternates }),
+    ItunesMeta({ itunes: metadata.itunes }),
+    FacebookMeta({ facebook: metadata.facebook }),
+    FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
+    VerificationMeta({ verification: metadata.verification }),
+    AppleWebAppMeta({ appleWebApp: metadata.appleWebApp }),
+    OpenGraphMetadata({ openGraph: metadata.openGraph }),
+    TwitterMetadata({ twitter: metadata.twitter }),
+    AppLinksMeta({ appLinks: metadata.appLinks }),
+    IconsMetadata({ icons: metadata.icons }),
+  ])
 }

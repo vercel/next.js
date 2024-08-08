@@ -1,29 +1,29 @@
 {
   "compilerOptions": {
-    "strict": false,
     "noEmit": true,
+    "strict": false,
     "allowJs": true,
-    "resolveJsonModule": true,
-    "jsx": "react",
-    "module": "esnext",
-    "target": "ESNext",
     "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "target": "ESNext",
     "moduleResolution": "node",
-    "baseUrl": ".",
-    "types": ["react", "jest", "node", "trusted-types"],
+    "types": ["react", "jest", "node", "trusted-types", "jest-extended"],
     "paths": {
-      "development-sandbox": ["test/lib/development-sandbox"],
-      "next-test-utils": ["test/lib/next-test-utils"],
-      "amp-test-utils": ["test/lib/amp-test-utils"],
-      "next-webdriver": ["test/lib/next-webdriver"],
-      "e2e-utils": ["test/lib/e2e-utils"]
+      "development-sandbox": ["./test/lib/development-sandbox"],
+      "next-test-utils": ["./test/lib/next-test-utils"],
+      "amp-test-utils": ["./test/lib/amp-test-utils"],
+      "next-webdriver": ["./test/lib/next-webdriver"],
+      "e2e-utils": ["./test/lib/e2e-utils"],
+      "test-data-service/*": ["./test/lib/test-data-service/*"],
+      "test-log": ["./test/lib/test-log"]
     }
   },
   "include": [
-    "test/jest.d.ts",
     "test/**/*.test.ts",
     "test/**/*.test.tsx",
-    "test/**/test/*",
-    "packages/next/types/webpack.d.ts"
+    "test/lib/**/*.ts",
+    "turbo/**/*.ts"
   ]
 }

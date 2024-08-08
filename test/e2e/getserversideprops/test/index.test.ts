@@ -14,7 +14,7 @@ import {
 } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 
 const appDir = join(__dirname, '../app')
 

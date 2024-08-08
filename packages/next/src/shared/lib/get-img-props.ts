@@ -7,6 +7,8 @@ import type {
   ImageLoaderPropsWithConfig,
 } from './image-config'
 
+import type { JSX } from 'react'
+
 export interface StaticImageData {
   src: string
   height: number
@@ -38,6 +40,11 @@ export type ImageProps = Omit<
   placeholder?: PlaceholderValue
   blurDataURL?: string
   unoptimized?: boolean
+  overrideSrc?: string
+  /**
+   * @deprecated Use `onLoad` instead.
+   * @see https://nextjs.org/docs/app/api-reference/components/image#onload
+   */
   onLoadingComplete?: OnLoadingComplete
   /**
    * @deprecated Use `fill` prop instead of `layout="fill"` or change import to `next/legacy/image`.
@@ -241,6 +248,7 @@ export function getImgProps(
     height,
     fill = false,
     style,
+    overrideSrc,
     onLoad,
     onLoadingComplete,
     placeholder = 'empty',
@@ -279,6 +287,11 @@ export function getImgProps(
     config = { ...c, allSizes, deviceSizes }
   }
 
+  if (typeof defaultLoader === 'undefined') {
+    throw new Error(
+      'images.loaderFile detected but the file is missing default export.\nRead more: https://nextjs.org/docs/messages/invalid-images-config'
+    )
+  }
   let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
 
   // Remove property so it's not spread on <img> element
@@ -375,7 +388,7 @@ export function getImgProps(
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (!src || src.startsWith('data:') || src.startsWith('blob:')) {
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    // https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
     isLazy = false
   }
@@ -386,9 +399,6 @@ export function getImgProps(
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
     unoptimized = true
-  }
-  if (priority) {
-    fetchPriority = 'high'
   }
 
   const qualityInt = getInt(quality)
@@ -454,6 +464,18 @@ export function getImgProps(
             `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
           )
         }
+        // eslint-disable-next-line no-control-regex
+        if (/^[\x00-\x20]/.test(src)) {
+          throw new Error(
+            `Image with src "${src}" cannot start with a space or control character. Use src.trimStart() to remove it or encodeURIComponent(src) to keep it.`
+          )
+        }
+        // eslint-disable-next-line no-control-regex
+        if (/[\x00-\x20]$/.test(src)) {
+          throw new Error(
+            `Image with src "${src}" cannot end with a space or control character. Use src.trimEnd() to remove it or encodeURIComponent(src) to keep it.`
+          )
+        }
       }
     }
     if (!VALID_LOADING_VALUES.includes(loading)) {
@@ -500,7 +522,7 @@ export function getImgProps(
     }
     if ('ref' in rest) {
       warnOnce(
-        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoad" property instead.`
       )
     }
 
@@ -521,6 +543,12 @@ export function getImgProps(
             `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
         )
       }
+    }
+
+    if (onLoadingComplete) {
+      warnOnce(
+        `Image with src "${src}" is using deprecated "onLoadingComplete" property. Please use the "onLoad" property instead.`
+      )
     }
 
     for (const [legacyKey, legacyValue] of Object.entries({
@@ -661,7 +689,7 @@ export function getImgProps(
     style: { ...imgStyle, ...placeholderStyle },
     sizes: imgAttributes.sizes,
     srcSet: imgAttributes.srcSet,
-    src: imgAttributes.src,
+    src: overrideSrc || imgAttributes.src,
   }
   const meta = { unoptimized, priority, placeholder, fill }
   return { props, meta }

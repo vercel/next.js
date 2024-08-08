@@ -1,9 +1,7 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  HMR_ACTION_TYPES,
-} from '../../server/dev/hot-reloader-types'
-import { addMessageListener } from './error-overlay/websocket'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
+import type { HMR_ACTION_TYPES } from '../../server/dev/hot-reloader-types'
+import { addMessageListener } from '../components/react-dev-overlay/pages/websocket'
 
 type VerticalPosition = 'top' | 'bottom'
 type HorizonalPosition = 'left' | 'right'
@@ -18,9 +16,9 @@ export default function initializeBuildWatcher(
   position = 'bottom-right'
 ) {
   const shadowHost = document.createElement('div')
-  const [verticalProperty, horizontalProperty] = position.split('-') as [
+  const [verticalProperty, horizontalProperty] = position.split('-', 2) as [
     VerticalPosition,
-    HorizonalPosition
+    HorizonalPosition,
   ]
   shadowHost.id = '__next-build-watcher'
   // Make sure container is fixed and on a high zIndex so it shows

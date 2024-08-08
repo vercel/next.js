@@ -28,7 +28,7 @@ const runTests = (type) => {
     const stdout = await getStdout()
 
     if (type === 'dev') {
-      expect(stdout).toMatch(/- Local:/i)
+      expect(stdout).toMatch(/ready/i)
     } else {
       expect(stdout).toMatch(/Compiled successfully/i)
     }
@@ -53,7 +53,7 @@ const runTests = (type) => {
     const stdout = await getStdout()
 
     if (type === 'dev') {
-      expect(stdout).toMatch(/- Local:/i)
+      expect(stdout).toMatch(/ready/i)
     } else {
       expect(stdout).toMatch(/Compiled successfully/i)
     }
@@ -62,32 +62,36 @@ const runTests = (type) => {
 
 describe('Nullish configs in next.config.js', () => {
   afterAll(() => fs.remove(nextConfig))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(() => {
+        getStdout = async () => {
+          let stdout = ''
+          const app = await launchApp(appDir, await findPort(), {
+            onStdout: (msg) => {
+              stdout += msg
+            },
+          })
+          await killApp(app)
+          return stdout
+        }
+      })
 
-  describe('dev mode', () => {
-    beforeAll(() => {
-      getStdout = async () => {
-        let stdout = ''
-        const app = await launchApp(appDir, await findPort(), {
-          onStdout: (msg) => {
-            stdout += msg
-          },
-        })
-        await killApp(app)
-        return stdout
-      }
-    })
+      runTests('dev')
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(() => {
+        getStdout = async () => {
+          const { stdout } = await nextBuild(appDir, [], { stdout: true })
+          return stdout
+        }
+      })
 
-    runTests('dev')
-  })
-
-  describe('production mode', () => {
-    beforeAll(() => {
-      getStdout = async () => {
-        const { stdout } = await nextBuild(appDir, [], { stdout: true })
-        return stdout
-      }
-    })
-
-    runTests('build')
-  })
+      runTests('build')
+    }
+  )
 })

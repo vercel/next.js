@@ -1,12 +1,40 @@
+declare global {
+  interface Window {
+    dataLayer?: Object[]
+    [key: string]: any
+  }
+}
+
+type JSONValue =
+  | string
+  | number
+  | boolean
+  | JSONValue[]
+  | { [key: string]: JSONValue }
+
+export type GTMParams = {
+  gtmId: string
+  dataLayer?: { [key: string]: JSONValue }
+  dataLayerName?: string
+  auth?: string
+  preview?: string
+}
+
+export type GAParams = {
+  gaId: string
+  dataLayerName?: string
+}
+
 export type GoogleMapsEmbed = {
-  height?: number
-  width?: number
+  height?: number | string
+  width?: number | string
   mode: 'place' | 'view' | 'directions' | 'streetview' | 'search'
   apiKey: string
-  style: string
-  allowfullscreen: boolean
-  loading: 'eager' | 'lazy'
+  style?: string
+  allowfullscreen?: boolean
+  loading?: 'eager' | 'lazy'
   q?: string
+  id?: string
   center?: string
   zoom?: string
   maptype?: string
@@ -19,4 +47,6 @@ export type YouTubeEmbed = {
   width?: number
   videoid: string
   playlabel?: string
+  params?: string
+  style?: string
 }

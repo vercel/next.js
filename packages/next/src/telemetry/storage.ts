@@ -1,6 +1,7 @@
-import chalk from 'next/dist/compiled/chalk'
+import type { BinaryLike } from 'crypto'
+import { bold, cyan, magenta } from '../lib/picocolors'
 import Conf from 'next/dist/compiled/conf'
-import { BinaryLike, createHash, randomBytes } from 'crypto'
+import { createHash, randomBytes } from 'crypto'
 import isDockerFunction from 'next/dist/compiled/is-docker'
 import path from 'path'
 
@@ -105,8 +106,8 @@ export class Telemetry {
     this.conf.set(TELEMETRY_KEY_NOTIFY_DATE, Date.now().toString())
 
     console.log(
-      `${chalk.magenta.bold(
-        'Attention'
+      `${magenta(
+        bold('Attention')
       )}: Next.js now collects completely anonymous telemetry regarding usage.`
     )
     console.log(
@@ -115,7 +116,7 @@ export class Telemetry {
     console.log(
       `You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:`
     )
-    console.log(chalk.cyan('https://nextjs.org/telemetry'))
+    console.log(cyan('https://nextjs.org/telemetry'))
     console.log()
   }
 

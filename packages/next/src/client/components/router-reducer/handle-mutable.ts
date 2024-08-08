@@ -1,9 +1,13 @@
 import { computeChangedPath } from './compute-changed-path'
-import {
+import type {
   Mutable,
   ReadonlyReducerState,
   ReducerState,
 } from './router-reducer-types'
+
+function isNotUndefined<T>(value: T): value is Exclude<T, undefined> {
+  return typeof value !== 'undefined'
+}
 
 export function handleMutable(
   state: ReadonlyReducerState,
@@ -12,37 +16,51 @@ export function handleMutable(
   // shouldScroll is true by default, can override to false.
   const shouldScroll = mutable.shouldScroll ?? true
 
+  let nextUrl = state.nextUrl
+
+  if (isNotUndefined(mutable.patchedTree)) {
+    // If we received a patched tree, we need to compute the changed path.
+    const changedPath = computeChangedPath(state.tree, mutable.patchedTree)
+    if (changedPath) {
+      // If the tree changed, we need to update the nextUrl
+      nextUrl = changedPath
+    } else if (!nextUrl) {
+      // if the tree ends up being the same (ie, no changed path), and we don't have a nextUrl, then we should use the canonicalUrl
+      nextUrl = state.canonicalUrl
+    }
+    // otherwise this will be a no-op and continue to use the existing nextUrl
+  }
+
   return {
     buildId: state.buildId,
     // Set href.
-    canonicalUrl:
-      mutable.canonicalUrl != null
-        ? mutable.canonicalUrl === state.canonicalUrl
-          ? state.canonicalUrl
-          : mutable.canonicalUrl
-        : state.canonicalUrl,
+    canonicalUrl: isNotUndefined(mutable.canonicalUrl)
+      ? mutable.canonicalUrl === state.canonicalUrl
+        ? state.canonicalUrl
+        : mutable.canonicalUrl
+      : state.canonicalUrl,
     pushRef: {
-      pendingPush:
-        mutable.pendingPush != null
-          ? mutable.pendingPush
-          : state.pushRef.pendingPush,
-      mpaNavigation:
-        mutable.mpaNavigation != null
-          ? mutable.mpaNavigation
-          : state.pushRef.mpaNavigation,
+      pendingPush: isNotUndefined(mutable.pendingPush)
+        ? mutable.pendingPush
+        : state.pushRef.pendingPush,
+      mpaNavigation: isNotUndefined(mutable.mpaNavigation)
+        ? mutable.mpaNavigation
+        : state.pushRef.mpaNavigation,
+      preserveCustomHistoryState: isNotUndefined(
+        mutable.preserveCustomHistoryState
+      )
+        ? mutable.preserveCustomHistoryState
+        : state.pushRef.preserveCustomHistoryState,
     },
     // All navigation requires scroll and focus management to trigger.
     focusAndScrollRef: {
       apply: shouldScroll
-        ? mutable?.scrollableSegments !== undefined
+        ? isNotUndefined(mutable?.scrollableSegments)
           ? true
           : state.focusAndScrollRef.apply
         : // If shouldScroll is false then we should not apply scroll and focus management.
           false,
-      onlyHashChange:
-        !!mutable.hashFragment &&
-        state.canonicalUrl.split('#')[0] ===
-          mutable.canonicalUrl?.split('#')[0],
+      onlyHashChange: mutable.onlyHashChange || false,
       hashFragment: shouldScroll
         ? // Empty hash should trigger default behavior of scrolling layout into view.
           // #top is handled in layout-router.
@@ -63,11 +81,9 @@ export function handleMutable(
       ? mutable.prefetchCache
       : state.prefetchCache,
     // Apply patched router state.
-    tree: mutable.patchedTree !== undefined ? mutable.patchedTree : state.tree,
-    nextUrl:
-      mutable.patchedTree !== undefined
-        ? computeChangedPath(state.tree, mutable.patchedTree) ??
-          state.canonicalUrl
-        : state.nextUrl,
+    tree: isNotUndefined(mutable.patchedTree)
+      ? mutable.patchedTree
+      : state.tree,
+    nextUrl,
   }
 }

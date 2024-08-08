@@ -1,32 +1,42 @@
-import { SpanId } from './shared'
 import { reporter } from './report'
+import type { SpanId, TraceEvent, TraceState } from './types'
 
 const NUM_OF_MICROSEC_IN_NANOSEC = BigInt('1000')
+const NUM_OF_MILLISEC_IN_NANOSEC = BigInt('1000000')
 let count = 0
 const getId = () => {
   count++
   return count
 }
+let defaultParentSpanId: SpanId | undefined
+let shouldSaveTraceEvents: boolean | undefined
+let savedTraceEvents: TraceEvent[] = []
+
+const RECORD_SPAN_THRESHOLD_MS = parseInt(
+  process.env.NEXT_TRACE_SPAN_THRESHOLD_MS ?? '-1'
+)
 
 // eslint typescript has a bug with TS enums
 /* eslint-disable no-shadow */
 export enum SpanStatus {
-  Started,
-  Stopped,
+  Started = 'started',
+  Stopped = 'stopped',
+}
+
+interface Attributes {
+  [key: string]: string
 }
 
 export class Span {
-  name: string
-  id: SpanId
-  parentId?: SpanId
-  // Duration of the span in *microseconds*.
-  duration: number | null
-  attrs: { [key: string]: any }
-  status: SpanStatus
-  now: number
+  private name: string
+  private id: SpanId
+  private parentId?: SpanId
+  private attrs: { [key: string]: any }
+  private status: SpanStatus
+  private now: number
 
   // Number of nanoseconds since epoch.
-  _start: bigint
+  private _start: bigint
 
   constructor({
     name,
@@ -37,12 +47,16 @@ export class Span {
     name: string
     parentId?: SpanId
     startTime?: bigint
-    attrs?: Object
+    attrs?: Attributes
   }) {
     this.name = name
-    this.parentId = parentId
-    this.duration = null
+    this.parentId = parentId ?? defaultParentSpanId
     this.attrs = attrs ? { ...attrs } : {}
+    if (this.parentId === undefined) {
+      // Attach additional information to root spans
+      this.attrs.isTurbopack = Boolean(process.env.TURBOPACK)
+    }
+
     this.status = SpanStatus.Started
     this.id = getId()
     this._start = startTime || process.hrtime.bigint()
@@ -59,6 +73,11 @@ export class Span {
   // Additionally, ~285 years can be safely represented as microseconds as
   // a float64 in both JSON and JavaScript.
   stop(stopTime?: bigint) {
+    if (this.status === SpanStatus.Stopped) {
+      // Don't report the same span twice.
+      // TODO: In the future this should throw as `.stop()` shouldn't be called multiple times.
+      return
+    }
     const end: bigint = stopTime || process.hrtime.bigint()
     const duration = (end - this._start) / NUM_OF_MICROSEC_IN_NANOSEC
     this.status = SpanStatus.Stopped
@@ -66,35 +85,53 @@ export class Span {
       throw new Error(`Duration is too long to express as float64: ${duration}`)
     }
     const timestamp = this._start / NUM_OF_MICROSEC_IN_NANOSEC
-    reporter.report(
-      this.name,
-      Number(duration),
-      Number(timestamp),
-      this.id,
-      this.parentId,
-      this.attrs,
-      this.now
-    )
+    const traceEvent: TraceEvent = {
+      name: this.name,
+      duration: Number(duration),
+      timestamp: Number(timestamp),
+      id: this.id,
+      parentId: this.parentId,
+      tags: this.attrs,
+      startTime: this.now,
+    }
+    if (duration > RECORD_SPAN_THRESHOLD_MS * 1000) {
+      reporter.report(traceEvent)
+      if (shouldSaveTraceEvents) {
+        savedTraceEvents.push(traceEvent)
+      }
+    }
   }
 
-  traceChild(name: string, attrs?: Object) {
+  traceChild(name: string, attrs?: Attributes) {
     return new Span({ name, parentId: this.id, attrs })
   }
 
   manualTraceChild(
     name: string,
     // Start time in nanoseconds since epoch.
-    startTime: bigint,
+    startTime?: bigint,
     // Stop time in nanoseconds since epoch.
-    stopTime: bigint,
-    attrs?: Object
+    stopTime?: bigint,
+    attrs?: Attributes
   ) {
-    const span = new Span({ name, parentId: this.id, attrs, startTime })
-    span.stop(stopTime)
+    // We need to convert the time info to the same base as hrtime since that is used usually.
+    const correction =
+      process.hrtime.bigint() - BigInt(Date.now()) * NUM_OF_MILLISEC_IN_NANOSEC
+    const span = new Span({
+      name,
+      parentId: this.id,
+      attrs,
+      startTime: startTime ? startTime + correction : process.hrtime.bigint(),
+    })
+    span.stop(stopTime ? stopTime + correction : process.hrtime.bigint())
   }
 
-  setAttribute(key: string, value: any) {
-    this.attrs[key] = String(value)
+  getId() {
+    return this.id
+  }
+
+  setAttribute(key: string, value: string) {
+    this.attrs[key] = value
   }
 
   traceFn<T>(fn: (span: Span) => T): T {
@@ -123,3 +160,35 @@ export const trace = (
 }
 
 export const flushAllTraces = () => reporter.flushAll()
+
+// This code supports workers by serializing the state of tracers when the
+// worker is initialized, and serializing the trace events from the worker back
+// to the main process to record when the worker is complete.
+export const exportTraceState = (): TraceState => ({
+  defaultParentSpanId,
+  lastId: count,
+  shouldSaveTraceEvents,
+})
+export const initializeTraceState = (state: TraceState) => {
+  count = state.lastId
+  defaultParentSpanId = state.defaultParentSpanId
+  shouldSaveTraceEvents = state.shouldSaveTraceEvents
+}
+
+export function getTraceEvents(): TraceEvent[] {
+  return savedTraceEvents
+}
+
+export function recordTraceEvents(events: TraceEvent[]) {
+  for (const traceEvent of events) {
+    reporter.report(traceEvent)
+    if (traceEvent.id > count) {
+      count = traceEvent.id + 1
+    }
+  }
+  if (shouldSaveTraceEvents) {
+    savedTraceEvents.push(...events)
+  }
+}
+
+export const clearTraceEvents = () => (savedTraceEvents = [])

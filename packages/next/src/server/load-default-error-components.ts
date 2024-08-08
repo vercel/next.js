@@ -9,12 +9,12 @@ import type {
   GetStaticPaths,
   GetServerSideProps,
   GetStaticProps,
-} from 'next/types'
-import type { RouteModule } from './future/route-modules/route-module'
+} from '../types'
+import type { RouteModule } from './route-modules/route-module'
+import type { BuildManifest } from './get-page-files'
 
 import { BUILD_MANIFEST } from '../shared/lib/constants'
 import { join } from 'path'
-import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
@@ -40,9 +40,9 @@ export type LoadComponentsReturnType = {
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
-  routeModule?: RouteModule
+  routeModule: RouteModule
   isAppPath?: boolean
-  pathname: string
+  page: string
 }
 
 async function loadDefaultErrorComponentsImpl(
@@ -55,7 +55,7 @@ async function loadDefaultErrorComponentsImpl(
   // Load the compiled route module for this builtin error.
   // TODO: (wyattjoh) replace this with just exporting the route module when the transition is complete
   const ComponentMod =
-    require('./future/route-modules/pages/builtin/_error') as typeof import('./future/route-modules/pages/builtin/_error')
+    require('./route-modules/pages/builtin/_error') as typeof import('./route-modules/pages/builtin/_error')
   const Component = ComponentMod.routeModule.userland.default
 
   return {
@@ -63,12 +63,12 @@ async function loadDefaultErrorComponentsImpl(
     Document,
     Component,
     pageConfig: {},
-    buildManifest: await loadManifestWithRetries(
+    buildManifest: (await loadManifestWithRetries(
       join(distDir, `fallback-${BUILD_MANIFEST}`)
-    ),
+    )) as BuildManifest,
     reactLoadableManifest: {},
     ComponentMod,
-    pathname: '/_error',
+    page: '/_error',
     routeModule: ComponentMod.routeModule,
   }
 }

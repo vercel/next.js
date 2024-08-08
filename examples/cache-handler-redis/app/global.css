@@ -1,0 +1,102 @@
+*,
+*:before,
+*:after {
+  box-sizing: border-box;
+}
+
+body,
+html {
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+  line-height: 1.6;
+  background-color: #f4f4f4;
+}
+
+.widget {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  margin: 20px auto;
+  padding: 20px;
+  max-width: 600px;
+  text-align: center;
+}
+
+.pre-rendered-at,
+.cache-state,
+.stale-after {
+  font-size: 0.9em;
+  color: #666;
+  margin: 5px 0;
+}
+
+.cache-state.fresh {
+  color: #4caf50;
+}
+
+.cache-state.stale {
+  color: #f44336;
+}
+
+.revalidate-from {
+  margin-top: 20px;
+}
+
+.revalidate-from-button {
+  background-color: #008cba;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.revalidate-from-button:hover {
+  background-color: #005f73;
+}
+
+.revalidate-from-button:active {
+  transform: translateY(2px);
+}
+
+.revalidate-from-button[aria-disabled="true"] {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.footer,
+.header {
+  padding: 10px;
+  position: relative;
+  place-items: center;
+  grid-auto-flow: column;
+  bottom: 0;
+  grid-gap: 20px;
+  width: 100%;
+  display: grid;
+  justify-content: center;
+}
+
+.link {
+  color: #09f;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.link:hover {
+  color: #07c;
+}
+
+@media (max-width: 768px) {
+  .widget {
+    width: 90%;
+    margin: 20px auto;
+  }
+
+  .footer {
+    padding: 20px;
+  }
+}

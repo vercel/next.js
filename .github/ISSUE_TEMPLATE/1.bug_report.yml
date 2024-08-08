@@ -1,6 +1,6 @@
 name: Bug Report
-description: Create a bug report for the Next.js core
-labels: ['template: bug']
+description: Create a bug report for Next.js.
+labels: ['bug']
 body:
   - type: markdown
     attributes:
@@ -15,11 +15,9 @@ body:
         - Ask a question on the [Next.js Discord](https://discord.com/invite/nextjs) server
   - type: input
     attributes:
-      label: Link to the code that reproduces this issue or a replay of the bug
+      label: Link to the code that reproduces this issue
       description: |
         A link to a **public** [GitHub repository](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) or a [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template) minimal reproduction. Minimal reproductions should be created from our [bug report template with `npx create-next-app -e reproduction-template`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) and should include only changes that contribute to the issue. To report a Pages Router related issue, you can use these templates: [`npx create-next-app -e reproduction-template-pages`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template-pages) or [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template-pages)
-
-        If a minimal reproduction can't be created, please share a [replay](https://www.replay.io/) of the bug which doesn't require sharing a private repo.
 
         **Skipping this/providing an invalid link will result in the issue being closed**
       placeholder: 'https://github.com/user/my-minimal-nextjs-issue-reproduction'
@@ -42,13 +40,6 @@ body:
       placeholder: 'Following the steps from the previous section, I expected A to happen, but I observed B instead'
     validations:
       required: true
-  - type: checkboxes
-    attributes:
-      label: Verify canary release
-      description: 'Please run `npm install next@canary` to try the canary version of Next.js that ships daily. It includes all features and fixes that have not been released to the stable version yet. Some issues may already be fixed in the canary version, so please verify that your issue reproduces before opening a new issue.'
-      options:
-        - label: I verified that the issue exists in the latest Next.js canary release
-          required: true
   - type: textarea
     attributes:
       label: Provide environment information
@@ -80,28 +71,46 @@ body:
       multiple: true
       options:
         - 'Not sure'
-        - 'App Router'
-        - 'CLI (create-next-app)'
-        - 'Data fetching (gS(S)P, getInitialProps)'
-        - 'Dynamic imports (next/dynamic)'
-        - 'ESLint (eslint-config-next)'
-        - 'Font optimization (next/font)'
-        - 'Image optimization (next/image, next/legacy/image)'
+        - 'create-next-app'
+        - 'Developer Experience'
+        - 'Documentation'
+        - 'Lazy Loading'
+        - 'Font (next/font)'
+        - 'Image (next/image)'
+        - 'Instrumentation'
         - 'Internationalization (i18n)'
-        - 'Jest (next/jest)'
-        - 'MDX (@next/mdx)'
-        - 'Metadata (metadata, generateMetadata, next/head)'
-        - 'Middleware / Edge (API routes, runtime)'
-        - 'Operating System (Windows, MacOS, Linux)'
-        - 'Package manager (npm, pnpm, Yarn)'
-        - 'Routing (next/router, next/navigation, next/link)'
-        - 'Script optimization (next/script)'
-        - 'Standalone mode (output: "standalone")'
-        - 'Static HTML Export (output: "export")'
-        - 'SWC minifier (swcMinify: true)'
-        - 'SWC transpilation'
-        - 'Turbopack (--turbo)'
-        - 'TypeScript (plugin, built-in types)'
+        - 'Linting'
+        - 'Markdown (MDX)'
+        - 'Metadata'
+        - 'Middleware'
+        - 'Module Resolution'
+        - 'Navigation'
+        - 'Output (export/standalone)'
+        - 'Pages Router'
+        - 'Parallel & Intercepting Routes'
+        - 'Partial Prerendering (PPR)'
+        - 'Performance'
+        - 'Runtime'
+        - 'Script (next/script)'
+        - 'Testing'
+        - 'Turbopack'
+        - 'TypeScript'
+        - 'SWC'
+        - 'Upstream'
+        - 'Webpack'
+
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Which stage(s) are affected? (Select all that apply)
+      multiple: true
+      options:
+        - 'next dev (local)'
+        - 'next build (local)'
+        - 'next start (local)'
+        - 'Vercel (Deployed)'
+        - 'Other (Deployed)'
     validations:
       required: true
   - type: markdown

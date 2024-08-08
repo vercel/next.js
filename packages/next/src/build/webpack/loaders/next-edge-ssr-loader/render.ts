@@ -5,6 +5,7 @@ import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
 import type { ClientReferenceManifest } from '../../plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../plugins/next-font-manifest-plugin'
+import type { NextFetchEvent } from '../../../../server/web/spec-extension/fetch-event'
 
 import WebServer from '../../../../server/web-server'
 import {
@@ -12,9 +13,12 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
-import { PrerenderManifest } from '../../..'
+import type { ManifestRewriteRoute } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
-import { SizeLimit } from '../../../../../types'
+import type { SizeLimit } from '../../../../types'
+import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
+import type { PAGE_TYPES } from '../../../../lib/page-types'
+import type { NextRequestHint } from '../../../../server/web/adapter'
 
 export function getRender({
   dev,
@@ -26,19 +30,19 @@ export function getRender({
   pagesType,
   Document,
   buildManifest,
-  prerenderManifest,
   reactLoadableManifest,
+  interceptionRouteRewrites,
   renderToHTML,
   clientReferenceManifest,
   subresourceIntegrityManifest,
   serverActionsManifest,
-  serverActionsBodySizeLimit,
+  serverActions,
   config,
   buildId,
   nextFontManifest,
   incrementalCacheHandler,
 }: {
-  pagesType: 'app' | 'pages' | 'root'
+  pagesType: PAGE_TYPES
   dev: boolean
   page: string
   appMod: any
@@ -48,13 +52,15 @@ export function getRender({
   renderToHTML?: any
   Document: DocumentType
   buildManifest: BuildManifest
-  prerenderManifest: PrerenderManifest
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
+  interceptionRouteRewrites?: ManifestRewriteRoute[]
   clientReferenceManifest?: ClientReferenceManifest
-  serverActionsManifest: any
-  serverActionsBodySizeLimit?: SizeLimit
-  appServerMod: any
+  serverActionsManifest?: any
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedOrigins?: string[]
+  }
   config: NextConfigComplete
   buildId: string
   nextFontManifest: NextFontManifest
@@ -77,22 +83,22 @@ export function getRender({
     minimalMode: true,
     webServerConfig: {
       page,
-      normalizedPage: isAppPath ? normalizeAppPath(page) : page,
+      pathname: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
-      prerenderManifest,
+      interceptionRouteRewrites,
       extendRenderOpts: {
         buildId,
         runtime: SERVER_RUNTIME.experimentalEdge,
-        supportsDynamicHTML: true,
+        supportsDynamicResponse: true,
         disableOptimizedLoading: true,
         serverActionsManifest,
-        serverActionsBodySizeLimit,
+        serverActions,
         nextFontManifest,
       },
       renderToHTML,
       incrementalCacheHandler,
-      loadComponent: async (pathname) => {
-        if (pathname === page) {
+      loadComponent: async (inputPage) => {
+        if (inputPage === page) {
           return {
             ...baseLoadComponentResult,
             Component: pageMod.default,
@@ -102,13 +108,13 @@ export function getRender({
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
             isAppPath: !!pageMod.__next_app__,
-            pathname,
+            page: inputPage,
             routeModule: pageMod.routeModule,
           }
         }
 
         // If there is a custom 500 page, we need to handle it separately.
-        if (pathname === '/500' && error500Mod) {
+        if (inputPage === '/500' && error500Mod) {
           return {
             ...baseLoadComponentResult,
             Component: error500Mod.default,
@@ -117,12 +123,12 @@ export function getRender({
             getServerSideProps: error500Mod.getServerSideProps,
             getStaticPaths: error500Mod.getStaticPaths,
             ComponentMod: error500Mod,
-            pathname,
+            page: inputPage,
             routeModule: error500Mod.routeModule,
           }
         }
 
-        if (pathname === '/_error') {
+        if (inputPage === '/_error') {
           return {
             ...baseLoadComponentResult,
             Component: errorMod.default,
@@ -131,7 +137,7 @@ export function getRender({
             getServerSideProps: errorMod.getServerSideProps,
             getStaticPaths: errorMod.getStaticPaths,
             ComponentMod: errorMod,
-            pathname,
+            page: inputPage,
             routeModule: errorMod.routeModule,
           }
         }
@@ -143,12 +149,31 @@ export function getRender({
 
   const handler = server.getRequestHandler()
 
-  return async function render(request: Request) {
+  return async function render(
+    request: NextRequestHint,
+    event?: NextFetchEvent
+  ) {
     const extendedReq = new WebNextRequest(request)
-    const extendedRes = new WebNextResponse()
+    const extendedRes = new WebNextResponse(
+      undefined,
+      // tracking onClose adds overhead, so only do it if `experimental.after` is on.
+      !!process.env.__NEXT_AFTER
+    )
 
     handler(extendedReq, extendedRes)
+    const result = await extendedRes.toResponse()
+    request.fetchMetrics = extendedReq.fetchMetrics
 
-    return await extendedRes.toResponse()
+    if (event?.waitUntil) {
+      // TODO(after):
+      // remove `internal_runWithWaitUntil` and the `internal-edge-wait-until` module
+      // when consumers switch to `unstable_after`.
+      const waitUntilPromise = internal_getCurrentFunctionWaitUntil()
+      if (waitUntilPromise) {
+        event.waitUntil(waitUntilPromise)
+      }
+    }
+
+    return result
   }
 }

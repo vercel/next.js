@@ -20,6 +20,8 @@ export const COMPILER_INDEXES: {
   [COMPILER_NAMES.edgeServer]: 2,
 } as const
 
+export const UNDERSCORE_NOT_FOUND_ROUTE = '/_not-found'
+export const UNDERSCORE_NOT_FOUND_ROUTE_ENTRY = `${UNDERSCORE_NOT_FOUND_ROUTE}/page`
 export const PHASE_EXPORT = 'phase-export'
 export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
@@ -42,17 +44,24 @@ export const IMAGES_MANIFEST = 'images-manifest.json'
 export const SERVER_FILES_MANIFEST = 'required-server-files.json'
 export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
 export const MIDDLEWARE_MANIFEST = 'middleware-manifest.json'
-export const DEV_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
+export const TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST =
+  '_clientMiddlewareManifest.json'
+export const DEV_CLIENT_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
-export const FONT_MANIFEST = 'font-manifest.json'
+export const AUTOMATIC_FONT_OPTIMIZATION_MANIFEST = 'font-manifest.json'
 export const SERVER_DIRECTORY = 'server'
-export const CONFIG_FILES = ['next.config.js', 'next.config.mjs']
+export const CONFIG_FILES = [
+  'next.config.js',
+  'next.config.mjs',
+  'next.config.ts',
+]
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
 export const CLIENT_PUBLIC_FILES_PATH = 'public'
 export const CLIENT_STATIC_FILES_PATH = 'static'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
+export const BARREL_OPTIMIZATION_PREFIX = '__barrel_optimize__'
 
 // server/[entry]/page_client-reference-manifest.js
 export const CLIENT_REFERENCE_MANIFEST = 'client-reference-manifest'
@@ -63,6 +72,9 @@ export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
 // server/middleware-react-loadable-manifest.js
 export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
   'middleware-react-loadable-manifest'
+// server/interception-route-rewrite-manifest.js
+export const INTERCEPTION_ROUTE_REWRITE_MANIFEST =
+  'interception-route-rewrite-manifest'
 
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
@@ -80,12 +92,10 @@ export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS = 'polyfills'
 export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL = Symbol(
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
 )
+export const DEFAULT_RUNTIME_WEBPACK = 'webpack-runtime'
 export const EDGE_RUNTIME_WEBPACK = 'edge-runtime-webpack'
-export const TEMPORARY_REDIRECT_STATUS = 307
-export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'
-export const PAGE_SEGMENT_KEY = '__PAGE__'
 export const GOOGLE_FONT_PROVIDER = 'https://fonts.googleapis.com/'
 export const OPTIMIZED_FONT_PROVIDERS = [
   { url: GOOGLE_FONT_PROVIDER, preconnect: 'https://fonts.gstatic.com' },

@@ -42,6 +42,11 @@ describe('TypeScript HMR', () => {
         const originalContent = await fs.readFile(pagePath, 'utf8')
         const editedContent = originalContent.replace('Hello', 'COOL page')
 
+        if (process.env.TURBOPACK) {
+          // TODO Turbopack needs a bit to start watching
+          await new Promise((resolve) => setTimeout(resolve, 500))
+        }
+
         // change the content
         await fs.writeFile(pagePath, editedContent, 'utf8')
         await check(() => getBrowserBodyText(browser), /COOL page/)
@@ -93,6 +98,10 @@ describe('TypeScript HMR', () => {
         '() => <p>Hello world</p>',
         '(): boolean => <p>hello with error</p>'
       )
+      if (process.env.TURBOPACK) {
+        // TODO Turbopack needs a bit to start watching
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
       await fs.writeFile(pagePath, errContent)
       const res = await check(
         async () => {

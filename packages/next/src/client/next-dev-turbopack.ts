@@ -1,13 +1,11 @@
 // TODO: Remove use of `any` type.
 import { initialize, version, router, emitter } from './'
-import initWebpackHMR from './dev/webpack-hot-middleware-client'
+import initHMR from './dev/hot-middleware-client'
 
-import './setup-hydration-warning'
-import { pageBootrap } from './page-bootstrap'
-import { addMessageListener, sendMessage } from './dev/error-overlay/websocket'
+import { pageBootstrap } from './page-bootstrap'
 //@ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
-import { connect } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
-import { HMR_ACTION_TYPES } from '../server/dev/hot-reloader-types'
+import { connect } from '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
+import type { TurbopackMsgToBrowser } from '../server/dev/hot-reloader-types'
 
 window.next = {
   version: `${version}-turbo`,
@@ -18,38 +16,22 @@ window.next = {
   emitter,
 }
 ;(self as any).__next_set_public_path__ = () => {}
-;(self as any).__webpack_hash__ = 0
+;(self as any).__webpack_hash__ = ''
 
 // for the page loader
 declare let __turbopack_load__: any
 
-const webpackHMR = initWebpackHMR()
+const devClient = initHMR('turbopack')
 initialize({
-  // TODO the prop name is confusing as related to webpack
-  webpackHMR,
+  devClient,
 })
   .then(({ assetPrefix }) => {
     // for the page loader
-    async function loadPageChunk(chunkData: any) {
-      if (typeof chunkData === 'string') {
-        const fullPath = assetPrefix + chunkData
-
-        await __turbopack_load__(fullPath)
-      } else {
-        let fullChunkData = {
-          ...chunkData,
-          path: assetPrefix + chunkData.path,
-        }
-
-        await __turbopack_load__(fullChunkData)
-      }
-    }
-
     ;(self as any).__turbopack_load_page_chunks__ = (
       page: string,
       chunksData: any
     ) => {
-      const chunkPromises = chunksData.map(loadPageChunk)
+      const chunkPromises = chunksData.map(__turbopack_load__)
 
       Promise.all(chunkPromises).catch((err) =>
         console.error('failed to load chunks for page ' + page, err)
@@ -57,21 +39,14 @@ initialize({
     }
 
     connect({
-      addMessageListener(cb: (msg: HMR_ACTION_TYPES) => void) {
-        addMessageListener((msg) => {
-          if (!('type' in msg)) {
-            return
-          }
-          // Only call Turbopack's message listener for turbopack messages
-          if (msg.type?.startsWith('turbopack-')) {
-            cb(msg)
-          }
-        })
+      addMessageListener(cb: (msg: TurbopackMsgToBrowser) => void) {
+        devClient.addTurbopackMessageListener(cb)
       },
-      sendMessage,
+      sendMessage: devClient.sendTurbopackMessage,
+      onUpdateError: devClient.handleUpdateError,
     })
 
-    return pageBootrap(assetPrefix)
+    return pageBootstrap(assetPrefix)
   })
   .catch((err) => {
     console.error('Error was not caught', err)

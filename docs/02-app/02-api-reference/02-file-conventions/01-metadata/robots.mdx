@@ -19,8 +19,10 @@ Sitemap: https://acme.com/sitemap.xml
 
 Add a `robots.js` or `robots.ts` file that returns a [`Robots` object](#robots-object).
 
+> **Good to know**: `robots.js` is a special Route Handlers that is cached by default unless it uses a [dynamic function](/docs/app/building-your-application/caching#dynamic-functions) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
+
 ```ts filename="app/robots.ts" switcher
-import { MetadataRoute } from 'next'
+import type { MetadataRoute } from 'next'
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -53,6 +55,66 @@ Output:
 User-Agent: *
 Allow: /
 Disallow: /private/
+
+Sitemap: https://acme.com/sitemap.xml
+```
+
+### Customizing specific user agents
+
+You can customise how individual search engine bots crawl your site by passing an array of user agents to the `rules` property. For example:
+
+```ts filename="app/robots.ts" switcher
+import type { MetadataRoute } from 'next'
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: [
+      {
+        userAgent: 'Googlebot',
+        allow: ['/'],
+        disallow: '/private/',
+      },
+      {
+        userAgent: ['Applebot', 'Bingbot'],
+        disallow: ['/'],
+      },
+    ],
+    sitemap: 'https://acme.com/sitemap.xml',
+  }
+}
+```
+
+```js filename="app/robots.js" switcher
+export default function robots() {
+  return {
+    rules: [
+      {
+        userAgent: 'Googlebot',
+        allow: ['/'],
+        disallow: ['/private/'],
+      },
+      {
+        userAgent: ['Applebot', 'Bingbot'],
+        disallow: ['/'],
+      },
+    ],
+    sitemap: 'https://acme.com/sitemap.xml',
+  }
+}
+```
+
+Output:
+
+```txt
+User-Agent: Googlebot
+Allow: /
+Disallow: /private/
+
+User-Agent: Applebot
+Disallow: /
+
+User-Agent: Bingbot
+Disallow: /
 
 Sitemap: https://acme.com/sitemap.xml
 ```

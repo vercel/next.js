@@ -1,7 +1,0 @@
-error - [loaders] [project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/webpack-loaders/emitted-errors/input/pages/hello.emit  Issue while running loader
-  Error: Error!
-   at readResource (/turbopack/[turbopack-node]/transforms/webpack-loaders.ts:161:11)
-   at  (/turbopack/[turbopack-node]/transforms/webpack-loaders.ts:112:5)
-   at Module.transform (/turbopack/[turbopack-node]/transforms/webpack-loaders.ts:104:10)
-   at  (/turbopack/[turbopack-node]/ipc/evaluate.ts/evaluate.js:1:74)
-   at Module.run (/turbopack/[turbopack-node]/ipc/evaluate.ts:49:31)

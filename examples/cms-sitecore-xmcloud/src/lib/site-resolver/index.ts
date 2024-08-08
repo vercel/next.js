@@ -1,8 +1,8 @@
 import {
   SiteInfo,
   SiteResolver,
-} from '@sitecore-jss/sitecore-jss-nextjs/middleware'
-import * as plugins from 'temp/site-resolver-plugins'
+} from "@sitecore-jss/sitecore-jss-nextjs/middleware";
+import * as plugins from "temp/site-resolver-plugins";
 
 /*
   The site resolver stores site information and is used in the app
@@ -17,12 +17,12 @@ export interface SiteResolverPlugin {
   /**
    * A function which will be called during sites collection
    */
-  exec(sites: SiteInfo[]): SiteInfo[]
+  exec(sites: SiteInfo[]): SiteInfo[];
 }
 
 const sites = (Object.values(plugins) as SiteResolverPlugin[]).reduce(
   (sites, plugin) => plugin.exec(sites),
-  []
-)
+  [],
+);
 
-export const siteResolver = new SiteResolver(sites)
+export const siteResolver = new SiteResolver(sites);

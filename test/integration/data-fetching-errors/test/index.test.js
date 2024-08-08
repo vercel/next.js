@@ -128,21 +128,22 @@ describe('GS(S)P Page Errors', () => {
     origIndexPage = await fs.readFile(indexPage, 'utf8')
   })
   afterAll(() => fs.writeFile(indexPage, origIndexPage))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      runTests(true)
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      runTests()
 
-  describe('dev mode', () => {
-    runTests(true)
-  })
-
-  describe('build mode', () => {
-    runTests()
-  })
-
-  describe('start mode', () => {
-    it('Error stack printed to stderr', async () => {
-      try {
-        await fs.writeFile(
-          indexPage,
-          `export default function Page() {
+      it('Error stack printed to stderr', async () => {
+        try {
+          await fs.writeFile(
+            indexPage,
+            `export default function Page() {
             return <div/>
           }
             export function getStaticProps() {
@@ -150,31 +151,32 @@ describe('GS(S)P Page Errors', () => {
               if(process.env.NEXT_PHASE === "${PHASE_PRODUCTION_BUILD}") {
                 return { props: { foo: 'bar' }, revalidate: 1 }
               }
-    
+
               throw new Error("Oops")
             }
             `
-        )
+          )
 
-        await nextBuild(appDir)
+          await nextBuild(appDir)
 
-        appPort = await findPort()
+          appPort = await findPort()
 
-        let stderr = ''
-        app = await nextStart(appDir, appPort, {
-          onStderr: (msg) => {
-            stderr += msg || ''
-          },
-        })
-        await check(async () => {
-          await renderViaHTTP(appPort, '/')
-          return stderr
-        }, /error: oops/i)
+          let stderr = ''
+          app = await nextStart(appDir, appPort, {
+            onStderr: (msg) => {
+              stderr += msg || ''
+            },
+          })
+          await check(async () => {
+            await renderViaHTTP(appPort, '/')
+            return stderr
+          }, /error: oops/i)
 
-        expect(stderr).toContain('Error: Oops')
-      } finally {
-        await killApp(app)
-      }
-    })
-  })
+          expect(stderr).toContain('Error: Oops')
+        } finally {
+          await killApp(app)
+        }
+      })
+    }
+  )
 })

@@ -3,12 +3,17 @@ import path from 'path'
 import { getCacheDirectory } from './helpers/get-cache-directory'
 import * as Log from '../build/output/log'
 import { execSync } from 'child_process'
-
-const { fetch } = require('next/dist/compiled/undici') as {
-  fetch: typeof global.fetch
+const { WritableStream } = require('node:stream/web') as {
+  WritableStream: typeof global.WritableStream
 }
 
 const MKCERT_VERSION = 'v1.4.4'
+
+export interface SelfSignedCertificate {
+  key: string
+  cert: string
+  rootCA?: string
+}
 
 function getBinaryName() {
   const platform = process.platform
@@ -30,7 +35,7 @@ function getBinaryName() {
 async function downloadBinary() {
   try {
     const binaryName = getBinaryName()
-    const cacheDirectory = await getCacheDirectory('mkcert')
+    const cacheDirectory = getCacheDirectory('mkcert')
     const binaryPath = path.join(cacheDirectory, binaryName)
 
     if (fs.existsSync(binaryPath)) {
@@ -51,10 +56,37 @@ async function downloadBinary() {
 
     Log.info(`Download response was successful, writing to disk`)
 
-    const arrayBuffer = await response.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
+    const binaryWriteStream = fs.createWriteStream(binaryPath)
 
-    await fs.promises.writeFile(binaryPath, buffer)
+    await response.body.pipeTo(
+      new WritableStream({
+        write(chunk) {
+          return new Promise((resolve, reject) => {
+            binaryWriteStream.write(chunk, (error) => {
+              if (error) {
+                reject(error)
+                return
+              }
+
+              resolve()
+            })
+          })
+        },
+        close() {
+          return new Promise((resolve, reject) => {
+            binaryWriteStream.close((error) => {
+              if (error) {
+                reject(error)
+                return
+              }
+
+              resolve()
+            })
+          })
+        },
+      })
+    )
+
     await fs.promises.chmod(binaryPath, 0o755)
 
     return binaryPath
@@ -66,7 +98,7 @@ async function downloadBinary() {
 export async function createSelfSignedCertificate(
   host?: string,
   certDir: string = 'certificates'
-) {
+): Promise<SelfSignedCertificate | undefined> {
   try {
     const binaryPath = await downloadBinary()
     if (!binaryPath) throw new Error('missing mkcert binary')
@@ -92,13 +124,13 @@ export async function createSelfSignedCertificate(
         : defaultHosts
 
     execSync(
-      `${binaryPath} -install -key-file ${keyPath} -cert-file ${certPath} ${hosts.join(
+      `"${binaryPath}" -install -key-file "${keyPath}" -cert-file "${certPath}" ${hosts.join(
         ' '
       )}`,
       { stdio: 'ignore' }
     )
 
-    const caLocation = execSync(`${binaryPath} -CAROOT`).toString()
+    const caLocation = execSync(`"${binaryPath}" -CAROOT`).toString().trim()
 
     if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
       throw new Error('Certificate files not found')
@@ -121,6 +153,7 @@ export async function createSelfSignedCertificate(
     return {
       key: keyPath,
       cert: certPath,
+      rootCA: `${caLocation}/rootCA.pem`,
     }
   } catch (err) {
     Log.error(

@@ -1,9 +1,6 @@
 import React from 'react'
 import type { FlightRouterState } from '../../../../server/app-render/types'
-import {
-  CacheNode,
-  CacheStates,
-} from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { findHeadInCache } from './find-head-in-cache'
 
 describe('findHeadInCache', () => {
@@ -29,9 +26,12 @@ describe('findHeadInCache', () => {
     ]
 
     const cache: CacheNode = {
-      data: null,
-      status: CacheStates.LAZY_INITIALIZED,
-      subTreeData: null,
+      lazyData: null,
+      rsc: null,
+      prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -39,9 +39,12 @@ describe('findHeadInCache', () => {
             [
               'linking',
               {
-                data: null,
-                status: CacheStates.LAZY_INITIALIZED,
-                subTreeData: null,
+                lazyData: null,
+                rsc: null,
+                prefetchRsc: null,
+                head: null,
+                prefetchHead: null,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -49,7 +52,10 @@ describe('findHeadInCache', () => {
                       [
                         'about',
                         {
-                          data: null,
+                          lazyData: null,
+                          head: null,
+                          prefetchHead: null,
+                          loading: null,
                           parallelRoutes: new Map([
                             [
                               'children',
@@ -57,9 +63,11 @@ describe('findHeadInCache', () => {
                                 [
                                   '',
                                   {
-                                    data: null,
-                                    status: CacheStates.LAZY_INITIALIZED,
-                                    subTreeData: null,
+                                    lazyData: null,
+                                    rsc: null,
+                                    prefetchRsc: null,
+                                    prefetchHead: null,
+                                    loading: null,
                                     parallelRoutes: new Map(),
                                     head: (
                                       <>
@@ -71,17 +79,17 @@ describe('findHeadInCache', () => {
                               ]),
                             ],
                           ]),
-                          subTreeData: null,
-                          status: CacheStates.LAZY_INITIALIZED,
+                          rsc: null,
+                          prefetchRsc: null,
                         },
                       ],
                       // TODO-APP: this segment should be preserved when creating the new cache
                       // [
                       //   '',
                       //   {
-                      //     data: null,
-                      //     status: CacheStates.READY,
-                      //     subTreeData: <>Page</>,
+                      //     lazyData: null,
+                      //     rsc: <>Page</>,
+                      //     prefetchRsc: null,
                       //     parallelRoutes: new Map(),
                       //   },
                       // ],
@@ -96,11 +104,14 @@ describe('findHeadInCache', () => {
     }
 
     const result = findHeadInCache(cache, routerTree[1])
+    expect(result).not.toBeNull()
 
-    expect(result).toMatchObject(
+    const [cacheNode, key] = result!
+    expect(cacheNode.head).toMatchObject(
       <>
         <title>About page!</title>
       </>
     )
+    expect(key).toBe('/linking/about/')
   })
 })

@@ -1,6 +1,6 @@
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import path from 'path'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 const regexLikeIndexModule = /(?<!pages[\\/])index\.module\.(scss|sass|css)$/
 

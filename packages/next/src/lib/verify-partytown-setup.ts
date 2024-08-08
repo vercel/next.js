@@ -1,11 +1,9 @@
 import { promises } from 'fs'
-import chalk from 'next/dist/compiled/chalk'
+import { bold, cyan, red } from './picocolors'
 
 import path from 'path'
-import {
-  hasNecessaryDependencies,
-  NecessaryDependencies,
-} from './has-necessary-dependencies'
+import { hasNecessaryDependencies } from './has-necessary-dependencies'
+import type { NecessaryDependencies } from './has-necessary-dependencies'
 import { fileExists, FileType } from './file-exists'
 import { FatalError } from './fatal-error'
 import * as Log from '../build/output/log'
@@ -15,22 +13,26 @@ async function missingDependencyError(dir: string) {
   const packageManager = getPkgManager(dir)
 
   throw new FatalError(
-    chalk.bold.red(
-      "It looks like you're trying to use Partytown with next/script but do not have the required package(s) installed."
+    bold(
+      red(
+        "It looks like you're trying to use Partytown with next/script but do not have the required package(s) installed."
+      )
     ) +
       '\n\n' +
-      chalk.bold(`Please install Partytown by running:`) +
+      bold(`Please install Partytown by running:`) +
       '\n\n' +
-      `\t${chalk.bold.cyan(
-        (packageManager === 'yarn'
-          ? 'yarn add --dev'
-          : packageManager === 'pnpm'
-          ? 'pnpm install --save-dev'
-          : 'npm install --save-dev') + ' @builder.io/partytown'
+      `\t${bold(
+        cyan(
+          (packageManager === 'yarn'
+            ? 'yarn add --dev'
+            : packageManager === 'pnpm'
+              ? 'pnpm install --save-dev'
+              : 'npm install --save-dev') + ' @builder.io/partytown'
+        )
       )}` +
       '\n\n' +
-      chalk.bold(
-        `If you are not trying to use Partytown, please disable the experimental ${chalk.cyan(
+      bold(
+        `If you are not trying to use Partytown, please disable the experimental ${cyan(
           '"nextScriptWorkers"'
         )} flag in next.config.js.`
       ) +
@@ -82,8 +84,8 @@ export async function verifyPartytownSetup(
         await copyPartytownStaticFiles(partytownDeps, targetDir)
       } catch (err) {
         Log.warn(
-          `Partytown library files could not be copied to the static directory. Please ensure that ${chalk.bold.cyan(
-            '@builder.io/partytown'
+          `Partytown library files could not be copied to the static directory. Please ensure that ${bold(
+            cyan('@builder.io/partytown')
           )} is installed as a dependency.`
         )
       }

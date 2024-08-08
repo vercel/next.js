@@ -9,7 +9,7 @@ related:
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-[Content Security Policy (CSP)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) is important to guard your Next.js application against various security threats such as cross-site scripting (XSS), clickjacking, and other code injection attacks.
+[Content Security Policy (CSP)](https://developer.mozilla.org/docs/Web/HTTP/CSP) is important to guard your Next.js application against various security threats such as cross-site scripting (XSS), clickjacking, and other code injection attacks.
 
 By using CSP, developers can specify which origins are permissible for content sources, scripts, stylesheets, images, fonts, objects, media (audio, video), iframes, and more.
 
@@ -22,7 +22,7 @@ By using CSP, developers can specify which origins are permissible for content s
 
 ## Nonces
 
-A [nonce](https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce) is a unique, random string of characters created for a one-time use. It is used in conjunction with CSP to selectively allow certain inline scripts or styles to execute, bypassing strict CSP directives.
+A [nonce](https://developer.mozilla.org/docs/Web/HTML/Global_attributes/nonce) is a unique, random string of characters created for a one-time use. It is used in conjunction with CSP to selectively allow certain inline scripts or styles to execute, bypassing strict CSP directives.
 
 ### Why use a nonce?
 
@@ -51,24 +51,32 @@ export function middleware(request: NextRequest) {
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'none';
-    block-all-mixed-content;
     upgrade-insecure-requests;
 `
+  // Replace newline characters and spaces
+  const contentSecurityPolicyHeaderValue = cspHeader
+    .replace(/\s{2,}/g, ' ')
+    .trim()
 
-  const requestHeaders = new Headers()
+  const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
+
   requestHeaders.set(
     'Content-Security-Policy',
-    // Replace newline characters and spaces
-    cspHeader.replace(/\s{2,}/g, ' ').trim()
+    contentSecurityPolicyHeaderValue
   )
 
-  return NextResponse.next({
-    headers: requestHeaders,
+  const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   })
+  response.headers.set(
+    'Content-Security-Policy',
+    contentSecurityPolicyHeaderValue
+  )
+
+  return response
 }
 ```
 
@@ -87,24 +95,31 @@ export function middleware(request) {
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'none';
-    block-all-mixed-content;
     upgrade-insecure-requests;
 `
+  // Replace newline characters and spaces
+  const contentSecurityPolicyHeaderValue = cspHeader
+    .replace(/\s{2,}/g, ' ')
+    .trim()
 
-  const requestHeaders = new Headers()
+  const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
   requestHeaders.set(
     'Content-Security-Policy',
-    // Replace newline characters and spaces
-    cspHeader.replace(/\s{2,}/g, ' ').trim()
+    contentSecurityPolicyHeaderValue
   )
 
-  return NextResponse.next({
-    headers: requestHeaders,
+  const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   })
+  response.headers.set(
+    'Content-Security-Policy',
+    contentSecurityPolicyHeaderValue
+  )
+
+  return response
 }
 ```
 
@@ -189,6 +204,41 @@ export default function Page() {
       nonce={nonce}
     />
   )
+}
+```
+
+## Without Nonces
+
+For applications that do not require nonces, you can set the CSP header directly in your [`next.config.js`](/docs/app/api-reference/next-config-js) file:
+
+```js filename="next.config.js"
+const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'unsafe-eval' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' blob: data:;
+    font-src 'self';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+    upgrade-insecure-requests;
+`
+
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: cspHeader.replace(/\n/g, ''),
+          },
+        ],
+      },
+    ]
+  },
 }
 ```
 

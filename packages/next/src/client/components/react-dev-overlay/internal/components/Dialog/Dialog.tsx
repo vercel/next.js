@@ -6,7 +6,7 @@ export type DialogProps = {
   type: 'error' | 'warning'
   'aria-labelledby': string
   'aria-describedby': string
-  onClose?: (e: MouseEvent | TouchEvent) => void
+  onClose?: () => void
 }
 
 const Dialog: React.FC<DialogProps> = function Dialog({
@@ -24,7 +24,10 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   const onDialog = React.useCallback((node: HTMLDivElement | null) => {
     setDialog(node)
   }, [])
-  useOnClickOutside(dialog, onClose)
+  useOnClickOutside(dialog, (e) => {
+    e.preventDefault()
+    return onClose?.()
+  })
 
   // Make HTMLElements with `role=link` accessible to be triggered by the
   // keyboard, i.e. [Enter].
