@@ -148,8 +148,11 @@ function prefetch(
   }
 
   // We should only dedupe requests when experimental.optimisticClientCache is
-  // disabled.
-  if (!options.bypassPrefetchedCheck) {
+  // disabled & when we're not using the app router. App router handles
+  // reusing an existing prefetch entry (if it exists) for the same URL.
+  // If we dedupe in here, we will cause a race where different prefetch kinds
+  // to the same URL (ie auto vs true) will cause one to be ignored.
+  if (!options.bypassPrefetchedCheck && !isAppRouter) {
     const locale =
       // Let the link's locale prop override the default router locale.
       typeof options.locale !== 'undefined'
