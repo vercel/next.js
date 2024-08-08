@@ -20,7 +20,7 @@ use turbo_tasks_fs::{
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    ecmascript::{EcmascriptInputTransform, EcmascriptModuleAsset, TreeShakingMode},
+    ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
         ModuleRule, ModuleRuleCondition, ModuleRuleEffect,
@@ -32,7 +32,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAssetExt, EvaluatableAssets, MinifyType,
+        EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets, MinifyType,
     },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -362,12 +362,12 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .module();
 
     let chunks = if let Some(ecmascript) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(entry_module).await?
+        Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
     {
         // TODO: Load runtime entries from snapshots
         match options.runtime {
             Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
-                ecmascript.ident(),
+                entry_module.ident(),
                 runtime_entries
                     .unwrap_or_else(EvaluatableAssets::empty)
                     .with_entry(Vc::upcast(ecmascript)),
@@ -392,7 +392,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                                         .into(),
                                 )
                                 .with_extension("entry.js".into()),
-                            Vc::upcast(ecmascript),
+                            entry_module,
                             runtime_entries
                                 .unwrap_or_else(EvaluatableAssets::empty)
                                 .with_entry(Vc::upcast(ecmascript)),

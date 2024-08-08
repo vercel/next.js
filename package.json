@@ -60,8 +60,10 @@
     "prepare": "husky",
     "sync-react": "node ./scripts/sync-react.js",
     "update-google-fonts": "node ./scripts/update-google-fonts.js",
+    "patch-next": "node scripts/patch-next.cjs",
     "unpack-next": "node scripts/unpack-next.cjs",
-    "swc-build-native": "pnpm --filter=@next/swc build-native"
+    "swc-build-native": "pnpm --filter=@next/swc build-native",
+    "sweep": "node scripts/sweep.cjs"
   },
   "devDependencies": {
     "@actions/core": "1.10.1",

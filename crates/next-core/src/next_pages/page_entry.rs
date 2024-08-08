@@ -180,7 +180,7 @@ async fn process_global_item(
 
 #[turbo_tasks::function]
 async fn wrap_edge_page(
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
     page: RcStr,
@@ -237,12 +237,12 @@ async fn wrap_edge_page(
 
     let inner_assets = indexmap! {
         INNER.into() => entry,
-        INNER_DOCUMENT.into() => process_global_item(pages_structure.document(), reference_type.clone(), context),
-        INNER_APP.into() => process_global_item(pages_structure.app(), reference_type.clone(), context),
-        INNER_ERROR.into() => process_global_item(pages_structure.error(), reference_type.clone(), context),
+        INNER_DOCUMENT.into() => process_global_item(pages_structure.document(), reference_type.clone(), asset_context),
+        INNER_APP.into() => process_global_item(pages_structure.app(), reference_type.clone(), asset_context),
+        INNER_ERROR.into() => process_global_item(pages_structure.error(), reference_type.clone(), asset_context),
     };
 
-    let wrapped = context
+    let wrapped = asset_context
         .process(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
@@ -250,7 +250,7 @@ async fn wrap_edge_page(
         .module();
 
     Ok(wrap_edge_entry(
-        context,
+        asset_context,
         project_root,
         wrapped,
         pathname.clone(),

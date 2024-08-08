@@ -34,7 +34,7 @@ use crate::{
 #[turbo_tasks::value]
 pub struct InstrumentationEndpoint {
     project: Vc<Project>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
     is_edge: bool,
 
@@ -47,7 +47,7 @@ impl InstrumentationEndpoint {
     #[turbo_tasks::function]
     pub fn new(
         project: Vc<Project>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
         source: Vc<Box<dyn Source>>,
         is_edge: bool,
         app_dir: Option<Vc<FileSystemPath>>,
@@ -55,7 +55,7 @@ impl InstrumentationEndpoint {
     ) -> Vc<Self> {
         Self {
             project,
-            context,
+            asset_context,
             source,
             is_edge,
             app_dir,
@@ -67,7 +67,7 @@ impl InstrumentationEndpoint {
     #[turbo_tasks::function]
     async fn edge_files(&self) -> Result<Vc<OutputAssets>> {
         let userland_module = self
-            .context
+            .asset_context
             .process(
                 self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
@@ -75,7 +75,7 @@ impl InstrumentationEndpoint {
             .module();
 
         let module = wrap_edge_entry(
-            self.context,
+            self.asset_context,
             self.project.project_path(),
             userland_module,
             "instrumentation".into(),
@@ -89,7 +89,7 @@ impl InstrumentationEndpoint {
             }),
             self.project.next_mode(),
         )
-        .resolve_entries(self.context)
+        .resolve_entries(self.asset_context)
         .await?
         .clone_value();
 
@@ -120,7 +120,7 @@ impl InstrumentationEndpoint {
         let chunking_context = self.project.server_chunking_context(false);
 
         let userland_module = self
-            .context
+            .asset_context
             .process(
                 self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
@@ -145,7 +145,7 @@ impl InstrumentationEndpoint {
                     }),
                     self.project.next_mode(),
                 )
-                .resolve_entries(self.context),
+                .resolve_entries(self.asset_context),
                 Value::new(AvailabilityInfo::Root),
             )
             .await?;

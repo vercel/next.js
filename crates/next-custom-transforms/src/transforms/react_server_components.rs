@@ -377,11 +377,24 @@ fn collect_top_level_directives_and_imports(
                     }
                 }
             }
-            ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
+            ModuleItem::ModuleDecl(ModuleDecl::Import(
+                import @ ImportDecl {
+                    type_only: false, ..
+                },
+            )) => {
                 let source = import.src.value.clone();
                 let specifiers = import
                     .specifiers
                     .iter()
+                    .filter(|specifier| {
+                        !matches!(
+                            specifier,
+                            ImportSpecifier::Named(ImportNamedSpecifier {
+                                is_type_only: true,
+                                ..
+                            })
+                        )
+                    })
                     .map(|specifier| match specifier {
                         ImportSpecifier::Named(named) => match &named.imported {
                             Some(imported) => match &imported {
@@ -561,7 +574,6 @@ impl ReactServerComponentValidator {
     // assert_invalid_server_lib_apis("react", import)
     // assert_invalid_server_lib_apis("react-dom", import)
     fn assert_invalid_server_lib_apis(&self, import_source: String, import: &ModuleImports) {
-        // keys of invalid_server_lib_apis_mapping
         let invalid_apis = self
             .invalid_server_lib_apis_mapping
             .get(import_source.as_str());

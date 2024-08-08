@@ -1006,10 +1006,9 @@ export async function ncc_amp_optimizer(task, opts) {
     )
     .ncc({
       externals,
-      precompiled: false,
       packageName: '@ampproject/toolbox-optimizer',
     })
-    .target('dist/compiled/@ampproject/toolbox-optimizer')
+    .target('src/compiled/@ampproject/toolbox-optimizer')
 }
 // eslint-disable-next-line camelcase
 externals['async-retry'] = 'next/dist/compiled/async-retry'
@@ -2182,6 +2181,7 @@ export async function ncc(task, opts) {
     .clear('src/compiled')
     .parallel(
       [
+        'ncc_amp_optimizer',
         'ncc_node_html_parser',
         'ncc_napirs_triples',
         'ncc_p_limit',
@@ -2349,9 +2349,6 @@ export async function next_compile(task, opts) {
       'shared_re_exported_esm',
       'server_wasm',
       'experimental_testmode',
-      // we compile this each time so that fresh runtime data is pulled
-      // before each publish
-      'ncc_amp_optimizer',
     ],
     opts
   )
