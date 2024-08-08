@@ -487,7 +487,9 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/app-fetch-deduping/app-fetch-deduping.test.ts": {
-      "passed": ["app-fetch-deduping should skip other scenarios"],
+      "passed": [
+        "app-fetch-deduping during static generation dedupes requests amongst static workers"
+      ],
       "failed": [],
       "pending": [],
       "flakey": [],
@@ -579,6 +581,7 @@
         "app dir - prefetching fetch priority should have an auto priority for all other fetch operations",
         "app dir - prefetching fetch priority should prefetch links in viewport with low priority",
         "app dir - prefetching fetch priority should prefetch with high priority when navigating to a page without a prefetch entry",
+        "app dir - prefetching fetch priority should respect multiple prefetch types to the same URL",
         "app dir - prefetching invalid URLs should not throw when an invalid URL is passed to Link",
         "app dir - prefetching invalid URLs should throw when an invalid URL is passed to router.prefetch",
         "app dir - prefetching should calculate `_rsc` query based on `Next-Url`",
@@ -2078,8 +2081,8 @@
         "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
         "app dir - metadata dynamic routes sitemap should optimize routes without multiple generation API as static routes",
         "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
-        "app dir - metadata dynamic routes sitemap should support images in sitemap",
         "app dir - metadata dynamic routes sitemap should support generate multi sitemaps with generateSitemaps",
+        "app dir - metadata dynamic routes sitemap should support images in sitemap",
         "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
         "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
         "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime",
@@ -2100,6 +2103,18 @@
       "failed": [
         "app dir - Metadata API on the Edge runtime OG image route should not bundle `ImageResponse` into the page worker"
       ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/metadata-icons/metadata-icons.test.ts": {
+      "passed": [
+        "app-dir - metadata-icons should only have 1 favicon link in nested page",
+        "app-dir - metadata-icons should only have 1 favicon link in root page",
+        "app-dir - metadata-icons should render custom icons along with favicon in nested page",
+        "app-dir - metadata-icons should render custom icons along with favicon in root page"
+      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -3968,6 +3983,24 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/self-importing-package-monorepo/self-importing-package-monorepo.test.ts": {
+      "passed": [
+        "self-importing-package-monorepo should resolve self-imports inside a monorepo"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/self-importing-package/self-importing-package.test.ts": {
+      "passed": [
+        "self-importing-package should resolve self-imports in an external package"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/server-actions-redirect-middleware-rewrite/server-actions-redirect-middleware-rewrite.test.ts": {
       "passed": [
         "app-dir - server-actions-redirect-middleware-rewrite.test should redirect correctly in edge runtime with middleware rewrite",
@@ -5040,6 +5073,7 @@
     },
     "test/e2e/instrumentation-hook/register-once/register-once.test.ts": {
       "passed": [
+        "instrumentation-hook - register-once should not error when concurrent requests are made",
         "instrumentation-hook - register-once should only register once"
       ],
       "failed": [],
@@ -6515,10 +6549,10 @@
       "runtimeError": false
     },
     "test/integration/amp-export-validation/test/index.test.js": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "AMP Validation on Export production mode should have shown errors during build"
       ],
-      "failed": [],
       "pending": [
         "AMP Validation on Export production mode shows AMP warning without throwing error",
         "AMP Validation on Export production mode shows warning and error when throwing error",
