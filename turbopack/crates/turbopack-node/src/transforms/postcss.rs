@@ -229,13 +229,18 @@ async fn extra_configs_changed(
 pub struct JsonSource {
     pub path: Vc<FileSystemPath>,
     pub key: Vc<Option<RcStr>>,
+    pub allow_json5: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl JsonSource {
     #[turbo_tasks::function]
-    pub fn new(path: Vc<FileSystemPath>, key: Vc<Option<RcStr>>) -> Vc<Self> {
-        Self::cell(JsonSource { path, key })
+    pub fn new(path: Vc<FileSystemPath>, key: Vc<Option<RcStr>>, allow_json5: bool) -> Vc<Self> {
+        Self::cell(JsonSource {
+            path,
+            key,
+            allow_json5,
+        })
     }
 }
 
@@ -250,7 +255,7 @@ impl Source for JsonSource {
                     .append(key.clone())
                     .append(".json".into()),
             )),
-            None => Ok(AssetIdent::from_path(self.path)),
+            None => Ok(AssetIdent::from_path(self.path.append(".json".into()))),
         }
     }
 }
@@ -262,7 +267,11 @@ impl Asset for JsonSource {
         let file_type = &*self.path.get_type().await?;
         match file_type {
             FileSystemEntryType::File => {
-                let json = self.path.read_json().content().await?;
+                let json = if self.allow_json5 {
+                    self.path.read_json5().content().await?
+                } else {
+                    self.path.read_json().content().await?
+                };
                 let value = match &*self.key.await? {
                     Some(key) => {
                         let Some(value) = json.get(&**key) else {
@@ -288,11 +297,23 @@ pub(crate) async fn config_loader_source(
     postcss_config_path: Vc<FileSystemPath>,
 ) -> Result<Vc<Box<dyn Source>>> {
     let postcss_config_path_value = &*postcss_config_path.await?;
+    let postcss_config_path_filename = postcss_config_path_value.file_name();
 
-    if postcss_config_path_value.file_name() == "package.json" {
+    if postcss_config_path_filename == "package.json" {
         return Ok(Vc::upcast(JsonSource::new(
             postcss_config_path,
             Vc::cell(Some("postcss".into())),
+            false,
+        )));
+    }
+
+    if postcss_config_path_value.path.ends_with(".json")
+        || postcss_config_path_filename == ".postcssrc"
+    {
+        return Ok(Vc::upcast(JsonSource::new(
+            postcss_config_path,
+            Vc::cell(None),
+            true,
         )));
     }
 

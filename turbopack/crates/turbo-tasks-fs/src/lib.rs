@@ -1112,6 +1112,10 @@ impl FileSystemPath {
         self.fs().read(self).parse_json()
     }
 
+    pub fn read_json5(self: Vc<Self>) -> Vc<FileJsonContent> {
+        self.fs().read(self).parse_json5()
+    }
+
     /// Reads content of a directory.
     ///
     /// DETERMINISM: Result is in random order. Either sort result or do not
@@ -1686,6 +1690,33 @@ impl FileContent {
         }
     }
 
+    pub fn parse_json5_ref(&self) -> FileJsonContent {
+        match self {
+            FileContent::Content(file) => match file.content.to_str() {
+                Ok(string) => match parse_to_serde_value(
+                    &string,
+                    &ParseOptions {
+                        allow_comments: true,
+                        allow_trailing_commas: true,
+                        allow_loose_object_property_names: true,
+                    },
+                ) {
+                    Ok(data) => match data {
+                        Some(value) => FileJsonContent::Content(value),
+                        None => FileJsonContent::unparseable(
+                            "text content doesn't contain any json data",
+                        ),
+                    },
+                    Err(e) => FileJsonContent::Unparseable(Box::new(
+                        UnparseableJson::from_jsonc_error(e, string.as_ref()),
+                    )),
+                },
+                Err(_) => FileJsonContent::unparseable("binary is not valid utf-8 text"),
+            },
+            FileContent::NotFound => FileJsonContent::NotFound,
+        }
+    }
+
     pub fn lines_ref(&self) -> FileLinesContent {
         match self {
             FileContent::Content(file) => match file.content.to_str() {
@@ -1724,6 +1755,12 @@ impl FileContent {
     pub async fn parse_json_with_comments(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
         let this = self.await?;
         Ok(this.parse_json_with_comments_ref().into())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn parse_json5(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
+        let this = self.await?;
+        Ok(this.parse_json5_ref().into())
     }
 
     #[turbo_tasks::function]
