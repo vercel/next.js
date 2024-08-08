@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{event::Event, util::SharedError, CellId, KeyValuePair, SharedReference, TaskId};
+use turbo_tasks::{
+    event::Event, util::SharedError, CellId, KeyValuePair, TaskId, TypedSharedReference,
+};
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CellRef {
@@ -7,7 +9,7 @@ pub struct CellRef {
     pub cell: CellId,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
@@ -52,7 +54,7 @@ impl Clone for InProgressState {
     }
 }
 
-#[derive(Debug, Clone, KeyValuePair)]
+#[derive(Debug, Clone, KeyValuePair, Serialize, Deserialize)]
 pub enum CachedDataItem {
     // Output
     Output {
@@ -80,7 +82,7 @@ pub enum CachedDataItem {
     // Cells
     CellData {
         cell: CellId,
-        value: SharedReference,
+        value: TypedSharedReference,
     },
 
     // Dependencies
@@ -131,11 +133,13 @@ pub enum CachedDataItem {
     },
 
     // Transient Root Type
+    #[serde(skip)]
     AggregateRootType {
         value: RootType,
     },
 
     // Transient In Progress state
+    #[serde(skip)]
     InProgress {
         value: InProgressState,
     },
@@ -157,6 +161,7 @@ pub enum CachedDataItem {
     },
 
     // Transient Error State
+    #[serde(skip)]
     Error {
         value: SharedError,
     },

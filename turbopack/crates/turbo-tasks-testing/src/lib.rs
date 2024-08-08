@@ -297,6 +297,10 @@ impl TurboTasksApi for VcStorage {
     ) -> std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>> {
         unimplemented!()
     }
+
+    fn stop_and_wait(&self) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
+        Box::pin(async {})
+    }
 }
 
 impl VcStorage {

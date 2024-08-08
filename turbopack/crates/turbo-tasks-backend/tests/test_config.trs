@@ -1,3 +1,18 @@
-|_name, _initial| {
-  turbo_tasks::TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new())
+|_name, initial | {
+  let path = std::path::PathBuf::from(concat!(
+    env!("OUT_DIR"),
+    "/.cache/",
+    module_path!(),
+  ));
+  if initial {
+    let _ = std::fs::remove_dir_all(&path);
+  }
+  std::fs::create_dir_all(&path).unwrap();
+  turbo_tasks::TurboTasks::new(
+    turbo_tasks_backend::TurboTasksBackend::new(
+      Arc::new(turbo_tasks_backend::LmdbBackingStorage::new(
+        &path.as_path()
+      ).unwrap())
+    )
+  )
 }

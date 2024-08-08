@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
 use super::{ExecuteContext, Operation};
-use crate::data::CachedDataItem;
+use crate::data::{CachedDataItem, CachedDataItemKey};
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum ConnectChildOperation {
@@ -37,11 +37,17 @@ impl Operation for ConnectChildOperation {
             ctx.operation_suspend_point(&self);
             match self {
                 ConnectChildOperation::ScheduleTask { task_id } => {
+                    let mut should_schedule;
                     {
                         let mut task = ctx.task(task_id);
-                        task.add(CachedDataItem::new_scheduled(task_id));
+                        should_schedule = !task.has_key(&CachedDataItemKey::Output {});
+                        if should_schedule {
+                            should_schedule = task.add(CachedDataItem::new_scheduled(task_id));
+                        }
                     }
-                    ctx.schedule(task_id);
+                    if should_schedule {
+                        ctx.schedule(task_id);
+                    }
 
                     self = ConnectChildOperation::Done;
                     continue;

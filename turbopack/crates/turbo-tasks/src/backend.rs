@@ -248,7 +248,7 @@ mod ser {
                     s.serialize_element::<u8>(&0)?;
                     s.serialize_element(&FunctionAndArg::Borrowed {
                         fn_type: *fn_type,
-                        arg,
+                        arg: &**arg,
                     })?;
                     s.serialize_element(this)?;
                     s.end()
