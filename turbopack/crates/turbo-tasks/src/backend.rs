@@ -188,7 +188,7 @@ mod ser {
                     s.serialize_element::<u8>(&1)?;
                     s.serialize_element(&FunctionAndArg::Borrowed {
                         fn_type: *fn_type,
-                        arg,
+                        arg: &**arg,
                     })?;
                     s.serialize_element(this)?;
                     s.end()
@@ -207,7 +207,7 @@ mod ser {
                     let arg = if let Some(method) =
                         registry::get_trait(*trait_type).methods.get(method_name)
                     {
-                        method.arg_serializer.as_serialize(arg)
+                        method.arg_serializer.as_serialize(&**arg)
                     } else {
                         return Err(serde::ser::Error::custom("Method not found"));
                     };
