@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use anyhow::{bail, Context, Error, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use lightningcss::{
     css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, Pattern, Segment},
@@ -33,7 +33,7 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{RcStr, ReadRef, ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -553,12 +553,6 @@ async fn process_content(
         StyleSheetLike::LightningCss({
             let warnings: Arc<RwLock<_>> = Default::default();
 
-            let srcmap = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(source).await?;
-            let srcmap = match srcmap {
-                Some(v) => Some(v.generate_source_map()),
-                None => None,
-            };
-
             match StyleSheet::parse(
                 &code,
                 ParserOptions {
@@ -581,12 +575,13 @@ async fn process_content(
                             lightningcss::error::ParserError::UnexpectedToken(_)
                             | lightningcss::error::ParserError::UnexpectedImportRule
                             | lightningcss::error::ParserError::EndOfInput => {
+                                let msg = Vc::cell(err.to_string().into());
                                 let source = {
                                     let this = err.loc.as_ref();
                                     match this {
                                         Some(x) => Some({
                                             let pos =
-                                                source_pos(srcmap, x.line as _, x.column as _)
+                                                source_pos(source, x.line as _, x.column as _)
                                                     .await?;
                                             IssueSource::from_line_col(source, pos, pos)
                                         }),
@@ -596,7 +591,7 @@ async fn process_content(
 
                                 ParsingIssue {
                                     file: fs_path_vc,
-                                    msg: Vc::cell(err.to_string().into()),
+                                    msg,
                                     source: Vc::cell(source),
                                 }
                                 .cell()
@@ -617,7 +612,7 @@ async fn process_content(
                         let this = e.loc.as_ref();
                         match this {
                             Some(x) => Some({
-                                let pos = source_pos(srcmap, x.line as _, x.column as _).await?;
+                                let pos = source_pos(source, x.line as _, x.column as _).await?;
                                 IssueSource::from_line_col(source, pos, pos)
                             }),
                             None => None,
@@ -727,17 +722,19 @@ async fn process_content(
     .cell())
 }
 
-async fn source_pos(
-    srcmap: Option<Vc<OptionSourceMap>>,
-    line: usize,
-    col: usize,
-) -> Result<SourcePos> {
+async fn source_pos(source: Vc<Box<dyn Source>>, line: usize, col: usize) -> Result<SourcePos> {
+    let srcmap = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(source).await?;
+    let srcmap = match srcmap {
+        Some(v) => Some(v.generate_source_map()),
+        None => None,
+    };
+
     if let Some(srcmap) = srcmap {
         if let Some(srcmap) = *srcmap.await? {
             let token = srcmap.lookup_token(line as _, col as _).await?;
 
             return match &*token {
-                turbopack_core::source_map::Token::Synthetic(t) => Ok::<_, Error>(SourcePos {
+                turbopack_core::source_map::Token::Synthetic(t) => Ok(SourcePos {
                     line: t.generated_line as _,
                     column: t.generated_column as _,
                 }),
