@@ -267,7 +267,7 @@ describe('Prefetching Links in viewport', () => {
               links.map(async (link) => await link.getAttribute('href'))
             )
             expect(hrefs).toEqual(
-              expect.arrayContaining([expect.stringContaining('another')])
+              expect.not.arrayContaining([expect.stringContaining('another')])
             )
           })
 
@@ -350,7 +350,9 @@ describe('Prefetching Links in viewport', () => {
             const srcProps = await Promise.all(
               scripts.map(async (script) => await script.getAttribute('src'))
             )
-            expect(srcProps).toContain(expect.stringContaining('another'))
+            expect(srcProps).toEqual(
+              expect.arrayContaining([expect.stringContaining('another')])
+            )
           })
         } finally {
           if (browser) await browser.close()
@@ -381,8 +383,8 @@ describe('Prefetching Links in viewport', () => {
           const hrefs = await Promise.all(
             links.map(async (link) => await link.getAttribute('href'))
           )
-          expect(hrefs).not.toEqual(
-            expect.arrayContaining([expect.stringContaining('another')])
+          expect(hrefs).toEqual(
+            expect.not.arrayContaining([expect.stringContaining('another')])
           )
         })
       })
