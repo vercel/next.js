@@ -386,6 +386,15 @@ fn collect_top_level_directives_and_imports(
                 let specifiers = import
                     .specifiers
                     .iter()
+                    .filter(|specifier| {
+                        !matches!(
+                            specifier,
+                            ImportSpecifier::Named(ImportNamedSpecifier {
+                                is_type_only: true,
+                                ..
+                            })
+                        )
+                    })
                     .map(|specifier| match specifier {
                         ImportSpecifier::Named(named) => match &named.imported {
                             Some(imported) => match &imported {
