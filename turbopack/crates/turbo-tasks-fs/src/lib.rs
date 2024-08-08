@@ -1762,6 +1762,17 @@ impl ValueToString for FileJsonContent {
     }
 }
 
+#[turbo_tasks::value_impl]
+impl FileJsonContent {
+    #[turbo_tasks::function]
+    pub async fn content(self: Vc<Self>) -> Result<Vc<Value>> {
+        match &*self.await? {
+            FileJsonContent::Content(json) => Ok(Vc::cell(json.clone())),
+            FileJsonContent::Unparseable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
+            FileJsonContent::NotFound => Err(anyhow!("File not found")),
+        }
+    }
+}
 impl FileJsonContent {
     pub fn unparseable(message: &'static str) -> Self {
         FileJsonContent::Unparseable(Box::new(UnparseableJson {
