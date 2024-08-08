@@ -575,23 +575,17 @@ async fn process_content(
                             lightningcss::error::ParserError::UnexpectedToken(_)
                             | lightningcss::error::ParserError::UnexpectedImportRule
                             | lightningcss::error::ParserError::EndOfInput => {
-                                let msg = Vc::cell(err.to_string().into());
-                                let source = {
-                                    let this = err.loc.as_ref();
-                                    match this {
-                                        Some(x) => Some({
-                                            let pos =
-                                                source_pos(source, x.line as _, x.column as _)
-                                                    .await?;
-                                            IssueSource::from_line_col(source, pos, pos)
-                                        }),
-                                        None => None,
-                                    }
-                                };
+                                let source = err.loc.as_ref().map(|loc| {
+                                    let pos = SourcePos {
+                                        line: loc.line as _,
+                                        column: loc.column as _,
+                                    };
+                                    IssueSource::from_line_col(source, pos, pos)
+                                });
 
                                 ParsingIssue {
                                     file: fs_path_vc,
-                                    msg,
+                                    msg: Vc::cell(err.to_string().into()),
                                     source: Vc::cell(source),
                                 }
                                 .cell()
@@ -608,17 +602,13 @@ async fn process_content(
                     stylesheet_into_static(&ss, without_warnings(config.clone()))
                 }
                 Err(e) => {
-                    let source = {
-                        let this = e.loc.as_ref();
-                        match this {
-                            Some(x) => Some({
-                                let pos = source_pos(source, x.line as _, x.column as _).await?;
-                                IssueSource::from_line_col(source, pos, pos)
-                            }),
-                            None => None,
-                        }
-                    };
-
+                    let source = e.loc.as_ref().map(|loc| {
+                        let pos = SourcePos {
+                            line: loc.line as _,
+                            column: loc.column as _,
+                        };
+                        IssueSource::from_line_col(source, pos, pos)
+                    });
                     ParsingIssue {
                         file: fs_path_vc,
                         msg: Vc::cell(e.to_string().into()),
@@ -720,36 +710,6 @@ async fn process_content(
         options: config,
     }
     .cell())
-}
-
-async fn source_pos(source: Vc<Box<dyn Source>>, line: usize, col: usize) -> Result<SourcePos> {
-    let srcmap = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(source).await?;
-    let srcmap = match srcmap {
-        Some(v) => Some(v.generate_source_map()),
-        None => None,
-    };
-
-    if let Some(srcmap) = srcmap {
-        if let Some(srcmap) = *srcmap.await? {
-            let token = srcmap.lookup_token(line as _, col as _).await?;
-
-            return match &*token {
-                turbopack_core::source_map::Token::Synthetic(t) => Ok(SourcePos {
-                    line: t.generated_line as _,
-                    column: t.generated_column as _,
-                }),
-                turbopack_core::source_map::Token::Original(t) => Ok(SourcePos {
-                    line: t.original_line as _,
-                    column: t.original_column as _,
-                }),
-            };
-        }
-    }
-
-    Ok(SourcePos {
-        line: line as _,
-        column: col as _,
-    })
 }
 
 /// Visitor that lints wrong css module usage.

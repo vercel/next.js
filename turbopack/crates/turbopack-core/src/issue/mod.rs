@@ -21,6 +21,7 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use crate::{
     asset::{Asset, AssetContent},
     source::Source,
+    source_map::GenerateSourceMap,
     source_pos::SourcePos,
 };
 
@@ -452,15 +453,18 @@ impl IssueSource {
     }
 
     #[turbo_tasks::function]
-    pub fn from_line_col(
+    pub async fn from_line_col(
         source: Vc<Box<dyn Source>>,
         start: SourcePos,
         end: SourcePos,
-    ) -> Vc<Self> {
-        Self::cell(IssueSource {
+    ) -> Result<Vc<Self>> {
+        let start = source_pos(source, start.line, start.column).await?;
+        let end = source_pos(source, end.line, end.column).await?;
+
+        Ok(Self::cell(IssueSource {
             source,
             range: Some(SourceRange::LineColumn(start, end).cell()),
-        })
+        }))
     }
 
     /// Create a [`IssueSource`] from byte offsets given by an swc ast node
@@ -516,6 +520,33 @@ impl IssueSource {
     pub fn file_path(&self) -> Vc<FileSystemPath> {
         self.source.ident().path()
     }
+}
+
+async fn source_pos(source: Vc<Box<dyn Source>>, line: usize, col: usize) -> Result<SourcePos> {
+    let srcmap = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(source).await?;
+    let srcmap = srcmap.map(|v| v.generate_source_map());
+
+    if let Some(srcmap) = srcmap {
+        if let Some(srcmap) = *srcmap.await? {
+            let token = srcmap.lookup_token(line as _, col as _).await?;
+
+            return match &*token {
+                crate::source_map::Token::Synthetic(t) => Ok(SourcePos {
+                    line: t.generated_line as _,
+                    column: t.generated_column as _,
+                }),
+                crate::source_map::Token::Original(t) => Ok(SourcePos {
+                    line: t.original_line as _,
+                    column: t.original_column as _,
+                }),
+            };
+        }
+    }
+
+    Ok(SourcePos {
+        line: line as _,
+        column: col as _,
+    })
 }
 
 #[turbo_tasks::value(transparent)]
