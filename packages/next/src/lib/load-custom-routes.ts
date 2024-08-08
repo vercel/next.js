@@ -635,6 +635,19 @@ async function loadRewrites(config: NextConfig) {
   afterFiles = processRoutes(afterFiles, config, 'rewrite')
   fallback = processRoutes(fallback, config, 'rewrite')
 
+  // If assetPrefix is set, add a rewrite for `/${assetPrefix}/_next/*`
+  // requests to make sure automatically so that the user doesn't need to
+  // configure this themselves.
+  if (config.assetPrefix && !config.basePath) {
+    const assetPrefix = config.assetPrefix.startsWith('/')
+      ? config.assetPrefix
+      : `/${config.assetPrefix}`
+    beforeFiles.unshift({
+      source: `${assetPrefix}/_next/:path+`,
+      destination: '/_next/:path+',
+    })
+  }
+
   checkCustomRoutes(beforeFiles, 'rewrite')
   checkCustomRoutes(afterFiles, 'rewrite')
   checkCustomRoutes(fallback, 'rewrite')

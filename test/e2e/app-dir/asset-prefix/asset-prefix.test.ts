@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('app-dir assetPrefix handling', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should redirect route when requesting it directly', async () => {
@@ -66,4 +65,21 @@ describe('app-dir assetPrefix handling', () => {
       expect(await res.text()).toBe('{"message":"test"}')
     })
   })
+
+  if (!(global as any).isNextDev) {
+    it('should add basePath to routes-manifest', async () => {
+      const routesManifest = JSON.parse(
+        await next.readFile('.next/routes-manifest.json')
+      )
+      const beforeFiles = routesManifest.rewrites?.beforeFiles || []
+      expect(beforeFiles).toEqual([
+        {
+          source: '/custom-asset-prefix/_next/:path+',
+          destination: '/_next/:path+',
+          regex:
+            '^/custom-asset-prefix/_next(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))(?:/)?$',
+        },
+      ])
+    })
+  }
 })
