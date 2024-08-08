@@ -1111,14 +1111,60 @@ pub async fn find_context_file(
     names: Vc<Vec<RcStr>>,
 ) -> Result<Vc<FindContextFileResult>> {
     let mut refs = Vec::new();
-    let context_value = lookup_path.await?;
     for name in &*names.await? {
         let fs_path = lookup_path.join(name.clone());
         if let Some(fs_path) = exists(fs_path, &mut refs).await? {
             return Ok(FindContextFileResult::Found(fs_path, refs).into());
         }
     }
-    if context_value.is_root() {
+    if lookup_path.await?.is_root() {
+        return Ok(FindContextFileResult::NotFound(refs).into());
+    }
+    if refs.is_empty() {
+        // Tailcall
+        Ok(find_context_file(
+            lookup_path.parent().resolve().await?,
+            names,
+        ))
+    } else {
+        let parent_result = find_context_file(lookup_path.parent().resolve().await?, names).await?;
+        Ok(match &*parent_result {
+            FindContextFileResult::Found(p, r) => {
+                refs.extend(r.iter().copied());
+                FindContextFileResult::Found(*p, refs)
+            }
+            FindContextFileResult::NotFound(r) => {
+                refs.extend(r.iter().copied());
+                FindContextFileResult::NotFound(refs)
+            }
+        }
+        .into())
+    }
+}
+
+// Same as find_context_file, but also stop for package.json with the specified key
+#[turbo_tasks::function]
+pub async fn find_context_file_or_package_key(
+    lookup_path: Vc<FileSystemPath>,
+    names: Vc<Vec<RcStr>>,
+    package_key: Value<RcStr>,
+) -> Result<Vc<FindContextFileResult>> {
+    let mut refs = Vec::new();
+    let package_json_path = lookup_path.join("package.json".into());
+    if let Some(package_json_path) = exists(package_json_path, &mut refs).await? {
+        if let Some(json) = &*read_package_json(package_json_path).await? {
+            if json.get(&**package_key).is_some() {
+                return Ok(FindContextFileResult::Found(package_json_path, refs).into());
+            }
+        }
+    }
+    for name in &*names.await? {
+        let fs_path = lookup_path.join(name.clone());
+        if let Some(fs_path) = exists(fs_path, &mut refs).await? {
+            return Ok(FindContextFileResult::Found(fs_path, refs).into());
+        }
+    }
+    if lookup_path.await?.is_root() {
         return Ok(FindContextFileResult::NotFound(refs).into());
     }
     if refs.is_empty() {
