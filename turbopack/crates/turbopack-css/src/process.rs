@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Context, Error, Result};
 use indexmap::IndexMap;
 use lightningcss::{
     css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, Pattern, Segment},
@@ -552,6 +552,38 @@ async fn process_content(
     let stylesheet = if !use_swc_css {
         StyleSheetLike::LightningCss({
             let warnings: Arc<RwLock<_>> = Default::default();
+
+            let srcmap = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(source).await?;
+            let srcmap = match srcmap {
+                Some(v) => Some(v.generate_source_map().await?),
+                None => None,
+            };
+
+            let source_pos = |line: usize, col: usize| async {
+                if let Some(srcmap) = srcmap {
+                    if let Some(srcmap) = srcmap.as_ref() {
+                        let token = srcmap.lookup_token(line as _, col as _).await?;
+
+                        return match &*token {
+                            turbopack_core::source_map::Token::Synthetic(t) => {
+                                Ok::<_, Error>(SourcePos {
+                                    line: t.generated_line as _,
+                                    column: t.generated_column as _,
+                                })
+                            }
+                            turbopack_core::source_map::Token::Original(t) => Ok(SourcePos {
+                                line: t.original_line as _,
+                                column: t.original_column as _,
+                            }),
+                        };
+                    }
+                }
+
+                Ok(SourcePos {
+                    line: line as _,
+                    column: col as _,
+                })
+            };
 
             match StyleSheet::parse(
                 &code,
