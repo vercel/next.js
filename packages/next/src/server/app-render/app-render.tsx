@@ -171,7 +171,7 @@ interface ParseRequestHeadersOptions {
   readonly isRoutePPREnabled: boolean
 }
 
-const flightDataPathHeadKey = 'flight-data-path-head'
+const flightDataPathHeadKey = 'h'
 
 interface ParsedRequestHeaders {
   /**

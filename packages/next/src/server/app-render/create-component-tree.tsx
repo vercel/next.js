@@ -54,7 +54,7 @@ function errorMissingDefaultExport(pagePath: string, convention: string) {
   )
 }
 
-const cacheNodeKey = 'cache-node'
+const cacheNodeKey = 'c'
 
 async function createComponentTreeInternal({
   createSegmentPath,
