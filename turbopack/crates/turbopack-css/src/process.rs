@@ -33,7 +33,7 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ReadRef, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -555,34 +555,8 @@ async fn process_content(
 
             let srcmap = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(source).await?;
             let srcmap = match srcmap {
-                Some(v) => Some(v.generate_source_map().await?),
+                Some(v) => Some(v.generate_source_map()),
                 None => None,
-            };
-
-            let source_pos = |line: usize, col: usize| async {
-                if let Some(srcmap) = srcmap {
-                    if let Some(srcmap) = srcmap.as_ref() {
-                        let token = srcmap.lookup_token(line as _, col as _).await?;
-
-                        return match &*token {
-                            turbopack_core::source_map::Token::Synthetic(t) => {
-                                Ok::<_, Error>(SourcePos {
-                                    line: t.generated_line as _,
-                                    column: t.generated_column as _,
-                                })
-                            }
-                            turbopack_core::source_map::Token::Original(t) => Ok(SourcePos {
-                                line: t.original_line as _,
-                                column: t.original_column as _,
-                            }),
-                        };
-                    }
-                }
-
-                Ok(SourcePos {
-                    line: line as _,
-                    column: col as _,
-                })
             };
 
             match StyleSheet::parse(
@@ -612,7 +586,8 @@ async fn process_content(
                                     match this {
                                         Some(x) => Some({
                                             let pos =
-                                                source_pos(x.line as _, x.column as _).await?;
+                                                source_pos(srcmap, x.line as _, x.column as _)
+                                                    .await?;
                                             IssueSource::from_line_col(source, pos, pos)
                                         }),
                                         None => None,
@@ -642,7 +617,7 @@ async fn process_content(
                         let this = e.loc.as_ref();
                         match this {
                             Some(x) => Some({
-                                let pos = source_pos(x.line as _, x.column as _).await?;
+                                let pos = source_pos(srcmap, x.line as _, x.column as _).await?;
                                 IssueSource::from_line_col(source, pos, pos)
                             }),
                             None => None,
@@ -750,6 +725,34 @@ async fn process_content(
         options: config,
     }
     .cell())
+}
+
+async fn source_pos(
+    srcmap: Option<Vc<OptionSourceMap>>,
+    line: usize,
+    col: usize,
+) -> Result<SourcePos> {
+    if let Some(srcmap) = srcmap {
+        if let Some(srcmap) = *srcmap.await? {
+            let token = srcmap.lookup_token(line as _, col as _).await?;
+
+            return match &*token {
+                turbopack_core::source_map::Token::Synthetic(t) => Ok::<_, Error>(SourcePos {
+                    line: t.generated_line as _,
+                    column: t.generated_column as _,
+                }),
+                turbopack_core::source_map::Token::Original(t) => Ok(SourcePos {
+                    line: t.original_line as _,
+                    column: t.original_column as _,
+                }),
+            };
+        }
+    }
+
+    Ok(SourcePos {
+        line: line as _,
+        column: col as _,
+    })
 }
 
 /// Visitor that lints wrong css module usage.
