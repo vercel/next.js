@@ -3,6 +3,7 @@
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
+  retry,
   findPort,
   launchApp,
   killApp,
@@ -34,18 +35,21 @@ const noError = async (pathname) => {
 
 const didPrefetch = async (pathname) => {
   const browser = await webdriver(appPort, pathname)
-  const links = await browser.elementsByCss('link[rel=prefetch]')
 
-  const hrefs = await Promise.all(
-    links.map(async (link) => {
-      return await link.getAttribute('href')
-    })
-  )
+  await retry(async () => {
+    const links = await browser.elementsByCss('link[rel=prefetch]')
 
-  // expect one of the href contain string "index"
-  expect(hrefs).toEqual(
-    expect.arrayContaining([expect.stringContaining('index')])
-  )
+    const hrefs = await Promise.all(
+      links.map(async (link) => {
+        return await link.getAttribute('href')
+      })
+    )
+
+    // expect one of the href contain string "index"
+    expect(hrefs).toEqual(
+      expect.arrayContaining([expect.stringContaining('index')])
+    )
+  })
 
   await browser.close()
 }
