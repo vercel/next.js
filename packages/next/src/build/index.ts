@@ -100,7 +100,10 @@ import {
 } from '../telemetry/events'
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import { getPageStaticInfo } from './analysis/get-page-static-info'
+import {
+  getPageStaticInfo,
+  hadUnsupportedValue,
+} from './analysis/get-page-static-info'
 import { createPagesMapping, getPageFromPath, sortByPageExts } from './entries'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
@@ -2302,6 +2305,13 @@ export default async function build(
               })
             })
         )
+
+        if (hadUnsupportedValue) {
+          Log.error(
+            `Invalid config value exports detected, these can cause unexpected behavior from the configs not being applied. Please fix them to continue`
+          )
+          process.exit(1)
+        }
 
         const errorPageResult = await errorPageStaticResult
         const nonStaticErrorPage =
