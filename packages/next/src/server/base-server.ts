@@ -1744,12 +1744,7 @@ export default abstract class Server<
       return builtinRequestContext.waitUntil
     }
 
-    if (process.env.__NEXT_TEST_MODE) {
-      // we're in a test, use a no-op.
-      return Server.noopWaitUntil
-    }
-
-    if (this.minimalMode || process.env.NEXT_RUNTIME === 'edge') {
+    if (this.minimalMode) {
       // we're built for a serverless environment, and `waitUntil` is not available,
       // but using a noop would likely lead to incorrect behavior,
       // because we have no way of keeping the invocation alive.
