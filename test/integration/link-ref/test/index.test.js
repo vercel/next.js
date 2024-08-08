@@ -40,9 +40,7 @@ const didPrefetch = async (pathname) => {
     const links = await browser.elementsByCss('link[rel=prefetch]')
 
     const hrefs = await Promise.all(
-      links.map(async (link) => {
-        return await link.getAttribute('href')
-      })
+      links.map((link) => link.getAttribute('href'))
     )
 
     // expect one of the href contain string "index"

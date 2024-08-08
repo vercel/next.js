@@ -106,7 +106,7 @@ describe('Prefetching Links in viewport', () => {
             const links = await browser.elementsByCss('link[rel=prefetch]')
 
             const hrefs = await Promise.all(
-              links.map(async (link) => await link.getAttribute('href'))
+              links.map((link) => link.getAttribute('href'))
             )
             expect(hrefs).toEqual(
               expect.arrayContaining([expect.stringContaining('first')])
@@ -158,7 +158,7 @@ describe('Prefetching Links in viewport', () => {
             const links = await browser.elementsByCss('link[rel=prefetch]')
 
             const hrefs = await Promise.all(
-              links.map(async (link) => await link.getAttribute('href'))
+              links.map((link) => link.getAttribute('href'))
             )
 
             expect(hrefs).toEqual(
@@ -209,7 +209,7 @@ describe('Prefetching Links in viewport', () => {
             const links = await browser.elementsByCss('link[rel=prefetch]')
 
             const hrefs = await Promise.all(
-              links.map(async (link) => await link.getAttribute('href'))
+              links.map((link) => link.getAttribute('href'))
             )
             expect(hrefs).toEqual(
               expect.arrayContaining([expect.stringContaining('another')])
@@ -230,7 +230,7 @@ describe('Prefetching Links in viewport', () => {
             const links = await browser.elementsByCss('link[rel=prefetch]')
 
             const hrefs = await Promise.all(
-              links.map(async (link) => await link.getAttribute('href'))
+              links.map((link) => link.getAttribute('href'))
             )
             expect(hrefs).toEqual(
               expect.arrayContaining([expect.stringContaining('another')])
@@ -244,7 +244,7 @@ describe('Prefetching Links in viewport', () => {
             const scripts = await browser.elementsByCss('script:not([async])')
 
             const srcProps = await Promise.all(
-              scripts.map(async (script) => await script.getAttribute('src'))
+              scripts.map((script) => script.getAttribute('src'))
             )
             expect(srcProps).toEqual(
               expect.arrayContaining([expect.stringContaining('another')])
@@ -264,7 +264,7 @@ describe('Prefetching Links in viewport', () => {
             const links = await browser.elementsByCss('link[rel=prefetch]')
 
             const hrefs = await Promise.all(
-              links.map(async (link) => await link.getAttribute('href'))
+              links.map((link) => link.getAttribute('href'))
             )
             expect(hrefs).toEqual(
               expect.not.arrayContaining([expect.stringContaining('another')])
@@ -348,7 +348,7 @@ describe('Prefetching Links in viewport', () => {
             const scripts = await browser.elementsByCss('script:not([async])')
 
             const srcProps = await Promise.all(
-              scripts.map(async (script) => await script.getAttribute('src'))
+              scripts.map((script) => script.getAttribute('src'))
             )
             expect(srcProps).toEqual(
               expect.arrayContaining([expect.stringContaining('another')])
@@ -381,7 +381,7 @@ describe('Prefetching Links in viewport', () => {
         await retry(async () => {
           const links = await browser.elementsByCss('link[rel=prefetch]')
           const hrefs = await Promise.all(
-            links.map(async (link) => await link.getAttribute('href'))
+            links.map((link) => link.getAttribute('href'))
           )
           expect(hrefs).toEqual(
             expect.not.arrayContaining([expect.stringContaining('another')])
@@ -449,7 +449,7 @@ describe('Prefetching Links in viewport', () => {
         await retry(async () => {
           const links = await browser.elementsByCss('link[rel=prefetch]')
           const hrefs = await Promise.all(
-            links.map(async (link) => await link.getAttribute('href'))
+            links.map((link) => link.getAttribute('href'))
           )
           expect(hrefs).toEqual(
             expect.arrayContaining([expect.stringContaining('first')])
