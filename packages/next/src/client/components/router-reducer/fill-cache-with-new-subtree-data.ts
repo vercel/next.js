@@ -1,21 +1,19 @@
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type {
-  FlightDataPath,
-  CacheNodeSeedData,
-} from '../../../server/app-render/types'
+import type { FlightDataPath } from '../../../server/app-render/types'
 import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { createRouterCacheKey } from './create-router-cache-key'
 import type { PrefetchCacheEntry } from './router-reducer-types'
 
 /**
- * Fill cache with rsc based on flightDataPath
+ * Common logic for filling cache with new sub tree data.
  */
-export function fillCacheWithNewSubTreeData(
+function fillCacheHelper(
   newCache: CacheNode,
   existingCache: CacheNode,
   flightDataPath: FlightDataPath,
-  prefetchEntry?: PrefetchCacheEntry
+  prefetchEntry: PrefetchCacheEntry | undefined,
+  fillLazyItems: boolean
 ): void {
   const isLastEntry = flightDataPath.length <= 5
   const [parallelRouteKey, segment] = flightDataPath
@@ -39,16 +37,17 @@ export function fillCacheWithNewSubTreeData(
 
   const existingChildCacheNode = existingChildSegmentMap.get(cacheKey)
   let childCacheNode = childSegmentMap.get(cacheKey)
+  const cacheNodeSeedData = flightDataPath[3]
 
   if (isLastEntry) {
     if (
-      !childCacheNode ||
-      !childCacheNode.lazyData ||
-      childCacheNode === existingChildCacheNode
+      cacheNodeSeedData &&
+      (!childCacheNode ||
+        !childCacheNode.lazyData ||
+        childCacheNode === existingChildCacheNode)
     ) {
-      const seedData: CacheNodeSeedData = flightDataPath[3]
-      const rsc = seedData[2]
-      const loading = seedData[3]
+      const rsc = cacheNodeSeedData[2]
+      const loading = cacheNodeSeedData[3]
       childCacheNode = {
         lazyData: null,
         rsc,
@@ -56,28 +55,30 @@ export function fillCacheWithNewSubTreeData(
         head: null,
         prefetchHead: null,
         loading,
-        // Ensure segments other than the one we got data for are preserved.
-        parallelRoutes: existingChildCacheNode
-          ? new Map(existingChildCacheNode.parallelRoutes)
+        parallelRoutes: fillLazyItems
+          ? existingChildCacheNode
+            ? new Map(existingChildCacheNode.parallelRoutes)
+            : new Map()
           : new Map(),
       }
 
-      if (existingChildCacheNode) {
+      if (existingChildCacheNode && fillLazyItems) {
         invalidateCacheByRouterState(
           childCacheNode,
           existingChildCacheNode,
           flightDataPath[2]
         )
       }
-
-      fillLazyItemsTillLeafWithHead(
-        childCacheNode,
-        existingChildCacheNode,
-        flightDataPath[2],
-        seedData,
-        flightDataPath[4],
-        prefetchEntry
-      )
+      if (fillLazyItems) {
+        fillLazyItemsTillLeafWithHead(
+          childCacheNode,
+          existingChildCacheNode,
+          flightDataPath[2],
+          cacheNodeSeedData,
+          flightDataPath[4],
+          prefetchEntry
+        )
+      }
 
       childSegmentMap.set(cacheKey, childCacheNode)
     }
@@ -103,10 +104,32 @@ export function fillCacheWithNewSubTreeData(
     childSegmentMap.set(cacheKey, childCacheNode)
   }
 
-  fillCacheWithNewSubTreeData(
+  fillCacheHelper(
     childCacheNode,
     existingChildCacheNode,
     flightDataPath.slice(2),
-    prefetchEntry
+    prefetchEntry,
+    fillLazyItems
   )
+}
+
+/**
+ * Fill cache with rsc based on flightDataPath
+ */
+export function fillCacheWithNewSubTreeData(
+  newCache: CacheNode,
+  existingCache: CacheNode,
+  flightDataPath: FlightDataPath,
+  prefetchEntry?: PrefetchCacheEntry
+): void {
+  fillCacheHelper(newCache, existingCache, flightDataPath, prefetchEntry, true)
+}
+
+export function fillCacheWithNewSubTreeDataButOnlyLoading(
+  newCache: CacheNode,
+  existingCache: CacheNode,
+  flightDataPath: FlightDataPath,
+  prefetchEntry?: PrefetchCacheEntry
+): void {
+  fillCacheHelper(newCache, existingCache, flightDataPath, prefetchEntry, false)
 }

@@ -73,16 +73,30 @@ function getExistingCacheEntry(
       maybeNextUrl
     )
 
-    // returning the param-less entry (when search params are present) is only valid if the requested prefetch is "auto"
-    // because it's safe to share the loading state across different search params
+    // Returning the param-less entry (when search params are present in the requested URL) is only valid
+    // if there isn't already a more specific cache entry with search params. When not referencing a "FULL" prefetch,
+    // we'll only ever use the `loading` state from the prefetched data, so we can safely re-use the cache entry without search params.
+    // The check to see if there's a matching prefetch entry with params is important because we don't want to return a param-less response
+    // if the requested URL has an entry for the provided params.
+    const entryWithoutParams = prefetchCache.get(cacheKeyWithoutParams)
     if (
       url.search &&
-      prefetchCache.has(cacheKeyWithoutParams) &&
-      (kind === PrefetchKind.AUTO || kind === PrefetchKind.TEMPORARY)
+      entryWithoutParams &&
+      !prefetchCache.has(cacheKeyWithParams) &&
+      kind !== PrefetchKind.FULL
     ) {
-      return prefetchCache.get(cacheKeyWithoutParams)
+      // Since search params are present, and we're returning the param-less entry, the only thing that should be consumed
+      // from the cache entry is the `loading` state. If we applied the prefetch as-is, it's possible that a "FULL" param-less
+      // prefetch could exist, which would trick the router into thinking it should use the RSC data that corresponds with the
+      // param-less route, rather than the intended behavior, which is to only copy the loading information into the tree and skip the rest
+      // so that it can be lazily fetched later. This doesn't mutate the original cache entry since the original entry is still
+      // expected to be used when navigating to the exact URL without params.
+      // TODO: This is a bit of a hack. Another option to explore is to have a separate cache for loading states,
+      // which is a bit more aligned with the future goal of per-segment cache entries, but that's a bit more complex.
+      return { ...entryWithoutParams, usePartialData: true }
     }
 
+    // We check for the cache entry with search params first, as it's more specific.
     const cacheKeyToUse = url.search
       ? cacheKeyWithParams
       : cacheKeyWithoutParams

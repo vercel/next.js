@@ -207,6 +207,7 @@ export type PrefetchCacheEntry = {
   lastUsedTime: number | null
   key: string
   status: PrefetchCacheEntryStatus
+  usePartialData?: boolean
 }
 
 export enum PrefetchCacheEntryStatus {

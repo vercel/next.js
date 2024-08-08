@@ -30,6 +30,7 @@ import {
   prunePrefetchCache,
 } from '../prefetch-cache-utils'
 import { clearCacheNodeDataForSegmentPath } from '../clear-cache-node-data-for-segment-path'
+import { fillCacheWithNewSubTreeDataButOnlyLoading } from '../fill-cache-with-new-subtree-data'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -209,7 +210,35 @@ function navigateReducer_noPPR(
           const cache: CacheNode = createEmptyCacheNode()
           let applied = false
 
-          if (
+          // The prefetch cache signaled that we should only fill in the cache with the
+          // loading state and not the actual parallel route seed data.
+          if (prefetchValues.usePartialData) {
+            // Root render
+            if (flightDataPath.length === 3) {
+              // Fill in the cache with the new loading / rsc data
+              const cacheNodeSeedData = flightDataPath[1]
+              const rsc = cacheNodeSeedData[2]
+              const loading = cacheNodeSeedData[3]
+              cache.loading = loading
+              cache.rsc = rsc
+            } else {
+              // Copy rsc for the root node of the cache.
+              cache.rsc = currentCache.rsc
+              cache.prefetchRsc = currentCache.prefetchRsc
+              cache.loading = currentCache.loading
+              cache.parallelRoutes = new Map(currentCache.parallelRoutes)
+
+              // recursively fill in `rsc` and `loading` but skip everything else
+              fillCacheWithNewSubTreeDataButOnlyLoading(
+                cache,
+                currentCache,
+                flightDataPath,
+                prefetchValues
+              )
+            }
+
+            applied = true
+          } else if (
             prefetchValues.status === PrefetchCacheEntryStatus.stale &&
             !mutable.onlyHashChange &&
             !isFirstRead
@@ -406,7 +435,8 @@ function navigateReducer_PPR(
             // TODO: We should get rid of the else branch and do all navigations
             // via updateCacheNodeOnNavigation. The current structure is just
             // an incremental step.
-            flightDataPath.length === 3
+            flightDataPath.length === 3 &&
+            !prefetchValues.usePartialData
           ) {
             const prefetchedTree: FlightRouterState = flightDataPath[0]
             const seedData = flightDataPath[1]
@@ -479,7 +509,35 @@ function navigateReducer_PPR(
             const cache: CacheNode = createEmptyCacheNode()
             let applied = false
 
-            if (
+            // The prefetch cache signaled that we should only fill in the cache with the
+            // loading state and not the actual parallel route seed data.
+            if (prefetchValues.usePartialData) {
+              // Root render
+              if (flightDataPath.length === 3) {
+                // Fill in the cache with the new loading / rsc data
+                const cacheNodeSeedData = flightDataPath[1]
+                const rsc = cacheNodeSeedData[2]
+                const loading = cacheNodeSeedData[3]
+                cache.loading = loading
+                cache.rsc = rsc
+              } else {
+                // Copy rsc for the root node of the cache.
+                cache.rsc = currentCache.rsc
+                cache.prefetchRsc = currentCache.prefetchRsc
+                cache.loading = currentCache.loading
+                cache.parallelRoutes = new Map(currentCache.parallelRoutes)
+
+                // recursively fill in `rsc` and `loading` but skip everything else
+                fillCacheWithNewSubTreeDataButOnlyLoading(
+                  cache,
+                  currentCache,
+                  flightDataPath,
+                  prefetchValues
+                )
+              }
+
+              applied = true
+            } else if (
               prefetchValues.status === PrefetchCacheEntryStatus.stale &&
               !mutable.onlyHashChange &&
               !isFirstRead
