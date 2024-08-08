@@ -377,7 +377,7 @@ impl Backend for MemoryBackend {
         task_id: TaskId,
         duration: Duration,
         memory_usage: usize,
-        cell_counters: AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> bool {

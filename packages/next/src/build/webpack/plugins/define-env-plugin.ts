@@ -140,24 +140,14 @@ export function getDefineEnv({
   middlewareMatchers,
 }: DefineEnvPluginOptions): SerializedDefineEnv {
   const nextPublicEnv = getNextPublicEnvironmentVariables()
-
-  if (config.experimental.flyingShuttle) {
-    // we delay inlining these values until after the build
-    // with flying shuttle enabled so we can update them
-    // without invalidating entries
-    for (const key in nextPublicEnv) {
-      // we inline as the key itself to avoid process.env
-      // mangling by webpack/minifier making replacing unsafe
-      nextPublicEnv[key] = key
-    }
-  }
+  const nextConfigEnv = getNextConfigEnv(config)
 
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
     __NEXT_DEFINE_ENV: true,
 
     ...nextPublicEnv,
-    ...getNextConfigEnv(config),
+    ...nextConfigEnv,
     ...(!isEdgeServer
       ? {}
       : {
@@ -213,8 +203,9 @@ export function getDefineEnv({
         ? 5 * 60 // 5 minutes
         : config.experimental.staleTimes?.static
     ),
-    'process.env.__NEXT_FLYING_SHUTTLE':
-      config.experimental.flyingShuttle ?? false,
+    'process.env.__NEXT_FLYING_SHUTTLE': Boolean(
+      config.experimental.flyingShuttle
+    ),
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
       config.experimental.clientRouterFilter ?? true,
     'process.env.__NEXT_CLIENT_ROUTER_S_FILTER':
@@ -289,7 +280,21 @@ export function getDefineEnv({
         }
       : undefined),
   }
-  return serializeDefineEnv(defineEnv)
+  const serializedDefineEnv = serializeDefineEnv(defineEnv)
+
+  if (!dev && Boolean(config.experimental.flyingShuttle)) {
+    // we delay inlining these values until after the build
+    // with flying shuttle enabled so we can update them
+    // without invalidating entries
+    for (const key in nextPublicEnv) {
+      if (key in nextConfigEnv) {
+        continue
+      }
+      serializedDefineEnv[key] = key
+    }
+  }
+
+  return serializedDefineEnv
 }
 
 export function getDefineEnvPlugin(options: DefineEnvPluginOptions) {

@@ -23,6 +23,7 @@ export class Worker {
     workerPath: string,
     options: FarmOptions & {
       timeout?: number
+      onActivity?: () => void
       onRestart?: (method: string, args: any[], attempts: number) => void
       logger?: Pick<typeof console, 'error' | 'info' | 'warn'>
       exposedMethods: ReadonlyArray<string>
@@ -80,6 +81,19 @@ export class Worker {
               )
             }
           })
+
+          // if a child process emits a particular message, we track that as activity
+          // so the parent process can keep track of progress
+          worker._child?.on('message', ([, data]: [number, unknown]) => {
+            if (
+              data &&
+              typeof data === 'object' &&
+              'type' in data &&
+              data.type === 'activity'
+            ) {
+              onActivity()
+            }
+          })
         }
       }
 
@@ -107,6 +121,8 @@ export class Worker {
 
     const onActivity = () => {
       if (hangingTimer) clearTimeout(hangingTimer)
+      if (options.onActivity) options.onActivity()
+
       hangingTimer = activeTasks > 0 && setTimeout(onHanging, timeout)
     }
 

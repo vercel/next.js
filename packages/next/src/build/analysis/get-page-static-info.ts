@@ -16,7 +16,10 @@ import { checkCustomRoutes } from '../../lib/load-custom-routes'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
-import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
+import {
+  PHASE_PRODUCTION_BUILD,
+  RSC_MODULE_TYPES,
+} from '../../shared/lib/constants'
 import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
 import { PAGE_TYPES } from '../../lib/page-types'
 
@@ -444,29 +447,30 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
   apiRouteWarnings.set(apiRoute, 1)
 }
 
-const warnedUnsupportedValueMap = new LRUCache<string, boolean>({ max: 250 })
+export let hadUnsupportedValue = false
 
 function warnAboutUnsupportedValue(
   pageFilePath: string,
   page: string | undefined,
   error: UnsupportedValueError
 ) {
-  if (warnedUnsupportedValueMap.has(pageFilePath)) {
-    return
-  }
+  hadUnsupportedValue = true
 
-  Log.warn(
+  const message =
     `Next.js can't recognize the exported \`config\` field in ` +
-      (page ? `route "${page}"` : `"${pageFilePath}"`) +
-      ':\n' +
-      error.message +
-      (error.path ? ` at "${error.path}"` : '') +
-      '.\n' +
-      'The default config will be used instead.\n' +
-      'Read More - https://nextjs.org/docs/messages/invalid-page-config'
-  )
+    (page ? `route "${page}"` : `"${pageFilePath}"`) +
+    ':\n' +
+    error.message +
+    (error.path ? ` at "${error.path}"` : '') +
+    '.\n' +
+    'Read More - https://nextjs.org/docs/messages/invalid-page-config'
 
-  warnedUnsupportedValueMap.set(pageFilePath, true)
+  // for a build wait to log all errors before exiting
+  if (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD) {
+    Log.error(message)
+  } else {
+    throw new Error(message)
+  }
 }
 
 /**

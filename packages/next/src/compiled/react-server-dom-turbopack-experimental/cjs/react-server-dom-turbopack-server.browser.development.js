@@ -997,7 +997,7 @@
       else {
         var componentDebugID = debugID;
         componentDebugInfo = Component.displayName || Component.name || "";
-        var componentEnv = request.environmentName();
+        var componentEnv = (0, request.environmentName)();
         request.pendingChunks++;
         componentDebugInfo = {
           name: componentDebugInfo,
@@ -1013,13 +1013,8 @@
         outlineModel(request, componentDebugInfo);
         emitDebugChunk(request, componentDebugID, componentDebugInfo);
         task.environmentName = componentEnv;
-        warnForMissingKey(
-          request,
-          key,
-          validated,
-          componentDebugInfo,
-          task.debugTask
-        );
+        2 === validated &&
+          warnForMissingKey(request, key, componentDebugInfo, task.debugTask);
       }
       prepareToUseHooksForComponent(prevThenableState, componentDebugInfo);
       props = task.debugTask
@@ -1100,34 +1095,26 @@
       task.implicitSlot = prevThenableState;
       return key;
     }
-    function warnForMissingKey(
-      request,
-      key,
-      validated,
-      componentDebugInfo,
-      debugTask
-    ) {
-      if (2 === validated) {
-        key = request.didWarnForKey;
-        null == key && (key = request.didWarnForKey = new WeakSet());
-        request = componentDebugInfo.owner;
-        if (null != request) {
-          if (key.has(request)) return;
-          key.add(request);
-        }
-        request = function () {
-          console.error(
-            'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
-            "",
-            ""
-          );
-        };
-        debugTask
-          ? debugTask.run(
-              callComponentInDEV.bind(null, request, null, componentDebugInfo)
-            )
-          : callComponentInDEV(request, null, componentDebugInfo);
+    function warnForMissingKey(request, key, componentDebugInfo, debugTask) {
+      function logKeyError() {
+        console.error(
+          'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
+          "",
+          ""
+        );
       }
+      key = request.didWarnForKey;
+      null == key && (key = request.didWarnForKey = new WeakSet());
+      request = componentDebugInfo.owner;
+      if (null != request) {
+        if (key.has(request)) return;
+        key.add(request);
+      }
+      debugTask
+        ? debugTask.run(
+            callComponentInDEV.bind(null, logKeyError, null, componentDebugInfo)
+          )
+        : callComponentInDEV(logKeyError, null, componentDebugInfo);
     }
     function renderFragment(request, task, children) {
       for (var i = 0; i < children.length; i++) {
@@ -1216,6 +1203,19 @@
         );
       if (type === REACT_FRAGMENT_TYPE && null === key)
         return (
+          2 === validated &&
+            ((validated = {
+              name: "Fragment",
+              env: (0, request.environmentName)(),
+              owner: task.debugOwner,
+              stack:
+                null === task.debugStack
+                  ? null
+                  : filterStackTrace(request, task.debugStack, 1),
+              debugStack: task.debugStack,
+              debugTask: task.debugTask
+            }),
+            warnForMissingKey(request, key, validated, task.debugTask)),
           (validated = task.implicitSlot),
           null === task.keyPath && (task.implicitSlot = !0),
           (request = renderModelDestructive(
@@ -1985,7 +1985,7 @@
       request.completedErrorChunks.push(id);
     }
     function emitErrorChunk(request, id, digest, error) {
-      var env = request.environmentName();
+      var env = (0, request.environmentName)();
       try {
         if (error instanceof Error) {
           var message = String(error.message);
@@ -2248,7 +2248,7 @@
       args
     ) {
       var counter = { objectCount: 0 },
-        env = request.environmentName();
+        env = (0, request.environmentName)();
       methodName = [methodName, stackTrace, owner, env];
       methodName.push.apply(methodName, args);
       args = stringify(methodName, function (parentPropertyName, value) {
@@ -2333,13 +2333,13 @@
               resolvedModel,
               serializeByValueID(task.id)
             );
-            var currentEnv = request.environmentName();
+            var currentEnv = (0, request.environmentName)();
             currentEnv !== task.environmentName &&
               emitDebugChunk(request, task.id, { env: currentEnv });
             emitChunk(request, task, resolvedModel);
           } else {
             var json = stringify(resolvedModel),
-              _currentEnv = request.environmentName();
+              _currentEnv = (0, request.environmentName)();
             _currentEnv !== task.environmentName &&
               emitDebugChunk(request, task.id, { env: _currentEnv });
             emitModelChunk(request, task.id, json);
