@@ -37,6 +37,7 @@ use std::{
     env,
     io::prelude::*,
     panic::set_hook,
+    path::PathBuf,
     sync::{Arc, Mutex, Once},
     time::Instant,
 };
@@ -44,6 +45,7 @@ use std::{
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
+use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use swc_core::{
     base::{Compiler, TransformOutput},
@@ -76,7 +78,11 @@ shadow_rs::shadow!(build);
 static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 
 static LOG_THROTTLE: Mutex<Option<Instant>> = Mutex::new(None);
-static LOG_FILE_PATH: &str = ".next/turbopack.log";
+static PANIC_LOG: Lazy<PathBuf> = Lazy::new(|| {
+    let mut path = env::temp_dir();
+    path.push(format!("next-panic-{:x}.log", rand::random::<u128>()));
+    path
+});
 
 #[cfg(feature = "__internal_dhat-heap")]
 #[global_allocator]
@@ -104,15 +110,17 @@ fn init() {
         if cfg!(debug_assertions) || env::var("SWC_DEBUG") == Ok("1".to_string()) {
             eprintln!("{}", info);
         } else {
-            let size = std::fs::metadata(LOG_FILE_PATH).map(|m| m.len());
+            let size = std::fs::metadata(PANIC_LOG.as_path()).map(|m| m.len());
             if let Ok(size) = size {
                 if size > 512 * 1024 {
                     // Truncate the earliest error from log file if it's larger than 512KB
                     let new_lines = {
                         let log_read = OpenOptions::new()
                             .read(true)
-                            .open(LOG_FILE_PATH)
-                            .unwrap_or_else(|_| panic!("Failed to open {}", LOG_FILE_PATH));
+                            .open(PANIC_LOG.as_path())
+                            .unwrap_or_else(|_| {
+                                panic!("Failed to open {}", PANIC_LOG.to_string_lossy())
+                            });
 
                         io::BufReader::new(&log_read)
                             .lines()
@@ -128,8 +136,10 @@ fn init() {
                         .create(true)
                         .truncate(true)
                         .write(true)
-                        .open(LOG_FILE_PATH)
-                        .unwrap_or_else(|_| panic!("Failed to open {}", LOG_FILE_PATH));
+                        .open(PANIC_LOG.as_path())
+                        .unwrap_or_else(|_| {
+                            panic!("Failed to open {}", PANIC_LOG.to_string_lossy())
+                        });
 
                     for line in new_lines {
                         match line {
@@ -147,11 +157,11 @@ fn init() {
             let mut log_file = OpenOptions::new()
                 .create(true)
                 .append(true)
-                .open(LOG_FILE_PATH)
-                .unwrap_or_else(|_| panic!("Failed to open {}", LOG_FILE_PATH));
+                .open(PANIC_LOG.as_path())
+                .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
 
             writeln!(log_file, "{}", info).unwrap();
-            eprintln!("{}: An unexpected Turbopack error occurred. Please report the content of {} to https://github.com/vercel/next.js/issues/new", "FATAL".red().bold(), LOG_FILE_PATH);
+            eprintln!("{}: An unexpected Turbopack error occurred. Please report the content of {} to https://github.com/vercel/next.js/issues/new", "FATAL".red().bold(), PANIC_LOG.to_string_lossy());
         }
     }));
 }

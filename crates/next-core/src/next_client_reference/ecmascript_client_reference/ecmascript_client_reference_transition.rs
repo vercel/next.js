@@ -46,10 +46,10 @@ impl Transition for NextEcmascriptClientReferenceTransition {
     async fn process(
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
-        context: Vc<ModuleAssetContext>,
+        module_asset_context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
-        let context = self.process_context(context);
+        let module_asset_context = self.process_context(module_asset_context);
 
         let this = self.await?;
 
@@ -70,7 +70,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             .client_transition
             .process(
                 client_source,
-                context,
+                module_asset_context,
                 Value::new(ReferenceType::Entry(
                     EntryReferenceSubType::AppClientComponent,
                 )),
@@ -81,7 +81,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             .ssr_transition
             .process(
                 source,
-                context,
+                module_asset_context,
                 Value::new(ReferenceType::Entry(
                     EntryReferenceSubType::AppClientComponent,
                 )),
@@ -102,13 +102,13 @@ impl Transition for NextEcmascriptClientReferenceTransition {
 
         // TODO(alexkirsz) This is necessary to remove the transition currently set on
         // the context.
-        let context = context.await?;
+        let module_asset_context = module_asset_context.await?;
         let server_context = ModuleAssetContext::new(
-            context.transitions,
-            context.compile_time_info,
-            context.module_options_context,
-            context.resolve_options_context,
-            context.layer,
+            module_asset_context.transitions,
+            module_asset_context.compile_time_info,
+            module_asset_context.module_options_context,
+            module_asset_context.resolve_options_context,
+            module_asset_context.layer,
         );
 
         Ok(

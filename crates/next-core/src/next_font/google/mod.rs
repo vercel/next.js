@@ -650,9 +650,10 @@ async fn get_mock_stylesheet(
         project_path: _,
         chunking_context,
     } = *execution_context.await?;
-    let context = node_evaluate_asset_context(execution_context, None, None, "next_font".into());
+    let asset_context =
+        node_evaluate_asset_context(execution_context, None, None, "next_font".into());
     let loader_path = mock_fs.root().join("loader.js".into());
-    let mocked_response_asset = context
+    let mocked_response_asset = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
                 loader_path,
@@ -678,7 +679,7 @@ async fn get_mock_stylesheet(
         root,
         env,
         AssetIdent::from_path(loader_path),
-        context,
+        asset_context,
         chunking_context,
         None,
         vec![],
