@@ -67,7 +67,7 @@ describe('app-dir assetPrefix handling', () => {
   })
 
   if (!(global as any).isNextDev) {
-    it('should add basePath to routes-manifest', async () => {
+    it('rewrite for /_next paths should be added to routes-manifest', async () => {
       const routesManifest = JSON.parse(
         await next.readFile('.next/routes-manifest.json')
       )
