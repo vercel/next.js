@@ -160,6 +160,7 @@
     "@jest/types": "29.5.0",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
+    "@next/font": "15.0.0-canary.111",
     "@next/polyfill-module": "15.0.0-canary.111",
     "@next/polyfill-nomodule": "15.0.0-canary.111",
     "@next/react-refresh-utils": "15.0.0-canary.111",
