@@ -1,11 +1,11 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 protected_branch='canary'
 
-protected_remote_urls=(
-  'git@github.com:vercel/next.js.git'
-  'https://github.com/vercel/next.js.git' # github blocks password-based auth, but still usable via API token
-)
+# github blocks password-based auth, but still usable via API token
+protected_remote_urls="\
+  git@github.com:vercel/next.js.git
+  https://github.com/vercel/next.js.git"
 
 
 # The pre-push hook [...] receives the name and location of the remote as parameters
@@ -18,7 +18,7 @@ remote_url="$2"
 # if we're pushing to a fork, we don't need to protect canary.
 # check if the remote is one of the protected ones.
 is_remote_protected=0
-for protected_remote_url in "${protected_remote_urls[@]}"; do
+for protected_remote_url in $protected_remote_urls; do
   if [ "$remote_url" = "$protected_remote_url" ]; then
     is_remote_protected=1
     break

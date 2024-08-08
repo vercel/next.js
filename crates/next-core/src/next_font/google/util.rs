@@ -234,7 +234,7 @@ pub(super) fn get_stylesheet_url(
 mod tests {
     use anyhow::Result;
     use indexmap::indexset;
-    use turbopack_binding::turbo::tasks_fs::json::parse_json_with_source_context;
+    use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::get_font_axes;
     use crate::next_font::google::{

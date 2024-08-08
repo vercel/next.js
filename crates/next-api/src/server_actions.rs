@@ -6,33 +6,29 @@ use next_core::{
     next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
     util::NextRuntime,
 };
+use swc_core::{common::comments::Comments, ecma::ast::Program};
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
     RcStr, TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
-use turbopack_binding::{
-    swc::core::{common::comments::Comments, ecma::ast::Program},
-    turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
-    turbopack::{
-        core::{
-            asset::{Asset, AssetContent},
-            chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
-            context::AssetContext,
-            module::Module,
-            output::OutputAsset,
-            reference::primary_referenced_modules,
-            reference_type::{
-                EcmaScriptModulesReferenceSubType, ReferenceType, TypeScriptReferenceSubType,
-            },
-            virtual_output::VirtualOutputAsset,
-            virtual_source::VirtualSource,
-        },
-        ecmascript::{
-            chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptModuleAsset,
-            EcmascriptModuleAssetType,
-        },
+use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    context::AssetContext,
+    module::Module,
+    output::OutputAsset,
+    reference::primary_referenced_modules,
+    reference_type::{
+        EcmaScriptModulesReferenceSubType, ReferenceType, TypeScriptReferenceSubType,
     },
+    virtual_output::VirtualOutputAsset,
+    virtual_source::VirtualSource,
+};
+use turbopack_ecmascript::{
+    chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptModuleAssetType,
+    EcmascriptParsable,
 };
 
 /// Scans the RSC entry point's full module graph looking for exported Server
@@ -239,9 +235,9 @@ async fn to_rsc_context(
         module.content(),
     );
     let ty = if let Some(module) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
+        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
     {
-        if module.await?.ty == EcmascriptModuleAssetType::Ecmascript {
+        if *module.ty().await? == EcmascriptModuleAssetType::Ecmascript {
             ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
         } else {
             ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)
@@ -294,14 +290,17 @@ pub fn parse_server_actions<C: Comments>(
 /// the exported action function. If not, we return a None.
 #[turbo_tasks::function]
 async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
-    let Some(ecmascript_asset) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
-    else {
+    let parsed = if let Some(ecmascript_asset) =
+        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
+    {
+        ecmascript_asset.parse_original()
+    } else {
         return Ok(OptionActionMap::none());
     };
+
     let ParseResult::Ok {
         comments, program, ..
-    } = &*ecmascript_asset.failsafe_parse().await?
+    } = &*parsed.await?
     else {
         // The file might be be parse-able, but this is reported separately.
         return Ok(OptionActionMap::none());

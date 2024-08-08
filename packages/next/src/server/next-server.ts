@@ -156,6 +156,7 @@ export default class NextNodeServer extends BaseServer<
   protected middlewareManifestPath: string
   private _serverDistDir: string | undefined
   private imageResponseCache?: ResponseCache
+  private registeredInstrumentation: boolean = false
   protected renderWorkersPromises?: Promise<void>
   protected dynamicRoutes?: {
     match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
@@ -324,6 +325,8 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected async runInstrumentationHookIfAvailable() {
+    if (this.registeredInstrumentation) return
+    this.registeredInstrumentation = true
     await this.instrumentation?.register?.()
   }
 

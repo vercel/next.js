@@ -293,7 +293,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         externalMiddlewareRewritesResolve: z.boolean().optional(),
         fallbackNodePolyfills: z.literal(false).optional(),
         fetchCacheKeyPrefix: z.string().optional(),
-        flyingShuttle: z.boolean().optional(),
+        flyingShuttle: z
+          .strictObject({
+            mode: z
+              .union([z.literal('full'), z.literal('store-only')])
+              .optional(),
+          })
+          .optional(),
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),
@@ -307,14 +313,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         // The critter option is unknown, use z.any() here
         optimizeCss: z.union([z.boolean(), z.any()]).optional(),
         optimisticClientCache: z.boolean().optional(),
-        outputFileTracingRoot: z.string().optional(),
-        outputFileTracingExcludes: z
-          .record(z.string(), z.array(z.string()))
-          .optional(),
-        outputFileTracingIgnores: z.array(z.string()).optional(),
-        outputFileTracingIncludes: z
-          .record(z.string(), z.array(z.string()))
-          .optional(),
         parallelServerCompiles: z.boolean().optional(),
         parallelServerBuildTraces: z.boolean().optional(),
         ppr: z
@@ -389,6 +387,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               .optional(),
             resolveExtensions: z.array(z.string()).optional(),
             useSwcCss: z.boolean().optional(),
+            treeShaking: z.boolean().optional(),
             memoryLimit: z.number().optional(),
           })
           .optional(),
@@ -439,6 +438,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             .optional(),
         ]),
         staticGenerationRetryCount: z.number().int().optional(),
+        staticGenerationMaxConcurrency: z.number().int().optional(),
+        staticGenerationMinPagesPerWorker: z.number().int().optional(),
         typedEnv: z.boolean().optional(),
         serverComponentsHmrCache: z.boolean().optional(),
       })
@@ -564,12 +565,20 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     optimizeFonts: z.boolean().optional(),
     output: z.enum(['standalone', 'export']).optional(),
+    outputFileTracingRoot: z.string().optional(),
+    outputFileTracingExcludes: z
+      .record(z.string(), z.array(z.string()))
+      .optional(),
+    outputFileTracingIncludes: z
+      .record(z.string(), z.array(z.string()))
+      .optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
     publicRuntimeConfig: z.record(z.string(), z.any()).optional(),
     reactProductionProfiling: z.boolean().optional(),
     reactStrictMode: z.boolean().nullable().optional(),
+    reactMaxHeadersLength: z.number().nonnegative().int().optional(),
     redirects: z
       .function()
       .args()

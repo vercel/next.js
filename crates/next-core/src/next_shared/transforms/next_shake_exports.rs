@@ -1,17 +1,13 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::shake_exports::{shake_exports, Config};
-use turbo_tasks::Vc;
-use turbopack_binding::{
-    swc::core::{
-        common::util::take::Take,
-        ecma::{ast::*, visit::FoldWith},
-    },
-    turbopack::{
-        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
-        turbopack::module_options::{ModuleRule, ModuleRuleEffect},
-    },
+use swc_core::{
+    common::util::take::Take,
+    ecma::{ast::*, visit::FoldWith},
 };
+use turbo_tasks::Vc;
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
+use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
 use super::module_rule_match_js_no_url;
 

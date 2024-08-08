@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Context as _;
 use napi::bindgen_prelude::*;
-use turbopack_binding::swc::core::{
+use swc_core::{
     base::{config::ParseOptions, try_with_handler},
     common::{
         comments::Comments, errors::ColorConfig, FileName, FilePathMapping, SourceMap, GLOBALS,
@@ -24,9 +24,8 @@ impl Task for ParseTask {
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         GLOBALS.set(&Default::default(), || {
-            let c = turbopack_binding::swc::core::base::Compiler::new(Arc::new(SourceMap::new(
-                FilePathMapping::empty(),
-            )));
+            let c =
+                swc_core::base::Compiler::new(Arc::new(SourceMap::new(FilePathMapping::empty())));
 
             let options: ParseOptions = serde_json::from_slice(self.options.as_ref())?;
             let comments = c.comments().clone();
@@ -39,7 +38,7 @@ impl Task for ParseTask {
                 c.cm.new_source_file(self.filename.clone(), self.src.clone());
             let program = try_with_handler(
                 c.cm.clone(),
-                turbopack_binding::swc::core::base::HandlerOpts {
+                swc_core::base::HandlerOpts {
                     color: ColorConfig::Never,
                     skip_filename: false,
                 },

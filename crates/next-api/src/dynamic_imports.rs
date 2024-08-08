@@ -4,34 +4,30 @@ use anyhow::{bail, Result};
 use futures::Future;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use swc_core::ecma::{
+    ast::{CallExpr, Callee, Expr, Ident, Lit},
+    visit::{Visit, VisitWith},
+};
 use tracing::Level;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic, VisitControlFlow},
     trace::TraceRawVcs,
     RcStr, ReadRef, TryJoinIterExt, Value, ValueToString, Vc,
 };
-use turbopack_binding::{
-    swc::core::ecma::{
-        ast::{CallExpr, Callee, Expr, Ident, Lit},
-        visit::{Visit, VisitWith},
+use turbopack_core::{
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
+        EvaluatableAsset,
     },
-    turbopack::{
-        core::{
-            chunk::{
-                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext,
-                ChunkingContextExt, EvaluatableAsset,
-            },
-            context::AssetContext,
-            issue::IssueSeverity,
-            module::Module,
-            output::OutputAssets,
-            reference::primary_referenced_modules,
-            reference_type::EcmaScriptModulesReferenceSubType,
-            resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
-        },
-        ecmascript::{parse::ParseResult, resolve::esm_resolve, EcmascriptModuleAsset},
-    },
+    context::AssetContext,
+    issue::IssueSeverity,
+    module::Module,
+    output::OutputAssets,
+    reference::primary_referenced_modules,
+    reference_type::EcmaScriptModulesReferenceSubType,
+    resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
 };
+use turbopack_ecmascript::{parse::ParseResult, resolve::esm_resolve, EcmascriptParsable};
 
 async fn collect_chunk_group_inner<F, Fu>(
     dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
@@ -113,10 +109,9 @@ pub(crate) async fn collect_evaluated_chunk_group(
 /// If an import is specified as dynamic, next.js does few things:
 /// - Runs a next_dynamic [transform to the source file](https://github.com/vercel/next.js/blob/ae1b89984d26b2af3658001fa19a19e1e77c312d/packages/next-swc/crates/next-transform-dynamic/src/lib.rs#L22)
 ///   - This transform will [inject `loadableGenerated` property](https://github.com/vercel/next.js/blob/ae1b89984d26b2af3658001fa19a19e1e77c312d/packages/next-swc/crates/next-transform-dynamic/tests/fixture/wrapped-import/output-webpack-dev.js#L5),
-///     which contains the list of the import ids in the form of `${origin} ->
-///     ${imported}`.
-/// - Emits `react-loadable-manifest.json` which contains the mapping of the
-///   import ids to the chunk ids.
+///     which contains the list of the import ids in the form of `${origin} -> ${imported}`.
+/// - Emits `react-loadable-manifest.json` which contains the mapping of the import ids to the chunk
+///   ids.
 ///   - Webpack: [implementation](https://github.com/vercel/next.js/blob/ae1b89984d26b2af3658001fa19a19e1e77c312d/packages/next/src/build/webpack/plugins/react-loadable-plugin.ts)
 ///   - Turbopack: [implementation 1](https://github.com/vercel/next.js/pull/56389/files#diff-3cac9d9bfe73e0619e6407f21f6fe652da0719d0ec9074ff813ad3e416d0eb1a),
 ///     [implementation 2](https://github.com/vercel/next.js/pull/56389/files#diff-791951bbe1fa09bcbad9be9173412d0848168f7d658758f11b6e8888a021552c),
@@ -128,8 +123,8 @@ pub(crate) async fn collect_evaluated_chunk_group(
 ///    - Server embeds those into __NEXT_DATA__ and [send to the client.](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/server/render.tsx#L1453)
 ///    - When client boots up, pass it to the [client preload](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/client/index.tsx#L943)
 ///    - Loadable runtime [injects preload fn](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/shared/lib/loadable.shared-runtime.tsx#L281)
-///      to wait until all the dynamic components are being loaded, this ensures
-///      hydration mismatch won't occur
+///      to wait until all the dynamic components are being loaded, this ensures hydration mismatch
+///      won't occur
 #[tracing::instrument(level = Level::INFO, name = "collecting next/dynamic imports", skip_all)]
 pub(crate) async fn collect_next_dynamic_imports(
     server_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
@@ -137,8 +132,7 @@ pub(crate) async fn collect_next_dynamic_imports(
 ) -> Result<IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>> {
     // Traverse referenced modules graph, collect all of the dynamic imports:
     // - Read the Program AST of the Module, this is the origin (A)
-    //  - If there's `dynamic(import(B))`, then B is the module that is being
-    //    imported
+    //  - If there's `dynamic(import(B))`, then B is the module that is being imported
     // Returned import mappings are in the form of
     // (Module<A>, Vec<(B, Module<B>)>) (where B is the raw import source string,
     // and Module<B> is the actual resolved Module)
@@ -265,7 +259,7 @@ async fn build_dynamic_imports_map_for_module(
     server_module: Vc<Box<dyn Module>>,
 ) -> Result<Vc<OptionDynamicImportsMap>> {
     let Some(ecmascript_asset) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(server_module).await?
+        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(server_module).await?
     else {
         return Ok(Vc::cell(None));
     };
@@ -327,7 +321,7 @@ impl DynamicImportVisitor {
 }
 
 impl Visit for DynamicImportVisitor {
-    fn visit_import_decl(&mut self, decl: &turbopack_binding::swc::core::ecma::ast::ImportDecl) {
+    fn visit_import_decl(&mut self, decl: &swc_core::ecma::ast::ImportDecl) {
         // find import decl from next/dynamic, i.e import dynamic from 'next/dynamic'
         if decl.src.value == *"next/dynamic" {
             if let Some(specifier) = decl.specifiers.first().and_then(|s| s.as_default()) {

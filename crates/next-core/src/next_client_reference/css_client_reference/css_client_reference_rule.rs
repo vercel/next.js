@@ -1,11 +1,9 @@
 use turbo_tasks::Vc;
-use turbopack_binding::turbopack::{
-    core::reference_type::{CssReferenceSubType, ReferenceType},
-    turbopack::{
-        module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType},
-        transition::Transition,
-    },
+use turbopack::{
+    module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType},
+    transition::Transition,
 };
+use turbopack_core::reference_type::{CssReferenceSubType, ReferenceType};
 
 use super::css_client_reference_module_type::CssClientReferenceModuleType;
 

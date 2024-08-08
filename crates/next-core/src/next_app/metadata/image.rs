@@ -6,24 +6,19 @@ use anyhow::{bail, Result};
 use indoc::formatdoc;
 use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
-use turbopack_binding::{
-    turbo::tasks_hash::hash_xxh3_hash64,
-    turbopack::{
-        core::{
-            asset::AssetContent,
-            context::AssetContext,
-            file_source::FileSource,
-            module::Module,
-            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-            source::Source,
-            virtual_source::VirtualSource,
-        },
-        ecmascript::{
-            chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-            utils::StringifyJs,
-            EcmascriptModuleAsset,
-        },
-    },
+use turbo_tasks_hash::hash_xxh3_hash64;
+use turbopack_core::{
+    asset::AssetContent,
+    context::AssetContext,
+    file_source::FileSource,
+    module::Module,
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    source::Source,
+    virtual_source::VirtualSource,
+};
+use turbopack_ecmascript::{
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    utils::StringifyJs,
 };
 
 use crate::next_app::AppPage;
@@ -136,7 +131,7 @@ pub async fn dynamic_image_metadata_source(
 #[turbo_tasks::function]
 async fn collect_direct_exports(module: Vc<Box<dyn Module>>) -> Result<Vc<Vec<RcStr>>> {
     let Some(ecmascript_asset) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
+        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
     else {
         return Ok(Default::default());
     };

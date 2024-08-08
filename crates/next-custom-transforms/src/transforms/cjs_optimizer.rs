@@ -1,6 +1,6 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{util::take::Take, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{

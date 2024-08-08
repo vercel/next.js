@@ -172,7 +172,9 @@ function trackFetchMetric(
   if (staticGenerationStore.requestEndedState?.ended) return
 
   const isDebugBuild =
-    !!process.env.NEXT_DEBUG_BUILD && staticGenerationStore.isStaticGeneration
+    (!!process.env.NEXT_DEBUG_BUILD ||
+      process.env.NEXT_SSG_FETCH_METRICS === '1') &&
+    staticGenerationStore.isStaticGeneration
   const isDevelopment = process.env.NODE_ENV === 'development'
 
   if (
@@ -373,14 +375,20 @@ function createPatchedFetcher(
          * - OR the fetch comes after a configuration that triggered dynamic rendering (e.g., reading cookies())
          *   and the fetch was considered uncacheable (e.g., POST method or has authorization headers)
          */
+        const hasNoExplicitCacheConfig =
+          // eslint-disable-next-line eqeqeq
+          pageFetchCacheMode == undefined &&
+          // eslint-disable-next-line eqeqeq
+          currentFetchCacheConfig == undefined &&
+          // eslint-disable-next-line eqeqeq
+          currentFetchRevalidate == undefined
         const autoNoCache =
           // this condition is hit for null/undefined
           // eslint-disable-next-line eqeqeq
-          (pageFetchCacheMode == undefined &&
-            // eslint-disable-next-line eqeqeq
-            currentFetchCacheConfig == undefined &&
-            // eslint-disable-next-line eqeqeq
-            currentFetchRevalidate == undefined) ||
+          (hasNoExplicitCacheConfig &&
+            // we disable automatic no caching behavior during build time SSG so that we can still
+            // leverage the fetch cache between SSG workers
+            !staticGenerationStore.isPrerendering) ||
           ((hasUnCacheableHeader || isUnCacheableMethod) &&
             staticGenerationStore.revalidate === 0)
 
