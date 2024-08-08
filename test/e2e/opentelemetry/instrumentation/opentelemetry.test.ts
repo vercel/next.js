@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 
 import { SavedSpan } from './constants'
 import { type Collector, connectCollector } from './collector'
@@ -523,6 +524,17 @@ describe('opentelemetry', () => {
               },
             },
           ])
+        })
+
+        it('should handle client-side navigation', async () => {
+          const browser = await webdriver(next.url, `/app/foo/loading/page1`, {
+            waitHydration: true,
+          })
+
+          await browser.waitForElementByCss('#page1')
+          await browser.elementByCss('a').click().waitForElementByCss('#page2')
+
+          expect(getCollector().getSpans()).toMatchSnapshot()
         })
       })
 
