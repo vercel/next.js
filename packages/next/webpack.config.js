@@ -173,6 +173,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
             format: {
               preamble: '',
             },
+            mangle: dev ? false : true,
           },
         }),
       ],
