@@ -26,8 +26,8 @@ use turbo_tasks::{
     },
     event::EventListener,
     util::{IdFactoryWithReuse, NoMoveVec},
-    CellId, FunctionId, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused,
-    ValueTypeId, TRANSIENT_TASK_BIT,
+    CellId, FunctionId, RawVc, TaskId, TaskIdSet, TaskInput, TraitTypeId, TurboTasksBackendApi,
+    Unused, ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
 use crate::{
@@ -272,8 +272,13 @@ impl MemoryBackend {
                 drop(entry);
                 unsafe {
                     task_storage.remove(index);
-                    let new_id = Unused::new_unchecked(new_id);
-                    turbo_tasks.reuse_persistent_task_id(new_id);
+                    if new_id.is_transient() {
+                        let new_id = Unused::new_unchecked(new_id);
+                        turbo_tasks.reuse_transient_task_id(new_id);
+                    } else {
+                        let new_id = Unused::new_unchecked(new_id);
+                        turbo_tasks.reuse_persistent_task_id(new_id);
+                    }
                 }
                 task_id
             }
