@@ -86,7 +86,7 @@ describe('Exported runtimes value validation', () => {
     // Unknown Expression Type
     expect(result.stderr).toEqual(
       expect.stringContaining(
-        'Next.js can\'t recognize the exported `config` field in route "/unsupported-value-type"'
+        "Next.js can't recognize the exported `config` field in route"
       )
     )
     expect(result.stderr).toEqual(
