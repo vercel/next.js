@@ -670,8 +670,9 @@ export async function initialize(opts: {
           hmrPrefix = normalizedAssetPrefix(assetPrefix)
 
           if (URL.canParse(hmrPrefix)) {
-            // pathname without trailing slash
-            // or if is '/', replace to '' to not conflict
+            // remove trailing slash from pathname
+            // return empty string if pathname is '/'
+            // to avoid conflicts with '/_next' below
             hmrPrefix = new URL(hmrPrefix).pathname.replace(/\/$/, '')
           }
         }
