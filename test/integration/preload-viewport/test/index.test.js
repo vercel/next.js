@@ -108,7 +108,9 @@ describe('Prefetching Links in viewport', () => {
             const hrefs = await Promise.all(
               links.map(async (link) => await link.getAttribute('href'))
             )
-            expect(hrefs).toContain(expect.stringContaining('first'))
+            expect(hrefs).toEqual(
+              expect.arrayContaining([expect.stringContaining('first')])
+            )
           })
         } finally {
           if (browser) await browser.close()
@@ -158,7 +160,10 @@ describe('Prefetching Links in viewport', () => {
             const hrefs = await Promise.all(
               links.map(async (link) => await link.getAttribute('href'))
             )
-            expect(hrefs).toContain(expect.stringContaining('%5Bslug%5D'))
+
+            expect(hrefs).toEqual(
+              expect.arrayContaining([expect.stringContaining('%5Bslug%5D')])
+            )
           })
           const hrefs = await browser.eval(
             `Object.keys(window.next.router.sdc)`
@@ -206,7 +211,9 @@ describe('Prefetching Links in viewport', () => {
             const hrefs = await Promise.all(
               links.map(async (link) => await link.getAttribute('href'))
             )
-            expect(hrefs).toContain(expect.stringContaining('another'))
+            expect(hrefs).toEqual(
+              expect.arrayContaining([expect.stringContaining('another')])
+            )
           })
         } finally {
           if (browser) await browser.close()
@@ -225,7 +232,9 @@ describe('Prefetching Links in viewport', () => {
             const hrefs = await Promise.all(
               links.map(async (link) => await link.getAttribute('href'))
             )
-            expect(hrefs).toContain(expect.stringContaining('another'))
+            expect(hrefs).toEqual(
+              expect.arrayContaining([expect.stringContaining('another')])
+            )
           })
 
           await browser.elementByCss('#link-another').moveTo()
@@ -237,7 +246,9 @@ describe('Prefetching Links in viewport', () => {
             const srcProps = await Promise.all(
               scripts.map(async (script) => await script.getAttribute('src'))
             )
-            expect(srcProps).toContain(expect.stringContaining('another'))
+            expect(srcProps).toEqual(
+              expect.arrayContaining([expect.stringContaining('another')])
+            )
           })
         } finally {
           if (browser) await browser.close()
@@ -255,7 +266,9 @@ describe('Prefetching Links in viewport', () => {
             const hrefs = await Promise.all(
               links.map(async (link) => await link.getAttribute('href'))
             )
-            expect(hrefs).toContain(expect.stringContaining('another'))
+            expect(hrefs).toEqual(
+              expect.arrayContaining([expect.stringContaining('another')])
+            )
           })
 
           async function hasAnotherScript() {
@@ -368,7 +381,9 @@ describe('Prefetching Links in viewport', () => {
           const hrefs = await Promise.all(
             links.map(async (link) => await link.getAttribute('href'))
           )
-          expect(hrefs).not.toContain(expect.stringContaining('another'))
+          expect(hrefs).not.toEqual(
+            expect.arrayContaining([expect.stringContaining('another')])
+          )
         })
       })
 
@@ -434,7 +449,9 @@ describe('Prefetching Links in viewport', () => {
           const hrefs = await Promise.all(
             links.map(async (link) => await link.getAttribute('href'))
           )
-          expect(hrefs).toContain(expect.stringContaining('first'))
+          expect(hrefs).toEqual(
+            expect.arrayContaining([expect.stringContaining('first')])
+          )
         })
 
         await browser.eval(`(function() {

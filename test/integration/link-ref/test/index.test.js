@@ -43,7 +43,9 @@ const didPrefetch = async (pathname) => {
   )
 
   // expect one of the href contain string "index"
-  expect(hrefs).toContain(expect.stringContaining('index'))
+  expect(hrefs).toEqual(
+    expect.arrayContaining([expect.stringContaining('index')])
+  )
 
   await browser.close()
 }
