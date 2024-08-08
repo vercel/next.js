@@ -211,7 +211,7 @@ async function createComponentTreeInternal({
       // TODO: (PPR) remove this bailout once PPR is the default
       if (
         staticGenerationStore.isStaticGeneration &&
-        !staticGenerationStore.prerenderState
+        !experimental.isRoutePPREnabled
       ) {
         // If the postpone API isn't available, we can't postpone the render and
         // therefore we can't use the dynamic API.
@@ -253,7 +253,7 @@ async function createComponentTreeInternal({
       ctx.defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
-      !staticGenerationStore.prerenderState
+      !experimental.isRoutePPREnabled
     ) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
       staticGenerationStore.dynamicUsageDescription = dynamicUsageDescription
@@ -520,15 +520,15 @@ async function createComponentTreeInternal({
   // render force-dynamic. We should refactor this function so that we can correctly track which segments
   // need to be dynamic
   if (
+    staticGenerationStore.isStaticGeneration &&
     staticGenerationStore.forceDynamic &&
-    staticGenerationStore.prerenderState
+    experimental.isRoutePPREnabled
   ) {
     return [
       actualSegment,
       parallelRouteCacheNodeSeedData,
       <>
         <Postpone
-          prerenderState={staticGenerationStore.prerenderState}
           reason='dynamic = "force-dynamic" was used'
           route={staticGenerationStore.route}
         />
