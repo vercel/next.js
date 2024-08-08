@@ -60,6 +60,7 @@ export interface SWCLoaderOptions {
   supportedBrowsers: string[] | undefined
   swcCacheDir: string
   serverComponents?: boolean
+  serverActionsHashSalt?: string
   bundleLayer?: WebpackLayerName
   esm?: boolean
   transpilePackages?: string[]
@@ -105,6 +106,7 @@ async function loaderTransform(
     supportedBrowsers,
     swcCacheDir,
     serverComponents,
+    serverActionsHashSalt,
     bundleLayer,
     esm,
   } = loaderOptions
@@ -131,6 +133,7 @@ async function loaderTransform(
     swcCacheDir,
     relativeFilePathFromRoot,
     serverComponents,
+    serverActionsHashSalt,
     bundleLayer,
     esm,
   })

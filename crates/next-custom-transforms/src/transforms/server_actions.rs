@@ -27,6 +27,7 @@ use swc_core::{
 pub struct Config {
     pub is_react_server_layer: bool,
     pub enabled: bool,
+    pub hash_salt: String,
 }
 
 /// A mapping of hashed action id to the action's exported function name.
@@ -173,8 +174,11 @@ impl<C: Comments> ServerActions<C> {
                     .cloned()
                     .map(|id| Some(id.as_arg()))
                     .collect(),
-                &self.file_name,
-                export_name.to_string(),
+                generate_action_id(
+                    &self.config.hash_salt,
+                    &self.file_name,
+                    export_name.to_string().as_str(),
+                ),
             );
 
             if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
@@ -222,7 +226,12 @@ impl<C: Comments> ServerActions<C> {
                                 span: DUMMY_SP,
                                 callee: quote_ident!("decryptActionBoundArgs").as_callee(),
                                 args: vec![
-                                    generate_action_id(&self.file_name, &export_name).as_arg(),
+                                    generate_action_id(
+                                        &self.config.hash_salt,
+                                        &self.file_name,
+                                        &export_name,
+                                    )
+                                    .as_arg(),
                                     quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                                 ],
                                 type_args: None,
@@ -298,8 +307,7 @@ impl<C: Comments> ServerActions<C> {
                     .cloned()
                     .map(|id| Some(id.as_arg()))
                     .collect(),
-                &self.file_name,
-                export_name.to_string(),
+                generate_action_id(&self.config.hash_salt, &self.file_name, &export_name),
             );
 
             f.body.visit_mut_with(&mut ClosureReplacer {
@@ -346,7 +354,12 @@ impl<C: Comments> ServerActions<C> {
                                 span: DUMMY_SP,
                                 callee: quote_ident!("decryptActionBoundArgs").as_callee(),
                                 args: vec![
-                                    generate_action_id(&self.file_name, &export_name).as_arg(),
+                                    generate_action_id(
+                                        &self.config.hash_salt,
+                                        &self.file_name,
+                                        &export_name,
+                                    )
+                                    .as_arg(),
                                     quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                                 ],
                                 type_args: None,
@@ -964,7 +977,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 let ident = Ident::new(id.0.clone(), DUMMY_SP.with_ctxt(id.1));
 
                 if !self.config.is_react_server_layer {
-                    let action_id = generate_action_id(&self.file_name, export_name);
+                    let action_id =
+                        generate_action_id(&self.config.hash_salt, &self.file_name, export_name);
 
                     if export_name == "default" {
                         let export_expr = ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
@@ -1014,8 +1028,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         expr: Box::new(annotate_ident_as_action(
                             ident.clone(),
                             Vec::new(),
-                            &self.file_name,
-                            export_name.to_string(),
+                            generate_action_id(
+                                &self.config.hash_salt,
+                                &self.file_name,
+                                export_name,
+                            ),
                         )),
                     }));
                 }
@@ -1088,7 +1105,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             let actions = actions
                 .into_iter()
-                .map(|name| (generate_action_id(&self.file_name, &name), name))
+                .map(|name| {
+                    (
+                        generate_action_id(&self.config.hash_salt, &self.file_name, &name),
+                        name,
+                    )
+                })
                 .collect::<ActionsMap>();
             // Prepend a special comment to the top of the file.
             self.comments.add_leading(
@@ -1262,10 +1284,11 @@ fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleIte
     }
 }
 
-fn generate_action_id(file_name: &str, export_name: &str) -> String {
+fn generate_action_id(hash_salt: &str, file_name: &str, export_name: &str) -> String {
     // Attach a checksum to the action using sha1:
     // $$id = sha1('file_name' + ':' + 'export_name');
     let mut hasher = Sha1::new();
+    hasher.update(hash_salt.as_bytes());
     hasher.update(file_name.as_bytes());
     hasher.update(b":");
     hasher.update(export_name.as_bytes());
@@ -1277,12 +1300,10 @@ fn generate_action_id(file_name: &str, export_name: &str) -> String {
 fn annotate_ident_as_action(
     ident: Ident,
     bound: Vec<Option<ExprOrSpread>>,
-    file_name: &str,
-    export_name: String,
+    action_id: String,
 ) -> Expr {
     // Add the proxy wrapper call `registerServerReference($$id, $$bound, myAction,
     // maybe_orig_action)`.
-    let action_id = generate_action_id(file_name, &export_name);
 
     let proxy_expr = Expr::Call(CallExpr {
         span: DUMMY_SP,

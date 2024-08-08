@@ -498,22 +498,26 @@ export default async function getBaseWebpackConfig(
   // RSC loaders, prefer ESM, set `esm` to true
   const swcServerLayerLoader = getSwcLoader({
     serverComponents: true,
+    serverActionsHashSalt: encryptionKey,
     bundleLayer: WEBPACK_LAYERS.reactServerComponents,
     esm: true,
   })
   const swcSSRLayerLoader = getSwcLoader({
     serverComponents: true,
+    serverActionsHashSalt: encryptionKey,
     bundleLayer: WEBPACK_LAYERS.serverSideRendering,
     esm: true,
   })
   const swcBrowserLayerLoader = getSwcLoader({
     serverComponents: true,
+    serverActionsHashSalt: encryptionKey,
     bundleLayer: WEBPACK_LAYERS.appPagesBrowser,
     esm: true,
   })
   // Default swc loaders for pages doesn't prefer ESM.
   const swcDefaultLoader = getSwcLoader({
     serverComponents: true,
+    serverActionsHashSalt: encryptionKey,
     esm: false,
   })
 
