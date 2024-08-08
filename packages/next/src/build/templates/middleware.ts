@@ -28,7 +28,7 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
     } catch (err) {
       const req = args[0]
       const url = new URL(req.url)
-      const resource = url.href.slice(url.origin.length)
+      const resource = url.pathname + url.search
       await edgeInstrumentationOnRequestError(
         err,
         {
