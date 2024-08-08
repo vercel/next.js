@@ -458,6 +458,7 @@ impl IssueSource {
         start: SourcePos,
         end: SourcePos,
     ) -> Result<Vc<Self>> {
+        // If we have a source map, map the line/column to the original source.
         let start = source_pos(source, start.line, start.column).await?;
         let end = source_pos(source, end.line, end.column).await?;
 
