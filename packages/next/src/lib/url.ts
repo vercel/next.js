@@ -11,3 +11,11 @@ export function getPathname(url: string) {
 export function isFullStringUrl(url: string) {
   return /https?:\/\//.test(url)
 }
+
+export function parseUrl(url: string): URL | undefined {
+  let parsed = undefined
+  try {
+    parsed = new URL(url, DUMMY_ORIGIN)
+  } catch {}
+  return parsed
+}
