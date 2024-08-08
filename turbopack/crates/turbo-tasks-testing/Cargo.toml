@@ -5,6 +5,7 @@ description = "TBD"
 license = "MPL-2.0"
 edition = "2021"
 autobenches = false
+autotests = false
 
 [lib]
 bench = false
@@ -19,4 +20,3 @@ futures = { workspace = true }
 rustc-hash = { workspace = true }
 tokio = { workspace = true }
 turbo-tasks = { workspace = true }
-turbo-tasks-memory = { workspace = true }

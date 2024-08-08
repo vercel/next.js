@@ -6,7 +6,7 @@ pub use tracing;
 
 pub use super::{
     magic_any::MagicAny,
-    manager::{find_cell_by_type, notify_scheduled_tasks, spawn_detached},
+    manager::{find_cell_by_type, notify_scheduled_tasks, spawn_detached_for_testing},
 };
 use crate::debug::ValueDebugFormatString;
 
