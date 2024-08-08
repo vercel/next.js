@@ -7,10 +7,15 @@ import { RefreshButton } from './refresh-button'
 export async function SharedPage({ runtime }: { runtime: string }) {
   const value = await fetchRandomValue(`render-${runtime}`)
 
-  after(async () => {
-    const value = await fetchRandomValue(`after-${runtime}`)
-    console.log('After:', value)
-  })
+  // FIXME(lubieowoce): reenable this when after() is fixed in edge runtime
+  // (disabling it like this makes tests that don't care about `after()` work,
+  //  and the tests that do care about it will look for logs, so they'll fail anyway)
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    after(async () => {
+      const value = await fetchRandomValue(`after-${runtime}`)
+      console.log('After:', value)
+    })
+  }
 
   return (
     <>
