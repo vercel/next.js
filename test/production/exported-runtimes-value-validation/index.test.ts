@@ -25,7 +25,7 @@ describe('Exported runtimes value validation', () => {
 
     console.log(result.stderr, result.stdout)
 
-    // The build should fail if we have invalid config
+    // The build should fail to prevent unexpected behavior
     expect(result.code).toBe(1)
 
     // Template Literal with Expressions
@@ -86,7 +86,7 @@ describe('Exported runtimes value validation', () => {
     // Unknown Expression Type
     expect(result.stderr).toEqual(
       expect.stringContaining(
-        "Next.js can't recognize the exported `config` field in route"
+        'Next.js can\'t recognize the exported `config` field in route "/unsupported-value-type"'
       )
     )
     expect(result.stderr).toEqual(
@@ -97,7 +97,7 @@ describe('Exported runtimes value validation', () => {
     // Unknown Object Key
     expect(result.stderr).toEqual(
       expect.stringContaining(
-        "Next.js can't recognize the exported `config` field in route"
+        'Next.js can\'t recognize the exported `config` field in route "/unsupported-object-key"'
       )
     )
     expect(result.stderr).toEqual(
