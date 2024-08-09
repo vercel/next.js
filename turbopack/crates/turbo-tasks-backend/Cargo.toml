@@ -17,8 +17,10 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 dashmap = { workspace = true }
+indexmap = { workspace = true }
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
+rand = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 smallvec = { workspace = true }
