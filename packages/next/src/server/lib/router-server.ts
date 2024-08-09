@@ -125,9 +125,8 @@ export async function initialize(opts: {
       require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
 
     const resetFetch = () => {
-      global.fetch = originalFetch
-      // @ts-ignore
-      global[NEXT_PATCH_SYMBOL] = false
+      globalThis.fetch = originalFetch
+      ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = false
     }
 
     const setupDevBundlerSpan = opts.startServerSpan

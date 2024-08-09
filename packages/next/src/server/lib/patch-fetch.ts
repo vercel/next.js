@@ -37,8 +37,7 @@ type PatchedFetcher = Fetcher & {
 export const NEXT_PATCH_SYMBOL = Symbol.for('next-patch')
 
 function isFetchPatched() {
-  // @ts-ignore
-  return globalThis[NEXT_PATCH_SYMBOL] === true
+  return (globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] === true
 }
 
 export function validateRevalidate(
@@ -811,8 +810,7 @@ export function createPatchedFetcher(
   patched.__nextPatched = true as const
   patched.__nextGetStaticStore = () => staticGenerationAsyncStorage
   patched._nextOriginalFetch = originFetch
-  // @ts-ignore
-  globalThis[NEXT_PATCH_SYMBOL] = true
+  ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = true
 
   return patched
 }
