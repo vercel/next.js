@@ -15,8 +15,8 @@ for folder in examples/* ; do
   fi
 done;
 
-if [[ ! -z $(git status -s | grep -v '/next-env.d.ts') ]];then
+if [[ ! -z $(git status -s) ]];then
   echo "Detected changes"
-  git status | grep -v '/next-env.d.ts'
+  git status
   exit 1
 fi
