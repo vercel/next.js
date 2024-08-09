@@ -76,10 +76,11 @@ impl Operation for InvalidateOperation {
                             }
                             None => false,
                         };
-                        if task.add(CachedDataItem::Dirty { value: () }) {
-                            if !in_progress && task.add(CachedDataItem::new_scheduled(task_id)) {
-                                ctx.turbo_tasks.schedule(task_id)
-                            }
+                        if task.add(CachedDataItem::Dirty { value: () })
+                            && !in_progress
+                            && task.add(CachedDataItem::new_scheduled(task_id))
+                        {
+                            ctx.turbo_tasks.schedule(task_id)
                         }
                     }
                     return;

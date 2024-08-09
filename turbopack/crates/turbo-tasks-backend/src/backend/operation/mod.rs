@@ -123,21 +123,19 @@ impl<'a> TaskGuard<'a> {
     pub fn add(&mut self, item: CachedDataItem) -> bool {
         if !item.is_persistent() {
             self.task.add(item)
+        } else if self.task.add(item.clone()) {
+            let (key, value) = item.into_key_and_value();
+            self.backend
+                .persisted_storage_log
+                .lock()
+                .push(CachedDataUpdate {
+                    key,
+                    task: self.task_id,
+                    value: Some(value),
+                });
+            true
         } else {
-            if self.task.add(item.clone()) {
-                let (key, value) = item.into_key_and_value();
-                self.backend
-                    .persisted_storage_log
-                    .lock()
-                    .push(CachedDataUpdate {
-                        key,
-                        task: self.task_id,
-                        value: Some(value),
-                    });
-                true
-            } else {
-                false
-            }
+            false
         }
     }
 
@@ -237,20 +235,6 @@ pub enum AnyOperation {
     ConnectChild(connect_child::ConnectChildOperation),
     Invalidate(invalidate::InvalidateOperation),
     Nested(Vec<AnyOperation>),
-}
-
-impl AnyOperation {
-    fn execute(self, ctx: &ExecuteContext<'_>) {
-        match self {
-            AnyOperation::ConnectChild(op) => op.execute(ctx),
-            AnyOperation::Invalidate(op) => op.execute(ctx),
-            AnyOperation::Nested(ops) => {
-                for op in ops {
-                    op.execute(ctx);
-                }
-            }
-        }
-    }
 }
 
 impl_operation!(ConnectChild connect_child::ConnectChildOperation);

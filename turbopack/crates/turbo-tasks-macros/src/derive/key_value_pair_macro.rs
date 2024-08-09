@@ -118,7 +118,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
     .into()
 }
 
-fn patterns(fields: &Vec<Vec<&syn::Field>>) -> Vec<proc_macro2::TokenStream> {
+fn patterns(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStream> {
     let variant_pat = fields
         .iter()
         .map(|fields| {
@@ -139,7 +139,7 @@ fn patterns(fields: &Vec<Vec<&syn::Field>>) -> Vec<proc_macro2::TokenStream> {
     variant_pat
 }
 
-fn clone_fields(fields: &Vec<Vec<&syn::Field>>) -> Vec<proc_macro2::TokenStream> {
+fn clone_fields(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStream> {
     let variant_pat = fields
         .iter()
         .map(|fields| {
@@ -160,7 +160,7 @@ fn clone_fields(fields: &Vec<Vec<&syn::Field>>) -> Vec<proc_macro2::TokenStream>
     variant_pat
 }
 
-fn field_declarations(fields: &Vec<Vec<&syn::Field>>) -> Vec<proc_macro2::TokenStream> {
+fn field_declarations(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStream> {
     fields
         .iter()
         .map(|fields| {
