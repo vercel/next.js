@@ -159,6 +159,7 @@ import {
 } from './after/builtin-request-context'
 import { ENCODED_TAGS } from './stream-utils/encodedTags'
 import { NextRequestHint } from './web/adapter'
+import { getRevalidateReason } from './instrumentation/utils'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -2522,6 +2523,7 @@ export default abstract class Server<
               routerKind: 'App Router',
               routePath: pathname,
               routeType: 'route',
+              revalidateReason: getRevalidateReason(renderOpts),
             })
 
             // Otherwise, send a 500 response.
@@ -2572,6 +2574,10 @@ export default abstract class Server<
                 routerKind: 'Pages Router',
                 routePath: pathname,
                 routeType: 'render',
+                revalidateReason: getRevalidateReason({
+                  isRevalidate: !isSSG,
+                  isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
+                }),
               })
               throw err
             }

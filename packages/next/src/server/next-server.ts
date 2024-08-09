@@ -101,6 +101,7 @@ import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
+import { getRevalidateReason } from './instrumentation/utils'
 
 export * from './base-server'
 
@@ -984,6 +985,7 @@ export default class NextNodeServer extends BaseServer<
             routePath: match.definition.page,
             routerKind: 'Pages Router',
             routeType: 'route',
+            revalidateReason: getRevalidateReason(this.renderOpts),
           })
           throw apiError
         }
