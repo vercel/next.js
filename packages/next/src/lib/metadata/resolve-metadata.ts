@@ -104,7 +104,12 @@ function mergeStaticMetadata(
   if (!staticFilesMetadata) return
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
 
-  // Only pick up the static metadata if the current level is the last segment
+  if ((icon || apple) && !target.icons) {
+    target.icons = {
+      icon: icon || [],
+      apple: apple || [],
+    }
+  }
   if (isLastSegment) {
     // file based metadata is specified and current level metadata icons is not specified
     if (target.icons) {
@@ -113,11 +118,6 @@ function mergeStaticMetadata(
       }
       if (apple) {
         target.icons.apple.unshift(...apple)
-      }
-    } else if (icon || apple) {
-      target.icons = {
-        icon: icon || [],
-        apple: apple || [],
       }
     }
   }
