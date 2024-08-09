@@ -1,9 +1,8 @@
-|_name, initial | {
-  let path = std::path::PathBuf::from(concat!(
+|name, initial| {
+  let path = std::path::PathBuf::from(format!(concat!(
     env!("OUT_DIR"),
-    "/.cache/",
-    module_path!(),
-  ));
+    "/.cache/{}",
+  ), name));
   if initial {
     let _ = std::fs::remove_dir_all(&path);
   }
