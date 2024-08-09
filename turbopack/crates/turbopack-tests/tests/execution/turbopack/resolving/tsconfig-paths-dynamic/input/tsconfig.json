@@ -2,6 +2,7 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./*"],
+      "@sub/*": ["./sub/*", "./sub-fallback/*"],
     },
   },
 }
