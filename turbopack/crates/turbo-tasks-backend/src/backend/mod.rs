@@ -39,7 +39,7 @@ use self::{operation::ExecuteContext, storage::Storage};
 use crate::{
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate, CellRef,
-        InProgressState, OutputValue,
+        InProgressState, OutputValue, RootType,
     },
     get, remove,
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc},
@@ -671,11 +671,16 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         let task_id = self.transient_task_id_factory.get();
+        let root_type = match task_type {
+            TransientTaskType::Root(_) => RootType::RootTask,
+            TransientTaskType::Once(_) => RootType::OnceTask,
+        };
         self.transient_tasks
             .insert(task_id, Arc::new(tokio::sync::Mutex::new(task_type)));
         {
             let mut task = self.storage.access_mut(task_id);
             task.add(CachedDataItem::new_scheduled(task_id));
+            task.add(CachedDataItem::AggregateRootType { value: root_type });
         }
         turbo_tasks.schedule(task_id);
         task_id

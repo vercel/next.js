@@ -26,8 +26,8 @@ impl OutputValue {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum RootType {
-    _RootTask,
-    _OnceTask,
+    RootTask,
+    OnceTask,
     _ReadingStronglyConsistent,
 }
 
