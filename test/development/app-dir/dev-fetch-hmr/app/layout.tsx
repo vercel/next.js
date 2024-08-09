@@ -4,10 +4,16 @@ import { ReactNode } from 'react'
 const magicNumber = Math.random()
 const originalFetch = globalThis.fetch
 
-globalThis.fetch = async (
+if (originalFetch.name === 'monkeyPatchedFetch') {
+  throw new Error(
+    'Patching over already patched fetch. This creates a memory leak.'
+  )
+}
+
+globalThis.fetch = async function monkeyPatchedFetch(
   resource: URL | RequestInfo,
   options?: RequestInit
-) => {
+) {
   const request = new Request(resource)
 
   if (request.url === 'http://fake.url/secret') {
