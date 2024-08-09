@@ -2129,17 +2129,21 @@ export default async function build(
                           const appConfig = workerResult.appConfig || {}
                           if (appConfig.revalidate !== 0) {
                             const isDynamic = isDynamicRoute(page)
+                            const prerenderedRoutes =
+                              workerResult.prerenderedRoutes
+                            const generateStaticParamsIsDefined =
+                              prerenderedRoutes !== undefined
                             const hasGenerateStaticParams =
-                              workerResult.prerenderedRoutes &&
-                              workerResult.prerenderedRoutes.length > 0
+                              generateStaticParamsIsDefined &&
+                              prerenderedRoutes.length > 0
 
                             if (
                               config.output === 'export' &&
                               isDynamic &&
-                              !hasGenerateStaticParams
+                              !generateStaticParamsIsDefined
                             ) {
                               throw new Error(
-                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
+                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config. Return an empty array if no pages should be rendered.`
                               )
                             }
 
