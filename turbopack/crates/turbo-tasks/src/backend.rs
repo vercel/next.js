@@ -429,9 +429,6 @@ pub type TaskCollectiblesMap = AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>,
 
 pub trait Backend: Sync + Send {
     #[allow(unused_variables)]
-    fn initialize(&mut self, task_id_provider: &dyn TaskIdProvider) {}
-
-    #[allow(unused_variables)]
     fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
 
     #[allow(unused_variables)]
