@@ -14,6 +14,40 @@ use turbo_tasks::KeyValuePair;
 use super::indexed::Indexed;
 use crate::utils::dash_map_multi::{get_multiple_mut, RefMut};
 
+const UNRESTORED: u32 = u32::MAX;
+
+pub struct PersistanceState {
+    value: u32,
+}
+
+impl Default for PersistanceState {
+    fn default() -> Self {
+        Self { value: UNRESTORED }
+    }
+}
+
+impl PersistanceState {
+    pub fn set_restored(&mut self) {
+        self.value = 0;
+    }
+
+    pub fn add_persisting_item(&mut self) {
+        self.value += 1;
+    }
+
+    pub fn finish_persisting_items(&mut self, count: u32) {
+        self.value -= count;
+    }
+
+    pub fn is_restored(&self) -> bool {
+        self.value != UNRESTORED
+    }
+
+    pub fn is_fully_persisted(&self) -> bool {
+        self.value == 0
+    }
+}
+
 const INDEX_THRESHOLD: usize = 1024;
 
 pub enum InnerStorage<T: KeyValuePair>
@@ -23,10 +57,12 @@ where
     Plain {
         // TODO use FxHasher
         map: AutoMap<T::Key, T::Value>,
+        persistance_state: PersistanceState,
     },
     Indexed {
         // TODO use FxHasher
         map: AutoMap<<T::Key as Indexed>::Index, AutoMap<T::Key, T::Value>>,
+        persistance_state: PersistanceState,
     },
 }
 
@@ -37,11 +73,38 @@ where
     fn new() -> Self {
         Self::Plain {
             map: AutoMap::new(),
+            persistance_state: PersistanceState::default(),
+        }
+    }
+
+    pub fn persistance_state(&self) -> &PersistanceState {
+        match self {
+            InnerStorage::Plain {
+                persistance_state, ..
+            } => persistance_state,
+            InnerStorage::Indexed {
+                persistance_state, ..
+            } => persistance_state,
+        }
+    }
+
+    pub fn persistance_state_mut(&mut self) -> &mut PersistanceState {
+        match self {
+            InnerStorage::Plain {
+                persistance_state, ..
+            } => persistance_state,
+            InnerStorage::Indexed {
+                persistance_state, ..
+            } => persistance_state,
         }
     }
 
     fn check_threshold(&mut self) {
-        let InnerStorage::Plain { map: plain_map } = self else {
+        let InnerStorage::Plain {
+            map: plain_map,
+            persistance_state,
+        } = self
+        else {
             return;
         };
         if plain_map.len() >= INDEX_THRESHOLD {
@@ -51,7 +114,10 @@ where
                 let index = key.index();
                 map.entry(index).or_default().insert(key, value);
             }
-            *self = InnerStorage::Indexed { map };
+            *self = InnerStorage::Indexed {
+                map,
+                persistance_state: take(persistance_state),
+            };
         }
     }
 

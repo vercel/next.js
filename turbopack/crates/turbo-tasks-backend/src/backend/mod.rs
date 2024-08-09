@@ -10,10 +10,10 @@ use std::{
     mem::take,
     pin::Pin,
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
         Arc,
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::{bail, Result};
@@ -41,6 +41,7 @@ use turbo_tasks::{
 
 use self::{operation::ExecuteContext, storage::Storage};
 use crate::{
+    backing_storage::BackingStorage,
     data::{
         ActiveType, AggregationNumber, CachedDataItem, CachedDataItemIndex, CachedDataItemKey,
         CachedDataItemValue, CachedDataUpdate, CellRef, InProgressCellState, InProgressState,
@@ -87,6 +88,8 @@ pub enum TransientTask {
 }
 
 pub struct TurboTasksBackend {
+    start_time: Instant,
+
     persisted_task_id_factory: IdFactoryWithReuse<TaskId>,
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
 
@@ -112,18 +115,20 @@ pub struct TurboTasksBackend {
     /// Condition Variable that is triggered when a snapshot is completed and
     /// operations can continue.
     snapshot_completed: Condvar,
-}
+    /// The timestamp of the last started snapshot.
+    last_snapshot: AtomicU64,
 
-impl Default for TurboTasksBackend {
-    fn default() -> Self {
-        Self::new()
-    }
+    backing_storage: Arc<dyn BackingStorage + Sync + Send>,
 }
 
 impl TurboTasksBackend {
-    pub fn new() -> Self {
+    pub fn new(backing_storage: Arc<dyn BackingStorage + Sync + Send>) -> Self {
         Self {
-            persisted_task_id_factory: IdFactoryWithReuse::new(1, (TRANSIENT_TASK_BIT - 1) as u64),
+            start_time: Instant::now(),
+            persisted_task_id_factory: IdFactoryWithReuse::new(
+                *backing_storage.next_free_task_id() as u64,
+                (TRANSIENT_TASK_BIT - 1) as u64,
+            ),
             transient_task_id_factory: IdFactoryWithReuse::new(
                 TRANSIENT_TASK_BIT as u64,
                 u32::MAX as u64,
@@ -137,6 +142,8 @@ impl TurboTasksBackend {
             snapshot_request: Mutex::new(SnapshotRequest::new()),
             operations_suspended: Condvar::new(),
             snapshot_completed: Condvar::new(),
+            last_snapshot: AtomicU64::new(0),
+            backing_storage,
         }
     }
 
@@ -382,7 +389,10 @@ impl TurboTasksBackend {
                     let _ = reader_task.add(CachedDataItem::CellDependency { target, value: () });
                 }
             }
-            return Ok(Ok(CellContent(Some(content)).into_typed(cell.type_id)));
+            return Ok(Ok(TypedCellContent(
+                cell.type_id,
+                CellContent(Some(content.1)),
+            )));
         }
 
         // Check cell index range (cell might not exist at all)
@@ -442,6 +452,10 @@ impl TurboTasksBackend {
         if let Some(task_type) = self.task_cache.lookup_reverse(&task_id) {
             return Some(task_type);
         }
+        if let Some(task_type) = self.backing_storage.reverse_lookup_task_cache(task_id) {
+            let _ = self.task_cache.try_insert(task_type.clone(), task_id);
+            return Some(task_type);
+        }
         None
     }
 
@@ -455,9 +469,70 @@ impl TurboTasksBackend {
             )
         }
     }
+
+    fn snapshot(&self) -> Option<Instant> {
+        let mut snapshot_request = self.snapshot_request.lock();
+        snapshot_request.snapshot_requested = true;
+        let active_operations = self
+            .in_progress_operations
+            .fetch_or(SNAPSHOT_REQUESTED_BIT, std::sync::atomic::Ordering::Relaxed);
+        if active_operations != 0 {
+            self.operations_suspended
+                .wait_while(&mut snapshot_request, |_| {
+                    self.in_progress_operations
+                        .load(std::sync::atomic::Ordering::Relaxed)
+                        != SNAPSHOT_REQUESTED_BIT
+                });
+        }
+        let suspended_operations = snapshot_request
+            .suspended_operations
+            .iter()
+            .map(|op| op.arc().clone())
+            .collect::<Vec<_>>();
+        drop(snapshot_request);
+        let persisted_storage_log = take(&mut *self.persisted_storage_log.lock());
+        let persisted_task_cache_log = take(&mut *self.persisted_task_cache_log.lock());
+        let mut snapshot_request = self.snapshot_request.lock();
+        snapshot_request.snapshot_requested = false;
+        self.in_progress_operations
+            .fetch_sub(SNAPSHOT_REQUESTED_BIT, std::sync::atomic::Ordering::Relaxed);
+        self.snapshot_completed.notify_all();
+        let snapshot_time = Instant::now();
+        drop(snapshot_request);
+
+        let mut counts: HashMap<TaskId, u32> = HashMap::new();
+        for CachedDataUpdate { task, .. } in persisted_storage_log.iter() {
+            *counts.entry(*task).or_default() += 1;
+        }
+
+        if !persisted_task_cache_log.is_empty() || !persisted_storage_log.is_empty() {
+            if let Err(err) = self.backing_storage.save_snapshot(
+                suspended_operations,
+                persisted_task_cache_log,
+                persisted_storage_log,
+            ) {
+                println!("Persising failed: {:#?}", err);
+                return None;
+            }
+            println!("Snapshot saved");
+        }
+
+        for (task_id, count) in counts {
+            self.storage
+                .access_mut(task_id)
+                .persistance_state_mut()
+                .finish_persisting_items(count);
+        }
+
+        Some(snapshot_time)
+    }
 }
 
 impl Backend for TurboTasksBackend {
+    fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        turbo_tasks.schedule_backend_background_job(BackendJobId::from(1));
+    }
+
     fn get_or_create_persistent_task(
         &self,
         task_type: CachedTaskType,
@@ -465,6 +540,12 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
+            self.connect_child(parent_task, task_id, turbo_tasks);
+            return task_id;
+        }
+
+        if let Some(task_id) = self.backing_storage.forward_lookup_task_cache(&task_type) {
+            let _ = self.task_cache.try_insert(Arc::new(task_type), task_id);
             self.connect_child(parent_task, task_id, turbo_tasks);
             return task_id;
         }
@@ -925,12 +1006,31 @@ impl Backend for TurboTasksBackend {
         stale
     }
 
-    fn run_backend_job(
-        &self,
-        _: BackendJobId,
-        _: &dyn TurboTasksBackendApi<Self>,
-    ) -> Pin<Box<(dyn Future<Output = ()> + Send + 'static)>> {
-        todo!()
+    fn run_backend_job<'a>(
+        &'a self,
+        id: BackendJobId,
+        turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+        Box::pin(async move {
+            if *id == 1 {
+                const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(1);
+
+                let last_snapshot = self.last_snapshot.load(Ordering::Relaxed);
+                let last_snapshot = self.start_time + Duration::from_millis(last_snapshot);
+                let elapsed = last_snapshot.elapsed();
+                if elapsed < SNAPSHOT_INTERVAL {
+                    tokio::time::sleep(SNAPSHOT_INTERVAL - elapsed).await;
+                }
+
+                if let Some(last_snapshot) = self.snapshot() {
+                    let last_snapshot = last_snapshot.duration_since(self.start_time);
+                    self.last_snapshot
+                        .store(last_snapshot.as_millis() as u64, Ordering::Relaxed);
+
+                    turbo_tasks.schedule_backend_background_job(id);
+                }
+            }
+        })
     }
 
     fn try_read_task_output(
@@ -980,7 +1080,7 @@ impl Backend for TurboTasksBackend {
         let ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id);
         if let Some(content) = get!(task, CellData { cell }) {
-            Ok(CellContent(Some(content.clone())).into_typed(cell.type_id))
+            Ok(CellContent(Some(content.1.clone())).into_typed(cell.type_id))
         } else {
             Ok(CellContent(None).into_typed(cell.type_id))
         }

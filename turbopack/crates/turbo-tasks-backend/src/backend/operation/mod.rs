@@ -54,8 +54,25 @@ impl<'a> ExecuteContext<'a> {
     }
 
     pub fn task(&self, task_id: TaskId) -> TaskGuard<'a> {
+        let mut task = self.backend.storage.access_mut(task_id);
+        if !task.persistance_state().is_restored() {
+            if task_id.is_transient() {
+                task.persistance_state_mut().set_restored();
+            } else {
+                // Avoid holding the lock too long since this can also affect other tasks
+                drop(task);
+                let items = self.backend.backing_storage.lookup_data(task_id);
+                task = self.backend.storage.access_mut(task_id);
+                if !task.persistance_state().is_restored() {
+                    for item in items {
+                        task.add(item);
+                    }
+                    task.persistance_state_mut().set_restored();
+                }
+            }
+        }
         TaskGuard {
-            task: self.backend.storage.access_mut(task_id),
+            task,
             task_id,
             backend: self.backend,
         }
@@ -162,7 +179,7 @@ impl<'a> TaskGuard<'a> {
             self.task.add(item)
         } else if self.task.add(item.clone()) {
             let (key, value) = item.into_key_and_value();
-            // TODO task.persistance_state.add_persisting_item();
+            self.task.persistance_state_mut().add_persisting_item();
             self.backend
                 .persisted_storage_log
                 .lock()
@@ -192,7 +209,7 @@ impl<'a> TaskGuard<'a> {
                 key.clone(),
                 value.clone(),
             ));
-            // TODO task.persistance_state.add_persisting_item();
+            self.task.persistance_state_mut().add_persisting_item();
             self.backend
                 .persisted_storage_log
                 .lock()
@@ -206,7 +223,7 @@ impl<'a> TaskGuard<'a> {
             let item = CachedDataItem::from_key_and_value(key.clone(), value);
             if let Some(old) = self.task.insert(item) {
                 if old.is_persistent() {
-                    // TODO task.persistance_state.add_persisting_item();
+                    self.task.persistance_state_mut().add_persisting_item();
                     self.backend
                         .persisted_storage_log
                         .lock()
@@ -266,7 +283,7 @@ impl<'a> TaskGuard<'a> {
             new
         });
         if add_persisting_item {
-            // TODO task.persistance_state.add_persisting_item();
+            task.persistance_state_mut().add_persisting_item();
         }
     }
 
@@ -275,7 +292,7 @@ impl<'a> TaskGuard<'a> {
         if let Some(value) = old_value {
             if key.is_persistent() && value.is_persistent() {
                 let key = key.clone();
-                // TODO task.persistance_state.add_persisting_item();
+                self.task.persistance_state_mut().add_persisting_item();
                 self.backend
                     .persisted_storage_log
                     .lock()

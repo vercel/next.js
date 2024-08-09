@@ -16,10 +16,12 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
+bincode = "1.3.3"
 dashmap = { workspace = true, features = ["raw-api"]}
 either = { workspace = true }
 hashbrown = { workspace = true }
 indexmap = { workspace = true }
+lmdb = "0.8.0"
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
 rand = { workspace = true }
