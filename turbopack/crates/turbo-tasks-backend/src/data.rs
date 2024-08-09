@@ -239,7 +239,11 @@ impl CachedDataItemValue {
 }
 
 pub struct CachedDataUpdate {
+    // TODO persistence
+    #[allow(dead_code)]
     pub task: TaskId,
+    #[allow(dead_code)]
     pub key: CachedDataItemKey,
+    #[allow(dead_code)]
     pub value: Option<CachedDataItemValue>,
 }
