@@ -54,11 +54,10 @@ export class ModuleBuildError extends Error {
 // to a log file and details should not be shown to the user.
 export class TurbopackInternalError extends Error {
   name = 'TurbopackInternalError'
-  cause: unknown
 
-  constructor(message: string, cause: unknown) {
-    super(message)
-    this.cause = cause
+  constructor(cause: Error) {
+    super(cause.message)
+    this.stack = cause.stack
   }
 }
 
