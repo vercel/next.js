@@ -4,10 +4,21 @@
 - All pull requests should be opened against `canary`.
 - The changes on the `canary` branch are published to the `@canary` tag on npm regularly.
 
-To develop locally:
+## Dependencies
 
-1. Install Rust and Cargo via [rustup](https://rustup.rs).
-1. Install the [GitHub CLI](https://github.com/cli/cli#installation).
+- Install Rust and Cargo via [rustup](https://rustup.rs).
+- Install the [GitHub CLI](https://github.com/cli/cli#installation).
+- Enable pnpm:
+  ```
+  corepack enable pnpm
+  ```
+- (Linux) Install LLD, the LLVM linker:
+  ```
+  sudo apt install lld
+  ```
+
+## Local Development
+
 1. Clone the Next.js repository (download only recent commits for faster clone):
    ```
    gh repo clone vercel/next.js -- --filter=blob:none --branch canary --single-branch
@@ -15,10 +26,6 @@ To develop locally:
 1. Create a new branch:
    ```
    git checkout -b MY_BRANCH_NAME origin/canary
-   ```
-1. Enable pnpm:
-   ```
-   corepack enable pnpm
    ```
 1. Install the dependencies with:
    ```
@@ -58,6 +65,18 @@ Or without running the build:
 pnpm pack-next --no-build --release && pnpm unpack-next path/to/project
 ```
 
+Without going through a tarball (only works if you've added the overrides from `pack-next`):
+
+```bash
+pnpm patch-next path/to/project
+```
+
+Supports the same arguments:
+
+```bash
+pnpm patch-next --no-build --release path/to/project
+```
+
 ### Explanation of the scripts
 
 ```bash
@@ -77,4 +96,28 @@ Afterwards, you'll need to unpack the tarball into your test project. You can ei
 ```bash
 # Unpack the tarballs generated with pack-next into project's node_modules
 $ pnpm unpack-next path/to/project
+```
+
+## Recover disk space
+
+Rust builds quickly add up to a lot of disk space, you can clean up old artifacts with this command:
+
+```bash
+pnpm sweep
+```
+
+It will also clean up other caches (pnpm store, cargo, etc.) and run `git gc` for you.
+
+### MacOS disk compression
+
+If you want to automatically use APFS disk compression on macOS for `node_modules/` and `target/` you can install a launch agent with:
+
+```bash
+./scripts/LaunchAgents/install-macos-agents.sh
+```
+
+Or run it manually with:
+
+```bash
+./scripts/macos-compress.sh
 ```

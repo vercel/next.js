@@ -6,17 +6,12 @@ use anyhow::{bail, Ok, Result};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::{formatdoc, indoc};
 use turbo_tasks::{ValueToString, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{File, FileContent, FileSystemPath},
-    turbopack::{
-        core::{
-            asset::AssetContent, file_source::FileSource, source::Source,
-            virtual_source::VirtualSource,
-        },
-        ecmascript::utils::StringifyJs,
-        turbopack::ModuleAssetContext,
-    },
+use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
+use turbopack::ModuleAssetContext;
+use turbopack_core::{
+    asset::AssetContent, file_source::FileSource, source::Source, virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::utils::StringifyJs;
 
 use super::get_content_type;
 use crate::{

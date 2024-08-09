@@ -23,27 +23,21 @@ use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
-use turbopack_binding::{
-    turbo::{
-        tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath},
-        tasks_memory::MemoryBackend,
-    },
-    turbopack::{
-        core::{
-            diagnostics::PlainDiagnostic,
-            error::PrettyPrintError,
-            issue::PlainIssue,
-            source_map::Token,
-            version::{PartialUpdate, TotalUpdate, Update, VersionState},
-            SOURCE_MAP_PREFIX,
-        },
-        ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
-        trace_utils::{
-            exit::{ExitHandler, ExitReceiver},
-            raw_trace::RawTraceLayer,
-            trace_writer::TraceWriter,
-        },
-    },
+use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
+use turbo_tasks_memory::MemoryBackend;
+use turbopack_core::{
+    diagnostics::PlainDiagnostic,
+    error::PrettyPrintError,
+    issue::PlainIssue,
+    source_map::Token,
+    version::{PartialUpdate, TotalUpdate, Update, VersionState},
+    SOURCE_MAP_PREFIX,
+};
+use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier};
+use turbopack_trace_utils::{
+    exit::{ExitHandler, ExitReceiver},
+    raw_trace::RawTraceLayer,
+    trace_writer::TraceWriter,
 };
 use url::Url;
 
@@ -307,9 +301,7 @@ pub async fn project_new(
         let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
         if trace_server.is_some() {
             thread::spawn(move || {
-                turbopack_binding::turbopack::trace_server::start_turbopack_trace_server(
-                    trace_file,
-                );
+                turbopack_trace_server::start_turbopack_trace_server(trace_file);
             });
             println!("Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/");
         }

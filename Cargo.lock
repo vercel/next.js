@@ -712,29 +712,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bindgen"
-version = "0.65.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfdf7b466f9a4903edc73f95d6d2bcd5baf8ae620638762244d3f60143643cc5"
-dependencies = [
- "bitflags 1.3.2",
- "cexpr",
- "clang-sys",
- "lazy_static",
- "lazycell",
- "log",
- "peeking_take_while",
- "prettyplease",
- "proc-macro2",
- "quote",
- "regex",
- "rustc-hash",
- "shlex",
- "syn 2.0.58",
- "which",
-]
-
-[[package]]
 name = "binding_macros"
 version = "0.70.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1000,15 +977,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d43a04d8753f35258c91f8ec639f792891f748a1edbd759cf1dcea3382ad83c"
 
 [[package]]
-name = "cexpr"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fac387a98bb7c37292057cffc56d62ecb629900026402633ae9160df93a8766"
-dependencies = [
- "nom",
-]
-
-[[package]]
 name = "cfg-expr"
 version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1135,17 +1103,6 @@ checksum = "57663b653d948a338bfb3eeba9bb2fd5fcfaecb9e199e87e1eda4d9e8b240fd9"
 dependencies = [
  "ciborium-io",
  "half 2.4.1",
-]
-
-[[package]]
-name = "clang-sys"
-version = "1.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b023947811758c97c59bf9d1c188fd619ad4718dcaa767947df1cadb14f39f4"
-dependencies = [
- "glob",
- "libc",
- "libloading",
 ]
 
 [[package]]
@@ -1694,7 +1651,7 @@ dependencies = [
  "cssparser-macros",
  "dtoa-short",
  "itoa",
- "phf 0.11.2",
+ "phf 0.10.1",
  "serde",
  "smallvec",
 ]
@@ -3280,12 +3237,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
-name = "lazycell"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
-
-[[package]]
 name = "leb128"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3451,9 +3402,9 @@ dependencies = [
 
 [[package]]
 name = "lightningcss"
-version = "1.0.0-alpha.57"
+version = "1.0.0-alpha.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10bc10261f46b8df263b80e7779d1748b1880488cd951fbb9e096430cead10e6"
+checksum = "ec380ca49dc7f6a1cafbdd2de5e587958eac0f67ab26b1e56727fcc60a0c3d4d"
 dependencies = [
  "ahash 0.8.9",
  "bitflags 2.5.0",
@@ -3478,10 +3429,11 @@ dependencies = [
 
 [[package]]
 name = "lightningcss-derive"
-version = "1.0.0-alpha.42"
+version = "1.0.0-alpha.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f02a09f0b79d31f1ee13ea55e2f7021037c6b72e0a3ab6c1cb0e9bd7ac8a295"
+checksum = "84c12744d1279367caed41739ef094c325d53fb0ffcd4f9b84a368796f870252"
 dependencies = [
+ "convert_case",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
@@ -3954,9 +3906,21 @@ dependencies = [
  "serde",
  "serde_json",
  "shadow-rs",
+ "swc_core",
  "tracing",
  "turbo-tasks",
- "turbopack-binding",
+ "turbo-tasks-build",
+ "turbo-tasks-env",
+ "turbo-tasks-fs",
+ "turbo-tasks-memory",
+ "turbopack",
+ "turbopack-browser",
+ "turbopack-cli-utils",
+ "turbopack-core",
+ "turbopack-ecmascript",
+ "turbopack-env",
+ "turbopack-node",
+ "turbopack-nodejs",
 ]
 
 [[package]]
@@ -3964,7 +3928,8 @@ name = "next-build"
 version = "0.1.0"
 dependencies = [
  "next-core",
- "turbopack-binding",
+ "turbo-tasks-build",
+ "turbopack-core",
  "vergen 7.5.1",
 ]
 
@@ -3984,7 +3949,21 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "turbo-tasks",
- "turbopack-binding",
+ "turbo-tasks-build",
+ "turbo-tasks-env",
+ "turbo-tasks-fs",
+ "turbo-tasks-malloc",
+ "turbo-tasks-memory",
+ "turbopack",
+ "turbopack-browser",
+ "turbopack-cli-utils",
+ "turbopack-core",
+ "turbopack-ecmascript",
+ "turbopack-ecmascript-runtime",
+ "turbopack-env",
+ "turbopack-node",
+ "turbopack-nodejs",
+ "turbopack-trace-utils",
 ]
 
 [[package]]
@@ -3995,6 +3974,7 @@ dependencies = [
  "anyhow",
  "async-recursion",
  "async-trait",
+ "auto-hash-map",
  "base64 0.21.4",
  "futures",
  "indexmap 1.9.3",
@@ -4002,6 +3982,7 @@ dependencies = [
  "lazy-regex",
  "lazy_static",
  "mime_guess",
+ "modularize_imports",
  "next-custom-transforms",
  "once_cell",
  "qstring",
@@ -4011,11 +3992,30 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
+ "swc_core",
+ "swc_relay",
  "thiserror",
  "tracing",
  "turbo-tasks",
+ "turbo-tasks-build",
+ "turbo-tasks-bytes",
+ "turbo-tasks-env",
+ "turbo-tasks-fetch",
  "turbo-tasks-fs",
- "turbopack-binding",
+ "turbo-tasks-hash",
+ "turbopack",
+ "turbopack-browser",
+ "turbopack-core",
+ "turbopack-ecmascript",
+ "turbopack-ecmascript-plugins",
+ "turbopack-ecmascript-runtime",
+ "turbopack-env",
+ "turbopack-image",
+ "turbopack-node",
+ "turbopack-nodejs",
+ "turbopack-static",
+ "turbopack-trace-server",
+ "turbopack-trace-utils",
 ]
 
 [[package]]
@@ -4029,6 +4029,7 @@ dependencies = [
  "fxhash",
  "hex",
  "lazy_static",
+ "modularize_imports",
  "once_cell",
  "pathdiff",
  "preset_env_base",
@@ -4039,9 +4040,14 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
+ "styled_components",
+ "styled_jsx",
  "swc_core",
+ "swc_emotion",
+ "swc_relay",
+ "testing",
  "tracing",
- "turbopack-binding",
+ "turbopack-ecmascript-plugins",
  "walkdir",
 ]
 
@@ -4057,6 +4063,7 @@ dependencies = [
  "iana-time-zone",
  "indexmap 1.9.3",
  "lightningcss-napi",
+ "mdxjs",
  "napi",
  "napi-build",
  "napi-derive",
@@ -4064,18 +4071,29 @@ dependencies = [
  "next-build",
  "next-core",
  "next-custom-transforms",
+ "node-file-trace",
  "once_cell",
  "owo-colors 3.5.0",
  "rand",
  "serde",
  "serde_json",
  "shadow-rs",
+ "swc_core",
  "tokio",
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
  "turbo-tasks",
- "turbopack-binding",
+ "turbo-tasks-build",
+ "turbo-tasks-fs",
+ "turbo-tasks-malloc",
+ "turbo-tasks-memory",
+ "turbopack",
+ "turbopack-core",
+ "turbopack-ecmascript-hmr-protocol",
+ "turbopack-ecmascript-plugins",
+ "turbopack-trace-server",
+ "turbopack-trace-utils",
  "url",
  "urlencoding",
 ]
@@ -4422,9 +4440,9 @@ checksum = "caff54706df99d2a78a5a4e3455ff45448d81ef1bb63c22cd14052ca0e993a3f"
 
 [[package]]
 name = "parcel_selectors"
-version = "0.26.5"
+version = "0.26.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce9c47a67c66fee4a5a42756f9784d92941bd0ab2b653539a9e90521a44b66f0"
+checksum = "512215cb1d3814e276ace4ec2dbc2cac16726ea3fcac20c22ae1197e16fdd72d"
 dependencies = [
  "bitflags 2.5.0",
  "cssparser",
@@ -4533,12 +4551,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "peeking_take_while"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
-
-[[package]]
 name = "percent-encoding"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4605,7 +4617,9 @@ version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fabbf1ead8a5bcbc20f5f8b939ee3f5b0f6f281b6ad3468b84656b658b455259"
 dependencies = [
+ "phf_macros 0.10.0",
  "phf_shared 0.10.0",
+ "proc-macro-hack",
 ]
 
 [[package]]
@@ -4614,7 +4628,7 @@ version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ade2d8b8f33c7333b51bcf0428d37e217e9f32192ae4772156f65063b8ce03dc"
 dependencies = [
- "phf_macros",
+ "phf_macros 0.11.2",
  "phf_shared 0.11.2",
 ]
 
@@ -4646,6 +4660,20 @@ checksum = "48e4cc64c2ad9ebe670cb8fd69dd50ae301650392e81c05f9bfcb2d5bdbc24b0"
 dependencies = [
  "phf_shared 0.11.2",
  "rand",
+]
+
+[[package]]
+name = "phf_macros"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58fdf3184dd560f160dd73922bea2d5cd6e8f064bf4b13110abd81b03697b4e0"
+dependencies = [
+ "phf_generator 0.10.0",
+ "phf_shared 0.10.0",
+ "proc-macro-hack",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -4878,26 +4906,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "prettyplease"
-version = "0.2.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d3928fb5db768cb86f891ff014f0144589297e3c6a1aba6ed7cecfdace270c7"
-dependencies = [
- "proc-macro2",
- "syn 2.0.58",
-]
-
-[[package]]
-name = "priority-queue"
-version = "1.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ca9c6be70d989d21a136eb86c2d83e4b328447fac4a88dace2143c179c86267"
-dependencies = [
- "autocfg",
- "indexmap 1.9.3",
-]
-
-[[package]]
 name = "proc-macro-crate"
 version = "1.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4930,6 +4938,12 @@ dependencies = [
  "quote",
  "version_check",
 ]
+
+[[package]]
+name = "proc-macro-hack"
+version = "0.5.20+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc375e1527247fe1a97d8b7156678dfe7c1af2fc075c9a4db3690ecd2a148068"
 
 [[package]]
 name = "proc-macro2"
@@ -5945,12 +5959,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "shlex"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
-
-[[package]]
 name = "signal-hook"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5978,21 +5986,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8229b473baa5980ac72ef434c4415e70c4b5e71b423043adb4ba059f89c99a1"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "signposter"
-version = "0.1.0"
-dependencies = [
- "once_cell",
- "signposter-sys",
-]
-
-[[package]]
-name = "signposter-sys"
-version = "0.1.0"
-dependencies = [
- "bindgen",
 ]
 
 [[package]]
@@ -6535,7 +6528,6 @@ dependencies = [
  "swc_ecma_transforms_typescript",
  "swc_ecma_utils",
  "swc_ecma_visit",
- "swc_malloc",
  "swc_nodejs_common",
  "swc_plugin_proxy",
  "swc_plugin_runner",
@@ -7486,16 +7478,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "swc_malloc"
-version = "0.5.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "313a800441b32643bc183a3b5a08fdadcc391924a6a02ba5d2294fbbc39e7436"
-dependencies = [
- "mimalloc",
- "tikv-jemallocator",
-]
-
-[[package]]
 name = "swc_node_comments"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7572,9 +7554,9 @@ dependencies = [
 
 [[package]]
 name = "swc_relay"
-version = "0.44.19"
+version = "0.44.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35d0b3ed1b7dcb73c4e70bc7d64f661af792cbe483f0aef8dd007187e266c144"
+checksum = "955d22dbdeb3c1a62714dfd7df82510503c36987dfcaed1025a112f51f16d6b8"
 dependencies = [
  "once_cell",
  "regex",
@@ -7863,26 +7845,6 @@ checksum = "3fdd6f064ccff2d6567adcb3873ca630700f00b5ad3f060c25b5dcfd9a4ce152"
 dependencies = [
  "cfg-if",
  "once_cell",
-]
-
-[[package]]
-name = "tikv-jemalloc-sys"
-version = "0.5.4+5.3.0-patched"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9402443cb8fd499b6f327e40565234ff34dbda27460c5b47db0db77443dd85d1"
-dependencies = [
- "cc",
- "libc",
-]
-
-[[package]]
-name = "tikv-jemallocator"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "965fe0c26be5c56c94e38ba547249074803efd52adfb66de62107d95aab3eaca"
-dependencies = [
- "libc",
- "tikv-jemalloc-sys",
 ]
 
 [[package]]
@@ -8246,16 +8208,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-signpost"
-version = "0.1.0"
-dependencies = [
- "dashmap",
- "signposter",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "tracing-subscriber"
 version = "0.3.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8411,7 +8363,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_regex",
- "serde_test",
  "thiserror",
  "tokio",
  "tracing",
@@ -8474,6 +8425,7 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
+ "turbo-tasks-memory",
  "turbo-tasks-testing",
  "turbopack-core",
 ]
@@ -8527,7 +8479,6 @@ dependencies = [
 name = "turbo-tasks-macros"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "either",
  "proc-macro-error",
  "proc-macro2",
@@ -8556,6 +8507,7 @@ dependencies = [
  "trybuild",
  "turbo-tasks",
  "turbo-tasks-build",
+ "turbo-tasks-memory",
  "turbo-tasks-testing",
 ]
 
@@ -8581,7 +8533,6 @@ dependencies = [
  "num_cpus",
  "once_cell",
  "parking_lot",
- "priority-queue",
  "rand",
  "ref-cast",
  "regex",
@@ -8610,7 +8561,6 @@ dependencies = [
  "rustc-hash",
  "tokio",
  "turbo-tasks",
- "turbo-tasks-memory",
 ]
 
 [[package]]
@@ -8675,58 +8625,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "turbopack-binding"
-version = "0.1.0"
-dependencies = [
- "auto-hash-map",
- "mdxjs",
- "modularize_imports",
- "node-file-trace",
- "styled_components",
- "styled_jsx",
- "swc_core",
- "swc_emotion",
- "swc_relay",
- "testing",
- "tracing-signpost",
- "turbo-tasks",
- "turbo-tasks-build",
- "turbo-tasks-bytes",
- "turbo-tasks-env",
- "turbo-tasks-fetch",
- "turbo-tasks-fs",
- "turbo-tasks-hash",
- "turbo-tasks-macros",
- "turbo-tasks-macros-shared",
- "turbo-tasks-malloc",
- "turbo-tasks-memory",
- "turbo-tasks-testing",
- "turbopack",
- "turbopack-bench",
- "turbopack-browser",
- "turbopack-cli-utils",
- "turbopack-core",
- "turbopack-create-test-app",
- "turbopack-css",
- "turbopack-dev-server",
- "turbopack-ecmascript",
- "turbopack-ecmascript-hmr-protocol",
- "turbopack-ecmascript-plugins",
- "turbopack-ecmascript-runtime",
- "turbopack-env",
- "turbopack-image",
- "turbopack-json",
- "turbopack-mdx",
- "turbopack-node",
- "turbopack-nodejs",
- "turbopack-static",
- "turbopack-swc-utils",
- "turbopack-test-utils",
- "turbopack-trace-server",
- "turbopack-trace-utils",
-]
-
-[[package]]
 name = "turbopack-browser"
 version = "0.1.0"
 dependencies = [
@@ -8763,7 +8661,6 @@ dependencies = [
  "regex",
  "serde",
  "tokio",
- "tracing-signpost",
  "tracing-subscriber",
  "turbo-tasks",
  "turbo-tasks-build",
@@ -8784,7 +8681,6 @@ dependencies = [
  "turbopack-node",
  "turbopack-nodejs",
  "turbopack-resolve",
- "turbopack-trace-server",
  "turbopack-trace-utils",
  "webbrowser",
 ]
@@ -8833,8 +8729,6 @@ dependencies = [
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
- "turbo-tasks-memory",
- "turbo-tasks-testing",
 ]
 
 [[package]]
@@ -8927,7 +8821,6 @@ dependencies = [
  "parking_lot",
  "petgraph",
  "regex",
- "rstest",
  "rustc-hash",
  "serde",
  "serde_json",
@@ -9726,12 +9619,12 @@ dependencies = [
  "console_error_panic_hook",
  "getrandom",
  "js-sys",
+ "mdxjs",
  "next-custom-transforms",
  "serde-wasm-bindgen",
  "serde_json",
  "swc_core",
  "tracing",
- "turbopack-binding",
  "wasm-bindgen",
  "wasm-bindgen-futures",
 ]

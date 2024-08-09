@@ -1,5 +1,4 @@
 use std::{
-    any::Any,
     borrow::Cow,
     fmt::{self, Debug, Display, Write},
     future::Future,
@@ -21,9 +20,11 @@ use crate::{
     manager::TurboTasksBackendApi,
     raw_vc::CellId,
     registry,
+    task::shared_reference::TypedSharedReference,
     trait_helpers::{get_trait_method, has_trait, traits},
+    triomphe_utils::unchecked_sidecast_triomphe_arc,
     FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdProvider, TaskIdSet, TraitRef,
-    TraitTypeId, ValueTypeId, VcValueTrait, VcValueType,
+    TraitTypeId, ValueTypeId, VcRead, VcValueTrait, VcValueType,
 };
 
 pub enum TaskType {
@@ -341,11 +342,14 @@ impl Display for CellContent {
 }
 
 impl TypedCellContent {
-    pub fn cast<T: Any + VcValueType>(self) -> Result<ReadRef<T>> {
+    pub fn cast<T: VcValueType>(self) -> Result<ReadRef<T>> {
         let data = self.1 .0.ok_or_else(|| anyhow!("Cell is empty"))?;
         let data = data
-            .downcast()
+            .downcast::<<T::Read as VcRead<T>>::Repr>()
             .map_err(|_err| anyhow!("Unexpected type in cell"))?;
+        // SAFETY: `T` and `T::Read::Repr` must have equivalent memory representations,
+        // guaranteed by the unsafe implementation of `VcValueType`.
+        let data = unsafe { unchecked_sidecast_triomphe_arc(data) };
         Ok(ReadRef::new_arc(data))
     }
 
@@ -361,15 +365,11 @@ impl TypedCellContent {
             .1
              .0
             .ok_or_else(|| anyhow!("Cell is empty"))?
-            .typed(self.0);
+            .into_typed(self.0);
         Ok(
             // Safety: It is a TypedSharedReference
             TraitRef::new(shared_reference),
         )
-    }
-
-    pub fn try_cast<T: Any + VcValueType>(self) -> Option<ReadRef<T>> {
-        Some(ReadRef::new_arc(self.1 .0?.downcast().ok()?))
     }
 
     pub fn into_untyped(self) -> CellContent {
@@ -377,9 +377,51 @@ impl TypedCellContent {
     }
 }
 
+impl From<TypedSharedReference> for TypedCellContent {
+    fn from(value: TypedSharedReference) -> Self {
+        TypedCellContent(value.0, CellContent(Some(value.1)))
+    }
+}
+
+impl TryFrom<TypedCellContent> for TypedSharedReference {
+    type Error = TypedCellContent;
+
+    fn try_from(content: TypedCellContent) -> Result<Self, TypedCellContent> {
+        if let TypedCellContent(type_id, CellContent(Some(shared_reference))) = content {
+            Ok(TypedSharedReference(type_id, shared_reference))
+        } else {
+            Err(content)
+        }
+    }
+}
+
 impl CellContent {
     pub fn into_typed(self, type_id: ValueTypeId) -> TypedCellContent {
         TypedCellContent(type_id, self)
+    }
+}
+
+impl From<SharedReference> for CellContent {
+    fn from(value: SharedReference) -> Self {
+        CellContent(Some(value))
+    }
+}
+
+impl From<Option<SharedReference>> for CellContent {
+    fn from(value: Option<SharedReference>) -> Self {
+        CellContent(value)
+    }
+}
+
+impl TryFrom<CellContent> for SharedReference {
+    type Error = CellContent;
+
+    fn try_from(content: CellContent) -> Result<Self, CellContent> {
+        if let CellContent(Some(shared_reference)) = content {
+            Ok(shared_reference)
+        } else {
+            Err(content)
+        }
     }
 }
 
@@ -433,7 +475,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         duration: Duration,
         memory_usage: usize,
-        cell_counters: AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool;

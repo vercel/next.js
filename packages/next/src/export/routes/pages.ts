@@ -27,7 +27,10 @@ export const enum ExportedPagesFiles {
   AMP_DATA = 'AMP_PAGE_DATA',
 }
 
-export async function exportPages(
+/**
+ * Renders & exports a page associated with the /pages directory
+ */
+export async function exportPagesPage(
   req: MockedRequest,
   res: MockedResponse,
   path: string,

@@ -3,35 +3,30 @@ use std::iter::once;
 use anyhow::Result;
 use indexmap::IndexMap;
 use turbo_tasks::{RcStr, Value, Vc};
-use turbo_tasks_fs::FileSystem;
-use turbopack_binding::{
-    turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
-    turbopack::{
-        browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext},
-        core::{
-            chunk::ChunkingContext,
-            compile_time_info::{
-                CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
-                FreeVarReferences,
-            },
-            environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
-            free_var_references,
-            resolve::{parse::Request, pattern::Pattern},
-        },
-        node::{
-            execution_context::ExecutionContext,
-            transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
-        },
-        turbopack::{
-            condition::ContextCondition,
-            module_options::{
-                module_options_context::ModuleOptionsContext, CssOptionsContext,
-                EcmascriptOptionsContext, JsxTransformOptions, ModuleRule, TypeofWindow,
-                TypescriptTransformOptions,
-            },
-            resolve_options_context::ResolveOptionsContext,
-        },
+use turbo_tasks_env::EnvMap;
+use turbo_tasks_fs::{FileSystem, FileSystemPath};
+use turbopack::{
+    module_options::{
+        module_options_context::ModuleOptionsContext, CssOptionsContext, EcmascriptOptionsContext,
+        JsxTransformOptions, ModuleRule, TypeofWindow, TypescriptTransformOptions,
     },
+    resolve_options_context::ResolveOptionsContext,
+};
+use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
+use turbopack_core::{
+    chunk::ChunkingContext,
+    compile_time_info::{
+        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
+        FreeVarReferences,
+    },
+    condition::ContextCondition,
+    environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
+    free_var_references,
+    resolve::{parse::Request, pattern::Pattern},
+};
+use turbopack_node::{
+    execution_context::ExecutionContext,
+    transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
 };
 
 use super::transforms::get_next_client_transforms_rules;
@@ -47,7 +42,6 @@ use crate::{
         get_next_client_resolved_map,
     },
     next_shared::{
-        next_js_special_exports,
         resolve::{
             get_invalid_server_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
             NextSharedRuntimeResolvePlugin,
@@ -188,10 +182,8 @@ pub async fn get_client_resolve_options_context(
 fn internal_assets_conditions() -> ContextCondition {
     ContextCondition::any(vec![
         ContextCondition::InPath(next_js_fs().root()),
-        ContextCondition::InPath(
-            turbopack_binding::turbopack::ecmascript_runtime::embed_fs().root(),
-        ),
-        ContextCondition::InPath(turbopack_binding::turbopack::node::embed_js::embed_fs().root()),
+        ContextCondition::InPath(turbopack_ecmascript_runtime::embed_fs().root()),
+        ContextCondition::InPath(turbopack_node::embed_js::embed_fs().root()),
     ])
 }
 
@@ -291,7 +283,6 @@ pub async fn get_client_module_options_context(
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: tree_shaking_mode_for_user_code,
-        special_exports: Some(next_js_special_exports()),
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
         ..Default::default()

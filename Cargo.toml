@@ -40,9 +40,6 @@ next-custom-transforms = { path = "crates/next-custom-transforms" }
 # Turbopack
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
 node-file-trace = { path = "turbopack/crates/node-file-trace", default-features = false }
-signposter = { path = "turbopack/crates/turbo-tasks-signposter" }
-signposter-sys = { path = "turbopack/crates/turbo-tasks-signposter-sys" }
-tracing-signpost = { path = "turbopack/crates/turbo-tasks-tracing-signpost" }
 swc-ast-explorer = { path = "turbopack/crates/turbopack-swc-ast-explorer" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
@@ -60,7 +57,6 @@ turbo-tasks-memory = { path = "turbopack/crates/turbo-tasks-memory" }
 turbo-tasks-testing = { path = "turbopack/crates/turbo-tasks-testing" }
 turbopack = { path = "turbopack/crates/turbopack" }
 turbopack-bench = { path = "turbopack/crates/turbopack-bench" }
-turbopack-binding = { path = "turbopack/crates/turbopack-binding" }
 turbopack-nodejs = { path = "turbopack/crates/turbopack-nodejs" }
 turbopack-cli = { path = "turbopack/crates/turbopack-cli" }
 turbopack-cli-utils = { path = "turbopack/crates/turbopack-cli-utils" }
@@ -156,7 +152,7 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
-lightningcss = { version = "1.0.0-alpha.57", features = [
+lightningcss = { version = "1.0.0-alpha.58", features = [
   "serde",
   "visitor",
   "into_owned",

@@ -142,11 +142,6 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
-
-    /// The list of export names that should make tree shaking bail off. This is
-    /// required because tree shaking can split imports like `export const
-    /// runtime = 'edge'` as a separate module.
-    pub special_exports: Vc<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -255,6 +250,31 @@ pub struct EcmascriptModuleAsset {
     last_successful_parse: turbo_tasks::State<Option<ReadRef<ParseResult>>>,
 }
 
+#[turbo_tasks::value_trait]
+pub trait EcmascriptParsable {
+    fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
+
+    fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>>;
+
+    fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>>;
+}
+
+#[turbo_tasks::value_trait]
+pub trait EcmascriptAnalyzable {
+    fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
+
+    /// Generates module contents without an analysis pass. This is useful for
+    /// transforming code that is not a module, e.g. runtime code.
+    async fn module_content_without_analysis(self: Vc<Self>)
+        -> Result<Vc<EcmascriptModuleContent>>;
+
+    async fn module_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Result<Vc<EcmascriptModuleContent>>;
+}
+
 /// An optional [EcmascriptModuleAsset]
 #[turbo_tasks::value(transparent)]
 pub struct OptionEcmascriptModuleAsset(Option<Vc<EcmascriptModuleAsset>>);
@@ -313,6 +333,86 @@ impl ModuleTypeResult {
 }
 
 #[turbo_tasks::value_impl]
+impl EcmascriptParsable for EcmascriptModuleAsset {
+    #[turbo_tasks::function]
+    async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
+        let real_result = self.parse();
+        let real_result_value = real_result.await?;
+        let this = self.await?;
+        let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
+            this.last_successful_parse
+                .set(Some(real_result_value.clone()));
+            real_result_value
+        } else {
+            let state_ref = this.last_successful_parse.get();
+            state_ref.as_ref().unwrap_or(&real_result_value).clone()
+        };
+        Ok(ReadRef::cell(result_value))
+    }
+
+    #[turbo_tasks::function]
+    async fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>> {
+        Ok(self.failsafe_parse())
+    }
+
+    #[turbo_tasks::function]
+    async fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>> {
+        Ok(self.await?.ty.cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptAnalyzable for EcmascriptModuleAsset {
+    #[turbo_tasks::function]
+    fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
+        analyse_ecmascript_module(self, None)
+    }
+
+    /// Generates module contents without an analysis pass. This is useful for
+    /// transforming code that is not a module, e.g. runtime code.
+    #[turbo_tasks::function]
+    async fn module_content_without_analysis(
+        self: Vc<Self>,
+    ) -> Result<Vc<EcmascriptModuleContent>> {
+        let this = self.await?;
+
+        let parsed = self.parse();
+
+        Ok(EcmascriptModuleContent::new_without_analysis(
+            parsed,
+            self.ident(),
+            this.options.await?.specified_module_type,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn module_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Result<Vc<EcmascriptModuleContent>> {
+        let parsed = self.parse().resolve().await?;
+
+        let analyze = self.analyze().await?;
+
+        let module_type_result = *self.determine_module_type().await?;
+
+        Ok(EcmascriptModuleContent::new(
+            parsed,
+            self.ident(),
+            module_type_result.module_type,
+            chunking_context,
+            analyze.references,
+            analyze.code_generation,
+            analyze.async_module,
+            analyze.source_map,
+            analyze.exports,
+            async_module_info,
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
     pub fn new(
@@ -363,11 +463,6 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyse_ecmascript_module(self, None)
-    }
-
-    #[turbo_tasks::function]
     pub async fn options(self: Vc<Self>) -> Result<Vc<EcmascriptOptions>> {
         Ok(self.await?.options)
     }
@@ -375,22 +470,6 @@ impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
     pub fn parse(&self) -> Vc<ParseResult> {
         parse(self.source, Value::new(self.ty), self.transforms)
-    }
-
-    #[turbo_tasks::function]
-    pub async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
-        let real_result = self.parse();
-        let real_result_value = real_result.await?;
-        let this = self.await?;
-        let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-            this.last_successful_parse
-                .set(Some(real_result_value.clone()));
-            real_result_value
-        } else {
-            let state_ref = this.last_successful_parse.get();
-            state_ref.as_ref().unwrap_or(&real_result_value).clone()
-        };
-        Ok(ReadRef::cell(result_value))
     }
 
     #[turbo_tasks::function]
@@ -438,49 +517,6 @@ impl EcmascriptModuleAsset {
         Ok(ModuleTypeResult::new_with_package_json(
             SpecifiedModuleType::Automatic,
             package_json,
-        ))
-    }
-
-    /// Generates module contents without an analysis pass. This is useful for
-    /// transforming code that is not a module, e.g. runtime code.
-    #[turbo_tasks::function]
-    pub async fn module_content_without_analysis(
-        self: Vc<Self>,
-    ) -> Result<Vc<EcmascriptModuleContent>> {
-        let this = self.await?;
-
-        let parsed = self.parse();
-
-        Ok(EcmascriptModuleContent::new_without_analysis(
-            parsed,
-            self.ident(),
-            this.options.await?.specified_module_type,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn module_content(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<EcmascriptModuleContent>> {
-        let parsed = self.parse().resolve().await?;
-
-        let analyze = self.analyze().await?;
-
-        let module_type_result = *self.determine_module_type().await?;
-
-        Ok(EcmascriptModuleContent::new(
-            parsed,
-            self.ident(),
-            module_type_result.module_type,
-            chunking_context,
-            analyze.references,
-            analyze.code_generation,
-            analyze.async_module,
-            analyze.source_map,
-            analyze.exports,
-            async_module_info,
         ))
     }
 }

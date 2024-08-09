@@ -728,6 +728,10 @@ export default async function getBaseWebpackConfig(
       isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
   }
+  // we don't want to modify the outputs naming if we're
+  // in store-only mode
+  const { flyingShuttle } = config.experimental
+  const isFullFlyingShuttle = flyingShuttle?.mode === 'full'
 
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
@@ -968,7 +972,7 @@ export default async function getBaseWebpackConfig(
 
         if (isNodeServer || isEdgeServer) {
           return {
-            filename: `${isEdgeServer ? `edge-chunks${config.experimental.flyingShuttle ? `-${buildId}` : ''}/` : ''}[name].js`,
+            filename: `${isEdgeServer ? `edge-chunks${isFullFlyingShuttle ? `-${buildId}` : ''}/` : ''}[name].js`,
             chunks: 'all',
             minChunks: 2,
           }
@@ -1135,7 +1139,7 @@ export default async function getBaseWebpackConfig(
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
 
-      ...(config.experimental.flyingShuttle
+      ...(isFullFlyingShuttle
         ? {
             // ensure we only use contenthash as it's more deterministic
             filename: (p) => {
@@ -1770,7 +1774,7 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
-      (isNodeServer || (config.experimental.flyingShuttle && isEdgeServer)) &&
+      (isNodeServer || (flyingShuttle && isEdgeServer)) &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
@@ -1784,8 +1788,9 @@ export default async function getBaseWebpackConfig(
             turbotrace: config.experimental.turbotrace,
             optOutBundlingPackages,
             traceIgnores: [],
-            flyingShuttle: !!config.experimental.flyingShuttle,
+            flyingShuttle: Boolean(flyingShuttle),
             compilerType,
+            swcLoaderConfig: swcDefaultLoader,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files
@@ -2088,6 +2093,7 @@ export default async function getBaseWebpackConfig(
     imageLoaderFile: config.images.loaderFile,
     clientTraceMetadata: config.experimental.clientTraceMetadata,
     serverSourceMaps: config.experimental.serverSourceMaps,
+    flyingShuttle: config.experimental.flyingShuttle,
   })
 
   const cache: any = {

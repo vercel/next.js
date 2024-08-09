@@ -471,7 +471,7 @@ export async function handleRouteType({
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint)
 
-      const type = writtenEndpoint?.type
+      const type = writtenEndpoint.type
 
       await manifestLoader.loadPagesManifest(page)
       if (type === 'edge') {
@@ -512,7 +512,7 @@ export async function handleRouteType({
         }
       })
 
-      const type = writtenEndpoint?.type
+      const type = writtenEndpoint.type
 
       if (type === 'edge') {
         await manifestLoader.loadMiddlewareManifest(page, 'app')
@@ -542,7 +542,7 @@ export async function handleRouteType({
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint)
 
-      const type = writtenEndpoint?.type
+      const type = writtenEndpoint.type
 
       await manifestLoader.loadAppPathsManifest(page)
 
