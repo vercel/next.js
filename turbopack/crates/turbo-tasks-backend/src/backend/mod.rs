@@ -90,6 +90,12 @@ pub struct TurboTasksBackend {
     snapshot_completed: Condvar,
 }
 
+impl Default for TurboTasksBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TurboTasksBackend {
     pub fn new() -> Self {
         Self {
@@ -226,11 +232,7 @@ impl TurboTasksBackend {
                 OutputValue::Cell(cell) => Some(Ok(Ok(RawVc::TaskCell(cell.task, cell.cell)))),
                 OutputValue::Output(task) => Some(Ok(Ok(RawVc::TaskOutput(*task)))),
                 OutputValue::Error | OutputValue::Panic => {
-                    if let Some(error) = get!(task, Error) {
-                        Some(Err(error.clone().into()))
-                    } else {
-                        None
-                    }
+                    get!(task, Error).map(|error| Err(error.clone().into()))
                 }
             };
             if let Some(result) = result {
@@ -394,9 +396,7 @@ impl Backend for TurboTasksBackend {
         {
             let ctx = self.execute_context(turbo_tasks);
             let mut task = ctx.task(task_id);
-            let Some(in_progress) = remove!(task, InProgress) else {
-                return None;
-            };
+            let in_progress = remove!(task, InProgress)?;
             let InProgressState::Scheduled {
                 clean,
                 done_event,
