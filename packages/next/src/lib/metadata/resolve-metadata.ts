@@ -821,12 +821,12 @@ export async function accumulateMetadata(
         icon: [],
         apple: [],
       }
-    }
-    if (leafSegmentStaticIcons.icon.length > 0) {
-      resolvedMetadata.icons.icon.unshift(...leafSegmentStaticIcons.icon)
-    }
-    if (leafSegmentStaticIcons.apple.length > 0) {
-      resolvedMetadata.icons.apple.unshift(...leafSegmentStaticIcons.apple)
+      if (leafSegmentStaticIcons.icon.length > 0) {
+        resolvedMetadata.icons.icon.unshift(...leafSegmentStaticIcons.icon)
+      }
+      if (leafSegmentStaticIcons.apple.length > 0) {
+        resolvedMetadata.icons.apple.unshift(...leafSegmentStaticIcons.apple)
+      }
     }
   }
 
