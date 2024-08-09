@@ -120,18 +120,6 @@ impl<'a> Debug for TaskGuard<'a> {
 }
 
 impl<'a> TaskGuard<'a> {
-    fn new(
-        task_id: TaskId,
-        task: StorageWriteGuard<'a, TaskId, CachedDataItem>,
-        backend: &'a TurboTasksBackend,
-    ) -> Self {
-        Self {
-            task_id,
-            task,
-            backend,
-        }
-    }
-
     pub fn add(&mut self, item: CachedDataItem) -> bool {
         if !item.is_persistent() {
             self.task.add(item)
