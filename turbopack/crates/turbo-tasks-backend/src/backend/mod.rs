@@ -90,6 +90,12 @@ pub struct TurboTasksBackend {
     snapshot_completed: Condvar,
 }
 
+impl Default for TurboTasksBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TurboTasksBackend {
     pub fn new() -> Self {
         Self {
@@ -226,11 +232,7 @@ impl TurboTasksBackend {
                 OutputValue::Cell(cell) => Some(Ok(Ok(RawVc::TaskCell(cell.task, cell.cell)))),
                 OutputValue::Output(task) => Some(Ok(Ok(RawVc::TaskOutput(*task)))),
                 OutputValue::Error | OutputValue::Panic => {
-                    if let Some(error) = get!(task, Error) {
-                        Some(Err(error.clone().into()))
-                    } else {
-                        None
-                    }
+                    get!(task, Error).map(|error| Err(error.clone().into()))
                 }
             };
             if let Some(result) = result {
@@ -381,14 +383,10 @@ impl Backend for TurboTasksBackend {
         todo!()
     }
 
-    type ExecutionScopeFuture<T: Future<Output = Result<()>>> = T where T: Send + 'static;
-    fn execution_scope<T: Future<Output = Result<()>>>(
-        &self,
-        _: TaskId,
-        future: T,
-    ) -> Self::ExecutionScopeFuture<T>
+    type ExecutionScopeFuture<T> = T where T: Future<Output = Result<()>> + Send + 'static;
+    fn execution_scope<T>(&self, _: TaskId, future: T) -> Self::ExecutionScopeFuture<T>
     where
-        T: Send + 'static,
+        T: Future<Output = Result<()>> + Send + 'static,
     {
         future
     }
@@ -401,9 +399,7 @@ impl Backend for TurboTasksBackend {
         {
             let ctx = self.execute_context(turbo_tasks);
             let mut task = ctx.task(task_id);
-            let Some(in_progress) = remove!(task, InProgress) else {
-                return None;
-            };
+            let in_progress = remove!(task, InProgress)?;
             let InProgressState::Scheduled {
                 clean,
                 done_event,
@@ -454,7 +450,7 @@ impl Backend for TurboTasksBackend {
                     method_name,
                     ..
                 } => {
-                    let span = registry::get_trait(*trait_type).resolve_span(&**method_name);
+                    let span = registry::get_trait(*trait_type).resolve_span(method_name);
                     let turbo_tasks = turbo_tasks.pin();
                     (
                         span,

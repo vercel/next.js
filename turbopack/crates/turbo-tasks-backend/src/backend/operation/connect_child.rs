@@ -32,7 +32,7 @@ impl ConnectChildOperation {
 }
 
 impl Operation for ConnectChildOperation {
-    fn execute(self, ctx: &ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
@@ -43,7 +43,8 @@ impl Operation for ConnectChildOperation {
                     }
                     ctx.schedule(task_id);
 
-                    return;
+                    self = ConnectChildOperation::Done;
+                    continue;
                 }
                 ConnectChildOperation::Done => {
                     return;

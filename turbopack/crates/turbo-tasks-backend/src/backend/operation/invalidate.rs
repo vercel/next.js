@@ -26,7 +26,7 @@ impl InvalidateOperation {
 }
 
 impl Operation for InvalidateOperation {
-    fn execute(self, ctx: &ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
@@ -83,7 +83,8 @@ impl Operation for InvalidateOperation {
                             ctx.turbo_tasks.schedule(task_id)
                         }
                     }
-                    return;
+                    self = InvalidateOperation::Done;
+                    continue;
                 }
                 InvalidateOperation::Done => {
                     return;

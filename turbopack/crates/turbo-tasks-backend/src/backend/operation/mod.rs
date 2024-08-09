@@ -179,7 +179,7 @@ impl<'a> TaskGuard<'a> {
     }
 
     pub fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
-        let old_value = self.task.remove(&key);
+        let old_value = self.task.remove(key);
         if let Some(value) = old_value {
             if key.is_persistent() && value.is_persistent() {
                 let key = key.clone();
