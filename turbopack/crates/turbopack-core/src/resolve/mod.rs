@@ -2515,9 +2515,7 @@ async fn resolve_import_map_result(
                 .try_join()
                 .await?;
 
-            Some(ResolveResult::select_first(
-                results.into_iter().flatten().collect(),
-            ))
+            Some(merge_results(results.into_iter().flatten().collect()))
         }
         ImportMapResult::NoEntry => None,
     })
