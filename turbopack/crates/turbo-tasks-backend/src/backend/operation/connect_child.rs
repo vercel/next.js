@@ -32,7 +32,7 @@ impl ConnectChildOperation {
 }
 
 impl Operation for ConnectChildOperation {
-    fn execute(mut self, ctx: &ExecuteContext<'_>) {
+    fn execute(self, ctx: &ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {

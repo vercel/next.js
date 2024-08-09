@@ -507,8 +507,8 @@ impl Backend for TurboTasksBackend {
     fn task_execution_completed(
         &self,
         task_id: TaskId,
-        duration: Duration,
-        memory_usage: usize,
+        _duration: Duration,
+        _memory_usage: usize,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
@@ -522,7 +522,7 @@ impl Backend for TurboTasksBackend {
         };
         let InProgressState::InProgress {
             done_event,
-            clean,
+            clean: _,
             stale,
         } = in_progress
         else {
@@ -530,6 +530,10 @@ impl Backend for TurboTasksBackend {
         };
 
         // TODO handle cell counters
+        let _ = cell_counters;
+
+        // TODO handle stateful
+        let _ = stateful;
 
         if stale {
             task.add(CachedDataItem::InProgress {
