@@ -49,7 +49,7 @@ fn chunk_size(chunk_index: usize) -> usize {
 }
 
 fn cummulative_chunk_size(chunk_index: usize) -> usize {
-    8 << (chunk_index + 1) - 8
+    (8 << (chunk_index + 1)) - 8
 }
 
 struct ExactSizeIter<I: Iterator> {
