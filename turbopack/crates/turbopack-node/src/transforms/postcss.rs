@@ -226,44 +226,51 @@ async fn extra_configs_changed(
 }
 
 #[turbo_tasks::value]
-pub struct JsonKeySource {
+pub struct JsonSource {
     pub path: Vc<FileSystemPath>,
-    pub key: Vc<RcStr>,
+    pub key: Vc<Option<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
-impl JsonKeySource {
+impl JsonSource {
     #[turbo_tasks::function]
-    pub fn new(path: Vc<FileSystemPath>, key: Vc<RcStr>) -> Vc<Self> {
-        Self::cell(JsonKeySource { path, key })
+    pub fn new(path: Vc<FileSystemPath>, key: Vc<Option<RcStr>>) -> Vc<Self> {
+        Self::cell(JsonSource { path, key })
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Source for JsonKeySource {
+impl Source for JsonSource {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(AssetIdent::from_path(
-            self.path
-                .append(".".into())
-                .append(self.key.await?.clone_value())
-                .append(".json".into()),
-        )
-        .with_modifier(self.key))
+        match &*self.key.await? {
+            Some(key) => Ok(AssetIdent::from_path(
+                self.path
+                    .append(".".into())
+                    .append(key.clone())
+                    .append(".json".into()),
+            )),
+            None => Ok(AssetIdent::from_path(self.path)),
+        }
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for JsonKeySource {
+impl Asset for JsonSource {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let file_type = &*self.path.get_type().await?;
         match file_type {
             FileSystemEntryType::File => {
                 let json = self.path.read_json().content().await?;
-                let key = &**self.key.await?;
-                let Some(value) = json.get(key) else {
-                    return Err(anyhow::anyhow!("Invalid file type {:?}", file_type));
+                let value = match &*self.key.await? {
+                    Some(key) => {
+                        let Some(value) = json.get(&**key) else {
+                            return Err(anyhow::anyhow!("Invalid file type {:?}", file_type));
+                        };
+                        value
+                    }
+                    None => &*json,
                 };
                 Ok(AssetContent::file(File::from(value.to_string()).into()))
             }
@@ -283,9 +290,9 @@ pub(crate) async fn config_loader_source(
     let postcss_config_path_value = &*postcss_config_path.await?;
 
     if postcss_config_path_value.file_name() == "package.json" {
-        return Ok(Vc::upcast(JsonKeySource::new(
+        return Ok(Vc::upcast(JsonSource::new(
             postcss_config_path,
-            Vc::cell("postcss".into()),
+            Vc::cell(Some("postcss".into())),
         )));
     }
 
