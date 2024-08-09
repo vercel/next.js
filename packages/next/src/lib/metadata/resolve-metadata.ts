@@ -104,15 +104,15 @@ function mergeStaticMetadata(
   if (!staticFilesMetadata) return
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
 
-  if ((icon || apple) && !target.icons) {
-    target.icons = {
-      icon: icon || [],
-      apple: apple || [],
-    }
-  }
-  if (isLastSegment) {
-    // file based metadata is specified and current level metadata icons is not specified
-    if (target.icons) {
+  if (icon || apple) {
+    if (isLastSegment) {
+      if (!target.icons) {
+        target.icons = {
+          icon: [],
+          apple: [],
+        }
+      }
+      // file based metadata is specified and current level metadata icons is not specified
       if (icon) {
         target.icons.icon.unshift(...icon)
       }
@@ -540,16 +540,20 @@ export async function resolveMetadataItems({
 
   for (const key in parallelRoutes) {
     const childTree = parallelRoutes[key]
-    await resolveMetadataItems({
-      tree: childTree,
-      metadataItems,
-      errorMetadataItem,
-      parentParams: currentParams,
-      treePrefix: currentTreePrefix,
-      searchParams,
-      getDynamicParamFromSegment,
-      errorConvention,
-    })
+    // Only collect the metadata for normal routes, skip the parallel routes.
+    const isChildrenRouteKey = key === 'children'
+    if (isChildrenRouteKey) {
+      await resolveMetadataItems({
+        tree: childTree,
+        metadataItems,
+        errorMetadataItem,
+        parentParams: currentParams,
+        treePrefix: currentTreePrefix,
+        searchParams,
+        getDynamicParamFromSegment,
+        errorConvention,
+      })
+    }
   }
 
   if (Object.keys(parallelRoutes).length === 0 && errorConvention) {
