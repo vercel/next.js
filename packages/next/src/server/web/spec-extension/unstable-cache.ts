@@ -344,7 +344,6 @@ export function unstable_cache<T extends Callback>(
           route: '/',
           page: '/',
           isStaticGeneration: false,
-          prerenderState: null,
         },
         cb,
         ...args
