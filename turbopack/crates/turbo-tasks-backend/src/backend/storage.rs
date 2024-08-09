@@ -10,27 +10,15 @@ use dashmap::{mapref::one::RefMut, DashMap};
 use rustc_hash::FxHasher;
 use turbo_tasks::KeyValuePair;
 
-enum PersistanceState {
-    /// We know that all state of the object is only in the cache and nothing is
-    /// stored in the persistent cache.
-    CacheOnly,
-    /// We know that some state of the object is stored in the persistent cache.
-    Persisted,
-    /// We have never checked the persistent cache for the state of the object.
-    Unknown,
-}
-
 pub struct InnerStorage<T: KeyValuePair> {
     // TODO consider adding some inline storage
     map: AutoMap<T::Key, T::Value>,
-    persistance_state: PersistanceState,
 }
 
 impl<T: KeyValuePair> InnerStorage<T> {
     fn new() -> Self {
         Self {
             map: AutoMap::new(),
-            persistance_state: PersistanceState::Unknown,
         }
     }
 
