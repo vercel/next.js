@@ -31,8 +31,6 @@ window.console.error = (...args) => {
       const storeHydrationErrorStateFromConsoleArgs =
         require('./components/react-dev-overlay/internal/helpers/hydration-error-info')
           .storeHydrationErrorStateFromConsoleArgs as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info').storeHydrationErrorStateFromConsoleArgs
-      storeHydrationErrorStateFromConsoleArgs()
-
       storeHydrationErrorStateFromConsoleArgs(...args)
       handleClientError(error)
     }
