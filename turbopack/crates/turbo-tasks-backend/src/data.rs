@@ -26,9 +26,9 @@ impl OutputValue {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum RootType {
-    RootTask,
-    OnceTask,
-    ReadingStronglyConsistent,
+    _RootTask,
+    _OnceTask,
+    _ReadingStronglyConsistent,
 }
 
 #[derive(Debug)]
@@ -236,10 +236,6 @@ impl CachedDataItemValue {
             _ => true,
         }
     }
-}
-
-trait IsDefault {
-    fn is_default(&self) -> bool;
 }
 
 pub struct CachedDataUpdate {
