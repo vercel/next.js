@@ -530,6 +530,16 @@ impl TurboTasksBackend {
 
 impl Backend for TurboTasksBackend {
     fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        // Continue all uncompleted operations
+        // They can't be interrupted by a snapshot since the snapshotting job has not been scheduled
+        // yet.
+        let uncompleted_operations = self.backing_storage.uncompleted_operations();
+        let ctx = self.execute_context(turbo_tasks);
+        for op in uncompleted_operations {
+            op.execute(&ctx);
+        }
+
+        // Schedule the snapshot job
         turbo_tasks.schedule_backend_background_job(BackendJobId::from(1));
     }
 
