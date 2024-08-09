@@ -173,7 +173,8 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
             format: {
               preamble: '',
             },
-            mangle: dev ? false : true,
+            mangle:
+              dev && !process.env.NEXT_SERVER_EVAL_SOURCE_MAPS ? false : true,
           },
         }),
       ],
