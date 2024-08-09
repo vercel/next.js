@@ -20,6 +20,7 @@ import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
+import { storeErrorLogsFromConsoleArgs } from './components/react-dev-overlay/internal/helpers/store-error-logs'
 
 // Patch console.error to collect information about hydration errors
 const origConsoleError = window.console.error
@@ -33,10 +34,10 @@ window.console.error = (...args) => {
           .storeHydrationErrorStateFromConsoleArgs as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info').storeHydrationErrorStateFromConsoleArgs
       storeHydrationErrorStateFromConsoleArgs()
 
+      storeErrorLogsFromConsoleArgs(...args)
       storeHydrationErrorStateFromConsoleArgs(...args)
       handleClientError(error)
     }
-
     origConsoleError.apply(window.console, args)
   }
 }

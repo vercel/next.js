@@ -28,6 +28,7 @@ import {
   type HydrationErrorState,
   getHydrationWarningType,
 } from '../helpers/hydration-error-info'
+import { errorLogState } from '../helpers/store-error-logs'
 
 export type SupportedErrorEvent = {
   id: number
@@ -72,6 +73,11 @@ export function Errors({
   versionInfo,
   hasStaticIndicator,
 }: ErrorsProps) {
+  const [errorLogs, setErrorLogs] = useState<string[]>([])
+  useEffect(() => {
+    setErrorLogs(errorLogState)
+  }, [])
+
   const [lookups, setLookups] = useState(
     {} as { [eventId: string]: ReadyErrorEvent }
   )
@@ -297,6 +303,13 @@ export function Errors({
                 </p>
               </>
             ) : null}
+
+            {errorLogs.length > 0 &&
+              errorLogs.map((errorLog, i) => (
+                <div key={i}>
+                  <p>{errorLog}</p>
+                </div>
+              ))}
 
             {hydrationWarning &&
             (activeError.componentStackFrames?.length ||
