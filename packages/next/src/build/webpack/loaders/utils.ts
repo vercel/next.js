@@ -39,7 +39,7 @@ export function isCSSMod(mod: {
   )
 }
 
-export function getActions(mod: {
+export function getActionsFromBuildInfo(mod: {
   resource: string
   buildInfo?: any
 }): undefined | string[] {
