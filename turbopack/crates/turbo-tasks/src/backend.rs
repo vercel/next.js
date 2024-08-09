@@ -23,8 +23,8 @@ use crate::{
     task::shared_reference::TypedSharedReference,
     trait_helpers::{get_trait_method, has_trait, traits},
     triomphe_utils::unchecked_sidecast_triomphe_arc,
-    FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdProvider, TaskIdSet, TraitRef,
-    TraitTypeId, ValueTypeId, VcRead, VcValueTrait, VcValueType,
+    FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef, TraitTypeId,
+    ValueTypeId, VcRead, VcValueTrait, VcValueType,
 };
 
 pub enum TaskType {
