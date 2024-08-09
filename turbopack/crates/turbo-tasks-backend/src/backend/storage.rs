@@ -10,15 +10,51 @@ use dashmap::{mapref::one::RefMut, DashMap};
 use rustc_hash::FxHasher;
 use turbo_tasks::KeyValuePair;
 
+const UNRESTORED: u32 = u32::MAX;
+
+pub struct PersistanceState {
+    value: u32,
+}
+
+impl Default for PersistanceState {
+    fn default() -> Self {
+        Self { value: UNRESTORED }
+    }
+}
+
+impl PersistanceState {
+    pub fn set_restored(&mut self) {
+        self.value = 0;
+    }
+
+    pub fn add_persisting_item(&mut self) {
+        self.value += 1;
+    }
+
+    pub fn finish_persisting_items(&mut self, count: u32) {
+        self.value -= count;
+    }
+
+    pub fn is_restored(&self) -> bool {
+        self.value != UNRESTORED
+    }
+
+    pub fn is_fully_persisted(&self) -> bool {
+        self.value == 0
+    }
+}
+
 pub struct InnerStorage<T: KeyValuePair> {
     // TODO consider adding some inline storage
     map: AutoMap<T::Key, T::Value>,
+    pub persistance_state: PersistanceState,
 }
 
 impl<T: KeyValuePair> InnerStorage<T> {
     fn new() -> Self {
         Self {
             map: AutoMap::new(),
+            persistance_state: PersistanceState::default(),
         }
     }
 

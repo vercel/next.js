@@ -100,7 +100,7 @@ pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
 pub use read_ref::ReadRef;
 use rustc_hash::FxHasher;
 pub use state::State;
-pub use task::{task_input::TaskInput, SharedReference};
+pub use task::{task_input::TaskInput, SharedReference, TypedSharedReference};
 pub use trait_ref::{IntoTraitRef, TraitRef};
 pub use turbo_tasks_macros::{function, value, value_impl, value_trait, KeyValuePair, TaskInput};
 pub use value::{TransientInstance, TransientValue, Value};
