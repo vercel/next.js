@@ -579,7 +579,7 @@ enum AliasKey {
 }
 
 /// Result of a lookup in the alias map.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum AliasMatch<'a, T>
 where
     T: AliasTemplate + 'a,
@@ -905,24 +905,45 @@ mod test {
     #[test]
     fn test_pattern() {
         let mut map = AliasMap::new();
-        map.insert(AliasPattern::parse("foo"), "foz");
-        map.insert(AliasPattern::parse("bar"), "baz");
-        map.insert(AliasPattern::parse("wild/*"), "card/*");
+        map.insert(AliasPattern::parse("card/*"), "src/cards/*");
+        map.insert(AliasPattern::parse("comp/*/x"), "src/comps/*/x");
+        map.insert(AliasPattern::parse("head/*/x"), "src/heads/*");
 
-        let request = Pattern::Alternatives(vec![
-            Pattern::Constant("foo".into()),
-            Pattern::Constant("bar".into()),
-        ]);
-        // let request = Pattern::Constant("foo".into());
-        // let request =
-        //     Pattern::Concatenation(vec![Pattern::Constant("wild/".into()),
-        // Pattern::Dynamic]);
-
-        let result = map.lookup(&request).collect::<Vec<_>>();
-        println!("{:?}", result);
-        // assert_alias_matches!(map, "");
-        // assert_alias_matches!(map, "foo", exact("bar"));
-        // assert_alias_matches!(map, "bar", exact("foo"));
-        // assert_alias_matches!(map, "foobar", exact("barfoo"));
+        assert_eq!(
+            map.lookup(&Pattern::Concatenation(vec![
+                Pattern::Constant("card/".into()),
+                Pattern::Dynamic
+            ]))
+            .collect::<Vec<_>>(),
+            vec![super::AliasMatch::Replaced(Pattern::Concatenation(vec![
+                Pattern::Constant("src/cards/".into()),
+                Pattern::Dynamic
+            ]))]
+        );
+        assert_eq!(
+            map.lookup(&Pattern::Concatenation(vec![
+                Pattern::Constant("comp/".into()),
+                Pattern::Dynamic,
+                Pattern::Constant("/x".into()),
+            ]))
+            .collect::<Vec<_>>(),
+            vec![super::AliasMatch::Replaced(Pattern::Concatenation(vec![
+                Pattern::Constant("src/comps/".into()),
+                Pattern::Dynamic,
+                Pattern::Constant("/x".into()),
+            ]))]
+        );
+        assert_eq!(
+            map.lookup(&Pattern::Concatenation(vec![
+                Pattern::Constant("head/".into()),
+                Pattern::Dynamic,
+                Pattern::Constant("/x".into()),
+            ]))
+            .collect::<Vec<_>>(),
+            vec![super::AliasMatch::Replaced(Pattern::Concatenation(vec![
+                Pattern::Constant("src/heads/".into()),
+                Pattern::Dynamic,
+            ]))]
+        );
     }
 }
