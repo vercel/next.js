@@ -28,9 +28,9 @@ window.console.error = (...args) => {
   const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
   if (!isNextRouterError(error)) {
     if (process.env.NODE_ENV !== 'production') {
-      const storeHydrationErrorStateFromConsoleArgs =
-        require('./components/react-dev-overlay/internal/helpers/hydration-error-info')
-          .storeHydrationErrorStateFromConsoleArgs as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info').storeHydrationErrorStateFromConsoleArgs
+      const { storeHydrationErrorStateFromConsoleArgs } =
+        require('./components/react-dev-overlay/internal/helpers/hydration-error-info') as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info')
+
       storeHydrationErrorStateFromConsoleArgs(...args)
       handleClientError(error)
     }
