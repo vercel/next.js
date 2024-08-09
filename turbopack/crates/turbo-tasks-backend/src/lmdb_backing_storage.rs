@@ -75,13 +75,23 @@ impl LmdbBackingStorage {
 
 impl BackingStorage for LmdbBackingStorage {
     fn next_free_task_id(&self) -> TaskId {
-        let Ok(tx) = self.env.begin_ro_txn() else {
-            return TaskId::from(1);
-        };
-        let next_free_task_id =
-            as_u32(tx.get(self.meta_db, &IntKey::new(META_KEY_NEXT_FREE_TASK_ID))).unwrap_or(1);
-        let _ = tx.commit();
-        TaskId::from(next_free_task_id)
+        fn get(this: &LmdbBackingStorage) -> Result<u32> {
+            let tx = this.env.begin_rw_txn()?;
+            let next_free_task_id =
+                as_u32(tx.get(this.meta_db, &IntKey::new(META_KEY_NEXT_FREE_TASK_ID)))?;
+            Ok(next_free_task_id)
+        }
+        TaskId::from(get(self).unwrap_or(1))
+    }
+
+    fn uncompleted_operations(&self) -> Vec<AnyOperation> {
+        fn get(this: &LmdbBackingStorage) -> Result<Vec<AnyOperation>> {
+            let tx = this.env.begin_ro_txn()?;
+            let operations = tx.get(this.meta_db, &IntKey::new(META_KEY_OPERATIONS))?;
+            let operations = bincode::deserialize(operations)?;
+            Ok(operations)
+        }
+        get(self).unwrap_or_default()
     }
 
     fn save_snapshot(
