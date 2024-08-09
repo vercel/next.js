@@ -161,8 +161,7 @@ mod ser {
                         let value = seq
                             .next_element_seed(seed)?
                             .ok_or_else(|| de::Error::invalid_length(2, &self))?;
-                        let arc: triomphe::Arc<dyn Any + Send + Sync> =
-                            todo!("convert Box<dyn T> to Arc<dyn T>");
+                        let arc = triomphe::Arc::<dyn Any + Send + Sync>::from(value);
                         Ok(TypedCellContent(
                             value_type,
                             CellContent(Some(SharedReference(arc))),
