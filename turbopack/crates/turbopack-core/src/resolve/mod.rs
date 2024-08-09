@@ -930,11 +930,11 @@ impl ResolveResult {
     #[turbo_tasks::function]
     pub async fn with_replaced_request_key_pattern(
         self: Vc<Self>,
-        old_request_key: Value<Pattern>,
-        request_key: Value<Pattern>,
+        old_request_key: Vc<Pattern>,
+        request_key: Vc<Pattern>,
     ) -> Result<Vc<Self>> {
-        let old_request_key = &*old_request_key;
-        let request_key = &*request_key;
+        let old_request_key = &*old_request_key.await?;
+        let request_key = &*request_key.await?;
         let this = self.await?;
         let new_primary = this
             .primary
@@ -2486,17 +2486,10 @@ async fn resolve_import_map_result(
                 None
             } else {
                 let result = resolve_internal(lookup_path, request, options);
-                if let (Some(rewritten), Some(original)) = (
-                    request.await?.request_pattern(),
-                    original_request.await?.request_pattern(),
-                ) {
-                    Some(result.with_replaced_request_key_pattern(
-                        Value::new(rewritten),
-                        Value::new(original),
-                    ))
-                } else {
-                    Some(result)
-                }
+                Some(result.with_replaced_request_key_pattern(
+                    request.request_pattern(),
+                    original_request.request_pattern(),
+                ))
             }
         }
         ImportMapResult::Alternatives(list) => {
