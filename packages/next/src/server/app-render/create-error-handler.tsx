@@ -152,16 +152,15 @@ export function createHTMLErrorHandler(
         // This error is likely an obfuscated error from react-server.
         // We recover the original error here.
         err = reactServerErrors.get(err.digest)
-      } else {
-        // The error is not from react-server but has a digest
-        // from other means so we don't need to produce a new one
-        reactServerErrors.set(err.digest, err)
       }
     } else {
       err.digest = stringHash(
         err.message + (errorInfo?.stack || err.stack || '')
       ).toString()
     }
+
+    // In SSR rendering, we always collect the error
+    reactServerErrors.set(err.digest, err)
 
     allCapturedErrors.push(err)
 

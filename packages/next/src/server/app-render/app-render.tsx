@@ -1636,7 +1636,6 @@ async function prerenderToStream(
   const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
   // We don't report errors during prerendering through our instrumentation hooks
   const silenceLogger = !!renderOpts.experimental.isRoutePPREnabled
-  console.log('silenceLogger', silenceLogger)
   const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
     !!renderOpts.dev,
     !!renderOpts.nextExport,
@@ -1651,12 +1650,6 @@ async function prerenderToStream(
     const renderSource = reactServerErrorsByDigest.has(err.digest)
       ? 'react-server-components'
       : 'server-rendering'
-    console.log(
-      'onServerRenderError',
-      renderSource,
-      'renderOpts.nextExport',
-      renderOpts.nextExport
-    )
     return renderOpts.onInstrumentationRequestError?.(
       err,
       req,
