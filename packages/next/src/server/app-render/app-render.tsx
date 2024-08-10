@@ -1223,12 +1223,13 @@ async function renderToStream(
     renderOpts.page
   )
 
-  const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
+  // Including both RSC errors and SSR errors
+  const renderErrorsByDigest: Map<string, DigestedError> = new Map()
   const silenceLogger = false
   const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
     !!renderOpts.dev,
     !!renderOpts.nextExport,
-    reactServerErrorsByDigest,
+    renderErrorsByDigest,
     silenceLogger,
     // RSC rendering error will report as SSR error
     // @TODO we should report RSC errors where they happen for instrumentation purposes
@@ -1236,7 +1237,7 @@ async function renderToStream(
     undefined
   )
   function onServerRenderError(err: DigestedError) {
-    const renderSource = reactServerErrorsByDigest.has(err.digest)
+    const renderSource = renderErrorsByDigest.has(err.digest)
       ? 'react-server-components'
       : 'server-rendering'
     return renderOpts.onInstrumentationRequestError?.(
@@ -1249,7 +1250,7 @@ async function renderToStream(
   const htmlRendererErrorHandler = createHTMLErrorHandler(
     !!renderOpts.dev,
     !!renderOpts.nextExport,
-    reactServerErrorsByDigest,
+    renderErrorsByDigest,
     allCapturedErrors,
     silenceLogger,
     onServerRenderError
@@ -1635,6 +1636,7 @@ async function prerenderToStream(
   const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
   // We don't report errors during prerendering through our instrumentation hooks
   const silenceLogger = !!renderOpts.experimental.isRoutePPREnabled
+  console.log('silenceLogger', silenceLogger)
   const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
     !!renderOpts.dev,
     !!renderOpts.nextExport,
@@ -1649,6 +1651,12 @@ async function prerenderToStream(
     const renderSource = reactServerErrorsByDigest.has(err.digest)
       ? 'react-server-components'
       : 'server-rendering'
+    console.log(
+      'onServerRenderError',
+      renderSource,
+      'renderOpts.nextExport',
+      renderOpts.nextExport
+    )
     return renderOpts.onInstrumentationRequestError?.(
       err,
       req,

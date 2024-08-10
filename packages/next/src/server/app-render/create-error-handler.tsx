@@ -139,7 +139,7 @@ export function createHTMLErrorHandler(
   dev: boolean,
   isNextExport: boolean,
   reactServerErrors: Map<string, DigestedError>,
-  allCapturedError: Array<unknown>,
+  allCapturedErrors: Array<unknown>,
   silenceLogger: boolean,
   onHTMLRenderError: (err: any) => void
 ): ErrorHandler {
@@ -155,6 +155,7 @@ export function createHTMLErrorHandler(
       } else {
         // The error is not from react-server but has a digest
         // from other means so we don't need to produce a new one
+        reactServerErrors.set(err.digest, err)
       }
     } else {
       err.digest = stringHash(
@@ -162,7 +163,7 @@ export function createHTMLErrorHandler(
       ).toString()
     }
 
-    allCapturedError.push(err)
+    allCapturedErrors.push(err)
 
     // If the response was closed, we don't need to log the error.
     if (isAbortError(err)) return
