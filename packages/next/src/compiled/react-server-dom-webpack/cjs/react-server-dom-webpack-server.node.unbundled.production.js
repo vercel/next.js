@@ -729,7 +729,6 @@ function RequestInstance(
   onError,
   identifierPrefix,
   onPostpone,
-  environmentName,
   temporaryReferences
 ) {
   if (
@@ -738,9 +737,9 @@ function RequestInstance(
   )
     throw Error("Currently React only supports one RSC renderer at a time.");
   ReactSharedInternalsServer.A = DefaultAsyncDispatcher;
-  var abortSet = new Set();
-  environmentName = [];
-  var hints = new Set();
+  var abortSet = new Set(),
+    pingedTasks = [],
+    hints = new Set();
   this.status = 0;
   this.flushScheduled = !1;
   this.destination = this.fatalError = null;
@@ -750,7 +749,7 @@ function RequestInstance(
   this.hints = hints;
   this.abortListeners = new Set();
   this.abortableTasks = abortSet;
-  this.pingedTasks = environmentName;
+  this.pingedTasks = pingedTasks;
   this.completedImportChunks = [];
   this.completedHintChunks = [];
   this.completedRegularChunks = [];
@@ -766,7 +765,7 @@ function RequestInstance(
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
   this.onPostpone = void 0 === onPostpone ? defaultPostponeHandler : onPostpone;
   model = createTask(this, model, null, !1, abortSet);
-  environmentName.push(model);
+  pingedTasks.push(model);
 }
 var currentRequest = null;
 function resolveRequest() {
@@ -2672,12 +2671,12 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_210 = [];
+    var JSCompiler_object_inline_chunks_211 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_210.push(chunk);
+      JSCompiler_object_inline_chunks_211.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_210, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_211, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);
@@ -2726,7 +2725,6 @@ exports.renderToPipeableStream = function (model, webpackMap, options) {
       options ? options.onError : void 0,
       options ? options.identifierPrefix : void 0,
       options ? options.onPostpone : void 0,
-      options ? options.environmentName : void 0,
       options ? options.temporaryReferences : void 0
     ),
     hasStartedFlowing = !1;

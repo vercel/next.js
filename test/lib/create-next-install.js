@@ -90,9 +90,9 @@ async function createNextInstall({
 
         const nativePath = path.join(origRepoDir, 'packages/next-swc/native')
 
-        const hasNativeBinary = fs
-          .readdirSync(nativePath)
-          .some((item) => item.endsWith('.node'))
+        const hasNativeBinary = fs.existsSync(nativePath)
+          ? fs.readdirSync(nativePath).some((item) => item.endsWith('.node'))
+          : false
 
         if (hasNativeBinary) {
           process.env.NEXT_TEST_NATIVE_DIR = nativePath

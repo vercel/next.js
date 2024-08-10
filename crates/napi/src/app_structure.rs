@@ -12,17 +12,13 @@ use next_core::app_structure::{
     LoaderTree, MetadataItem, MetadataWithAltItem,
 };
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{RcStr, ReadRef, Vc};
-use turbopack_binding::{
-    turbo::{
-        tasks::{
-            debug::ValueDebugFormat, trace::TraceRawVcs, TryJoinIterExt, TurboTasks, ValueToString,
-        },
-        tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath},
-        tasks_memory::MemoryBackend,
-    },
-    turbopack::core::PROJECT_FILESYSTEM_NAME,
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, ReadRef, TryJoinIterExt, TurboTasks,
+    ValueToString, Vc,
 };
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
+use turbo_tasks_memory::MemoryBackend;
+use turbopack_core::PROJECT_FILESYSTEM_NAME;
 
 use crate::register;
 

@@ -710,7 +710,6 @@ function RequestInstance(
   onError,
   identifierPrefix,
   onPostpone,
-  environmentName,
   temporaryReferences
 ) {
   if (
@@ -719,9 +718,9 @@ function RequestInstance(
   )
     throw Error("Currently React only supports one RSC renderer at a time.");
   ReactSharedInternalsServer.A = DefaultAsyncDispatcher;
-  var abortSet = new Set();
-  environmentName = [];
-  var hints = new Set();
+  var abortSet = new Set(),
+    pingedTasks = [],
+    hints = new Set();
   this.status = 0;
   this.flushScheduled = !1;
   this.destination = this.fatalError = null;
@@ -731,7 +730,7 @@ function RequestInstance(
   this.hints = hints;
   this.abortListeners = new Set();
   this.abortableTasks = abortSet;
-  this.pingedTasks = environmentName;
+  this.pingedTasks = pingedTasks;
   this.completedImportChunks = [];
   this.completedHintChunks = [];
   this.completedRegularChunks = [];
@@ -747,7 +746,7 @@ function RequestInstance(
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
   this.onPostpone = void 0 === onPostpone ? defaultPostponeHandler : onPostpone;
   model = createTask(this, model, null, !1, abortSet);
-  environmentName.push(model);
+  pingedTasks.push(model);
 }
 var currentRequest = null;
 function resolveRequest() {
@@ -2656,7 +2655,6 @@ exports.renderToReadableStream = function (model, turbopackMap, options) {
     options ? options.onError : void 0,
     options ? options.identifierPrefix : void 0,
     options ? options.onPostpone : void 0,
-    options ? options.environmentName : void 0,
     options ? options.temporaryReferences : void 0
   );
   if (options && options.signal) {

@@ -1,9 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::core::resolve::{options::ImportMapping, ExternalType},
-};
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::resolve::{options::ImportMapping, ExternalType};
 
 use crate::next_import_map::get_next_package;
 

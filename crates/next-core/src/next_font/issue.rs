@@ -1,8 +1,6 @@
 use turbo_tasks::Vc;
-use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-};
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontIssue {

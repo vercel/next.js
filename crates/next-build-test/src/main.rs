@@ -8,12 +8,9 @@ use next_core::tracing_presets::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 use turbo_tasks::TurboTasks;
-use turbopack_binding::{
-    turbo::{malloc::TurboMalloc, tasks_memory::MemoryBackend},
-    turbopack::trace_utils::{
-        exit::ExitGuard, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
-    },
-};
+use turbo_tasks_malloc::TurboMalloc;
+use turbo_tasks_memory::MemoryBackend;
+use turbopack_trace_utils::{exit::ExitGuard, raw_trace::RawTraceLayer, trace_writer::TraceWriter};
 
 #[global_allocator]
 static ALLOC: TurboMalloc = TurboMalloc;

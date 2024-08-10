@@ -14,11 +14,9 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, RcStr, TaskInput,
     TryJoinIterExt, ValueToString, Vc,
 };
-use turbopack_binding::{
-    turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath},
-    turbopack::core::issue::{
-        Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
-    },
+use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
+use turbopack_core::issue::{
+    Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
 };
 
 use crate::{
@@ -325,7 +323,8 @@ async fn get_directory_tree_internal(
     let mut metadata_twitter = Vec::new();
 
     for (basename, entry) in entries {
-        match *entry {
+        let entry = entry.resolve_symlink().await?;
+        match entry {
             DirectoryEntry::File(file) => {
                 let file = file.resolve().await?;
                 // Do not process .d.ts files as routes
@@ -872,17 +871,6 @@ async fn directory_tree_to_loader_tree(
         .then_some(components.page)
         .flatten()
     {
-        // When resolving metadata with corresponding module
-        // (https://github.com/vercel/next.js/blob/aa1ee5995cdd92cc9a2236ce4b6aa2b67c9d32b2/packages/next/src/lib/metadata/resolve-metadata.ts#L340)
-        // layout takes precedence over page (https://github.com/vercel/next.js/blob/aa1ee5995cdd92cc9a2236ce4b6aa2b67c9d32b2/packages/next/src/server/lib/app-dir-module.ts#L22)
-        // If the component have layout and page both, do not attach same metadata to
-        // the page.
-        let metadata = if components.layout.is_some() {
-            Default::default()
-        } else {
-            components.metadata.clone()
-        };
-
         tree.parallel_routes.insert(
             "children".into(),
             LoaderTree {
@@ -891,7 +879,7 @@ async fn directory_tree_to_loader_tree(
                 parallel_routes: IndexMap::new(),
                 components: Components {
                     page: Some(page),
-                    metadata,
+                    metadata: components.metadata,
                     ..Default::default()
                 }
                 .cell(),

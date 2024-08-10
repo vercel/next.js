@@ -1,5 +1,6 @@
 use turbo_tasks::TaskInput;
-use turbopack_binding::turbopack::{core::chunk::MinifyType, ecmascript_runtime::RuntimeType};
+use turbopack_core::chunk::MinifyType;
+use turbopack_ecmascript_runtime::RuntimeType;
 
 /// The mode in which Next.js is running.
 #[turbo_tasks::value(shared)]
