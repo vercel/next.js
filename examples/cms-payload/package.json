@@ -21,7 +21,7 @@
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "next": "latest",
-    "payload": "2.0.0",
+    "payload": "2.26.0",
     "payload-admin-bar": "^1.0.5",
     "pino-pretty": "^9.1.1",
     "react": "18.2.0",
