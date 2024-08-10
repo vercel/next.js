@@ -159,9 +159,6 @@ export function createHTMLErrorHandler(
       ).toString()
     }
 
-    // In SSR rendering, we always collect the error
-    reactServerErrors.set(err.digest, err)
-
     allCapturedErrors.push(err)
 
     // If the response was closed, we don't need to log the error.
@@ -172,6 +169,9 @@ export function createHTMLErrorHandler(
 
     // If this is a navigation error, we don't need to log the error.
     if (isNextRouterError(err)) return err.digest
+
+    // In SSR rendering, we always collect the error
+    reactServerErrors.set(err.digest, err)
 
     // If this error occurs, we know that we should be stopping the static
     // render. This is only thrown in static generation when PPR is not enabled,
