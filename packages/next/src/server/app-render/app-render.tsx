@@ -1236,8 +1236,8 @@ async function renderToStream(
     // and should omit the error reporter in the SSR layer instead
     undefined
   )
-  function onServerRenderError(err: DigestedError) {
-    const renderSource = renderErrorsByDigest.has(err.digest)
+  function onServerRenderError(err: DigestedError, isRSCError: boolean) {
+    const renderSource = isRSCError
       ? 'react-server-components'
       : 'server-rendering'
     return renderOpts.onInstrumentationRequestError?.(
@@ -1646,8 +1646,8 @@ async function prerenderToStream(
     // and should omit the error reporter in the SSR layer instead
     undefined
   )
-  function onServerRenderError(err: DigestedError) {
-    const renderSource = reactServerErrorsByDigest.has(err.digest)
+  function onServerRenderError(err: DigestedError, isRSCError: boolean) {
+    const renderSource = isRSCError
       ? 'react-server-components'
       : 'server-rendering'
     return renderOpts.onInstrumentationRequestError?.(

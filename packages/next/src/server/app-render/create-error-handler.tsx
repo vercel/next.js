@@ -141,9 +141,10 @@ export function createHTMLErrorHandler(
   reactServerErrors: Map<string, DigestedError>,
   allCapturedErrors: Array<unknown>,
   silenceLogger: boolean,
-  onHTMLRenderError: (err: any) => void
+  onHTMLRenderError: (err: any, isRSCError: boolean) => void
 ): ErrorHandler {
   return (err: any, errorInfo: any) => {
+    let isRSCError = false
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
 
@@ -152,6 +153,7 @@ export function createHTMLErrorHandler(
         // This error is likely an obfuscated error from react-server.
         // We recover the original error here.
         err = reactServerErrors.get(err.digest)
+        isRSCError = true
       }
     } else {
       err.digest = stringHash(
@@ -204,7 +206,7 @@ export function createHTMLErrorHandler(
       }
 
       if (!silenceLogger) {
-        onHTMLRenderError(err)
+        onHTMLRenderError(err, isRSCError)
       }
     }
 
