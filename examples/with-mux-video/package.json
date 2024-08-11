@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@mux/mux-node": "^7.0.0",
+    "@mux/mux-node": "^8.0.0",
     "@mux/mux-player-react": "^1",
     "@mux/upchunk": "^3",
     "next": "latest",
