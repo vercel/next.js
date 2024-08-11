@@ -1,6 +1,8 @@
 import * as path from 'path'
 import * as fs from 'fs'
 
+import { normalizeAppPath } from '../../../next/src/shared/lib/router/utils/app-paths'
+
 // Cache for fs.readdirSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
 const fsReadDirSyncCache = {}
@@ -26,6 +28,33 @@ function parseUrlForPages(urlprefix: string, directory: string) {
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
+        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+      }
+    }
+  })
+  return res
+}
+
+/**
+ * Recursively parse app directory for URLs.
+ */
+function parseUrlForAppDir(urlprefix: string, directory: string) {
+  fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
+    withFileTypes: true,
+  })
+  const res = []
+  fsReadDirSyncCache[directory].forEach((dirent) => {
+    // TODO: this should account for all page extensions
+    // not just js(x) and ts(x)
+    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
+      if (/^page(\.(j|t)sx?)$/.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(/^page(\.(j|t)sx?)$/, '')}`)
+      } else if (!/^layout(\.(j|t)sx?)$/.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+      }
+    } else {
+      const dirPath = path.join(directory, dirent.name)
+      if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
         res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
       }
     }
@@ -69,6 +98,27 @@ export function getUrlFromPagesDirectories(
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
           (url) => `^${normalizeURL(url)}$`
+        )
+    )
+  ).map((urlReg) => {
+    urlReg = urlReg.replace(/\[.*\]/g, '((?!.+?\\..+?).*?)')
+    return new RegExp(urlReg)
+  })
+}
+
+export function getUrlFromAppDirectory(
+  urlPrefix: string,
+  directories: string[]
+) {
+  return Array.from(
+    // De-duplicate similar pages across multiple directories.
+    new Set(
+      directories
+        .map((directory) => parseUrlForAppDir(urlPrefix, directory))
+        .flat()
+        .map(
+          // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
+          (url) => `^${normalizeAppPath(url)}$`
         )
     )
   ).map((urlReg) => {
