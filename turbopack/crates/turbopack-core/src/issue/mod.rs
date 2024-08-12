@@ -170,7 +170,7 @@ pub trait Issue {
             documentation_link: self.documentation_link().await?.clone_value(),
             source: {
                 if let Some(s) = *self.source().await? {
-                    Some(s.into_plain().await?)
+                    Some(s.resolve_source_map().into_plain().await?)
                 } else {
                     None
                 }
