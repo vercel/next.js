@@ -850,12 +850,6 @@ fn directory_tree_to_loader_tree_internal(
 
     // Capture the current page for the metadata to calculate segment relative to
     // the corresponding page for the static metadata files.
-    /*
-    let metadata = Metadata {
-        base_page: Some(app_page.clone()),
-        ..components.metadata.clone()
-    }; */
-
     components.metadata.base_page = Some(app_page.clone());
 
     // the root directory in the app dir.
@@ -958,25 +952,6 @@ fn directory_tree_to_loader_tree_internal(
                     // slot.
                 } else if current_tree.has_only_catchall() {
                     tree.parallel_routes.insert("children".into(), subtree);
-                } else {
-                    // TODO: Investigate if this is still needed. Emitting the
-                    // error causes the test "should
-                    // gracefully handle when two page
-                    // segments match the `children`
-                    // parallel slot" to fail
-                    // DirectoryTreeIssue {
-                    //     app_dir,
-                    //     message: StyledString::Text(format!(
-                    //         "You cannot have two parallel pages that resolve
-                    // to the same path. \          Route {}
-                    // has multiple matches in {}",
-                    //         for_app_path, app_page
-                    //     ))
-                    //     .cell(),
-                    //     severity: IssueSeverity::Error.cell(),
-                    // }
-                    // .cell()
-                    // .emit();
                 }
             } else {
                 tree.parallel_routes.insert("children".into(), subtree);

@@ -35,7 +35,7 @@ async fn project_fs(project_dir: RcStr, watching: bool) -> Result<Vc<Box<dyn Fil
 #[serde(rename_all = "camelCase")]
 struct LoaderTreeForJs {
     segment: RcStr,
-    parallel_routes: IndexMap<RcStr, ReadRef<LoaderTreeForJs>>,
+    parallel_routes: IndexMap<RcStr, LoaderTreeForJs>,
     #[turbo_tasks(trace_ignore)]
     components: ComponentsForJs,
     #[turbo_tasks(trace_ignore)]
@@ -250,13 +250,19 @@ async fn prepare_loader_tree_for_js(
     project_path: Vc<FileSystemPath>,
     loader_tree: Vc<LoaderTree>,
 ) -> Result<Vc<LoaderTreeForJs>> {
-    prepare_loader_tree_for_js_internal(project_path, &*loader_tree.await?).await
+    let loader_tree = &*loader_tree.await?;
+
+    Ok(
+        prepare_loader_tree_for_js_internal(project_path, loader_tree)
+            .await?
+            .cell(),
+    )
 }
 
 async fn prepare_loader_tree_for_js_internal(
     project_path: Vc<FileSystemPath>,
     loader_tree: &LoaderTree,
-) -> Result<Vc<LoaderTreeForJs>> {
+) -> Result<LoaderTreeForJs> {
     let LoaderTree {
         page: _,
         segment,
@@ -270,9 +276,7 @@ async fn prepare_loader_tree_for_js_internal(
         .map(|(key, value)| async move {
             Ok((
                 key.clone(),
-                prepare_loader_tree_for_js_internal(project_path, value)
-                    .await?
-                    .await?,
+                prepare_loader_tree_for_js_internal(project_path, value).await?,
             ))
         })
         .try_join()
@@ -294,8 +298,7 @@ async fn prepare_loader_tree_for_js_internal(
         parallel_routes,
         components,
         global_metadata: meta,
-    }
-    .cell())
+    })
 }
 
 #[turbo_tasks::function]
