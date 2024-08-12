@@ -141,8 +141,8 @@ export function createHTMLErrorHandler(
   reactServerErrors: Map<string, DigestedError>,
   allCapturedErrors: Array<unknown>,
   silenceLogger: boolean,
-  onHTMLRenderSSRError: (err: any) => void,
-  onHTMLRenderRSCError: (err: any) => void
+  onHTMLRenderRSCError: (err: any) => void,
+  onHTMLRenderSSRError: (err: any) => void
 ): ErrorHandler {
   return (err: any, errorInfo: any) => {
     let isRSCError = false
