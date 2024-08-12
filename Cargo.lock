@@ -6756,9 +6756,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_visit"
-version = "0.143.3"
+version = "0.143.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c41f78e85219ffb7fa8b2cad6bd92634ceef43713f434c40af9e76dd95f1576d"
+checksum = "328484fa781600fcafc39430253de22446c26a129c45c9a6c0af42329d1b4798"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -6769,9 +6769,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_ast"
-version = "0.118.0"
+version = "0.118.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d28b2b3ac8af922e693ee784881b2a32ca4604e1088072b66116003c225a44d9"
+checksum = "ed6c1b94abbaf080a4e4ae47101a83d4eedef90d733dd98e32b361356d3f5e4b"
 dependencies = [
  "bitflags 2.5.0",
  "bytecheck",
@@ -7468,9 +7468,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_visit"
-version = "0.104.4"
+version = "0.104.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88c8b9061218df99507d95047e2ddd62cd58298dec1c4bc84905e9f29e927b20"
+checksum = "c71f5f97db49b96208805104b381c5e117f55fad5f3d178e626c92934a4d0e36"
 dependencies = [
  "new_debug_unreachable",
  "num-bigint",
@@ -7706,11 +7706,12 @@ dependencies = [
 
 [[package]]
 name = "swc_visit"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e194d14f94121fd08b823d3379eedb3ce455785d9e0c3d2742c59377e283207"
+checksum = "1ceb044142ba2719ef9eb3b6b454fce61ab849eb696c34d190f04651955c613d"
 dependencies = [
  "either",
+ "new_debug_unreachable",
 ]
 
 [[package]]
