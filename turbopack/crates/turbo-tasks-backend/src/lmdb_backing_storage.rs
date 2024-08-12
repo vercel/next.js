@@ -1,9 +1,11 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
     error::Error,
+    fs::create_dir_all,
     path::Path,
     sync::Arc,
     thread::available_parallelism,
+    time::Instant,
 };
 
 use anyhow::Result;
@@ -50,6 +52,7 @@ pub struct LmdbBackingStorage {
 
 impl LmdbBackingStorage {
     pub fn new(path: &Path) -> Result<Self> {
+        create_dir_all(path)?;
         println!("opening lmdb {:?}", path);
         let env = Environment::new()
             .set_flags(EnvironmentFlags::WRITE_MAP | EnvironmentFlags::NO_META_SYNC)
@@ -100,6 +103,14 @@ impl BackingStorage for LmdbBackingStorage {
         task_cache_updates: ChunkedVec<(Arc<CachedTaskType>, TaskId)>,
         data_updates: ChunkedVec<CachedDataUpdate>,
     ) -> Result<()> {
+        println!(
+            "Persisting {} operations, {} task cache updates, {} data updates...",
+            operations.len(),
+            task_cache_updates.len(),
+            data_updates.len()
+        );
+        let start = Instant::now();
+        let mut op_count = 0;
         let mut tx = self.env.begin_rw_txn()?;
         let mut next_task_id =
             as_u32(tx.get(self.meta_db, &IntKey::new(META_KEY_NEXT_FREE_TASK_ID))).unwrap_or(1);
@@ -118,6 +129,7 @@ impl BackingStorage for LmdbBackingStorage {
                 &task_type,
                 WriteFlags::empty(),
             )?;
+            op_count += 2;
             next_task_id = next_task_id.max(task_id + 1);
         }
         tx.put(
@@ -133,6 +145,8 @@ impl BackingStorage for LmdbBackingStorage {
             &operations,
             WriteFlags::empty(),
         )?;
+        op_count += 2;
+
         let mut updated_items: HashMap<TaskId, HashMap<CachedDataItemKey, CachedDataItemValue>> =
             HashMap::new();
         for CachedDataUpdate { task, key, value } in data_updates.into_iter() {
@@ -168,8 +182,13 @@ impl BackingStorage for LmdbBackingStorage {
                 &value,
                 WriteFlags::empty(),
             )?;
+            op_count += 1;
         }
         tx.commit()?;
+        println!(
+            "Persisted {op_count} db entries after {:?}",
+            start.elapsed()
+        );
         Ok(())
     }
 
