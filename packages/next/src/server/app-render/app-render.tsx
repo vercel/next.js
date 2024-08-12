@@ -976,11 +976,11 @@ async function renderToHTMLOrFlightImpl(
       if (buildFailingError) throw buildFailingError
     }
     if (response.ssrErrors.length) {
-      const buildFailingError = response.ssrErrors.filter(
+      const buildFailingError = response.ssrErrors.find(
         (err) =>
           isUserLandError(err) &&
           !response.digestErrorsMap.has((err as any).digest)
-      )[0]
+      )
       if (buildFailingError) throw buildFailingError
     }
 
