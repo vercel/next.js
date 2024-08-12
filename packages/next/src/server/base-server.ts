@@ -843,7 +843,7 @@ export default abstract class Server<
         await this.instrumentation.onRequestError?.(
           err,
           {
-            url: req.url || '',
+            path: req.url || '',
             method: req.method || 'GET',
             // Normalize middleware headers and other server request headers
             headers:

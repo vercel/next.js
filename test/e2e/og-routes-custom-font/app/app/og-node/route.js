@@ -1,11 +1,10 @@
+import { ImageResponse } from 'next/og'
 import fs from 'fs'
 import path from 'path'
-import { ImageResponse } from 'next/og'
 
-export const contentType = 'image/png'
-
-export default async function og() {
+export async function GET() {
   const font = await fs.promises.readFile(
+    // We need to use process.cwd() instead of import.meta.url for nft tracing purpose
     path.join(process.cwd(), 'assets/typewr__.ttf')
   )
   return new ImageResponse(
@@ -36,5 +35,3 @@ export default async function og() {
     }
   )
 }
-
-export const runtime = 'nodejs'

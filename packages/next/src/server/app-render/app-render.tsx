@@ -854,10 +854,6 @@ async function renderToHTMLOrFlightImpl(
 
   ComponentMod.patchFetch()
 
-  if (renderOpts.experimental.after) {
-    ComponentMod.patchCacheScopeSupportIntoReact()
-  }
-
   // Pull out the hooks/references from the component.
   const { tree: loaderTree, taintObjectReference } = ComponentMod
 

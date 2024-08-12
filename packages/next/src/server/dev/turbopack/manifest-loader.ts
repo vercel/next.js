@@ -27,7 +27,7 @@ import {
 import { join, posix } from 'path'
 import { readFile, writeFile } from 'fs/promises'
 import type { SetupOpts } from '../../lib/router-utils/setup-dev-bundler'
-import { deleteCache } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
+import { deleteCache } from '../require-cache'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import {
