@@ -20,7 +20,7 @@ use turbo_tasks::{
     registry,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
-    CellId, InvalidationReason, MagicAny, RawVc, TaskId, TraitTypeId, TurboTasksApi,
+    CellId, ExecutionId, InvalidationReason, MagicAny, RawVc, TaskId, TraitTypeId, TurboTasksApi,
     TurboTasksCallApi,
 };
 
@@ -56,28 +56,34 @@ impl VcStorage {
             })));
             i
         };
-        let id = TaskId::from(i as u32 + 1);
-        handle.spawn(with_turbo_tasks_for_testing(this.clone(), id, async move {
-            let result = AssertUnwindSafe(future).catch_unwind().await;
+        let task_id = TaskId::from(i as u32 + 1);
+        let execution_id = ExecutionId::from(i as u64 + 1);
+        handle.spawn(with_turbo_tasks_for_testing(
+            this.clone(),
+            task_id,
+            execution_id,
+            async move {
+                let result = AssertUnwindSafe(future).catch_unwind().await;
 
-            // Convert the unwind panic to an anyhow error that can be cloned.
-            let result = result
-                .map_err(|any| match any.downcast::<String>() {
-                    Ok(owned) => anyhow!(owned),
-                    Err(any) => match any.downcast::<&'static str>() {
-                        Ok(str) => anyhow!(str),
-                        Err(_) => anyhow!("unknown panic"),
-                    },
-                })
-                .and_then(|r| r)
-                .map_err(SharedError::new);
+                // Convert the unwind panic to an anyhow error that can be cloned.
+                let result = result
+                    .map_err(|any| match any.downcast::<String>() {
+                        Ok(owned) => anyhow!(owned),
+                        Err(any) => match any.downcast::<&'static str>() {
+                            Ok(str) => anyhow!(str),
+                            Err(_) => anyhow!("unknown panic"),
+                        },
+                    })
+                    .and_then(|r| r)
+                    .map_err(SharedError::new);
 
-            let mut tasks = this.tasks.lock().unwrap();
-            if let Task::Spawned(event) = replace(&mut tasks[i], Task::Finished(result)) {
-                event.notify(usize::MAX);
-            }
-        }));
-        RawVc::TaskOutput(id)
+                let mut tasks = this.tasks.lock().unwrap();
+                if let Task::Spawned(event) = replace(&mut tasks[i], Task::Finished(result)) {
+                    event.notify(usize::MAX);
+                }
+            },
+        ));
+        RawVc::TaskOutput(task_id)
     }
 }
 
@@ -272,7 +278,7 @@ impl TurboTasksApi for VcStorage {
         // no-op
     }
 
-    fn detached(
+    fn detached_for_testing(
         &self,
         _f: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>> {
@@ -288,6 +294,7 @@ impl VcStorage {
                 ..Default::default()
             }),
             TaskId::from(u32::MAX),
+            ExecutionId::from(u64::MAX),
             f,
         )
     }

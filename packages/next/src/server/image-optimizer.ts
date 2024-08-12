@@ -22,6 +22,7 @@ import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
+import { parseUrl } from '../lib/url'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -213,9 +214,13 @@ export class ImageOptimizerCache {
       }
     }
 
-    if (url.startsWith('/_next/image')) {
-      return {
-        errorMessage: '"url" parameter cannot be recursive',
+    const parsedUrl = parseUrl(url)
+    if (parsedUrl) {
+      const decodedPathname = decodeURIComponent(parsedUrl.pathname)
+      if (/\/_next\/image($|\/)/.test(decodedPathname)) {
+        return {
+          errorMessage: '"url" parameter cannot be recursive',
+        }
       }
     }
 

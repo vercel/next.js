@@ -1,22 +1,17 @@
 use anyhow::Result;
 use indoc::formatdoc;
 use turbo_tasks::{RcStr, Vc};
-use turbo_tasks_fs::File;
-use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::{
-        core::{
-            asset::AssetContent,
-            resolve::{
-                options::{ImportMapResult, ImportMapping, ImportMappingReplacement},
-                parse::Request,
-                ResolveResult,
-            },
-            virtual_source::VirtualSource,
-        },
-        node::execution_context::ExecutionContext,
+use turbo_tasks_fs::{File, FileSystemPath};
+use turbopack_core::{
+    asset::AssetContent,
+    resolve::{
+        options::{ImportMapResult, ImportMapping, ImportMappingReplacement},
+        parse::Request,
+        ResolveResult,
     },
+    virtual_source::VirtualSource,
 };
+use turbopack_node::execution_context::ExecutionContext;
 
 /// Intercepts requests for the given request to `unsupported` error messages
 /// by returning a VirtualSource proxies to any import request to raise a
@@ -53,7 +48,7 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
     #[turbo_tasks::function]
     async fn result(
         &self,
-        context: Vc<FileSystemPath>,
+        root_path: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
         let request = &*request.await?;
@@ -66,7 +61,7 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
               "#
             };
             let content = AssetContent::file(File::from(code).into());
-            let source = VirtualSource::new(context, content);
+            let source = VirtualSource::new(root_path, content);
             return Ok(
                 ImportMapResult::Result(ResolveResult::source(Vc::upcast(source)).into()).into(),
             );

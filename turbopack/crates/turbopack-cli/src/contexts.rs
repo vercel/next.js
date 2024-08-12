@@ -6,8 +6,8 @@ use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
-        JsxTransformOptions, ModuleOptionsContext, ModuleRule, ModuleRuleCondition,
-        ModuleRuleEffect,
+        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
+        ModuleRuleCondition, ModuleRuleEffect,
     },
     ModuleAssetContext,
 };
@@ -133,7 +133,7 @@ async fn get_client_module_options_context(
         ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
     ]);
 
-    let custom_rules = ModuleRule::new(
+    let module_rules = ModuleRule::new(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: Vc::cell(vec![
@@ -145,7 +145,7 @@ async fn get_client_module_options_context(
                     StyledComponentsTransformer::new(&StyledComponentsTransformConfig::default()),
                 ) as _)),
                 EcmascriptInputTransform::Plugin(Vc::cell(Box::new(StyledJsxTransformer::new(
-                    !module_options_context.use_swc_css,
+                    !module_options_context.css.use_swc_css,
                     versions,
                 )) as _)),
             ]),
@@ -154,14 +154,17 @@ async fn get_client_module_options_context(
     );
 
     let module_options_context = ModuleOptionsContext {
-        enable_jsx,
+        ecmascript: EcmascriptOptionsContext {
+            enable_jsx,
+            enable_typescript_transform: Some(Default::default()),
+            ..Default::default()
+        },
         enable_postcss_transform: Some(PostCssTransformOptions::default().cell()),
-        enable_typescript_transform: Some(Default::default()),
         rules: vec![(
             foreign_code_context_condition().await?,
             module_options_context.clone().cell(),
         )],
-        custom_rules: vec![custom_rules],
+        module_rules: vec![module_rules],
         ..module_options_context
     }
     .cell();

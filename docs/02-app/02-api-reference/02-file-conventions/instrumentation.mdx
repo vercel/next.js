@@ -110,7 +110,7 @@ The function accepts three parameters: `error`, `request`, and `context`.
 export function onRequestError(
   error: { digest: string } & Error,
   request: {
-    url: string // full URL
+    path: string // resource path, e.g. /blog?name=foo
     method: string // request method. e.g. GET, POST, etc
     headers: { [key: string]: string }
   },

@@ -1,22 +1,20 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, RcStr, Value, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath},
-    turbopack::core::{
-        issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-        reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-        resolve::{
-            find_context_file,
-            node::{node_cjs_resolve_options, node_esm_resolve_options},
-            package_json,
-            parse::Request,
-            plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
-            resolve, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
-            ResolveResultOption,
-        },
-        source::Source,
+use turbo_tasks_fs::{self, glob::Glob, FileJsonContent, FileSystemPath};
+use turbopack_core::{
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    resolve::{
+        find_context_file,
+        node::{node_cjs_resolve_options, node_esm_resolve_options},
+        package_json,
+        parse::Request,
+        plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
+        resolve, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
+        ResolveResultOption,
     },
+    source::Source,
 };
 
 /// The predicated based on which the [ExternalCjsModulesResolvePlugin] decides

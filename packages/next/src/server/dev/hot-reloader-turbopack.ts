@@ -90,6 +90,8 @@ const isTestMode = !!(
   process.env.DEBUG
 )
 
+const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
+
 export async function createHotReloaderTurbopack(
   opts: SetupOpts,
   serverFields: ServerFields,
@@ -667,6 +669,7 @@ export async function createHotReloaderTurbopack(
 
         const turbopackConnected: TurbopackConnectedAction = {
           action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+          data: { sessionId },
         }
         sendToClient(client, turbopackConnected)
 

@@ -5,7 +5,7 @@ use turbo_tasks::{
     Completion, Completions, TryFlatJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_fs::{rebase, FileSystemPath};
-use turbopack_binding::turbopack::core::{
+use turbopack_core::{
     asset::Asset,
     output::{OutputAsset, OutputAssets},
 };

@@ -9,13 +9,12 @@ use anyhow::{bail, Context, Result};
 use turbo_tasks::{RcStr, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_memory::MemoryBackend;
-use turbopack::ecmascript::EcmascriptModuleAsset;
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
         availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAssets, MinifyType,
+        EvaluatableAsset, EvaluatableAssets, MinifyType,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     issue::{handle_issues, IssueReporter, IssueSeverity},
@@ -259,7 +258,7 @@ async fn build_internal(
         .map(|entry_module| async move {
             Ok(
                 if let Some(ecmascript) =
-                    Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(entry_module).await?
+                    Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
                 {
                     Vc::cell(vec![
                         Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)

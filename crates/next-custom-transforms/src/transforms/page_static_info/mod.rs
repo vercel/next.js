@@ -6,7 +6,7 @@ use collect_exports_visitor::CollectExportsVisitor;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbopack_binding::swc::core::{
+use swc_core::{
     base::SwcComments,
     common::GLOBALS,
     ecma::{ast::Program, visit::VisitWith},

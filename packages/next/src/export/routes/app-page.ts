@@ -31,6 +31,9 @@ export const enum ExportedAppPageFiles {
   POSTPONED = 'POSTPONED',
 }
 
+/**
+ * Renders & exports a page associated with the /app directory
+ */
 export async function exportAppPage(
   req: MockedRequest,
   res: MockedResponse,
