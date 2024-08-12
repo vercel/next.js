@@ -594,8 +594,8 @@ async function loadRedirects(config: NextConfig) {
 
 async function loadRewrites(config: NextConfig) {
   // If assetPrefix is set, add a rewrite for `/${assetPrefix}/_next/*`
-  // requests to make sure automatically so that the user doesn't need to
-  // configure this themselves.
+  // requests so that they are handled in any of dev, start, or deploy
+  // automatically without the user having to configure this.
   // If the assetPrefix is an absolute URL, we can't add an automatic rewrite.
   let maybeAssetPrefixRewrite: Rewrite[] = []
   if (config.assetPrefix && !isFullStringUrl(config.assetPrefix)) {
