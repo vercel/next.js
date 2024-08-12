@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, getRedboxSource } from 'next-test-utils'
 
 const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
@@ -678,6 +678,16 @@ describe('app dir - css', () => {
             `window.getComputedStyle(document.querySelector('#scss-client-page')).backgroundColor`
           )
         ).toBe('rgb(0, 255, 255)')
+      })
+    })
+
+    describe('error handling', () => {
+      it('should use original source points for sass errors', async () => {
+        const browser = await next.browser('/css/sass-error/inner')
+
+        const source = await getRedboxSource(browser)
+
+        expect(source).toMatchInlineSnapshot()
       })
     })
   })
