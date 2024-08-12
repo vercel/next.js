@@ -14,6 +14,7 @@ describe('app-dir - metadata-icons-parallel-routes', () => {
 
   it('should override parent icon when both static icon presented', async () => {
     const $ = await next.render$('/nested')
+    expect($('link[type="image/x-icon"]').length).toBe(1)
     expect($('link[rel="icon"][type="image/png"]').length).toBe(1)
   })
 
