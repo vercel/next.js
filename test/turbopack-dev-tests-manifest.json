@@ -133,7 +133,8 @@
       "resolveRouteData resolveRobots should error with ts when specify both wildcard userAgent and specific userAgent",
       "resolveRouteData resolveRobots should resolve robots.txt",
       "resolveRouteData resolveSitemap should resolve sitemap.xml",
-      "resolveRouteData resolveSitemap should resolve sitemap.xml with alternates"
+      "resolveRouteData resolveSitemap should resolve sitemap.xml with alternates",
+      "resolveRouteData resolveSitemap should resolve sitemap.xml with images"
     ],
     "failed": [],
     "pending": [],
@@ -616,6 +617,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/server/lib/patch-fetch.test.ts": {
+    "passed": ["createPatchedFetcher should not buffer a streamed response"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/server/lib/to-route.test.ts": {
     "passed": [
       "toRoute Function should remove trailing `/index`",
@@ -958,6 +966,23 @@
       "getHostname from URL should return localhost for http://localhost/",
       "getHostname from URL should return localhost for http://localhost:3000",
       "getHostname should return undefined for empty input"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/shared/lib/normalized-asset-prefix.test.ts": {
+    "passed": [
+      "normalizedAssetPrefix should add a leading slash when assetPrefix is missing one",
+      "normalizedAssetPrefix should not leave a trailing slash when assetPrefix is a URL with no pathname",
+      "normalizedAssetPrefix should not remove the leading slash when assetPrefix has only one",
+      "normalizedAssetPrefix should remove all trailing slash(es) when assetPrefix has one",
+      "normalizedAssetPrefix should remove leading slash(es) when assetPrefix has more than one",
+      "normalizedAssetPrefix should return an empty string when assetPrefix is a single slash",
+      "normalizedAssetPrefix should return an empty string when assetPrefix is an empty string",
+      "normalizedAssetPrefix should return an empty string when assetPrefix is nullish",
+      "normalizedAssetPrefix should return the URL when assetPrefix is a URL"
     ],
     "failed": [],
     "pending": [],
@@ -1653,6 +1678,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/hmr-asset-prefix-full-url/asset-prefix.test.ts": {
+    "passed": [
+      "app-dir assetPrefix full URL should not break HMR when asset prefix set to full URL"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/hmr-deleted-page/hmr-deleted-page.test.ts": {
     "passed": ["hmr-deleted-page should not show errors for a deleted page"],
     "failed": [],
@@ -1883,6 +1917,7 @@
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should have correct compile timing after fixing error",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should have correct router.isReady for auto-export page",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should have correct router.isReady for getStaticProps page",
+      "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should reload the page when the server restarts",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should show hydration error correctly",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } Error Recovery should detect runtime errors on the module scope",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } Error Recovery should detect syntax errors and recover",
@@ -1908,6 +1943,7 @@
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have correct compile timing after fixing error",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have correct router.isReady for auto-export page",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have correct router.isReady for getStaticProps page",
+      "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should reload the page when the server restarts",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should show hydration error correctly",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } Error Recovery should detect runtime errors on the module scope",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } Error Recovery should detect syntax errors and recover",
@@ -1933,6 +1969,7 @@
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should have correct compile timing after fixing error",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should have correct router.isReady for auto-export page",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should have correct router.isReady for getStaticProps page",
+      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should reload the page when the server restarts",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should show hydration error correctly",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } Error Recovery should detect runtime errors on the module scope",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } Error Recovery should detect syntax errors and recover",
@@ -1958,6 +1995,7 @@
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct compile timing after fixing error",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct router.isReady for auto-export page",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct router.isReady for getStaticProps page",
+      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should reload the page when the server restarts",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should show hydration error correctly"
     ],
     "failed": [],
@@ -4538,6 +4576,7 @@
       "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
       "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
       "app dir - metadata dynamic routes sitemap should support generate multi sitemaps with generateSitemaps",
+      "app dir - metadata dynamic routes sitemap should support images in sitemap",
       "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
       "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
       "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime",
@@ -4555,6 +4594,18 @@
   "test/e2e/app-dir/metadata-edge/index.test.ts": {
     "passed": [
       "app dir - Metadata API on the Edge runtime should render OpenGraph image meta tag correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-icons/metadata-icons.test.ts": {
+    "passed": [
+      "app-dir - metadata-icons should only have 1 favicon link in nested page",
+      "app-dir - metadata-icons should only have 1 favicon link in root page",
+      "app-dir - metadata-icons should render custom icons along with favicon in nested page",
+      "app-dir - metadata-icons should render custom icons along with favicon in root page"
     ],
     "failed": [],
     "pending": [],
@@ -5250,15 +5301,6 @@
   "test/e2e/app-dir/parallel-routes-catchall-slotted-non-catchalls/parallel-routes-catchall-slotted-non-catchalls.test.ts": {
     "passed": [
       "parallel-routes-catchall-slotted-non-catchalls should match default and dynamic segment paths before catch-all"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/parallel-routes-catchall-specificity/parallel-routes-catchall-specificity.test.ts": {
-    "passed": [
-      "parallel-routes-catchall-specificity should match the catch-all route when navigating from a page with a similar path depth as the previously matched slot"
     ],
     "failed": [],
     "pending": [],
@@ -6239,6 +6281,24 @@
       "searchparams-static-bailout client component should not bailout when not using searchParams",
       "searchparams-static-bailout server component should bailout when using searchParams",
       "searchparams-static-bailout server component should not bailout when not using searchParams"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/self-importing-package-monorepo/self-importing-package-monorepo.test.ts": {
+    "passed": [
+      "self-importing-package-monorepo should resolve self-imports inside a monorepo"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/self-importing-package/self-importing-package.test.ts": {
+    "passed": [
+      "self-importing-package should resolve self-imports in an external package"
     ],
     "failed": [],
     "pending": [],
@@ -7317,6 +7377,7 @@
   },
   "test/e2e/instrumentation-hook/register-once/register-once.test.ts": {
     "passed": [
+      "instrumentation-hook - register-once should not error when concurrent requests are made",
       "instrumentation-hook - register-once should only register once"
     ],
     "failed": [],
@@ -13842,6 +13903,10 @@
   },
   "test/integration/image-optimizer/test/content-disposition-type.test.ts": {
     "passed": [
+      "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
+      "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with relative next image url",
       "with contentDispositionType inline dev support with next.config.js should automatically detect image type when content-type is octet-stream",
       "with contentDispositionType inline dev support with next.config.js should compress avif smaller than webp at q=100",
       "with contentDispositionType inline dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -13864,7 +13929,6 @@
       "with contentDispositionType inline dev support with next.config.js should fail when url has ftp protocol",
       "with contentDispositionType inline dev support with next.config.js should fail when url is missing",
       "with contentDispositionType inline dev support with next.config.js should fail when url is protocol relative",
-      "with contentDispositionType inline dev support with next.config.js should fail when url is recursive",
       "with contentDispositionType inline dev support with next.config.js should fail when url is too long",
       "with contentDispositionType inline dev support with next.config.js should fail when w is 0",
       "with contentDispositionType inline dev support with next.config.js should fail when w is less than 0",
@@ -13913,6 +13977,10 @@
     ],
     "failed": [],
     "pending": [
+      "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
+      "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
       "with contentDispositionType inline Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
       "with contentDispositionType inline Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
       "with contentDispositionType inline Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -13935,7 +14003,6 @@
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url has ftp protocol",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is missing",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is protocol relative",
-      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is recursive",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is too long",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is 0",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is less than 0",
@@ -13987,6 +14054,10 @@
   },
   "test/integration/image-optimizer/test/dangerously-allow-svg.test.ts": {
     "passed": [
+      "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
+      "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with relative next image url",
       "with dangerouslyAllowSVG config dev support with next.config.js should automatically detect image type when content-type is octet-stream",
       "with dangerouslyAllowSVG config dev support with next.config.js should compress avif smaller than webp at q=100",
       "with dangerouslyAllowSVG config dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -14009,7 +14080,6 @@
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url has ftp protocol",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is missing",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is protocol relative",
-      "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is recursive",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is too long",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is 0",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is less than 0",
@@ -14055,6 +14125,10 @@
     ],
     "failed": [],
     "pending": [
+      "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
+      "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -14077,7 +14151,6 @@
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url has ftp protocol",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is missing",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is protocol relative",
-      "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is recursive",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is too long",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is 0",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is less than 0",
@@ -14161,6 +14234,10 @@
   },
   "test/integration/image-optimizer/test/minimum-cache-ttl.test.ts": {
     "passed": [
+      "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with relative next image url",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should automatically detect image type when content-type is octet-stream",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should compress avif smaller than webp at q=100",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -14183,7 +14260,6 @@
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url has ftp protocol",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is missing",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is protocol relative",
-      "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is recursive",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is too long",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is 0",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is less than 0",
@@ -14232,6 +14308,10 @@
     ],
     "failed": [],
     "pending": [
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -14254,7 +14334,6 @@
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url has ftp protocol",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is missing",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is protocol relative",
-      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is recursive",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is too long",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is 0",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is less than 0",
@@ -14306,6 +14385,10 @@
   },
   "test/integration/image-optimizer/test/sharp.test.ts": {
     "passed": [
+      "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with absolute next image url",
+      "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with relative next image url",
       "with latest sharp dev support w/o next.config.js should downlevel avif format to jpeg for old Safari",
       "with latest sharp dev support w/o next.config.js should downlevel webp format to jpeg for old Safari",
       "with latest sharp dev support w/o next.config.js should emit blur svg when width is 8 in dev but not prod",
@@ -14323,7 +14406,6 @@
       "with latest sharp dev support w/o next.config.js should fail when url has ftp protocol",
       "with latest sharp dev support w/o next.config.js should fail when url is missing",
       "with latest sharp dev support w/o next.config.js should fail when url is protocol relative",
-      "with latest sharp dev support w/o next.config.js should fail when url is recursive",
       "with latest sharp dev support w/o next.config.js should fail when url is too long",
       "with latest sharp dev support w/o next.config.js should fail when w is 0",
       "with latest sharp dev support w/o next.config.js should fail when w is less than 0",
@@ -14362,6 +14444,10 @@
       "with latest sharp dev support w/o next.config.js should set cache-control to immutable for static images",
       "with latest sharp dev support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with latest sharp dev support w/o next.config.js should use cached image file when parameters are the same for animated gif",
+      "with latest sharp dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
+      "with latest sharp dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with latest sharp dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with latest sharp dev support with next.config.js recursive url is not allowed should fail with relative next image url",
       "with latest sharp dev support with next.config.js should automatically detect image type when content-type is octet-stream",
       "with latest sharp dev support with next.config.js should compress avif smaller than webp at q=100",
       "with latest sharp dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -14384,7 +14470,6 @@
       "with latest sharp dev support with next.config.js should fail when url has ftp protocol",
       "with latest sharp dev support with next.config.js should fail when url is missing",
       "with latest sharp dev support with next.config.js should fail when url is protocol relative",
-      "with latest sharp dev support with next.config.js should fail when url is recursive",
       "with latest sharp dev support with next.config.js should fail when url is too long",
       "with latest sharp dev support with next.config.js should fail when w is 0",
       "with latest sharp dev support with next.config.js should fail when w is less than 0",
@@ -14433,6 +14518,10 @@
     ],
     "failed": [],
     "pending": [
+      "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with absolute next image url",
+      "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with relative next image url",
       "with latest sharp Production Mode Server support w/o next.config.js should downlevel avif format to jpeg for old Safari",
       "with latest sharp Production Mode Server support w/o next.config.js should downlevel webp format to jpeg for old Safari",
       "with latest sharp Production Mode Server support w/o next.config.js should emit blur svg when width is 8 in dev but not prod",
@@ -14450,7 +14539,6 @@
       "with latest sharp Production Mode Server support w/o next.config.js should fail when url has ftp protocol",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when url is missing",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when url is protocol relative",
-      "with latest sharp Production Mode Server support w/o next.config.js should fail when url is recursive",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when url is too long",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when w is 0",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when w is less than 0",
@@ -14489,6 +14577,10 @@
       "with latest sharp Production Mode Server support w/o next.config.js should set cache-control to immutable for static images",
       "with latest sharp Production Mode Server support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with latest sharp Production Mode Server support w/o next.config.js should use cached image file when parameters are the same for animated gif",
+      "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
+      "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
       "with latest sharp Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
       "with latest sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
       "with latest sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -14511,7 +14603,6 @@
       "with latest sharp Production Mode Server support with next.config.js should fail when url has ftp protocol",
       "with latest sharp Production Mode Server support with next.config.js should fail when url is missing",
       "with latest sharp Production Mode Server support with next.config.js should fail when url is protocol relative",
-      "with latest sharp Production Mode Server support with next.config.js should fail when url is recursive",
       "with latest sharp Production Mode Server support with next.config.js should fail when url is too long",
       "with latest sharp Production Mode Server support with next.config.js should fail when w is 0",
       "with latest sharp Production Mode Server support with next.config.js should fail when w is less than 0",
