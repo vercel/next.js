@@ -977,6 +977,9 @@ importers:
       '@napi-rs/triples':
         specifier: 1.2.0
         version: 1.2.0
+      '@next/font':
+        specifier: 15.0.0-canary.111
+        version: link:../font
       '@next/polyfill-module':
         specifier: 15.0.0-canary.111
         version: link:../next-polyfill-module
