@@ -10,9 +10,7 @@ bench = false
 
 [features]
 default = []
-assert_task_state = []
 tokio_tracing = ["tokio/tracing"]
-log_function_stats = []
 hanging_detection = []
 
 [lints]
