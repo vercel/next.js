@@ -1,3 +1,4 @@
+mod cleanup_old_edges;
 mod connect_child;
 mod invalidate;
 mod update_cell;
@@ -202,6 +203,10 @@ impl<'a> TaskGuard<'a> {
         self.task.get(key)
     }
 
+    pub fn has_key(&self, key: &CachedDataItemKey) -> bool {
+        self.task.has_key(key)
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
         self.task.iter()
     }
@@ -234,11 +239,14 @@ macro_rules! impl_operation {
 pub enum AnyOperation {
     ConnectChild(connect_child::ConnectChildOperation),
     Invalidate(invalidate::InvalidateOperation),
+    CleanupOldEdges(cleanup_old_edges::CleanupOldEdgesOperation),
     Nested(Vec<AnyOperation>),
 }
 
 impl_operation!(ConnectChild connect_child::ConnectChildOperation);
 impl_operation!(Invalidate invalidate::InvalidateOperation);
+impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 
+pub use cleanup_old_edges::OutdatedEdge;
 pub use update_cell::UpdateCellOperation;
 pub use update_output::UpdateOutputOperation;
