@@ -76,7 +76,7 @@ pureComponentPrototype.constructor = PureComponent;
 assign(pureComponentPrototype, Component.prototype);
 pureComponentPrototype.isPureReactComponent = !0;
 var isArrayImpl = Array.isArray,
-  ReactSharedInternals = { H: null, A: null, T: null },
+  ReactSharedInternals = { H: null, A: null, T: null, S: null },
   hasOwnProperty = Object.prototype.hasOwnProperty;
 function ReactElement(type, key, _ref, self, source, owner, props) {
   _ref = props.ref;
@@ -203,7 +203,8 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
             (callback = cloneAndReplaceKey(
               callback,
               escapedPrefix +
-                (!callback.key || (children && children.key === callback.key)
+                (null == callback.key ||
+                (children && children.key === callback.key)
                   ? ""
                   : ("" + callback.key).replace(
                       userProvidedKeyEscapeRegex,
@@ -372,6 +373,9 @@ exports.cache = function (fn) {
     return fn.apply(null, arguments);
   };
 };
+exports.captureOwnerStack = function () {
+  return null;
+};
 exports.cloneElement = function (element, config, children) {
   if (null === element || void 0 === element)
     throw Error(
@@ -468,18 +472,17 @@ exports.memo = function (type, compare) {
 };
 exports.startTransition = function (scope) {
   var prevTransition = ReactSharedInternals.T,
-    callbacks = new Set();
-  ReactSharedInternals.T = { _callbacks: callbacks };
-  var currentTransition = ReactSharedInternals.T;
+    transition = {};
+  ReactSharedInternals.T = transition;
   try {
-    var returnValue = scope();
+    var returnValue = scope(),
+      onStartTransitionFinish = ReactSharedInternals.S;
+    null !== onStartTransitionFinish &&
+      onStartTransitionFinish(transition, returnValue);
     "object" === typeof returnValue &&
       null !== returnValue &&
       "function" === typeof returnValue.then &&
-      (callbacks.forEach(function (callback) {
-        return callback(currentTransition, returnValue);
-      }),
-      returnValue.then(noop, reportGlobalError));
+      returnValue.then(noop, reportGlobalError);
   } catch (error) {
     reportGlobalError(error);
   } finally {
@@ -559,4 +562,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.0.0-experimental-f994737d14-20240522";
+exports.version = "19.0.0-experimental-187dd6a7-20240806";

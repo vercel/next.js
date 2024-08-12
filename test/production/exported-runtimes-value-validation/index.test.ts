@@ -25,8 +25,8 @@ describe('Exported runtimes value validation', () => {
 
     console.log(result.stderr, result.stdout)
 
-    // The build should still succeed with invalid config being ignored
-    expect(result.code).toBe(0)
+    // The build should fail to prevent unexpected behavior
+    expect(result.code).toBe(1)
 
     // Template Literal with Expressions
     expect(result.stderr).toEqual(

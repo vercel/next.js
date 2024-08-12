@@ -58,7 +58,7 @@ export async function createProxyServer({
   })
 
   await new Promise((resolve) => {
-    server.listen(0, 'localhost', () => {
+    server.listen(0, '::', () => {
       resolve(undefined)
     })
   })

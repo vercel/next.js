@@ -28,7 +28,7 @@ export default function Page() {
     // Mutate data
   }
 
-  return <></>
+  return '...'
 }
 ```
 
@@ -40,7 +40,7 @@ export default function Page() {
     // Mutate data
   }
 
-  return <></>
+  return '...'
 }
 ```
 
@@ -85,16 +85,33 @@ export function Button() {
 You can also pass a Server Action to a Client Component as a prop:
 
 ```jsx
-<ClientComponent updateItem={updateItem} />
+<ClientComponent updateItemAction={updateItem} />
 ```
 
-```jsx filename="app/client-component.jsx"
+```tsx filename="app/client-component.tsx" switcher
 'use client'
 
-export default function ClientComponent({ updateItem }) {
-  return <form action={updateItem}>{/* ... */}</form>
+export default function ClientComponent({
+  updateItemAction,
+}: {
+  updateItemAction: (formData: FormData) => void
+}) {
+  return <form action={updateItemAction}>{/* ... */}</form>
 }
 ```
+
+```jsx filename="app/client-component.jsx" switcher
+'use client'
+
+export default function ClientComponent({ updateItemAction }) {
+  return <form action={updateItemAction}>{/* ... */}</form>
+}
+```
+
+Usually, the Next.js TypeScript plugin would flag `updateItemAction` in `client-component.tsx` since it is a function which generally can't be serialized across client-server boundaries.
+However, props named `action` or ending with `Action` are assumed to receive Server Actions.
+This is only a heuristic since the TypeScript plugin doesn't actually know if it receives a Server Action or an ordinary function.
+Runtime type-checking will still ensure you don't accidentally pass a function to a Client Component.
 
 ## Behavior
 
@@ -337,22 +354,34 @@ Once the fields have been validated on the server, you can return a serializable
 ```tsx filename="app/actions.ts" switcher
 'use server'
 
+import { redirect } from 'next/navigation'
+
 export async function createUser(prevState: any, formData: FormData) {
-  // ...
-  return {
-    message: 'Please enter a valid email',
+  const res = await fetch('https://...')
+  const json = await res.json()
+
+  if (!res.ok) {
+    return { message: 'Please enter a valid email' }
   }
+
+  redirect('/dashboard')
 }
 ```
 
 ```jsx filename="app/actions.js" switcher
 'use server'
 
+import { redirect } from 'next/navigation'
+
 export async function createUser(prevState, formData) {
-  // ...
-  return {
-    message: 'Please enter a valid email',
+  const res = await fetch('https://...')
+  const json = await res.json()
+
+  if (!res.ok) {
+    return { message: 'Please enter a valid email' }
   }
+
+  redirect('/dashboard')
 }
 ```
 
@@ -376,9 +405,7 @@ export function Signup() {
       <label htmlFor="email">Email</label>
       <input type="text" id="email" name="email" required />
       {/* ... */}
-      <p aria-live="polite" className="sr-only">
-        {state?.message}
-      </p>
+      <p aria-live="polite">{state?.message}</p>
       <button>Sign up</button>
     </form>
   )
@@ -403,9 +430,7 @@ export function Signup() {
       <label htmlFor="email">Email</label>
       <input type="text" id="email" name="email" required />
       {/* ... */}
-      <p aria-live="polite" className="sr-only">
-        {state?.message}
-      </p>
+      <p aria-live="polite">{state?.message}</p>
       <button>Sign up</button>
     </form>
   )

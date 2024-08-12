@@ -6,7 +6,8 @@ import { nextBuild } from 'next-test-utils'
 
 const appDir = __dirname
 
-describe('app type checking', () => {
+// Turbopack doesn't support additional experimental features in the first version
+;(process.env.TURBOPACK ? describe.skip : describe)('app type checking', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
@@ -39,8 +40,8 @@ describe('app type checking', () => {
           ),
         ].map(([, line]) => +line)
 
-        const ST = 17
-        const ED = 34
+        const ST = 18
+        const ED = 35
         expect(errorLines).toEqual(
           Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
         )
@@ -56,6 +57,21 @@ describe('app type checking', () => {
 
         const ST = 11
         const ED = 13
+        expect(errorLines).toEqual(
+          Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
+        )
+      })
+
+      it('should generate route types correctly and report form errors', async () => {
+        // Make sure all errors were reported and other Forms passed type checking
+        const errorLines = [
+          ...errors.matchAll(
+            /\.\/src\/app\/type-checks\/form\/page\.tsx:(\d+):/g
+          ),
+        ].map(([, line]) => +line)
+
+        const ST = 8
+        const ED = 10
         expect(errorLines).toEqual(
           Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
         )

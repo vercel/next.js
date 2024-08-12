@@ -1,0 +1,12 @@
+.prose :where(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  tr {
+    td:first-child {
+      text-wrap: nowrap;
+    }
+  }
+  text-wrap: initial;
+}
+
+.prose :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  text-wrap: nowrap;
+}

@@ -4,6 +4,7 @@ describe('custom server', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     startCommand: 'node server.js',
+    serverReadyPattern: /^- Local:/,
     dependencies: {
       'get-port': '5.1.1',
     },
@@ -27,9 +28,7 @@ describe('custom server', () => {
 
     it('should render pages with installed react', async () => {
       const $ = await next.render$(`/2`)
-      expect($('body').text()).toMatch(/pages:/)
-      // TODO: should not match rc once React 19 stable is out
-      expect($('body').text()).toMatch(/rc/)
+      expect($('body').text()).toMatch(/pages: 19.0.0/)
     })
   })
 })
@@ -38,6 +37,7 @@ describe('custom server with quiet setting', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     startCommand: 'node server.js',
+    serverReadyPattern: /^- Local:/,
     env: { USE_QUIET: 'true' },
     dependencies: {
       'get-port': '5.1.1',

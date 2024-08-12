@@ -128,7 +128,7 @@ export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGTMEvent({ event: 'buttonClicked', value: 'xyz' })}
+        onClick={() => sendGTMEvent('event', 'buttonClicked', { value: 'xyz' })}
       >
         Send Event
       </button>
@@ -148,7 +148,7 @@ export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGTMEvent({ event: 'buttonClicked', value: 'xyz' })}
+        onClick={() => sendGTMEvent('event', 'buttonClicked', { value: 'xyz' })}
       >
         Send Event
       </button>
@@ -168,13 +168,13 @@ different variables and events that can be passed into the function.
 Options to pass to the Google Tag Manager. For a full list of options, read the [Google Tag Manager
 docs](https://developers.google.com/tag-platform/tag-manager/datalayer).
 
-| Name            | Type     | Description                                                                     |
-| --------------- | -------- | ------------------------------------------------------------------------------- |
-| `gtmId`         | Required | Your GTM container ID. Usually starts with `GTM-`.                              |
-| `dataLayer`     | Optional | Data layer array to instantiate the container with. Defaults to an empty array. |
-| `dataLayerName` | Optional | Name of the data layer. Defaults to `dataLayer`.                                |
-| `auth`          | Optional | Value of authentication parameter (`gtm_auth`) for environment snippets.        |
-| `preview`       | Optional | Value of preview parameter (`gtm_preview`) for environment snippets.            |
+| Name            | Type     | Description                                                              |
+| --------------- | -------- | ------------------------------------------------------------------------ |
+| `gtmId`         | Required | Your GTM container ID. Usually starts with `GTM-`.                       |
+| `dataLayer`     | Optional | Data layer object to instantiate the container with.                     |
+| `dataLayerName` | Optional | Name of the data layer. Defaults to `dataLayer`.                         |
+| `auth`          | Optional | Value of authentication parameter (`gtm_auth`) for environment snippets. |
+| `preview`       | Optional | Value of preview parameter (`gtm_preview`) for environment snippets.     |
 
 ### Google Analytics
 
@@ -288,7 +288,7 @@ export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGAEvent({ event: 'buttonClicked', value: 'xyz' })}
+        onClick={() => sendGAEvent('event', 'buttonClicked', { value: 'xyz' })}
       >
         Send Event
       </button>
@@ -308,7 +308,7 @@ export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGAEvent({ event: 'buttonClicked', value: 'xyz' })}
+        onClick={() => sendGAEvent('event', 'buttonClicked', { value: 'xyz' })}
       >
         Send Event
       </button>

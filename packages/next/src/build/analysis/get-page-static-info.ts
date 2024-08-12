@@ -16,7 +16,10 @@ import { checkCustomRoutes } from '../../lib/load-custom-routes'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
-import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
+import {
+  PHASE_PRODUCTION_BUILD,
+  RSC_MODULE_TYPES,
+} from '../../shared/lib/constants'
 import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
 import { PAGE_TYPES } from '../../lib/page-types'
 
@@ -59,6 +62,8 @@ export interface PageStaticInfo {
   ssr?: boolean
   rsc?: RSCModuleType
   generateStaticParams?: boolean
+  generateSitemaps?: boolean
+  generateImageMetadata?: boolean
   middleware?: MiddlewareConfigParsed
   amp?: boolean | 'hybrid'
   extraConfig?: Record<string, any>
@@ -141,8 +146,8 @@ function checkExports(
   ssg: boolean
   runtime?: string
   preferredRegion?: string | string[]
-  generateImageMetadata?: boolean
-  generateSitemaps?: boolean
+  generateImageMetadata: boolean
+  generateSitemaps: boolean
   generateStaticParams: boolean
   extraProperties?: Set<string>
   directives?: Set<string>
@@ -442,43 +447,30 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
   apiRouteWarnings.set(apiRoute, 1)
 }
 
-const warnedUnsupportedValueMap = new LRUCache<string, boolean>({ max: 250 })
+export let hadUnsupportedValue = false
 
 function warnAboutUnsupportedValue(
   pageFilePath: string,
   page: string | undefined,
   error: UnsupportedValueError
 ) {
-  if (warnedUnsupportedValueMap.has(pageFilePath)) {
-    return
-  }
+  hadUnsupportedValue = true
 
-  Log.warn(
+  const message =
     `Next.js can't recognize the exported \`config\` field in ` +
-      (page ? `route "${page}"` : `"${pageFilePath}"`) +
-      ':\n' +
-      error.message +
-      (error.path ? ` at "${error.path}"` : '') +
-      '.\n' +
-      'The default config will be used instead.\n' +
-      'Read More - https://nextjs.org/docs/messages/invalid-page-config'
-  )
+    (page ? `route "${page}"` : `"${pageFilePath}"`) +
+    ':\n' +
+    error.message +
+    (error.path ? ` at "${error.path}"` : '') +
+    '.\n' +
+    'Read More - https://nextjs.org/docs/messages/invalid-page-config'
 
-  warnedUnsupportedValueMap.set(pageFilePath, true)
-}
-
-// Detect if metadata routes is a dynamic route, which containing
-// generateImageMetadata or generateSitemaps as export
-export async function isDynamicMetadataRoute(
-  pageFilePath: string
-): Promise<boolean> {
-  const fileContent = (await tryToReadFile(pageFilePath, true)) || ''
-  if (/generateImageMetadata|generateSitemaps/.test(fileContent)) {
-    const swcAST = await parseModule(pageFilePath, fileContent)
-    const exportsInfo = checkExports(swcAST, pageFilePath)
-    return !!(exportsInfo.generateImageMetadata || exportsInfo.generateSitemaps)
+  // for a build wait to log all errors before exiting
+  if (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD) {
+    Log.error(message)
+  } else {
+    throw new Error(message)
   }
-  return false
 }
 
 /**
@@ -499,7 +491,7 @@ export async function getPageStaticInfo(params: {
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
+    /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps/.test(
       fileContent
     )
   ) {
@@ -510,6 +502,8 @@ export async function getPageStaticInfo(params: {
       runtime,
       preferredRegion,
       generateStaticParams,
+      generateImageMetadata,
+      generateSitemaps,
       extraProperties,
       directives,
     } = checkExports(swcAST, pageFilePath)
@@ -651,6 +645,8 @@ export async function getPageStaticInfo(params: {
       ssg,
       rsc,
       generateStaticParams,
+      generateImageMetadata,
+      generateSitemaps,
       amp: config.amp || false,
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(resolvedRuntime && { runtime: resolvedRuntime }),
@@ -664,6 +660,8 @@ export async function getPageStaticInfo(params: {
     ssg: false,
     rsc: RSC_MODULE_TYPES.server,
     generateStaticParams: false,
+    generateImageMetadata: false,
+    generateSitemaps: false,
     amp: false,
     runtime: undefined,
   }

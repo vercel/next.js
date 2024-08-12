@@ -109,6 +109,16 @@ describe('app dir - rsc basics', () => {
     expect($('#return-undefined-layout').html()).toBeEmpty()
   })
 
+  it('should handle named client components imported as page', async () => {
+    const $ = await next.render$('/reexport-named')
+    expect($('#client-title').text()).toBe('Client Title')
+  })
+
+  it('should handle client components imported as namespace', async () => {
+    const $ = await next.render$('/reexport-namespace')
+    expect($('#foo').text()).toBe('Foo')
+  })
+
   it('should render server components correctly', async () => {
     const homeHTML = await next.render('/', null, {
       headers: {
@@ -434,7 +444,11 @@ describe('app dir - rsc basics', () => {
       .then(async (response) => {
         const result = await resolveStreamResponse(response)
         expect(result).toContain('component:index.server')
-        expect(result).toMatch(isNextDev ? /0:\["development",/ : /0:\[".*?",/)
+        if (isNextDev) {
+          expect(result).toContain('"b":"development"')
+        } else {
+          expect(result).toMatch(/"b":".*?"/)
+        }
       })
   })
 
