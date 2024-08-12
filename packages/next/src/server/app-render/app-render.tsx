@@ -68,6 +68,7 @@ import {
   createHTMLReactServerErrorHandler,
   createHTMLErrorHandler,
   type DigestedError,
+  isUserLandError,
 } from './create-error-handler'
 import {
   getShortDynamicParamType,
@@ -968,11 +969,18 @@ async function renderToHTMLOrFlightImpl(
       }
     }
 
+    let buildFailingError: unknown
     // If we encountered any unexpected errors during build we fail the
     // prerendering phase and the build.
     if (response.digestErrorsMap.size) {
-      const buildFailingError = response.digestErrorsMap.values().next().value
-      throw buildFailingError
+      buildFailingError = response.digestErrorsMap.values().next().value
+      if (buildFailingError) throw buildFailingError
+    }
+    if (response.ssrErrors.length) {
+      buildFailingError = response.ssrErrors.filter((err) =>
+        isUserLandError(err)
+      )[0]
+      if (buildFailingError) throw buildFailingError
     }
 
     const options: RenderResultOptions = {
@@ -1236,16 +1244,22 @@ async function renderToStream(
     // and should omit the error reporter in the SSR layer instead
     undefined
   )
-  function onServerRenderError(err: DigestedError, isRSCError: boolean) {
-    const renderSource = isRSCError
-      ? 'react-server-components'
-      : 'server-rendering'
+  function onHTMLRenderRSCError(err: DigestedError) {
     return renderOpts.onInstrumentationRequestError?.(
       err,
       req,
-      createErrorContext(ctx, renderSource)
+      createErrorContext(ctx, 'react-server-components')
     )
   }
+
+  function onHTMLRenderSSRError(err: DigestedError) {
+    return renderOpts.onInstrumentationRequestError?.(
+      err,
+      req,
+      createErrorContext(ctx, 'server-rendering')
+    )
+  }
+
   const allCapturedErrors: Array<unknown> = []
   const htmlRendererErrorHandler = createHTMLErrorHandler(
     !!renderOpts.dev,
@@ -1253,7 +1267,8 @@ async function renderToStream(
     renderErrorsByDigest,
     allCapturedErrors,
     silenceLogger,
-    onServerRenderError
+    onHTMLRenderRSCError,
+    onHTMLRenderSSRError
   )
 
   let primaryRenderReactServerStream: null | ReadableStream<Uint8Array> = null
@@ -1572,6 +1587,7 @@ async function renderToStream(
 type PrenderToStringResult = {
   stream: ReadableStream<Uint8Array>
   digestErrorsMap: Map<string, DigestedError>
+  ssrErrors: Array<unknown>
   dynamicTracking?: null | DynamicTrackingState
   err?: unknown
 }
@@ -1646,14 +1662,19 @@ async function prerenderToStream(
     // and should omit the error reporter in the SSR layer instead
     undefined
   )
-  function onServerRenderError(err: DigestedError, isRSCError: boolean) {
-    const renderSource = isRSCError
-      ? 'react-server-components'
-      : 'server-rendering'
+  function onHTMLRenderRSCError(err: DigestedError) {
     return renderOpts.onInstrumentationRequestError?.(
       err,
       req,
-      createErrorContext(ctx, renderSource)
+      createErrorContext(ctx, 'react-server-components')
+    )
+  }
+
+  function onHTMLRenderSSRError(err: DigestedError) {
+    return renderOpts.onInstrumentationRequestError?.(
+      err,
+      req,
+      createErrorContext(ctx, 'server-rendering')
     )
   }
   const allCapturedErrors: Array<unknown> = []
@@ -1663,7 +1684,8 @@ async function prerenderToStream(
     reactServerErrorsByDigest,
     allCapturedErrors,
     silenceLogger,
-    onServerRenderError
+    onHTMLRenderRSCError,
+    onHTMLRenderSSRError
   )
 
   let dynamicTracking: null | DynamicTrackingState = null
@@ -1787,6 +1809,7 @@ async function prerenderToStream(
         // require the same set so we unify the code path here
         return {
           digestErrorsMap: reactServerErrorsByDigest,
+          ssrErrors: allCapturedErrors,
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
           }),
@@ -1834,6 +1857,7 @@ async function prerenderToStream(
 
         return {
           digestErrorsMap: reactServerErrorsByDigest,
+          ssrErrors: allCapturedErrors,
           stream: await continueStaticPrerender(htmlStream, {
             inlinedDataStream: createInlinedDataReadableStream(
               inlinedReactServerDataStream,
@@ -1903,6 +1927,7 @@ async function prerenderToStream(
       })
       return {
         digestErrorsMap: reactServerErrorsByDigest,
+        ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
           inlinedDataStream: createInlinedDataReadableStream(
             inlinedReactServerDataStream,
@@ -2041,6 +2066,7 @@ async function prerenderToStream(
         // the response in the caller.
         err,
         digestErrorsMap: reactServerErrorsByDigest,
+        ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(fizzStream, {
           inlinedDataStream: createInlinedDataReadableStream(
             // This is intentionally using the readable datastream from the

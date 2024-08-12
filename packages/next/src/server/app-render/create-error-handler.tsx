@@ -141,7 +141,8 @@ export function createHTMLErrorHandler(
   reactServerErrors: Map<string, DigestedError>,
   allCapturedErrors: Array<unknown>,
   silenceLogger: boolean,
-  onHTMLRenderError: (err: any, isRSCError: boolean) => void
+  onHTMLRenderSSRError: (err: any) => void,
+  onHTMLRenderRSCError: (err: any) => void
 ): ErrorHandler {
   return (err: any, errorInfo: any) => {
     let isRSCError = false
@@ -171,9 +172,6 @@ export function createHTMLErrorHandler(
 
     // If this is a navigation error, we don't need to log the error.
     if (isNextRouterError(err)) return err.digest
-
-    // In SSR rendering, we always collect the error
-    reactServerErrors.set(err.digest, err)
 
     // If this error occurs, we know that we should be stopping the static
     // render. This is only thrown in static generation when PPR is not enabled,
@@ -206,10 +204,20 @@ export function createHTMLErrorHandler(
       }
 
       if (!silenceLogger) {
-        onHTMLRenderError(err, isRSCError)
+        if (isRSCError) {
+          onHTMLRenderRSCError(err)
+        } else {
+          onHTMLRenderSSRError(err)
+        }
       }
     }
 
     return err.digest
   }
+}
+
+export function isUserLandError(err: any): boolean {
+  return (
+    !isAbortError(err) && !isBailoutToCSRError(err) && !isNextRouterError(err)
+  )
 }
