@@ -237,14 +237,10 @@ export type ActionFlightResponse = {
 }
 
 export type FetchServerResponseResult = {
-  /** flightData */
-  f: FlightData
-  /** canonicalUrl */
-  c: URL | undefined
-  /** couldBeIntercepted */
-  i: boolean
-  /** isPrerender */
-  p: boolean
+  flightData: FlightData
+  canonicalUrl: URL | undefined
+  couldBeIntercepted: boolean
+  isPrerender: boolean
 }
 
 export type RSCPayload =

@@ -137,7 +137,7 @@ function navigateReducer_noPPR(
   prefetchQueue.bump(data)
 
   return data.then(
-    ({ f: flightData, c: canonicalUrlOverride }) => {
+    ({ flightData, canonicalUrl: canonicalUrlOverride }) => {
       let isFirstRead = false
       // we only want to mark this once
       if (!prefetchValues.lastUsedTime) {
@@ -353,7 +353,7 @@ function navigateReducer_PPR(
   prefetchQueue.bump(data)
 
   return data.then(
-    ({ f: flightData, c: canonicalUrlOverride }) => {
+    ({ flightData, canonicalUrl: canonicalUrlOverride }) => {
       let isFirstRead = false
       // we only want to mark this once
       if (!prefetchValues.lastUsedTime) {
@@ -450,6 +450,7 @@ function navigateReducer_PPR(
               head,
               mutable.onlyHashChange
             )
+
             if (task !== null) {
               // We've created a new Cache Node tree that contains a prefetched
               // version of the next page. This can be rendered instantly.
@@ -480,14 +481,17 @@ function navigateReducer_PPR(
                 // root multiple times per navigation, like if the server sends us
                 // a different response than we expected. For now, we revert back
                 // to the lazy fetching mechanism in that case.)
-                listenForDynamicRequest(
-                  task,
-                  fetchServerResponse(url, {
-                    flightRouterState: currentTree,
-                    nextUrl: state.nextUrl,
-                    buildId: state.buildId,
-                  })
-                )
+                const dynamicRequest = fetchServerResponse(url, {
+                  flightRouterState: currentTree,
+                  nextUrl: state.nextUrl,
+                  buildId: state.buildId,
+                })
+
+                listenForDynamicRequest(task, dynamicRequest)
+                // We store the dynamic request on the `lazyData` property of the CacheNode
+                // because we're not going to await the dynamic request here. Since we're not blocking
+                // on the dynamic request, `layout-router` will
+                // task.node.lazyData = dynamicRequest
 
                 mutable.cache = newCache
               }
