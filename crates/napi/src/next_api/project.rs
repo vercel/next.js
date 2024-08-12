@@ -24,7 +24,6 @@ use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
-use turbo_tasks_memory::MemoryBackend;
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
@@ -44,7 +43,7 @@ use url::Url;
 use super::{
     endpoint::ExternalEndpoint,
     utils::{
-        get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue, RootTask,
+        get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue, NextBackend, RootTask,
         TurbopackResult, VcArc,
     },
 };
@@ -251,7 +250,7 @@ impl From<NapiDefineEnv> for DefineEnv {
 }
 
 pub struct ProjectInstance {
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: Arc<TurboTasks<NextBackend>>,
     container: Vc<ProjectContainer>,
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
@@ -316,7 +315,7 @@ pub async fn project_new(
         subscriber.init();
     }
 
-    let turbo_tasks = TurboTasks::new(MemoryBackend::new(
+    let turbo_tasks = TurboTasks::new(NextBackend::new(
         turbo_engine_options
             .memory_limit
             .map(|m| m as usize)
@@ -480,7 +479,7 @@ impl NapiRoute {
     fn from_route(
         pathname: String,
         value: Route,
-        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
+        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
     ) -> Self {
         let convert_endpoint = |endpoint: Vc<Box<dyn Endpoint>>| {
             Some(External::new(ExternalEndpoint(VcArc::new(
@@ -547,7 +546,7 @@ struct NapiMiddleware {
 impl NapiMiddleware {
     fn from_middleware(
         value: &Middleware,
-        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
+        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
     ) -> Result<Self> {
         Ok(NapiMiddleware {
             endpoint: External::new(ExternalEndpoint(VcArc::new(
@@ -567,7 +566,7 @@ struct NapiInstrumentation {
 impl NapiInstrumentation {
     fn from_instrumentation(
         value: &Instrumentation,
-        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
+        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
     ) -> Result<Self> {
         Ok(NapiInstrumentation {
             node_js: External::new(ExternalEndpoint(VcArc::new(
