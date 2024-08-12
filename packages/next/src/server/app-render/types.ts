@@ -216,6 +216,8 @@ export type InitialRSCPayload = {
   m: Set<string> | undefined
   /** GlobalError */
   G: React.ComponentType<any>
+  /** postponed */
+  s: boolean
 }
 
 // Response from `createFromFetch` for normal rendering

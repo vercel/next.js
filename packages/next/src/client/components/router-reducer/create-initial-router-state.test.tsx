@@ -42,6 +42,7 @@ describe('createInitialRouterState', () => {
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
       couldBeIntercepted: false,
+      postponed: false,
     })
 
     const state2 = createInitialRouterState({
@@ -52,6 +53,8 @@ describe('createInitialRouterState', () => {
       initialCanonicalUrl,
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
+      couldBeIntercepted: false,
+      postponed: false,
     })
 
     const expectedCache: CacheNode = {

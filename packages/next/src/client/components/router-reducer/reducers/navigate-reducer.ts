@@ -353,7 +353,7 @@ function navigateReducer_PPR(
   prefetchQueue.bump(data)
 
   return data.then(
-    ({ flightData, canonicalUrl: canonicalUrlOverride }) => {
+    ({ flightData, canonicalUrl: canonicalUrlOverride, postponed }) => {
       let isFirstRead = false
       // we only want to mark this once
       if (!prefetchValues.lastUsedTime) {
@@ -428,15 +428,16 @@ function navigateReducer_PPR(
           }
 
           if (
-            // This is just a paranoid check. When PPR is enabled, the server
-            // will always send back a static response that's rendered from
+            // This is just a paranoid check. When a route is PPRed, the server
+            // will send back a static response that's rendered from
             // the root. If for some reason it doesn't, we fall back to the
             // non-PPR implementation.
             // TODO: We should get rid of the else branch and do all navigations
             // via updateCacheNodeOnNavigation. The current structure is just
             // an incremental step.
             flightDataPath.length === 3 &&
-            !prefetchValues.aliased
+            !prefetchValues.aliased &&
+            postponed
           ) {
             const prefetchedTree: FlightRouterState = flightDataPath[0]
             const seedData = flightDataPath[1]
