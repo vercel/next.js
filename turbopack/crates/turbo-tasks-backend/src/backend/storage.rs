@@ -46,6 +46,10 @@ impl<T: KeyValuePair> InnerStorage<T> {
         self.map.get(key)
     }
 
+    pub fn has_key(&self, key: &T::Key) -> bool {
+        self.map.contains_key(key)
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (&T::Key, &T::Value)> {
         self.map.iter()
     }
