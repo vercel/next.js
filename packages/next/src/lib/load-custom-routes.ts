@@ -5,6 +5,7 @@ import { bold, yellow } from './picocolors'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { tryToParsePath } from './try-to-parse-path'
 import { allowedStatusCodes } from './redirect-status'
+import { parseUrl } from './url'
 
 export type RouteHas =
   | {
@@ -597,14 +598,18 @@ async function loadRewrites(config: NextConfig) {
   // configure this themselves.
   let maybeAssetPrefixRewrite: Rewrite[] = []
   if (config.assetPrefix) {
-    const assetPrefix = config.assetPrefix.startsWith('/')
-      ? config.assetPrefix
-      : `/${config.assetPrefix}`
-    const basePath = config.basePath || ''
-    maybeAssetPrefixRewrite.push({
-      source: `${assetPrefix}/_next/:path+`,
-      destination: `${basePath}/_next/:path+`,
-    })
+    const parsedUrl = parseUrl(config.assetPrefix)
+    // If the assetPrefix is an absolute URL, we can't add an automatic rewrite.
+    if (!parsedUrl?.host) {
+      const assetPrefix = config.assetPrefix.startsWith('/')
+        ? config.assetPrefix
+        : `/${config.assetPrefix}`
+      const basePath = config.basePath || ''
+      maybeAssetPrefixRewrite.push({
+        source: `${assetPrefix}/_next/:path+`,
+        destination: `${basePath}/_next/:path+`,
+      })
+    }
   }
 
   if (typeof config.rewrites !== 'function') {
