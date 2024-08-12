@@ -1232,12 +1232,12 @@ async function renderToStream(
   )
 
   // Including both RSC errors and SSR errors
-  const renderErrorsByDigest: Map<string, DigestedError> = new Map()
+  const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
   const silenceLogger = false
   const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
     !!renderOpts.dev,
     !!renderOpts.nextExport,
-    renderErrorsByDigest,
+    reactServerErrorsByDigest,
     silenceLogger,
     // RSC rendering error will report as SSR error
     // @TODO we should report RSC errors where they happen for instrumentation purposes
@@ -1264,7 +1264,7 @@ async function renderToStream(
   const htmlRendererErrorHandler = createHTMLErrorHandler(
     !!renderOpts.dev,
     !!renderOpts.nextExport,
-    renderErrorsByDigest,
+    reactServerErrorsByDigest,
     allCapturedErrors,
     silenceLogger,
     onHTMLRenderRSCError,
