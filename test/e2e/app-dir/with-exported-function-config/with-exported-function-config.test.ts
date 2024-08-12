@@ -16,11 +16,9 @@ describe('with-exported-function-config', () => {
           '/api/page-route': {
             maxDuration: 1,
           },
-          // TODO: remove this comment.
-          // The `maxDuration` for `/app-layout/inner` is present, but `/app-layout` is not.
-          // This occurs because the `maxDuration` defined in `layout.tsx` is not overridden
-          // at `/app-layout`, and `/app-layout/inner` has it's own `maxDuration` defined just
-          // like other routes.
+          '/app-layout': {
+            maxDuration: 1,
+          },
           '/app-layout/inner': {
             maxDuration: 2,
           },
@@ -45,11 +43,6 @@ describe('with-exported-function-config', () => {
         },
         version: 1,
       })
-
-      // TODO: remove the test below, it is to show the current behavior
-      expect(functionsConfigManifest.functions).not.toHaveProperty(
-        '/app-layout'
-      )
     }
   })
 })
