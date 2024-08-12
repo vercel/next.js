@@ -458,14 +458,30 @@ impl IssueSource {
         start: SourcePos,
         end: SourcePos,
     ) -> Result<Vc<Self>> {
-        // If we have a source map, map the line/column to the original source.
-        let start = source_pos(source, start.line, start.column).await?;
-        let end = source_pos(source, end.line, end.column).await?;
-
         Ok(Self::cell(IssueSource {
             source,
             range: Some(SourceRange::LineColumn(start, end).cell()),
         }))
+    }
+
+    #[turbo_tasks::function]
+    async fn resolve_source_map(self: Vc<Self>) -> Result<Vc<Self>> {
+        let this = self.await?;
+
+        if let Some(range) = this.range {
+            if let SourceRange::LineColumn(start, end) = &*range.await? {
+                // If we have a source map, map the line/column to the original source.
+                let start = source_pos(this.source, start.line, start.column).await?;
+                let end = source_pos(this.source, end.line, end.column).await?;
+
+                return Ok(Self::cell(IssueSource {
+                    source: this.source,
+                    range: Some(SourceRange::LineColumn(start, end).cell()),
+                }));
+            }
+        }
+
+        Ok(self)
     }
 
     /// Create a [`IssueSource`] from byte offsets given by an swc ast node
