@@ -19,7 +19,7 @@ use anyhow::Result;
 use auto_hash_map::{AutoMap, AutoSet};
 use dashmap::DashMap;
 pub use operation::AnyOperation;
-use operation::ConnectChildOperation;
+use operation::{CleanupOldEdgesOperation, ConnectChildOperation, OutdatedEdge};
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHasher;
 use smallvec::smallvec;
@@ -275,13 +275,16 @@ impl TurboTasksBackend {
                 });
                 drop(task);
                 let mut reader_task = ctx.task(reader);
-                reader_task.add(CachedDataItem::CellDependency {
-                    target: CellRef {
-                        task: task_id,
-                        cell,
-                    },
-                    value: (),
-                });
+                let target = CellRef {
+                    task: task_id,
+                    cell,
+                };
+                if reader_task
+                    .remove(&CachedDataItemKey::OutdatedCellDependency { target })
+                    .is_none()
+                {
+                    reader_task.add(CachedDataItem::CellDependency { target, value: () });
+                }
             }
             return Ok(Ok(CellContent(Some(content)).into_typed(cell.type_id)));
         }
@@ -412,8 +415,95 @@ impl Backend for TurboTasksBackend {
                     done_event,
                 },
             });
+
+            // Make all current children outdated (remove left-over outdated children)
+            enum Child {
+                Current(TaskId),
+                Outdated(TaskId),
+            }
+            let children = task
+                .iter()
+                .filter_map(|(key, _)| match *key {
+                    CachedDataItemKey::Child { task } => Some(Child::Current(task)),
+                    CachedDataItemKey::OutdatedChild { task } => Some(Child::Outdated(task)),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            for child in children {
+                match child {
+                    Child::Current(child) => {
+                        task.add(CachedDataItem::OutdatedChild {
+                            task: child,
+                            value: (),
+                        });
+                    }
+                    Child::Outdated(child) => {
+                        if !task.has_key(&CachedDataItemKey::Child { task: child }) {
+                            task.remove(&CachedDataItemKey::OutdatedChild { task: child });
+                        }
+                    }
+                }
+            }
+
+            // Make all dependencies outdated
+            enum Dep {
+                CurrentCell(CellRef),
+                CurrentOutput(TaskId),
+                OutdatedCell(CellRef),
+                OutdatedOutput(TaskId),
+            }
+            let dependencies = task
+                .iter()
+                .filter_map(|(key, _)| match *key {
+                    CachedDataItemKey::CellDependency { target } => Some(Dep::CurrentCell(target)),
+                    CachedDataItemKey::OutputDependency { target } => {
+                        Some(Dep::CurrentOutput(target))
+                    }
+                    CachedDataItemKey::OutdatedCellDependency { target } => {
+                        Some(Dep::OutdatedCell(target))
+                    }
+                    CachedDataItemKey::OutdatedOutputDependency { target } => {
+                        Some(Dep::OutdatedOutput(target))
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            for dep in dependencies {
+                match dep {
+                    Dep::CurrentCell(cell) => {
+                        task.add(CachedDataItem::OutdatedCellDependency {
+                            target: cell,
+                            value: (),
+                        });
+                    }
+                    Dep::CurrentOutput(output) => {
+                        task.add(CachedDataItem::OutdatedOutputDependency {
+                            target: output,
+                            value: (),
+                        });
+                    }
+                    Dep::OutdatedCell(cell) => {
+                        if !task.has_key(&CachedDataItemKey::CellDependency { target: cell }) {
+                            task.remove(&CachedDataItemKey::OutdatedCellDependency {
+                                target: cell,
+                            });
+                        }
+                    }
+                    Dep::OutdatedOutput(output) => {
+                        if !task.has_key(&CachedDataItemKey::OutputDependency { target: output }) {
+                            task.remove(&CachedDataItemKey::OutdatedOutputDependency {
+                                target: output,
+                            });
+                        }
+                    }
+                }
+            }
+
+            // TODO: Make all collectibles outdated
+
             start_event.notify(usize::MAX);
         }
+
         let (span, future) = if let Some(task_type) = self.task_cache.lookup_reverse(&task_id) {
             match &*task_type {
                 CachedTaskType::Native { fn_type, this, arg } => (
@@ -542,8 +632,27 @@ impl Backend for TurboTasksBackend {
                     done_event,
                 },
             });
+            drop(task);
+            drop(ctx);
         } else {
+            let old_edges = task
+                .iter()
+                .filter_map(|(key, _)| match *key {
+                    CachedDataItemKey::OutdatedChild { task } => Some(OutdatedEdge::Child(task)),
+                    CachedDataItemKey::OutdatedCellDependency { target } => {
+                        Some(OutdatedEdge::CellDependency(target))
+                    }
+                    CachedDataItemKey::OutdatedOutputDependency { target } => {
+                        Some(OutdatedEdge::OutputDependency(target))
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+
             done_event.notify(usize::MAX);
+            drop(task);
+
+            CleanupOldEdgesOperation::run(task_id, old_edges, ctx);
         }
 
         stale

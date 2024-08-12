@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use turbo_tasks::{event::Event, util::SharedError, CellId, KeyValuePair, SharedReference, TaskId};
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CellRef {
     pub task: TaskId,
     pub cell: CellId,
@@ -150,6 +151,10 @@ pub enum CachedDataItem {
         target: CellRef,
         value: (),
     },
+    OutdatedChild {
+        task: TaskId,
+        value: (),
+    },
 
     // Transient Error State
     Error {
@@ -183,6 +188,7 @@ impl CachedDataItem {
             CachedDataItem::OutdatedCollectible { .. } => false,
             CachedDataItem::OutdatedOutputDependency { .. } => false,
             CachedDataItem::OutdatedCellDependency { .. } => false,
+            CachedDataItem::OutdatedChild { .. } => false,
             CachedDataItem::Error { .. } => false,
         }
     }
@@ -224,6 +230,7 @@ impl CachedDataItemKey {
             CachedDataItemKey::OutdatedCollectible { .. } => false,
             CachedDataItemKey::OutdatedOutputDependency { .. } => false,
             CachedDataItemKey::OutdatedCellDependency { .. } => false,
+            CachedDataItemKey::OutdatedChild { .. } => false,
             CachedDataItemKey::Error { .. } => false,
         }
     }
