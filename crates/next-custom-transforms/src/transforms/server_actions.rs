@@ -761,7 +761,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             if self.in_action_file {
                 let mut disallowed_export_span = DUMMY_SP;
 
-                // Currrently only function exports are allowed.
+                // Currently only function exports are allowed.
                 match &mut stmt {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, span })) => {
                         match decl {
