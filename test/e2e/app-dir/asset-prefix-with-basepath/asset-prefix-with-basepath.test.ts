@@ -42,7 +42,6 @@ describe('app-dir assetPrefix with basePath handling', () => {
       const { src } = script.attribs
       if (src?.includes('/custom-asset-prefix/_next/static')) {
         bundles.push(src)
-        console.log(src)
       }
     }
 
@@ -53,5 +52,25 @@ describe('app-dir assetPrefix with basePath handling', () => {
 
       expect(status).toBe(200)
     }
+  })
+
+  describe('rewrites', () => {
+    it('rewrites that do not start with assetPrefix should still work', async () => {
+      const res = await next.fetch(
+        '/custom-base-path/not-custom-asset-prefix/api/test-json',
+        {}
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('{"message":"test"}')
+    })
+
+    it('should respect rewrites that start with assetPrefix', async () => {
+      const res = await next.fetch(
+        '/custom-base-path/custom-asset-prefix/api/test-json',
+        {}
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('{"message":"test"}')
+    })
   })
 })
