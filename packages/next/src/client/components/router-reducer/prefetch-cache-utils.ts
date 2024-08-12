@@ -11,10 +11,10 @@ import type { FetchServerResponseResult } from '../../../server/app-render/types
 const INTERCEPTION_CACHE_KEY_MARKER = '%'
 
 export type AliasedPrefetchCacheEntry = PrefetchCacheEntry & {
-  /** This is a special property that signals to the router that it should only apply
-   * the loading state on the prefetched data. This can happen when you have a full prefetch
-   * and want to re-use its loading state for a page that corresponds with the same segment but
-   * has different search params */
+  /** This is a special property that indicates a prefetch entry associated with a different URL
+   * was returned rather than the requested URL. This signals to the router that it should only
+   * apply the part that doesn't depend on searchParams (specifically the loading state).
+   */
   aliased?: boolean
 }
 
@@ -83,13 +83,29 @@ function getExistingCacheEntry(
       maybeNextUrl
     )
 
-    // We check for the cache entry with search params first, as it's more specific.
+    // First, we check if we have a cache entry that exactly matches the URL
     const cacheKeyToUse = url.search
       ? cacheKeyWithParams
       : cacheKeyWithoutParams
 
     if (prefetchCache.has(cacheKeyToUse)) {
       return prefetchCache.get(cacheKeyToUse)
+    }
+
+    // If the request contains search params, and we're not doing a full prefetch, we can return the
+    // param-less entry if it exists.
+    // This is technically covered by the check at the bottom of this function, which iterates over cache entries,
+    // but lets us arrive there quicker in the param-full case.
+    const entryWithoutParams = prefetchCache.get(cacheKeyWithoutParams)
+    if (
+      url.search &&
+      kind !== PrefetchKind.FULL &&
+      entryWithoutParams &&
+      // We shouldn't return the aliased entry if it was relocated to a new cache key.
+      // Since it's rewritten, it could respond with a completely different loading state.
+      !entryWithoutParams.key.includes(INTERCEPTION_CACHE_KEY_MARKER)
+    ) {
+      return { ...entryWithoutParams, aliased: true }
     }
   }
 
