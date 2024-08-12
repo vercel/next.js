@@ -1768,13 +1768,14 @@ impl JsValue {
 
 // Defineable name management
 impl JsValue {
-    /// When the value has a user-defineable name, return the length of it (in
-    /// segments). Otherwise returns None.
-    /// - any free var has itself as user-defineable name.
-    /// - any member access adds the identifier as segement to the name of the object.
-    /// - some well-known objects/functions have a user-defineable names.
+    /// When the value has a user-defineable name, return the length of it (in segments). Otherwise
+    /// returns None.
+    /// - any free var has itself as user-defineable name: ["foo"]
+    /// - any member access adds the identifier as segment after the object: ["foo", "prop"]
+    /// - some well-known objects/functions have a user-defineable names: ["import"]
     /// - member calls without arguments also have a user-defineable name which is the property with
-    ///   `()` appended.
+    ///   `()` appended: ["foo", "prop()"]
+    /// - typeof expressions add `typeof` after the argument's segments: ["foo", "typeof"]
     pub fn get_defineable_name_len(&self) -> Option<usize> {
         match self {
             JsValue::FreeVar(_) => Some(1),
@@ -1788,6 +1789,7 @@ impl JsValue {
             {
                 Some(callee.get_defineable_name_len()? + 1)
             }
+            JsValue::TypeOf(_, arg) => Some(arg.get_defineable_name_len()? + 1),
 
             _ => None,
         }
@@ -1845,6 +1847,11 @@ impl<'a> Iterator for DefineableNameIter<'a> {
                 self.next = Some(callee);
                 format!("{}()", prop.as_str()?).into()
             }
+            JsValue::TypeOf(_, arg) => {
+                self.next = Some(arg);
+                "typeof".into()
+            }
+
             _ => return None,
         })
     }
