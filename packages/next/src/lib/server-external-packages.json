@@ -35,6 +35,7 @@
   "mongoose",
   "next-mdx-remote",
   "next-seo",
+  "node-cron",
   "node-pty",
   "node-web-audio-api",
   "oslo",
