@@ -3,6 +3,7 @@ import type { RequestStore } from '../../client/components/request-async-storage
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { IncrementalCache } from './incremental-cache'
 import { createPatchedFetcher } from './patch-fetch'
+import type { PrerenderStore } from '../app-render/prerender-async-storage.external'
 
 describe('createPatchedFetcher', () => {
   it('should not buffer a streamed response', async () => {
@@ -24,10 +25,13 @@ describe('createPatchedFetcher', () => {
     const staticGenerationAsyncStorage =
       new AsyncLocalStorage<StaticGenerationStore>()
 
+    const prerenderAsyncStorage = new AsyncLocalStorage<PrerenderStore>()
+
     const patchedFetch = createPatchedFetcher(mockFetch, {
       // requestAsyncStorage does not need to provide a store for this test.
       requestAsyncStorage: new AsyncLocalStorage<RequestStore>(),
       staticGenerationAsyncStorage,
+      prerenderAsyncStorage,
     })
 
     let resolveIncrementalCacheSet: () => void

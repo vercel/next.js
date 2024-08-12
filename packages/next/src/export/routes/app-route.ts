@@ -43,7 +43,7 @@ export async function exportAppRoute(
   distDir: string,
   htmlFilepath: string,
   fileWriter: FileWriter,
-  experimental: Required<Pick<ExperimentalConfig, 'after'>>
+  experimental: Required<Pick<ExperimentalConfig, 'after' | 'dynamicIO'>>
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`

@@ -837,18 +837,19 @@ describe('Error overlay for hydration errors', () => {
           <RedirectBoundary>
             <RedirectErrorBoundary router={{...}}>
               <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
-                <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
-                  <Page params={{}} searchParams={{}}>
-                    <div>
+                <Segment>
+                  <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
+                    <Page params={{}} searchParams={{}}>
                       <div>
                         <div>
                           <div>
-                            <Mismatch>
-                              <p>
-                                <span>
-                                  ...
-        +                          client
-        -                          server"
+                            <div>
+                              <Mismatch>
+                                <p>
+                                  <span>
+                                    ...
+        +                            client
+        -                            server"
       `)
     } else {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
@@ -856,17 +857,18 @@ describe('Error overlay for hydration errors', () => {
           <RedirectBoundary>
             <RedirectErrorBoundary router={{...}}>
               <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
-                <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
-                  <Page params={{}} searchParams={{}}>
-                    <div>
+                <Segment>
+                  <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
+                    <Page params={{}} searchParams={{}}>
                       <div>
                         <div>
                           <div>
-                            <Mismatch>
-                              <p>
-                                <span>
-        +                          client
-        -                          server"
+                            <div>
+                              <Mismatch>
+                                <p>
+                                  <span>
+        +                            client
+        -                            server"
       `)
     }
 

@@ -23,7 +23,7 @@ export type StaticGenerationContext = {
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOptsPartial['experimental'],
-      'isRoutePPREnabled' | 'after'
+      'isRoutePPREnabled' | 'after' | 'dynamicIO'
     >
 
     /**

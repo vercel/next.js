@@ -384,6 +384,7 @@ export class AppRouteRouteModule extends RouteModule<
                       staticGenerationAsyncStorage:
                         this.staticGenerationAsyncStorage,
                       requestAsyncStorage: this.requestAsyncStorage,
+                      prerenderAsyncStorage: this.prerenderAsyncStorage,
                     })
                     const res = await handler(request, {
                       params: context.params

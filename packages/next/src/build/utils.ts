@@ -1403,6 +1403,7 @@ export async function buildAppStaticPaths({
         isRevalidate: false,
         experimental: {
           after: false,
+          dynamicIO: false,
         },
       },
     },
