@@ -413,6 +413,11 @@ export interface ProjectOptions {
   projectPath: string
 
   /**
+   * The path to the .next directory.
+   */
+  distDir: string
+
+  /**
    * The next.config.js contents.
    */
   nextConfig: NextConfigComplete
@@ -1547,15 +1552,18 @@ function loadNative(importPath?: string) {
       initHeapProfiler: bindings.initHeapProfiler,
       teardownHeapProfiler: bindings.teardownHeapProfiler,
       turbo: {
-        startTrace: (options = {}, turboTasks: unknown) => {
+        startTrace: (options = {}, turboTasks: { __napi: 'TurboTasks' }) => {
           initHeapProfiler()
           return (customBindings ?? bindings).runTurboTracing(
             toBuffer({ exact: true, ...options }),
             turboTasks
           )
         },
-        createTurboTasks: (memoryLimit?: number): unknown =>
-          bindings.createTurboTasks(memoryLimit),
+        createTurboTasks: (
+          outputPath: string,
+          memoryLimit?: number
+        ): { __napi: 'TurboTasks' } =>
+          bindings.createTurboTasks(outputPath, memoryLimit),
         entrypoints: {
           stream: (
             turboTasks: any,

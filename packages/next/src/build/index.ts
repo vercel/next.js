@@ -1266,6 +1266,7 @@ export default async function build(
           {
             projectPath: dir,
             rootPath: config.outputFileTracingRoot || dir,
+            distDir,
             nextConfig: config,
             jsConfig: await getTurbopackJsConfig(dir, config),
             watch: false,
