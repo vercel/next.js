@@ -149,6 +149,15 @@ describe('loadCustomRoutes', () => {
         expect(customRoutes.rewrites.beforeFiles).toEqual([])
         expect(customRoutes.rewrites.afterFiles).toEqual([])
       })
+
+      it('does not add rewrite when assetPrefix === basePath', async () => {
+        const customRoutes = await loadCustomRoutes({
+          assetPrefix: '/base',
+          basePath: '/base',
+        })
+        expect(customRoutes.rewrites.beforeFiles).toEqual([])
+        expect(customRoutes.rewrites.afterFiles).toEqual([])
+      })
     })
   })
 })

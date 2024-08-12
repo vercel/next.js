@@ -603,10 +603,13 @@ async function loadRewrites(config: NextConfig) {
       ? config.assetPrefix
       : `/${config.assetPrefix}`
     const basePath = config.basePath || ''
-    maybeAssetPrefixRewrite.push({
-      source: `${assetPrefix}/_next/:path+`,
-      destination: `${basePath}/_next/:path+`,
-    })
+    // If these are the same, then this would result in an infinite rewrite.
+    if (assetPrefix !== basePath) {
+      maybeAssetPrefixRewrite.push({
+        source: `${assetPrefix}/_next/:path+`,
+        destination: `${basePath}/_next/:path+`,
+      })
+    }
   }
 
   if (typeof config.rewrites !== 'function') {
