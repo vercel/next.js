@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use serde::Serialize;
 use turbo_tasks::{
-    emit, CollectiblesSource, RawVc, RcStr, ReadRef, TransientInstance, TransientValue,
+    emit, vdbg, CollectiblesSource, RawVc, RcStr, ReadRef, TransientInstance, TransientValue,
     TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
@@ -466,6 +466,7 @@ impl IssueSource {
 
     #[turbo_tasks::function]
     pub async fn resolve_source_map(self: Vc<Self>) -> Result<Vc<Self>> {
+        vdbg!(self);
         let this = self.await?;
 
         if let Some(range) = this.range {
