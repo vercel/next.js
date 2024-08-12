@@ -975,11 +975,10 @@ async function renderToHTMLOrFlightImpl(
       const buildFailingError = response.digestErrorsMap.values().next().value
       if (buildFailingError) throw buildFailingError
     }
+    // Pick first userland SSR error, which is also not a RSC error.
     if (response.ssrErrors.length) {
-      const buildFailingError = response.ssrErrors.find(
-        (err) =>
-          isUserLandError(err) &&
-          !response.digestErrorsMap.has((err as any).digest)
+      const buildFailingError = response.ssrErrors.find((err) =>
+        isUserLandError(err)
       )
       if (buildFailingError) throw buildFailingError
     }
@@ -1232,7 +1231,6 @@ async function renderToStream(
     renderOpts.page
   )
 
-  // Including both RSC errors and SSR errors
   const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
   const silenceLogger = false
   const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
