@@ -6,7 +6,7 @@ import styles from "@/styles/Home.module.css";
 import { FilterType } from "@/utils/types";
 import { FilterEnum } from "@/utils/enum";
 import { FileObject } from "imagekit/dist/libs/interfaces";
-import { IKImage, IKVideo } from "imagekit-next";
+import { IKImage, IKVideo } from "imagekitio-next";
 import Link from "next/link";
 
 export default function Home({
@@ -22,9 +22,17 @@ export default function Home({
   const [files, setFiles] = useState<FileObject[]>(allFiles);
 
   useEffect(() => {
-    if (filterState === FilterEnum.ALL) setFiles(allFiles);
-    else if (filterState === FilterEnum.PHOTOS) setFiles(images);
-    else if (filterState === FilterEnum.VIDEOS) setFiles(videos);
+    switch (filterState) {
+      case FilterEnum.ALL:
+        setFiles(allFiles);
+        break;
+      case FilterEnum.PHOTOS:
+        setFiles(images);
+        break;
+      default:
+        setFiles(videos);
+        break;
+    }
   }, [filterState, allFiles, images, videos]);
 
   return (

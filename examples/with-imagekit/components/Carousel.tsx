@@ -1,6 +1,6 @@
 import { FileObject } from "imagekit/dist/libs/interfaces";
 import { useRouter } from "next/router";
-import { IKImage, IKVideo } from "imagekit-next";
+import { IKImage, IKVideo } from "imagekitio-next";
 import { RefObject, useEffect, useState } from "react";
 import Preview from "./Preview";
 import { getClosestSubarray } from "@/utils/imagekit";
@@ -39,7 +39,9 @@ const Carousel = ({
         currentIndex={currentIndex}
         setCurrentIndex={setCurrentIndex}
       />
-      {images[currentIndex]?.fileType === "image" ? (
+      {images[currentIndex]?.fileType === "image" &&
+      imageWrapperDimension.width &&
+      imageWrapperDimension.height ? (
         <IKImage
           key={imageId as string}
           urlEndpoint={process.env.NEXT_PUBLIC_URL_ENDPOINT}

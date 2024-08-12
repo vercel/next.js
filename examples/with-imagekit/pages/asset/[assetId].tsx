@@ -46,10 +46,10 @@ export const getStaticProps: GetStaticProps = async (context) => {
 
 export async function getStaticPaths() {
   const images = await listFiles(100, 0, FilterEnum.ALL);
-  let fullPaths = [];
-  for (let i = 0; i < images.length; i++) {
-    fullPaths.push({ params: { assetId: images[i].fileId } });
-  }
+  const fullPaths = images.map((image) => {
+    return { params: { assetId: image.fileId } };
+  });
+
   return {
     paths: fullPaths,
     fallback: false,

@@ -5,8 +5,19 @@ import { FileObject } from "imagekit/dist/libs/interfaces";
 
 const CONFIG_OPTIONS = {
   publicKey: process.env.NEXT_PUBLIC_PUBLIC_KEY as string,
-  privateKey: process.env.PRIVATE_KEY as string,
+  privateKey: process.env.IMAGEKIT_PRIVATE_KEY as string,
   urlEndpoint: process.env.NEXT_PUBLIC_URL_ENDPOINT as string,
+};
+
+const createSearchQuery = (filterState: FilterType) => {
+  switch (filterState) {
+    case FilterEnum.PHOTOS:
+      return '"private" = false AND (type="file") AND (format IN ["jpg","webp","png","gif","svg","avif","ico"])';
+    case FilterEnum.VIDEOS:
+      return '"private" = false AND (type="file") AND (format IN ["mp4","m4v","webm","mov"])';
+    default:
+      return '"private" = false AND (type="file") AND (format IN ["mp4","m4v","webm","mov","jpg","webp","png","gif","svg","avif","ico"])';
+  }
 };
 
 export const listFiles = async (
@@ -20,12 +31,7 @@ export const listFiles = async (
     limit,
     skip,
     fileType: "all",
-    searchQuery:
-      filterState === FilterEnum.PHOTOS
-        ? '"private" = false AND (type="file") AND (format IN ["jpg","webp","png","gif","svg","avif","ico"])'
-        : filterState === FilterEnum.VIDEOS
-        ? '"private" = false AND (type="file") AND (format IN ["mp4","m4v","webm","mov"])'
-        : '"private" = false AND (type="file") AND (format IN ["mp4","m4v","webm","mov","jpg","webp","png","gif","svg","avif","ico"])',
+    searchQuery: createSearchQuery(filterState),
     path: process.env.IMAGEKIT_FOLDER,
   });
   return response;
@@ -51,5 +57,7 @@ export function getClosestSubarray(
 
   start = Math.max(start, 0);
 
-  return arr.slice(start, end).map(((data,index)=>({...data,index:start+index})));
+  return arr
+    .slice(start, end)
+    .map((data, index) => ({ ...data, index: start + index }));
 }
