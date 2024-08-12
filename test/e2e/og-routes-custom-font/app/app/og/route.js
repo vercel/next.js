@@ -1,13 +1,9 @@
-import fs from 'fs'
-import path from 'path'
 import { ImageResponse } from 'next/og'
 
-export const contentType = 'image/png'
-
-export default async function og() {
-  const font = await fs.promises.readFile(
-    path.join(process.cwd(), 'assets/typewr__.ttf')
-  )
+export async function GET() {
+  const font = await fetch(
+    new URL('../../../assets/typewr__.ttf', import.meta.url)
+  ).then((res) => res.arrayBuffer())
   return new ImageResponse(
     (
       <div
@@ -37,4 +33,4 @@ export default async function og() {
   )
 }
 
-export const runtime = 'nodejs'
+export const runtime = 'edge'
