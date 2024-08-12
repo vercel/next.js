@@ -108,9 +108,12 @@ function mergeStaticMetadata(
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
 
   // Keep updating the static icons in the most leaf node
-  if (icon || apple) {
-    leafSegmentStaticIcons.icon = icon || []
-    leafSegmentStaticIcons.apple = apple || []
+
+  if (icon) {
+    leafSegmentStaticIcons.icon = icon
+  }
+  if (apple) {
+    leafSegmentStaticIcons.apple = apple
   }
 
   // file based metadata is specified and current level metadata twitter.images is not specified
