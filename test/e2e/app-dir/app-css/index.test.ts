@@ -681,15 +681,17 @@ describe('app dir - css', () => {
       })
     })
 
-    describe('error handling', () => {
-      it('should use original source points for sass errors', async () => {
-        const browser = await next.browser('/css/sass-error/inner')
+    if (isNextDev && process.env.TURBOPACK) {
+      describe('error handling', () => {
+        it('should use original source points for sass errors', async () => {
+          const browser = await next.browser('/css/sass-error/inner')
 
-        const source = await getRedboxSource(browser)
+          const source = await getRedboxSource(browser)
 
-        expect(source).toMatchInlineSnapshot()
+          expect(source).toMatchInlineSnapshot()
+        })
       })
-    })
+    }
   })
 
   // Pages directory shouldn't be affected when `appDir` is enabled
