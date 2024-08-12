@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('app-dir assetPrefix with basePath handling', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should redirect route when requesting it directly', async () => {
@@ -43,6 +42,7 @@ describe('app-dir assetPrefix with basePath handling', () => {
       const { src } = script.attribs
       if (src?.includes('/custom-asset-prefix/_next/static')) {
         bundles.push(src)
+        console.log(src)
       }
     }
 

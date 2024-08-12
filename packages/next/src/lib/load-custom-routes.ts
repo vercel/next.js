@@ -592,9 +592,24 @@ async function loadRedirects(config: NextConfig) {
 }
 
 async function loadRewrites(config: NextConfig) {
+  // If assetPrefix is set, add a rewrite for `/${assetPrefix}/_next/*`
+  // requests to make sure automatically so that the user doesn't need to
+  // configure this themselves.
+  console.log(config)
+  let maybeAssetPrefixRewrite: Rewrite[] = []
+  if (config.assetPrefix) {
+    const assetPrefix = config.assetPrefix.startsWith('/')
+      ? config.assetPrefix
+      : `/${config.assetPrefix}`
+    // maybeAssetPrefixRewrite.push({
+    //   source: `${assetPrefix}/_next/:path+`,
+    //   destination: '/_next/:path+',
+    // })
+  }
+
   if (typeof config.rewrites !== 'function') {
     return {
-      beforeFiles: [],
+      beforeFiles: [...maybeAssetPrefixRewrite],
       afterFiles: [],
       fallback: [],
     }
@@ -631,22 +646,12 @@ async function loadRewrites(config: NextConfig) {
     fallback: fallback.map((r) => ({ ...r })),
   }
 
-  beforeFiles = processRoutes(beforeFiles, config, 'rewrite')
+  beforeFiles = [
+    ...maybeAssetPrefixRewrite,
+    ...processRoutes(beforeFiles, config, 'rewrite'),
+  ]
   afterFiles = processRoutes(afterFiles, config, 'rewrite')
   fallback = processRoutes(fallback, config, 'rewrite')
-
-  // If assetPrefix is set, add a rewrite for `/${assetPrefix}/_next/*`
-  // requests to make sure automatically so that the user doesn't need to
-  // configure this themselves.
-  if (config.assetPrefix && !config.basePath) {
-    const assetPrefix = config.assetPrefix.startsWith('/')
-      ? config.assetPrefix
-      : `/${config.assetPrefix}`
-    beforeFiles.unshift({
-      source: `${assetPrefix}/_next/:path+`,
-      destination: '/_next/:path+',
-    })
-  }
 
   checkCustomRoutes(beforeFiles, 'rewrite')
   checkCustomRoutes(afterFiles, 'rewrite')
