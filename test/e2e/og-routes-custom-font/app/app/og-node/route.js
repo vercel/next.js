@@ -1,11 +1,11 @@
 import { ImageResponse } from 'next/og'
 import fs from 'fs'
 import path from 'path'
-import { fileURLToPath } from 'url'
 
 export async function GET() {
   const font = await fs.promises.readFile(
-    path.join(fileURLToPath(import.meta.url), '../../../../assets/typewr__.ttf')
+    // We need to use process.cwd() instead of import.meta.url for nft tracing purpose
+    path.join(process.cwd(), 'assets/typewr__.ttf')
   )
   return new ImageResponse(
     (
