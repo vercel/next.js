@@ -238,7 +238,6 @@ describe('Build Error Tests', () => {
           "Module not found: Can't resolve '../../public/foo/test-rect-broken.jpg"
         )
         // should contain the importing module
-
         if (process.env.TURBOPACK) {
           // For this test with Turbopack the root of the project is the root of the Next.js repository because it's not isolated.
           expect(stderr).toContain('app/static-img/page.js')
