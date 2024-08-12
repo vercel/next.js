@@ -145,15 +145,19 @@ export function createHTMLErrorHandler(
   onHTMLRenderRSCError: (err: any) => void
 ): ErrorHandler {
   return (err: any, errorInfo: any) => {
-    const isRSCError = reactServerErrors.has(err.digest)
+    let isRSCError = false
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
 
     if (err.digest) {
-      if (isRSCError) {
+      if (reactServerErrors.has(err.digest)) {
+        isRSCError = true
         // This error is likely an obfuscated error from react-server.
         // We recover the original error here.
         err = reactServerErrors.get(err.digest)
+      } else {
+        // The error is not from react-server but has a digest
+        // from other means so we don't need to produce a new one
       }
     } else {
       err.digest = stringHash(

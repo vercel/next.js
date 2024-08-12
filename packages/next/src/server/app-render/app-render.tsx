@@ -969,15 +969,14 @@ async function renderToHTMLOrFlightImpl(
       }
     }
 
-    let buildFailingError: unknown
     // If we encountered any unexpected errors during build we fail the
     // prerendering phase and the build.
     if (response.digestErrorsMap.size) {
-      buildFailingError = response.digestErrorsMap.values().next().value
+      const buildFailingError = response.digestErrorsMap.values().next().value
       if (buildFailingError) throw buildFailingError
     }
     if (response.ssrErrors.length) {
-      buildFailingError = response.ssrErrors.filter((err) =>
+      const buildFailingError = response.ssrErrors.filter((err) =>
         isUserLandError(err)
       )[0]
       if (buildFailingError) throw buildFailingError
