@@ -421,25 +421,18 @@ export async function setupFsCheck(opts: {
         return lruResult
       }
 
-      const { basePath, assetPrefix } = opts.config
+      const { basePath } = opts.config
 
       const hasBasePath = pathHasPrefix(itemPath, basePath)
-      const hasAssetPrefix = pathHasPrefix(itemPath, assetPrefix)
 
-      // Return null if either path doesn't start with basePath or assetPrefix
-      if ((basePath || assetPrefix) && !hasBasePath && !hasAssetPrefix) {
+      // Return null if path doesn't start with basePath
+      if (basePath && !hasBasePath) {
         return null
       }
 
-      // Either remove basePath or assetPrefix, not both (due to routes with same name as basePath)
+      // Remove basePath if it exists.
       if (basePath && hasBasePath) {
         itemPath = removePathPrefix(itemPath, basePath) || '/'
-      } else if (
-        assetPrefix &&
-        hasAssetPrefix &&
-        pathHasPrefix(itemPath, `${assetPrefix}/_next`)
-      ) {
-        itemPath = removePathPrefix(itemPath, assetPrefix) || '/'
       }
 
       // Simulate minimal mode requests by normalizing RSC and postponed
