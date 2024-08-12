@@ -64,16 +64,14 @@ import {
   isInternalComponent,
   isNonRoutePagesPage,
 } from '../lib/is-internal-component'
-import {
-  isMetadataRoute,
-  isStaticMetadataRouteFile,
-} from '../lib/metadata/is-metadata-route'
+import { isMetadataRoute } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import type { PageExtensions } from './page-extensions-type'
 import type { MappedPages } from './build-context'
 import { PAGE_TYPES } from '../lib/page-types'
+import { isAppPageRoute } from '../lib/is-app-page-route'
 
 export function sortByPageExts(pageExtensions: PageExtensions) {
   return (a: string, b: string) => {
@@ -119,17 +117,21 @@ export async function getStaticInfoIncludingLayouts({
     pageFilePath,
     isDev,
     page,
+    // TODO: sync types for pages: PAGE_TYPES, ROUTE_TYPES, 'app' | 'pages', etc.
     pageType: isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
   })
 
-  const staticInfo: PageStaticInfo = isInsideAppDir
-    ? {
-        // TODO-APP: Remove the rsc key altogether. It's no longer required.
-        rsc: 'server',
-      }
-    : pageStaticInfo
+  if (!isInsideAppDir || !appDir) {
+    return pageStaticInfo
+  }
 
-  if (isInsideAppDir && appDir) {
+  const staticInfo: PageStaticInfo = {
+    // TODO-APP: Remove the rsc key altogether. It's no longer required.
+    rsc: 'server',
+  }
+
+  // inherit from layout files only if it's a page route
+  if (isAppPageRoute(page)) {
     const layoutFiles = []
     const potentialLayoutFiles = pageExtensions.map((ext) => 'layout.' + ext)
     let dir = dirname(pageFilePath)
@@ -162,22 +164,28 @@ export async function getStaticInfoIncludingLayouts({
       if (layoutStaticInfo.preferredRegion) {
         staticInfo.preferredRegion = layoutStaticInfo.preferredRegion
       }
-    }
-
-    if (pageStaticInfo.runtime) {
-      staticInfo.runtime = pageStaticInfo.runtime
-    }
-    if (pageStaticInfo.preferredRegion) {
-      staticInfo.preferredRegion = pageStaticInfo.preferredRegion
-    }
-
-    // if it's static metadata route, don't inherit runtime from layout
-    const relativePath = pageFilePath.replace(appDir, '')
-    if (isStaticMetadataRouteFile(relativePath)) {
-      delete staticInfo.runtime
-      delete staticInfo.preferredRegion
+      if (layoutStaticInfo.extraConfig) {
+        staticInfo.extraConfig = {
+          ...staticInfo.extraConfig,
+          ...layoutStaticInfo.extraConfig,
+        }
+      }
     }
   }
+
+  if (pageStaticInfo.runtime) {
+    staticInfo.runtime = pageStaticInfo.runtime
+  }
+  if (pageStaticInfo.preferredRegion) {
+    staticInfo.preferredRegion = pageStaticInfo.preferredRegion
+  }
+  if (pageStaticInfo.extraConfig) {
+    staticInfo.extraConfig = {
+      ...staticInfo.extraConfig,
+      ...pageStaticInfo.extraConfig,
+    }
+  }
+
   return staticInfo
 }
 
