@@ -172,6 +172,12 @@ pub enum Effect {
         span: Span,
         in_try: bool,
     },
+    /// A typeof expression
+    TypeOf {
+        arg: JsValue,
+        ast_path: Vec<AstParentKind>,
+        span: Span,
+    },
     // TODO ImportMeta should be replaced with Member
     /// A reference to `import.meta`.
     ImportMeta {
@@ -223,6 +229,9 @@ impl Effect {
                 var.normalize();
             }
             Effect::ImportedBinding { .. } => {}
+            Effect::TypeOf { arg, .. } => {
+                arg.normalize();
+            }
             Effect::ImportMeta { .. } => {}
             Effect::Url { input, .. } => {
                 input.normalize();
@@ -1968,6 +1977,26 @@ impl VisitAstPath for Analyzer<'_> {
                 }
             }
             None => {
+                n.visit_children_with_path(self, ast_path);
+            }
+        }
+    }
+
+    fn visit_unary_expr<'ast: 'r, 'r>(
+        &mut self,
+        n: &'ast UnaryExpr,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        match n.op {
+            UnaryOp::TypeOf => {
+                let arg_value = self.eval_context.eval(&n.arg);
+                self.add_effect(Effect::TypeOf {
+                    arg: arg_value,
+                    ast_path: as_parent_path(ast_path),
+                    span: n.span(),
+                });
+            }
+            _ => {
                 n.visit_children_with_path(self, ast_path);
             }
         }

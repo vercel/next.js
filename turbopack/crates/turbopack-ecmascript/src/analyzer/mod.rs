@@ -3906,6 +3906,13 @@ mod tests {
                             Effect::FreeVar { var, .. } => {
                                 resolved.push((format!("{parent} -> {i} free var"), var));
                             }
+                            Effect::TypeOf { arg, .. } => {
+                                let arg = resolve(&var_graph, arg).await;
+                                resolved.push((
+                                    format!("{parent} -> {i} typeof"),
+                                    JsValue::type_of(Box::new(arg)),
+                                ));
+                            }
                             Effect::MemberCall {
                                 obj, prop, args, ..
                             } => {
@@ -3923,7 +3930,10 @@ mod tests {
                                     JsValue::unknown_empty(true, "unreachable"),
                                 ));
                             }
-                            _ => {}
+                            Effect::ImportMeta { .. } => {}
+                            Effect::ImportedBinding { .. } => {}
+                            Effect::Member { .. } => {}
+                            Effect::Url { .. } => {}
                         }
                         let time = start.elapsed();
                         if time.as_millis() > 1 {
