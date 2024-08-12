@@ -202,7 +202,7 @@ async function main() {
     debug: argv.debug ?? false,
     timings: argv.timings ?? false,
     writeTimings: argv.writeTimings ?? false,
-    group: argv.group ?? false,
+    group: argv.group ?? process.env.GROUP ?? false,
     testPattern: argv.testPattern ?? false,
     type: argv.type ?? false,
     related: argv.related ?? false,

@@ -59,6 +59,11 @@ on:
         required: false
         type: string
         default: '["self-hosted", "linux", "x64", "metal"]'
+      parallelism:
+        description: 'How many jobs should be run in parallel'
+        required: false
+        type: number
+        default: 1
 
 env:
   NAPI_CLI_VERSION: 2.14.7
@@ -83,12 +88,40 @@ env:
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
 
 jobs:
-  build:
+  create-matrix:
+    runs-on: ubuntu-latest
+
+    steps:
+      - id: create-matrix
+        name: Create Matrix
+        shell: bash
+        run: |
+          set -e
+
+          total="${{inputs.parallelism}}"
+          declare -a matrix
+
+          for i in $(seq 1 $total); do
+            matrix[i]="\"$i/$total\""
+          done
+
+          matrix_str=$(IFS=, ; echo "${matrix[*]}")
+
+          echo "matrix=[${matrix_str}]" >> $GITHUB_OUTPUT
+
+    outputs:
+      matrix: ${{ steps.create-matrix.outputs.matrix }}
+
+  run:
+    needs: create-matrix
+
     timeout-minutes: ${{ inputs.timeout_minutes }}
     runs-on: ${{ fromJson(inputs.runs_on_labels) }}
 
-    outputs:
-      input_step_key: ${{ steps.var.outputs.input_step_key }}
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJson(needs.create-matrix.outputs.matrix) }}
 
     steps:
       - name: Normalize input step names into path key
@@ -96,7 +129,7 @@ jobs:
         id: var
         with:
           script: |
-            core.setOutput('input_step_key', '${{ inputs.stepName }}'.toLowerCase().replaceAll(/[/.]/g, '-').trim('-'));
+            core.setOutput('input_step_key', '${{ inputs.stepName }}-${{ matrix.group }}'.toLowerCase().replaceAll(/[/.]/g, '-').trim('-'));
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -194,6 +227,8 @@ jobs:
 
       - run: /bin/bash -c "${{ inputs.afterBuild }}"
         timeout-minutes: ${{ inputs.timeout_minutes }}
+        env:
+          GROUP: ${{ matrix.group }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
