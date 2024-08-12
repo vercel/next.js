@@ -595,16 +595,16 @@ async function loadRewrites(config: NextConfig) {
   // If assetPrefix is set, add a rewrite for `/${assetPrefix}/_next/*`
   // requests to make sure automatically so that the user doesn't need to
   // configure this themselves.
-  console.log(config)
   let maybeAssetPrefixRewrite: Rewrite[] = []
   if (config.assetPrefix) {
     const assetPrefix = config.assetPrefix.startsWith('/')
       ? config.assetPrefix
       : `/${config.assetPrefix}`
-    // maybeAssetPrefixRewrite.push({
-    //   source: `${assetPrefix}/_next/:path+`,
-    //   destination: '/_next/:path+',
-    // })
+    const basePath = config.basePath || ''
+    maybeAssetPrefixRewrite.push({
+      source: `${assetPrefix}/_next/:path+`,
+      destination: `${basePath}/_next/:path+`,
+    })
   }
 
   if (typeof config.rewrites !== 'function') {
