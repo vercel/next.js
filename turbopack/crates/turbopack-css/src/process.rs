@@ -586,7 +586,7 @@ async fn process_content(
                                 ParsingIssue {
                                     file: fs_path_vc,
                                     msg: Vc::cell(err.to_string().into()),
-                                    source: Vc::cell(source),
+                                    source,
                                 }
                                 .cell()
                                 .emit();
@@ -612,7 +612,7 @@ async fn process_content(
                     ParsingIssue {
                         file: fs_path_vc,
                         msg: Vc::cell(e.to_string().into()),
-                        source: Vc::cell(source),
+                        source,
                     }
                     .cell()
                     .emit();
@@ -737,11 +737,11 @@ impl CssError {
                 ParsingIssue {
                     file,
                     msg: Vc::cell(CSS_MODULE_ERROR.into()),
-                    source: Vc::cell(Some(IssueSource::from_swc_offsets(
+                    source: Some(IssueSource::from_swc_offsets(
                         source,
                         span.lo.0 as _,
                         span.hi.0 as _,
-                    ))),
+                    )),
                 }
                 .cell()
                 .emit();
@@ -750,7 +750,7 @@ impl CssError {
                 ParsingIssue {
                     file,
                     msg: Vc::cell(format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into()),
-                    source: Vc::cell(None),
+                    source: None,
                 }
                 .cell()
                 .emit();
@@ -1072,7 +1072,7 @@ impl TransformConfig for ModuleTransformConfig {
 struct ParsingIssue {
     msg: Vc<RcStr>,
     file: Vc<FileSystemPath>,
-    source: Vc<OptionIssueSource>,
+    source: Option<Vc<IssueSource>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -1094,7 +1094,7 @@ impl Issue for ParsingIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        self.source
+        Vc::cell(self.source.map(|source| source.resolve_source_map()))
     }
 
     #[turbo_tasks::function]

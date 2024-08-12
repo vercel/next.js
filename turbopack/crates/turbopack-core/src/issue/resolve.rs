@@ -119,7 +119,7 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source)
+        Vc::cell(self.source.map(|source| source.resolve_source_map()))
     }
 
     // TODO add sub_issue for a description of resolve_options
