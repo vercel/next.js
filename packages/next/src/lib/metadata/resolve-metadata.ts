@@ -16,6 +16,7 @@ import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type {
   AbsoluteTemplateString,
   IconDescriptor,
+  ResolvedIcons,
 } from './types/metadata-types'
 import type { ParsedUrlQuery } from 'querystring'
 import type { StaticMetadata } from './types/icons'
@@ -47,6 +48,8 @@ import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
+
+type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
 type MetadataResolver = (
   parent: ResolvingMetadata
@@ -98,27 +101,18 @@ function mergeStaticMetadata(
   staticFilesMetadata: StaticMetadata,
   metadataContext: MetadataContext,
   titleTemplates: TitleTemplates,
-  isLastSegment: boolean
+  leafSegmentStaticIcons: StaticIcons
 ) {
   if (!staticFilesMetadata) return
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
 
-  // Only pick up the static metadata if the current level is the last segment
-  if (isLastSegment) {
-    // file based metadata is specified and current level metadata icons is not specified
-    if (target.icons) {
-      if (icon) {
-        target.icons.icon.unshift(...icon)
-      }
-      if (apple) {
-        target.icons.apple.unshift(...apple)
-      }
-    } else if (icon || apple) {
-      target.icons = {
-        icon: icon || [],
-        apple: apple || [],
-      }
-    }
+  // Keep updating the static icons in the most leaf node
+
+  if (icon) {
+    leafSegmentStaticIcons.icon = icon
+  }
+  if (apple) {
+    leafSegmentStaticIcons.apple = apple
   }
 
   // file based metadata is specified and current level metadata twitter.images is not specified
@@ -157,7 +151,7 @@ function mergeMetadata({
   titleTemplates,
   metadataContext,
   buildState,
-  isLastSegment,
+  leafSegmentStaticIcons,
 }: {
   source: Metadata | null
   target: ResolvedMetadata
@@ -165,7 +159,7 @@ function mergeMetadata({
   titleTemplates: TitleTemplates
   metadataContext: MetadataContext
   buildState: BuildState
-  isLastSegment: boolean
+  leafSegmentStaticIcons: StaticIcons
 }): void {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
@@ -285,7 +279,7 @@ function mergeMetadata({
     staticFilesMetadata,
     metadataContext,
     titleTemplates,
-    isLastSegment
+    leafSegmentStaticIcons
   )
 }
 
@@ -769,6 +763,13 @@ export async function accumulateMetadata(
   }
 
   let favicon
+
+  // Collect the static icons in the most leaf node,
+  // since we don't collect all the static metadata icons in the parent segments.
+  const leafSegmentStaticIcons = {
+    icon: [],
+    apple: [],
+  }
   for (let i = 0; i < metadataItems.length; i++) {
     const staticFilesMetadata = metadataItems[i][1]
 
@@ -795,7 +796,7 @@ export async function accumulateMetadata(
       staticFilesMetadata,
       titleTemplates,
       buildState,
-      isLastSegment: i === metadataItems.length - 1,
+      leafSegmentStaticIcons,
     })
 
     // If the layout is the same layer with page, skip the leaf layout and leaf page
@@ -805,6 +806,24 @@ export async function accumulateMetadata(
         title: resolvedMetadata.title?.template || null,
         openGraph: resolvedMetadata.openGraph?.title.template || null,
         twitter: resolvedMetadata.twitter?.title.template || null,
+      }
+    }
+  }
+
+  if (
+    leafSegmentStaticIcons.icon.length > 0 ||
+    leafSegmentStaticIcons.apple.length > 0
+  ) {
+    if (!resolvedMetadata.icons) {
+      resolvedMetadata.icons = {
+        icon: [],
+        apple: [],
+      }
+      if (leafSegmentStaticIcons.icon.length > 0) {
+        resolvedMetadata.icons.icon.unshift(...leafSegmentStaticIcons.icon)
+      }
+      if (leafSegmentStaticIcons.apple.length > 0) {
+        resolvedMetadata.icons.apple.unshift(...leafSegmentStaticIcons.apple)
       }
     }
   }
