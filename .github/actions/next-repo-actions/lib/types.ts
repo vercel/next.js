@@ -2,27 +2,27 @@ import { z } from 'zod'
 
 const userSchema = z
   .object({
-    avatar_url: z.string(),
-    deleted: z.boolean(),
-    email: z.string().nullable(),
-    event_url: z.string(),
-    followers_url: z.string(),
-    following_url: z.string(),
-    gists_url: z.string(),
-    gravatar_id: z.string(),
-    html_url: z.string(),
+    avatar_url: z.string().optional(),
+    deleted: z.boolean().optional(),
+    email: z.string().nullable().optional(),
+    event_url: z.string().optional(),
+    followers_url: z.string().optional(),
+    following_url: z.string().optional(),
+    gists_url: z.string().optional(),
+    gravatar_id: z.string().optional(),
+    html_url: z.string().optional(),
     id: z.number(),
     login: z.string(),
     name: z.string().optional(),
-    node_id: z.string(),
-    organizations_url: z.string(),
-    received_events_url: z.string(),
-    repos_url: z.string(),
-    site_admin: z.boolean(),
-    starred_url: z.string(),
-    subscriptions_url: z.string(),
-    type: z.enum(['Bot', 'User', 'Organization', 'Mannequin']),
-    url: z.string(),
+    node_id: z.string().optional(),
+    organizations_url: z.string().optional(),
+    received_events_url: z.string().optional(),
+    repos_url: z.string().optional(),
+    site_admin: z.boolean().optional(),
+    starred_url: z.string().optional(),
+    subscriptions_url: z.string().optional(),
+    type: z.enum(['Bot', 'User', 'Organization']).optional(),
+    url: z.string().optional(),
   })
   .strict()
 
@@ -164,16 +164,6 @@ const performedViaGitHubAppSchema = z
   })
   .strict()
 
-const pullRequestSchema = z
-  .object({
-    diff_url: z.string(),
-    html_url: z.string(),
-    merged_at: z.string().nullable(),
-    patch_url: z.string(),
-    url: z.string(),
-  })
-  .strict()
-
 const reactionSchema = z
   .object({
     '+1': z.number(),
@@ -193,10 +183,10 @@ export const issueSchema = z
   .object({
     issue: z.object({
       active_lock_reason: z
-        .enum(['resolved', 'off-topic', 'too_heated', 'spam'])
+        .enum(['resolved', 'off-topic', 'too heated', 'spam'])
         .nullable(),
-      assignee: userSchema.nullable(),
-      assignees: z.array(userSchema).default([]),
+      assignee: userSchema.nullable().optional(),
+      assignees: z.array(userSchema).optional(),
       author_association: z.enum([
         'COLLABORATOR',
         'CONTRIBUTOR',
