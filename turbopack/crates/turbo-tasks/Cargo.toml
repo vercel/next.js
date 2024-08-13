@@ -40,7 +40,7 @@ serde_regex = "1.1.0"
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
-triomphe = { workspace = true, features = ["unsize"] }
+triomphe = { workspace = true, features = ["unsize", "unstable"] }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-macros = { workspace = true }
 turbo-tasks-malloc = { workspace = true }

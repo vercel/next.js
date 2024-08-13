@@ -13040,13 +13040,12 @@
         "Static Image Component Tests production mode Should use immutable cache-control header even when unoptimized",
         "Static Image Component Tests production mode Should use immutable cache-control header for static import",
         "Static Image Component Tests production mode should load direct imported image",
-        "Static Image Component Tests production mode should load staticprops imported image"
-      ],
-      "failed": [
+        "Static Image Component Tests production mode should load staticprops imported image",
         "Build Error Tests production mode should throw build error when import statement is used with missing file",
         "Static Image Component Tests production mode Should add a blur placeholder to statically imported jpg",
         "Static Image Component Tests production mode Should add a blur placeholder to statically imported png"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -13289,11 +13288,10 @@
         "Static Image Component Tests production mode should load direct imported image",
         "Static Image Component Tests production mode should use height prop to adjust both width and height",
         "Static Image Component Tests production mode should use width and height prop to override import",
-        "Static Image Component Tests production mode should use width prop to adjust both width and height"
-      ],
-      "failed": [
+        "Static Image Component Tests production mode should use width prop to adjust both width and height",
         "Build Error Tests production mode should throw build error when import statement is used with missing file"
       ],
+      "failed": [],
       "pending": [
         "Static Image Component Tests development mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests development mode Should automatically provide an image height and width",
@@ -13512,11 +13510,10 @@
         "Static Image Component Tests production mode should load staticprops imported image",
         "Static Image Component Tests production mode should use height prop to adjust both width and height",
         "Static Image Component Tests production mode should use width and height prop to override import",
-        "Static Image Component Tests production mode should use width prop to adjust both width and height"
-      ],
-      "failed": [
+        "Static Image Component Tests production mode should use width prop to adjust both width and height",
         "Build Error Tests production mode should throw build error when import statement is used with missing file"
       ],
+      "failed": [],
       "pending": [
         "Static Image Component Tests development mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests development mode Should automatically provide an image height and width",

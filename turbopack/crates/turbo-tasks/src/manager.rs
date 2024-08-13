@@ -316,9 +316,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
     // that should be safe as long tasks can't outlife turbo task
     // so we probably want to make sure that all tasks are joined
     // when trying to drop turbo tasks
-    pub fn new(mut backend: B) -> Arc<Self> {
+    pub fn new(backend: B) -> Arc<Self> {
         let task_id_factory = IdFactoryWithReuse::new();
-        backend.initialize(&task_id_factory);
         let this = Arc::new_cyclic(|this| Self {
             this: this.clone(),
             backend,

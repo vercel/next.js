@@ -27,10 +27,12 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
       return await fn(...args)
     } catch (err) {
       const req = args[0]
+      const url = new URL(req.url)
+      const resource = url.pathname + url.search
       await edgeInstrumentationOnRequestError(
         err,
         {
-          url: req.url,
+          path: resource,
           method: req.method,
           headers: Object.fromEntries(req.headers.entries()),
         },
