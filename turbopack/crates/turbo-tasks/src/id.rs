@@ -176,6 +176,6 @@ impl<'de> Deserialize<'de> for TaskId {
             }
         }
 
-        deserializer.deserialize_u64(V)
+        deserializer.deserialize_u32(V)
     }
 }
