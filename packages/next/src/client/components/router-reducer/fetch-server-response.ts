@@ -25,6 +25,7 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
   NEXT_IS_PRERENDER_HEADER,
+  NEXT_DID_POSTPONE_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
@@ -61,6 +62,7 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
     canonicalUrl: undefined,
     couldBeIntercepted: false,
     isPrerender: false,
+    postponed: false,
   }
 }
 
@@ -164,6 +166,7 @@ export async function fetchServerResponse(
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
+    const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
     let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
 
     if (process.env.NODE_ENV === 'production') {
@@ -210,6 +213,7 @@ export async function fetchServerResponse(
       canonicalUrl: canonicalUrl,
       couldBeIntercepted: interception,
       isPrerender: isPrerender,
+      postponed,
     }
   } catch (err) {
     console.error(
@@ -224,6 +228,7 @@ export async function fetchServerResponse(
       canonicalUrl: undefined,
       couldBeIntercepted: false,
       isPrerender: false,
+      postponed: false,
     }
   }
 }
