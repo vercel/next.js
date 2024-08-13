@@ -122,10 +122,10 @@ declare module 'next/dist/compiled/babel/code-frame' {
   export * from '@babel/code-frame'
 }
 
-declare module 'next/dist/compiled/@next/font/dist/google' {
+declare module 'next/dist/compiled/@next/font/google' {
   export * from '@next/font/google'
 }
-declare module 'next/dist/compiled/@next/font/dist/local' {
+declare module 'next/dist/compiled/@next/font/local' {
   export * from '@next/font/local'
 }
 declare module 'next/dist/compiled/babel/traverse' {
@@ -244,7 +244,7 @@ declare module 'next/dist/compiled/picomatch' {
   import m from 'picomatch'
   export = m
 }
-declare module 'next/dist/compiled/nanoid/index.cjs' {
+declare module 'next/dist/compiled/nanoid' {
   import m from 'nanoid'
   export = m
 }

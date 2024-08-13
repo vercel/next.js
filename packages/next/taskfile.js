@@ -99,6 +99,10 @@ export async function ncc_mswjs_interceptors(task, opts) {
       relative(__dirname, require.resolve('@mswjs/interceptors/ClientRequest'))
     )
     .ncc({
+      // ncc only works on a single entrypoint i.e. doesn't support `exports`
+      // Ideally it'd use `@mswjs/interceptors/package.json` and
+      // compile all `@mswjs/interceptors/ClientRequest` entries.
+      // Make sure that the `exports` in `next/package.json` resolve this entry.
       packageName: '@mswjs/interceptors/ClientRequest',
       externals,
       target: 'es5',
@@ -231,6 +235,10 @@ export async function copy_vercel_og(task, opts) {
           import: './index.node.js',
           node: './index.node.js',
           default: './index.node.js',
+        },
+        // TODO: Stop importing from `next/dist/compiled/@vercel/og/satori` in favor of relative import.
+        './satori': {
+          types: './satori/index.d.ts',
         },
         './package.json': './package.json',
       },
@@ -1040,8 +1048,20 @@ export async function ncc_postcss_plugin_stub_for_cssnano_simple(task, opts) {
       externals,
     })
     .target('src/compiled/postcss-plugin-stub-for-cssnano-simple')
+
+  await writeJson(
+    join(
+      __dirname,
+      'src/compiled/postcss-plugin-stub-for-cssnano-simple/package.json'
+    ),
+    {
+      name: 'postcss-plugin-stub-for-cssnano-simple',
+      main: './index.js',
+    }
+  )
 }
 
+// Ensure each of these has an entrypoint in exports map
 const babelCorePackages = {
   'code-frame': 'next/dist/compiled/babel/code-frame',
   '@babel/generator': 'next/dist/compiled/babel/generator',
@@ -1128,6 +1148,11 @@ export async function ncc_cssnano_simple_bundle(task, opts) {
       externals: bundleExternals,
     })
     .target('src/compiled/cssnano-simple')
+
+  await writeJson(join(__dirname, 'src/compiled/cssnano-simple/package.json'), {
+    name: 'cssnano-simple',
+    main: './index.js',
+  })
 }
 
 // eslint-disable-next-line camelcase

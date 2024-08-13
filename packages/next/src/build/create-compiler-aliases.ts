@@ -90,6 +90,7 @@ export function createWebpackAliases({
 
     // Alias next/dist imports to next/dist/esm assets,
     // let this alias hit before `next` alias.
+    // TODO: leverage `exports` instead
     ...(isEdgeServer
       ? {
           'next/dist/api': 'next/dist/esm/api',

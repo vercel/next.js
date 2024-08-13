@@ -11,6 +11,9 @@
       "node": "./index.node.js",
       "default": "./index.node.js"
     },
+    "./satori": {
+      "types": "./satori/index.d.ts"
+    },
     "./package.json": "./package.json"
   }
 }
