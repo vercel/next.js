@@ -3704,10 +3704,10 @@
     },
     "test/e2e/app-dir/scss/invalid-module-document/invalid-module-document.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Invalid SCSS in _document production only should fail to build"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -7911,16 +7911,15 @@
     },
     "test/integration/css/test/valid-invalid-css.test.js": {
       "passed": [
-        "Valid Global CSS from npm production mode should compile successfully"
+        "Valid Global CSS from npm production mode should've emitted a single CSS file"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Invalid CSS in _document production mode should fail to build",
         "Invalid Global CSS production mode should fail to build",
         "Invalid Global CSS with Custom App production mode should fail to build",
-        "Valid Global CSS from npm production mode should've emitted a single CSS file",
         "Valid and Invalid Global CSS with Custom App production mode should fail to build"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
