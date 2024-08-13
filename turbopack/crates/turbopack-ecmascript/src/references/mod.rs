@@ -452,20 +452,16 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             }
             SpecifiedModuleType::EcmaScript => ("undefined", "undefined", "undefined"),
         };
-        free_var_references.extend([
-            (
-                [("exports".into()), "typeof".into()].into(),
-                exports_type.into(),
-            ),
-            (
-                [("module".into()), "typeof".into()].into(),
-                module_typeof.into(),
-            ),
-            (
-                [("require".into()), "typeof".into()].into(),
-                require_typeof.into(),
-            ),
-        ]);
+
+        free_var_references
+            .entry(vec![("exports".into()), "typeof".into()])
+            .or_insert(exports_type.into());
+        free_var_references
+            .entry(vec![("module".into()), "typeof".into()])
+            .or_insert(module_typeof.into());
+        free_var_references
+            .entry(vec![("require".into()), "typeof".into()])
+            .or_insert(require_typeof.into());
 
         CompileTimeInfo {
             environment: compile_time_info.environment,
