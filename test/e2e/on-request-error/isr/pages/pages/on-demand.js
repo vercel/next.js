@@ -6,11 +6,11 @@ export default function Page() {
   return <p>{Date.now()}</p>
 }
 
-export const revalidate = 1000
-export async function getServerSideProps() {
+export async function getStaticProps() {
   return {
     props: {
       key: 'value',
     },
+    revalidate: 1000,
   }
 }

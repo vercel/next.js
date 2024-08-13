@@ -2575,7 +2575,7 @@ export default abstract class Server<
                 routePath: pathname,
                 routeType: 'render',
                 revalidateReason: getRevalidateReason({
-                  isRevalidate: !isSSG,
+                  isRevalidate: isSSG,
                   isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
                 }),
               })

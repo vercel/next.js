@@ -24,6 +24,8 @@ export async function onRequestError(err, request, context) {
 
   json[payload.message] = payload
 
-  console.log(`[instrumentation] write-log:${payload.message}`)
+  console.log(
+    `[instrumentation] write-log:${payload.message} ${payload.context.revalidateReason}`
+  )
   await fsp.writeFile(logPath, JSON.stringify(json, null, 2), 'utf8')
 }

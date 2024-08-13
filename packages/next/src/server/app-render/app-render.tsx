@@ -421,7 +421,7 @@ function createErrorContext(
     routePath: ctx.pagePath,
     routeType: ctx.isAction ? 'action' : 'render',
     renderSource,
-    revalidateReason: getRevalidateReason(ctx.renderOpts),
+    revalidateReason: getRevalidateReason(ctx.staticGenerationStore),
   }
 }
 /**
