@@ -323,16 +323,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
     // so we probably want to make sure that all tasks are joined
     // when trying to drop turbo tasks
     pub fn new(backend: B) -> Arc<Self> {
-        let task_id_factory =
-            IdFactoryWithReuse::new_with_range(1, (TRANSIENT_TASK_BIT - 1) as u64);
+        let task_id_factory = IdFactoryWithReuse::new(1, (TRANSIENT_TASK_BIT - 1) as u64);
         let transient_task_id_factory =
-            IdFactoryWithReuse::new_with_range(TRANSIENT_TASK_BIT as u64, u32::MAX as u64);
+            IdFactoryWithReuse::new(TRANSIENT_TASK_BIT as u64, u32::MAX as u64);
         let this = Arc::new_cyclic(|this| Self {
             this: this.clone(),
             backend,
             task_id_factory,
             transient_task_id_factory,
-            execution_id_factory: IdFactory::new(),
+            execution_id_factory: IdFactory::new(1, u64::MAX),
             stopped: AtomicBool::new(false),
             currently_scheduled_tasks: AtomicUsize::new(0),
             currently_scheduled_background_jobs: AtomicUsize::new(0),

@@ -17,22 +17,12 @@ pub struct IdFactory<T> {
 }
 
 impl<T> IdFactory<T> {
-    pub const fn new() -> Self {
-        Self::new_with_range(1, u32::MAX as u64)
-    }
-
-    pub const fn new_with_range(start: u64, max: u64) -> Self {
+    pub const fn new(start: u64, max: u64) -> Self {
         Self {
             next_id: AtomicU64::new(start),
             max_id: max,
             _phantom_data: PhantomData,
         }
-    }
-}
-
-impl<T> Default for IdFactory<T> {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -77,24 +67,11 @@ pub struct IdFactoryWithReuse<T> {
 }
 
 impl<T> IdFactoryWithReuse<T> {
-    pub const fn new() -> Self {
+    pub const fn new(start: u64, max: u64) -> Self {
         Self {
-            factory: IdFactory::new(),
+            factory: IdFactory::new(start, max),
             free_ids: ConcurrentQueue::unbounded(),
         }
-    }
-
-    pub const fn new_with_range(start: u64, max: u64) -> Self {
-        Self {
-            factory: IdFactory::new_with_range(start, max),
-            free_ids: ConcurrentQueue::unbounded(),
-        }
-    }
-}
-
-impl<T> Default for IdFactoryWithReuse<T> {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -130,7 +107,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Overflow detected")]
     fn test_overflow() {
-        let factory = IdFactory::<NonZeroU8>::new();
+        let factory = IdFactory::<NonZeroU8>::new(1, u8::MAX as u64);
         assert_eq!(factory.get(), NonZeroU8::new(1).unwrap());
         assert_eq!(factory.get(), NonZeroU8::new(2).unwrap());
         for _i in 2..256 {
