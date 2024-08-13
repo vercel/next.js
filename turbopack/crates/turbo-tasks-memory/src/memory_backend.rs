@@ -26,7 +26,8 @@ use turbo_tasks::{
     },
     event::EventListener,
     util::{IdFactoryWithReuse, NoMoveVec},
-    CellId, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused, ValueTypeId,
+    CellId, FunctionId, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused,
+    ValueTypeId,
 };
 
 use crate::{
@@ -36,7 +37,7 @@ use crate::{
         PERCENTAGE_MIN_IDLE_TARGET_MEMORY, PERCENTAGE_MIN_TARGET_MEMORY,
     },
     output::Output,
-    task::{ReadCellError, Task, DEPENDENCIES_TO_TRACK},
+    task::{ReadCellError, Task, TaskType, DEPENDENCIES_TO_TRACK},
     task_statistics::TaskStatisticsApi,
 };
 
@@ -683,6 +684,13 @@ impl Backend for MemoryBackend {
                 turbo_tasks,
             )
         }
+    }
+
+    fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId> {
+        self.with_task(task_id, |task| match &task.ty {
+            TaskType::Persistent { ty } => ty.try_get_function_id(),
+            _ => None,
+        })
     }
 
     fn connect_task(

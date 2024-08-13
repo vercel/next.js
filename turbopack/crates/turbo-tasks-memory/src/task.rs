@@ -55,7 +55,7 @@ task_local! {
 type OnceTaskFn = Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>;
 
 /// Different Task types
-enum TaskType {
+pub enum TaskType {
     // Note: double boxed to reduce TaskType size
     /// A root task that will track dependencies and re-execute when
     /// dependencies change. Task will eventually settle to the correct
@@ -119,7 +119,7 @@ impl Display for TaskType {
 pub struct Task {
     id: TaskId,
     /// The type of the task
-    ty: TaskType,
+    pub(crate) ty: TaskType,
     /// The mutable state of the task
     /// Unset state is equal to a Dirty task that has not been executed yet
     state: RwLock<TaskMetaState>,
