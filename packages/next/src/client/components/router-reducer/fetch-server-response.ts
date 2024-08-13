@@ -57,10 +57,10 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
   return {
-    f: urlToUrlWithoutFlightMarker(url).toString(),
-    c: undefined,
-    i: false,
-    p: false,
+    flightData: urlToUrlWithoutFlightMarker(url).toString(),
+    canonicalUrl: undefined,
+    couldBeIntercepted: false,
+    isPrerender: false,
   }
 }
 
@@ -206,10 +206,10 @@ export async function fetchServerResponse(
     }
 
     return {
-      f: response.f,
-      c: canonicalUrl,
-      i: interception,
-      p: isPrerender,
+      flightData: response.f,
+      canonicalUrl: canonicalUrl,
+      couldBeIntercepted: interception,
+      isPrerender: isPrerender,
     }
   } catch (err) {
     console.error(
@@ -220,10 +220,10 @@ export async function fetchServerResponse(
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
     return {
-      f: url.toString(),
-      c: undefined,
-      i: false,
-      p: false,
+      flightData: url.toString(),
+      canonicalUrl: undefined,
+      couldBeIntercepted: false,
+      isPrerender: false,
     }
   }
 }

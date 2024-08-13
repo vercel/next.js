@@ -353,7 +353,7 @@ export function listenForDynamicRequest(
   responsePromise: Promise<FetchServerResponseResult>
 ) {
   responsePromise.then(
-    ({ f: flightData }: FetchServerResponseResult) => {
+    ({ flightData }: FetchServerResponseResult) => {
       for (const flightDataPath of flightData) {
         const segmentPath = flightDataPath.slice(0, -3)
         const serverRouterState = flightDataPath[flightDataPath.length - 3]

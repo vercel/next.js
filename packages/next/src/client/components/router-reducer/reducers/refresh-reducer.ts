@@ -49,7 +49,7 @@ export function refreshReducer(
   })
 
   return cache.lazyData.then(
-    async ({ f: flightData, c: canonicalUrlOverride }) => {
+    async ({ flightData, canonicalUrl: canonicalUrlOverride }) => {
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
         return handleExternalUrl(
