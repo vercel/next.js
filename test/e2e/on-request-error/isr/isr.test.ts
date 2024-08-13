@@ -50,6 +50,21 @@ describe('on-request-error - isr', () => {
 
       await matchRevalidateReason('app:on-demand', 'on-demand')
     })
+
+    it('should capture correct reason for build errored route', async () => {
+      await next.fetch('/app/route/stale')
+      await waitFor(2 * 1000) // wait for revalidation
+      await next.fetch('/app/route/stale')
+
+      await matchRevalidateReason('app:route:stale', 'stale')
+    })
+
+    it('should capture correct reason for on-demand revalidated route', async () => {
+      await next.fetch('/app/route/on-demand')
+      await next.fetch('/api/revalidate-path?path=/app/route/on-demand')
+
+      await matchRevalidateReason('app:route:on-demand', 'on-demand')
+    })
   })
 
   describe('pages router ISR', () => {
