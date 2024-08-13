@@ -88,7 +88,12 @@ impl VcStorage {
 }
 
 impl TurboTasksCallApi for VcStorage {
-    fn dynamic_call(&self, func: turbo_tasks::FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
+    fn dynamic_call(
+        &self,
+        func: turbo_tasks::FunctionId,
+        arg: Box<dyn MagicAny>,
+        _is_transient: bool,
+    ) -> RawVc {
         self.dynamic_call(func, None, arg)
     }
 
@@ -97,11 +102,17 @@ impl TurboTasksCallApi for VcStorage {
         func: turbo_tasks::FunctionId,
         this_arg: RawVc,
         arg: Box<dyn MagicAny>,
+        _is_transient: bool,
     ) -> RawVc {
         self.dynamic_call(func, Some(this_arg), arg)
     }
 
-    fn native_call(&self, _func: turbo_tasks::FunctionId, _arg: Box<dyn MagicAny>) -> RawVc {
+    fn native_call(
+        &self,
+        _func: turbo_tasks::FunctionId,
+        _arg: Box<dyn MagicAny>,
+        _is_transient: bool,
+    ) -> RawVc {
         unreachable!()
     }
 
@@ -110,6 +121,7 @@ impl TurboTasksCallApi for VcStorage {
         _func: turbo_tasks::FunctionId,
         _this: RawVc,
         _arg: Box<dyn MagicAny>,
+        _is_transient: bool,
     ) -> RawVc {
         unreachable!()
     }
@@ -120,6 +132,7 @@ impl TurboTasksCallApi for VcStorage {
         _trait_fn_name: Cow<'static, str>,
         _this: RawVc,
         _arg: Box<dyn MagicAny>,
+        _is_transient: bool,
     ) -> RawVc {
         unreachable!()
     }

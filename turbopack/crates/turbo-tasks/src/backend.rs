@@ -609,6 +609,7 @@ impl CachedTaskType {
         fn_id: FunctionId,
         mut this: Option<RawVc>,
         arg: &dyn MagicAny,
+        is_transient: bool,
         turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
     ) -> Result<RawVc> {
         if let Some(this) = this.as_mut() {
@@ -616,9 +617,9 @@ impl CachedTaskType {
         }
         let arg = registry::get_function(fn_id).arg_meta.resolve(arg).await?;
         Ok(if let Some(this) = this {
-            turbo_tasks.this_call(fn_id, this, arg)
+            turbo_tasks.this_call(fn_id, this, arg, is_transient)
         } else {
-            turbo_tasks.native_call(fn_id, arg)
+            turbo_tasks.native_call(fn_id, arg, is_transient)
         })
     }
 
@@ -636,6 +637,7 @@ impl CachedTaskType {
         name: Cow<'static, str>,
         this: RawVc,
         arg: &dyn MagicAny,
+        is_transient: bool,
         turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
     ) -> Result<RawVc> {
         let this = this.resolve().await?;
@@ -646,7 +648,7 @@ impl CachedTaskType {
             .arg_meta
             .resolve(arg)
             .await?;
-        Ok(turbo_tasks.dynamic_this_call(native_fn, this, arg))
+        Ok(turbo_tasks.dynamic_this_call(native_fn, this, arg, is_transient))
     }
 
     /// Shared helper used by [`Self::resolve_trait_method`] and

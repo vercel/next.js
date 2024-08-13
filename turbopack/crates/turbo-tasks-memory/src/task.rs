@@ -810,6 +810,7 @@ impl Task {
                         native_fn_id,
                         *this,
                         &**arg,
+                        self.id.is_transient(),
                         turbo_tasks,
                     ));
                     drop(entered);
@@ -832,6 +833,7 @@ impl Task {
                         name,
                         *this,
                         &**arg,
+                        self.id.is_transient(),
                         turbo_tasks,
                     ));
                     drop(entered);
