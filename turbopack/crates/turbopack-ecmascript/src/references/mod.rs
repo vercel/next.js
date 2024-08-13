@@ -55,7 +55,7 @@ use tracing::Instrument;
 use turbo_tasks::{RcStr, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    compile_time_info::{CompileTimeInfo, FreeVarReference},
+    compile_time_info::{CompileTimeInfo, FreeVarReference, FreeVarReferences},
     error::PrettyPrintError,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     module::Module,
@@ -415,7 +415,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let ty = Value::new(raw_module.ty);
     let transforms = raw_module.transforms;
     let options = raw_module.options;
-    let compile_time_info = raw_module.compile_time_info;
+    let compile_time_info = raw_module.compile_time_info.await?;
     let options = options.await?;
     let import_externals = options.import_externals;
 
@@ -443,6 +443,37 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         module_type: specified_type,
         referenced_package_json,
     } = *module.determine_module_type().await?;
+
+    let compile_time_info = {
+        let mut free_var_references = compile_time_info.free_var_references.await?.clone_value();
+        let (exports_type, module_typeof, require_typeof) = match specified_type {
+            SpecifiedModuleType::Automatic | SpecifiedModuleType::CommonJs => {
+                ("object", "object", "function")
+            }
+            SpecifiedModuleType::EcmaScript => ("undefined", "undefined", "undefined"),
+        };
+        free_var_references.extend([
+            (
+                [("exports".into()), "typeof".into()].into(),
+                exports_type.into(),
+            ),
+            (
+                [("module".into()), "typeof".into()].into(),
+                module_typeof.into(),
+            ),
+            (
+                [("require".into()), "typeof".into()].into(),
+                require_typeof.into(),
+            ),
+        ]);
+
+        CompileTimeInfo {
+            environment: compile_time_info.environment,
+            defines: compile_time_info.defines,
+            free_var_references: FreeVarReferences(free_var_references).cell(),
+        }
+        .cell()
+    };
 
     if let Some(package_json) = referenced_package_json {
         analysis.add_reference(PackageJsonReference::new(package_json));
