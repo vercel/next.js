@@ -55,6 +55,31 @@ impl<T: KeyValuePair> InnerStorage<T> {
     }
 }
 
+impl<T: KeyValuePair> InnerStorage<T>
+where
+    T::Value: Default,
+    T::Key: Clone,
+{
+    pub fn update(
+        &mut self,
+        key: &T::Key,
+        update: impl FnOnce(Option<T::Value>) -> Option<T::Value>,
+    ) {
+        if let Some(value) = self.map.get_mut(key) {
+            let v = take(value);
+            if let Some(v) = update(Some(v)) {
+                *value = v;
+            } else {
+                self.map.remove(key);
+            }
+        } else {
+            if let Some(v) = update(None) {
+                self.map.insert(key.clone(), v);
+            }
+        }
+    }
+}
+
 impl<T: KeyValuePair + Default> InnerStorage<T>
 where
     T::Value: PartialEq,
@@ -132,6 +157,91 @@ macro_rules! get {
         } else {
             None
         }
+    };
+}
+
+#[macro_export]
+macro_rules! get_many {
+    ($task:ident, $key:ident $input:tt => $value:ident) => {
+        $task
+            .iter()
+            .filter_map(|(key, _)| match *key {
+                CachedDataItemKey::$key $input => Some($value),
+                _ => None,
+            })
+            .collect()
+    };
+    ($task:ident, $key1:ident $input1:tt => $value1:ident, $key2:ident $input2:tt => $value2:ident) => {
+        $task
+            .iter()
+            .filter_map(|(key, _)| match *key {
+                CachedDataItemKey::$key1 $input1 => Some($value1),
+                CachedDataItemKey::$key2 $input2 => Some($value2),
+                _ => None,
+            })
+            .collect()
+    };
+}
+
+#[macro_export]
+macro_rules! update {
+    ($task:ident, $key:ident $input:tt, $update:expr) => {
+        #[allow(unused_mut)]
+        match $update {
+            mut update => $task.update(&$crate::data::CachedDataItemKey::$key $input, |old| {
+                update(old.and_then(|old| {
+                    if let $crate::data::CachedDataItemValue::$key { value } = old {
+                        Some(value)
+                    } else {
+                        None
+                    }
+                }))
+                .map(|new| $crate::data::CachedDataItemValue::$key { value: new })
+            })
+        }
+    };
+    ($task:ident, $key:ident, $update:expr) => {
+        #[allow(unused_mut)]
+        match $update {
+            mut update => $task.update(&$crate::data::CachedDataItemKey::$key {}, |old| {
+                update(old.and_then(|old| {
+                    if let $crate::data::CachedDataItemValue::$key { value } = old {
+                        Some(value)
+                    } else {
+                        None
+                    }
+                }))
+                .map(|new| $crate::data::CachedDataItemValue::$key { value: new })
+            })
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! update_count {
+    ($task:ident, $key:ident $input:tt, $update:expr) => {
+        match $update {
+            update => {
+                let mut state_change = false;
+                $crate::update!($task, $key $input, |old: Option<u32>| {
+                    if old.is_none() {
+                        state_change = true;
+                    }
+                    let old = old.unwrap_or(0);
+                    let new = old as i32 + update;
+                    if new == 0 {
+                        state_change = true;
+                        None
+                    } else {
+                        Some(new as u32)
+                    }
+                });
+                state_change
+            }
+        }
+    };
+    ($task:ident, $key:ident, $update:expr) => {
+        $crate::update_count!($task, $key {}, $update)
     };
 }
 

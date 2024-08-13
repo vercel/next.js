@@ -122,6 +122,10 @@ impl<'a> Debug for TaskGuard<'a> {
 }
 
 impl<'a> TaskGuard<'a> {
+    pub fn id(&self) -> TaskId {
+        self.task_id
+    }
+
     pub fn add(&mut self, item: CachedDataItem) -> bool {
         if !item.is_persistent() {
             self.task.add(item)
@@ -177,6 +181,53 @@ impl<'a> TaskGuard<'a> {
             } else {
                 None
             }
+        }
+    }
+
+    pub fn update(
+        &mut self,
+        key: &CachedDataItemKey,
+        update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
+    ) {
+        if !key.is_persistent() {
+            self.task.update(key, update);
+            return;
+        }
+        let Self {
+            task,
+            task_id,
+            backend,
+        } = self;
+        let mut add_persisting_item = false;
+        task.update(key, |old| {
+            let old_persistent = old.as_ref().map(|old| old.is_persistent()).unwrap_or(false);
+            let new = update(old);
+            let new_persistent = new.as_ref().map(|new| new.is_persistent()).unwrap_or(false);
+
+            match (old_persistent, new_persistent) {
+                (false, false) => {}
+                (true, false) => {
+                    add_persisting_item = true;
+                    backend.persisted_storage_log.lock().push(CachedDataUpdate {
+                        key: key.clone(),
+                        task: *task_id,
+                        value: None,
+                    });
+                }
+                (_, true) => {
+                    add_persisting_item = true;
+                    backend.persisted_storage_log.lock().push(CachedDataUpdate {
+                        key: key.clone(),
+                        task: *task_id,
+                        value: new.clone(),
+                    });
+                }
+            }
+
+            new
+        });
+        if add_persisting_item {
+            // TODO task.persistance_state.add_persisting_item();
         }
     }
 

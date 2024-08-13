@@ -657,6 +657,8 @@ impl Backend for TurboTasksBackend {
                 })
                 .collect::<Vec<_>>();
 
+            task.remove(&CachedDataItemKey::Dirty {});
+
             done_event.notify(usize::MAX);
             drop(task);
 
@@ -798,6 +800,7 @@ impl Backend for TurboTasksBackend {
             let mut task = self.storage.access_mut(task_id);
             task.add(CachedDataItem::new_scheduled(task_id));
             task.add(CachedDataItem::AggregateRootType { value: root_type });
+            task.add(CachedDataItem::AggregationNumber { value: u32::MAX });
         }
         turbo_tasks.schedule(task_id);
         task_id
