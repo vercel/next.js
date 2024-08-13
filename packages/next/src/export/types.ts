@@ -55,7 +55,6 @@ export interface ExportPagesInput {
   fetchCache: boolean | undefined
   cacheHandler: string | undefined
   fetchCacheKeyPrefix: string | undefined
-  enabledDirectories: NextEnabledDirectories
   options: ExportAppOptions
 }
 

@@ -216,6 +216,8 @@ export type InitialRSCPayload = {
   m: Set<string> | undefined
   /** GlobalError */
   G: React.ComponentType<any>
+  /** postponed */
+  s: boolean
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -241,6 +243,7 @@ export type FetchServerResponseResult = {
   canonicalUrl: URL | undefined
   couldBeIntercepted: boolean
   isPrerender: boolean
+  postponed: boolean
 }
 
 export type RSCPayload =

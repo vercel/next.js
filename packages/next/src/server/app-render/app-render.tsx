@@ -549,10 +549,11 @@ async function getRSCPayload(
     b: ctx.renderOpts.buildId,
     p: ctx.assetPrefix,
     c: url.pathname + url.search,
-    i: couldBeIntercepted,
+    i: !!couldBeIntercepted,
     f: [[initialTree, seedData, initialHead]],
     m: missingSlots,
     G: GlobalError,
+    s: typeof ctx.renderOpts.postponed === 'string',
   } satisfies InitialRSCPayload & { P: React.ReactNode }
 }
 
@@ -664,6 +665,7 @@ function App<T>({
     initialParallelRoutes: null!,
     location: null,
     couldBeIntercepted: response.i,
+    postponed: response.s,
   })
 
   const actionQueue = createMutableActionQueue(initialState)
@@ -689,7 +691,7 @@ function App<T>({
   )
 }
 
-// @TODO our error stream should be probably just use the same root component. But it was previosuly
+// @TODO our error stream should be probably just use the same root component. But it was previously
 // different I don't want to figure out if that is meaningful at this time so just keeping the behavior
 // consistent for now.
 function AppWithoutContext<T>({
@@ -721,6 +723,7 @@ function AppWithoutContext<T>({
     initialParallelRoutes: null!,
     location: null,
     couldBeIntercepted: response.i,
+    postponed: response.s,
   })
 
   const actionQueue = createMutableActionQueue(initialState)

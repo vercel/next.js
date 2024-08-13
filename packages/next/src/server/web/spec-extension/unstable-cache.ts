@@ -8,6 +8,11 @@ import {
 } from '../../lib/patch-fetch'
 import { staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 import { requestAsyncStorage } from '../../../client/components/request-async-storage.external'
+import {
+  CachedRouteKind,
+  IncrementalCacheKind,
+  type CachedFetchData,
+} from '../../response-cache'
 
 type Callback = (...args: any[]) => Promise<any>
 
@@ -25,14 +30,14 @@ async function cacheNewResult<T>(
   await incrementalCache.set(
     cacheKey,
     {
-      kind: 'FETCH',
+      kind: CachedRouteKind.FETCH,
       data: {
         headers: {},
         // TODO: handle non-JSON values?
         body: JSON.stringify(result),
         status: 200,
         url: '',
-      },
+      } satisfies CachedFetchData,
       revalidate: typeof revalidate !== 'number' ? CACHE_ONE_YEAR : revalidate,
     },
     {
@@ -185,7 +190,7 @@ export function unstable_cache<T extends Callback>(
       ) {
         // We attempt to get the current cache entry from the incremental cache.
         const cacheEntry = await incrementalCache.get(cacheKey, {
-          kindHint: 'fetch',
+          kind: IncrementalCacheKind.FETCH,
           revalidate: options.revalidate,
           tags,
           softTags: implicitTags,
@@ -195,7 +200,7 @@ export function unstable_cache<T extends Callback>(
 
         if (cacheEntry && cacheEntry.value) {
           // The entry exists and has a value
-          if (cacheEntry.value.kind !== 'FETCH') {
+          if (cacheEntry.value.kind !== CachedRouteKind.FETCH) {
             // The entry is invalid and we need a special warning
             // @TODO why do we warn this way? Should this just be an error? How are these errors surfaced
             // so bugs can be reported
@@ -298,7 +303,7 @@ export function unstable_cache<T extends Callback>(
           addImplicitTags(staticGenerationStore, requestStore)
 
         const cacheEntry = await incrementalCache.get(cacheKey, {
-          kindHint: 'fetch',
+          kind: IncrementalCacheKind.FETCH,
           revalidate: options.revalidate,
           tags,
           fetchIdx,
@@ -308,7 +313,7 @@ export function unstable_cache<T extends Callback>(
 
         if (cacheEntry && cacheEntry.value) {
           // The entry exists and has a value
-          if (cacheEntry.value.kind !== 'FETCH') {
+          if (cacheEntry.value.kind !== CachedRouteKind.FETCH) {
             // The entry is invalid and we need a special warning
             // @TODO why do we warn this way? Should this just be an error? How are these errors surfaced
             // so bugs can be reported

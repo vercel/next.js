@@ -328,7 +328,6 @@ export async function exportPages(
     cacheHandler,
     cacheMaxMemorySize,
     fetchCacheKeyPrefix,
-    enabledDirectories,
     pagesDataDir,
     renderOpts,
     nextConfig,
@@ -343,7 +342,6 @@ export async function exportPages(
     fetchCacheKeyPrefix,
     distDir,
     dir,
-    enabledDirectories: enabledDirectories,
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,

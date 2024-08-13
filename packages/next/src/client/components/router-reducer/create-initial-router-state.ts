@@ -14,7 +14,8 @@ export interface InitialRouterStateParameters {
   initialParallelRoutes: CacheNode['parallelRoutes']
   initialFlightData: FlightDataPath[]
   location: Location | null
-  couldBeIntercepted?: boolean
+  couldBeIntercepted: boolean
+  postponed: boolean
 }
 
 export function createInitialRouterState({
@@ -24,6 +25,7 @@ export function createInitialRouterState({
   initialParallelRoutes,
   location,
   couldBeIntercepted,
+  postponed,
 }: InitialRouterStateParameters) {
   // The initialFlightData is an array of FlightDataPath arrays.
   // For the root render, there'll only be a top-level FlightDataPath array.
@@ -107,6 +109,7 @@ export function createInitialRouterState({
         couldBeIntercepted: !!couldBeIntercepted,
         // TODO: the server should probably send a value for this. Default to false for now.
         isPrerender: false,
+        postponed,
       },
       tree: initialState.tree,
       prefetchCache: initialState.prefetchCache,
