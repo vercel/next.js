@@ -1987,19 +1987,16 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast UnaryExpr,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        match n.op {
-            UnaryOp::TypeOf => {
-                let arg_value = self.eval_context.eval(&n.arg);
-                self.add_effect(Effect::TypeOf {
-                    arg: arg_value,
-                    ast_path: as_parent_path(ast_path),
-                    span: n.span(),
-                });
-            }
-            _ => {
-                n.visit_children_with_path(self, ast_path);
-            }
+        if n.op == UnaryOp::TypeOf {
+            let arg_value = self.eval_context.eval(&n.arg);
+            self.add_effect(Effect::TypeOf {
+                arg: arg_value,
+                ast_path: as_parent_path(ast_path),
+                span: n.span(),
+            });
         }
+
+        n.visit_children_with_path(self, ast_path);
     }
 }
 
