@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "imagekit": "^5.0.1",
-    "imagekitio-next": "file:./imagekitio-next-1.0.0.tgz",
+    "imagekitio-next": "^1.0.0",
     "next": "14.2.4",
     "react": "^18",
     "react-dom": "^18",
