@@ -178,8 +178,6 @@ impl TaskState {
             output: Default::default(),
             cells: Default::default(),
             gc: Default::default(),
-            #[cfg(feature = "track_wait_dependencies")]
-            last_waiting_task: Default::default(),
         }
     }
 
@@ -201,8 +199,6 @@ impl TaskState {
             output: Default::default(),
             cells: Default::default(),
             gc: Default::default(),
-            #[cfg(feature = "track_wait_dependencies")]
-            last_waiting_task: Default::default(),
         }
     }
 }
