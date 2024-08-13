@@ -8,7 +8,7 @@ use std::{
     time::Instant,
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use lmdb::{Database, DatabaseFlags, Environment, EnvironmentFlags, Transaction, WriteFlags};
 use turbo_tasks::{backend::CachedTaskType, KeyValuePair, TaskId};
 
@@ -116,19 +116,22 @@ impl BackingStorage for LmdbBackingStorage {
             as_u32(tx.get(self.meta_db, &IntKey::new(META_KEY_NEXT_FREE_TASK_ID))).unwrap_or(1);
         for (task_type, task_id) in task_cache_updates.iter() {
             let task_id = **task_id;
-            let task_type = bincode::serialize(&task_type)?;
+            let task_type_bytes = bincode::serialize(&task_type)
+                .with_context(|| anyhow!("Unable to serialize task cache key {task_type:?}"))?;
             tx.put(
                 self.forward_task_cache_db,
-                &task_type,
+                &task_type_bytes,
                 &task_id.to_be_bytes(),
                 WriteFlags::empty(),
-            )?;
+            )
+            .with_context(|| anyhow!("Unable to write task cache {task_type:?} => {task_id}"))?;
             tx.put(
                 self.reverse_task_cache_db,
                 &IntKey::new(task_id),
-                &task_type,
+                &task_type_bytes,
                 WriteFlags::empty(),
-            )?;
+            )
+            .with_context(|| anyhow!("Unable to write task cache {task_id} => {task_type:?}"))?;
             op_count += 2;
             next_task_id = next_task_id.max(task_id + 1);
         }
@@ -137,14 +140,16 @@ impl BackingStorage for LmdbBackingStorage {
             &IntKey::new(META_KEY_NEXT_FREE_TASK_ID),
             &next_task_id.to_be_bytes(),
             WriteFlags::empty(),
-        )?;
+        )
+        .with_context(|| anyhow!("Unable to write next free task id"))?;
         let operations = bincode::serialize(&operations)?;
         tx.put(
             self.meta_db,
             &IntKey::new(META_KEY_OPERATIONS),
             &operations,
             WriteFlags::empty(),
-        )?;
+        )
+        .with_context(|| anyhow!("Unable to write operations"))?;
         op_count += 2;
 
         let mut updated_items: HashMap<TaskId, HashMap<CachedDataItemKey, CachedDataItemValue>> =
@@ -175,16 +180,20 @@ impl BackingStorage for LmdbBackingStorage {
                 .into_iter()
                 .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
                 .collect();
-            let value = bincode::serialize(&vec)?;
+            let value = bincode::serialize(&vec).with_context(|| {
+                anyhow!("Unable to serialize data items for {task_id}: {vec:#?}")
+            })?;
             tx.put(
                 self.data_db,
                 &IntKey::new(*task_id),
                 &value,
                 WriteFlags::empty(),
-            )?;
+            )
+            .with_context(|| anyhow!("Unable to write data items for {task_id}"))?;
             op_count += 1;
         }
-        tx.commit()?;
+        tx.commit()
+            .with_context(|| anyhow!("Unable to commit operations"))?;
         println!(
             "Persisted {op_count} db entries after {:?}",
             start.elapsed()
