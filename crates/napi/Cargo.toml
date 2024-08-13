@@ -39,6 +39,8 @@ __internal_dhat-ad-hoc = ["dhat"]
 
 new-backend = ["dep:turbo-tasks-backend"]
 
+default = ["new-backend"]
+
 # Enable specific tls features per-target.
 [target.'cfg(all(target_os = "windows", target_arch = "aarch64"))'.dependencies]
 next-core = { workspace = true, features = ["native-tls"] }
