@@ -36,7 +36,7 @@ describe('createInitialRouterState', () => {
     const state = createInitialRouterState({
       buildId,
       initialFlightData: [
-        [initialTree, ['', {}, children, null], <title>Test</title>],
+        [initialTree, ['', children, {}, null], <title>Test</title>],
       ],
       initialCanonicalUrl,
       initialParallelRoutes,
@@ -48,7 +48,7 @@ describe('createInitialRouterState', () => {
     const state2 = createInitialRouterState({
       buildId,
       initialFlightData: [
-        [initialTree, ['', {}, children, null], <title>Test</title>],
+        [initialTree, ['', children, {}, null], <title>Test</title>],
       ],
       initialCanonicalUrl,
       initialParallelRoutes,

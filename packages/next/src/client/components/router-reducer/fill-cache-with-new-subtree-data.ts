@@ -46,7 +46,7 @@ function fillCacheHelper(
         !childCacheNode.lazyData ||
         childCacheNode === existingChildCacheNode)
     ) {
-      const rsc = cacheNodeSeedData[2]
+      const rsc = cacheNodeSeedData[1]
       const loading = cacheNodeSeedData[3]
       childCacheNode = {
         lazyData: null,

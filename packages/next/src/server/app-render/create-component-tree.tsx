@@ -496,7 +496,6 @@ async function createComponentTreeInternal({
   if (!Component) {
     return [
       actualSegment,
-      parallelRouteCacheNodeSeedData,
       // TODO: I don't think the extra fragment is necessary. React treats top
       // level fragments as transparent, i.e. the runtime behavior should be
       // identical even without it. But maybe there's some findDOMNode-related
@@ -506,6 +505,7 @@ async function createComponentTreeInternal({
         {layerAssets}
         {parallelRouteProps.children}
       </React.Fragment>,
+      parallelRouteCacheNodeSeedData,
       loadingData,
     ]
   }
@@ -528,7 +528,6 @@ async function createComponentTreeInternal({
   ) {
     return [
       actualSegment,
-      parallelRouteCacheNodeSeedData,
       <React.Fragment key={cacheNodeKey}>
         <Postpone
           reason='dynamic = "force-dynamic" was used'
@@ -536,6 +535,7 @@ async function createComponentTreeInternal({
         />
         {layerAssets}
       </React.Fragment>,
+      parallelRouteCacheNodeSeedData,
       loadingData,
     ]
   }
@@ -619,7 +619,6 @@ async function createComponentTreeInternal({
 
   return [
     actualSegment,
-    parallelRouteCacheNodeSeedData,
     <React.Fragment key={cacheNodeKey}>
       {segmentElement}
       {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
@@ -632,6 +631,7 @@ async function createComponentTreeInternal({
             TODO-APP update router to use a Symbol for partial tree detection */}
       {null}
     </React.Fragment>,
+    parallelRouteCacheNodeSeedData,
     loadingData,
   ]
 }
