@@ -1138,6 +1138,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     }
                 }
             }
+            Effect::TypeOf {
+                arg,
+                ast_path,
+                span,
+            } => {
+                let arg = analysis_state.link_value(arg, false).await?;
+                handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
+            }
             Effect::ImportMeta {
                 ast_path,
                 span: _,
@@ -1942,6 +1950,35 @@ async fn handle_member(
             );
         }
         _ => {}
+    }
+
+    Ok(())
+}
+
+async fn handle_typeof(
+    ast_path: &[AstParentKind],
+    arg: JsValue,
+    span: Span,
+    state: &AnalysisState<'_>,
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+) -> Result<()> {
+    if let Some(def_name_len) = arg.get_defineable_name_len() {
+        let compile_time_info = state.compile_time_info.await?;
+        let free_var_references = compile_time_info.free_var_references.await?;
+        for (name, value) in free_var_references.iter() {
+            if name.len() != def_name_len + 1 {
+                continue;
+            }
+            let mut it = name.iter().map(|v| Cow::Borrowed(&**v)).rev();
+            if it.next().unwrap().as_ref() != "typeof" {
+                continue;
+            }
+            if it.eq(arg.iter_defineable_name_rev())
+                && handle_free_var_reference(ast_path, value, span, state, analysis).await?
+            {
+                return Ok(());
+            }
+        }
     }
 
     Ok(())
