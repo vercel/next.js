@@ -22,7 +22,7 @@ describe('on-request-error - isr', () => {
       const json = await getOutputLogJson(next, outputLogPath)
       expect(json[errorMessage]).toMatchObject({
         context: {
-          revalidateReason: 'stale',
+          revalidateReason,
         },
       })
     })
