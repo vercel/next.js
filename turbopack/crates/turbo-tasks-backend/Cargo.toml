@@ -17,6 +17,7 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 bincode = "1.3.3"
+byteorder = "1.5.0"
 dashmap = { workspace = true, features = ["raw-api"]}
 either = { workspace = true }
 hashbrown = { workspace = true }

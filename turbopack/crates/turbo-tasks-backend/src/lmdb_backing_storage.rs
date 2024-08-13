@@ -1,3 +1,5 @@
+mod extended_key;
+
 use std::{
     collections::{hash_map::Entry, HashMap},
     error::Error,
@@ -118,7 +120,8 @@ impl BackingStorage for LmdbBackingStorage {
             let task_id = **task_id;
             let task_type_bytes = bincode::serialize(&task_type)
                 .with_context(|| anyhow!("Unable to serialize task cache key {task_type:?}"))?;
-            tx.put(
+            extended_key::put(
+                &mut tx,
                 self.forward_task_cache_db,
                 &task_type_bytes,
                 &task_id.to_be_bytes(),
@@ -204,8 +207,7 @@ impl BackingStorage for LmdbBackingStorage {
     fn forward_lookup_task_cache(&self, task_type: &CachedTaskType) -> Option<TaskId> {
         let tx = self.env.begin_ro_txn().ok()?;
         let task_type = bincode::serialize(task_type).ok()?;
-        let result = tx
-            .get(self.forward_task_cache_db, &task_type)
+        let result = extended_key::get(&tx, self.forward_task_cache_db, &task_type)
             .ok()
             .and_then(|v| v.try_into().ok())
             .map(|v| TaskId::from(u32::from_be_bytes(v)));
