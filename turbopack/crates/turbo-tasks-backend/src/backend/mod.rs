@@ -18,6 +18,8 @@ use std::{
 use anyhow::Result;
 use auto_hash_map::{AutoMap, AutoSet};
 use dashmap::DashMap;
+pub use operation::AnyOperation;
+use operation::ConnectChildOperation;
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHasher;
 use smallvec::smallvec;
@@ -33,10 +35,7 @@ use turbo_tasks::{
     ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
-use self::{
-    operation::{AnyOperation, ExecuteContext},
-    storage::Storage,
-};
+use self::{operation::ExecuteContext, storage::Storage};
 use crate::{
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate, CellRef,
@@ -657,9 +656,15 @@ impl Backend for TurboTasksBackend {
         );
     }
 
-    fn connect_task(&self, _: TaskId, _: TaskId, _: &dyn TurboTasksBackendApi<Self>) {
-        todo!()
+    fn connect_task(
+        &self,
+        task: TaskId,
+        parent_task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        ConnectChildOperation::run(parent_task, task, self.execute_context(turbo_tasks));
     }
+
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,
