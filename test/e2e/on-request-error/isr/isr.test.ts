@@ -46,7 +46,7 @@ describe('on-request-error - isr', () => {
 
     it('should capture correct reason for on-demand revalidated page', async () => {
       await next.fetch('/app/on-demand')
-      await next.fetch('/app/revalidate-path?path=/app/on-demand')
+      await next.fetch('/api/revalidate-path?path=/app/on-demand')
 
       await matchRevalidateReason('app:on-demand', 'on-demand')
     })
