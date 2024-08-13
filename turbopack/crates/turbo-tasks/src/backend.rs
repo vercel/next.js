@@ -292,17 +292,17 @@ impl CachedTaskType {
     /// it can return a `&'static str` in many cases.
     pub fn get_name(&self) -> Cow<'static, str> {
         match self {
-            CachedTaskType::Native {
+            Self::Native {
                 fn_type: native_fn,
                 this: _,
                 arg: _,
             }
-            | CachedTaskType::ResolveNative {
+            | Self::ResolveNative {
                 fn_type: native_fn,
                 this: _,
                 arg: _,
             } => Cow::Borrowed(&registry::get_function(*native_fn).name),
-            CachedTaskType::ResolveTrait {
+            Self::ResolveTrait {
                 trait_type: trait_id,
                 method_name: fn_name,
                 this: _,
@@ -313,9 +313,8 @@ impl CachedTaskType {
 
     pub fn try_get_function_id(&self) -> Option<FunctionId> {
         match self {
-            PersistentTaskType::Native { fn_type, .. }
-            | PersistentTaskType::ResolveNative { fn_type, .. } => Some(*fn_type),
-            PersistentTaskType::ResolveTrait { .. } => None,
+            Self::Native { fn_type, .. } | Self::ResolveNative { fn_type, .. } => Some(*fn_type),
+            Self::ResolveTrait { .. } => None,
         }
     }
 }

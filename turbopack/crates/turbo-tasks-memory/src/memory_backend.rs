@@ -26,8 +26,8 @@ use turbo_tasks::{
     },
     event::EventListener,
     util::{IdFactoryWithReuse, NoMoveVec},
-    CellId, FunctionId, RawVc, TaskId, TaskIdSet, TaskInput, TraitTypeId, TurboTasksBackendApi,
-    Unused, ValueTypeId, TRANSIENT_TASK_BIT,
+    CellId, FunctionId, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused,
+    ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
 use crate::{
