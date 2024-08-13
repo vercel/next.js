@@ -1,6 +1,8 @@
-import { useRouter } from "next/router";
+"use client";
+
+import { useParams } from "next/navigation";
 import useSWR from "swr";
-import type { Person, ResponseError } from "../../interfaces";
+import type { Person, ResponseError } from "../../../interfaces";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
@@ -13,11 +15,11 @@ const fetcher = async (url: string) => {
 };
 
 export default function PersonPage() {
-  const { query } = useRouter();
+  const query = useParams();
   const { data, error, isLoading, isValidating } = useSWR<
     Person,
     ResponseError
-  >(() => (query.id ? `/api/people/${query.id}` : null), fetcher);
+  >(() => (query?.id ? `/api/people/${query.id}` : null), fetcher);
 
   if (error) return <div>{error.message}</div>;
   if (isLoading) return <div>Loading...</div>;
