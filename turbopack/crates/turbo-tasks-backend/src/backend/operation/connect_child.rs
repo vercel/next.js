@@ -5,7 +5,10 @@ use super::{
     aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
     ExecuteContext, Operation,
 };
-use crate::data::{CachedDataItem, CachedDataItemKey};
+use crate::{
+    data::{CachedDataItem, CachedDataItemKey},
+    get, get_many,
+};
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum ConnectChildOperation {
@@ -22,28 +25,29 @@ pub enum ConnectChildOperation {
 }
 
 impl ConnectChildOperation {
-    pub fn run(parent_task: TaskId, child_task: TaskId, ctx: ExecuteContext<'_>) {
-        let mut parent_task = ctx.task(parent_task);
+    pub fn run(parent_task_id: TaskId, child_task_id: TaskId, ctx: ExecuteContext<'_>) {
+        let mut parent_task = ctx.task(parent_task_id);
         if parent_task.add(CachedDataItem::Child {
-            task: child_task,
+            task: child_task_id,
             value: (),
         }) {
             // Update the task aggregation
-            let upper_ids = parent_task
-                .iter()
-                .filter_map(|(key, _)| match *key {
-                    CachedDataItemKey::Upper { task } => Some(task),
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
             let mut queue = AggregationUpdateQueue::new();
-            queue.push(AggregationUpdateJob::InnerHasNewFollower {
-                upper_ids,
-                new_follower_id: child_task,
-                new_follower_data: (),
-            });
+            if get!(parent_task, AggregationNumber).is_some() {
+                queue.push(AggregationUpdateJob::InnerHasNewFollower {
+                    upper_ids: vec![parent_task_id],
+                    new_follower_id: child_task_id,
+                });
+            } else {
+                let upper_ids = get_many!(parent_task, Upper { task } => task);
+                queue.push(AggregationUpdateJob::InnerHasNewFollower {
+                    upper_ids,
+                    new_follower_id: child_task_id,
+                });
+            }
+            drop(parent_task);
             ConnectChildOperation::UpdateAggregation {
-                task_id: child_task,
+                task_id: child_task_id,
                 aggregation_update: queue,
             }
             .execute(&ctx);
