@@ -25,6 +25,16 @@ export function getFilesystemFrame(frame: StackFrame): StackFrame {
 }
 
 export function getServerError(error: Error, type: ErrorSourceType): Error {
+  if (error.name === 'TurbopackInternalError') {
+    // If this is an internal Turbopack error we shouldn't show internal details
+    // to the user. These are written to a log file instead.
+    const turbopackInternalError = new Error(
+      'An unexpected Turbopack error occurred. Please see the output of `next dev` for more details.'
+    )
+    decorateServerError(turbopackInternalError, type)
+    return turbopackInternalError
+  }
+
   let n: Error
   try {
     throw new Error(error.message)

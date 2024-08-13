@@ -1,25 +1,22 @@
-export type Event = 'request'
+export type Event = 'request' | 'response'
 
 /**
  * This is the base Browser interface all browser
  * classes should build on, it is the bare
  * methods we aim to support across tests
  */
-export abstract class BrowserInterface implements PromiseLike<any> {
-  private promise?: Promise<any>
-  then: Promise<any>['then']
-  catch: Promise<any>['catch']
-  finally: Promise<any>['finally'];
+export abstract class BrowserInterface<TCurrent = any> {
+  private promise?: Promise<TCurrent>;
 
   // necessary for the type of the function below
   readonly [Symbol.toStringTag]: string = 'BrowserInterface'
 
-  protected chain<T>(
-    nextCall: (current: any) => T | PromiseLike<T>
-  ): BrowserInterface & Promise<T> {
+  protected chain<TNext>(
+    nextCall: (current: TCurrent) => TNext | Promise<TNext>
+  ): BrowserInterface<TNext> & Promise<TNext> {
     const promise = Promise.resolve(this.promise).then(nextCall)
 
-    function get(target: BrowserInterface, p: string | symbol): any {
+    function get(target: BrowserInterface<TNext>, p: string | symbol): any {
       switch (p) {
         case 'promise':
           return promise
@@ -39,12 +36,6 @@ export abstract class BrowserInterface implements PromiseLike<any> {
     })
   }
 
-  protected chainWithReturnValue<T>(
-    callback: (value: any) => T | PromiseLike<T>
-  ): Promise<T> {
-    return Promise.resolve(this.promise).then(callback)
-  }
-
   abstract setup(
     browserName: string,
     locale: string,
@@ -54,36 +45,43 @@ export abstract class BrowserInterface implements PromiseLike<any> {
   ): Promise<void>
   abstract close(): Promise<void>
 
-  abstract elementsByCss(selector: string): BrowserInterface[]
-  abstract elementByCss(selector: string): BrowserInterface
-  abstract elementById(selector: string): BrowserInterface
-  abstract touchStart(): BrowserInterface
-  abstract click(opts?: { modifierKey?: boolean }): BrowserInterface
-  abstract keydown(key: string): BrowserInterface
-  abstract keyup(key: string): BrowserInterface
-  abstract type(text: string): BrowserInterface
-  abstract moveTo(): BrowserInterface
-  // TODO(NEXT-290): type this correctly as awaitable
+  abstract elementsByCss(
+    selector: string
+  ): BrowserInterface<any[]> & Promise<any[]>
+  abstract elementByCss(selector: string): BrowserInterface<any> & Promise<any>
+  abstract elementById(selector: string): BrowserInterface<any> & Promise<any>
+  abstract touchStart(): BrowserInterface<any> & Promise<any>
+  abstract click(): BrowserInterface<any> & Promise<any>
+  abstract keydown(key: string): BrowserInterface<any> & Promise<any>
+  abstract keyup(key: string): BrowserInterface<any> & Promise<any>
+  abstract type(text: string): BrowserInterface<any> & Promise<any>
+  abstract moveTo(): BrowserInterface<any> & Promise<any>
   abstract waitForElementByCss(
     selector: string,
     timeout?: number
-  ): BrowserInterface
-  abstract waitForCondition(snippet: string, timeout?: number): BrowserInterface
+  ): BrowserInterface<any> & Promise<any>
+  abstract waitForCondition(
+    snippet: string,
+    timeout?: number
+  ): BrowserInterface<any> & Promise<any>
   /**
    * Use browsers `go back` functionality.
    */
-  abstract back(options?: any): BrowserInterface
+  abstract back(options?: any): BrowserInterface<any> & Promise<any>
   /**
    * Use browsers `go forward` functionality. Inverse of back.
    */
-  abstract forward(options?: any): BrowserInterface
-  abstract refresh(): BrowserInterface
+  abstract forward(options?: any): BrowserInterface<any> & Promise<any>
+  abstract refresh(): BrowserInterface<any> & Promise<any>
   abstract setDimensions(opts: {
     height: number
     width: number
-  }): BrowserInterface
-  abstract addCookie(opts: { name: string; value: string }): BrowserInterface
-  abstract deleteCookies(): BrowserInterface
+  }): BrowserInterface<any> & Promise<any>
+  abstract addCookie(opts: {
+    name: string
+    value: string
+  }): BrowserInterface<any> & Promise<any>
+  abstract deleteCookies(): BrowserInterface<void> & Promise<void>
   abstract on(event: Event, cb: (...args: any[]) => void): void
   abstract off(event: Event, cb: (...args: any[]) => void): void
   abstract loadPage(
@@ -93,7 +91,7 @@ export abstract class BrowserInterface implements PromiseLike<any> {
       cpuThrottleRate,
       beforePageLoad,
       pushErrorAsConsoleLog,
-    }: {
+    }?: {
       disableCache?: boolean
       cpuThrottleRate?: number
       beforePageLoad?: Function
@@ -101,20 +99,14 @@ export abstract class BrowserInterface implements PromiseLike<any> {
     }
   ): Promise<void>
   abstract get(url: string): Promise<void>
-
-  abstract getValue<T = any>(): Promise<T>
-  abstract getAttribute<T = any>(name: string): Promise<T>
-  abstract eval<T = any>(snippet: string | Function, ...args: any[]): Promise<T>
-  abstract evalAsync<T = any>(
-    snippet: string | Function,
-    ...args: any[]
-  ): Promise<T>
+  abstract getValue(): Promise<string>
+  abstract getAttribute(name: string): Promise<string>
+  abstract eval(snippet: string | Function, ...args: any[]): Promise<any>
+  abstract evalAsync(snippet: string | Function, ...args: any[]): Promise<any>
   abstract text(): Promise<string>
   abstract getComputedCss(prop: string): Promise<string>
   abstract hasElementByCssSelector(selector: string): Promise<boolean>
-  abstract log(): Promise<
-    { source: 'error' | 'info' | 'log'; message: string }[]
-  >
+  abstract log(): Promise<{ source: string; message: string }[]>
   abstract websocketFrames(): Promise<any[]>
   abstract url(): Promise<string>
   abstract waitForIdleNetwork(): Promise<void>

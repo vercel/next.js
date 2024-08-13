@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
-import { hydrationErrorState } from './hydration-error-info'
+
 import { isNextRouterError } from '../../../is-next-router-error'
 import { isHydrationError } from '../../../is-hydration-error'
+import { attachHydrationErrorState } from './attach-hydration-error-state'
 
 export type ErrorHandler = (error: Error) => void
 
@@ -18,60 +19,41 @@ const rejectionQueue: Array<Error> = []
 const errorHandlers: Array<ErrorHandler> = []
 const rejectionHandlers: Array<ErrorHandler> = []
 
+export function handleClientError(error: unknown) {
+  if (!error || !(error instanceof Error) || typeof error.stack !== 'string') {
+    // A non-error was thrown, we don't have anything to show. :-(
+    return
+  }
+
+  attachHydrationErrorState(error)
+
+  // Only queue one hydration every time
+  if (isHydrationError(error)) {
+    if (!hasHydrationError) {
+      errorQueue.push(error)
+    }
+    hasHydrationError = true
+  }
+  for (const handler of errorHandlers) {
+    handler(error)
+  }
+}
 if (typeof window !== 'undefined') {
   // These event handlers must be added outside of the hook because there is no
   // guarantee that the hook will be alive in a mounted component in time to
   // when the errors occur.
-  window.addEventListener('error', (ev: WindowEventMap['error']): void => {
-    if (isNextRouterError(ev.error)) {
-      ev.preventDefault()
-      return
-    }
-
-    const error = ev?.error
-    if (
-      !error ||
-      !(error instanceof Error) ||
-      typeof error.stack !== 'string'
-    ) {
-      // A non-error was thrown, we don't have anything to show. :-(
-      return
-    }
-
-    const isCausedByHydrationFailure = isHydrationError(error)
-    if (
-      isHydrationError(error) &&
-      !error.message.includes(
-        'https://nextjs.org/docs/messages/react-hydration-error'
-      )
-    ) {
-      // If there's any extra information in the error message to display,
-      // append it to the error message details property
-      if (hydrationErrorState.warning) {
-        // The patched console.error found hydration errors logged by React
-        // Append the logged warning to the error message
-        ;(error as any).details = {
-          ...(error as any).details,
-          // It contains the warning, component stack, server and client tag names
-          ...hydrationErrorState,
-        }
+  // uncaught errors go through reportError
+  window.addEventListener(
+    'error',
+    (event: WindowEventMap['error']): void | boolean => {
+      if (isNextRouterError(event.error)) {
+        event.preventDefault()
+        return false
       }
-      error.message +=
-        '\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error'
+      handleClientError(event.error)
     }
+  )
 
-    const e = error
-    // Only queue one hydration every time
-    if (isCausedByHydrationFailure) {
-      if (!hasHydrationError) {
-        errorQueue.push(e)
-      }
-      hasHydrationError = true
-    }
-    for (const handler of errorHandlers) {
-      handler(e)
-    }
-  })
   window.addEventListener(
     'unhandledrejection',
     (ev: WindowEventMap['unhandledrejection']): void => {

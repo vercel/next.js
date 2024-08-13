@@ -3,12 +3,21 @@
 import { nextTestSetup } from 'e2e-utils'
 import { colorToRgb } from 'next-test-utils'
 
-describe('Multi Global Support', () => {
+describe.each([
+  { dependencies: { sass: '1.54.0' }, nextConfig: undefined },
+  {
+    dependencies: { 'sass-embedded': '1.75.0' },
+    nextConfig: {
+      sassOptions: {
+        implementation: 'sass-embedded',
+      },
+    },
+  },
+])('Multi Global Support ($dependencies)', ({ dependencies, nextConfig }) => {
   const { next } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      sass: '1.54.0',
-    },
+    dependencies,
+    nextConfig,
   })
 
   it('should render the page', async () => {

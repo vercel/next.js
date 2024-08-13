@@ -10,11 +10,9 @@ const path = require('path')
 const appDir = process.cwd()
 const distDir = '.next'
 
-const compiledConfig = require(path.join(
-  appDir,
-  distDir,
-  'required-server-files.json'
-)).config
+const compiledConfig = require(
+  path.join(appDir, distDir, 'required-server-files.json')
+).config
 
 process.chdir(appDir)
 

@@ -47,10 +47,14 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
   const hasAlternates = data.some(
     (item) => Object.keys(item.alternates ?? {}).length > 0
   )
+  const hasImages = data.some((item) => Boolean(item.images?.length))
 
   let content = ''
   content += '<?xml version="1.0" encoding="UTF-8"?>\n'
   content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+  if (hasImages) {
+    content += ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"'
+  }
   if (hasAlternates) {
     content += ' xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
   } else {
@@ -68,6 +72,11 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
         content += `<xhtml:link rel="alternate" hreflang="${language}" href="${
           languages[language as keyof typeof languages]
         }" />\n`
+      }
+    }
+    if (item.images?.length) {
+      for (const image of item.images) {
+        content += `<image:image>\n<image:loc>${image}</image:loc>\n</image:image>\n`
       }
     }
     if (item.lastModified) {

@@ -105,11 +105,11 @@ export function getPagePath(
   return pagePath
 }
 
-export function requirePage(
+export async function requirePage(
   page: string,
   distDir: string,
   isAppPath: boolean
-): any {
+): Promise<any> {
   const pagePath = getPagePath(page, distDir, undefined, isAppPath)
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8').catch((err) => {

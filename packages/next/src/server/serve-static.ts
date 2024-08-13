@@ -5,6 +5,7 @@ import send from 'next/dist/compiled/send'
 // Although "mime" has already add avif in version 2.4.7, "send" is still using mime@1.6.0
 send.mime.define({
   'image/avif': ['avif'],
+  'image/x-icns': ['icns'],
 })
 
 export function serveStatic(

@@ -1,8 +1,27 @@
 import { mkdir, writeFile } from 'fs/promises'
 import { join } from 'path'
-import { run, useTempDir } from './utils'
+import {
+  run,
+  useTempDir,
+  projectFilesShouldExist,
+  projectFilesShouldNotExist,
+} from './utils'
 
 describe('create-next-app', () => {
+  let nextTgzFilename: string
+
+  beforeAll(() => {
+    if (!process.env.NEXT_TEST_PKG_PATHS) {
+      throw new Error('This test needs to be run with `node run-tests.js`.')
+    }
+
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
+
+    nextTgzFilename = pkgPaths.get('next')
+  })
+
   it('should not create if the target directory is not empty', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'non-empty-dir'
@@ -15,11 +34,13 @@ describe('create-next-app', () => {
           projectName,
           '--ts',
           '--app',
+          '--no-turbo',
           '--no-eslint',
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
         ],
+        nextTgzFilename,
         {
           cwd,
           reject: false,
@@ -31,6 +52,9 @@ describe('create-next-app', () => {
   })
 
   it('should not create if the target directory is not writable', async () => {
+    const expectedErrorMessage =
+      /you do not have write permissions for this folder|EPERM: operation not permitted/
+
     await useTempDir(async (cwd) => {
       const projectName = 'dir-not-writable'
 
@@ -45,26 +69,61 @@ describe('create-next-app', () => {
         )
         return
       }
+
       const res = await run(
         [
           projectName,
           '--ts',
           '--app',
+          '--no-turbo',
           '--eslint',
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
         ],
+        nextTgzFilename,
         {
           cwd,
           reject: false,
         }
       )
 
-      expect(res.stderr).toMatch(
-        /you do not have write permissions for this folder/
-      )
+      expect(res.stderr).toMatch(expectedErrorMessage)
       expect(res.exitCode).toBe(1)
-    }, 0o500)
+    }, 0o500).catch((err) => {
+      if (!expectedErrorMessage.test(err.message)) {
+        throw err
+      }
+    })
+  })
+  it('should not install dependencies if --skip-install', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'empty-dir'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-turbo',
+          '--no-eslint',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--skip-install',
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+        }
+      )
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: ['.gitignore', 'package.json'],
+      })
+      projectFilesShouldNotExist({ cwd, projectName, files: ['node_modules'] })
+    })
   })
 })

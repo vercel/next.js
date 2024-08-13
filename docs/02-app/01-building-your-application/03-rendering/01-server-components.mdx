@@ -48,7 +48,7 @@ Then, on the client:
 2. The React Server Components Payload is used to reconcile the Client and Server Component trees, and update the DOM.
 3. The JavaScript instructions are used to [hydrate](https://react.dev/reference/react-dom/client/hydrateRoot) Client Components and make the application interactive.
 
-> **What is the React Server Component Payload (RSC)?**
+> #### What is the React Server Component Payload (RSC)?
 >
 > The RSC Payload is a compact binary representation of the rendered React Server Components tree. It's used by React on the client to update the browser's DOM. The RSC Payload contains:
 >
@@ -64,7 +64,7 @@ There are three subsets of server rendering: Static, Dynamic, and Streaming.
 
 {/* Static Rendering Diagram */}
 
-With Static Rendering, routes are rendered at **build time**, or in the background after [data revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data). The result is cached and can be pushed to a [Content Delivery Network (CDN)](https://developer.mozilla.org/docs/Glossary/CDN). This optimization allows you to share the result of the rendering work between users and server requests.
+With Static Rendering, routes are rendered at **build time**, or in the background after [data revalidation](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating-data). The result is cached and can be pushed to a [Content Delivery Network (CDN)](https://developer.mozilla.org/docs/Glossary/CDN). This optimization allows you to share the result of the rendering work between users and server requests.
 
 Static rendering is useful when a route has data that is not personalized to the user and can be known at build time, such as a static blog post or a product page.
 
@@ -86,7 +86,7 @@ Dynamic rendering is useful when a route has data that is personalized to the us
 
 #### Switching to Dynamic Rendering
 
-During rendering, if a [dynamic function](#dynamic-functions) or [uncached data request](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#opting-out-of-data-caching) is discovered, Next.js will switch to dynamically rendering the whole route. This table summarizes how dynamic functions and data caching affect whether a route is statically or dynamically rendered:
+During rendering, if a [dynamic function](#dynamic-functions) or [uncached data request](/docs/app/building-your-application/data-fetching/caching-and-revalidating) is discovered, Next.js will switch to dynamically rendering the whole route. This table summarizes how dynamic functions and data caching affect whether a route is statically or dynamically rendered:
 
 | Dynamic Functions | Data       | Route                |
 | ----------------- | ---------- | -------------------- |
@@ -97,14 +97,17 @@ During rendering, if a [dynamic function](#dynamic-functions) or [uncached data 
 
 In the table above, for a route to be fully static, all data must be cached. However, you can have a dynamically rendered route that uses both cached and uncached data fetches.
 
-As a developer, you do not need to choose between static and dynamic rendering as Next.js will automatically choose the best rendering strategy for each route based on the features and APIs used. Instead, you choose when to [cache or revalidate specific data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating), and you may choose to [stream](#streaming) parts of your UI.
+As a developer, you do not need to choose between static and dynamic rendering as Next.js will automatically choose the best rendering strategy for each route based on the features and APIs used. Instead, you choose when to [cache or revalidate specific data](/docs/app/building-your-application/data-fetching/caching-and-revalidating), and you may choose to [stream](#streaming) parts of your UI.
 
 #### Dynamic Functions
 
-Dynamic functions rely on information that can only be known at request time such as a user's cookies, current requests headers, or the URL's search params. In Next.js, these dynamic functions are:
+Dynamic functions rely on information that can only be known at request time such as a user's cookies, current requests headers, or the URL's search params. In Next.js, these dynamic APIs are:
 
-- **[`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers)**: Using these in a Server Component will opt the whole route into dynamic rendering at request time.
-- **[`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional)**: Using the `searchParams` prop on a [Page](/docs/app/api-reference/file-conventions/page) will opt the page into dynamic rendering at request time.
+- [`cookies()`](/docs/app/api-reference/functions/cookies)
+- [`headers()`](/docs/app/api-reference/functions/headers)
+- [`unstable_noStore()`](/docs/app/api-reference/functions/unstable_noStore)
+- [`unstable_after()`](/docs/app/api-reference/functions/unstable_after):
+- [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional)
 
 Using any of these functions will opt the whole route into dynamic rendering at request time.
 

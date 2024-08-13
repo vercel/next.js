@@ -35,14 +35,11 @@ describe('app-fetch-deduping', () => {
 
       afterAll(() => externalServer.close())
 
-      it('dedupes requests amongst static workers when experimental.staticWorkerRequestDeduping is enabled', async () => {
+      it('dedupes requests amongst static workers', async () => {
         await next.patchFileFast(
           'next.config.js',
           `module.exports = {
             env: { TEST_SERVER_PORT: "${externalServerPort}" },
-            experimental: {
-              staticWorkerRequestDeduping: true
-            }
           }`
         )
         await next.build()

@@ -10,12 +10,12 @@ import {
 } from '../../../client/components/router-reducer/router-reducer-types'
 import type { ReduxDevToolsInstance } from '../../../client/components/use-reducer-with-devtools'
 import { reducer } from '../../../client/components/router-reducer/router-reducer'
-import React, { startTransition } from 'react'
+import { startTransition } from 'react'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
 export type AppRouterActionQueue = {
-  state: AppRouterState | null
+  state: AppRouterState
   devToolsInstance?: ReduxDevToolsInstance
   dispatch: (payload: ReducerActions, setState: DispatchStatePromise) => void
   action: (state: AppRouterState, action: ReducerActions) => ReducerState
@@ -32,9 +32,6 @@ export type ActionQueueNode = {
   discarded?: boolean
 }
 
-export const ActionQueueContext =
-  React.createContext<AppRouterActionQueue | null>(null)
-
 function runRemainingActions(
   actionQueue: AppRouterActionQueue,
   setState: DispatchStatePromise
@@ -48,6 +45,18 @@ function runRemainingActions(
         action: actionQueue.pending,
         setState,
       })
+    } else {
+      // No more actions are pending, check if a refresh is needed
+      if (actionQueue.needsRefresh) {
+        actionQueue.needsRefresh = false
+        actionQueue.dispatch(
+          {
+            type: ACTION_REFRESH,
+            origin: window.location.origin,
+          },
+          setState
+        )
+      }
     }
   }
 }
@@ -62,10 +71,6 @@ async function runAction({
   setState: DispatchStatePromise
 }) {
   const prevState = actionQueue.state
-  if (!prevState) {
-    // This shouldn't happen as the state is initialized in the dispatcher if it's not set
-    throw new Error('Invariant: Router state not initialized')
-  }
 
   actionQueue.pending = action
 
@@ -75,17 +80,6 @@ async function runAction({
   function handleResult(nextState: AppRouterState) {
     // if we discarded this action, the state should also be discarded
     if (action.discarded) {
-      // if a refresh is needed, we only want to trigger it once the action queue is empty
-      if (actionQueue.needsRefresh && actionQueue.pending === null) {
-        actionQueue.needsRefresh = false
-        actionQueue.dispatch(
-          {
-            type: ACTION_REFRESH,
-            origin: window.location.origin,
-          },
-          setState
-        )
-      }
       return
     }
 
@@ -155,8 +149,11 @@ function dispatchAction(
       action: newAction,
       setState,
     })
-  } else if (payload.type === ACTION_NAVIGATE) {
-    // Navigations take priority over any pending actions.
+  } else if (
+    payload.type === ACTION_NAVIGATE ||
+    payload.type === ACTION_RESTORE
+  ) {
+    // Navigations (including back/forward) take priority over any pending actions.
     // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
     actionQueue.pending.discarded = true
 
@@ -183,15 +180,14 @@ function dispatchAction(
   }
 }
 
-export function createMutableActionQueue(): AppRouterActionQueue {
+export function createMutableActionQueue(
+  initialState: AppRouterState
+): AppRouterActionQueue {
   const actionQueue: AppRouterActionQueue = {
-    state: null,
+    state: initialState,
     dispatch: (payload: ReducerActions, setState: DispatchStatePromise) =>
       dispatchAction(actionQueue, payload, setState),
     action: async (state: AppRouterState, action: ReducerActions) => {
-      if (state === null) {
-        throw new Error('Invariant: Router state not initialized')
-      }
       const result = reducer(state, action)
       return result
     },

@@ -14,14 +14,14 @@ description: Learn to add and access environment variables in your Next.js appli
 
 Next.js comes with built-in support for environment variables, which allows you to do the following:
 
-- [Use `.env.local` to load environment variables](#loading-environment-variables)
+- [Use `.env` to load environment variables](#loading-environment-variables)
 - [Bundle environment variables for the browser by prefixing with `NEXT_PUBLIC_`](#bundling-environment-variables-for-the-browser)
 
 ## Loading Environment Variables
 
-Next.js has built-in support for loading environment variables from `.env.local` into `process.env`.
+Next.js has built-in support for loading environment variables from `.env*` files into `process.env`.
 
-```txt filename=".env.local"
+```txt filename=".env"
 DB_HOST=localhost
 DB_USER=myuser
 DB_PASS=mypassword
@@ -51,7 +51,7 @@ export async function getStaticProps() {
 > **Note**: Next.js also supports multiline variables inside of your `.env*` files:
 >
 > ```bash
-> # .env.local
+> # .env
 >
 > # you can write with line breaks
 > PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
@@ -82,16 +82,64 @@ export async function GET() {
 
 </AppOnly>
 
+### Loading Environment Variables with `@next/env`
+
+If you need to load environment variables outside of the Next.js runtime, such as in a root config file for an ORM or test runner, you can use the `@next/env` package.
+
+This package is used internally by Next.js to load environment variables from `.env*` files.
+
+To use it, install the package and use the `loadEnvConfig` function to load the environment variables:
+
+```bash
+npm install @next/env
+```
+
+```tsx filename="envConfig.ts" switcher
+import { loadEnvConfig } from '@next/env'
+
+const projectDir = process.cwd()
+loadEnvConfig(projectDir)
+```
+
+```jsx filename="envConfig.js" switcher
+import { loadEnvConfig } from '@next/env'
+
+const projectDir = process.cwd()
+loadEnvConfig(projectDir)
+```
+
+Then, you can import the configuration where needed. For example:
+
+```tsx filename="orm.config.ts" switcher
+import './envConfig.ts'
+
+export default defineConfig({
+  dbCredentials: {
+    connectionString: process.env.DATABASE_URL!,
+  },
+})
+```
+
+```jsx filename="orm.config.js" switcher
+import './envConfig.js'
+
+export default defineConfig({
+  dbCredentials: {
+    connectionString: process.env.DATABASE_URL,
+  },
+})
+```
+
 ### Referencing Other Variables
 
 Next.js will automatically expand variables that use `$` to reference other variables e.g. `$VARIABLE` inside of your `.env*` files. This allows you to reference other secrets. For example:
 
 ```txt filename=".env"
 TWITTER_USER=nextjs
-TWITTER_URL=https://twitter.com/$TWITTER_USER
+TWITTER_URL=https://x.com/$TWITTER_USER
 ```
 
-In the above example, `process.env.TWITTER_URL` would be set to `https://twitter.com/nextjs`.
+In the above example, `process.env.TWITTER_URL` would be set to `https://x.com/nextjs`.
 
 > **Good to know**: If you need to use variable with a `$` in the actual value, it needs to be escaped e.g. `\$`.
 
@@ -163,13 +211,11 @@ export default function Component() {
 
 ## Default Environment Variables
 
-In general only one `.env.local` file is needed. However, sometimes you might want to add some defaults for the `development` (`next dev`) or `production` (`next start`) environment.
+Typically, only `.env*` file is needed. However, sometimes you might want to add some defaults for the `development` (`next dev`) or `production` (`next start`) environment.
 
 Next.js allows you to set defaults in `.env` (all environments), `.env.development` (development environment), and `.env.production` (production environment).
 
-`.env.local` always overrides the defaults set.
-
-> **Good to know**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored.
+> **Good to know**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. All `.env` files are excluded in `.gitignore` by default, allowing you to opt-into committing these values to your repository.
 
 ## Environment Variables on Vercel
 
@@ -180,7 +226,7 @@ All types of Environment Variables should be configured there. Even Environment 
 If you've configured [Development Environment Variables](https://vercel.com/docs/concepts/projects/environment-variables#development-environment-variables?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) you can pull them into a `.env.local` for usage on your local machine using the following command:
 
 ```bash filename="Terminal"
-vercel env pull .env.local
+vercel env pull
 ```
 
 > **Good to know**: When deploying your Next.js application to [Vercel](https://vercel.com), your environment variables in `.env*` files will not be made available to Edge Runtime, unless their name are prefixed with `NEXT_PUBLIC_`. We strongly recommend managing your environment variables in [Project Settings](https://vercel.com/docs/projects/environment-variables?utm_medium=docs&utm_source=next-site&utm_campaign=next-website) instead, from where all environment variables are available.

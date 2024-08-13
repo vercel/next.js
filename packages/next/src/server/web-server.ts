@@ -1,9 +1,8 @@
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../client/components/params'
 import type { LoadComponentsReturnType } from './load-components'
-import type { PrerenderManifest } from '../build'
 import type {
   LoadedRenderOpts,
   MiddlewareRoutingItem,
@@ -33,6 +32,9 @@ import type { PAGE_TYPES } from '../lib/page-types'
 import type { Rewrite } from '../lib/load-custom-routes'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../api/constants'
+import { getEdgeInstrumentationModule } from './web/globals'
+import type { ServerOnInstrumentationRequestError } from './app-render/types'
+import { getEdgePreviewProps } from './web/get-edge-preview-props'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -48,12 +50,17 @@ interface WebServerOptions extends Options {
       | typeof import('./app-render/app-render').renderToHTMLOrFlight
       | undefined
     incrementalCacheHandler?: any
-    prerenderManifest: PrerenderManifest | undefined
     interceptionRouteRewrites?: Rewrite[]
   }
 }
 
-export default class NextWebServer extends BaseServer<WebServerOptions> {
+type WebRouteHandler = RouteHandler<WebNextRequest, WebNextResponse>
+
+export default class NextWebServer extends BaseServer<
+  WebServerOptions,
+  WebNextRequest,
+  WebNextResponse
+> {
   constructor(options: WebServerOptions) {
     super(options)
 
@@ -86,8 +93,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       CurCacheHandler:
         this.serverOptions.webServerConfig.incrementalCacheHandler,
       getPrerenderManifest: () => this.getPrerenderManifest(),
-      // PPR is not supported in the edge runtime.
-      experimental: { ppr: false },
     })
   }
   protected getResponseCache() {
@@ -112,8 +117,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected getPagesManifest() {
     return {
       // keep same theme but server path doesn't need to be accurate
-      [this.serverOptions.webServerConfig
-        .pathname]: `server${this.serverOptions.webServerConfig.page}.js`,
+      [this.serverOptions.webServerConfig.pathname]:
+        `server${this.serverOptions.webServerConfig.page}.js`,
     }
   }
 
@@ -132,26 +137,20 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
 
   protected getPrerenderManifest() {
-    const { prerenderManifest } = this.serverOptions.webServerConfig
-    if (this.renderOpts?.dev || !prerenderManifest) {
-      return {
-        version: -1 as any, // letting us know this doesn't conform to spec
-        routes: {},
-        dynamicRoutes: {},
-        notFoundRoutes: [],
-        preview: {
-          previewModeId: 'development-id',
-        } as any, // `preview` is special case read in next-dev-server
-      }
+    return {
+      version: -1 as any, // letting us know this doesn't conform to spec
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+      preview: getEdgePreviewProps(),
     }
-    return prerenderManifest
   }
 
   protected getNextFontManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts.nextFontManifest
   }
 
-  protected handleCatchallRenderRequest: RouteHandler = async (
+  protected handleCatchallRenderRequest: WebRouteHandler = async (
     req,
     res,
     parsedUrl
@@ -284,8 +283,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         options.result.contentType
           ? options.result.contentType
           : options.type === 'json'
-          ? 'application/json'
-          : 'text/html; charset=utf-8'
+            ? 'application/json'
+            : 'text/html; charset=utf-8'
       )
     }
 
@@ -397,15 +396,31 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return new Set<string>()
   }
 
-  protected async getPrefetchRsc(): Promise<string | null> {
-    return null
-  }
-
   protected getinterceptionRoutePatterns(): RegExp[] {
     return (
       this.serverOptions.webServerConfig.interceptionRouteRewrites?.map(
         (rewrite) => new RegExp(buildCustomRoute('rewrite', rewrite).regex)
       ) ?? []
     )
+  }
+
+  protected async loadInstrumentationModule() {
+    return await getEdgeInstrumentationModule()
+  }
+
+  protected async instrumentationOnRequestError(
+    ...args: Parameters<ServerOnInstrumentationRequestError>
+  ) {
+    await super.instrumentationOnRequestError(...args)
+    const err = args[0]
+
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      typeof __next_log_error__ === 'function'
+    ) {
+      __next_log_error__(err)
+    } else {
+      console.error(err)
+    }
   }
 }

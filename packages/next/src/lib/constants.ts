@@ -1,6 +1,7 @@
-import type { ServerRuntime } from '../../types'
+import type { ServerRuntime } from '../types'
 
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
+export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 
 export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
 export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
@@ -8,6 +9,7 @@ export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
 
 export const RSC_PREFETCH_SUFFIX = '.prefetch.rsc'
 export const RSC_SUFFIX = '.rsc'
+export const ACTION_SUFFIX = '.action'
 export const NEXT_DATA_SUFFIX = '.json'
 export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
@@ -77,26 +79,6 @@ export const SSG_FALLBACK_EXPORT_ERROR = `Pages with \`fallback\` enabled in \`g
 
 export const ESLINT_DEFAULT_DIRS = ['app', 'pages', 'components', 'lib', 'src']
 
-export const ESLINT_PROMPT_VALUES = [
-  {
-    title: 'Strict',
-    recommended: true,
-    config: {
-      extends: 'next/core-web-vitals',
-    },
-  },
-  {
-    title: 'Base',
-    config: {
-      extends: 'next',
-    },
-  },
-  {
-    title: 'Cancel',
-    config: null,
-  },
-]
-
 export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   edge: 'edge',
   experimentalEdge: 'experimental-edge',
@@ -113,7 +95,8 @@ const WEBPACK_LAYERS_NAMES = {
    */
   shared: 'shared',
   /**
-   * React Server Components layer (rsc).
+   * The layer for server-only runtime and picking up `react-server` export conditions.
+   * Including app router RSC pages and app router custom routes.
    */
   reactServerComponents: 'rsc',
   /**
@@ -148,10 +131,6 @@ const WEBPACK_LAYERS_NAMES = {
    * The server bundle layer for metadata routes.
    */
   appMetadataRoute: 'app-metadata-route',
-  /**
-   * The layer for the server bundle for App Route handlers.
-   */
-  appRouteHandler: 'app-route-handler',
 } as const
 
 export type WebpackLayerName =
@@ -160,28 +139,30 @@ export type WebpackLayerName =
 const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,
   GROUP: {
+    builtinReact: [
+      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
+      WEBPACK_LAYERS_NAMES.appMetadataRoute,
+    ],
     serverOnly: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
-      WEBPACK_LAYERS_NAMES.appRouteHandler,
       WEBPACK_LAYERS_NAMES.instrument,
+      WEBPACK_LAYERS_NAMES.middleware,
+    ],
+    neutralTarget: [
+      // pages api
+      WEBPACK_LAYERS_NAMES.api,
     ],
     clientOnly: [
       WEBPACK_LAYERS_NAMES.serverSideRendering,
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
-      WEBPACK_LAYERS_NAMES.shared,
     ],
-    nonClientServerTarget: [
-      // middleware and pages api
-      WEBPACK_LAYERS_NAMES.middleware,
-      WEBPACK_LAYERS_NAMES.api,
-    ],
-    app: [
+    bundled: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
-      WEBPACK_LAYERS_NAMES.appRouteHandler,
       WEBPACK_LAYERS_NAMES.serverSideRendering,
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
       WEBPACK_LAYERS_NAMES.shared,

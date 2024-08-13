@@ -46,11 +46,25 @@ These features are currently not supported:
   - We are planning to implement this in the future.
 - [Relay transforms](/docs/architecture/nextjs-compiler#relay)
   - We are planning to implement this in the future.
+- [`experimental.typedRoutes](https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes)
+  - We are planning to implement this in the future.
 - `experimental.nextScriptWorkers`
   - We are planning to implement this in the future.
+- `experimental.sri.algorithm`
+  - We are planning to implement this in the future.
+- `experimental.esmExternals`
+  - We are currently not planning to support the legacy esmExternals configuration in Next.js with Turbopack.
 - [AMP](/docs/pages/building-your-application/configuring/amp).
   - We are currently not planning to support AMP in Next.js with Turbopack.
 - Yarn PnP
   - We are currently not planning to support Yarn PnP in Next.js with Turbopack.
 - [`experimental.urlImports`](/docs/app/api-reference/next-config-js/urlImports)
   - We are currently not planning to support `experimental.urlImports` in Next.js with Turbopack.
+- [`:import` and `:export` ICSS rules](https://github.com/css-modules/icss)
+  - We are currently not planning to support `:import` and `:export` ICSS rules in Next.js with Turbopack as [Lightning CSS](https://lightningcss.dev/css-modules.html) the CSS parser Turbopack uses does not support these rules.
+
+## Generating Trace Files
+
+Trace files allow the Next.js team to investigate and improve performance metrics and memory usage. To generate a trace file, append `NEXT_TURBOPACK_TRACING=1` to the `next dev --turbo` command, this will generate a `.next/trace.log` file.
+
+When reporting issues related to Turbopack performance and memory usage, please include the trace file in your [GitHub](https://github.com/vercel/next.js) issue.

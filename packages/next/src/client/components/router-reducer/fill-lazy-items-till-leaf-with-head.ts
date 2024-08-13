@@ -70,7 +70,6 @@ export function fillLazyItemsTillLeafWithHead(
             prefetchHead: null,
             loading,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
-            lazyDataResolved: false,
           }
         } else if (hasReusablePrefetch && existingCacheNode) {
           // No new data was sent from the server, but the existing cache node
@@ -85,7 +84,6 @@ export function fillLazyItemsTillLeafWithHead(
             head: existingCacheNode.head,
             prefetchHead: existingCacheNode.prefetchHead,
             parallelRoutes: new Map(existingCacheNode.parallelRoutes),
-            lazyDataResolved: existingCacheNode.lazyDataResolved,
             loading: existingCacheNode.loading,
           } as CacheNode
         } else {
@@ -98,7 +96,6 @@ export function fillLazyItemsTillLeafWithHead(
             head: null,
             prefetchHead: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
-            lazyDataResolved: false,
             loading: null,
           }
         }
@@ -132,7 +129,6 @@ export function fillLazyItemsTillLeafWithHead(
         head: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
-        lazyDataResolved: false,
         loading,
       }
     } else {
@@ -145,7 +141,6 @@ export function fillLazyItemsTillLeafWithHead(
         head: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
-        lazyDataResolved: false,
         loading: null,
       }
     }

@@ -11,7 +11,19 @@ Let's explore some strategies and techniques to optimize memory and address comm
 
 Applications with a large amount of dependencies will use more memory.
 
-The [Bundle Analyzer](/docs/app/building-your-application/optimizing/bundle-analyzer) can help you investigate large dependencies in your application that may be able to be removed to improve performance and memory usage.
+The [Bundle Analyzer](/docs/app/building-your-application/optimizing/package-bundling) can help you investigate large dependencies in your application that may be able to be removed to improve performance and memory usage.
+
+## Try `experimental.webpackMemoryOptimizations`
+
+Starting in `v15.0.0`, you can add `experimental.webpackMemoryOptimizations: true` to your `next.config.js` file to change behavior in Webpack that reduces max memory usage but may increase compilation times by a slight amount.
+
+> **Good to know**: This feature is currently experimental to test on more projects first, but it is considered to be low-risk.
+
+## Run `next build` with `--experimental-debug-memory-usage`
+
+Starting in `14.2.0`, you can run `next build --experimental-debug-memory-usage` to run the build in a mode where Next.js will print out information about memory usage continuously throughout the build, such as heap usage and garbage collection statistics. Heap snapshots will also be taken automatically when memory usage gets close to the configured limit.
+
+> **Good to know**: This feature is not compatible with the Webpack build worker option which is auto-enabled unless you have custom webpack config.
 
 ## Record a heap profile
 
@@ -32,11 +44,15 @@ In Chrome DevTools, you can open the Memory tab and click on the "Load Profile" 
 You can use an inspector tool to analyze the memory usage of the application.
 
 When running the `next build` or `next dev` command, add `NODE_OPTIONS=--inspect` to the beginning of the command. This will expose the inspector agent on the default port.
-If you wish to break before any user code starts, you can pass `--inspect-brk` instead.
+If you wish to break before any user code starts, you can pass `--inspect-brk` instead. While the process is running, you can use a tool such as Chrome DevTools to connect to the debugging port to record and analyze a snapshot of the heap to see what memory is being retained.
 
-Now, you can use a tool such as Chrome DevTools to connect to the debugging port to record and analyze a snapshot of the heap to see what memory is being retained.
+Starting in `14.2.0`, you can also run `next build` with the `--experimental-debug-memory-usage` flag to make it easier to take heap snapshots.
 
-See [how to recored and analyze heap snapshots](https://developer.chrome.com/docs/devtools/memory-problems/heap-snapshots) for more information.
+While running in this mode, you can send a `SIGUSR2` signal to the process at any point, and the process will take a heap snapshot.
+
+The heap snapshot will be saved to the project root of the Next.js application and can be loaded in any heap analyzer, such as Chrome DevTools, to see what memory is retained. This mode is not yet compatible with Webpack build workers.
+
+See [how to record and analyze heap snapshots](https://developer.chrome.com/docs/devtools/memory-problems/heap-snapshots) for more information.
 
 ## Webpack build worker
 
@@ -62,11 +78,10 @@ const nextConfig = {
     config,
     { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack }
   ) => {
-    if (cfg.cache && !dev) {
-      cfg.cache = Object.freeze({
+    if (config.cache && !dev) {
+      config.cache = Object.freeze({
         type: 'memory',
       })
-      cfg.cache.maxMemoryGenerations = 0
     }
     // Important: return the modified config
     return config

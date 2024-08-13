@@ -9,7 +9,17 @@ import semver from 'next/dist/compiled/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import { myParseInt } from '../server/lib/utils'
+import { parseValidPositiveInteger } from '../server/lib/utils'
+import {
+  SUPPORTED_TEST_RUNNERS_LIST,
+  type NextTestOptions,
+} from '../cli/next-test.js'
+import type { NextTelemetryOptions } from '../cli/next-telemetry.js'
+import type { NextStartOptions } from '../cli/next-start.js'
+import type { NextLintOptions } from '../cli/next-lint.js'
+import type { NextInfoOptions } from '../cli/next-info.js'
+import type { NextDevOptions } from '../cli/next-dev.js'
+import type { NextBuildOptions } from '../cli/next-build.js'
 
 if (
   semver.lt(process.versions.node, process.env.__NEXT_REQUIRED_NODE_VERSION!)
@@ -34,15 +44,15 @@ for (const dependency of ['react', 'react-dom']) {
   }
 }
 
-class MyRootCommand extends Command {
+class NextRootCommand extends Command {
   createCommand(name: string) {
-    const cmd = new Command(name)
+    const command = new Command(name)
 
-    cmd.addOption(new Option('--inspect').hideHelp())
+    command.addOption(new Option('--inspect').hideHelp())
 
-    cmd.hook('preAction', (thisCommand) => {
-      const cmdName = thisCommand.name()
-      const defaultEnv = cmdName === 'dev' ? 'development' : 'production'
+    command.hook('preAction', (event) => {
+      const commandName = event.name()
+      const defaultEnv = commandName === 'dev' ? 'development' : 'production'
       const standardEnv = ['production', 'development', 'test']
 
       if (process.env.NODE_ENV) {
@@ -51,10 +61,10 @@ class MyRootCommand extends Command {
           process.env.NODE_ENV === 'development'
             ? ['start', 'build']
             : process.env.NODE_ENV === 'production'
-            ? ['dev']
-            : []
+              ? ['dev']
+              : []
 
-        if (isNotStandard || shouldWarnCommands.includes(cmdName)) {
+        if (isNotStandard || shouldWarnCommands.includes(commandName)) {
           warn(NON_STANDARD_NODE_ENV)
         }
       }
@@ -62,19 +72,19 @@ class MyRootCommand extends Command {
       ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-      if (thisCommand.getOptionValue('inspect') === true) {
+      if (event.getOptionValue('inspect') === true) {
         console.error(
-          `\`--inspect\` flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${cmdName}`
+          `\`--inspect\` flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${commandName}`
         )
         process.exit(1)
       }
     })
 
-    return cmd
+    return command
   }
 }
 
-const program = new MyRootCommand()
+const program = new NextRootCommand()
 
 program
   .name('next')
@@ -105,9 +115,10 @@ program
     )}`
   )
   .option('-d, --debug', 'Enables a more verbose build output.')
-  .option('--profile', 'Enables production profiling for React.')
+
   .option('--no-lint', 'Disables linting.')
   .option('--no-mangling', 'Disables mangling.')
+  .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Builds only App Router routes.')
   .addOption(new Option('--experimental-turbo').hideHelp())
   .addOption(
@@ -118,7 +129,15 @@ program
       .choices(['compile', 'generate'])
       .default('default')
   )
-  .action((directory, options) =>
+  .option(
+    '--experimental-debug-memory-usage',
+    'Enables memory profiling features to debug memory consumption.'
+  )
+  .option(
+    '--experimental-upload-trace, <traceUrl>',
+    'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
+  )
+  .action((directory: string, options: NextBuildOptions) =>
     // ensure process exits after build completes so open handles/connections
     // don't cause process to hang
     import('../cli/next-build.js').then((mod) =>
@@ -144,7 +163,7 @@ program
       '-p, --port <port>',
       'Specify a port number on which to start the application.'
     )
-      .argParser(myParseInt)
+      .argParser(parseValidPositiveInteger)
       .default(3000)
       .env('PORT')
   )
@@ -169,12 +188,14 @@ program
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
   )
-  .action((directory, options, { _optionValueSources }) => {
-    const portSource = _optionValueSources.port
-    import('../cli/next-dev.js').then((mod) =>
-      mod.nextDev(options, portSource, directory)
-    )
-  })
+  .action(
+    (directory: string, options: NextDevOptions, { _optionValueSources }) => {
+      const portSource = _optionValueSources.port
+      import('../cli/next-dev.js').then((mod) =>
+        mod.nextDev(options, portSource, directory)
+      )
+    }
+  )
   .usage('[directory] [options]')
 
 program
@@ -192,7 +213,7 @@ program
     `\nLearn more: ${cyan('https://nextjs.org/docs/api-reference/cli#info')}`
   )
   .option('--verbose', 'Collects additional information for debugging.')
-  .action((options) =>
+  .action((options: NextInfoOptions) =>
     import('../cli/next-info.js').then((mod) => mod.nextInfo(options))
   )
 
@@ -247,7 +268,7 @@ program
       '--max-warnings [maxWarnings]',
       'Specify the number of warnings before triggering a non-zero exit code.'
     )
-      .argParser(myParseInt)
+      .argParser(parseValidPositiveInteger)
       .default(-1)
   )
   .option(
@@ -259,9 +280,11 @@ program
     '--no-inline-config',
     'Prevents comments from changing config or rules.'
   )
-  .option(
-    '--report-unused-disable-directives',
-    'Adds reported errors for unused eslint-disable directives.'
+  .addOption(
+    new Option(
+      '--report-unused-disable-directives-severity <level>',
+      'Specify severity level for unused eslint-disable directives.'
+    ).choices(['error', 'off', 'warn'])
   )
   .option('--no-cache', 'Disables caching.')
   .option('--cache-location, <cacheLocation>', 'Specify a location for cache.')
@@ -275,7 +298,7 @@ program
     '--error-on-unmatched-pattern',
     'Reports errors when any file patterns are unmatched.'
   )
-  .action((directory, options) =>
+  .action((directory: string, options: NextLintOptions) =>
     import('../cli/next-lint.js').then((mod) =>
       mod.nextLint(options, directory)
     )
@@ -298,7 +321,7 @@ program
       '-p, --port <port>',
       'Specify a port number on which to start the application.'
     )
-      .argParser(myParseInt)
+      .argParser(parseValidPositiveInteger)
       .default(3000)
       .env('PORT')
   )
@@ -310,9 +333,9 @@ program
     new Option(
       '--keepAliveTimeout <keepAliveTimeout>',
       'Specify the maximum amount of milliseconds to wait before closing inactive connections.'
-    ).argParser(myParseInt)
+    ).argParser(parseValidPositiveInteger)
   )
-  .action((directory, options) =>
+  .action((directory: string, options: NextStartOptions) =>
     import('../cli/next-start.js').then((mod) =>
       mod.nextStart(options, directory)
     )
@@ -334,11 +357,58 @@ program
     )
   )
   .option('--disable', `Disables Next.js' telemetry collection.`)
-  .action((arg, options) =>
+  .action((arg: string, options: NextTelemetryOptions) =>
     import('../cli/next-telemetry.js').then((mod) =>
       mod.nextTelemetry(options, arg)
     )
   )
-  .usage('[options]')
+
+program
+  .command('experimental-test')
+  .description(
+    `Execute \`next/experimental/testmode\` tests using a specified test runner. The test runner defaults to 'playwright' if the \`experimental.defaultTestRunner\` configuration option or the \`--test-runner\` option are not set.`
+  )
+  .argument(
+    '[directory]',
+    `A Next.js project directory to execute the test runner on. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .argument(
+    '[test-runner-args...]',
+    'Any additional arguments or options to pass down to the test runner `test` command.'
+  )
+  .option(
+    '--test-runner [test-runner]',
+    `Any supported test runner. Options: ${bold(
+      SUPPORTED_TEST_RUNNERS_LIST.join(', ')
+    )}. ${italic(
+      "If no test runner is provided, the Next.js config option `experimental.defaultTestRunner`, or 'playwright' will be used."
+    )}`
+  )
+  .allowUnknownOption()
+  .action(
+    (directory: string, testRunnerArgs: string[], options: NextTestOptions) => {
+      return import('../cli/next-test.js').then((mod) => {
+        mod.nextTest(directory, testRunnerArgs, options)
+      })
+    }
+  )
+  .usage('[directory] [options]')
+
+const internal = program
+  .command('internal')
+  .description(
+    'Internal debugging commands. Use with caution. Not covered by semver.'
+  )
+
+internal
+  .command('turbo-trace-server')
+  .argument('[file]', 'Trace file to serve.')
+  .action((file: string) => {
+    return import('../cli/internal/turbo-trace-server.js').then((mod) =>
+      mod.startTurboTraceServerCli(file)
+    )
+  })
 
 program.parse(process.argv)

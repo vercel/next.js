@@ -9,6 +9,7 @@ The Studio connects to Sanity Content Lake, which gives you hosted content APIs 
 ## Features
 
 - A performant, static blog with editable posts, authors, and site settings
+- TypeScript setup with [Sanity TypeGen](https://www.sanity.io/docs/sanity-typegen)
 - A native and customizable authoring environment, accessible on `yourblog.com/studio`
 - Real-time and collaborative content editing with fine-grained revision history
 - Side-by-side instant content preview that works across your whole site
@@ -44,6 +45,12 @@ yarn create next-app --example cms-sanity next-sanity-blog
 pnpm create next-app --example cms-sanity next-sanity-blog
 ```
 
+Whenever you edit a GROQ query you update the TypeScript types by running:
+
+```bash
+npm run typegen
+```
+
 # Configuration
 
 - [Step 1. Set up the environment](#step-1-set-up-the-environment)
@@ -63,7 +70,7 @@ If you started with [deploying your own](#deploy-your-own) then you can run this
 
 ```bash
 npx vercel link
-npx vercel pull
+npx vercel env pull
 ```
 
 ### Using the Sanity CLI
