@@ -3580,6 +3580,10 @@ fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
     i.span.ctxt.outer() == unresolved_mark
 }
 
+fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
+    i.1.outer() == unresolved_mark
+}
+
 #[doc(hidden)]
 pub mod test_utils {
     use anyhow::Result;
