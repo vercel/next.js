@@ -1,14 +1,26 @@
+use std::mem::take;
+
 use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
-use super::{ExecuteContext, Operation};
-use crate::data::{CachedDataItemKey, CellRef};
+use super::{
+    aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
+    ExecuteContext, Operation,
+};
+use crate::{
+    data::{CachedDataItemKey, CellRef},
+    get_many,
+};
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum CleanupOldEdgesOperation {
     RemoveEdges {
         task_id: TaskId,
         outdated: Vec<OutdatedEdge>,
+        queue: AggregationUpdateQueue,
+    },
+    AggregationUpdate {
+        queue: AggregationUpdateQueue,
     },
     #[default]
     Done,
@@ -24,7 +36,12 @@ pub enum OutdatedEdge {
 
 impl CleanupOldEdgesOperation {
     pub fn run(task_id: TaskId, outdated: Vec<OutdatedEdge>, ctx: ExecuteContext<'_>) {
-        CleanupOldEdgesOperation::RemoveEdges { task_id, outdated }.execute(&ctx);
+        CleanupOldEdgesOperation::RemoveEdges {
+            task_id,
+            outdated,
+            queue: AggregationUpdateQueue::new(),
+        }
+        .execute(&ctx);
     }
 }
 
@@ -36,13 +53,18 @@ impl Operation for CleanupOldEdgesOperation {
                 CleanupOldEdgesOperation::RemoveEdges {
                     task_id,
                     ref mut outdated,
+                    ref mut queue,
                 } => {
                     if let Some(edge) = outdated.pop() {
                         match edge {
                             OutdatedEdge::Child(child_id) => {
                                 let mut task = ctx.task(task_id);
                                 task.remove(&CachedDataItemKey::Child { task: child_id });
-                                // TODO remove aggregated edge
+                                let upper_ids = get_many!(task, Upper { task } => task);
+                                queue.push(AggregationUpdateJob::InnerLostFollower {
+                                    upper_ids,
+                                    lost_follower_id: child_id,
+                                });
                             }
                             OutdatedEdge::CellDependency(CellRef {
                                 task: cell_task_id,
@@ -83,9 +105,13 @@ impl Operation for CleanupOldEdgesOperation {
                     }
 
                     if outdated.is_empty() {
+                        self = CleanupOldEdgesOperation::AggregationUpdate { queue: take(queue) };
+                    }
+                }
+                CleanupOldEdgesOperation::AggregationUpdate { ref mut queue } => {
+                    if queue.process(ctx) {
                         self = CleanupOldEdgesOperation::Done;
                     }
-                    continue;
                 }
                 CleanupOldEdgesOperation::Done => {
                     return;

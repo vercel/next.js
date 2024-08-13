@@ -2,10 +2,13 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use turbo_tasks::TaskId;
 
-use super::{ExecuteContext, Operation};
+use super::{
+    aggregation_update::{AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue},
+    ExecuteContext, Operation,
+};
 use crate::{
     data::{CachedDataItem, InProgressState},
-    get, remove,
+    get, update,
 };
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -13,6 +16,9 @@ pub enum InvalidateOperation {
     // TODO DetermineActiveness
     MakeDirty {
         task_ids: SmallVec<[TaskId; 4]>,
+    },
+    AggregationUpdate {
+        queue: AggregationUpdateQueue,
     },
     // TODO Add to dirty tasks list
     #[default]
@@ -31,60 +37,74 @@ impl Operation for InvalidateOperation {
             ctx.operation_suspend_point(&self);
             match self {
                 InvalidateOperation::MakeDirty { task_ids } => {
+                    let mut queue = AggregationUpdateQueue::new();
                     for task_id in task_ids {
                         let mut task = ctx.task(task_id);
-                        let in_progress = match get!(task, InProgress) {
-                            Some(InProgressState::Scheduled { clean, .. }) => {
-                                if *clean {
-                                    let Some(InProgressState::Scheduled {
-                                        clean: _,
-                                        done_event,
-                                        start_event,
-                                    }) = remove!(task, InProgress)
-                                    else {
-                                        unreachable!();
-                                    };
-                                    task.insert(CachedDataItem::InProgress {
-                                        value: InProgressState::Scheduled {
-                                            clean: false,
-                                            done_event,
-                                            start_event,
-                                        },
-                                    });
-                                }
-                                true
-                            }
-                            Some(InProgressState::InProgress { clean, stale, .. }) => {
-                                if *clean || !*stale {
-                                    let Some(InProgressState::InProgress {
-                                        clean: _,
-                                        stale: _,
-                                        done_event,
-                                    }) = remove!(task, InProgress)
-                                    else {
-                                        unreachable!();
-                                    };
-                                    task.insert(CachedDataItem::InProgress {
-                                        value: InProgressState::InProgress {
-                                            clean: false,
-                                            stale: true,
-                                            done_event,
-                                        },
-                                    });
-                                }
-                                true
-                            }
-                            None => false,
-                        };
-                        #[allow(clippy::collapsible_if)]
+
                         if task.add(CachedDataItem::Dirty { value: () }) {
+                            let in_progress = match get!(task, InProgress) {
+                                Some(InProgressState::Scheduled { clean, .. }) => {
+                                    if *clean {
+                                        update!(task, InProgress, |in_progress| {
+                                            let Some(InProgressState::Scheduled {
+                                                clean: _,
+                                                done_event,
+                                                start_event,
+                                            }) = in_progress
+                                            else {
+                                                unreachable!();
+                                            };
+                                            Some(InProgressState::Scheduled {
+                                                clean: false,
+                                                done_event,
+                                                start_event,
+                                            })
+                                        });
+                                    }
+                                    true
+                                }
+                                Some(InProgressState::InProgress { clean, stale, .. }) => {
+                                    if *clean || !*stale {
+                                        update!(task, InProgress, |in_progress| {
+                                            let Some(InProgressState::InProgress {
+                                                clean: _,
+                                                stale: _,
+                                                done_event,
+                                            }) = in_progress
+                                            else {
+                                                unreachable!();
+                                            };
+                                            Some(InProgressState::InProgress {
+                                                clean: false,
+                                                stale: true,
+                                                done_event,
+                                            })
+                                        });
+                                    }
+                                    true
+                                }
+                                None => false,
+                            };
                             if !in_progress && task.add(CachedDataItem::new_scheduled(task_id)) {
                                 ctx.turbo_tasks.schedule(task_id)
                             }
+                            queue.push(AggregationUpdateJob::DataUpdate {
+                                task_id,
+                                update: AggregatedDataUpdate::dirty_task(task_id),
+                            })
                         }
                     }
-                    self = InvalidateOperation::Done;
+                    if queue.is_empty() {
+                        self = InvalidateOperation::Done
+                    } else {
+                        self = InvalidateOperation::AggregationUpdate { queue }
+                    }
                     continue;
+                }
+                InvalidateOperation::AggregationUpdate { ref mut queue } => {
+                    if queue.process(ctx) {
+                        self = InvalidateOperation::Done
+                    }
                 }
                 InvalidateOperation::Done => {
                     return;

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{event::Event, util::SharedError, CellId, KeyValuePair, SharedReference, TaskId};
+use turbo_tasks::{
+    event::Event, util::SharedError, CellId, KeyValuePair, SharedReference, TaskId, ValueTypeId,
+};
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CellRef {
@@ -7,7 +9,13 @@ pub struct CellRef {
     pub cell: CellId,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CollectiblesRef {
+    pub task: TaskId,
+    pub collectible_type: ValueTypeId,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
@@ -92,6 +100,10 @@ pub enum CachedDataItem {
         target: CellRef,
         value: (),
     },
+    CollectiblesDependency {
+        target: CollectiblesRef,
+        value: (),
+    },
 
     // Dependent
     OutputDependent {
@@ -103,6 +115,11 @@ pub enum CachedDataItem {
         task: TaskId,
         value: (),
     },
+    CollectiblesDependent {
+        collectibles_type: ValueTypeId,
+        task: TaskId,
+        value: (),
+    },
 
     // Aggregation Graph
     AggregationNumber {
@@ -110,21 +127,21 @@ pub enum CachedDataItem {
     },
     Follower {
         task: TaskId,
-        value: (),
+        value: u32,
     },
     Upper {
         task: TaskId,
-        value: (),
+        value: u32,
     },
 
     // Aggregated Data
     AggregatedDirtyTask {
         task: TaskId,
-        value: (),
+        value: u32,
     },
     AggregatedCollectible {
         collectible: CellRef,
-        value: (),
+        value: u32,
     },
     AggregatedUnfinishedTasks {
         value: u32,
@@ -173,8 +190,10 @@ impl CachedDataItem {
             CachedDataItem::CellData { .. } => true,
             CachedDataItem::OutputDependency { target, .. } => !target.is_transient(),
             CachedDataItem::CellDependency { target, .. } => !target.task.is_transient(),
+            CachedDataItem::CollectiblesDependency { target, .. } => !target.task.is_transient(),
             CachedDataItem::OutputDependent { task, .. } => !task.is_transient(),
             CachedDataItem::CellDependent { task, .. } => !task.is_transient(),
+            CachedDataItem::CollectiblesDependent { task, .. } => !task.is_transient(),
             CachedDataItem::AggregationNumber { .. } => true,
             CachedDataItem::Follower { task, .. } => !task.is_transient(),
             CachedDataItem::Upper { task, .. } => !task.is_transient(),
@@ -215,8 +234,10 @@ impl CachedDataItemKey {
             CachedDataItemKey::CellData { .. } => true,
             CachedDataItemKey::OutputDependency { target, .. } => !target.is_transient(),
             CachedDataItemKey::CellDependency { target, .. } => !target.task.is_transient(),
+            CachedDataItemKey::CollectiblesDependency { target, .. } => !target.task.is_transient(),
             CachedDataItemKey::OutputDependent { task, .. } => !task.is_transient(),
             CachedDataItemKey::CellDependent { task, .. } => !task.is_transient(),
+            CachedDataItemKey::CollectiblesDependent { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregationNumber { .. } => true,
             CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
             CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
