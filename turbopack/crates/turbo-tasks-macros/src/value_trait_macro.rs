@@ -133,7 +133,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             });
 
             trait_methods.push(quote! {
-                trait_type.register_default_trait_method::<(#(#arg_types),*)>(stringify!(#ident).into(), *#native_function_id_ident);
+                trait_type.register_default_trait_method::<(#(#arg_types,)*)>(stringify!(#ident).into(), *#native_function_id_ident);
             });
 
             native_functions.push(quote! {
@@ -171,7 +171,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             Some(turbo_fn.static_block(&native_function_id_ident))
         } else {
             trait_methods.push(quote! {
-                trait_type.register_trait_method::<(#(#arg_types),*)>(stringify!(#ident).into());
+                trait_type.register_trait_method::<(#(#arg_types,)*)>(stringify!(#ident).into());
             });
             None
         };
