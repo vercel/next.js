@@ -551,7 +551,7 @@ async function getRSCPayload(
     f: [[initialTree, seedData, initialHead]],
     m: missingSlots,
     G: GlobalError,
-    s: !!ctx.renderOpts.postponed,
+    s: typeof ctx.renderOpts.postponed === 'string',
   } satisfies InitialRSCPayload & { P: React.ReactNode }
 }
 

@@ -3140,7 +3140,7 @@ export default abstract class Server<
       }
 
       // Mark that the request did postpone if this is a data request.
-      if (cachedData.postponed && isRSCRequest) {
+      if (typeof cachedData.postponed === 'string' && isRSCRequest) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 

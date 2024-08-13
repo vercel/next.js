@@ -243,6 +243,7 @@ export type FetchServerResponseResult = {
   canonicalUrl: URL | undefined
   couldBeIntercepted: boolean
   isPrerender: boolean
+  postponed: boolean
 }
 
 export type RSCPayload =
