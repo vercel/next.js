@@ -1233,16 +1233,6 @@ async function renderToStream(
 
   const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
   const silenceLogger = false
-  const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
-    !!renderOpts.dev,
-    !!renderOpts.nextExport,
-    reactServerErrorsByDigest,
-    silenceLogger,
-    // RSC rendering error will report as SSR error
-    // @TODO we should report RSC errors where they happen for instrumentation purposes
-    // and should omit the error reporter in the SSR layer instead
-    undefined
-  )
   function onHTMLRenderRSCError(err: DigestedError) {
     return renderOpts.onInstrumentationRequestError?.(
       err,
@@ -1250,6 +1240,13 @@ async function renderToStream(
       createErrorContext(ctx, 'react-server-components')
     )
   }
+  const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
+    !!renderOpts.dev,
+    !!renderOpts.nextExport,
+    reactServerErrorsByDigest,
+    silenceLogger,
+    onHTMLRenderRSCError
+  )
 
   function onHTMLRenderSSRError(err: DigestedError) {
     return renderOpts.onInstrumentationRequestError?.(
@@ -1266,7 +1263,6 @@ async function renderToStream(
     reactServerErrorsByDigest,
     allCapturedErrors,
     silenceLogger,
-    onHTMLRenderRSCError,
     onHTMLRenderSSRError
   )
 
@@ -1651,16 +1647,6 @@ async function prerenderToStream(
   const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
   // We don't report errors during prerendering through our instrumentation hooks
   const silenceLogger = !!renderOpts.experimental.isRoutePPREnabled
-  const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
-    !!renderOpts.dev,
-    !!renderOpts.nextExport,
-    reactServerErrorsByDigest,
-    silenceLogger,
-    // RSC rendering error will report as SSR error
-    // @TODO we should report RSC errors where they happen for instrumentation purposes
-    // and should omit the error reporter in the SSR layer instead
-    undefined
-  )
   function onHTMLRenderRSCError(err: DigestedError) {
     return renderOpts.onInstrumentationRequestError?.(
       err,
@@ -1668,6 +1654,13 @@ async function prerenderToStream(
       createErrorContext(ctx, 'react-server-components')
     )
   }
+  const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
+    !!renderOpts.dev,
+    !!renderOpts.nextExport,
+    reactServerErrorsByDigest,
+    silenceLogger,
+    onHTMLRenderRSCError
+  )
 
   function onHTMLRenderSSRError(err: DigestedError) {
     return renderOpts.onInstrumentationRequestError?.(
@@ -1683,7 +1676,6 @@ async function prerenderToStream(
     reactServerErrorsByDigest,
     allCapturedErrors,
     silenceLogger,
-    onHTMLRenderRSCError,
     onHTMLRenderSSRError
   )
 
