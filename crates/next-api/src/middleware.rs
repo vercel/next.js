@@ -14,7 +14,7 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
     context::AssetContext,
-    module::Module,
+    module::{Module, Modules},
     output::OutputAssets,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
@@ -236,5 +236,10 @@ impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
     fn client_changed(self: Vc<Self>) -> Vc<Completion> {
         Completion::immutable()
+    }
+
+    #[turbo_tasks::function]
+    fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        Err(anyhow::anyhow!("Not implemented."))
     }
 }

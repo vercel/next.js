@@ -6,7 +6,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::resolve_options_context::ResolveOptionsContext;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
-    chunk::ChunkingContext,
+    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingContext},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
         FreeVarReferences,
@@ -178,6 +178,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
+    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".into());
     let next_mode = mode.await?;
@@ -193,6 +194,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         )
         .asset_base_path(asset_prefix)
         .minify_type(next_mode.minify_type())
+        .module_id_strategy(module_id_strategy)
         .build(),
     ))
 }
@@ -203,6 +205,7 @@ pub async fn get_edge_chunking_context(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
+    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".into());
     let next_mode = mode.await?;
@@ -222,6 +225,7 @@ pub async fn get_edge_chunking_context(
         // asset from the output directory.
         .asset_base_path(Vc::cell(Some("blob:server/edge/".into())))
         .minify_type(next_mode.minify_type())
+        .module_id_strategy(module_id_strategy)
         .build(),
     ))
 }
