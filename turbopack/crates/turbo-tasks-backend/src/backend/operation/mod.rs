@@ -1,3 +1,4 @@
+mod aggregation_update;
 mod cleanup_old_edges;
 mod connect_child;
 mod invalidate;
