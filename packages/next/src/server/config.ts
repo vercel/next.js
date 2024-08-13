@@ -471,6 +471,13 @@ function assignDefaults(
     silent
   )
 
+  warnOptionHasBeenDeprecated(
+    result,
+    'experimental.instrumentationHook',
+    'instrumentation.js is stabilized and no longer needs to be enabled via experimental flag',
+    silent
+  )
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'bundlePagesExternals',
