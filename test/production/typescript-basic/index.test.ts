@@ -32,7 +32,7 @@ describe('TypeScript basic', () => {
   })
 
   // Turbopack doesn't support Babel built-in.
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+  ;(process.env.TURBOPACK ? it.skip : it)(
     'should work with babel',
     async () => {
       await next.stop()
