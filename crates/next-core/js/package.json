@@ -9,6 +9,6 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "next": "workspace:*"
+    "next": "catalog:"
   }
 }

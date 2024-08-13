@@ -17,7 +17,7 @@
     "webpack": "^5.0.0"
   },
   "devDependencies": {
-    "@types/webpack": "^5.28.0",
+    "@types/webpack": "catalog:",
     "webpack": "^5.75.0"
   },
   "scripts": {

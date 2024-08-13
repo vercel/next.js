@@ -10,11 +10,11 @@
   "dependencies": {
     "cheerio": "1.0.0-rc.9",
     "execa": "4.0.3",
-    "globby": "11.0.1",
+    "globby": "catalog:",
     "inquirer": "7.3.3",
-    "is-git-clean": "1.1.0",
-    "jscodeshift": "0.13.1",
-    "meow": "7.0.1",
+    "is-git-clean": "catalog:",
+    "jscodeshift": "catalog:",
+    "meow": "catalog:",
     "picocolors": "1.0.0"
   },
   "files": [
@@ -31,6 +31,6 @@
   },
   "bin": "./bin/next-codemod.js",
   "devDependencies": {
-    "@types/jscodeshift": "0.11.0"
+    "@types/jscodeshift": "catalog:"
   }
 }

@@ -14,6 +14,6 @@
     "prepublishOnly": "cd ../../ && turbo run build"
   },
   "devDependencies": {
-    "microbundle": "0.15.0"
+    "microbundle": "catalog:"
   }
 }

@@ -23,11 +23,11 @@
     "typescript": "tsec --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "third-party-capital": "1.0.20"
+    "third-party-capital": "catalog:"
   },
   "devDependencies": {
-    "next": "15.0.0-canary.113",
-    "outdent": "0.8.0",
+    "next": "catalog:",
+    "outdent": "catalog:",
     "prettier": "2.5.1"
   },
   "peerDependencies": {

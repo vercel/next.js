@@ -17,7 +17,7 @@
     "next": ">= 12"
   },
   "devDependencies": {
-    "next": "workspace:*"
+    "next": "catalog:"
   },
   "scripts": {
     "lint": "eslint src/",

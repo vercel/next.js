@@ -29,25 +29,25 @@
     "lint-fix": "pnpm prettier -w --plugin prettier-plugin-tailwindcss 'templates/*-tw/{ts,js}/{app,pages}/**/*.{js,ts,tsx}'"
   },
   "devDependencies": {
-    "@types/async-retry": "1.4.2",
-    "@types/cross-spawn": "6.0.0",
+    "@types/async-retry": "catalog:",
+    "@types/cross-spawn": "catalog:",
     "@types/node": "20.14.2",
-    "@types/prompts": "2.4.2",
+    "@types/prompts": "catalog:",
     "@types/tar": "6.1.13",
-    "@types/validate-npm-package-name": "4.0.2",
+    "@types/validate-npm-package-name": "catalog:",
     "@vercel/ncc": "0.38.1",
     "async-retry": "1.3.1",
-    "ci-info": "4.0.0",
+    "ci-info": "catalog:",
     "commander": "12.1.0",
     "conf": "13.0.1",
     "cross-spawn": "7.0.3",
-    "fast-glob": "3.3.1",
+    "fast-glob": "catalog:",
     "picocolors": "1.0.0",
-    "prettier-plugin-tailwindcss": "0.6.2",
-    "prompts": "2.4.2",
+    "prettier-plugin-tailwindcss": "catalog:",
+    "prompts": "catalog:",
     "tar": "7.4.3",
-    "update-check": "1.5.4",
-    "validate-npm-package-name": "5.0.1"
+    "update-check": "catalog:",
+    "validate-npm-package-name": "catalog:"
   },
   "engines": {
     "node": ">=18.18.0"

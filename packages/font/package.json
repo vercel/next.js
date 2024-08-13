@@ -21,8 +21,8 @@
     "ncc-fontkit": "ncc build ./fontkit.js --minify -o dist/fontkit"
   },
   "devDependencies": {
-    "@types/fontkit": "2.0.0",
+    "@types/fontkit": "catalog:",
     "@vercel/ncc": "0.34.0",
-    "fontkit": "2.0.2"
+    "fontkit": "catalog:"
   }
 }
