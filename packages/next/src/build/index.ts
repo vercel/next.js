@@ -2078,7 +2078,11 @@ export default async function build(
                             }
                           }
 
-                          if (workerResult.prerenderFallback) {
+                          if (
+                            workerResult.prerenderFallbackMode !== undefined &&
+                            workerResult.prerenderFallbackMode !==
+                              FallbackMode.NOT_FOUND
+                          ) {
                             // whether or not to allow requests for paths not
                             // returned from generateStaticParams
                             appDynamicParamPaths.add(originalAppPath)
@@ -2132,13 +2136,13 @@ export default async function build(
                           }
 
                           if (
-                            workerResult.prerenderFallback ===
-                            FallbackMode.BLOCKING_RENDER
+                            workerResult.prerenderFallbackMode ===
+                            FallbackMode.BLOCKING_STATIC_RENDER
                           ) {
                             ssgBlockingFallbackPages.add(page)
                           } else if (
-                            workerResult.prerenderFallback ===
-                            FallbackMode.SERVE_PRERENDER
+                            workerResult.prerenderFallbackMode ===
+                            FallbackMode.STATIC_PRERENDER
                           ) {
                             ssgStaticFallbackPages.add(page)
                           }

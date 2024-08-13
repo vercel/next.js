@@ -93,7 +93,6 @@ import type { Params } from '../client/components/params'
 import { FallbackMode } from '../lib/fallback'
 import {
   fallbackToStaticPathsResult,
-  parseFallbackAppConfig,
   parseFallbackStaticPathsResult,
 } from '../lib/fallback'
 
@@ -951,7 +950,7 @@ export type PrerenderedRoute = {
 }
 
 export type StaticPathsResult = {
-  fallback: FallbackMode
+  fallbackMode: FallbackMode
   prerenderedRoutes: PrerenderedRoute[]
 }
 
@@ -1178,7 +1177,7 @@ export async function buildStaticPaths({
   const seen = new Set<string>()
 
   return {
-    fallback: parseFallbackStaticPathsResult(staticPathsResult.fallback),
+    fallbackMode: parseFallbackStaticPathsResult(staticPathsResult.fallback),
     prerenderedRoutes: prerenderRoutes.filter((route) => {
       if (seen.has(route.path)) return false
 
@@ -1487,12 +1486,11 @@ export async function buildAppStaticPaths({
         }
 
         const builtParams = await buildParams()
-        const fallback = parseFallbackAppConfig(
-          reduceAppConfig(generateParams, nextConfigOutput)
-        )
 
         if (
-          fallback === FallbackMode.BLOCKING_RENDER &&
+          generateParams.some(
+            (generate) => generate.config?.dynamicParams === true
+          ) &&
           nextConfigOutput === 'export'
         ) {
           throw new Error(
@@ -1500,16 +1498,29 @@ export async function buildAppStaticPaths({
           )
         }
 
+        const fallbackMode = !generateParams.some(
+          // TODO: dynamic params should be allowed
+          // to be granular per segment but we need
+          // additional information stored/leveraged in
+          // the prerender-manifest to allow this behavior
+          (generate) => generate.config?.dynamicParams === false
+        )
+          ? FallbackMode.BLOCKING_STATIC_RENDER
+          : FallbackMode.NOT_FOUND
+
         if (!hadAllParamsGenerated) {
           return {
-            fallback,
+            fallbackMode:
+              process.env.NODE_ENV === 'production' && isDynamicRoute(page)
+                ? FallbackMode.BLOCKING_STATIC_RENDER
+                : undefined,
             prerenderedRoutes: undefined,
           }
         }
 
         return buildStaticPaths({
           staticPathsResult: {
-            fallback: fallbackToStaticPathsResult(fallback),
+            fallback: fallbackToStaticPathsResult(fallbackMode),
             paths: builtParams.map((params) => ({ params })),
           },
           page,
@@ -1529,7 +1540,7 @@ type PageIsStaticResult = {
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderedRoutes: PrerenderedRoute[] | undefined
-  prerenderFallback: FallbackMode | undefined
+  prerenderFallbackMode: FallbackMode | undefined
   isNextImageImported?: boolean
   traceIncludes?: string[]
   traceExcludes?: string[]
@@ -1587,7 +1598,7 @@ export async function isPageStatic({
 
       let componentsResult: LoadComponentsReturnType
       let prerenderedRoutes: PrerenderedRoute[] | undefined
-      let prerenderFallback: FallbackMode | undefined
+      let prerenderFallbackMode: FallbackMode | undefined
       let appConfig: AppConfig = {}
       let isClientComponent: boolean = false
       const pathIsEdgeRuntime = isEdgeRuntime(pageRuntime)
@@ -1660,7 +1671,7 @@ export async function isPageStatic({
               ]
             : await collectGenerateParams(tree)
 
-        appConfig = reduceAppConfig(generateParams, nextConfigOutput)
+        appConfig = reduceAppConfig(generateParams)
 
         if (appConfig.dynamic === 'force-static' && pathIsEdgeRuntime) {
           Log.warn(
@@ -1684,7 +1695,7 @@ export async function isPageStatic({
         }
 
         if (isDynamicRoute(page)) {
-          ;({ fallback: prerenderFallback, prerenderedRoutes } =
+          ;({ fallbackMode: prerenderFallbackMode, prerenderedRoutes } =
             await buildAppStaticPaths({
               dir,
               page,
@@ -1741,7 +1752,7 @@ export async function isPageStatic({
       }
 
       if ((hasStaticProps && hasStaticPaths) || staticPathsResult) {
-        ;({ fallback: prerenderFallback, prerenderedRoutes } =
+        ;({ fallbackMode: prerenderFallbackMode, prerenderedRoutes } =
           await buildStaticPaths({
             page,
             locales,
@@ -1773,7 +1784,7 @@ export async function isPageStatic({
         isRoutePPREnabled,
         isHybridAmp: config.amp === 'hybrid',
         isAmpOnly: config.amp === true,
-        prerenderFallback,
+        prerenderFallbackMode,
         prerenderedRoutes,
         hasStaticProps,
         hasServerProps,
@@ -1790,75 +1801,71 @@ export async function isPageStatic({
     })
 }
 
-function reduceAppConfig(
-  generateParams: GenerateParamsResults,
-  nextConfigOutput: 'standalone' | 'export' | undefined
-): AppConfig {
-  return generateParams.reduce<AppConfig>((builtConfig, curGenParams) => {
+type ReducedAppConfig = Pick<
+  AppConfig,
+  | 'dynamic'
+  | 'fetchCache'
+  | 'preferredRegion'
+  | 'revalidate'
+  | 'experimental_ppr'
+>
+
+/**
+ * Collect the app config from the generate param segments. This only gets a
+ * subset of the config options.
+ *
+ * @param segments the generate param segments
+ * @returns the reduced app config
+ */
+function reduceAppConfig(segments: GenerateParamsResults): ReducedAppConfig {
+  const config: ReducedAppConfig = {}
+
+  for (const segment of segments) {
+    if (!segment.config) continue
+
     const {
       dynamic,
       fetchCache,
       preferredRegion,
-      revalidate: curRevalidate,
+      revalidate,
       experimental_ppr,
-      dynamicParams,
-    } = curGenParams?.config || {}
+    } = segment.config
 
     // TODO: should conflicting configs here throw an error
     // e.g. if layout defines one region but page defines another
-    if (typeof builtConfig.preferredRegion === 'undefined') {
-      builtConfig.preferredRegion = preferredRegion
+
+    // Get the first value of preferredRegion, dynamic, revalidate, and
+    // fetchCache.
+    if (typeof config.preferredRegion === 'undefined') {
+      config.preferredRegion = preferredRegion
     }
-    if (typeof builtConfig.dynamic === 'undefined') {
-      builtConfig.dynamic = dynamic
+    if (typeof config.dynamic === 'undefined') {
+      config.dynamic = dynamic
     }
-    if (typeof builtConfig.fetchCache === 'undefined') {
-      builtConfig.fetchCache = fetchCache
+    if (typeof config.fetchCache === 'undefined') {
+      config.fetchCache = fetchCache
     }
-    // If partial prerendering has been set, only override it if the current value is
-    // provided as it's resolved from root layout to leaf page.
-    if (typeof experimental_ppr !== 'undefined') {
-      builtConfig.experimental_ppr = experimental_ppr
+    if (typeof config.revalidate === 'undefined') {
+      config.revalidate = revalidate
     }
 
-    // any revalidate number overrides false
-    // shorter revalidate overrides longer (initially)
-    if (typeof builtConfig.revalidate === 'undefined') {
-      builtConfig.revalidate = curRevalidate
-    }
-
+    // Any revalidate number overrides false, and shorter revalidate overrides
+    // longer (initially).
     if (
-      typeof curRevalidate === 'number' &&
-      (typeof builtConfig.revalidate !== 'number' ||
-        curRevalidate < builtConfig.revalidate)
+      typeof revalidate === 'number' &&
+      (typeof config.revalidate !== 'number' || revalidate < config.revalidate)
     ) {
-      builtConfig.revalidate = curRevalidate
+      config.revalidate = revalidate
     }
 
-    // The default for the dynamicParams will be based on the dynamic config
-    // and the next config output option. If any of these are set or the
-    // output config is set to export, set the dynamicParams to false,
-    // otherwise the default is true.
-    if (typeof builtConfig.dynamicParams === 'undefined') {
-      if (
-        builtConfig.dynamic === 'error' ||
-        builtConfig.dynamic === 'force-static' ||
-        nextConfigOutput === 'export'
-      ) {
-        builtConfig.dynamicParams = false
-      } else {
-        builtConfig.dynamicParams = true
-      }
+    // If partial prerendering has been set, only override it if the current
+    // value is provided as it's resolved from root layout to leaf page.
+    if (typeof experimental_ppr !== 'undefined') {
+      config.experimental_ppr = experimental_ppr
     }
+  }
 
-    // If the dynamicParams is explicitly set to false, we should not
-    // dynamically generate params for this page.
-    if (dynamicParams === false) {
-      builtConfig.dynamicParams = false
-    }
-
-    return builtConfig
-  }, {})
+  return config
 }
 
 export async function hasCustomGetInitialProps({

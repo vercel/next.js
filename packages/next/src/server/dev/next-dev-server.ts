@@ -170,7 +170,7 @@ export default class DevServer extends Server {
       // 5MB
       max: 5 * 1024 * 1024,
       length(value) {
-        return JSON.stringify(value.staticPaths).length
+        return JSON.stringify(value.staticPaths)?.length ?? 0
       },
     })
     this.renderOpts.ampSkipValidation =
@@ -787,13 +787,14 @@ export default class DevServer extends Server {
       []
     )
       .then((res) => {
-        const { prerenderedRoutes: staticPaths = [], fallback } = res.value
+        const { prerenderedRoutes: staticPaths, fallbackMode: fallback } =
+          res.value
         if (!isAppPath && this.nextConfig.output === 'export') {
-          if (fallback === FallbackMode.BLOCKING_RENDER) {
+          if (fallback === FallbackMode.BLOCKING_STATIC_RENDER) {
             throw new Error(
               'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
             )
-          } else if (fallback === FallbackMode.SERVE_PRERENDER) {
+          } else if (fallback === FallbackMode.STATIC_PRERENDER) {
             throw new Error(
               'getStaticPaths with "fallback: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
             )
@@ -801,11 +802,11 @@ export default class DevServer extends Server {
         }
 
         const value: {
-          staticPaths: string[]
-          fallbackMode: FallbackMode
+          staticPaths: string[] | undefined
+          fallbackMode: FallbackMode | undefined
         } = {
-          staticPaths: staticPaths.map((route) => route.path),
-          fallbackMode: fallback ?? FallbackMode.NOT_FOUND,
+          staticPaths: staticPaths?.map((route) => route.path),
+          fallbackMode: fallback,
         }
         this.staticPathsCache.set(pathname, value)
         return value

@@ -14,6 +14,16 @@ describe('app dir - with output export - dynamic missing gsp dev', () => {
         })
       })
 
+      it('should error when dynamic route is set to true', async () => {
+        await runTests({
+          isDev: true,
+          dynamicPage: 'undefined',
+          dynamicParams: 'true',
+          expectedErrMsg:
+            '"dynamicParams: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/app/building-your-application/deploying/static-exports',
+        })
+      })
+
       it('should error when client component has generateStaticParams', async () => {
         const expectedErrMsg = process.env.TURBOPACK_DEV
           ? 'Page "test/integration/app-dir-export/app/another/[slug]/page.js" cannot use both "use client" and export function "generateStaticParams()".'
