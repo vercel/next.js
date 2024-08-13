@@ -30,6 +30,13 @@ Turbopack currently only supports `next dev` and does not support `next build`. 
 
 These features are currently not supported:
 
+- Turbopack leverages [Lightning CSS](https://lightningcss.dev/) which doesn't support some low usage CSS Modules features
+  - `:local` and `:global` as standalone pseudo classes. Only the function variant is supported, for example: `:global(a)`.
+  - The @value rule which has been superseded by CSS variables.
+  - `:import` and `:export` ICSS rules.
+- [Invalid CSS comment syntax](https://stackoverflow.com/questions/51843506/are-double-slash-comments-valid-in-css) such as `//`
+  - CSS comments should be written as `/* comment */` per the specification.
+  - Preprocessors such as Sass do support this alternative syntax for comments.
 - [`webpack()`](/docs/app/api-reference/next-config-js/webpack) configuration in `next.config.js`
   - Turbopack replaces Webpack, this means that webpack configuration is not supported.
   - To configure Turbopack, [see the documentation](/docs/app/api-reference/next-config-js/turbo).
