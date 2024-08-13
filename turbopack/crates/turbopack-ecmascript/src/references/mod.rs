@@ -415,7 +415,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let ty = Value::new(raw_module.ty);
     let transforms = raw_module.transforms;
     let options = raw_module.options;
-    let compile_time_info = raw_module.compile_time_info.await?;
+    let compile_time_info = raw_module.compile_time_info;
     let options = options.await?;
     let import_externals = options.import_externals;
 
@@ -444,31 +444,29 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         referenced_package_json,
     } = *module.determine_module_type().await?;
 
-    let compile_time_info = {
-        let mut free_var_references = compile_time_info.free_var_references.await?.clone_value();
-        let (exports_type, module_typeof, require_typeof) = match specified_type {
-            SpecifiedModuleType::Automatic | SpecifiedModuleType::CommonJs => {
-                ("object", "object", "function")
+    let compile_time_info = match specified_type {
+        SpecifiedModuleType::Automatic | SpecifiedModuleType::CommonJs => {
+            let compile_time_info = compile_time_info.await?;
+            let mut free_var_references =
+                compile_time_info.free_var_references.await?.clone_value();
+            free_var_references
+                .entry(vec![("exports".into()), "typeof".into()])
+                .or_insert("object".into());
+            free_var_references
+                .entry(vec![("module".into()), "typeof".into()])
+                .or_insert("object".into());
+            free_var_references
+                .entry(vec![("require".into()), "typeof".into()])
+                .or_insert("function".into());
+
+            CompileTimeInfo {
+                environment: compile_time_info.environment,
+                defines: compile_time_info.defines,
+                free_var_references: FreeVarReferences(free_var_references).cell(),
             }
-            SpecifiedModuleType::EcmaScript => ("undefined", "undefined", "undefined"),
-        };
-
-        free_var_references
-            .entry(vec![("exports".into()), "typeof".into()])
-            .or_insert(exports_type.into());
-        free_var_references
-            .entry(vec![("module".into()), "typeof".into()])
-            .or_insert(module_typeof.into());
-        free_var_references
-            .entry(vec![("require".into()), "typeof".into()])
-            .or_insert(require_typeof.into());
-
-        CompileTimeInfo {
-            environment: compile_time_info.environment,
-            defines: compile_time_info.defines,
-            free_var_references: FreeVarReferences(free_var_references).cell(),
+            .cell()
         }
-        .cell()
+        SpecifiedModuleType::EcmaScript => compile_time_info,
     };
 
     if let Some(package_json) = referenced_package_json {
