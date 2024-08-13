@@ -292,7 +292,7 @@ export function navigateReducer(
               if (flightDataPath.length === 3) {
                 // Fill in the cache with the new loading / rsc data
                 const cacheNodeSeedData = flightDataPath[1]
-                const rsc = cacheNodeSeedData[2]
+                const rsc = cacheNodeSeedData[1]
                 const loading = cacheNodeSeedData[3]
                 cache.loading = loading
                 cache.rsc = rsc

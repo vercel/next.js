@@ -612,11 +612,11 @@ async function getErrorRSCPayload(
   // so we create a not found page with AppRouter
   const initialSeedData: CacheNodeSeedData = [
     initialTree[0],
-    {},
     <html id="__next_error__">
       <head></head>
       <body></body>
     </html>,
+    {},
     null,
   ]
 

@@ -31,7 +31,7 @@ export function createInitialRouterState({
   // For the root render, there'll only be a top-level FlightDataPath array.
   const [initialTree, initialSeedData, initialHead] = initialFlightData[0]
   const isServer = !location
-  const rsc = initialSeedData[2]
+  const rsc = initialSeedData[1]
 
   const cache: CacheNode = {
     lazyData: null,
