@@ -34,7 +34,10 @@ use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSyst
 use turbopack::{evaluate_context::node_build_environment, ModuleAssetContext};
 use turbopack_core::{
     changed::content_changed,
-    chunk::ChunkingContext,
+    chunk::{
+        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
+        ChunkingContext,
+    },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     diagnostics::DiagnosticExt,
@@ -54,6 +57,7 @@ use crate::{
     app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
     build,
     entrypoints::Entrypoints,
+    global_module_id_strategy::GlobalModuleIdStrategyBuilder,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
@@ -621,6 +625,7 @@ impl Project {
             self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
             self.next_mode(),
+            self.module_id_strategy(),
         ))
     }
 
@@ -637,6 +642,7 @@ impl Project {
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.server_compile_time_info().environment(),
+                self.module_id_strategy(),
             )
         } else {
             get_server_chunking_context(
@@ -644,6 +650,7 @@ impl Project {
                 self.project_path(),
                 self.node_root(),
                 self.server_compile_time_info().environment(),
+                self.module_id_strategy(),
             )
         }
     }
@@ -661,6 +668,7 @@ impl Project {
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.edge_compile_time_info().environment(),
+                self.module_id_strategy(),
             )
         } else {
             get_edge_chunking_context(
@@ -668,6 +676,7 @@ impl Project {
                 self.project_path(),
                 self.node_root(),
                 self.edge_compile_time_info().environment(),
+                self.module_id_strategy(),
             )
         }
     }
@@ -1160,6 +1169,17 @@ impl Project {
     pub fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
         let path = self.client_root();
         any_output_changed(roots, path, false)
+    }
+
+    /// Get the module id strategy for the project.
+    /// In production mode, we use the global module id strategy with optimized ids.
+    /// In development mode, we use a standard module id strategy with no modifications.
+    #[turbo_tasks::function]
+    pub async fn module_id_strategy(self: Vc<Self>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
+        match *self.next_mode().await? {
+            NextMode::Build => Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self))),
+            NextMode::Development => Ok(Vc::upcast(DevModuleIdStrategy::new())),
+        }
     }
 }
 

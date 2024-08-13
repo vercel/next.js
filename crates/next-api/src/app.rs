@@ -53,7 +53,7 @@ use turbopack_core::{
     },
     file_source::FileSource,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
     source::Source,
@@ -720,6 +720,24 @@ impl AppEndpoint {
     }
 
     #[turbo_tasks::function]
+    async fn app_endpoint_entry(self: Vc<Self>) -> Result<Vc<AppEntry>> {
+        let this = self.await?;
+
+        let next_config = self.await?.app_project.project().next_config();
+        let app_entry = match this.ty {
+            AppEndpointType::Page { loader_tree, .. } => self.app_page_entry(loader_tree),
+            AppEndpointType::Route { path, root_layouts } => {
+                self.app_route_entry(path, root_layouts, next_config)
+            }
+            AppEndpointType::Metadata { metadata } => {
+                self.app_metadata_entry(metadata, next_config)
+            }
+        };
+
+        Ok(app_entry)
+    }
+
+    #[turbo_tasks::function]
     fn output_assets(self: Vc<Self>) -> Vc<OutputAssets> {
         self.output().output_assets()
     }
@@ -728,24 +746,15 @@ impl AppEndpoint {
     async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
         let this = self.await?;
 
-        let next_config = self.await?.app_project.project().next_config();
-        let (app_entry, process_client, process_ssr) = match this.ty {
-            AppEndpointType::Page { ty, loader_tree } => (
-                self.app_page_entry(loader_tree),
-                true,
-                matches!(ty, AppPageEndpointType::Html),
-            ),
+        let app_entry = self.app_endpoint_entry().await?;
+
+        let (process_client, process_ssr) = match this.ty {
+            AppEndpointType::Page { ty, .. } => (true, matches!(ty, AppPageEndpointType::Html)),
             // NOTE(alexkirsz) For routes, technically, a lot of the following code is not needed,
             // as we know we won't have any client references. However, for now, for simplicity's
             // sake, we just do the same thing as for pages.
-            AppEndpointType::Route { path, root_layouts } => (
-                self.app_route_entry(path, root_layouts, next_config),
-                false,
-                false,
-            ),
-            AppEndpointType::Metadata { metadata } => {
-                (self.app_metadata_entry(metadata, next_config), false, false)
-            }
+            AppEndpointType::Route { .. } => (false, false),
+            AppEndpointType::Metadata { .. } => (false, false),
         };
 
         let node_root = this.app_project.project().node_root();
@@ -759,8 +768,6 @@ impl AppEndpoint {
         let mut client_assets = vec![];
         // assets to add to the middleware manifest (to be loaded in the edge runtime).
         let mut middleware_assets = vec![];
-
-        let app_entry = app_entry.await?;
 
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
@@ -1333,6 +1340,12 @@ impl Endpoint for AppEndpoint {
             .app_project
             .project()
             .client_changed(self.output().client_assets()))
+    }
+
+    #[turbo_tasks::function]
+    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let ssr_chunk_module = self.app_endpoint_entry().await?;
+        Ok(Vc::cell(vec![ssr_chunk_module.rsc_entry]))
     }
 }
 
