@@ -16486,8 +16486,8 @@
         "TypeScript basic have built and started correctly",
         "TypeScript basic should not have eslint setup started"
       ],
-      "failed": ["TypeScript basic should work with babel"],
-      "pending": [],
+      "failed": [],
+      "pending": ["TypeScript basic should work with babel"],
       "flakey": [],
       "runtimeError": false
     },
