@@ -108,9 +108,9 @@ Options:
 
     Explicitly tell the CLI to skip installing packages
 
-  --no-git
+  --disable-git
 
-    Explicitly tell the CLI to not initialize a git repository
+    Explicitly tell the CLI to skip initializing a git repository.
 
   --yes
 
