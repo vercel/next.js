@@ -15579,8 +15579,8 @@
       "runtimeError": false
     },
     "test/production/app-dir/mangle-reserved/mangle-reserved.test.ts": {
-      "passed": [],
-      "failed": ["mangle-reserved should preserve the name"],
+      "passed": ["mangle-reserved should preserve the name"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
