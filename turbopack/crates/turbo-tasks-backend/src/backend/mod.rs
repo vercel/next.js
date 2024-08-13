@@ -1673,7 +1673,8 @@ impl Backend for TurboTasksBackend {
     ) -> TaskId {
         self.0.create_transient_task(task_type)
     }
+
     fn dispose_root_task(&self, _: TaskId, _: &dyn TurboTasksBackendApi<Self>) {
-        todo!()
+        // todo!("dispose_root_task");
     }
 }
