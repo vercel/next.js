@@ -15788,14 +15788,13 @@
       "runtimeError": false
     },
     "test/production/disable-fallback-polyfills/index.test.ts": {
-      "passed": [
-        "Disable fallback polyfills Fallback polyfills added by default"
-      ],
-      "failed": [
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "Disable fallback polyfills Fallback polyfills added by default",
         "Disable fallback polyfills Pass build without error if non-polyfilled module is unreachable",
         "Disable fallback polyfills Reduced bundle size when polyfills are disabled"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
