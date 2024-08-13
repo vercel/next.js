@@ -7668,32 +7668,29 @@
     },
     "test/integration/css-features/test/css-modules.test.js": {
       "passed": [
-        "CSS Modules: Import Exports production mode should have compiled successfully",
-        "CSS Modules: Import Global CSS production mode should have compiled successfully"
+        "CSS Modules: Import Global CSS production mode should've emitted a single CSS file"
       ],
       "failed": [
-        "CSS Modules: Import Exports production mode should've emitted a single CSS file",
-        "CSS Modules: Import Global CSS production mode should've emitted a single CSS file",
         "CSS Modules: Importing Invalid Global CSS production mode should fail to build",
-        "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build",
         "Custom Properties: Fail for global element in CSS Modules production mode should fail to build"
       ],
-      "pending": [],
+      "pending": [
+        "CSS Modules: Import Exports production mode should have compiled successfully",
+        "CSS Modules: Import Exports production mode should've emitted a single CSS file",
+        "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build"
+      ],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/css-features/test/index.test.js": {
       "passed": [
-        "Custom Properties: Pass-Through IE11 production mode should have compiled successfully",
-        "Custom Properties: Pass-Through Modern production mode should have compiled successfully",
-        "Inline Comments: Minify production mode should have compiled successfully"
-      ],
-      "failed": [
         "Custom Properties: Pass-Through IE11 production mode should've emitted a single CSS file",
-        "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file",
+        "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file"
+      ],
+      "failed": [],
+      "pending": [
         "Inline Comments: Minify production mode should've emitted a single CSS file"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
