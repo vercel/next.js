@@ -1973,6 +1973,18 @@ async fn handle_typeof(
             if it.next().unwrap().as_ref() != "typeof" {
                 continue;
             }
+
+            let first_str: &str = name.first().unwrap();
+            if state
+                .var_graph
+                .free_var_ids
+                .get(&first_str.into())
+                .map_or(false, |id| state.var_graph.values.contains_key(id))
+            {
+                // `typeof foo...` but `foo` was reassigned
+                return Ok(());
+            }
+
             if it.eq(arg.iter_defineable_name_rev())
                 && handle_free_var_reference(ast_path, value, span, state, analysis).await?
             {
