@@ -247,8 +247,7 @@ pub struct EcmascriptModuleAsset {
     pub compile_time_info: Vc<CompileTimeInfo>,
     pub inner_assets: Option<Vc<InnerAssets>>,
     #[turbo_tasks(debug_ignore)]
-    #[serde(skip)]
-    last_successful_parse: turbo_tasks::State<Option<ReadRef<ParseResult>>>,
+    last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
 }
 
 #[turbo_tasks::value_trait]
@@ -341,8 +340,7 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
         let real_result_value = real_result.await?;
         let this = self.await?;
         let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-            this.last_successful_parse
-                .set(Some(real_result_value.clone()));
+            this.last_successful_parse.set(real_result_value.clone());
             real_result_value
         } else {
             let state_ref = this.last_successful_parse.get();
