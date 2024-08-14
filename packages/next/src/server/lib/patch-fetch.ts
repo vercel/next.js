@@ -26,6 +26,8 @@ import {
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
+console.log('patch-fetch.ts loaded')
+
 type Fetcher = typeof fetch
 
 type PatchedFetcher = Fetcher & {
@@ -814,6 +816,7 @@ export function createPatchedFetcher(
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 export function patchFetch(options: PatchableModule) {
+  console.log('patchFetch called')
   // If we've already patched fetch, we should not patch it again.
   if (isPatchedFetch(globalThis.fetch)) return
 
