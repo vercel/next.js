@@ -32,7 +32,7 @@ describe('app dir - css', () => {
             47 | }
             48 |
 
-          Unexpected token Ident("path") at [project]/app/global.scss.css:0:884"
+          Unexpected token Ident("path"); the type selector 'path' is not allowed here"
         `)
       })
     })
