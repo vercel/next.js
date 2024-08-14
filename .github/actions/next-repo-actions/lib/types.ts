@@ -5,7 +5,7 @@ const userSchema = z
     avatar_url: z.string().optional(),
     deleted: z.boolean().optional(),
     email: z.string().nullable().optional(),
-    event_url: z.string().optional(),
+    events_url: z.string().optional(),
     followers_url: z.string().optional(),
     following_url: z.string().optional(),
     gists_url: z.string().optional(),
