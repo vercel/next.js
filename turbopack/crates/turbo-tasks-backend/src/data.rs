@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     event::{Event, EventListener},
+    registry,
     util::SharedError,
     CellId, KeyValuePair, TaskId, TypedSharedReference, ValueTypeId,
 };
@@ -281,6 +282,13 @@ impl CachedDataItem {
         }
     }
 
+    pub fn is_optional(&self) -> bool {
+        match self {
+            CachedDataItem::CellData { .. } => true,
+            _ => false,
+        }
+    }
+
     pub fn new_scheduled(description: impl Fn() -> String + Sync + Send + 'static) -> Self {
         CachedDataItem::InProgress {
             value: InProgressState::Scheduled {
@@ -408,6 +416,9 @@ impl CachedDataItemValue {
     pub fn is_persistent(&self) -> bool {
         match self {
             CachedDataItemValue::Output { value } => !value.is_transient(),
+            CachedDataItemValue::CellData { value } => {
+                registry::get_value_type(value.0).is_serializable()
+            }
             _ => true,
         }
     }
