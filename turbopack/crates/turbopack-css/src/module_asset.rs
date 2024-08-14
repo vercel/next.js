@@ -9,7 +9,7 @@ use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext, ModuleIdJs},
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -366,7 +366,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             .as_chunk_item(Vc::upcast(self.chunking_context))
                             .id()
                             .await?;
-                        let module_id = StringifyJs(&*module_id);
+                        let module_id = ModuleIdJs(&*module_id);
                         let original_name = StringifyJs(&original_name);
                         exported_class_names.push(format! {
                             "__turbopack_import__({module_id})[{original_name}]"

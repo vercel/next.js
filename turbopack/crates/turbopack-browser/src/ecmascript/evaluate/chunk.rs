@@ -3,13 +3,13 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         ChunkData, ChunkItemExt, ChunkableModule, ChunkingContext, ChunksData, EvaluatableAssets,
-        MinifyType, ModuleId,
+        MinifyType, ModuleIdJs,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -110,9 +110,11 @@ impl EcmascriptDevEvaluateChunk {
                 }
             })
             .try_join()
-            .await?
-            .into_iter()
+            .await?;
+        let runtime_module_ids = runtime_module_ids
+            .iter()
             .flatten()
+            .map(|id| ModuleIdJs(&**id))
             .collect();
 
         let params = EcmascriptDevChunkRuntimeParams {
@@ -264,7 +266,7 @@ impl GenerateSourceMap for EcmascriptDevEvaluateChunk {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct EcmascriptDevChunkRuntimeParams<'a, T> {
     /// Other chunks in the chunk group this chunk belongs to, if any. Does not
@@ -274,5 +276,5 @@ struct EcmascriptDevChunkRuntimeParams<'a, T> {
     /// instantiated.
     other_chunks: &'a [T],
     /// List of module IDs that this chunk should instantiate when executed.
-    runtime_module_ids: Vec<ReadRef<ModuleId>>,
+    runtime_module_ids: Vec<ModuleIdJs<'a>>,
 }
