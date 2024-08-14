@@ -97,8 +97,9 @@ where
     println!("Run #1 (without cache)");
     let first = run_once(tt.clone(), fut()).await?;
     println!("Run #2 (with memory cache, same TurboTasks instance)");
-    let second = run_once(tt, fut()).await?;
+    let second = run_once(tt.clone(), fut()).await?;
     assert_eq!(first, second);
+    tt.stop_and_wait().await;
     let tt = registration.create_turbo_tasks(&name, false);
     println!("Run #3 (with persistent cache if available, new TurboTasks instance)");
     let third = run_once(tt.clone(), fut()).await?;
