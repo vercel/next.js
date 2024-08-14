@@ -49,3 +49,38 @@ The following options are available:
 | `--reset-preferences`                   | Explicitly tell the CLI to reset any stored preferences         |
 | `--skip-install`                        | Explicitly tell the CLI to skip installing packages             |
 | `--yes`                                 | Use previous preferences or defaults for all options            |
+
+### `next`
+
+Basic usage:
+
+{/* TODO: Add support for switcher for different package managers */}
+
+```bash filename="Terminal"
+npm next [command] [options]
+```
+
+The following options are available:
+
+| Options             | Description                 |
+| ------------------- | --------------------------- |
+| `-v` or `--version` | Outputs the version number  |
+| `-h` or `--help`    | Shows all available options |
+
+#### Commands
+
+The following commands are available:
+
+| Command                   | Description                                                                                                                                                                                                                        |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`dev`](#dev-options)     | Starts Next.js in development mode with hot module reloading, error reporting, and more.                                                                                                                                           |
+| [`build`](#build-options) | Creates an optimized production build of your application. Displaying information about each route.                                                                                                                                |
+| [`start`](#start-options) | Starts Next.js in production mode. The application should be compiled with `next build` first.                                                                                                                                     |
+| `info`                    | Prints relevant details about the current system which can be used to report Next.js bugs.                                                                                                                                         |
+| `lint`                    | Runs ESLint for all files in the `/src`, `/app`, `/pages`, `/components`, and `/lib` directories. It also provides a guided setup to install any required dependencies if ESLint it is not already configured in your application. |
+| `telemetry`               | Allows you to enable or disable Next.js' completely anonymous telemetry collection.                                                                                                                                                |
+
+guided setup to install any required dependencies if ESLint
+is not already configured in your application. |
+
+> **Good to know**: Running `next` without a command is the same as running `next dev`
