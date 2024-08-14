@@ -8,7 +8,6 @@ use turbo_tasks::{
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use crate::{
-    changed::get_referenced_modules,
     chunk::ModuleId,
     ident::AssetIdent,
     module::{Module, Modules},
@@ -22,6 +21,12 @@ pub struct PreprocessedChildrenIdents {
     modules_idents: HashMap<AssetIdent, u64>,
 }
 
+pub async fn get_children_modules(
+    parent: Vc<Box<dyn Module>>,
+) -> Result<impl Iterator<Item = Vc<Box<dyn Module>>> + Send> {
+    Ok(parent.children_modules().await?.clone_value().into_iter())
+}
+
 // NOTE(LichuAcu) Called on endpoint.root_modules(). It would probably be better if this was called
 // directly on `Endpoint`, but such struct is not available in turbopack-core. The whole function
 // could be moved to `next-api`, but it would require adding turbo-tasks-hash to `next-api`,
@@ -32,7 +37,7 @@ pub async fn children_modules_idents(
 ) -> Result<Vc<PreprocessedChildrenIdents>> {
     let children_modules_iter = AdjacencyMap::new()
         .skip_duplicates()
-        .visit(root_modules.await?.iter().copied(), get_referenced_modules)
+        .visit(root_modules.await?.iter().copied(), get_children_modules)
         .await
         .completed()?
         .into_inner()

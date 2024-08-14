@@ -4,7 +4,7 @@ use turbo_tasks::{RcStr, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, Modules},
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
@@ -54,6 +54,14 @@ impl Module for EcmascriptClientReferenceModule {
     fn ident(&self) -> Vc<AssetIdent> {
         self.server_ident
             .with_modifier(ecmascript_client_reference_modifier())
+    }
+
+    #[turbo_tasks::function]
+    async fn children_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let this = self.await?;
+        let client_module = Vc::upcast(this.client_module);
+        let ssr_module = Vc::upcast(this.ssr_module);
+        Ok(Vc::cell(vec![client_module, ssr_module]))
     }
 }
 
