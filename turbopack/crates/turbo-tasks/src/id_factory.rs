@@ -107,7 +107,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Overflow detected")]
     fn test_overflow() {
-        let factory = IdFactory::<NonZeroU8>::new(1, u8::MAX as u64);
+        let factory = IdFactory::<NonZeroU8>::new(1, u16::MAX as u64);
         assert_eq!(factory.get(), NonZeroU8::new(1).unwrap());
         assert_eq!(factory.get(), NonZeroU8::new(2).unwrap());
         for _i in 2..256 {
