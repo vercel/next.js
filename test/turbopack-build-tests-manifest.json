@@ -3704,10 +3704,10 @@
     },
     "test/e2e/app-dir/scss/invalid-module-document/invalid-module-document.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Invalid SCSS in _document production only should fail to build"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -7668,32 +7668,29 @@
     },
     "test/integration/css-features/test/css-modules.test.js": {
       "passed": [
-        "CSS Modules: Import Exports production mode should have compiled successfully",
-        "CSS Modules: Import Global CSS production mode should have compiled successfully"
+        "CSS Modules: Import Global CSS production mode should've emitted a single CSS file"
       ],
       "failed": [
-        "CSS Modules: Import Exports production mode should've emitted a single CSS file",
-        "CSS Modules: Import Global CSS production mode should've emitted a single CSS file",
         "CSS Modules: Importing Invalid Global CSS production mode should fail to build",
-        "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build",
         "Custom Properties: Fail for global element in CSS Modules production mode should fail to build"
       ],
-      "pending": [],
+      "pending": [
+        "CSS Modules: Import Exports production mode should have compiled successfully",
+        "CSS Modules: Import Exports production mode should've emitted a single CSS file",
+        "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build"
+      ],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/css-features/test/index.test.js": {
       "passed": [
-        "Custom Properties: Pass-Through IE11 production mode should have compiled successfully",
-        "Custom Properties: Pass-Through Modern production mode should have compiled successfully",
-        "Inline Comments: Minify production mode should have compiled successfully"
-      ],
-      "failed": [
         "Custom Properties: Pass-Through IE11 production mode should've emitted a single CSS file",
-        "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file",
+        "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file"
+      ],
+      "failed": [],
+      "pending": [
         "Inline Comments: Minify production mode should've emitted a single CSS file"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -7914,16 +7911,15 @@
     },
     "test/integration/css/test/valid-invalid-css.test.js": {
       "passed": [
-        "Valid Global CSS from npm production mode should compile successfully"
+        "Valid Global CSS from npm production mode should've emitted a single CSS file"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Invalid CSS in _document production mode should fail to build",
         "Invalid Global CSS production mode should fail to build",
         "Invalid Global CSS with Custom App production mode should fail to build",
-        "Valid Global CSS from npm production mode should've emitted a single CSS file",
         "Valid and Invalid Global CSS with Custom App production mode should fail to build"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -13040,13 +13036,12 @@
         "Static Image Component Tests production mode Should use immutable cache-control header even when unoptimized",
         "Static Image Component Tests production mode Should use immutable cache-control header for static import",
         "Static Image Component Tests production mode should load direct imported image",
-        "Static Image Component Tests production mode should load staticprops imported image"
-      ],
-      "failed": [
+        "Static Image Component Tests production mode should load staticprops imported image",
         "Build Error Tests production mode should throw build error when import statement is used with missing file",
         "Static Image Component Tests production mode Should add a blur placeholder to statically imported jpg",
         "Static Image Component Tests production mode Should add a blur placeholder to statically imported png"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -13289,11 +13284,10 @@
         "Static Image Component Tests production mode should load direct imported image",
         "Static Image Component Tests production mode should use height prop to adjust both width and height",
         "Static Image Component Tests production mode should use width and height prop to override import",
-        "Static Image Component Tests production mode should use width prop to adjust both width and height"
-      ],
-      "failed": [
+        "Static Image Component Tests production mode should use width prop to adjust both width and height",
         "Build Error Tests production mode should throw build error when import statement is used with missing file"
       ],
+      "failed": [],
       "pending": [
         "Static Image Component Tests development mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests development mode Should automatically provide an image height and width",
@@ -13512,11 +13506,10 @@
         "Static Image Component Tests production mode should load staticprops imported image",
         "Static Image Component Tests production mode should use height prop to adjust both width and height",
         "Static Image Component Tests production mode should use width and height prop to override import",
-        "Static Image Component Tests production mode should use width prop to adjust both width and height"
-      ],
-      "failed": [
+        "Static Image Component Tests production mode should use width prop to adjust both width and height",
         "Build Error Tests production mode should throw build error when import statement is used with missing file"
       ],
+      "failed": [],
       "pending": [
         "Static Image Component Tests development mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests development mode Should automatically provide an image height and width",
@@ -15582,8 +15575,8 @@
       "runtimeError": false
     },
     "test/production/app-dir/mangle-reserved/mangle-reserved.test.ts": {
-      "passed": [],
-      "failed": ["mangle-reserved should preserve the name"],
+      "passed": ["mangle-reserved should preserve the name"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15791,14 +15784,13 @@
       "runtimeError": false
     },
     "test/production/disable-fallback-polyfills/index.test.ts": {
-      "passed": [
-        "Disable fallback polyfills Fallback polyfills added by default"
-      ],
-      "failed": [
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "Disable fallback polyfills Fallback polyfills added by default",
         "Disable fallback polyfills Pass build without error if non-polyfilled module is unreachable",
         "Disable fallback polyfills Reduced bundle size when polyfills are disabled"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -16493,8 +16485,8 @@
         "TypeScript basic have built and started correctly",
         "TypeScript basic should not have eslint setup started"
       ],
-      "failed": ["TypeScript basic should work with babel"],
-      "pending": [],
+      "failed": [],
+      "pending": ["TypeScript basic should work with babel"],
       "flakey": [],
       "runtimeError": false
     },

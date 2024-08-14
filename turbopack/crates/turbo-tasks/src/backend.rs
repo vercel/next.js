@@ -23,8 +23,8 @@ use crate::{
     task::shared_reference::TypedSharedReference,
     trait_helpers::{get_trait_method, has_trait, traits},
     triomphe_utils::unchecked_sidecast_triomphe_arc,
-    FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdProvider, TaskIdSet, TraitRef,
-    TraitTypeId, ValueTypeId, VcRead, VcValueTrait, VcValueType,
+    FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef, TraitTypeId,
+    ValueTypeId, VcRead, VcValueTrait, VcValueType,
 };
 
 pub enum TaskType {
@@ -188,7 +188,7 @@ mod ser {
                     s.serialize_element::<u8>(&1)?;
                     s.serialize_element(&FunctionAndArg::Borrowed {
                         fn_type: *fn_type,
-                        arg,
+                        arg: &**arg,
                     })?;
                     s.serialize_element(this)?;
                     s.end()
@@ -207,7 +207,7 @@ mod ser {
                     let arg = if let Some(method) =
                         registry::get_trait(*trait_type).methods.get(method_name)
                     {
-                        method.arg_serializer.as_serialize(arg)
+                        method.arg_serializer.as_serialize(&**arg)
                     } else {
                         return Err(serde::ser::Error::custom("Method not found"));
                     };
@@ -320,6 +320,14 @@ impl PersistentTaskType {
             } => format!("{}::{}", registry::get_trait(*trait_id).name, fn_name).into(),
         }
     }
+
+    pub fn try_get_function_id(&self) -> Option<FunctionId> {
+        match self {
+            PersistentTaskType::Native { fn_type, .. }
+            | PersistentTaskType::ResolveNative { fn_type, .. } => Some(*fn_type),
+            PersistentTaskType::ResolveTrait { .. } => None,
+        }
+    }
 }
 
 pub struct TaskExecutionSpec<'a> {
@@ -428,9 +436,6 @@ impl TryFrom<CellContent> for SharedReference {
 pub type TaskCollectiblesMap = AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1>;
 
 pub trait Backend: Sync + Send {
-    #[allow(unused_variables)]
-    fn initialize(&mut self, task_id_provider: &dyn TaskIdProvider) {}
-
     #[allow(unused_variables)]
     fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
 
@@ -573,6 +578,10 @@ pub trait Backend: Sync + Send {
         parent_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
+
+    /// For persistent tasks with associated [`NativeFunction`][turbo_tasks::NativeFunction]s,
+    /// return the [`FunctionId`].
+    fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId>;
 
     fn connect_task(
         &self,

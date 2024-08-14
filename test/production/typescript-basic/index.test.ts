@@ -31,15 +31,20 @@ describe('TypeScript basic', () => {
     expect(html).toContain('hello world')
   })
 
-  it('should work with babel', async () => {
-    await next.stop()
-    await next.patchFile(
-      '.babelrc',
-      JSON.stringify({ presets: ['next/babel'] })
-    )
-    await next.start()
+  // Turbopack doesn't support Babel built-in.
+  ;(process.env.TURBOPACK ? it.skip : it)(
+    'should work with babel',
+    async () => {
+      await next.stop()
+      await next.patchFile(
+        '.babelrc',
+        JSON.stringify({ presets: ['next/babel'] })
+      )
+      await next.start()
 
-    const html = await renderViaHTTP(next.url, '/')
-    expect(html).toContain('hello world')
-  })
+      const html = await renderViaHTTP(next.url, '/')
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(html).toContain('hello world')
+    }
+  )
 })

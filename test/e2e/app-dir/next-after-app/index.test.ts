@@ -104,7 +104,8 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
         source: '[action] /[id]/with-action',
         value: '123',
         assertions: {
-          'cache() works in after()': true,
+          // cache() does not currently work in actions, and after() shouldn't affect that
+          'cache() works in after()': false,
           'headers() works in after()': true,
         },
       })

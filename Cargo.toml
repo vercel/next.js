@@ -207,7 +207,7 @@ tokio = "1.25.0"
 tokio-util = { version = "0.7.7", features = ["io"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
-triomphe = "0.1.13"
+triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable" }
 unicode-segmentation = "1.10.1"
 unsize = "1.1.0"
 url = "2.2.2"

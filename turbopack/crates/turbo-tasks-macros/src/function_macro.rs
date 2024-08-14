@@ -26,7 +26,6 @@ use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};
 /// }
 /// ```
 pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
-    let item = parse_macro_input!(input as ItemFn);
     let mut errors = Vec::new();
 
     let ItemFn {
@@ -34,14 +33,14 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         vis,
         sig,
         block,
-    } = &item;
+    } = parse_macro_input!(input as ItemFn);
 
-    let args = syn::parse::<FunctionArguments>(args);
-    if let Err(err) = &args {
-        errors.push(err.to_compile_error());
-    }
-    let Some(turbo_fn) = TurboFn::new(sig, DefinitionContext::NakedFn, args.unwrap_or_default())
-    else {
+    let args = syn::parse::<FunctionArguments>(args)
+        .inspect_err(|err| errors.push(err.to_compile_error()))
+        .unwrap_or_default();
+    let local_cells = args.local_cells.is_some();
+
+    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args) else {
         return quote! {
             // An error occurred while parsing the function signature.
         }
@@ -59,6 +58,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         &ident.to_string(),
         &inline_function_path,
         turbo_fn.is_method(),
+        local_cells,
     );
     let native_function_ident = get_native_function_ident(ident);
     let native_function_ty = native_fn.ty();

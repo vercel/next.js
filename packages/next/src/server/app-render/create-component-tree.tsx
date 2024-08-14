@@ -213,7 +213,7 @@ async function createComponentTreeInternal({
       // TODO: (PPR) remove this bailout once PPR is the default
       if (
         staticGenerationStore.isStaticGeneration &&
-        !staticGenerationStore.prerenderState
+        !experimental.isRoutePPREnabled
       ) {
         // If the postpone API isn't available, we can't postpone the render and
         // therefore we can't use the dynamic API.
@@ -255,7 +255,7 @@ async function createComponentTreeInternal({
       ctx.defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
-      !staticGenerationStore.prerenderState
+      !experimental.isRoutePPREnabled
     ) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
       staticGenerationStore.dynamicUsageDescription = dynamicUsageDescription
@@ -496,7 +496,6 @@ async function createComponentTreeInternal({
   if (!Component) {
     return [
       actualSegment,
-      parallelRouteCacheNodeSeedData,
       // TODO: I don't think the extra fragment is necessary. React treats top
       // level fragments as transparent, i.e. the runtime behavior should be
       // identical even without it. But maybe there's some findDOMNode-related
@@ -506,6 +505,7 @@ async function createComponentTreeInternal({
         {layerAssets}
         {parallelRouteProps.children}
       </React.Fragment>,
+      parallelRouteCacheNodeSeedData,
       loadingData,
     ]
   }
@@ -522,20 +522,20 @@ async function createComponentTreeInternal({
   // render force-dynamic. We should refactor this function so that we can correctly track which segments
   // need to be dynamic
   if (
+    staticGenerationStore.isStaticGeneration &&
     staticGenerationStore.forceDynamic &&
-    staticGenerationStore.prerenderState
+    experimental.isRoutePPREnabled
   ) {
     return [
       actualSegment,
-      parallelRouteCacheNodeSeedData,
       <React.Fragment key={cacheNodeKey}>
         <Postpone
-          prerenderState={staticGenerationStore.prerenderState}
           reason='dynamic = "force-dynamic" was used'
           route={staticGenerationStore.route}
         />
         {layerAssets}
       </React.Fragment>,
+      parallelRouteCacheNodeSeedData,
       loadingData,
     ]
   }
@@ -619,7 +619,6 @@ async function createComponentTreeInternal({
 
   return [
     actualSegment,
-    parallelRouteCacheNodeSeedData,
     <React.Fragment key={cacheNodeKey}>
       {segmentElement}
       {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
@@ -632,6 +631,7 @@ async function createComponentTreeInternal({
             TODO-APP update router to use a Symbol for partial tree detection */}
       {null}
     </React.Fragment>,
+    parallelRouteCacheNodeSeedData,
     loadingData,
   ]
 }

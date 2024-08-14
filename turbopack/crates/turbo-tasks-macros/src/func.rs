@@ -460,17 +460,26 @@ impl<T: Parse> Parse for MaybeParenthesized<T> {
 /// Arguments to the `#[turbo_tasks::function]` macro.
 #[derive(Default)]
 pub struct FunctionArguments {
-    /// Manually annotated metadata about what kind of IO this function does.
-    /// Currently only used by some static analysis tools. May be exposed via
-    /// `tracing` or used as part of an optimization heuristic in the
-    /// future.
+    /// Manually annotated metadata about what kind of IO this function does. Currently only used
+    /// by some static analysis tools. May be exposed via `tracing` or used as part of an
+    /// optimization heuristic in the future.
     ///
-    /// This should only be used by the task that directly performs the IO.
-    /// Tasks that transitively perform IO should not be manually annotated.
+    /// This should only be used by the task that directly performs the IO. Tasks that transitively
+    /// perform IO should not be manually annotated.
     io_markers: HashSet<IoMarker>,
-    /// Should we check that the return type contains a `ResolvedValue`? This is
-    /// a span for error reporting reasons.
+    /// Should we check that the return type contains a `ResolvedValue`?
+    ///
+    /// If there is an error due to this option being set, it should be reported to this span.
+    ///
+    /// If [`Self::local_cells`] is set, this will also be set to the same span.
     resolved: Option<Span>,
+    /// Changes the behavior of `Vc::cell` to create local cells that are not cached across task
+    /// executions. Cells can be converted to their non-local versions by calling `Vc::resolve`.
+    ///
+    /// If there is an error due to this option being set, it should be reported to this span.
+    ///
+    /// Setting this option will also set [`Self::resolved`] to the same span.
+    pub local_cells: Option<Span>,
 }
 
 impl Parse for FunctionArguments {
@@ -495,10 +504,16 @@ impl Parse for FunctionArguments {
                 ("resolved", Meta::Path(_)) => {
                     parsed_args.resolved = Some(meta.span());
                 }
+                ("local_cells", Meta::Path(_)) => {
+                    let span = Some(meta.span());
+                    parsed_args.local_cells = span;
+                    parsed_args.resolved = span;
+                }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
-                        "unexpected token, expected one of: \"fs\", \"network\", \"resolved\"",
+                        "unexpected token, expected one of: \"fs\", \"network\", \"resolved\", \
+                         \"local_cells\"",
                     ))
                 }
             }
@@ -637,14 +652,21 @@ pub struct NativeFn {
     function_path_string: String,
     function_path: ExprPath,
     is_method: bool,
+    local_cells: bool,
 }
 
 impl NativeFn {
-    pub fn new(function_path_string: &str, function_path: &ExprPath, is_method: bool) -> NativeFn {
+    pub fn new(
+        function_path_string: &str,
+        function_path: &ExprPath,
+        is_method: bool,
+        local_cells: bool,
+    ) -> NativeFn {
         NativeFn {
             function_path_string: function_path_string.to_owned(),
             function_path: function_path.clone(),
             is_method,
+            local_cells,
         }
     }
 
@@ -657,22 +679,26 @@ impl NativeFn {
             function_path_string,
             function_path,
             is_method,
+            local_cells,
         } = self;
 
-        if *is_method {
-            parse_quote! {
-                turbo_tasks::macro_helpers::Lazy::new(|| {
-                    #[allow(deprecated)]
-                    turbo_tasks::NativeFunction::new_method(#function_path_string.to_owned(), #function_path)
-                })
-            }
+        let constructor = if *is_method {
+            quote! { new_method }
         } else {
-            parse_quote! {
-                turbo_tasks::macro_helpers::Lazy::new(|| {
-                    #[allow(deprecated)]
-                    turbo_tasks::NativeFunction::new_function(#function_path_string.to_owned(), #function_path)
-                })
-            }
+            quote! { new_function }
+        };
+
+        parse_quote! {
+            turbo_tasks::macro_helpers::Lazy::new(|| {
+                #[allow(deprecated)]
+                turbo_tasks::NativeFunction::#constructor(
+                    #function_path_string.to_owned(),
+                    turbo_tasks::FunctionMeta {
+                        local_cells: #local_cells,
+                    },
+                    #function_path,
+                )
+            })
         }
     }
 
