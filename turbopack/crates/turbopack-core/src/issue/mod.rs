@@ -20,6 +20,7 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::{
     asset::{Asset, AssetContent},
+    file_source::FileSource,
     source::Source,
     source_map::GenerateSourceMap,
     source_pos::SourcePos,
@@ -160,21 +161,30 @@ pub trait Issue {
             Some(detail) => Some((*detail.await?).clone()),
             None => None,
         };
+        let (original_file_path, source) = if let Some(s) = *self.source().await? {
+            let s = s.resolve_source_map();
+
+            let file_path = match Vc::try_resolve_downcast_type::<FileSource>(s.await?.source).await
+            {
+                Ok(Some(file_source)) => Some(file_source.await?.path),
+                _ => None,
+            };
+
+            (file_path, Some(s.into_plain().await?))
+        } else {
+            (None, None)
+        };
+        let file_path = original_file_path.unwrap_or_else(|| self.file_path());
+
         Ok(PlainIssue {
             severity: *self.severity().await?,
-            file_path: self.file_path().to_string().await?.clone_value(),
+            file_path: file_path.to_string().await?.clone_value(),
             stage: self.stage().await?.clone_value(),
             title: self.title().await?.clone_value(),
             description,
             detail,
             documentation_link: self.documentation_link().await?.clone_value(),
-            source: {
-                if let Some(s) = *self.source().await? {
-                    Some(s.resolve_source_map().into_plain().await?)
-                } else {
-                    None
-                }
-            },
+            source,
             sub_issues: self
                 .sub_issues()
                 .await?
