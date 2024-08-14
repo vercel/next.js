@@ -6,7 +6,7 @@ use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkingContext, MinifyType, ModuleId},
+    chunk::{ChunkingContext, MinifyType, ModuleId, ModuleIdJs},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, OptionSourceMap},
@@ -96,7 +96,7 @@ impl EcmascriptDevChunkContent {
         )?;
 
         for (id, entry) in this.entries.await?.iter() {
-            write!(code, "\n{}: ", StringifyJs(&id))?;
+            write!(code, "\n{}: ", ModuleIdJs(&id))?;
             code.push_code(&*entry.code.await?);
             write!(code, ",")?;
         }

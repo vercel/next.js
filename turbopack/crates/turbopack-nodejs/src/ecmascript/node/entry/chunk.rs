@@ -6,7 +6,7 @@ use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAssets},
+    chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAssets, ModuleIdJs},
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssets},
@@ -121,7 +121,7 @@ impl EcmascriptBuildNodeEntryChunk {
                     r#"
                         runtime.getOrInstantiateRuntimeModule({}, CHUNK_PUBLIC_PATH);
                     "#,
-                    StringifyJs(&*runtime_module_id),
+                    ModuleIdJs(&*runtime_module_id),
                 )?;
             }
         }
@@ -137,7 +137,7 @@ impl EcmascriptBuildNodeEntryChunk {
             r#"
                     module.exports = runtime.getOrInstantiateRuntimeModule({}, CHUNK_PUBLIC_PATH).exports;
                 "#,
-            StringifyJs(&*runtime_module_id),
+            ModuleIdJs(&*runtime_module_id),
         )?;
 
         Ok(Code::cell(code.build()))

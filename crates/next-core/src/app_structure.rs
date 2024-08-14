@@ -33,23 +33,14 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Default, Debug, Clone)]
 pub struct AppDirModules {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub layout: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub global_error: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub loading: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub template: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub not_found: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Metadata::is_empty", default)]
     pub metadata: Metadata,
@@ -145,7 +136,6 @@ pub struct Metadata {
     pub twitter: Vec<MetadataWithAltItem>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub open_graph: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub sitemap: Option<MetadataItem>,
     // The page indicates where the metadata is defined and captured.
     // The steps for capturing metadata (get_directory_tree) and constructing
@@ -154,7 +144,6 @@ pub struct Metadata {
     // the actual path incorrectly with fillMetadataSegment.
     //
     // This is only being used for the static metadata files.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub base_page: Option<AppPage>,
 }
 
@@ -180,11 +169,8 @@ impl Metadata {
 #[turbo_tasks::value]
 #[derive(Default, Clone, Debug)]
 pub struct GlobalMetadata {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub favicon: Option<MetadataItem>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub robots: Option<MetadataItem>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub manifest: Option<MetadataItem>,
 }
 

@@ -50,7 +50,6 @@ use crate::{
 /// A module id, which can be a number or string
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash)]
-#[serde(untagged)]
 pub enum ModuleId {
     Number(u64),
     String(RcStr),
@@ -79,6 +78,31 @@ impl ModuleId {
             Ok(i) => ModuleId::Number(i),
             Err(_) => ModuleId::String(id.into()),
         })
+    }
+}
+
+pub struct ModuleIdJs<'a>(pub &'a ModuleId);
+
+impl<'a> Display for ModuleIdJs<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            ModuleId::Number(i) => write!(f, "{}", i),
+            ModuleId::String(s) => {
+                f.write_str(&serde_json::to_string(&*s).map_err(|_| std::fmt::Error)?)
+            }
+        }
+    }
+}
+
+impl<'a> Serialize for ModuleIdJs<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self.0 {
+            ModuleId::Number(i) => i.serialize(serializer),
+            ModuleId::String(s) => s.serialize(serializer),
+        }
     }
 }
 

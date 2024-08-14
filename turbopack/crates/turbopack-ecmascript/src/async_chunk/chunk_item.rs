@@ -4,7 +4,7 @@ use turbo_tasks::{RcStr, TryJoinIterExt, Value, Vc};
 use turbopack_core::{
     chunk::{
         ChunkData, ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext,
-        ChunkingContextExt, ChunksData,
+        ChunkingContextExt, ChunksData, ModuleIdJs,
     },
     ident::AssetIdent,
     module::Module,
@@ -106,7 +106,7 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
                             }});
                         }});
                     "#,
-                    id = StringifyJs(id),
+                    id = ModuleIdJs(id),
                 }
             }
             (Some(id), false) => {
@@ -119,7 +119,7 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
                         }});
                     "#,
                     chunks = StringifyJs(&chunks_data),
-                    id = StringifyJs(id),
+                    id = ModuleIdJs(id),
                 }
             }
             (None, true) => {
