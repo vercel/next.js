@@ -7941,6 +7941,9 @@
         "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on hover)",
         "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on load)",
         "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should not change color on hover",
+        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct CSS injection order",
+        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from index)",
+        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from other)",
         "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(false) production mode should hydrate black without dependencies manifest",
         "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(false) production mode should hydrate red without dependencies manifest",
         "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(false) production mode should route from black to red without dependencies",
@@ -7953,9 +7956,6 @@
       "failed": [
         "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
         "CSS Support CSS Cleanup on Render Failure useLightnincsss(true) production mode not have intermediary page styles on error rendering",
-        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct CSS injection order",
-        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from index)",
-        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from other)",
         "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
         "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS"
       ],
