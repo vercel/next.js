@@ -21,7 +21,12 @@ describe('app dir - css', () => {
 
         const source = await getRedboxSource(browser)
 
-        expect(source).toMatchInlineSnapshot()
+        expect(source).toMatchInlineSnapshot(`
+          "./app/global.scss.css:79:5
+          Parsing css source code failed
+
+          Unexpected token Ident("path") at [project]/app/global.scss.css:0:884"
+        `)
       })
     })
   })
