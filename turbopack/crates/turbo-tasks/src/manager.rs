@@ -111,6 +111,8 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn invalidate(&self, task: TaskId);
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>);
 
+    fn invalidate_serialization(&self, task: TaskId);
+
     /// Eagerly notifies all tasks that were scheduled for notifications via
     /// `schedule_notify_tasks_set()`
     fn notify_scheduled_tasks(&self);
@@ -160,6 +162,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent>;
     fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent);
     fn mark_own_task_as_finished(&self, task: TaskId);
+    fn mark_own_task_as_dirty_when_persisted(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
 
@@ -1189,6 +1192,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.invalidate_task(task, self);
     }
 
+    fn invalidate_serialization(&self, task: TaskId) {
+        self.backend.invalidate_serialization(task, self);
+    }
+
     fn notify_scheduled_tasks(&self) {
         let _ = CURRENT_GLOBAL_TASK_STATE.try_with(|cell| {
             let tasks = {
@@ -1306,6 +1313,11 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     fn mark_own_task_as_finished(&self, task: TaskId) {
         self.backend.mark_own_task_as_finished(task, self);
+    }
+
+    fn mark_own_task_as_dirty_when_persisted(&self, task: TaskId) {
+        self.backend
+            .mark_own_task_as_dirty_when_persisted(task, self);
     }
 
     /// Creates a future that inherits the current task id and task state. The current global task
@@ -1469,6 +1481,84 @@ pub(crate) fn current_task(from: &str) -> TaskId {
             "{} can only be used in the context of turbo_tasks task execution",
             from
         ),
+    }
+}
+
+pub struct SerializationInvalidator {
+    task: TaskId,
+    turbo_tasks: Weak<dyn TurboTasksApi>,
+    handle: Handle,
+}
+
+impl Hash for SerializationInvalidator {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.task.hash(state);
+    }
+}
+
+impl PartialEq for SerializationInvalidator {
+    fn eq(&self, other: &Self) -> bool {
+        self.task == other.task
+    }
+}
+
+impl Eq for SerializationInvalidator {}
+
+impl SerializationInvalidator {
+    pub fn invalidate(&self) {
+        let SerializationInvalidator {
+            task,
+            turbo_tasks,
+            handle,
+        } = self;
+        let _ = handle.enter();
+        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
+            turbo_tasks.invalidate_serialization(*task);
+        }
+    }
+}
+
+impl TraceRawVcs for SerializationInvalidator {
+    fn trace_raw_vcs(&self, _context: &mut crate::trace::TraceRawVcsContext) {
+        // nothing here
+    }
+}
+
+impl Serialize for SerializationInvalidator {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_newtype_struct("SerializationInvalidator", &self.task)
+    }
+}
+
+impl<'de> Deserialize<'de> for SerializationInvalidator {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct V;
+
+        impl<'de> Visitor<'de> for V {
+            type Value = SerializationInvalidator;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "an SerializationInvalidator")
+            }
+
+            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                Ok(SerializationInvalidator {
+                    task: TaskId::deserialize(deserializer)?,
+                    turbo_tasks: weak_turbo_tasks(),
+                    handle: tokio::runtime::Handle::current(),
+                })
+            }
+        }
+        deserializer.deserialize_newtype_struct("SerializationInvalidator", V)
     }
 }
 
@@ -1705,6 +1795,15 @@ pub fn get_invalidator() -> Invalidator {
     }
 }
 
+/// Marks the current task as dirty when restored from persistent cache.
+pub fn mark_dirty_when_persisted() {
+    with_turbo_tasks(|tt| {
+        tt.mark_own_task_as_dirty_when_persisted(current_task(
+            "turbo_tasks::mark_dirty_when_persisted()",
+        ))
+    });
+}
+
 /// Marks the current task as finished. This excludes it from waiting for
 /// strongly consistency.
 pub fn mark_finished() {
@@ -1715,10 +1814,19 @@ pub fn mark_finished() {
 
 /// Marks the current task as stateful. This prevents the tasks from being
 /// dropped without persisting the state.
-pub fn mark_stateful() {
+/// Returns a [`SerializationInvalidator`] that can be used to invalidate the
+/// serialization of the current task cells
+pub fn mark_stateful() -> SerializationInvalidator {
     CURRENT_GLOBAL_TASK_STATE.with(|cell| {
-        let CurrentGlobalTaskState { stateful, .. } = &mut *cell.write().unwrap();
+        let CurrentGlobalTaskState {
+            stateful, task_id, ..
+        } = &mut *cell.write().unwrap();
         *stateful = true;
+        SerializationInvalidator {
+            task: *task_id,
+            turbo_tasks: weak_turbo_tasks(),
+            handle: Handle::current(),
+        }
     })
 }
 

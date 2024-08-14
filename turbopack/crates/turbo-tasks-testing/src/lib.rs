@@ -177,6 +177,10 @@ impl TurboTasksApi for VcStorage {
         unreachable!()
     }
 
+    fn invalidate_serialization(&self, _task: TaskId) {
+        // ingore
+    }
+
     fn notify_scheduled_tasks(&self) {
         // ignore
     }
@@ -288,6 +292,10 @@ impl TurboTasksApi for VcStorage {
     }
 
     fn mark_own_task_as_finished(&self, _task: TaskId) {
+        // no-op
+    }
+
+    fn mark_own_task_as_dirty_when_persisted(&self, _task: TaskId) {
         // no-op
     }
 

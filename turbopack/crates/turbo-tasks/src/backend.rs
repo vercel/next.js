@@ -519,6 +519,13 @@ pub trait Backend: Sync + Send {
     fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &dyn TurboTasksBackendApi<Self>);
     fn invalidate_tasks_set(&self, tasks: &TaskIdSet, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
+    fn invalidate_serialization(
+        &self,
+        _task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+    }
+
     fn get_task_description(&self, task: TaskId) -> String;
 
     type ExecutionScopeFuture<T: Future<Output = Result<()>> + Send + 'static>: Future<Output = Result<()>>
@@ -667,6 +674,14 @@ pub trait Backend: Sync + Send {
     );
 
     fn mark_own_task_as_finished(
+        &self,
+        _task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        // Do nothing by default
+    }
+
+    fn mark_own_task_as_dirty_when_persisted(
         &self,
         _task: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
