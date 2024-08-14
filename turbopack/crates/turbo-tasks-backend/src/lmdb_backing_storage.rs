@@ -5,7 +5,7 @@ use std::{
     error::Error,
     fs::create_dir_all,
     path::Path,
-    sync::Arc,
+    sync::{atomic::AtomicUsize, Arc},
     thread::available_parallelism,
     time::Instant,
 };
@@ -51,6 +51,8 @@ pub struct LmdbBackingStorage {
     data_db: Database,
     forward_task_cache_db: Database,
     reverse_task_cache_db: Database,
+    restored_tasks: AtomicUsize,
+    restored_cache_entries: AtomicUsize,
 }
 
 impl LmdbBackingStorage {
@@ -75,6 +77,8 @@ impl LmdbBackingStorage {
             data_db,
             forward_task_cache_db,
             reverse_task_cache_db,
+            restored_tasks: AtomicUsize::new(0),
+            restored_cache_entries: AtomicUsize::new(0),
         })
     }
 }
@@ -106,6 +110,15 @@ impl BackingStorage for LmdbBackingStorage {
         task_cache_updates: ChunkedVec<(Arc<CachedTaskType>, TaskId)>,
         data_updates: ChunkedVec<CachedDataUpdate>,
     ) -> Result<()> {
+        let restored_cache_entries = self
+            .restored_cache_entries
+            .fetch_and(0, std::sync::atomic::Ordering::Relaxed);
+        println!(
+            "Restored {} tasks, {} cache entries",
+            self.restored_tasks
+                .fetch_and(0, std::sync::atomic::Ordering::Relaxed),
+            restored_cache_entries
+        );
         println!(
             "Persisting {} operations, {} task cache updates, {} data updates...",
             operations.len(),
@@ -275,6 +288,10 @@ impl BackingStorage for LmdbBackingStorage {
             .and_then(|v| v.try_into().ok())
             .map(|v| TaskId::from(u32::from_be_bytes(v)));
         tx.commit().ok()?;
+        if result.is_some() {
+            self.restored_cache_entries
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
         result
     }
 
@@ -286,6 +303,10 @@ impl BackingStorage for LmdbBackingStorage {
             .and_then(|v| v.try_into().ok())
             .and_then(|v: [u8; 4]| bincode::deserialize(&v).ok());
         tx.commit().ok()?;
+        if result.is_some() {
+            self.restored_cache_entries
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
         result
     }
 
@@ -309,6 +330,10 @@ impl BackingStorage for LmdbBackingStorage {
         let result = lookup(self, task_id)
             .inspect_err(|err| println!("Looking up data for {task_id} failed: {err:?}"))
             .unwrap_or_default();
+        if !result.is_empty() {
+            self.restored_tasks
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
         result
     }
 }
