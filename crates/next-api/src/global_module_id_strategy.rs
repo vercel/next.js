@@ -26,6 +26,10 @@ impl GlobalModuleIdStrategyBuilder {
 
         let entrypoints = project.entrypoints().await?;
 
+        preprocessed_module_ids.push(preprocess_module_ids(entrypoints.pages_error_endpoint));
+        preprocessed_module_ids.push(preprocess_module_ids(entrypoints.pages_app_endpoint));
+        preprocessed_module_ids.push(preprocess_module_ids(entrypoints.pages_document_endpoint));
+
         for (_, route) in entrypoints.routes.iter() {
             match route {
                 Route::Page {
@@ -42,6 +46,8 @@ impl GlobalModuleIdStrategyBuilder {
                     for page_route in page_routes {
                         preprocessed_module_ids
                             .push(preprocess_module_ids(page_route.html_endpoint));
+                        preprocessed_module_ids
+                            .push(preprocess_module_ids(page_route.rsc_endpoint));
                     }
                 }
                 Route::AppRoute {
