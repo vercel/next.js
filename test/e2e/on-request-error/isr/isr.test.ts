@@ -64,6 +64,14 @@ describe('on-request-error - isr', () => {
 
       await matchRevalidateReason('app:route:on-demand', 'on-demand')
     })
+
+    it('should capture revalidate from server action', async () => {
+      const browser = await next.browser('/app/self-revalidate')
+      const button = await browser.elementByCss('button')
+      await button.click()
+
+      await matchRevalidateReason('app:self-revalidate', 'stale')
+    })
   })
 
   describe('pages router ISR', () => {
