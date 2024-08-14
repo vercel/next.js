@@ -84,3 +84,20 @@ guided setup to install any required dependencies if ESLint
 is not already configured in your application. |
 
 > **Good to know**: Running `next` without a command is the same as running `next dev`
+
+#### `next dev` Options
+
+The following options are available for the `next dev` command:
+
+| Argument/Option                          | Description                                                                                                                                          |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-h, --help`                             | Shows all available options.                                                                                                                         |
+| `[directory]`                            | A directory on which to build the application. If not provided, current directory is used.                                                           |
+| `--turbo`                                | Starts development mode using [Turbopack](https://nextjs.org/docs/architecture/turbopack).                                                           |
+| `-p` or `--port <port>`                  | Specify a port number on which to start the application. Default: 3000, env: PORT                                                                    |
+| `-H`or `--hostname <hostname>`           | Specify a hostname on which to start the application. Useful for making the application available for other devices on the network. Default: 0.0.0.0 |
+| `--experimental-https`                   | Starts the server with HTTPS and generates a self-signed certificate.                                                                                |
+| `--experimental-https-key <path>`        | Path to a HTTPS key file.                                                                                                                            |
+| `--experimental-https-cert <path>`       | Path to a HTTPS certificate file.                                                                                                                    |
+| `--experimental-https-ca <path>`         | Path to a HTTPS certificate authority file.                                                                                                          |
+| `--experimental-upload-trace <traceUrl>` | Reports a subset of the debugging trace to a remote HTTP URL.                                                                                        |
