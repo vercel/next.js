@@ -101,3 +101,76 @@ The following options are available for the `next dev` command:
 | `--experimental-https-cert <path>`       | Path to a HTTPS certificate file.                                                                                                                    |
 | `--experimental-https-ca <path>`         | Path to a HTTPS certificate authority file.                                                                                                          |
 | `--experimental-upload-trace <traceUrl>` | Reports a subset of the debugging trace to a remote HTTP URL.                                                                                        |
+
+## Examples
+
+## Creating a Next.js app with the default template
+
+To create a new app using the default template, run the following command in your terminal:
+
+{/* TODO: Add code block support for package manager switcher */}
+
+```bash filename="Terminal"
+npx create-next-app@latest
+```
+
+```bash filename="Terminal"
+yarn create next-app
+```
+
+```bash filename="Terminal"
+pnpm create next-app
+```
+
+```bash filename="Terminal"
+bun create next-app
+```
+
+You will then be asked the following prompts:
+
+```txt filename="Terminal"
+What is your project named?  my-app
+Would you like to use TypeScript?  No / Yes
+Would you like to use ESLint?  No / Yes
+Would you like to use Tailwind CSS?  No / Yes
+Would you like your code inside a `src/` directory?  No / Yes
+Would you like to use App Router? (recommended)  No / Yes
+Would you like to use Turbopack for `next dev`?  No / Yes
+Would you like to customize the import alias (`@/*` by default)?  No / Yes
+```
+
+Once you've answered the prompts, a new project will be created with your chosen configuration.
+
+### Changing the default `PORT`
+
+By default, Next.js uses `http://localhost:3000` during development and with `next start`. The default port can be changed with the `-p` option, like so:
+
+```bash filename="Terminal"
+next dev -p 4000
+```
+
+Or using the `PORT` environment variable:
+
+```bash filename="Terminal"
+PORT=4000 next dev
+```
+
+> **Good to know**: `PORT` cannot be set in `.env` as booting up the HTTP server happens before any other code is initialized.
+
+### Using HTTPS during development
+
+For certain use cases like webhooks or authentication, it may be required to use HTTPS to have a secure environment on `localhost`. Next.js can generate a self-signed certificate with `next dev` using the `--experimental-https` flag:
+
+```bash filename="Terminal"
+next dev --experimental-https
+```
+
+You can also provide a custom certificate and key with `--experimental-https-key` and `--experimental-https-cert`. Optionally, you can provide a custom CA certificate with `--experimental-https-ca` as well.
+
+```bash filename="Terminal"
+next dev --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem
+```
+
+`next dev --experimental-https` is only intended for development and creates a locally trusted certificate with [`mkcert`](https://github.com/FiloSottile/mkcert). In production, use properly issued certificates from trusted authorities.
+
+> **Good to know**: When deploying to Vercel, HTTPS is [automatically configured](https://vercel.com/docs/security/encryption) for your Next.js application.
