@@ -19,8 +19,11 @@ use turbopack_core::{
         Issue, IssueDescriptionExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
     },
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
-    resolve::{find_context_file_or_package_key, options::ImportMapping, FindContextFileResult},
-    source::Source,
+    resolve::{
+        find_context_file, find_context_file_or_package_key, options::ImportMapping,
+        FindContextFileResult,
+    },
+    source::{OptionSource, Source},
     source_map::{GenerateSourceMap, OptionSourceMap},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
@@ -417,6 +420,15 @@ impl GenerateSourceMap for PostCssTransformedAsset {
         match source {
             Some(source) => Ok(source.generate_source_map()),
             None => Ok(Vc::cell(None)),
+        }
+    }
+
+    #[turbo_tasks::function]
+    async fn original_source(&self) -> Result<Vc<OptionSource>> {
+        let source = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(self.source).await?;
+        match source {
+            Some(source) => Ok(source.original_source()),
+            None => Ok(Vc::cell(Some(self.source))),
         }
     }
 }

@@ -13,7 +13,7 @@ use turbo_tasks_fs::{
     FileContent, FileSystemPath,
 };
 
-use crate::{source_pos::SourcePos, SOURCE_MAP_PREFIX};
+use crate::{source::OptionSource, source_pos::SourcePos, SOURCE_MAP_PREFIX};
 
 pub(crate) mod source_map_asset;
 
@@ -27,6 +27,14 @@ static SOURCEMAP_CRATE_NONE_U32: u32 = !0;
 pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
     fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap>;
+
+    /// In case the source map is generated from a transformed asset, this returns the original
+    /// source.
+    ///
+    /// This is called only if `generate_source_map` returns a value.
+    fn original_source(self: Vc<Self>) -> Vc<OptionSource> {
+        Vc::cell(None)
+    }
 
     /// Returns an individual section of the larger source map, if found.
     fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<OptionSourceMap> {
