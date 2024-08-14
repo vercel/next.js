@@ -47,7 +47,7 @@ export default function Login({
     if (error) {
       const { code } = error
       if (code) {
-          return redirect(⁠ /login?message=Could not sign up user: ${code?.replace(/_/g, " ")} ⁠)
+            return redirect(`/login?message=Could not sign up user: ${code?.replace(/_/g, " ")}`)
         }
       return redirect("/login?message=Could not sign up user");
     }
