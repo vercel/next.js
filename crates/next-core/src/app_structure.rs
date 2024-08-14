@@ -33,25 +33,15 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Default, Debug, Clone)]
 pub struct Components {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub layout: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub global_error: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub loading: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub template: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub not_found: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Metadata::is_empty")]
     pub metadata: Metadata,
 }
 
@@ -137,15 +127,10 @@ impl From<MetadataWithAltItem> for MetadataItem {
 /// Metadata file that can be placed in any segment of the app directory.
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
 pub struct Metadata {
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub icon: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub apple: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub twitter: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub open_graph: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub sitemap: Option<MetadataItem>,
     // The page indicates where the metadata is defined and captured.
     // The steps for capturing metadata (get_directory_tree) and constructing
@@ -154,7 +139,6 @@ pub struct Metadata {
     // the actual path incorrectly with fillMetadataSegment.
     //
     // This is only being used for the static metadata files.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub base_page: Option<AppPage>,
 }
 
@@ -180,11 +164,8 @@ impl Metadata {
 #[turbo_tasks::value]
 #[derive(Default, Clone, Debug)]
 pub struct GlobalMetadata {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub favicon: Option<MetadataItem>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub robots: Option<MetadataItem>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub manifest: Option<MetadataItem>,
 }
 

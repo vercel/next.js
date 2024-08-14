@@ -1,8 +1,8 @@
 use serde::Serialize;
 use turbo_tasks::ReadRef;
-use turbopack_core::chunk::{ChunkData, ModuleId};
+use turbopack_core::chunk::{ChunkData, ModuleId, ModuleIdJs};
 
-#[derive(Serialize, Hash, PartialEq, Eq)]
+#[derive(Serialize)]
 #[serde(untagged)]
 pub enum EcmascriptChunkData<'a> {
     Simple(&'a str),
@@ -10,9 +10,9 @@ pub enum EcmascriptChunkData<'a> {
     WithRuntimeInfo {
         path: &'a str,
         #[serde(skip_serializing_if = "<[_]>::is_empty", default)]
-        included: &'a [ReadRef<ModuleId>],
+        included: Vec<ModuleIdJs<'a>>,
         #[serde(skip_serializing_if = "<[_]>::is_empty", default)]
-        excluded: &'a [ReadRef<ModuleId>],
+        excluded: Vec<ModuleIdJs<'a>>,
         #[serde(skip_serializing_if = "<[_]>::is_empty", default)]
         module_chunks: &'a [String],
     },
@@ -30,10 +30,14 @@ impl<'a> EcmascriptChunkData<'a> {
         if included.is_empty() && excluded.is_empty() && module_chunks.is_empty() {
             return EcmascriptChunkData::Simple(path);
         }
+        fn to_module_id_js<'a>(module_id: &'a [ReadRef<ModuleId>]) -> Vec<ModuleIdJs<'a>> {
+            module_id.iter().map(|v| ModuleIdJs(&**v)).collect()
+        }
+
         EcmascriptChunkData::WithRuntimeInfo {
             path,
-            included,
-            excluded,
+            included: to_module_id_js(included),
+            excluded: to_module_id_js(excluded),
             module_chunks,
         }
     }
