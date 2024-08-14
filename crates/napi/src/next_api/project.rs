@@ -312,6 +312,7 @@ pub async fn project_new(
     let turbo_tasks = create_turbo_tasks(PathBuf::from(&options.dist_dir), memory_limit)?;
     #[cfg(not(feature = "new-backend"))]
     {
+        use std::io::Write;
         let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
         if let Some(stats_path) = stats_path {
             let task_stats = turbo_tasks.backend().task_statistics().enable().clone();
