@@ -6449,7 +6449,7 @@ dependencies = [
  "hashbrown 0.14.5",
  "ptr_meta",
  "rustc-hash",
- "triomphe",
+ "triomphe 0.1.13",
 ]
 
 [[package]]
