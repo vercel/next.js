@@ -55,6 +55,14 @@ impl<T> ChunkedVec<T> {
     }
 }
 
+impl<T> Extend<T> for ChunkedVec<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for item in iter {
+            self.push(item);
+        }
+    }
+}
+
 fn chunk_size(chunk_index: usize) -> usize {
     8 << chunk_index
 }
