@@ -32,7 +32,7 @@
     }
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.18.0",
+    "@napi-rs/cli": "catalog:",
     "cross-env": "6.0.3"
   }
 }

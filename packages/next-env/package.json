@@ -31,6 +31,6 @@
   "devDependencies": {
     "@vercel/ncc": "0.34.0",
     "dotenv": "16.3.1",
-    "dotenv-expand": "10.0.0"
+    "dotenv-expand": "catalog:"
   }
 }

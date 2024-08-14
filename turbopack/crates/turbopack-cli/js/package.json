@@ -8,7 +8,7 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "@vercel/turbopack-ecmascript-runtime": "*"
+    "@vercel/turbopack-ecmascript-runtime": "catalog:"
   },
   "devDependencies": {
     "@types/node": "^18.11.11"

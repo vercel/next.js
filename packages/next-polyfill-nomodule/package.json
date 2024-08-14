@@ -14,9 +14,9 @@
     "prepublishOnly": "cd ../../ && turbo run build"
   },
   "devDependencies": {
-    "core-js": "3.6.5",
-    "microbundle": "0.15.0",
-    "object-assign": "4.1.1",
-    "whatwg-fetch": "3.0.0"
+    "core-js": "catalog:",
+    "microbundle": "catalog:",
+    "object-assign": "catalog:",
+    "whatwg-fetch": "catalog:"
   }
 }

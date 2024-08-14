@@ -11,7 +11,7 @@
     "loader-runner": "^4.3.0"
   },
   "devDependencies": {
-    "@types/loader-runner": "^2.2.4",
+    "@types/loader-runner": "catalog:",
     "@types/node": "^18.11.11"
   },
   "exports": {

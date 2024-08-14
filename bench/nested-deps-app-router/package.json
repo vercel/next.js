@@ -13,7 +13,7 @@
     "fuzzponent": "workspace:*",
     "cross-env": "^7.0.3",
     "pretty-ms": "^7.0.1",
-    "rimraf": "^3.0.2",
-    "next": "workspace:*"
+    "rimraf": "catalog:",
+    "next": "catalog:"
   }
 }

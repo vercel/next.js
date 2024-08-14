@@ -30,19 +30,19 @@
     "./interfaces/json": "./dist/interfaces/json.js"
   },
   "devDependencies": {
-    "@types/inquirer": "^9.0.3",
-    "@types/minimist": "^1.2.2",
+    "@types/inquirer": "catalog:",
+    "@types/minimist": "catalog:",
     "@types/node": "^20.3.0",
-    "@types/split2": "^4.2.0"
+    "@types/split2": "catalog:"
   },
   "dependencies": {
-    "@datadog/datadog-api-client": "^1.13.0",
+    "@datadog/datadog-api-client": "catalog:",
     "inquirer": "^9.2.7",
-    "minimist": "^1.2.8",
+    "minimist": "catalog:",
     "picocolors": "1.0.1",
-    "pidusage-tree": "^2.0.5",
+    "pidusage-tree": "catalog:",
     "playwright-chromium": "^1.39.0",
-    "split2": "^4.2.0",
+    "split2": "catalog:",
     "tree-kill": "^1.2.2"
   }
 }
