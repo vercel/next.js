@@ -173,7 +173,7 @@ impl<'a> TaskGuard<'a> {
 
     #[must_use]
     pub fn add(&mut self, item: CachedDataItem) -> bool {
-        if !item.is_persistent() {
+        if self.task_id.is_transient() || !item.is_persistent() {
             self.task.add(item)
         } else if self.task.add(item.clone()) {
             let (key, value) = item.into_key_and_value();
@@ -199,7 +199,7 @@ impl<'a> TaskGuard<'a> {
 
     pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
         let (key, value) = item.into_key_and_value();
-        if !key.is_persistent() {
+        if self.task_id.is_transient() || !key.is_persistent() {
             self.task
                 .insert(CachedDataItem::from_key_and_value(key, value))
         } else if value.is_persistent() {
@@ -243,7 +243,7 @@ impl<'a> TaskGuard<'a> {
         key: &CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     ) {
-        if !key.is_persistent() {
+        if self.task_id.is_transient() || !key.is_persistent() {
             self.task.update(key, update);
             return;
         }
@@ -288,7 +288,7 @@ impl<'a> TaskGuard<'a> {
     pub fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
         let old_value = self.task.remove(key);
         if let Some(value) = old_value {
-            if key.is_persistent() && value.is_persistent() {
+            if !self.task_id.is_transient() && key.is_persistent() && value.is_persistent() {
                 let key = key.clone();
                 self.task.persistance_state_mut().add_persisting_item();
                 self.backend
