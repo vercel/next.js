@@ -581,6 +581,8 @@ export class FlightClientEntryPlugin {
         const dependency = connection.dependency!
         const request = (dependency as unknown as webpack.NormalModule).request
 
+
+
         // It is possible that the same entry is added multiple times in the
         // connection graph. We can just skip these to speed up the process.
         if (visitedEntry.has(request)) continue
@@ -697,11 +699,20 @@ export class FlightClientEntryPlugin {
         return
       }
 
+      console.log('modRequest', modRequest, typeof modRequest)
+
       getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
         (connection: any) => {
           let dependencyIds: string[] = []
           const depModule = connection.resolvedModule
 
+          if (depModule.request?.endsWith('actions.js')) {
+
+            console.log('depModule.request', depModule.request)
+            console.log('importedIdentifiers', importedIdentifiers)
+            console.log('connection.dependency?.ids', connection.dependency?.ids)
+          }
+          
           // `ids` are the identifiers that are imported from the dependency,
           // if it's present, it's an array of strings.
           if (connection.dependency?.ids) {
@@ -869,6 +880,9 @@ export class FlightClientEntryPlugin {
     fromClient?: boolean
   }) {
     const actionsArray = Array.from(actions.entries())
+
+    console.log('actions', actions)
+    console.log('import')
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),
