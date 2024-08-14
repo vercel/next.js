@@ -229,11 +229,23 @@ impl BackingStorage for LmdbBackingStorage {
     fn lookup_data(&self, task_id: TaskId) -> Vec<CachedDataItem> {
         fn lookup(this: &LmdbBackingStorage, task_id: TaskId) -> Result<Vec<CachedDataItem>> {
             let tx = this.env.begin_ro_txn()?;
-            let bytes = tx.get(this.data_db, &IntKey::new(*task_id))?;
+            let bytes = match tx.get(this.data_db, &IntKey::new(*task_id)) {
+                Ok(bytes) => bytes,
+                Err(err) => {
+                    if err == lmdb::Error::NotFound {
+                        return Ok(Vec::new());
+                    } else {
+                        return Err(err.into());
+                    }
+                }
+            };
             let result = bincode::deserialize(bytes)?;
             tx.commit()?;
             Ok(result)
         }
-        lookup(self, task_id).unwrap_or_default()
+        let result = lookup(self, task_id)
+            .inspect_err(|err| println!("Looking up data for {task_id} failed: {err:?}"))
+            .unwrap_or_default();
+        result
     }
 }
