@@ -571,31 +571,48 @@ async fn process_content(
                     }
 
                     for err in warnings.read().unwrap().iter() {
-                        match err.kind {
-                            lightningcss::error::ParserError::UnexpectedToken(_)
-                            | lightningcss::error::ParserError::UnexpectedImportRule
-                            | lightningcss::error::ParserError::EndOfInput => {
-                                let source = err.loc.as_ref().map(|loc| {
-                                    let pos = SourcePos {
-                                        line: loc.line as _,
-                                        column: loc.column as _,
-                                    };
-                                    IssueSource::from_line_col(source, pos, pos)
-                                });
-
-                                ParsingIssue {
-                                    file: fs_path_vc,
-                                    msg: Vc::cell(err.to_string().into()),
-                                    source,
+                        let msg = match &err.kind {
+                            lightningcss::error::ParserError::UnexpectedToken(token) => match token
+                            {
+                                lightningcss::properties::custom::Token::Ident(ident) => {
+                                    Some(format!(
+                                        "Unexpected token {token:?}; the type selector '{ident}' \
+                                         is not allowed here"
+                                    ))
                                 }
-                                .cell()
-                                .emit();
-                                return Ok(ParseCssResult::Unparseable.cell());
+
+                                _ => Some(format!("Unexpected token {token:?}")),
+                            },
+                            lightningcss::error::ParserError::UnexpectedImportRule => {
+                                Some("@import at-rules must precede other at-rules".to_string())
+                            }
+                            lightningcss::error::ParserError::EndOfInput => {
+                                Some("Unexpected end of input".to_string())
                             }
 
                             _ => {
                                 // Ignore
+                                None
                             }
+                        };
+
+                        if let Some(msg) = msg {
+                            let source = err.loc.as_ref().map(|loc| {
+                                let pos = SourcePos {
+                                    line: loc.line as _,
+                                    column: loc.column as _,
+                                };
+                                IssueSource::from_line_col(source, pos, pos)
+                            });
+
+                            ParsingIssue {
+                                file: fs_path_vc,
+                                msg: Vc::cell(msg.into()),
+                                source,
+                            }
+                            .cell()
+                            .emit();
+                            return Ok(ParseCssResult::Unparseable.cell());
                         }
                     }
 
