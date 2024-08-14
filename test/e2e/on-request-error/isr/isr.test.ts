@@ -4,8 +4,6 @@ import { getOutputLogJson } from '../_testing/utils'
 
 const outputLogPath = 'output-log.json'
 
-const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
 describe('on-request-error - isr', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -38,23 +36,20 @@ describe('on-request-error - isr', () => {
   }
 
   describe('app router ISR', () => {
-    // TODO: support isr reason in PPR for app page
-    if (!isPPREnabledByDefault) {
-      it('should capture correct reason for stale errored page', async () => {
-        await next.fetch('/app/stale')
-        await waitFor(2 * 1000) // wait for revalidation
-        await next.fetch('/app/stale')
+    it('should capture correct reason for stale errored page', async () => {
+      await next.fetch('/app/stale')
+      await waitFor(2 * 1000) // wait for revalidation
+      await next.fetch('/app/stale')
 
-        await matchRevalidateReason('app:stale', 'stale')
-      })
+      await matchRevalidateReason('app:stale', 'stale')
+    })
 
-      it('should capture correct reason for on-demand revalidated page', async () => {
-        await next.fetch('/app/on-demand')
-        await next.fetch('/api/revalidate-path?path=/app/on-demand')
+    it('should capture correct reason for on-demand revalidated page', async () => {
+      await next.fetch('/app/on-demand')
+      await next.fetch('/api/revalidate-path?path=/app/on-demand')
 
-        await matchRevalidateReason('app:on-demand', 'on-demand')
-      })
-    }
+      await matchRevalidateReason('app:on-demand', 'on-demand')
+    })
 
     it('should capture correct reason for build errored route', async () => {
       await next.fetch('/app/route/stale')

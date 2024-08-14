@@ -30,6 +30,12 @@
         "app dir - not found navigation - with overridden node env should be able to navigate to other page from root not-found page"
       ]
     },
+    "test/e2e/on-request-error/isr/isr.test.ts": {
+      "failed": [
+        "on-request-error - isr app router ISR should capture correct reason for stale errored page",
+        "on-request-error - isr app router ISR should capture correct reason for on-demand revalidated page"
+      ]
+    },
     "test/e2e/opentelemetry/opentelemetry.test.ts": {
       "failed": [
         "opentelemetry root context app router should handle RSC with fetch",

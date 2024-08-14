@@ -2521,7 +2521,6 @@ export default abstract class Server<
             )
             return null
           } catch (err) {
-            // If this is during static generation, throw the error again.
             await this.instrumentationOnRequestError(err, req, {
               routerKind: 'App Router',
               routePath: pathname,
@@ -2529,6 +2528,7 @@ export default abstract class Server<
               revalidateReason: getRevalidateReason(renderOpts),
             })
 
+            // If this is during static generation, throw the error again.
             if (isSSG) throw err
 
             Log.error(err)

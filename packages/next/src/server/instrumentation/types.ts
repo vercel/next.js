@@ -6,7 +6,7 @@ export type RequestErrorContext = {
     | 'react-server-components'
     | 'react-server-components-payload'
     | 'server-rendering'
-  revalidateReason?: 'on-demand' | 'stale' | undefined
+  revalidateReason: 'on-demand' | 'stale' | undefined
   // TODO: other future instrumentation context
 }
 
