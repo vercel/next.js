@@ -165,7 +165,13 @@ impl GenerateSourceMap for WebpackLoadersProcessedAsset {
 
     #[turbo_tasks::function]
     async fn original_source(self: Vc<Self>) -> Result<Vc<OptionSource>> {
-        Ok(Vc::cell(Some(Vc::upcast(self))))
+        let this = self.await?;
+
+        let source = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(this.source).await?;
+        match source {
+            Some(source) => Ok(source.original_source()),
+            None => Ok(Vc::cell(Some(this.source))),
+        }
     }
 }
 
