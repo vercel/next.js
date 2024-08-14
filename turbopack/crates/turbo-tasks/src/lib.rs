@@ -81,7 +81,9 @@ use auto_hash_map::AutoSet;
 pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, Completions};
 pub use display::ValueToString;
-pub use id::{ExecutionId, FunctionId, TaskId, TraitTypeId, ValueTypeId, TRANSIENT_TASK_BIT};
+pub use id::{
+    ExecutionId, FunctionId, LocalTaskId, TaskId, TraitTypeId, ValueTypeId, TRANSIENT_TASK_BIT,
+};
 pub use invalidation::{
     get_invalidator, DynamicEqHash, InvalidationReason, InvalidationReasonKind,
     InvalidationReasonSet, Invalidator,
