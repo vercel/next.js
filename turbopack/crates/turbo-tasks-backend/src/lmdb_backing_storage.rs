@@ -6,7 +6,7 @@ use std::{
     fs::create_dir_all,
     mem::{transmute, ManuallyDrop},
     path::Path,
-    sync::Arc,
+    sync::{atomic::AtomicUsize, Arc},
     thread::available_parallelism,
     time::Instant,
 };
@@ -56,6 +56,8 @@ pub struct LmdbBackingStorage {
     meta_db: Database,
     forward_task_cache_db: Database,
     reverse_task_cache_db: Database,
+    restored_tasks: AtomicUsize,
+    restored_cache_entries: AtomicUsize,
 }
 
 impl LmdbBackingStorage {
@@ -85,6 +87,8 @@ impl LmdbBackingStorage {
             meta_db,
             forward_task_cache_db,
             reverse_task_cache_db,
+            restored_tasks: AtomicUsize::new(0),
+            restored_cache_entries: AtomicUsize::new(0),
         })
     }
 
@@ -150,6 +154,15 @@ impl BackingStorage for LmdbBackingStorage {
         meta_updates: Vec<ChunkedVec<CachedDataUpdate>>,
         data_updates: Vec<ChunkedVec<CachedDataUpdate>>,
     ) -> Result<()> {
+        let restored_cache_entries = self
+            .restored_cache_entries
+            .fetch_and(0, std::sync::atomic::Ordering::Relaxed);
+        println!(
+            "Restored {} tasks, {} cache entries",
+            self.restored_tasks
+                .fetch_and(0, std::sync::atomic::Ordering::Relaxed),
+            restored_cache_entries
+        );
         println!(
             "Persisting {} operations, {} task cache updates, {} meta updates, {} data updates...",
             operations.len(),
@@ -343,6 +356,8 @@ impl BackingStorage for LmdbBackingStorage {
             .with_tx(tx, |tx| lookup(self, tx, task_type))
             .inspect_err(|err| println!("Looking up task id for {task_type:?} failed: {err:?}"))
             .ok()??;
+        self.restored_cache_entries
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         Some(id)
     }
 
@@ -372,6 +387,8 @@ impl BackingStorage for LmdbBackingStorage {
             .with_tx(tx, |tx| lookup(self, tx, task_id))
             .inspect_err(|err| println!("Looking up task type for {task_id} failed: {err:?}"))
             .ok()??;
+        self.restored_cache_entries
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         Some(result)
     }
 
@@ -400,9 +417,15 @@ impl BackingStorage for LmdbBackingStorage {
             let result: Vec<CachedDataItem> = pot::from_slice(bytes)?;
             Ok(result)
         }
-        self.with_tx(tx, |tx| lookup(self, tx, task_id, category))
+        let result = self
+            .with_tx(tx, |tx| lookup(self, tx, task_id, category))
             .inspect_err(|err| println!("Looking up data for {task_id} failed: {err:?}"))
-            .unwrap_or_default()
+            .unwrap_or_default();
+        if !result.is_empty() {
+            self.restored_tasks
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+        result
     }
 }
 
