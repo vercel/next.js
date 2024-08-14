@@ -24,7 +24,7 @@ use turbo_tasks::{
     TurboTasksCallApi,
 };
 
-pub use crate::run::{run, Registration};
+pub use crate::run::{run, run_without_cache_check, Registration};
 
 enum Task {
     Spawned(Event),

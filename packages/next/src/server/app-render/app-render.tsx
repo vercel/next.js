@@ -68,6 +68,7 @@ import {
   createHTMLReactServerErrorHandler,
   createHTMLErrorHandler,
   type DigestedError,
+  isUserLandError,
 } from './create-error-handler'
 import {
   getShortDynamicParamType,
@@ -546,10 +547,11 @@ async function getRSCPayload(
     b: ctx.renderOpts.buildId,
     p: ctx.assetPrefix,
     c: url.pathname + url.search,
-    i: couldBeIntercepted,
+    i: !!couldBeIntercepted,
     f: [[initialTree, seedData, initialHead]],
     m: missingSlots,
     G: GlobalError,
+    s: typeof ctx.renderOpts.postponed === 'string',
   } satisfies InitialRSCPayload & { P: React.ReactNode }
 }
 
@@ -610,11 +612,11 @@ async function getErrorRSCPayload(
   // so we create a not found page with AppRouter
   const initialSeedData: CacheNodeSeedData = [
     initialTree[0],
-    {},
     <html id="__next_error__">
       <head></head>
       <body></body>
     </html>,
+    {},
     null,
   ]
 
@@ -661,6 +663,7 @@ function App<T>({
     initialParallelRoutes: null!,
     location: null,
     couldBeIntercepted: response.i,
+    postponed: response.s,
   })
 
   const actionQueue = createMutableActionQueue(initialState)
@@ -686,7 +689,7 @@ function App<T>({
   )
 }
 
-// @TODO our error stream should be probably just use the same root component. But it was previosuly
+// @TODO our error stream should be probably just use the same root component. But it was previously
 // different I don't want to figure out if that is meaningful at this time so just keeping the behavior
 // consistent for now.
 function AppWithoutContext<T>({
@@ -718,6 +721,7 @@ function AppWithoutContext<T>({
     initialParallelRoutes: null!,
     location: null,
     couldBeIntercepted: response.i,
+    postponed: response.s,
   })
 
   const actionQueue = createMutableActionQueue(initialState)
@@ -854,10 +858,6 @@ async function renderToHTMLOrFlightImpl(
 
   ComponentMod.patchFetch()
 
-  if (renderOpts.experimental.after) {
-    ComponentMod.patchCacheScopeSupportIntoReact()
-  }
-
   // Pull out the hooks/references from the component.
   const { tree: loaderTree, taintObjectReference } = ComponentMod
 
@@ -972,7 +972,14 @@ async function renderToHTMLOrFlightImpl(
     // prerendering phase and the build.
     if (response.digestErrorsMap.size) {
       const buildFailingError = response.digestErrorsMap.values().next().value
-      throw buildFailingError
+      if (buildFailingError) throw buildFailingError
+    }
+    // Pick first userland SSR error, which is also not a RSC error.
+    if (response.ssrErrors.length) {
+      const buildFailingError = response.ssrErrors.find((err) =>
+        isUserLandError(err)
+      )
+      if (buildFailingError) throw buildFailingError
     }
 
     const options: RenderResultOptions = {
@@ -1225,26 +1232,29 @@ async function renderToStream(
 
   const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
   const silenceLogger = false
+  function onHTMLRenderRSCError(err: DigestedError) {
+    return renderOpts.onInstrumentationRequestError?.(
+      err,
+      req,
+      createErrorContext(ctx, 'react-server-components')
+    )
+  }
   const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
     !!renderOpts.dev,
     !!renderOpts.nextExport,
     reactServerErrorsByDigest,
     silenceLogger,
-    // RSC rendering error will report as SSR error
-    // @TODO we should report RSC errors where they happen for instrumentation purposes
-    // and should omit the error reporter in the SSR layer instead
-    undefined
+    onHTMLRenderRSCError
   )
-  function onServerRenderError(err: DigestedError) {
-    const renderSource = reactServerErrorsByDigest.has(err.digest)
-      ? 'react-server-components'
-      : 'server-rendering'
+
+  function onHTMLRenderSSRError(err: DigestedError) {
     return renderOpts.onInstrumentationRequestError?.(
       err,
       req,
-      createErrorContext(ctx, renderSource)
+      createErrorContext(ctx, 'server-rendering')
     )
   }
+
   const allCapturedErrors: Array<unknown> = []
   const htmlRendererErrorHandler = createHTMLErrorHandler(
     !!renderOpts.dev,
@@ -1252,7 +1262,7 @@ async function renderToStream(
     reactServerErrorsByDigest,
     allCapturedErrors,
     silenceLogger,
-    onServerRenderError
+    onHTMLRenderSSRError
   )
 
   let primaryRenderReactServerStream: null | ReadableStream<Uint8Array> = null
@@ -1571,6 +1581,7 @@ async function renderToStream(
 type PrenderToStringResult = {
   stream: ReadableStream<Uint8Array>
   digestErrorsMap: Map<string, DigestedError>
+  ssrErrors: Array<unknown>
   dynamicTracking?: null | DynamicTrackingState
   err?: unknown
 }
@@ -1635,24 +1646,26 @@ async function prerenderToStream(
   const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
   // We don't report errors during prerendering through our instrumentation hooks
   const silenceLogger = !!renderOpts.experimental.isRoutePPREnabled
+  function onHTMLRenderRSCError(err: DigestedError) {
+    return renderOpts.onInstrumentationRequestError?.(
+      err,
+      req,
+      createErrorContext(ctx, 'react-server-components')
+    )
+  }
   const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
     !!renderOpts.dev,
     !!renderOpts.nextExport,
     reactServerErrorsByDigest,
     silenceLogger,
-    // RSC rendering error will report as SSR error
-    // @TODO we should report RSC errors where they happen for instrumentation purposes
-    // and should omit the error reporter in the SSR layer instead
-    undefined
+    onHTMLRenderRSCError
   )
-  function onServerRenderError(err: DigestedError) {
-    const renderSource = reactServerErrorsByDigest.has(err.digest)
-      ? 'react-server-components'
-      : 'server-rendering'
+
+  function onHTMLRenderSSRError(err: DigestedError) {
     return renderOpts.onInstrumentationRequestError?.(
       err,
       req,
-      createErrorContext(ctx, renderSource)
+      createErrorContext(ctx, 'server-rendering')
     )
   }
   const allCapturedErrors: Array<unknown> = []
@@ -1662,7 +1675,7 @@ async function prerenderToStream(
     reactServerErrorsByDigest,
     allCapturedErrors,
     silenceLogger,
-    onServerRenderError
+    onHTMLRenderSSRError
   )
 
   let dynamicTracking: null | DynamicTrackingState = null
@@ -1786,6 +1799,7 @@ async function prerenderToStream(
         // require the same set so we unify the code path here
         return {
           digestErrorsMap: reactServerErrorsByDigest,
+          ssrErrors: allCapturedErrors,
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
           }),
@@ -1833,6 +1847,7 @@ async function prerenderToStream(
 
         return {
           digestErrorsMap: reactServerErrorsByDigest,
+          ssrErrors: allCapturedErrors,
           stream: await continueStaticPrerender(htmlStream, {
             inlinedDataStream: createInlinedDataReadableStream(
               inlinedReactServerDataStream,
@@ -1902,6 +1917,7 @@ async function prerenderToStream(
       })
       return {
         digestErrorsMap: reactServerErrorsByDigest,
+        ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
           inlinedDataStream: createInlinedDataReadableStream(
             inlinedReactServerDataStream,
@@ -2040,6 +2056,7 @@ async function prerenderToStream(
         // the response in the caller.
         err,
         digestErrorsMap: reactServerErrorsByDigest,
+        ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(fizzStream, {
           inlinedDataStream: createInlinedDataReadableStream(
             // This is intentionally using the readable datastream from the

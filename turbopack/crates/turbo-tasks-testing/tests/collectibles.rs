@@ -12,7 +12,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn transitive_emitting() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let result = my_transitive_emitting_function("".into(), "".into());
         result.strongly_consistent().await?;
         let list = result.peek_collectibles::<Box<dyn ValueToString>>();
@@ -30,7 +30,7 @@ async fn transitive_emitting() {
 
 #[tokio::test]
 async fn transitive_emitting_indirect() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let result = my_transitive_emitting_function("".into(), "".into());
         let collectibles = my_transitive_emitting_function_collectibles("".into(), "".into());
         let list = collectibles.strongly_consistent().await?;
@@ -48,7 +48,7 @@ async fn transitive_emitting_indirect() {
 
 #[tokio::test]
 async fn multi_emitting() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let result = my_multi_emitting_function();
         result.strongly_consistent().await?;
         let list = result.peek_collectibles::<Box<dyn ValueToString>>();
@@ -66,7 +66,7 @@ async fn multi_emitting() {
 
 #[tokio::test]
 async fn taking_collectibles() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let result = my_collecting_function();
         let list = result.take_collectibles::<Box<dyn ValueToString>>();
         // my_collecting_function already processed the collectibles so the list should
@@ -81,7 +81,7 @@ async fn taking_collectibles() {
 
 #[tokio::test]
 async fn taking_collectibles_extra_layer() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let result = my_collecting_function_indirect();
         result.strongly_consistent().await?;
         let list = result.take_collectibles::<Box<dyn ValueToString>>();
@@ -97,7 +97,7 @@ async fn taking_collectibles_extra_layer() {
 
 #[tokio::test]
 async fn taking_collectibles_parallel() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let result = my_transitive_emitting_function("".into(), "a".into());
         result.strongly_consistent().await?;
         let list = result.take_collectibles::<Box<dyn ValueToString>>();

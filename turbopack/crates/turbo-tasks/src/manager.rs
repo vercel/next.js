@@ -34,14 +34,14 @@ use crate::{
     id_factory::{IdFactory, IdFactoryWithReuse},
     magic_any::MagicAny,
     raw_vc::{CellId, RawVc},
-    registry,
+    registry::{self, get_function},
     task::shared_reference::TypedSharedReference,
     trace::TraceRawVcs,
     trait_helpers::get_trait_method,
     util::StaticOrArc,
     vc::ReadVcFuture,
-    Completion, InvalidationReason, InvalidationReasonSet, SharedReference, TaskId, TaskIdSet,
-    ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
+    Completion, FunctionMeta, InvalidationReason, InvalidationReasonSet, SharedReference, TaskId,
+    TaskIdSet, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
 };
 
 pub trait TurboTasksCallApi: Sync + Send {
@@ -270,6 +270,10 @@ struct CurrentTaskState {
     /// `RawVc::LocalCell`.
     execution_id: ExecutionId,
 
+    /// The function's metadata if this is a persistent task. Contains information about arguments
+    /// passed to the `#[turbo_tasks::function(...)]` macro.
+    function_meta: Option<&'static FunctionMeta>,
+
     /// Affected tasks, that are tracked during task execution. These tasks will
     /// be invalidated when the execution finishes or before reading a cell
     /// value.
@@ -290,12 +294,17 @@ struct CurrentTaskState {
 }
 
 impl CurrentTaskState {
-    fn new(task_id: TaskId, execution_id: ExecutionId) -> Self {
+    fn new(
+        task_id: TaskId,
+        execution_id: ExecutionId,
+        function_meta: Option<&'static FunctionMeta>,
+    ) -> Self {
         Self {
             task_id,
+            execution_id,
+            function_meta,
             tasks_to_notify: Vec::new(),
             stateful: false,
-            execution_id,
             cell_counters: Some(AutoMap::default()),
             local_cells: Vec::new(),
         }
@@ -316,9 +325,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
     // that should be safe as long tasks can't outlife turbo task
     // so we probably want to make sure that all tasks are joined
     // when trying to drop turbo tasks
-    pub fn new(mut backend: B) -> Arc<Self> {
+    pub fn new(backend: B) -> Arc<Self> {
         let task_id_factory = IdFactoryWithReuse::new();
-        backend.initialize(&task_id_factory);
         let this = Arc::new_cyclic(|this| Self {
             this: this.clone(),
             backend,
@@ -435,6 +443,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     /// Calls a native function with arguments. Resolves arguments when needed
     /// with a wrapper task.
     pub fn dynamic_call(&self, func: FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
+        // TODO(bgw): Don't create a full turbo task if this is a function using local_cells
         if registry::get_function(func).arg_meta.is_resolved(&*arg) {
             self.native_call(func, arg)
         } else {
@@ -524,6 +533,9 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 let task_state = RefCell::new(CurrentTaskState::new(
                     task_id,
                     this.execution_id_factory.get(),
+                    this.backend
+                        .try_get_function_id(task_id)
+                        .map(|func_id| &get_function(func_id).function_meta),
                 ));
                 schedule_again = CURRENT_TASK_STATE
                     .scope(task_state, async {
@@ -1099,9 +1111,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             let ts = ts.borrow();
             CurrentTaskState {
                 task_id: ts.task_id,
+                execution_id: ts.execution_id,
+                function_meta: ts.function_meta,
                 tasks_to_notify: Vec::new(),
                 stateful: false,
-                execution_id: ts.execution_id,
                 cell_counters: ts.cell_counters.clone(),
                 local_cells: ts.local_cells.clone(),
             }
@@ -1428,7 +1441,7 @@ pub fn with_turbo_tasks_for_testing<T>(
     TURBO_TASKS.scope(
         tt,
         CURRENT_TASK_STATE.scope(
-            RefCell::new(CurrentTaskState::new(current_task, execution_id)),
+            RefCell::new(CurrentTaskState::new(current_task, execution_id, None)),
             f,
         ),
     )
@@ -1739,13 +1752,17 @@ pub fn find_cell_by_type(ty: ValueTypeId) -> CurrentCellRef {
     })
 }
 
+pub(crate) fn try_get_function_meta() -> Option<&'static FunctionMeta> {
+    CURRENT_TASK_STATE.with(|ts| ts.borrow().function_meta)
+}
+
 pub(crate) fn create_local_cell(value: TypedSharedReference) -> (ExecutionId, LocalCellId) {
-    CURRENT_TASK_STATE.with(|cell| {
+    CURRENT_TASK_STATE.with(|ts| {
         let CurrentTaskState {
             execution_id,
             local_cells,
             ..
-        } = &mut *cell.borrow_mut();
+        } = &mut *ts.borrow_mut();
 
         // store in the task-local arena
         local_cells.push(value);
@@ -1775,12 +1792,12 @@ pub(crate) fn read_local_cell(
     execution_id: ExecutionId,
     local_cell_id: LocalCellId,
 ) -> TypedSharedReference {
-    CURRENT_TASK_STATE.with(|cell| {
+    CURRENT_TASK_STATE.with(|ts| {
         let CurrentTaskState {
             execution_id: expected_execution_id,
             local_cells,
             ..
-        } = &*cell.borrow();
+        } = &*ts.borrow();
         assert_eq_local_cell(execution_id, *expected_execution_id);
         // local cell ids are one-indexed (they use NonZeroU32)
         local_cells[(*local_cell_id as usize) - 1].clone()
@@ -1790,11 +1807,11 @@ pub(crate) fn read_local_cell(
 /// Panics if the [`ExecutionId`] does not match the current task's
 /// `execution_id`.
 pub(crate) fn assert_execution_id(execution_id: ExecutionId) {
-    CURRENT_TASK_STATE.with(|cell| {
+    CURRENT_TASK_STATE.with(|ts| {
         let CurrentTaskState {
             execution_id: expected_execution_id,
             ..
-        } = &*cell.borrow();
+        } = &*ts.borrow();
         assert_eq_local_cell(execution_id, *expected_execution_id);
     })
 }
