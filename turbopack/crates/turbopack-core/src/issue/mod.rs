@@ -471,13 +471,14 @@ impl IssueSource {
         if let Some(range) = this.range {
             if let SourceRange::LineColumn(start, end) = &*range.await? {
                 // If we have a source map, map the line/column to the original source.
-                let start = source_pos(this.source, start.line, start.column).await?;
-                let end = source_pos(this.source, end.line, end.column).await?;
+                let mapped = source_pos(this.source, *start, *end).await?;
 
-                return Ok(Self::cell(IssueSource {
-                    source: this.source,
-                    range: Some(SourceRange::LineColumn(start, end).cell()),
-                }));
+                if let Some((source, start, end)) = mapped {
+                    return Ok(Self::cell(IssueSource {
+                        source,
+                        range: Some(SourceRange::LineColumn(start, end).cell()),
+                    }));
+                }
             }
         }
 
@@ -539,31 +540,42 @@ impl IssueSource {
     }
 }
 
-async fn source_pos(source: Vc<Box<dyn Source>>, line: usize, col: usize) -> Result<SourcePos> {
-    let srcmap = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(source).await?;
-    let srcmap = srcmap.map(|v| v.generate_source_map());
+async fn source_pos(
+    source: Vc<Box<dyn Source>>,
+    start: SourcePos,
+    end: SourcePos,
+) -> Result<Option<(Vc<Box<dyn Source>>, SourcePos, SourcePos)>> {
+    let Some(generator) = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(source).await?
+    else {
+        return Ok(None);
+    };
 
-    if let Some(srcmap) = srcmap {
-        if let Some(srcmap) = *srcmap.await? {
-            let token = srcmap.lookup_token(line as _, col as _).await?;
+    let Some(srcmap) = &*generator.generate_source_map().await? else {
+        return Ok(None);
+    };
 
-            return match &*token {
-                crate::source_map::Token::Synthetic(t) => Ok(SourcePos {
-                    line: t.generated_line as _,
-                    column: t.generated_column as _,
-                }),
-                crate::source_map::Token::Original(t) => Ok(SourcePos {
-                    line: t.original_line as _,
-                    column: t.original_column as _,
-                }),
-            };
+    let find = |line: usize, col: usize| async move {
+        let token = srcmap.lookup_token(line, col).await?;
+
+        match &*token {
+            crate::source_map::Token::Synthetic(t) => Ok::<_, anyhow::Error>(SourcePos {
+                line: t.generated_line as _,
+                column: t.generated_column as _,
+            }),
+            crate::source_map::Token::Original(t) => Ok(SourcePos {
+                line: t.original_line as _,
+                column: t.original_column as _,
+            }),
         }
-    }
+    };
 
-    Ok(SourcePos {
-        line: line as _,
-        column: col as _,
-    })
+    let start = find(start.line, start.column).await?;
+    let end = find(end.line, end.column).await?;
+
+    let new_source = *generator.original_source().await?;
+    let source = new_source.unwrap_or(source);
+
+    Ok(Some((source, start, end)))
 }
 
 #[turbo_tasks::value(transparent)]
