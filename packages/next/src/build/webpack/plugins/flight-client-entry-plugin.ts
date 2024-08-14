@@ -27,9 +27,10 @@ import {
 import {
   getActionsFromBuildInfo,
   generateActionId,
-  isClientComponentEntryModule,
+  isClientOrActionEntryModule,
   isCSSMod,
   regexCSS,
+  isActionLayerEntryModule,
 } from '../loaders/utils'
 import {
   traverseModules,
@@ -278,13 +279,13 @@ export class FlightClientEntryPlugin {
         compilation.moduleGraph
       )) {
         // Entry can be any user defined entry files such as layout, page, error, loading, etc.
-        const entryRequest = (
+        const serverEntryRequest = (
           connection.dependency as unknown as webpack.NormalModule
         ).request
 
         const { clientComponentImports, actionImports, cssImports } =
           this.collectComponentInfoFromServerEntryDependency({
-            entryRequest,
+            serverEntryRequest,
             compilation,
             resolvedModule: connection.resolvedModule,
           })
@@ -293,7 +294,7 @@ export class FlightClientEntryPlugin {
           actionEntryImports.set(dep, names)
         )
 
-        const isAbsoluteRequest = path.isAbsolute(entryRequest)
+        const isAbsoluteRequest = path.isAbsolute(serverEntryRequest)
 
         // Next.js internals are put into a separate entry.
         if (!isAbsoluteRequest) {
@@ -310,8 +311,8 @@ export class FlightClientEntryPlugin {
         // }
 
         const relativeRequest = isAbsoluteRequest
-          ? path.relative(compilation.options.context!, entryRequest)
-          : entryRequest
+          ? path.relative(compilation.options.context!, serverEntryRequest)
+          : serverEntryRequest
 
         // Replace file suffix as `.js` will be added.
         const bundlePath = normalizePathSep(
@@ -325,7 +326,7 @@ export class FlightClientEntryPlugin {
           entryName: name,
           clientComponentImports,
           bundlePath,
-          absolutePagePath: entryRequest,
+          absolutePagePath: serverEntryRequest,
         })
 
         // The webpack implementation of writing the client reference manifest relies on all entrypoints writing a page.js even when there is no client components in the page.
@@ -341,7 +342,7 @@ export class FlightClientEntryPlugin {
             entryName: name,
             clientComponentImports: {},
             bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
-            absolutePagePath: entryRequest,
+            absolutePagePath: serverEntryRequest,
           })
         }
       }
@@ -599,11 +600,11 @@ export class FlightClientEntryPlugin {
   }
 
   collectComponentInfoFromServerEntryDependency({
-    entryRequest,
+    serverEntryRequest,
     compilation,
     resolvedModule,
   }: {
-    entryRequest: string
+    serverEntryRequest: string
     compilation: webpack.Compilation
     resolvedModule: any /* Dependency */
   }): {
@@ -624,8 +625,6 @@ export class FlightClientEntryPlugin {
       importedIdentifiers: string[]
     ): void => {
       if (!mod) return
-
-      const isCSS = isCSSMod(mod)
 
       const modPath: string = mod.resourceResolveData?.path || ''
       const modQuery = mod.resourceResolveData?.query || ''
@@ -649,15 +648,13 @@ export class FlightClientEntryPlugin {
 
       if (!modRequest) return
       if (visited.has(modRequest)) {
-        if (clientComponentImports[modRequest]) {
-          addClientImport(
-            mod,
-            modRequest,
-            clientComponentImports,
-            importedIdentifiers,
-            false
-          )
-        }
+        addClientImport(
+          mod,
+          modRequest,
+          clientComponentImports,
+          importedIdentifiers,
+          false
+        )
         return
       }
       visited.add(modRequest)
@@ -671,7 +668,7 @@ export class FlightClientEntryPlugin {
         ? EDGE_RUNTIME_WEBPACK
         : DEFAULT_RUNTIME_WEBPACK
 
-      if (isCSS) {
+      if (isCSSMod(mod)) {
         const sideEffectFree =
           mod.factoryMeta && (mod.factoryMeta as any).sideEffectFree
 
@@ -684,10 +681,7 @@ export class FlightClientEntryPlugin {
         }
 
         CSSImports.add(modRequest)
-      } else if (isClientComponentEntryModule(mod)) {
-        if (!clientComponentImports[modRequest]) {
-          clientComponentImports[modRequest] = new Set()
-        }
+      } else if (isClientOrActionEntryModule(mod)) {
         addClientImport(
           mod,
           modRequest,
@@ -699,19 +693,10 @@ export class FlightClientEntryPlugin {
         return
       }
 
-      console.log('modRequest', modRequest, typeof modRequest)
-
       getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
         (connection: any) => {
           let dependencyIds: string[] = []
           const depModule = connection.resolvedModule
-
-          if (depModule.request?.endsWith('actions.js')) {
-
-            console.log('depModule.request', depModule.request)
-            console.log('importedIdentifiers', importedIdentifiers)
-            console.log('connection.dependency?.ids', connection.dependency?.ids)
-          }
           
           // `ids` are the identifiers that are imported from the dependency,
           // if it's present, it's an array of strings.
@@ -733,7 +718,7 @@ export class FlightClientEntryPlugin {
       clientComponentImports,
       cssImports: CSSImports.size
         ? {
-            [entryRequest]: Array.from(CSSImports),
+            [serverEntryRequest]: Array.from(CSSImports),
           }
         : {},
       actionImports,
@@ -882,7 +867,6 @@ export class FlightClientEntryPlugin {
     const actionsArray = Array.from(actions.entries())
 
     console.log('actions', actions)
-    console.log('import')
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),
@@ -1045,6 +1029,12 @@ function addClientImport(
   importedIdentifiers: string[],
   isFirstImport: boolean
 ) {
+  if (isFirstImport) {
+    if (!clientComponentImports[modRequest]) {
+      clientComponentImports[modRequest] = new Set()
+    }
+  }
+
   const clientEntryType = getModuleBuildInfo(mod).rsc?.clientEntryType
   const isCjsModule = clientEntryType === 'cjs'
   const assumedSourceType = getAssumedSourceType(

@@ -5,14 +5,21 @@ import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'ico', 'svg']
 const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
 
-export function isClientComponentEntryModule(mod: {
+export function isActionLayerEntryModule(mod: {
+  resource: string
+  buildInfo?: any
+}) {
+  const rscInfo = mod.buildInfo.rsc
+  return rscInfo?.actions && rscInfo?.type === RSC_MODULE_TYPES.server
+}
+
+export function isClientOrActionEntryModule(mod: {
   resource: string
   buildInfo?: any
 }) {
   const rscInfo = mod.buildInfo.rsc
   const hasClientDirective = rscInfo?.isClientRef
-  const isActionLayerEntry =
-    rscInfo?.actions && rscInfo?.type === RSC_MODULE_TYPES.client
+  const isActionLayerEntry = isActionLayerEntryModule(mod)
   return (
     hasClientDirective || isActionLayerEntry || imageRegex.test(mod.resource)
   )
