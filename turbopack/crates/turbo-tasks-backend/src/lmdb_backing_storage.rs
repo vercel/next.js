@@ -163,6 +163,14 @@ impl BackingStorage for LmdbBackingStorage {
                 .fetch_and(0, std::sync::atomic::Ordering::Relaxed),
             restored_cache_entries
         );
+        if restored_cache_entries > 0 {
+            for (i, (task_type, _)) in task_cache_updates.iter().enumerate() {
+                println!("New Task: {task_type:?}");
+                if i > 10 {
+                    break;
+                }
+            }
+        }
         println!(
             "Persisting {} operations, {} task cache updates, {} meta updates, {} data updates...",
             operations.len(),
