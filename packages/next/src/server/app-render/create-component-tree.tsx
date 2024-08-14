@@ -547,24 +547,24 @@ async function createComponentTreeInternal({
 
   // If it's a not found route, and we don't have any matched parallel
   // routes, we try to render the not found component if it exists.
-  if (
-    NotFound &&
-    asNotFound &&
-    // In development, it could hit the parallel-route-default not found, so we only need to check the segment.
-    // Or if there's no parallel routes means it reaches the end.
-    !parallelRouteMap.length
-  ) {
-    props.children = (
-      <>
-        <meta name="robots" content="noindex" />
-        {process.env.NODE_ENV === 'development' && (
-          <meta name="next-error" content="not-found" />
-        )}
-        {notFoundStyles}
-        <NotFound />
-      </>
-    )
-  }
+  // if (
+  //   NotFound &&
+  //   asNotFound &&
+  //   // In development, it could hit the parallel-route-default not found, so we only need to check the segment.
+  //   // Or if there's no parallel routes means it reaches the end.
+  //   !parallelRouteMap.length
+  // ) {
+  //   props.children = (
+  //     <>
+  //       <meta name="robots" content="noindex" />
+  //       {process.env.NODE_ENV === 'development' && (
+  //         <meta name="next-error" content="not-found" />
+  //       )}
+  //       {notFoundStyles}
+  //       <NotFound />
+  //     </>
+  //   )
+  // }
 
   // Assign params to props
   if (

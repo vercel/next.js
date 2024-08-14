@@ -133,6 +133,7 @@ import { createInitialRouterState } from '../../client/components/router-reducer
 import { createMutableActionQueue } from '../../shared/lib/router/action-queue'
 import { prerenderAsyncStorage } from './prerender-async-storage.external'
 import { getRevalidateReason } from '../instrumentation/utils'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -228,7 +229,20 @@ function parseRequestHeaders(
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   // Align the segment with parallel-route-default in next-app-loader
-  return ['', {}, loaderTree[2]]
+  const components = loaderTree[2]
+  return [
+    '',
+    {
+      children: [
+        PAGE_SEGMENT_KEY,
+        {},
+        {
+          page: components['not-found'],
+        },
+      ],
+    },
+    components,
+  ]
 }
 
 export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
@@ -522,7 +536,7 @@ async function getRSCPayload(
     injectedJS,
     injectedFontPreloadTags,
     rootLayoutIncluded: false,
-    asNotFound: asNotFound,
+    asNotFound,
     getMetadataReady,
     missingSlots,
     preloadCallbacks,
@@ -1594,7 +1608,6 @@ async function prerenderToStream(
   ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
   staticGenerationStore: StaticGenerationStore,
-
   asNotFound: boolean,
   tree: LoaderTree
 ): Promise<PrenderToStringResult> {
