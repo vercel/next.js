@@ -628,6 +628,30 @@ impl Backend for TurboTasksBackend {
         );
     }
 
+    fn invalidate_serialization(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        let ctx = self.execute_context(turbo_tasks);
+        let task = ctx.task(task_id);
+        let cell_data = task
+            .iter(CachedDataItemIndex::CellData)
+            .filter_map(|(key, value)| match (key, value) {
+                (CachedDataItemKey::CellData { cell }, CachedDataItemValue::CellData { value }) => {
+                    Some(CachedDataUpdate {
+                        task: task_id,
+                        key: CachedDataItemKey::CellData { cell: *cell },
+                        value: Some(CachedDataItemValue::CellData {
+                            value: value.clone(),
+                        }),
+                    })
+                }
+                _ => None,
+            });
+        self.persisted_storage_log.lock().extend(cell_data);
+    }
+
     fn get_task_description(&self, task: TaskId) -> std::string::String {
         let task_type = self.lookup_task_type(task).expect("Task not found");
         task_type.to_string()
