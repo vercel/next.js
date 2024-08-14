@@ -19,5 +19,3 @@ export default function Page() {
     </button>
   )
 }
-
-export const revalidate = 1000
