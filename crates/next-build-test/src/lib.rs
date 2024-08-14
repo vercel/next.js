@@ -38,7 +38,12 @@ pub async fn main_inner(
     }
 
     let project = tt
-        .run_once(async { Ok(ProjectContainer::new(options)) })
+        .run_once(async {
+            let project = ProjectContainer::new("next-build-test".into(), options.dev);
+            let project = project.resolve().await?;
+            project.await?.initialize(options);
+            Ok(project)
+        })
         .await?;
 
     tracing::info!("collecting endpoints");

@@ -1,6 +1,6 @@
 use std::path::MAIN_SEPARATOR;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::{indexmap, map::Entry, IndexMap};
 use next_core::{
     all_assets_from_entries,
@@ -173,25 +173,32 @@ pub struct Instrumentation {
 
 #[turbo_tasks::value]
 pub struct ProjectContainer {
-    options_state: State<ProjectOptions>,
+    name: RcStr,
+    options_state: State<Option<ProjectOptions>>,
     versioned_content_map: Option<Vc<VersionedContentMap>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
     #[turbo_tasks::function]
-    pub fn new(options: ProjectOptions) -> Vc<Self> {
+    pub fn new(name: RcStr, dev: bool) -> Vc<Self> {
         ProjectContainer {
+            name,
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
-            versioned_content_map: options.dev.then(VersionedContentMap::new),
-            options_state: State::new(options),
+            versioned_content_map: dev.then(VersionedContentMap::new),
+            options_state: State::new(None),
         }
         .cell()
     }
+}
 
-    #[turbo_tasks::function]
-    pub fn update(&self, options: PartialProjectOptions) -> Vc<()> {
+impl ProjectContainer {
+    pub fn initialize(&self, options: ProjectOptions) {
+        self.options_state.set(Some(options));
+    }
+
+    pub fn update(&self, options: PartialProjectOptions) -> Result<()> {
         let PartialProjectOptions {
             root_path,
             project_path,
@@ -206,7 +213,11 @@ impl ProjectContainer {
             preview_props,
         } = options;
 
-        let mut new_options = self.options_state.get().clone();
+        let mut new_options = self
+            .options_state
+            .get()
+            .clone()
+            .context("ProjectContainer need to be initialized with initialize()")?;
 
         if let Some(root_path) = root_path {
             new_options.root_path = root_path;
@@ -244,11 +255,14 @@ impl ProjectContainer {
 
         // TODO: Handle mode switch, should prevent mode being switched.
 
-        self.options_state.set(new_options);
+        self.options_state.set(Some(new_options));
 
-        Default::default()
+        Ok(())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ProjectContainer {
     #[turbo_tasks::function]
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
@@ -266,6 +280,9 @@ impl ProjectContainer {
         let preview_props;
         {
             let options = this.options_state.get();
+            let options = options
+                .as_ref()
+                .context("ProjectContainer need to be initialized with initialize()")?;
             env_map = Vc::cell(options.env.iter().cloned().collect());
             define_env = ProjectDefineEnv {
                 client: Vc::cell(options.define_env.client.iter().cloned().collect()),
