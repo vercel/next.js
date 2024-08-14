@@ -14,6 +14,7 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -1573,6 +1574,19 @@ function runTests(mode) {
         await browser.close()
       }
     }
+  })
+
+  it('should call callback ref cleanups when unmounting', async () => {
+    const browser = await webdriver(appPort, '/ref-cleanup')
+    const getLogs = async () => (await browser.log()).map((log) => log.message)
+
+    await retry(async () => {
+      expect(await getLogs()).toContain('callback ref was cleaned up')
+    })
+
+    expect(await getLogs()).not.toContain(
+      'callback refs that returned a cleanup should never be called with null'
+    )
   })
 }
 

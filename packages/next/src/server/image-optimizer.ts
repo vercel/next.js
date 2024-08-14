@@ -14,14 +14,16 @@ import { hasMatch } from '../shared/lib/match-remote-pattern'
 import type { NextConfigComplete } from './config-shared'
 import { createRequestResponseMocks } from './lib/mock-request'
 import type { NextUrlWithParsedQuery } from './request-meta'
-import type {
-  IncrementalCacheEntry,
-  IncrementalCacheValue,
+import {
+  CachedRouteKind,
+  type IncrementalCacheEntry,
+  type IncrementalCacheValue,
 } from './response-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
+import { parseUrl } from '../lib/url'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -213,6 +215,16 @@ export class ImageOptimizerCache {
       }
     }
 
+    const parsedUrl = parseUrl(url)
+    if (parsedUrl) {
+      const decodedPathname = decodeURIComponent(parsedUrl.pathname)
+      if (/\/_next\/image($|\/)/.test(decodedPathname)) {
+        return {
+          errorMessage: '"url" parameter cannot be recursive',
+        }
+      }
+    }
+
     let isAbsolute: boolean
 
     if (url.startsWith('/')) {
@@ -348,7 +360,7 @@ export class ImageOptimizerCache {
 
         return {
           value: {
-            kind: 'IMAGE',
+            kind: CachedRouteKind.IMAGE,
             etag,
             buffer,
             extension,
@@ -374,7 +386,7 @@ export class ImageOptimizerCache {
       revalidate?: number | false
     }
   ) {
-    if (value?.kind !== 'IMAGE') {
+    if (value?.kind !== CachedRouteKind.IMAGE) {
       throw new Error('invariant attempted to set non-image to image-cache')
     }
 

@@ -31,6 +31,8 @@ Add TypeScript to your project by renaming a file to `.ts` / `.tsx`. Run `next d
 
 If you already had a `jsconfig.json` file, copy the `paths` compiler option from the old `jsconfig.json` into the new `tsconfig.json` file, and delete the old `jsconfig.json` file.
 
+We also recommend you to use [`next.config.ts`](#type-checking-nextconfigts) over `next.config.js` for better type inference.
+
 <AppOnly>
 
 ## TypeScript Plugin
@@ -70,6 +72,39 @@ The TypeScript plugin can help with:
 
 It is highly recommended to be on at least `v4.5.2` of TypeScript to get syntax features such as [type modifiers on import names](https://devblogs.microsoft.com/typescript/announcing-typescript-4-5/#type-on-import-names) and [performance improvements](https://devblogs.microsoft.com/typescript/announcing-typescript-4-5/#real-path-sync-native).
 
+## Type checking in Next.js Configuration
+
+### Type checking next.config.js
+
+When using the `next.config.js` file, you can add some type checking in your IDE using JSDoc as below:
+
+```js filename="next.config.js"
+// @ts-check
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  /* config options here */
+}
+
+module.exports = nextConfig
+```
+
+### Type checking next.config.ts
+
+You can use TypeScript and import types in your Next.js configuration by using `next.config.ts`.
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  /* config options here */
+}
+
+export default nextConfig
+```
+
+> **Good to know**: You can import Native ESM modules in `next.config.ts` without any additional configuration. Supports importing extensions like `.cjs`, `.cts`, `.mjs`, and `.mts`.
+
 <AppOnly>
 
 ## Statically Typed Links
@@ -78,15 +113,16 @@ Next.js can statically type links to prevent typos and other errors when using `
 
 To opt-into this feature, `experimental.typedRoutes` need to be enabled and the project needs to be using TypeScript.
 
-```js filename="next.config.js"
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
   experimental: {
     typedRoutes: true,
   },
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```
 
 Next.js will generate a link definition in `.next/types` that contains information about all existing routes in your application, which TypeScript can then use to provide feedback in your editor about invalid links.
@@ -251,23 +287,6 @@ You can learn more about this feature on the [Module Path aliases documentation]
 
 </PagesOnly>
 
-## Type checking next.config.js
-
-The `next.config.js` file must be a JavaScript file as it does not get parsed by Babel or TypeScript, however you can add some type checking in your IDE using JSDoc as below:
-
-```js
-// @ts-check
-
-/**
- * @type {import('next').NextConfig}
- **/
-const nextConfig = {
-  /* config options here */
-}
-
-module.exports = nextConfig
-```
-
 ## Incremental type checking
 
 Since `v10.2.1` Next.js supports [incremental type checking](https://www.typescriptlang.org/tsconfig#incremental) when enabled in your `tsconfig.json`, this can help speed up type checking in larger applications.
@@ -280,10 +299,10 @@ If you'd like Next.js to dangerously produce production code even when your appl
 
 If disabled, be sure you are running type checks as part of your build or deploy process, otherwise this can be very dangerous.
 
-Open `next.config.js` and enable the `ignoreBuildErrors` option in the `typescript` config:
+Open `next.config.ts` and enable the `ignoreBuildErrors` option in the `typescript` config:
 
-```js filename="next.config.js"
-module.exports = {
+```ts filename="next.config.ts"
+export default {
   typescript: {
     // !! WARN !!
     // Dangerously allow production builds to successfully complete even if
@@ -319,6 +338,7 @@ When you need to declare custom types, you might be tempted to modify `next-env.
 
 | Version   | Changes                                                                                                                              |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `v15.0.0` | [`next.config.ts`](#type-checking-nextconfigts) support added for TypeScript projects.                                               |
 | `v13.2.0` | Statically typed links are available in beta.                                                                                        |
 | `v12.0.0` | [SWC](/docs/architecture/nextjs-compiler) is now used by default to compile TypeScript and TSX for faster builds.                    |
 | `v10.2.1` | [Incremental type checking](https://www.typescriptlang.org/tsconfig#incremental) support added when enabled in your `tsconfig.json`. |

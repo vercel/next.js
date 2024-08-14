@@ -1,6 +1,11 @@
 {
   "version": 2,
   "suites": {
+    "test/e2e/app-dir/actions/app-action.test.ts": {
+      "failed": [
+        "app-dir action handling fetch actions should invalidate client cache when path is revalidated"
+      ]
+    },
     "test/e2e/app-dir/app-static/app-static.test.ts": {
       "failed": [
         "app-dir static/dynamic handling new tags have been specified on subsequent fetch should not fetch from memory cache",

@@ -46,6 +46,8 @@ export function initNextServerScript(
     nodeArgs?: string[]
     onStdout?: (data: any) => void
     onStderr?: (data: any) => void
+    // If true, the promise will reject if the process exits with a non-zero code
+    shouldRejectOnError?: boolean
   }
 ): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
@@ -81,6 +83,14 @@ export function initNextServerScript(
       if (opts && opts.onStderr) {
         opts.onStderr(message.toString())
       }
+    }
+
+    if (opts?.shouldRejectOnError) {
+      instance.on('exit', (code) => {
+        if (code !== 0) {
+          reject(new Error('exited with code: ' + code))
+        }
+      })
     }
 
     instance.stdout.on('data', handleStdout)
@@ -146,6 +156,15 @@ export function withQuery(
   }
 
   return `${pathname}?${querystring}`
+}
+
+export function getFetchUrl(
+  appPort: string | number,
+  pathname: string,
+  query?: Record<string, any> | string | null | undefined
+) {
+  const url = query ? withQuery(pathname, query) : pathname
+  return getFullUrl(appPort, url)
 }
 
 export function fetchViaHTTP(
@@ -794,7 +813,7 @@ export async function retry<T>(
         )
         throw err
       }
-      console.warn(
+      console.log(
         `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
       )
       await waitFor(interval)
@@ -844,7 +863,18 @@ export async function assertNoRedbox(browser: BrowserInterface) {
   })
 
   if (hasRedbox) {
-    const error = new Error('Expected no Redbox but found one')
+    const [redboxHeader, redboxDescription, redboxSource] = await Promise.all([
+      getRedboxHeader(browser).catch(() => '<missing>'),
+      getRedboxDescription(browser).catch(() => '<missing>'),
+      getRedboxSource(browser).catch(() => '<missing>'),
+    ])
+
+    const error = new Error(
+      'Expected no Redbox but found one\n' +
+        `header: ${redboxHeader}\n` +
+        `description: ${redboxDescription}\n` +
+        `source: ${redboxSource}`
+    )
     Error.captureStackTrace(error, assertHasRedbox)
     throw error
   }

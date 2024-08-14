@@ -8,8 +8,8 @@ import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
-  NEXT_ROUTER_STATE_TREE,
-  ACTION,
+  NEXT_ROUTER_STATE_TREE_HEADER,
+  ACTION_HEADER,
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
@@ -182,7 +182,7 @@ async function createForwardedActionResponse(
   const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
 
   try {
-    let body: BodyInit | AsyncIterable<any> | undefined
+    let body: BodyInit | ReadableStream<Uint8Array> | undefined
     if (
       // The type check here ensures that `req` is correctly typed, and the
       // environment variable check provides dead code elimination.
@@ -325,10 +325,10 @@ async function createRedirectRenderResult(
     }
 
     // Ensures that when the path was revalidated we don't return a partial response on redirects
-    forwardedHeaders.delete(NEXT_ROUTER_STATE_TREE)
+    forwardedHeaders.delete(NEXT_ROUTER_STATE_TREE_HEADER)
     // When an action follows a redirect, it's no longer handling an action: it's just a normal RSC request
     // to the requested URL. We should remove the `next-action` header so that it's not treated as an action
-    forwardedHeaders.delete(ACTION)
+    forwardedHeaders.delete(ACTION_HEADER)
 
     try {
       const response = await fetch(fetchUrl, {
@@ -539,7 +539,7 @@ export async function handleAction({
 
         return {
           type: 'done',
-          result: await generateFlight(ctx, {
+          result: await generateFlight(req, ctx, {
             actionResult: promise,
             // if the page was not revalidated, we can skip the rendering the flight tree
             skipFlight: !staticGenerationStore.pathWasRevalidated,
@@ -817,7 +817,7 @@ export async function handleAction({
           requestStore,
         })
 
-        actionResult = await generateFlight(ctx, {
+        actionResult = await generateFlight(req, ctx, {
           actionResult: Promise.resolve(returnVal),
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
           skipFlight:
@@ -895,7 +895,7 @@ export async function handleAction({
         }
         return {
           type: 'done',
-          result: await generateFlight(ctx, {
+          result: await generateFlight(req, ctx, {
             skipFlight: false,
             actionResult: promise,
             asNotFound: true,
@@ -928,7 +928,7 @@ export async function handleAction({
 
       return {
         type: 'done',
-        result: await generateFlight(ctx, {
+        result: await generateFlight(req, ctx, {
           actionResult: promise,
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
           skipFlight:

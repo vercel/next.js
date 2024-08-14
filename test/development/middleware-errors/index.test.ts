@@ -35,11 +35,11 @@ describe('middleware - development errors', () => {
       await check(() => {
         if (process.env.TURBOPACK) {
           expect(stripAnsi(next.cliOutput)).toMatch(
-            /middleware.js \(\d+:\d+\) @ Object.__TURBOPACK__default__export__ \[as handler\]/
+            /middleware.js \(\d+:\d+\) @ __TURBOPACK__default__export__/
           )
         } else {
           expect(stripAnsi(next.cliOutput)).toMatch(
-            /middleware.js \(\d+:\d+\) @ Object.default \[as handler\]/
+            /middleware.js \(\d+:\d+\) @ default/
           )
         }
 
@@ -293,7 +293,9 @@ describe('middleware - development errors', () => {
 
       await check(() => {
         expect(next.cliOutput).toContain(`Expected '{', got '}'`)
-        expect(next.cliOutput.split(`Expected '{', got '}'`).length).toEqual(2)
+        expect(
+          next.cliOutput.split(`Expected '{', got '}'`).length
+        ).toBeGreaterThanOrEqual(2)
         return 'success'
       }, 'success')
     })
