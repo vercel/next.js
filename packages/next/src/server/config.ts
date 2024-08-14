@@ -24,7 +24,7 @@ import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
 
 import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
 import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
-import { hasNextSupport } from '../telemetry/ci-info'
+import { hasNextSupport } from '../server/ci-info'
 import { transpileConfig } from '../build/next-config-ts/transpile-config'
 
 export { normalizeConfig } from './config-shared'

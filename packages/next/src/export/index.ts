@@ -36,7 +36,7 @@ import {
 import loadConfig from '../server/config'
 import type { ExportPathMap } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
-import { hasNextSupport } from '../telemetry/ci-info'
+import { hasNextSupport } from '../server/ci-info'
 import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'

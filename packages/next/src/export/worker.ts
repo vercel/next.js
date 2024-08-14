@@ -28,7 +28,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
-import { hasNextSupport } from '../telemetry/ci-info'
+import { hasNextSupport } from '../server/ci-info'
 import { exportAppRoute } from './routes/app-route'
 import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'

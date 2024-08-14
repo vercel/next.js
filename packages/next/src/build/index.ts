@@ -82,7 +82,7 @@ import loadConfig from '../server/config'
 import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
-import * as ciEnvironment from '../telemetry/ci-info'
+import * as ciEnvironment from '../server/ci-info'
 import {
   turborepoTraceAccess,
   TurborepoAccessTraceResult,
@@ -184,7 +184,7 @@ import type { Entrypoints } from '../server/dev/turbopack/types'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { createProgress } from './progress'
 import { traceMemoryUsage } from '../lib/memory/trace'
-import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
+import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-init'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import uploadTrace from '../trace/upload-trace'
 import {
@@ -730,7 +730,10 @@ export default async function build(
 
       // Generate a random encryption key for this build.
       // This key is used to encrypt cross boundary values and can be used to generate hashes.
-      const encryptionKey = await generateEncryptionKeyBase64()
+      const encryptionKey = await generateEncryptionKeyBase64({
+        isBuild: true,
+        distDir,
+      })
       NextBuildContext.encryptionKey = encryptionKey
 
       const isSrcDir = path

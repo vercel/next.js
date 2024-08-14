@@ -12,7 +12,7 @@ import type { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 import { installDependencies } from './install-dependencies'
-import { isCI } from '../telemetry/ci-info'
+import { isCI } from '../server/ci-info'
 import { missingDepsError } from './typescript/missingDependencyError'
 
 const requiredPackages = [

@@ -4,7 +4,7 @@ import findUp from 'next/dist/compiled/find-up'
 // @ts-ignore no-json types
 import nextPkgJson from 'next/package.json'
 import type { UnwrapPromise } from './coalesced-function'
-import { isCI } from '../telemetry/ci-info'
+import { isCI } from '../server/ci-info'
 import { getRegistry } from './helpers/get-registry'
 
 let registry: string | undefined

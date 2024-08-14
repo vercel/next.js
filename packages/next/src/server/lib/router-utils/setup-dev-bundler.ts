@@ -79,7 +79,7 @@ import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
+import { generateEncryptionKeyBase64 } from '../../app-render/encryption-init'
 import {
   ModuleBuildError,
   TurbopackInternalError,
@@ -186,10 +186,13 @@ async function startWatcher(opts: SetupOpts) {
     : new HotReloaderWebpack(opts.dir, {
         appDir,
         pagesDir,
-        distDir: distDir,
+        distDir,
         config: opts.nextConfig,
         buildId: 'development',
-        encryptionKey: await generateEncryptionKeyBase64(),
+        encryptionKey: await generateEncryptionKeyBase64({
+          isBuild: false,
+          distDir,
+        }),
         telemetry: opts.telemetry,
         rewrites: opts.fsChecker.rewrites,
         previewProps: opts.fsChecker.prerenderManifest.preview,
