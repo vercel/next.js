@@ -15,13 +15,15 @@ import type {
   RenderOptsPartial as AppRenderOptsPartial,
   ServerOnInstrumentationRequestError,
 } from './app-render/types'
-import type {
-  CachedAppPageValue,
-  CachedPageValue,
-  ServerComponentsHmrCache,
-  ResponseCacheBase,
-  ResponseCacheEntry,
-  ResponseGenerator,
+import {
+  type CachedAppPageValue,
+  type CachedPageValue,
+  type ServerComponentsHmrCache,
+  type ResponseCacheBase,
+  type ResponseCacheEntry,
+  type ResponseGenerator,
+  CachedRouteKind,
+  type CachedRedirectValue,
 } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
@@ -159,6 +161,8 @@ import {
 } from './after/builtin-request-context'
 import { ENCODED_TAGS } from './stream-utils/encodedTags'
 import { NextRequestHint } from './web/adapter'
+import { RouteKind } from './route-kind'
+import type { RouteModule } from './route-modules/route-module'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -2043,7 +2047,10 @@ export default abstract class Server<
       )
     }
 
-    const { routeModule } = components
+    let routeModule: RouteModule | undefined
+    if (components.routeModule) {
+      routeModule = components.routeModule
+    }
 
     /**
      * If the route being rendered is an app page, and the ppr feature has been
@@ -2493,7 +2500,7 @@ export default abstract class Server<
               // Create the cache entry for the response.
               const cacheEntry: ResponseCacheEntry = {
                 value: {
-                  kind: 'ROUTE',
+                  kind: CachedRouteKind.APP_ROUTE,
                   status: response.status,
                   body: Buffer.from(await blob.arrayBuffer()),
                   headers,
@@ -2657,9 +2664,9 @@ export default abstract class Server<
       if (metadata.isRedirect) {
         return {
           value: {
-            kind: 'REDIRECT',
+            kind: CachedRouteKind.REDIRECT,
             props: metadata.pageData ?? metadata.flightData,
-          },
+          } satisfies CachedRedirectValue,
           revalidate: metadata.revalidate,
         }
       }
@@ -2673,7 +2680,7 @@ export default abstract class Server<
       if (isAppPath) {
         return {
           value: {
-            kind: 'APP_PAGE',
+            kind: CachedRouteKind.APP_PAGE,
             html: result,
             headers,
             rscData: metadata.flightData,
@@ -2686,7 +2693,7 @@ export default abstract class Server<
 
       return {
         value: {
-          kind: 'PAGE',
+          kind: CachedRouteKind.PAGES,
           html: result,
           pageData: metadata.pageData ?? metadata.flightData,
           headers,
@@ -2802,11 +2809,11 @@ export default abstract class Server<
 
             return {
               value: {
-                kind: 'PAGE',
+                kind: CachedRouteKind.PAGES,
                 html: RenderResult.fromStatic(html),
+                pageData: {},
                 status: undefined,
                 headers: undefined,
-                pageData: {},
               },
             }
           }
@@ -2845,12 +2852,12 @@ export default abstract class Server<
         return {
           revalidate: 1,
           value: {
-            kind: 'PAGE',
+            kind: CachedRouteKind.PAGES,
             html: RenderResult.fromStatic(''),
             pageData: {},
             headers: undefined,
             status: undefined,
-          },
+          } satisfies CachedPageValue,
         }
       }
 
@@ -2871,7 +2878,11 @@ export default abstract class Server<
       ssgCacheKey,
       responseGenerator,
       {
-        routeKind: routeModule?.definition.kind,
+        routeKind:
+          // If the route module is not defined, we can assume it's a page being
+          // rendered and thus check isAppPath.
+          routeModule?.definition.kind ??
+          (isAppPath ? RouteKind.APP_PAGE : RouteKind.PAGES),
         incrementalCache,
         isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
@@ -2892,7 +2903,7 @@ export default abstract class Server<
     }
 
     const didPostpone =
-      cacheEntry.value?.kind === 'APP_PAGE' &&
+      cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
       typeof cacheEntry.value.postponed === 'string'
 
     if (
@@ -2924,7 +2935,7 @@ export default abstract class Server<
     const { value: cachedData } = cacheEntry
 
     // If the cache value is an image, we should error early.
-    if (cachedData?.kind === 'IMAGE') {
+    if (cachedData?.kind === CachedRouteKind.IMAGE) {
       throw new Error('invariant SSG should not return an image cache value')
     }
 
@@ -3007,7 +3018,7 @@ export default abstract class Server<
           value: {
             ...cacheEntry.value,
             kind:
-              cacheEntry.value?.kind === 'APP_PAGE'
+              cacheEntry.value?.kind === CachedRouteKind.APP_PAGE
                 ? 'PAGE'
                 : cacheEntry.value?.kind,
           },
@@ -3049,7 +3060,7 @@ export default abstract class Server<
       }
       await this.render404(req, res, { pathname, query }, false)
       return null
-    } else if (cachedData.kind === 'REDIRECT') {
+    } else if (cachedData.kind === CachedRouteKind.REDIRECT) {
       if (cacheEntry.revalidate) {
         res.setHeader(
           'Cache-Control',
@@ -3073,7 +3084,7 @@ export default abstract class Server<
         await handleRedirect(cachedData.props)
         return null
       }
-    } else if (cachedData.kind === 'ROUTE') {
+    } else if (cachedData.kind === CachedRouteKind.APP_ROUTE) {
       const headers = { ...cachedData.headers }
 
       if (!(this.minimalMode && isSSG)) {
@@ -3089,7 +3100,7 @@ export default abstract class Server<
         })
       )
       return null
-    } else if (cachedData.kind === 'APP_PAGE') {
+    } else if (cachedData.kind === CachedRouteKind.APP_PAGE) {
       // If the request has a postponed state and it's a resume request we
       // should error.
       if (cachedData.postponed && minimalPostponed) {
@@ -3140,7 +3151,7 @@ export default abstract class Server<
       }
 
       // Mark that the request did postpone if this is a data request.
-      if (cachedData.postponed && isRSCRequest) {
+      if (typeof cachedData.postponed === 'string' && isRSCRequest) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
@@ -3224,7 +3235,7 @@ export default abstract class Server<
             throw new Error('Invariant: expected a result to be returned')
           }
 
-          if (result.value?.kind !== 'APP_PAGE') {
+          if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
             throw new Error(
               `Invariant: expected a page response, got ${result.value?.kind}`
             )

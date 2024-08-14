@@ -247,7 +247,7 @@ export function createPrefetchCacheEntryForInitialLoad({
   // prefetch cache so that we can skip an extra prefetch request later, since we already have the data.
   const kind = PrefetchKind.AUTO
   // if the prefetch corresponds with an interception route, we use the nextUrl to prefix the cache key
-  const prefetchCacheKey = data.i
+  const prefetchCacheKey = data.couldBeIntercepted
     ? createPrefetchCacheKey(url, kind, nextUrl)
     : createPrefetchCacheKey(url, kind)
 
@@ -300,7 +300,7 @@ function createLazyPrefetchEntry({
       // (which is currently directly influenced by the server response)
       let newCacheKey
 
-      if (prefetchResponse.i) {
+      if (prefetchResponse.couldBeIntercepted) {
         // Determine if we need to prefix the cache key with the nextUrl
         newCacheKey = prefixExistingPrefetchCacheEntry({
           url,
@@ -313,7 +313,7 @@ function createLazyPrefetchEntry({
       // If the prefetch was a cache hit, we want to update the existing cache entry to reflect that it was a full prefetch.
       // This is because we know that a static response will contain the full RSC payload, and can be updated to respect the `static`
       // staleTime.
-      if (prefetchResponse.p) {
+      if (prefetchResponse.isPrerender) {
         const existingCacheEntry = prefetchCache.get(
           // if we prefixed the cache key due to route interception, we want to use the new key. Otherwise we use the original key
           newCacheKey ?? prefetchCacheKey

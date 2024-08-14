@@ -36,22 +36,25 @@ describe('createInitialRouterState', () => {
     const state = createInitialRouterState({
       buildId,
       initialFlightData: [
-        [initialTree, ['', {}, children, null], <title>Test</title>],
+        [initialTree, ['', children, {}, null], <title>Test</title>],
       ],
       initialCanonicalUrl,
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
       couldBeIntercepted: false,
+      postponed: false,
     })
 
     const state2 = createInitialRouterState({
       buildId,
       initialFlightData: [
-        [initialTree, ['', {}, children, null], <title>Test</title>],
+        [initialTree, ['', children, {}, null], <title>Test</title>],
       ],
       initialCanonicalUrl,
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
+      couldBeIntercepted: false,
+      postponed: false,
     })
 
     const expectedCache: CacheNode = {
