@@ -28,6 +28,7 @@ parking_lot = { workspace = true }
 rand = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
+serde_path_to_error = { workspace = true }
 smallvec = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

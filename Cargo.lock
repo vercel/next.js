@@ -8607,6 +8607,7 @@ dependencies = [
  "rand",
  "rustc-hash",
  "serde",
+ "serde_path_to_error",
  "smallvec",
  "tokio",
  "tracing",
