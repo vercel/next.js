@@ -374,6 +374,8 @@ impl TurboTasksBackend {
 
 impl Backend for TurboTasksBackend {
     fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.backing_storage.startup();
+
         // Continue all uncompleted operations
         // They can't be interrupted by a snapshot since the snapshotting job has not been scheduled
         // yet.

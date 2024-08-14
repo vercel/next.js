@@ -10,6 +10,7 @@ use crate::{
 };
 
 pub trait BackingStorage {
+    fn startup(&self);
     fn next_free_task_id(&self) -> TaskId;
     fn uncompleted_operations(&self) -> Vec<AnyOperation>;
     fn save_snapshot(
