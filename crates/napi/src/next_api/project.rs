@@ -331,11 +331,12 @@ pub async fn project_new(
             .unwrap();
         });
     }
-    let options = options.into();
+    let options: ProjectOptions = options.into();
     let container = turbo_tasks
         .run_once(async move {
-            let project = ProjectContainer::new(options);
+            let project = ProjectContainer::new("next.js".into(), options.dev);
             let project = project.resolve().await?;
+            project.await?.initialize(options);
             Ok(project)
         })
         .await
@@ -421,7 +422,7 @@ pub async fn project_update(
     let container = project.container;
     turbo_tasks
         .run_once(async move {
-            container.update(options).await?;
+            container.await?.update(options)?;
             Ok(())
         })
         .await
