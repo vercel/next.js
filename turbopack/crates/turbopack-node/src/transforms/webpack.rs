@@ -30,7 +30,7 @@ use turbopack_core::{
         pattern::Pattern,
         resolve,
     },
-    source::Source,
+    source::{OptionSource, Source},
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
@@ -161,6 +161,11 @@ impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn generate_source_map(self: Vc<Self>) -> Result<Vc<OptionSourceMap>> {
         Ok(Vc::cell(self.process().await?.source_map))
+    }
+
+    #[turbo_tasks::function]
+    async fn original_source(self: Vc<Self>) -> Result<Vc<OptionSource>> {
+        Ok(Vc::cell(Some(Vc::upcast(self))))
     }
 }
 
