@@ -95,12 +95,29 @@ pub trait FileSystem: ValueToString {
     fn metadata(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileMeta>;
 }
 
+mod ser_omit {
+    pub fn serialize<T, S>(_: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_unit()
+    }
+
+    pub fn deserialize<'de, T, D>(_: D) -> Result<T, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+        T: Default,
+    {
+        Ok(Default::default())
+    }
+}
+
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct DiskFileSystem {
     pub name: RcStr,
     pub root: RcStr,
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip)]
+    #[serde(default, with = "ser_omit")]
     mutex_map: MutexMap<PathBuf>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     invalidator_map: Arc<InvalidatorMap>,
@@ -109,7 +126,7 @@ pub struct DiskFileSystem {
     /// Lock that makes invalidation atomic. It will keep a write lock during
     /// watcher invalidation and a read lock during other operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip)]
+    #[serde(default, with = "ser_omit")]
     invalidation_lock: Arc<RwLock<()>>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     watcher: Arc<DiskWatcher>,

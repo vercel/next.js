@@ -206,17 +206,17 @@ pub enum OutputType {
 pub enum RouteHas {
     Header {
         key: RcStr,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(default)]
         value: Option<RcStr>,
     },
     Cookie {
         key: RcStr,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(default)]
         value: Option<RcStr>,
     },
     Query {
         key: RcStr,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(default)]
         value: Option<RcStr>,
     },
     Host {
@@ -235,14 +235,14 @@ pub struct HeaderValue {
 #[serde(rename_all = "camelCase")]
 pub struct Header {
     pub source: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub base_path: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub locale: Option<bool>,
     pub headers: Vec<HeaderValue>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub has: Option<Vec<RouteHas>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub missing: Option<Vec<RouteHas>>,
 }
 
@@ -258,13 +258,13 @@ pub enum RedirectStatus {
 pub struct Redirect {
     pub source: String,
     pub destination: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub base_path: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub locale: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub has: Option<Vec<RouteHas>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub missing: Option<Vec<RouteHas>>,
 
     #[serde(flatten)]
@@ -276,13 +276,13 @@ pub struct Redirect {
 pub struct Rewrite {
     pub source: String,
     pub destination: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub base_path: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub locale: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub has: Option<Vec<RouteHas>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub missing: Option<Vec<RouteHas>>,
 }
 
@@ -375,11 +375,11 @@ pub enum ImageFormat {
 #[serde(rename_all = "camelCase")]
 pub struct RemotePattern {
     pub hostname: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub protocol: Option<RemotePatternProtocal>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub port: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub pathname: Option<String>,
 }
 
@@ -465,9 +465,9 @@ pub enum ReactCompilerMode {
 #[derive(Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ReactCompilerOptions {
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub compilation_mode: Option<ReactCompilerMode>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub panic_threshold: Option<RcStr>,
 }
 
