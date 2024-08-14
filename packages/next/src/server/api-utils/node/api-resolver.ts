@@ -441,6 +441,7 @@ export async function apiResolver(
       routerKind: 'Pages Router',
       routePath: page || '',
       routeType: 'route',
+      revalidateReason: undefined,
     })
 
     if (err instanceof ApiError) {

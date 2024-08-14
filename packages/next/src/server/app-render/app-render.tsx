@@ -132,6 +132,7 @@ import { getServerActionRequestMetadata } from '../lib/server-action-request-met
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
 import { createMutableActionQueue } from '../../shared/lib/router/action-queue'
 import { prerenderAsyncStorage } from './prerender-async-storage.external'
+import { getRevalidateReason } from '../instrumentation/utils'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -420,6 +421,7 @@ function createErrorContext(
     routePath: ctx.pagePath,
     routeType: ctx.isAction ? 'action' : 'render',
     renderSource,
+    revalidateReason: getRevalidateReason(ctx.staticGenerationStore),
   }
 }
 /**
