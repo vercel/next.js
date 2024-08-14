@@ -7,7 +7,7 @@ body:
       value: |
         This template is used for reporting a Next.js issue. [Example](https://github.com/vercel/next.js/tree/canary/examples)-related issues should be reported using [this](https://github.com/vercel/next.js/issues/new?assignees=&labels=type%3A+example%2Ctemplate%3A+bug&template=2.example_bug_report.yml) issue template instead.
 
-        Feature requests should be opened in [discussions](https://github.com/vercel/next.js/discussions/new?category=ideas).For more information about opening a feature request, [read more](https://github.com/vercel/next.js/blob/canary/contributing/core/adding-features.md).
+        Feature requests should be opened in [discussions](https://github.com/vercel/next.js/discussions/new?category=ideas). For more information about opening a feature request, [read more](https://github.com/vercel/next.js/blob/canary/contributing/core/adding-features.md).
 
         Documentation requests should also be opened in [discussions](https://github.com/vercel/next.js/discussions/new?category=ideas).
 
