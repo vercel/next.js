@@ -1196,7 +1196,6 @@ async function renderToStream(
   tree: LoaderTree,
   formState: any
 ): Promise<ReadableStream<Uint8Array>> {
-  const is404 = res.statusCode === 404
   const renderOpts = ctx.renderOpts
   const ComponentMod = renderOpts.ComponentMod
   // TODO: fix this typescript
@@ -1280,7 +1279,7 @@ async function renderToStream(
 
   try {
     // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
-    const RSCPayload = await getRSCPayload(tree, ctx, is404)
+    const RSCPayload = await getRSCPayload(tree, ctx, res.statusCode === 404)
     const reactServerStream = ComponentMod.renderToReadableStream(
       RSCPayload,
       clientReferenceManifest.clientModules,
@@ -1484,6 +1483,7 @@ async function renderToStream(
       setHeader('Location', redirectUrl)
     }
 
+    const is404 = res.statusCode === 404
     if (!is404 && !hasRedirectError && !shouldBailoutToCSR) {
       res.statusCode = 500
     }
@@ -1602,7 +1602,6 @@ async function prerenderToStream(
   staticGenerationStore: StaticGenerationStore,
   tree: LoaderTree
 ): Promise<PrenderToStringResult> {
-  const is404 = res.statusCode === 404
   // When prerendering formState is always null. We still include it
   // because some shared APIs expect a formState value and this is slightly
   // more explicit than making it an optional function argument
@@ -1705,7 +1704,7 @@ async function prerenderToStream(
       const reactServerPrerenderStore = {
         dynamicTracking,
       }
-      const RSCPayload = await getRSCPayload(tree, ctx, is404)
+      const RSCPayload = await getRSCPayload(tree, ctx, res.statusCode === 404)
       const reactServerStream: ReadableStream<Uint8Array> =
         prerenderAsyncStorage.run(
           reactServerPrerenderStore,
@@ -1869,7 +1868,7 @@ async function prerenderToStream(
     } else {
       // This is a regular static generation. We don't do dynamic tracking because we rely on
       // the old-school dynamic error handling to bail out of static generation
-      const RSCPayload = await getRSCPayload(tree, ctx, is404)
+      const RSCPayload = await getRSCPayload(tree, ctx, res.statusCode === 404)
       const reactServerStream = ComponentMod.renderToReadableStream(
         RSCPayload,
         clientReferenceManifest.clientModules,
@@ -1993,6 +1992,7 @@ async function prerenderToStream(
       setHeader('Location', redirectUrl)
     }
 
+    const is404 = res.statusCode === 404
     if (!is404 && !hasRedirectError && !shouldBailoutToCSR) {
       res.statusCode = 500
     }
