@@ -275,11 +275,7 @@ export async function detectChangedEntries({
   }
 
   for (const entry of appPaths || []) {
-    let normalizedEntry = getPageFromPath(entry, pageExtensions)
-
-    if (normalizedEntry === '/not-found') {
-      normalizedEntry = '/_not-found'
-    }
+    const normalizedEntry = getPageFromPath(entry, pageExtensions)
     await detectChange({ entry, normalizedEntry, type: 'app' })
   }
 

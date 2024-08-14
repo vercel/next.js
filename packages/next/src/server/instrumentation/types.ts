@@ -12,8 +12,8 @@ export type RequestErrorContext = {
 export type InstrumentationOnRequestError = (
   error: unknown,
   errorRequest: Readonly<{
+    path: string
     method: string
-    url: string
     headers: NodeJS.Dict<string | string[]>
   }>,
   errorContext: Readonly<RequestErrorContext>

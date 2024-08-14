@@ -25,7 +25,7 @@ export const middleware: NextMiddleware = function (request) {
 }
 
 export const config = {
-  matcher: [],
+  matcher: ['/:path*'],
   regions: [],
   unstable_allowDynamicGlobs: undefined,
 } satisfies MiddlewareConfig

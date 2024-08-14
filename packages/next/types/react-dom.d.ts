@@ -27,9 +27,7 @@ declare module 'react-dom/server.edge' {
   export function resume(
     children: JSX.Element,
     postponedState: object,
-    options?: {
-      onError?: (error: Error, errorInfo: unknown) => void
-    }
+    options?: ResumeOptions
   ): Promise<ReadableStream<Uint8Array>>
 
   /**
@@ -117,10 +115,7 @@ declare module 'react-dom/static.edge' {
 
   export function prerender(
     children: JSX.Element,
-    options?: {
-      onError?: (error: Error, errorInfo: unknown) => void
-      onHeaders?: (headers: Headers) => void
-    }
+    options?: Options
   ): Promise<{
     prelude: ReadableStream<Uint8Array>
     postponed: object | null

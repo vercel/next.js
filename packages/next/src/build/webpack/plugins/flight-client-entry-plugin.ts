@@ -626,11 +626,11 @@ export class FlightClientEntryPlugin {
       const isCSS = isCSSMod(mod)
 
       const modPath: string = mod.resourceResolveData?.path || ''
+      const modQuery = mod.resourceResolveData?.query || ''
       // We have to always use the resolved request here to make sure the
       // server and client are using the same module path (required by RSC), as
       // the server compiler and client compiler have different resolve configs.
-      let modRequest: string | undefined =
-        modPath + mod.resourceResolveData?.query
+      let modRequest: string = modPath + modQuery
 
       // Context modules don't have a resource path, we use the identifier instead.
       if (mod.constructor.name === 'ContextModule') {

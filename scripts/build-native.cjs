@@ -16,7 +16,7 @@ module.exports = (async () => {
     try {
       await execAsyncWithOutput(
         'Build native modules',
-        ['pnpm', 'run', 'swc-build-native', '--', ...args],
+        ['pnpm', 'run', 'swc-build-native', ...args],
         {
           shell: process.platform === 'win32' ? 'powershell.exe' : false,
           env: {

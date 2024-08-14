@@ -10,7 +10,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn trait_ref() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let counter = Counter::cell(Counter {
             value: Mutex::new((0, None)),
         });

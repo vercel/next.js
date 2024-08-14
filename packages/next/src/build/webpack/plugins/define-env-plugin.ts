@@ -282,7 +282,7 @@ export function getDefineEnv({
   }
   const serializedDefineEnv = serializeDefineEnv(defineEnv)
 
-  if (Boolean(config.experimental.flyingShuttle)) {
+  if (!dev && Boolean(config.experimental.flyingShuttle)) {
     // we delay inlining these values until after the build
     // with flying shuttle enabled so we can update them
     // without invalidating entries
