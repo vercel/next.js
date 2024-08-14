@@ -115,44 +115,57 @@ module.exports = {
       it('should have correct CSS injection order', async () => {
         const browser = await webdriver(appPort, '/')
         try {
-          await checkGreenTitle(browser)
+          // There's a better test for CSS order in test/e2e/app-dir/css-order, this test in particular should check the UI, not the implementation detail of the ordering.
+          if (process.env.TURBOPACK) {
+            await checkGreenTitle(browser)
 
-          const prevSiblingHref = await browser.eval(
-            `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
-          )
-          const currentPageHref = await browser.eval(
-            `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
-          )
-          expect(prevSiblingHref).toBeDefined()
-          expect(prevSiblingHref).toBe(currentPageHref)
+            // Navigate to other:
+            await browser.waitForElementByCss('#link-other').click()
+            await checkBlueTitle(browser)
 
-          // Navigate to other:
-          await browser.waitForElementByCss('#link-other').click()
-          await checkBlueTitle(browser)
+            // Navigate to home:
+            await browser.waitForElementByCss('#link-index').click()
+            await checkGreenTitle(browser)
+          } else {
+            await checkGreenTitle(browser)
 
-          const newPrevSibling = await browser.eval(
-            `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
-          )
-          const newPageHref = await browser.eval(
-            `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
-          )
-          expect(newPrevSibling).toBe('VmVyY2Vs')
-          expect(newPageHref).toBeDefined()
-          expect(newPageHref).not.toBe(currentPageHref)
+            const prevSiblingHref = await browser.eval(
+              `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
+            )
+            const currentPageHref = await browser.eval(
+              `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
+            )
+            expect(prevSiblingHref).toBeDefined()
+            expect(prevSiblingHref).toBe(currentPageHref)
 
-          // Navigate to home:
-          await browser.waitForElementByCss('#link-index').click()
-          await checkGreenTitle(browser)
+            // Navigate to other:
+            await browser.waitForElementByCss('#link-other').click()
+            await checkBlueTitle(browser)
 
-          const newPrevSibling2 = await browser.eval(
-            `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
-          )
-          const newPageHref2 = await browser.eval(
-            `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
-          )
-          expect(newPrevSibling2).toBeTruthy()
-          expect(newPageHref2).toBeDefined()
-          expect(newPageHref2).toBe(currentPageHref)
+            const newPrevSibling = await browser.eval(
+              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+            )
+            const newPageHref = await browser.eval(
+              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+            )
+            expect(newPrevSibling).toBe('VmVyY2Vs')
+            expect(newPageHref).toBeDefined()
+            expect(newPageHref).not.toBe(currentPageHref)
+
+            // Navigate to home:
+            await browser.waitForElementByCss('#link-index').click()
+            await checkGreenTitle(browser)
+
+            const newPrevSibling2 = await browser.eval(
+              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+            )
+            const newPageHref2 = await browser.eval(
+              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+            )
+            expect(newPrevSibling2).toBeTruthy()
+            expect(newPageHref2).toBeDefined()
+            expect(newPageHref2).toBe(currentPageHref)
+          }
         } finally {
           await browser.close()
         }
