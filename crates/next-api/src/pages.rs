@@ -674,7 +674,7 @@ impl PageEndpoint {
             let client_chunking_context = this.pages_project.project().client_chunking_context();
 
             let client_chunks = client_chunking_context.evaluated_chunk_group_assets(
-                client_module.ident(),
+                self.source().ident(),
                 this.pages_project
                     .client_runtime_entries()
                     .with_entry(client_main_module)
