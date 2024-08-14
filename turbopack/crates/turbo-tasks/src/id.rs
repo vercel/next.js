@@ -78,6 +78,14 @@ impl Debug for TaskId {
     }
 }
 
+pub const TRANSIENT_TASK_BIT: u32 = 0x8000_0000;
+
+impl TaskId {
+    pub fn is_transient(&self) -> bool {
+        **self & TRANSIENT_TASK_BIT != 0
+    }
+}
+
 macro_rules! make_serializable {
     ($ty:ty, $get_global_name:path, $get_id:path, $visitor_name:ident) => {
         impl Serialize for $ty {
