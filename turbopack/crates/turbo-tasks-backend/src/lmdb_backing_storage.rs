@@ -11,6 +11,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Context, Result};
+use bincode::Options;
 use lmdb::{Database, DatabaseFlags, Environment, EnvironmentFlags, Transaction, WriteFlags};
 use turbo_tasks::{backend::CachedTaskType, KeyValuePair, TaskId};
 
@@ -145,7 +146,8 @@ impl BackingStorage for LmdbBackingStorage {
             WriteFlags::empty(),
         )
         .with_context(|| anyhow!("Unable to write next free task id"))?;
-        let operations = bincode::serialize(&operations)?;
+        let operations = bincode::serialize(&operations)
+            .with_context(|| anyhow!("Unable to serialize operations"))?;
         tx.put(
             self.meta_db,
             &IntKey::new(META_KEY_OPERATIONS),
@@ -163,7 +165,20 @@ impl BackingStorage for LmdbBackingStorage {
                 Entry::Vacant(entry) => {
                     let mut map = HashMap::new();
                     if let Ok(old_data) = tx.get(self.data_db, &IntKey::new(*task)) {
-                        let old_data: Vec<CachedDataItem> = bincode::deserialize(old_data)?;
+                        let old_data: Vec<CachedDataItem> = match bincode::deserialize(old_data) {
+                            Ok(d) => d,
+                            Err(_) => serde_path_to_error::deserialize(
+                                &mut bincode::Deserializer::from_slice(
+                                    old_data,
+                                    bincode::DefaultOptions::new()
+                                        .with_fixint_encoding()
+                                        .allow_trailing_bytes(),
+                                ),
+                            )
+                            .with_context(|| {
+                                anyhow!("Unable to deserialize old value of {task}: {old_data:?}")
+                            })?,
+                        };
                         for item in old_data {
                             let (key, value) = item.into_key_and_value();
                             map.insert(key, value);
@@ -179,13 +194,61 @@ impl BackingStorage for LmdbBackingStorage {
             }
         }
         for (task_id, data) in updated_items {
-            let vec: Vec<CachedDataItem> = data
+            let mut vec: Vec<CachedDataItem> = data
                 .into_iter()
                 .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
                 .collect();
-            let value = bincode::serialize(&vec).with_context(|| {
-                anyhow!("Unable to serialize data items for {task_id}: {vec:#?}")
-            })?;
+            let value = match bincode::serialize(&vec) {
+                // Ok(value) => value,
+                Ok(_) | Err(_) => {
+                    let mut error = Ok(());
+                    vec.retain(|item| {
+                        let mut buf = Vec::<u8>::new();
+                        let mut serializer = bincode::Serializer::new(
+                            &mut buf,
+                            bincode::DefaultOptions::new()
+                                .with_fixint_encoding()
+                                .allow_trailing_bytes(),
+                        );
+                        if let Err(err) = serde_path_to_error::serialize(item, &mut serializer) {
+                            if item.is_optional() {
+                                println!("Skipping non-serializable optional item: {item:?}");
+                            } else {
+                                error = Err(err).context({
+                                    anyhow!(
+                                        "Unable to serialize data item for {task_id}: {item:#?}"
+                                    )
+                                });
+                            }
+                            false
+                        } else {
+                            let deserialize: Result<CachedDataItem, _> =
+                                serde_path_to_error::deserialize(
+                                    &mut bincode::Deserializer::from_slice(
+                                        &buf,
+                                        bincode::DefaultOptions::new()
+                                            .with_fixint_encoding()
+                                            .allow_trailing_bytes(),
+                                    ),
+                                );
+                            if let Err(err) = deserialize {
+                                println!(
+                                    "Data item would not be deserializable {task_id}: \
+                                     {err:?}\n{item:#?}"
+                                );
+                                false
+                            } else {
+                                true
+                            }
+                        }
+                    });
+                    error?;
+
+                    bincode::serialize(&vec).with_context(|| {
+                        anyhow!("Unable to serialize data items for {task_id}: {vec:#?}")
+                    })?
+                }
+            };
             tx.put(
                 self.data_db,
                 &IntKey::new(*task_id),

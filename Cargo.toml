@@ -188,6 +188,7 @@ rustc-hash = "1.1.0"
 semver = "1.0.16"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.93"
+serde_path_to_error = "0.1.9"
 serde_qs = "0.11.0"
 serde_with = "2.3.2"
 serde_yaml = "0.9.17"
