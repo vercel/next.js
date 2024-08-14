@@ -55,7 +55,9 @@ use tracing::Instrument;
 use turbo_tasks::{RcStr, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    compile_time_info::{CompileTimeInfo, FreeVarReference, FreeVarReferences},
+    compile_time_info::{
+        CompileTimeInfo, DefineableNameSegment, FreeVarReference, FreeVarReferences,
+    },
     error::PrettyPrintError,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     module::Module,
@@ -450,13 +452,22 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             let mut free_var_references =
                 compile_time_info.free_var_references.await?.clone_value();
             free_var_references
-                .entry(vec![("exports".into()), "typeof".into()])
+                .entry(vec![
+                    DefineableNameSegment::Name("exports".into()),
+                    DefineableNameSegment::TypeOf,
+                ])
                 .or_insert("object".into());
             free_var_references
-                .entry(vec![("module".into()), "typeof".into()])
+                .entry(vec![
+                    DefineableNameSegment::Name("module".into()),
+                    DefineableNameSegment::TypeOf,
+                ])
                 .or_insert("object".into());
             free_var_references
-                .entry(vec![("require".into()), "typeof".into()])
+                .entry(vec![
+                    DefineableNameSegment::Name("require".into()),
+                    DefineableNameSegment::TypeOf,
+                ])
                 .or_insert("function".into());
 
             CompileTimeInfo {
@@ -1944,6 +1955,7 @@ async fn handle_member(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
     if let Some(prop) = prop.as_str() {
+        let prop = DefineableNameSegment::Name(prop.into());
         if let Some(def_name_len) = obj.get_defineable_name_len() {
             let compile_time_info = state.compile_time_info.await?;
             let free_var_references = compile_time_info.free_var_references.await?;
@@ -1951,8 +1963,8 @@ async fn handle_member(
                 if name.len() != def_name_len + 1 {
                     continue;
                 }
-                let mut it = name.iter().map(|v| Cow::Borrowed(&**v)).rev();
-                if it.next().unwrap() != Cow::Borrowed(prop) {
+                let mut it = name.iter().map(Cow::Borrowed).rev();
+                if it.next().unwrap().as_ref() != &prop {
                     continue;
                 }
                 if it.eq(obj.iter_defineable_name_rev())
@@ -1994,20 +2006,22 @@ async fn handle_typeof(
             if name.len() != def_name_len + 1 {
                 continue;
             }
-            let mut it = name.iter().map(|v| Cow::Borrowed(&**v)).rev();
-            if it.next().unwrap().as_ref() != "typeof" {
+            let mut it = name.iter().map(Cow::Borrowed).rev();
+            if it.next().unwrap().as_ref() == &DefineableNameSegment::TypeOf {
                 continue;
             }
 
-            let first_str: &str = name.first().unwrap();
-            if state
-                .var_graph
-                .free_var_ids
-                .get(&first_str.into())
-                .map_or(false, |id| state.var_graph.values.contains_key(id))
-            {
-                // `typeof foo...` but `foo` was reassigned
-                return Ok(());
+            if let DefineableNameSegment::Name(first_str) = name.first().unwrap() {
+                let first_str: &str = first_str;
+                if state
+                    .var_graph
+                    .free_var_ids
+                    .get(&first_str.into())
+                    .map_or(false, |id| state.var_graph.values.contains_key(id))
+                {
+                    // `typeof foo...` but `foo` was reassigned
+                    return Ok(());
+                }
             }
 
             if it.eq(arg.iter_defineable_name_rev())
@@ -2038,7 +2052,7 @@ async fn handle_free_var(
 
             if var
                 .iter_defineable_name_rev()
-                .eq(name.iter().map(|v| Cow::Borrowed(&**v)).rev())
+                .eq(name.iter().map(Cow::Borrowed).rev())
                 && handle_free_var_reference(ast_path, value, span, state, analysis).await?
             {
                 return Ok(());
@@ -2354,7 +2368,7 @@ async fn value_visitor_inner(
                 continue;
             }
             if v.iter_defineable_name_rev()
-                .eq(name.iter().map(|v| Cow::Borrowed(&**v)).rev())
+                .eq(name.iter().map(Cow::Borrowed).rev())
             {
                 return Ok((value.into(), true));
             }

@@ -25,7 +25,7 @@ use swc_core::{
     },
 };
 use turbo_tasks::{RcStr, Vc};
-use turbopack_core::compile_time_info::CompileTimeDefineValue;
+use turbopack_core::compile_time_info::{CompileTimeDefineValue, DefineableNameSegment};
 use url::Url;
 
 use self::imports::ImportAnnotations;
@@ -1815,11 +1815,11 @@ pub struct DefineableNameIter<'a> {
 }
 
 impl<'a> Iterator for DefineableNameIter<'a> {
-    type Item = Cow<'a, str>;
+    type Item = Cow<'a, DefineableNameSegment>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let value = self.next.take()?;
-        Some(match value {
+        Some(Cow::Owned(match value {
             JsValue::FreeVar(kind) => (&**kind).into(),
             JsValue::Member(_, obj, prop) => {
                 self.next = Some(obj);
@@ -1849,11 +1849,11 @@ impl<'a> Iterator for DefineableNameIter<'a> {
             }
             JsValue::TypeOf(_, arg) => {
                 self.next = Some(arg);
-                "typeof".into()
+                DefineableNameSegment::TypeOf
             }
 
             _ => return None,
-        })
+        }))
     }
 }
 
