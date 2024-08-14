@@ -22,7 +22,7 @@ describe('app dir - css', () => {
         const source = await getRedboxSource(browser)
 
         expect(source).toMatchInlineSnapshot(`
-          "./app/global.scss.css:45:1
+          "./app/global.scss:45:1
           Parsing css source code failed
             43 | }
             44 |
