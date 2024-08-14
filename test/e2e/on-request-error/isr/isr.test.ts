@@ -70,7 +70,10 @@ describe('on-request-error - isr', () => {
       const button = await browser.elementByCss('button')
       await button.click()
 
-      await matchRevalidateReason('app:self-revalidate', 'stale')
+      await retry(async () => {
+        await next.fetch('/app/self-revalidate')
+        await matchRevalidateReason('app:self-revalidate', 'stale')
+      })
     })
   })
 
