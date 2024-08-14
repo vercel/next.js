@@ -17,7 +17,7 @@ pub use crate::id::{BackendJobId, ExecutionId};
 use crate::{
     event::EventListener,
     magic_any::MagicAny,
-    manager::TurboTasksBackendApi,
+    manager::{ReadConsistency, TurboTasksBackendApi},
     raw_vc::CellId,
     registry,
     task::shared_reference::TypedSharedReference,
@@ -484,7 +484,7 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         reader: TaskId,
-        strongly_consistent: bool,
+        consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>>;
 
@@ -493,7 +493,7 @@ pub trait Backend: Sync + Send {
     fn try_read_task_output_untracked(
         &self,
         task: TaskId,
-        strongly_consistent: bool,
+        consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>>;
 

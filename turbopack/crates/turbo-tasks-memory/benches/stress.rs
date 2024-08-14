@@ -1,6 +1,6 @@
 use anyhow::Result;
 use criterion::{BenchmarkId, Criterion};
-use turbo_tasks::{TryJoinIterExt, TurboTasks, Vc};
+use turbo_tasks::{ReadConsistency, TryJoinIterExt, TurboTasks, Vc};
 use turbo_tasks_memory::MemoryBackend;
 
 use super::register;
@@ -43,7 +43,9 @@ pub fn fibonacci(c: &mut Criterion) {
                         (0..size).map(|i| fib(i, i)).try_join().await?;
                         Ok::<Vc<()>, _>(Default::default())
                     });
-                    tt.wait_task_completion(task, false).await.unwrap();
+                    tt.wait_task_completion(task, ReadConsistency::Weak)
+                        .await
+                        .unwrap();
                     tt
                 }
             })

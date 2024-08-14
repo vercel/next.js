@@ -118,7 +118,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn try_read_task_output(
         &self,
         task: TaskId,
-        strongly_consistent: bool,
+        consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>>;
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
@@ -126,7 +126,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn try_read_task_output_untracked(
         &self,
         task: TaskId,
-        strongly_consistent: bool,
+        consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>>;
 
     fn try_read_task_cell(
@@ -275,6 +275,18 @@ pub enum TaskPersistence {
     /// converted to non-task functions, but that would break their function signature. This
     /// provides a mechanism for skipping caching without changing the function signature.
     LocalCells,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub enum ReadConsistency {
+    /// The default behavior for most APIs. Reads are faster, but may return stale values, which
+    /// may later trigger re-computation.
+    Weak,
+    /// Ensures all dependencies are fully resolved before returning the cell or output data, at
+    /// the cost of slower reads.
+    ///
+    /// Top-level code that returns data to the user should use strongly consistent reads.
+    Strong,
 }
 
 pub struct TurboTasks<B: Backend + 'static> {
@@ -443,7 +455,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         });
         // INVALIDATION: A Once task will never invalidate, therefore we don't need to
         // track a dependency
-        let raw_result = read_task_output_untracked(self, task_id, false).await?;
+        let raw_result = read_task_output_untracked(self, task_id, ReadConsistency::Weak).await?;
         ReadVcFuture::<Completion>::from(raw_result.into_read_untracked_with_turbo_tasks(self))
             .await?;
 
@@ -797,10 +809,25 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.currently_scheduled_tasks.load(Ordering::Acquire)
     }
 
-    pub async fn wait_task_completion(&self, id: TaskId, fully_settled: bool) -> Result<()> {
+    /// Waits for the given task to finish executing. This works by performing an untracked read,
+    /// and discarding the value of the task output.
+    ///
+    /// [`ReadConsistency::Weak`] means that this will return after the task executes, but before
+    /// all dependencies have completely settled.
+    ///
+    /// [`ReadConsistency::Strong`] means that this will also wait for the task and all dependencies
+    /// to fully settle before returning.
+    ///
+    /// As this function is typically called in top-level code that waits for results to be ready
+    /// for the user to access, most callers should use [`ReadConsistency::Strong`].
+    pub async fn wait_task_completion(
+        &self,
+        id: TaskId,
+        consistency: ReadConsistency,
+    ) -> Result<()> {
         // INVALIDATION: This doesn't return a value, only waits for it to be ready.
-        let result = read_task_output_untracked(self, id, fully_settled).await;
-        result.map(|_| ())
+        read_task_output_untracked(self, id, consistency).await?;
+        Ok(())
     }
 
     #[deprecated(note = "Use get_or_wait_aggregated_update_info instead")]
@@ -1143,23 +1170,19 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
     fn try_read_task_output(
         &self,
         task: TaskId,
-        strongly_consistent: bool,
+        consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>> {
-        self.backend.try_read_task_output(
-            task,
-            current_task("reading Vcs"),
-            strongly_consistent,
-            self,
-        )
+        self.backend
+            .try_read_task_output(task, current_task("reading Vcs"), consistency, self)
     }
 
     fn try_read_task_output_untracked(
         &self,
         task: TaskId,
-        strongly_consistent: bool,
+        consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>> {
         self.backend
-            .try_read_task_output_untracked(task, strongly_consistent, self)
+            .try_read_task_output_untracked(task, consistency, self)
     }
 
     fn try_read_task_cell(
@@ -1521,7 +1544,7 @@ pub async fn run_once<T: Send + 'static>(
 
     // INVALIDATION: A Once task will never invalidate, therefore we don't need to
     // track a dependency
-    let raw_result = read_task_output_untracked(&*tt, task_id, false).await?;
+    let raw_result = read_task_output_untracked(&*tt, task_id, ReadConsistency::Weak).await?;
     ReadVcFuture::<Completion>::from(raw_result.into_read_untracked_with_turbo_tasks(&*tt)).await?;
 
     Ok(rx.await?)
@@ -1546,7 +1569,7 @@ pub async fn run_once_with_reason<T: Send + 'static>(
 
     // INVALIDATION: A Once task will never invalidate, therefore we don't need to
     // track a dependency
-    let raw_result = read_task_output_untracked(&*tt, task_id, false).await?;
+    let raw_result = read_task_output_untracked(&*tt, task_id, ReadConsistency::Weak).await?;
     ReadVcFuture::<Completion>::from(raw_result.into_read_untracked_with_turbo_tasks(&*tt)).await?;
 
     Ok(rx.await?)
@@ -1694,10 +1717,10 @@ pub fn spawn_thread(func: impl FnOnce() + Send + 'static) {
 pub(crate) async fn read_task_output(
     this: &dyn TurboTasksApi,
     id: TaskId,
-    strongly_consistent: bool,
+    consistency: ReadConsistency,
 ) -> Result<RawVc> {
     loop {
-        match this.try_read_task_output(id, strongly_consistent)? {
+        match this.try_read_task_output(id, consistency)? {
             Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }
@@ -1709,10 +1732,10 @@ pub(crate) async fn read_task_output(
 pub(crate) async fn read_task_output_untracked(
     this: &dyn TurboTasksApi,
     id: TaskId,
-    strongly_consistent: bool,
+    consistency: ReadConsistency,
 ) -> Result<RawVc> {
     loop {
-        match this.try_read_task_output_untracked(id, strongly_consistent)? {
+        match this.try_read_task_output_untracked(id, consistency)? {
             Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }

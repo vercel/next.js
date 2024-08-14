@@ -23,8 +23,8 @@ use turbo_prehash::PreHashed;
 use turbo_tasks::{
     backend::{CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec},
     event::{Event, EventListener},
-    get_invalidator, registry, CellId, Invalidator, RawVc, TaskId, TaskIdSet, TraitTypeId,
-    TurboTasksBackendApi, ValueTypeId,
+    get_invalidator, registry, CellId, Invalidator, RawVc, ReadConsistency, TaskId, TaskIdSet,
+    TraitTypeId, TurboTasksBackendApi, ValueTypeId,
 };
 
 use crate::{
@@ -1621,17 +1621,15 @@ impl Task {
 
     pub(crate) fn get_or_wait_output<T, F: FnOnce(&mut Output) -> Result<T>>(
         &self,
-        strongly_consistent: bool,
+        consistency: ReadConsistency,
         func: F,
         note: impl Fn() -> String + Sync + Send + 'static,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<T, EventListener>> {
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
-        if strongly_consistent {
+        let mut state = if consistency == ReadConsistency::Strong {
             prepare_aggregation_data(&aggregation_context, &self.id);
-        }
-        let mut state = if strongly_consistent {
             let mut aggregation = aggregation_data(&aggregation_context, &self.id);
             if aggregation.unfinished > 0 {
                 if aggregation.root_type.is_none() {
