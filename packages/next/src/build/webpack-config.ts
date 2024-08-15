@@ -1196,15 +1196,12 @@ export default async function getBaseWebpackConfig(
         'next-metadata-route-loader',
         'modularize-import-loader',
         'next-barrel-loader',
-      ].reduce(
-        (alias, loader) => {
-          // using multiple aliases to replace `resolveLoader.modules`
-          alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
+      ].reduce((alias, loader) => {
+        // using multiple aliases to replace `resolveLoader.modules`
+        alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
 
-          return alias
-        },
-        {} as Record<string, string>
-      ),
+        return alias
+      }, {} as Record<string, string>),
       modules: [
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
@@ -1570,104 +1567,98 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : isClient
-            ? [
-                {
-                  resolve: {
-                    fallback:
-                      config.experimental.fallbackNodePolyfills === false
-                        ? {
-                            assert: false,
-                            buffer: false,
-                            constants: false,
-                            crypto: false,
-                            domain: false,
-                            http: false,
-                            https: false,
-                            os: false,
-                            path: false,
-                            punycode: false,
-                            process: false,
-                            querystring: false,
-                            stream: false,
-                            string_decoder: false,
-                            sys: false,
-                            timers: false,
-                            tty: false,
-                            util: false,
-                            vm: false,
-                            zlib: false,
-                            events: false,
-                            setImmediate: false,
-                          }
-                        : {
-                            assert: require.resolve(
-                              'next/dist/compiled/assert'
-                            ),
-                            buffer: require.resolve(
-                              'next/dist/compiled/buffer/'
-                            ),
-                            constants: require.resolve(
-                              'next/dist/compiled/constants-browserify'
-                            ),
-                            crypto: require.resolve(
-                              'next/dist/compiled/crypto-browserify'
-                            ),
-                            domain: require.resolve(
-                              'next/dist/compiled/domain-browser'
-                            ),
-                            http: require.resolve(
-                              'next/dist/compiled/stream-http'
-                            ),
-                            https: require.resolve(
-                              'next/dist/compiled/https-browserify'
-                            ),
-                            os: require.resolve(
-                              'next/dist/compiled/os-browserify'
-                            ),
-                            path: require.resolve(
-                              'next/dist/compiled/path-browserify'
-                            ),
-                            punycode: require.resolve(
-                              'next/dist/compiled/punycode'
-                            ),
-                            process: require.resolve('./polyfills/process'),
-                            // Handled in separate alias
-                            querystring: require.resolve(
-                              'next/dist/compiled/querystring-es3'
-                            ),
-                            stream: require.resolve(
-                              'next/dist/compiled/stream-browserify'
-                            ),
-                            string_decoder: require.resolve(
-                              'next/dist/compiled/string_decoder'
-                            ),
-                            sys: require.resolve('next/dist/compiled/util/'),
-                            timers: require.resolve(
-                              'next/dist/compiled/timers-browserify'
-                            ),
-                            tty: require.resolve(
-                              'next/dist/compiled/tty-browserify'
-                            ),
-                            // Handled in separate alias
-                            // url: require.resolve('url/'),
-                            util: require.resolve('next/dist/compiled/util/'),
-                            vm: require.resolve(
-                              'next/dist/compiled/vm-browserify'
-                            ),
-                            zlib: require.resolve(
-                              'next/dist/compiled/browserify-zlib'
-                            ),
-                            events: require.resolve(
-                              'next/dist/compiled/events/'
-                            ),
-                            setImmediate: require.resolve(
-                              'next/dist/compiled/setimmediate'
-                            ),
-                          },
-                  },
+          ? [
+              {
+                resolve: {
+                  fallback:
+                    config.experimental.fallbackNodePolyfills === false
+                      ? {
+                          assert: false,
+                          buffer: false,
+                          constants: false,
+                          crypto: false,
+                          domain: false,
+                          http: false,
+                          https: false,
+                          os: false,
+                          path: false,
+                          punycode: false,
+                          process: false,
+                          querystring: false,
+                          stream: false,
+                          string_decoder: false,
+                          sys: false,
+                          timers: false,
+                          tty: false,
+                          util: false,
+                          vm: false,
+                          zlib: false,
+                          events: false,
+                          setImmediate: false,
+                        }
+                      : {
+                          assert: require.resolve('next/dist/compiled/assert'),
+                          buffer: require.resolve('next/dist/compiled/buffer/'),
+                          constants: require.resolve(
+                            'next/dist/compiled/constants-browserify'
+                          ),
+                          crypto: require.resolve(
+                            'next/dist/compiled/crypto-browserify'
+                          ),
+                          domain: require.resolve(
+                            'next/dist/compiled/domain-browser'
+                          ),
+                          http: require.resolve(
+                            'next/dist/compiled/stream-http'
+                          ),
+                          https: require.resolve(
+                            'next/dist/compiled/https-browserify'
+                          ),
+                          os: require.resolve(
+                            'next/dist/compiled/os-browserify'
+                          ),
+                          path: require.resolve(
+                            'next/dist/compiled/path-browserify'
+                          ),
+                          punycode: require.resolve(
+                            'next/dist/compiled/punycode'
+                          ),
+                          process: require.resolve('./polyfills/process'),
+                          // Handled in separate alias
+                          querystring: require.resolve(
+                            'next/dist/compiled/querystring-es3'
+                          ),
+                          stream: require.resolve(
+                            'next/dist/compiled/stream-browserify'
+                          ),
+                          string_decoder: require.resolve(
+                            'next/dist/compiled/string_decoder'
+                          ),
+                          sys: require.resolve('next/dist/compiled/util/'),
+                          timers: require.resolve(
+                            'next/dist/compiled/timers-browserify'
+                          ),
+                          tty: require.resolve(
+                            'next/dist/compiled/tty-browserify'
+                          ),
+                          // Handled in separate alias
+                          // url: require.resolve('url/'),
+                          util: require.resolve('next/dist/compiled/util/'),
+                          vm: require.resolve(
+                            'next/dist/compiled/vm-browserify'
+                          ),
+                          zlib: require.resolve(
+                            'next/dist/compiled/browserify-zlib'
+                          ),
+                          events: require.resolve('next/dist/compiled/events/'),
+                          setImmediate: require.resolve(
+                            'next/dist/compiled/setimmediate'
+                          ),
+                        },
                 },
-              ]
-            : []),
+              },
+            ]
+          : []),
         {
           // Mark `image-response.js` as side-effects free to make sure we can
           // tree-shake it if not used.
@@ -1744,13 +1735,11 @@ export default async function getBaseWebpackConfig(
         ),
       dev && new MemoryWithGcCachePlugin({ maxGenerations: 5 }),
       dev && isClient && new ReactRefreshWebpackPlugin(webpack),
-      // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
+      // Makes sure `Buffer` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
         new webpack.ProvidePlugin({
           // Buffer is used by getInlineScriptSource
           Buffer: [require.resolve('buffer'), 'Buffer'],
-          // Avoid process being overridden when in web run time
-          ...(isClient && { process: [require.resolve('process')] }),
         }),
       getDefineEnvPlugin({
         isTurbopack: false,
@@ -2001,12 +1990,12 @@ export default async function getBaseWebpackConfig(
           lockfileLocation: path.join(dir, 'next.lock/lock.json'),
         }
       : config.experimental.urlImports
-        ? {
-            cacheLocation: path.join(dir, 'next.lock/data'),
-            lockfileLocation: path.join(dir, 'next.lock/lock.json'),
-            ...config.experimental.urlImports,
-          }
-        : undefined,
+      ? {
+          cacheLocation: path.join(dir, 'next.lock/data'),
+          lockfileLocation: path.join(dir, 'next.lock/lock.json'),
+          ...config.experimental.urlImports,
+        }
+      : undefined,
   }
 
   webpack5Config.module!.parser = {
