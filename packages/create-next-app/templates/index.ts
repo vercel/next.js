@@ -47,6 +47,7 @@ export const installTemplate = async ({
    * Copy the template files to the target directory.
    */
   console.log("\nInitializing project with template:", template, "\n");
+  const isApi = template === "app-api";
   const templatePath = path.join(__dirname, template, mode);
   const copySource = ["**"];
   if (!eslint) copySource.push("!eslintrc.json");
@@ -134,35 +135,37 @@ export const installTemplate = async ({
       }),
     );
 
-    const isAppTemplate = template.startsWith("app");
+    if (!isApi) {
+      const isAppTemplate = template.startsWith("app");
 
-    // Change the `Get started by editing pages/index` / `app/page` to include `src`
-    const indexPageFile = path.join(
-      "src",
-      isAppTemplate ? "app" : "pages",
-      `${isAppTemplate ? "page" : "index"}.${mode === "ts" ? "tsx" : "js"}`,
-    );
-
-    await fs.writeFile(
-      indexPageFile,
-      (await fs.readFile(indexPageFile, "utf8")).replace(
-        isAppTemplate ? "app/page" : "pages/index",
-        isAppTemplate ? "src/app/page" : "src/pages/index",
-      ),
-    );
-
-    if (tailwind) {
-      const tailwindConfigFile = path.join(
-        root,
-        mode === "ts" ? "tailwind.config.ts" : "tailwind.config.js",
+      // Change the `Get started by editing pages/index` / `app/page` to include `src`
+      const indexPageFile = path.join(
+        "src",
+        isAppTemplate ? "app" : "pages",
+        `${isAppTemplate ? "page" : "index"}.${mode === "ts" ? "tsx" : "js"}`,
       );
+
       await fs.writeFile(
-        tailwindConfigFile,
-        (await fs.readFile(tailwindConfigFile, "utf8")).replace(
-          /\.\/(\w+)\/\*\*\/\*\.\{js,ts,jsx,tsx,mdx\}/g,
-          "./src/$1/**/*.{js,ts,jsx,tsx,mdx}",
+        indexPageFile,
+        (await fs.readFile(indexPageFile, "utf8")).replace(
+          isAppTemplate ? "app/page" : "pages/index",
+          isAppTemplate ? "src/app/page" : "src/pages/index",
         ),
       );
+
+      if (tailwind) {
+        const tailwindConfigFile = path.join(
+          root,
+          mode === "ts" ? "tailwind.config.ts" : "tailwind.config.js",
+        );
+        await fs.writeFile(
+          tailwindConfigFile,
+          (await fs.readFile(tailwindConfigFile, "utf8")).replace(
+            /\.\/(\w+)\/\*\*\/\*\.\{js,ts,jsx,tsx,mdx\}/g,
+            "./src/$1/**/*.{js,ts,jsx,tsx,mdx}",
+          ),
+        );
+      }
     }
   }
 
@@ -220,6 +223,15 @@ export const installTemplate = async ({
       eslint: "^8",
       "eslint-config-next": version,
     };
+  }
+
+  if (isApi) {
+    delete packageJson.dependencies.react;
+    delete packageJson.dependencies["react-dom"];
+    delete packageJson.devDependencies["@types/react"];
+    delete packageJson.devDependencies["@types/react-dom"];
+
+    delete packageJson.scripts.lint;
   }
 
   const devDeps = Object.keys(packageJson.devDependencies).length;

@@ -56,15 +56,7 @@ export async function createApp({
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = api
-    ? 'app-api'
-    : `${app ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`
-
-  // Disable tailwind and eslint for API template
-  if (api) {
-    tailwind = false
-    eslint = false
-  }
+  const template: TemplateType = `${app ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`
 
   if (example) {
     let repoUrl: URL | undefined
@@ -232,7 +224,7 @@ export async function createApp({
     await installTemplate({
       appName,
       root,
-      template,
+      template: api ? 'app-api' : template,
       mode,
       packageManager,
       isOnline,
