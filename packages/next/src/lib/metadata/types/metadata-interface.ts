@@ -6,10 +6,12 @@ import type {
 import type {
   AppleWebApp,
   AppLinks,
+  Facebook,
   FormatDetection,
   ItunesApp,
   ResolvedAppleWebApp,
   ResolvedAppLinks,
+  ResolvedFacebook,
   ViewportLayout,
 } from './extra-types'
 import type {
@@ -307,7 +309,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * The Twitter metadata for the document.
    * @example
    * ```tsx
-   * { card: "summary_large_image", site: "@site", creator: "@creator", "images": "https://example.com/og.png" }
+   * { card: "summary_large_image", site: "@site", creator: "@creator", images: "https://example.com/og.png" }
    *
    * <meta name="twitter:card" content="summary_large_image" />
    * <meta name="twitter:site" content="@site" />
@@ -319,6 +321,25 @@ interface Metadata extends DeprecatedMetadataFields {
    *
    */
   twitter?: null | Twitter
+
+  /**
+   * The Facebook metadata for the document.
+   * You can specify either appId or admins, but not both.
+   * @example
+   * ```tsx
+   * { appId: "12345678" }
+   *
+   * <meta property="fb:app_id" content="12345678" />
+   * ```
+   *
+   * @example
+   * ```tsx
+   * { admins: ["12345678"] }
+   *
+   * <meta property="fb:admins" content="12345678" />
+   * ```
+   */
+  facebook?: null | Facebook
 
   /**
    * The common verification tokens for the document.
@@ -508,6 +529,8 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
 
   twitter: null | ResolvedTwitterMetadata
 
+  facebook: null | ResolvedFacebook
+
   // common verification tokens
   verification: null | ResolvedVerification
 
@@ -584,6 +607,7 @@ type SitemapFile = Array<{
   alternates?: {
     languages?: Languages<string>
   }
+  images?: string[]
 }>
 
 type ResolvingMetadata = Promise<ResolvedMetadata>

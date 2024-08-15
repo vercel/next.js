@@ -30,6 +30,13 @@ Turbopack currently only supports `next dev` and does not support `next build`. 
 
 These features are currently not supported:
 
+- Turbopack leverages [Lightning CSS](https://lightningcss.dev/) which doesn't support some low usage CSS Modules features
+  - `:local` and `:global` as standalone pseudo classes. Only the function variant is supported, for example: `:global(a)`.
+  - The @value rule which has been superseded by CSS variables.
+  - `:import` and `:export` ICSS rules.
+- [Invalid CSS comment syntax](https://stackoverflow.com/questions/51843506/are-double-slash-comments-valid-in-css) such as `//`
+  - CSS comments should be written as `/* comment */` per the specification.
+  - Preprocessors such as Sass do support this alternative syntax for comments.
 - [`webpack()`](/docs/app/api-reference/next-config-js/webpack) configuration in `next.config.js`
   - Turbopack replaces Webpack, this means that webpack configuration is not supported.
   - To configure Turbopack, [see the documentation](/docs/app/api-reference/next-config-js/turbo).
@@ -46,14 +53,27 @@ These features are currently not supported:
   - We are planning to implement this in the future.
 - [Relay transforms](/docs/architecture/nextjs-compiler#relay)
   - We are planning to implement this in the future.
+- Blocking `.css` imports in `pages/_document.tsx`
+  - Currently with webpack Next.js blocks importing `.css` files in `pages/_document.tsx`
+  - We are planning to implement this warning in the future.
+- [`experimental.typedRoutes](https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes)
+  - We are planning to implement this in the future.
 - `experimental.nextScriptWorkers`
   - We are planning to implement this in the future.
+- `experimental.sri.algorithm`
+  - We are planning to implement this in the future.
+- `experimental.fallbackNodePolyfills`
+  - We are planning to implement this in the future.
+- `experimental.esmExternals`
+  - We are currently not planning to support the legacy esmExternals configuration in Next.js with Turbopack.
 - [AMP](/docs/pages/building-your-application/configuring/amp).
   - We are currently not planning to support AMP in Next.js with Turbopack.
 - Yarn PnP
   - We are currently not planning to support Yarn PnP in Next.js with Turbopack.
 - [`experimental.urlImports`](/docs/app/api-reference/next-config-js/urlImports)
   - We are currently not planning to support `experimental.urlImports` in Next.js with Turbopack.
+- [`:import` and `:export` ICSS rules](https://github.com/css-modules/icss)
+  - We are currently not planning to support `:import` and `:export` ICSS rules in Next.js with Turbopack as [Lightning CSS](https://lightningcss.dev/css-modules.html) the CSS parser Turbopack uses does not support these rules.
 
 ## Generating Trace Files
 

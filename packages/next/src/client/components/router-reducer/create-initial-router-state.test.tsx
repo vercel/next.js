@@ -35,25 +35,26 @@ describe('createInitialRouterState', () => {
 
     const state = createInitialRouterState({
       buildId,
-      initialTree,
+      initialFlightData: [
+        [initialTree, ['', children, {}, null], <title>Test</title>],
+      ],
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children, null],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
-      initialHead: <title>Test</title>,
-      initialLayerAssets: null,
       couldBeIntercepted: false,
+      postponed: false,
     })
 
     const state2 = createInitialRouterState({
       buildId,
-      initialTree,
+      initialFlightData: [
+        [initialTree, ['', children, {}, null], <title>Test</title>],
+      ],
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children, null],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
-      initialHead: <title>Test</title>,
-      initialLayerAssets: null,
+      couldBeIntercepted: false,
+      postponed: false,
     })
 
     const expectedCache: CacheNode = {
@@ -61,8 +62,6 @@ describe('createInitialRouterState', () => {
       rsc: children,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -85,8 +84,6 @@ describe('createInitialRouterState', () => {
                           parallelRoutes: new Map(),
                           loading: null,
                           head: <title>Test</title>,
-                          layerAssets: null,
-                          prefetchLayerAssets: null,
                           prefetchHead: null,
                         },
                       ],
@@ -97,8 +94,6 @@ describe('createInitialRouterState', () => {
                 rsc: null,
                 prefetchRsc: null,
                 head: null,
-                layerAssets: null,
-                prefetchLayerAssets: null,
                 prefetchHead: null,
                 loading: null,
               },
@@ -123,6 +118,7 @@ describe('createInitialRouterState', () => {
             lastUsedTime: expect.any(Number),
             treeAtTimeOfPrefetch: initialTree,
             status: PrefetchCacheEntryStatus.fresh,
+            pathname: '/linking',
           },
         ],
       ]),

@@ -1,5 +1,9 @@
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
-import type { IncrementalCacheValue } from '../../response-cache'
+import {
+  CachedRouteKind,
+  IncrementalCacheKind,
+  type IncrementalCacheValue,
+} from '../../response-cache'
 
 import LRUCache from 'next/dist/compiled/lru-cache'
 import {
@@ -128,20 +132,22 @@ export default class FetchCache implements CacheHandler {
           length({ value }) {
             if (!value) {
               return 25
-            } else if (value.kind === 'REDIRECT') {
+            } else if (value.kind === CachedRouteKind.REDIRECT) {
               return JSON.stringify(value.props).length
-            } else if (value.kind === 'IMAGE') {
+            } else if (value.kind === CachedRouteKind.IMAGE) {
               throw new Error('invariant image should not be incremental-cache')
-            } else if (value.kind === 'FETCH') {
+            } else if (value.kind === CachedRouteKind.FETCH) {
               return JSON.stringify(value.data || '').length
-            } else if (value.kind === 'ROUTE') {
+            } else if (value.kind === CachedRouteKind.APP_ROUTE) {
               return value.body.length
             }
             // rough estimate of size of cache value
             return (
               value.html.length +
               (JSON.stringify(
-                value.kind === 'APP_PAGE' ? value.rscData : value.pageData
+                value.kind === CachedRouteKind.APP_PAGE
+                  ? value.rscData
+                  : value.pageData
               )?.length || 0)
             )
           },
@@ -203,10 +209,10 @@ export default class FetchCache implements CacheHandler {
   }
 
   public async get(...args: Parameters<CacheHandler['get']>) {
-    const [key, ctx = {}] = args
-    const { tags, softTags, kindHint, fetchIdx, fetchUrl } = ctx
+    const [key, ctx] = args
+    const { tags, softTags, kind: kindHint, fetchIdx, fetchUrl } = ctx
 
-    if (kindHint !== 'fetch') {
+    if (kindHint !== IncrementalCacheKind.FETCH) {
       return null
     }
 
@@ -223,7 +229,7 @@ export default class FetchCache implements CacheHandler {
     let data = memoryCache?.get(key)
 
     const hasFetchKindAndMatchingTags =
-      data?.value?.kind === 'FETCH' &&
+      data?.value?.kind === CachedRouteKind.FETCH &&
       this.hasMatchingTags(tags ?? [], data.value.tags ?? [])
 
     // Get data from fetch cache. Also check if new tags have been
@@ -274,13 +280,13 @@ export default class FetchCache implements CacheHandler {
 
         const cached: IncrementalCacheValue = await res.json()
 
-        if (!cached || cached.kind !== 'FETCH') {
+        if (!cached || cached.kind !== CachedRouteKind.FETCH) {
           DEBUG && console.log({ cached })
           throw new Error('invalid cache value')
         }
 
         // if new tags were specified, merge those tags to the existing tags
-        if (cached.kind === 'FETCH') {
+        if (cached.kind === CachedRouteKind.FETCH) {
           cached.tags ??= []
           for (const tag of tags ?? []) {
             if (!cached.tags.includes(tag)) {
@@ -331,11 +337,12 @@ export default class FetchCache implements CacheHandler {
   public async set(...args: Parameters<CacheHandler['set']>) {
     const [key, data, ctx] = args
 
-    const newValue = data?.kind === 'FETCH' ? data.data : undefined
+    const newValue =
+      data?.kind === CachedRouteKind.FETCH ? data.data : undefined
     const existingCache = memoryCache?.get(key)
     const existingValue = existingCache?.value
     if (
-      existingValue?.kind === 'FETCH' &&
+      existingValue?.kind === CachedRouteKind.FETCH &&
       Object.keys(existingValue.data).every(
         (field) =>
           JSON.stringify(

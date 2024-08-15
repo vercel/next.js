@@ -1,5 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, hasRedbox, retry, shouldRunTurboDevTest } from 'next-test-utils'
+import {
+  assertNoRedbox,
+  check,
+  retry,
+  shouldRunTurboDevTest,
+} from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -224,6 +229,11 @@ describe('app dir - external dependency', () => {
       const $ = await next.render$('/esm/react-namespace-import')
       expect($('#namespace-import-esm').text()).toBe('namespace-import:esm')
     })
+
+    it('should apply serverExternalPackages inside of node_modules', async () => {
+      const html = await next.render('/transitive-external')
+      expect(html).toContain('transitive loaded a')
+    })
   })
 
   describe('mixed syntax external modules', () => {
@@ -250,7 +260,7 @@ describe('app dir - external dependency', () => {
     expect($('#transpile-cjs-lib').text()).toBe('transpile-cjs-lib')
 
     const browser = await next.browser('/cjs/client')
-    expect(await hasRedbox(browser)).toBe(false)
+    await assertNoRedbox(browser)
   })
 
   it('should export client module references in esm', async () => {

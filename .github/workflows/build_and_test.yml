@@ -8,7 +8,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 2.0.3
+  TURBO_VERSION: 2.0.9
   NODE_MAINTENANCE_VERSION: 18
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 8
@@ -101,7 +101,6 @@ jobs:
   check-types-precompiled:
     name: types and precompiled
     needs: ['changes', 'build-native', 'build-next']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -117,11 +116,19 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'
-      skipInstallBuild: 'yes'
+      needsNextest: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: turbo run test-cargo-unit
       mold: 'yes'
       stepName: 'test-cargo-unit'
+    secrets: inherit
+
+  test-bench:
+    name: test cargo benches
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/test-turbopack-rust-bench-test.yml
     secrets: inherit
 
   rust-check:
@@ -151,6 +158,17 @@ jobs:
       afterBuild: ./scripts/deploy-turbopack-docs.sh
       stepName: 'rust-doc-check'
     secrets: inherit
+
+  ast-grep:
+    needs: ['changes', 'build-next']
+    runs-on: ubuntu-latest
+    name: ast-grep lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: ast-grep lint step
+        uses: ast-grep/action@v1.5.0
+        with:
+          version: 0.25.6
 
   devlow-bench:
     name: Run devlow benchmarks
@@ -197,7 +215,7 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-turbopack-integration-${{ matrix.group }}'
     secrets: inherit
@@ -213,7 +231,7 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
       stepName: 'test-turbopack-production-${{ matrix.group }}'
     secrets: inherit
@@ -229,7 +247,7 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
     secrets: inherit
@@ -241,7 +259,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs && git checkout . && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/production/pages-dir/production/test/index.test.ts test/e2e/streaming-ssr/index.test.ts
+      afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs && git checkout . && mv crates/wasm/pkg crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/production/pages-dir/production/test/index.test.ts test/e2e/streaming-ssr/index.test.ts
       stepName: 'test-next-swc-wasm'
     secrets: inherit
 
@@ -291,7 +309,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --dev-mode --group ${{ matrix.group }}
+      afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode dev --group ${{ matrix.group }}
       stepName: 'test-new-tests-dev-${{matrix.group}}'
 
     secrets: inherit
@@ -308,8 +326,25 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --prod-mode --group ${{ matrix.group }}
+      afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode start --group ${{ matrix.group }}
       stepName: 'test-new-tests-start-${{matrix.group}}'
+
+    secrets: inherit
+
+  test-new-tests-deploy:
+    name: Test new tests when deployed
+    needs: ['test-prod', 'test-new-tests-dev', 'test-new-tests-start']
+    if: ${{ needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/4, 2/4, 3/4, 4/4]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: node scripts/test-new-tests.mjs --mode deploy --group ${{ matrix.group }}
+      stepName: 'test-new-tests-deploy-${{matrix.group}}'
 
     secrets: inherit
 
@@ -366,7 +401,7 @@ jobs:
           - 12/12
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-integration-${{ matrix.group }}'
     secrets: inherit
@@ -391,7 +426,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-ppr-integration'
     secrets: inherit
@@ -490,6 +525,7 @@ jobs:
         'test-turbopack-integration',
         'test-new-tests-dev',
         'test-new-tests-start',
+        'test-new-tests-deploy',
         'test-turbopack-production',
         'test-turbopack-production-integration',
       ]

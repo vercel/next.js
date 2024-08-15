@@ -135,11 +135,13 @@ export function makeExternalHandler({
   config,
   optOutBundlingPackages,
   optOutBundlingPackageRegex,
+  transpiledPackages,
   dir,
 }: {
   config: NextConfigComplete
   optOutBundlingPackages: string[]
   optOutBundlingPackageRegex: RegExp
+  transpiledPackages: string[]
   dir: string
 }) {
   let resolvedExternalPackageDirs: Map<string, string>
@@ -190,7 +192,7 @@ export function makeExternalHandler({
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|form|image|legacy\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -322,10 +324,10 @@ export function makeExternalHandler({
 
     // If a package should be transpiled by Next.js, we skip making it external.
     // It doesn't matter what the extension is, as we'll transpile it anyway.
-    if (config.transpilePackages && !resolvedExternalPackageDirs) {
+    if (transpiledPackages && !resolvedExternalPackageDirs) {
       resolvedExternalPackageDirs = new Map()
       // We need to resolve all the external package dirs initially.
-      for (const pkg of config.transpilePackages) {
+      for (const pkg of transpiledPackages) {
         const pkgRes = await resolveExternal(
           dir,
           config.experimental.esmExternals,
@@ -350,6 +352,7 @@ export function makeExternalHandler({
       externalType,
       isOptOutBundling,
       request,
+      transpiledPackages,
     })
     if (resolvedBundlingOptOutRes) {
       return resolvedBundlingOptOutRes
@@ -368,6 +371,7 @@ function resolveBundlingOptOutPackages({
   externalType,
   isOptOutBundling,
   request,
+  transpiledPackages,
 }: {
   resolvedRes: string
   config: NextConfigComplete
@@ -376,6 +380,7 @@ function resolveBundlingOptOutPackages({
   externalType: string
   isOptOutBundling: boolean
   request: string
+  transpiledPackages: string[]
 }) {
   if (nodeModulesRegex.test(resolvedRes)) {
     const shouldBundlePages =
@@ -385,7 +390,7 @@ function resolveBundlingOptOutPackages({
       shouldBundlePages ||
       isResourceInPackages(
         resolvedRes,
-        config.transpilePackages,
+        transpiledPackages,
         resolvedExternalPackageDirs
       )
 

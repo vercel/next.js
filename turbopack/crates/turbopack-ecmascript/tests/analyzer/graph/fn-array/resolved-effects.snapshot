@@ -1,0 +1,5 @@
+0 -> 1 call = (...) => [`${a}${b}`, a]("1", "2")
+
+0 -> 2 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
