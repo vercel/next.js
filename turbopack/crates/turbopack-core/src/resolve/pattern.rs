@@ -515,9 +515,22 @@ impl Pattern {
                     alt.normalize();
                 }
                 let mut new_alternatives = Vec::new();
+                let mut has_dynamic = false;
                 for alt in list.drain(..) {
                     if let Pattern::Alternatives(inner) = alt {
                         for alt in inner {
+                            if alt == Pattern::Dynamic {
+                                if !has_dynamic {
+                                    has_dynamic = true;
+                                    new_alternatives.push(alt);
+                                }
+                            } else {
+                                new_alternatives.push(alt);
+                            }
+                        }
+                    } else if alt == Pattern::Dynamic {
+                        if !has_dynamic {
+                            has_dynamic = true;
                             new_alternatives.push(alt);
                         }
                     } else {
@@ -1701,6 +1714,14 @@ mod tests {
             p.normalize();
 
             assert_eq!(p, a);
+        }
+
+        #[allow(clippy::redundant_clone)] // alignment
+        {
+            let mut p = Pattern::Alternatives(vec![Pattern::Dynamic, Pattern::Dynamic]);
+            p.normalize();
+
+            assert_eq!(p, Pattern::Dynamic);
         }
     }
 
