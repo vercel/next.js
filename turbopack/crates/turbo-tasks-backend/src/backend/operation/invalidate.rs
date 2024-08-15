@@ -66,31 +66,10 @@ pub fn make_task_dirty(task_id: TaskId, queue: &mut AggregationUpdateQueue, ctx:
 
     if task.add(CachedDataItem::Dirty { value: () }) {
         let in_progress = match get!(task, InProgress) {
-            Some(InProgressState::Scheduled { clean, .. }) => {
-                if *clean {
-                    update!(task, InProgress, |in_progress| {
-                        let Some(InProgressState::Scheduled {
-                            clean: _,
-                            done_event,
-                            start_event,
-                        }) = in_progress
-                        else {
-                            unreachable!();
-                        };
-                        Some(InProgressState::Scheduled {
-                            clean: false,
-                            done_event,
-                            start_event,
-                        })
-                    });
-                }
-                true
-            }
-            Some(InProgressState::InProgress { clean, stale, .. }) => {
-                if *clean || !*stale {
+            Some(InProgressState::InProgress { stale, .. }) => {
+                if !*stale {
                     update!(task, InProgress, |in_progress| {
                         let Some(InProgressState::InProgress {
-                            clean: _,
                             stale: _,
                             done_event,
                         }) = in_progress
@@ -98,7 +77,6 @@ pub fn make_task_dirty(task_id: TaskId, queue: &mut AggregationUpdateQueue, ctx:
                             unreachable!();
                         };
                         Some(InProgressState::InProgress {
-                            clean: false,
                             stale: true,
                             done_event,
                         })
@@ -106,6 +84,7 @@ pub fn make_task_dirty(task_id: TaskId, queue: &mut AggregationUpdateQueue, ctx:
                 }
                 true
             }
+            Some(_) => true,
             None => false,
         };
         if !in_progress && task.add(CachedDataItem::new_scheduled(task_id)) {
