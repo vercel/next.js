@@ -17,8 +17,17 @@ export function normalizeLocalePath(
   locales?: string[]
 ): PathLocale {
   let detectedLocale: string | undefined
-  // first item will be empty string from splitting at first char
-  const pathnameParts = pathname.split('/')
+  const isDataRoute = pathname.startsWith('/_next/data')
+
+  // Create a pathname for locale detection, removing /_next/data/[buildId] if present
+  // This is because locale detection relies on path splitting and so the first part
+  // should be the locale.
+  const pathNameNoDataPrefix = isDataRoute
+    ? pathname.replace(/^\/_next\/data\/[^/]+/, '')
+    : pathname
+
+  // Split the path for locale detection
+  const pathnameParts = pathNameNoDataPrefix.split('/')
 
   ;(locales || []).some((locale) => {
     if (
@@ -27,11 +36,16 @@ export function normalizeLocalePath(
     ) {
       detectedLocale = locale
       pathnameParts.splice(1, 1)
-      pathname = pathnameParts.join('/') || '/'
       return true
     }
     return false
   })
+
+  // For non-data routes, we return the path with the locale stripped out.
+  // For data routes, we keep the path as is, since we only want to extract the locale.
+  if (detectedLocale && !isDataRoute) {
+    pathname = pathnameParts.join('/') || '/'
+  }
 
   return {
     pathname,
