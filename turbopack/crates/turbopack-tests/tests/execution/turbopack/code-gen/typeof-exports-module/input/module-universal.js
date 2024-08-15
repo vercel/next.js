@@ -1,19 +1,19 @@
 (function webpackUniversalModuleDefinition(root, factory) {
   if (typeof exports === "object" && typeof module === "object")
-    module.exports = factory();
+    module.exports = factory(require("./other-dep"));
   else if (typeof define === "function" && define.amd) {
-    // Should not be used
-    // define([], factory);
+    // Should not be used, unresolvable
+    define(["./something-invalid"], factory);
   } else if (typeof exports === "object") {
     // Should not be used
-    // exports["my-lib"] = factory();
+    exports["my-lib"] = factory(require("./something-invalid"));
   } else {
     // Should not be used
-    // root["my-lib"] = factory();
+    root["my-lib"] = factory(root["something-invalid"]);
   }
 })(
   this,
-  function () {
+  function (otherDep) {
     return /******/ (function (modules) {
       // webpackBootstrap
       /******/ // The module cache
@@ -159,7 +159,7 @@
           );
 
           function test() {
-            return 1234;
+            return `${otherDep} 1234`;
           }
 
           /***/
