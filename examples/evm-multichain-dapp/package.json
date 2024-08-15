@@ -14,7 +14,7 @@
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "web3": "^1.7.4"
+    "web3": "^4.0.1"
   },
   "devDependencies": {
     "@types/node": "^18.6.2",
