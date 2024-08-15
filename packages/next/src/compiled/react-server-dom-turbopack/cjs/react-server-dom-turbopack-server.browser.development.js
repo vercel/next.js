@@ -771,7 +771,11 @@
       return lazyType;
     }
     function callWithDebugContextInDEV(request, task, callback, arg) {
-      currentOwner = { env: task.environmentName, owner: task.debugOwner };
+      currentOwner = {
+        name: "",
+        env: task.environmentName,
+        owner: task.debugOwner
+      };
       try {
         return callback(arg);
       } finally {
@@ -787,7 +791,7 @@
       else {
         var componentDebugID = debugID;
         componentDebugInfo = Component.displayName || Component.name || "";
-        var componentEnv = request.environmentName();
+        var componentEnv = (0, request.environmentName)();
         request.pendingChunks++;
         componentDebugInfo = {
           name: componentDebugInfo,
@@ -1225,6 +1229,18 @@
       reader.read().then(progress).catch(error);
       return "$B" + newTask.id.toString(16);
     }
+    function isReactComponentInfo(value) {
+      return (
+        (("object" === typeof value.debugTask &&
+          null !== value.debugTask &&
+          "function" === typeof value.debugTask.run) ||
+          value.debugStack instanceof Error) &&
+        "undefined" === typeof value.stack &&
+        "string" === typeof value.name &&
+        "string" === typeof value.env &&
+        void 0 !== value.owner
+      );
+    }
     function renderModel(request, task, parent, key, value) {
       var prevKeyPath = task.keyPath,
         prevImplicitSlot = task.implicitSlot;
@@ -1467,16 +1483,7 @@
             "Only plain objects, and a few built-ins, can be passed to Client Components from Server Components. Classes or null prototypes are not supported." +
               describeObjectForErrorMessage(parent, parentPropertyName)
           );
-        if (
-          (("object" === typeof value.debugTask &&
-            null !== value.debugTask &&
-            "function" === typeof value.debugTask.run) ||
-            value.debugStack instanceof Error) &&
-          "undefined" === typeof value.stack &&
-          "string" === typeof value.name &&
-          "string" === typeof value.env &&
-          void 0 !== value.owner
-        )
+        if (isReactComponentInfo(value))
           return { name: value.name, env: value.env, owner: value.owner };
         if ("Object" !== objectName(value))
           callWithDebugContextInDEV(request, task, function () {
@@ -1617,7 +1624,7 @@
         : ((request.status = 2), (request.fatalError = error));
     }
     function emitErrorChunk(request, id, digest, error) {
-      var env = request.environmentName();
+      var env = (0, request.environmentName)();
       try {
         if (error instanceof Error) {
           var message = String(error.message);
@@ -1847,7 +1854,13 @@
                                               ? serializeBlob(request, value)
                                               : getIteratorFn(value)
                                                 ? Array.from(value)
-                                                : value;
+                                                : isReactComponentInfo(value)
+                                                  ? {
+                                                      name: value.name,
+                                                      env: value.env,
+                                                      owner: value.owner
+                                                    }
+                                                  : value;
       }
       if ("string" === typeof value)
         return "Z" === value[value.length - 1] && originalValue instanceof Date
@@ -1965,13 +1978,13 @@
               resolvedModel,
               serializeByValueID(task.id)
             );
-            var currentEnv = request.environmentName();
+            var currentEnv = (0, request.environmentName)();
             currentEnv !== task.environmentName &&
               emitDebugChunk(request, task.id, { env: currentEnv });
             emitChunk(request, task, resolvedModel);
           } else {
             var json = stringify(resolvedModel),
-              _currentEnv = request.environmentName();
+              _currentEnv = (0, request.environmentName)();
             _currentEnv !== task.environmentName &&
               emitDebugChunk(request, task.id, { env: _currentEnv });
             emitModelChunk(request, task.id, json);

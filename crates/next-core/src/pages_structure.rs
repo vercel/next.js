@@ -1,9 +1,8 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_tasks::{Completion, RcStr, ValueToString, Vc};
-use turbo_tasks_fs::FileSystemPathOption;
-use turbopack_binding::turbo::tasks_fs::{
-    DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath,
+use turbo_tasks_fs::{
+    DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
 };
 
 use crate::next_import_map::get_next_package;

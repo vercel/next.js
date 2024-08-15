@@ -1,9 +1,8 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    ecmascript_plugin::transform::relay::RelayTransformer, turbopack::module_options::ModuleRule,
-};
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript_plugins::transform::relay::RelayTransformer;
 
 use super::get_ecma_transform_rule;
 use crate::next_config::NextConfig;

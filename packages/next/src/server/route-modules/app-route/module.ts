@@ -47,6 +47,7 @@ import {
   staticGenerationAsyncStorage,
   type StaticGenerationStore,
 } from '../../../client/components/static-generation-async-storage.external'
+import { prerenderAsyncStorage } from '../../app-render/prerender-async-storage.external'
 import { actionAsyncStorage } from '../../../client/components/action-async-storage.external'
 import * as sharedModules from './shared-modules'
 import { getIsServerAction } from '../../lib/server-action-request-meta'
@@ -142,6 +143,12 @@ export class AppRouteRouteModule extends RouteModule<
    * A reference to the static generation async storage.
    */
   public readonly staticGenerationAsyncStorage = staticGenerationAsyncStorage
+
+  /**
+   * prerenderAsyncStorage is used to scope a prerender context for renders ocurring
+   * during a build or revalidate.
+   */
+  public readonly prerenderAsyncStorage = prerenderAsyncStorage
 
   /**
    * An interface to call server hooks which interact with the underlying

@@ -977,6 +977,7 @@
     }
     function callWithDebugContextInDEV(request, task, callback, arg) {
       var componentDebugInfo = {
+        name: "",
         env: task.environmentName,
         owner: task.debugOwner
       };
@@ -1009,7 +1010,7 @@
       else {
         var componentDebugID = debugID;
         componentDebugInfo = Component.displayName || Component.name || "";
-        var componentEnv = request.environmentName();
+        var componentEnv = (0, request.environmentName)();
         request.pendingChunks++;
         componentDebugInfo = {
           name: componentDebugInfo,
@@ -1025,13 +1026,8 @@
         outlineModel(request, componentDebugInfo);
         emitDebugChunk(request, componentDebugID, componentDebugInfo);
         task.environmentName = componentEnv;
-        warnForMissingKey(
-          request,
-          key,
-          validated,
-          componentDebugInfo,
-          task.debugTask
-        );
+        2 === validated &&
+          warnForMissingKey(request, key, componentDebugInfo, task.debugTask);
       }
       prepareToUseHooksForComponent(prevThenableState, componentDebugInfo);
       props = supportsComponentStorage
@@ -1136,53 +1132,50 @@
       task.implicitSlot = prevThenableState;
       return key;
     }
-    function warnForMissingKey(
-      request,
-      key,
-      validated,
-      componentDebugInfo,
-      debugTask
-    ) {
-      if (2 === validated) {
-        key = request.didWarnForKey;
-        null == key && (key = request.didWarnForKey = new WeakSet());
-        request = componentDebugInfo.owner;
-        if (null != request) {
-          if (key.has(request)) return;
-          key.add(request);
-        }
-        request = function () {
-          console.error(
-            'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
-            "",
-            ""
-          );
-        };
-        supportsComponentStorage
-          ? debugTask
-            ? debugTask.run(
-                componentStorage.run.bind(
-                  componentStorage,
-                  componentDebugInfo,
-                  callComponentInDEV,
-                  request,
-                  null,
-                  componentDebugInfo
-                )
-              )
-            : componentStorage.run(
+    function warnForMissingKey(request, key, componentDebugInfo, debugTask) {
+      function logKeyError() {
+        console.error(
+          'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
+          "",
+          ""
+        );
+      }
+      key = request.didWarnForKey;
+      null == key && (key = request.didWarnForKey = new WeakSet());
+      request = componentDebugInfo.owner;
+      if (null != request) {
+        if (key.has(request)) return;
+        key.add(request);
+      }
+      supportsComponentStorage
+        ? debugTask
+          ? debugTask.run(
+              componentStorage.run.bind(
+                componentStorage,
                 componentDebugInfo,
                 callComponentInDEV,
-                request,
+                logKeyError,
                 null,
                 componentDebugInfo
               )
-          : debugTask
-            ? debugTask.run(
-                callComponentInDEV.bind(null, request, null, componentDebugInfo)
+            )
+          : componentStorage.run(
+              componentDebugInfo,
+              callComponentInDEV,
+              logKeyError,
+              null,
+              componentDebugInfo
+            )
+        : debugTask
+          ? debugTask.run(
+              callComponentInDEV.bind(
+                null,
+                logKeyError,
+                null,
+                componentDebugInfo
               )
-            : callComponentInDEV(request, null, componentDebugInfo);
-      }
+            )
+          : callComponentInDEV(logKeyError, null, componentDebugInfo);
     }
     function renderFragment(request, task, children) {
       for (var i = 0; i < children.length; i++) {
@@ -1271,6 +1264,19 @@
         );
       if (type === REACT_FRAGMENT_TYPE && null === key)
         return (
+          2 === validated &&
+            ((validated = {
+              name: "Fragment",
+              env: (0, request.environmentName)(),
+              owner: task.debugOwner,
+              stack:
+                null === task.debugStack
+                  ? null
+                  : filterStackTrace(request, task.debugStack, 1),
+              debugStack: task.debugStack,
+              debugTask: task.debugTask
+            }),
+            warnForMissingKey(request, key, validated, task.debugTask)),
           (validated = task.implicitSlot),
           null === task.keyPath && (task.implicitSlot = !0),
           (request = renderModelDestructive(
@@ -1582,6 +1588,18 @@
       reader.read().then(progress).catch(error);
       return "$B" + newTask.id.toString(16);
     }
+    function isReactComponentInfo(value) {
+      return (
+        (("object" === typeof value.debugTask &&
+          null !== value.debugTask &&
+          "function" === typeof value.debugTask.run) ||
+          value.debugStack instanceof Error) &&
+        isArrayImpl(value.stack) &&
+        "string" === typeof value.name &&
+        "string" === typeof value.env &&
+        void 0 !== value.owner
+      );
+    }
     function renderModel(request, task, parent, key, value) {
       var prevKeyPath = task.keyPath,
         prevImplicitSlot = task.implicitSlot;
@@ -1839,16 +1857,7 @@
             "Only plain objects, and a few built-ins, can be passed to Client Components from Server Components. Classes or null prototypes are not supported." +
               describeObjectForErrorMessage(parent, parentPropertyName)
           );
-        if (
-          (("object" === typeof value.debugTask &&
-            null !== value.debugTask &&
-            "function" === typeof value.debugTask.run) ||
-            value.debugStack instanceof Error) &&
-          isArrayImpl(value.stack) &&
-          "string" === typeof value.name &&
-          "string" === typeof value.env &&
-          void 0 !== value.owner
-        )
+        if (isReactComponentInfo(value))
           return (
             (request = {
               name: value.name,
@@ -2059,7 +2068,7 @@
       request.completedErrorChunks.push(id);
     }
     function emitErrorChunk(request, id, digest, error) {
-      var env = request.environmentName();
+      var env = (0, request.environmentName)();
       try {
         if (error instanceof Error) {
           var message = String(error.message);
@@ -2179,15 +2188,15 @@
               );
             case "rejected":
               return (
-                (counter = value.reason),
+                (value = value.reason),
                 request.pendingChunks++,
-                (value = request.nextChunkId++),
-                "object" === typeof counter &&
-                null !== counter &&
-                counter.$$typeof === REACT_POSTPONE_TYPE
-                  ? emitPostponeChunk(request, value, counter)
-                  : emitErrorChunk(request, value, "", counter),
-                "$@" + value.toString(16)
+                (counter = request.nextChunkId++),
+                "object" === typeof value &&
+                null !== value &&
+                value.$$typeof === REACT_POSTPONE_TYPE
+                  ? emitPostponeChunk(request, counter, value)
+                  : emitErrorChunk(request, counter, "", value),
+                "$@" + counter.toString(16)
               );
           }
           return "$@";
@@ -2249,7 +2258,16 @@
                                               ? serializeBlob(request, value)
                                               : getIteratorFn(value)
                                                 ? Array.from(value)
-                                                : value;
+                                                : isReactComponentInfo(value)
+                                                  ? ((request = {
+                                                      name: value.name,
+                                                      env: value.env,
+                                                      owner: value.owner
+                                                    }),
+                                                    (request.stack =
+                                                      value.stack),
+                                                    request)
+                                                  : value;
       }
       if ("string" === typeof value)
         return "Z" === value[value.length - 1] && originalValue instanceof Date
@@ -2273,11 +2291,11 @@
       if ("symbol" === typeof value) {
         counter = request.writtenSymbols.get(value);
         if (void 0 !== counter) return serializeByValueID(counter);
-        counter = value.description;
+        value = value.description;
         request.pendingChunks++;
-        value = request.nextChunkId++;
-        emitSymbolChunk(request, value, counter);
-        return serializeByValueID(value);
+        counter = request.nextChunkId++;
+        emitSymbolChunk(request, counter, value);
+        return serializeByValueID(counter);
       }
       return "bigint" === typeof value
         ? "$n" + value.toString(10)
@@ -2313,7 +2331,7 @@
       args
     ) {
       var counter = { objectCount: 0 },
-        env = request.environmentName();
+        env = (0, request.environmentName)();
       methodName = [methodName, stackTrace, owner, env];
       methodName.push.apply(methodName, args);
       args = stringify(methodName, function (parentPropertyName, value) {
@@ -2398,13 +2416,13 @@
               resolvedModel,
               serializeByValueID(task.id)
             );
-            var currentEnv = request.environmentName();
+            var currentEnv = (0, request.environmentName)();
             currentEnv !== task.environmentName &&
               emitDebugChunk(request, task.id, { env: currentEnv });
             emitChunk(request, task, resolvedModel);
           } else {
             var json = stringify(resolvedModel),
-              _currentEnv = request.environmentName();
+              _currentEnv = (0, request.environmentName)();
             _currentEnv !== task.environmentName &&
               emitDebugChunk(request, task.id, { env: _currentEnv });
             emitModelChunk(request, task.id, json);

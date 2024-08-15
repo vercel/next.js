@@ -1,10 +1,8 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbopack_binding::turbopack::{
-    core::environment::RuntimeVersions,
-    ecmascript_plugin::transform::styled_jsx::StyledJsxTransformer,
-    turbopack::module_options::ModuleRule,
-};
+use turbopack::module_options::ModuleRule;
+use turbopack_core::environment::RuntimeVersions;
+use turbopack_ecmascript_plugins::transform::styled_jsx::StyledJsxTransformer;
 
 use super::get_ecma_transform_rule;
 use crate::next_config::NextConfig;
