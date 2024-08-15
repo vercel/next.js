@@ -46,11 +46,13 @@ export async function tryNextDev({
   cwd,
   projectName,
   isApp = true,
+  isApi = false,
   isEmpty = false,
 }: {
   cwd: string
   projectName: string
   isApp?: boolean
+  isApi?: boolean
   isEmpty?: boolean
 }) {
   const dir = join(cwd, projectName)
@@ -63,6 +65,8 @@ export async function tryNextDev({
     const res = await fetchViaHTTP(port, '/')
     if (isEmpty) {
       expect(await res.text()).toContain('Hello world!')
+    } else if (isApi) {
+      expect(await res.text()).toContain("who's that pokemon?")
     } else {
       expect(await res.text()).toContain('Get started by editing')
     }
