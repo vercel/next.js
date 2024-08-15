@@ -1,6 +1,6 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
-import { join } from 'path'
+import { join, extname } from 'path'
 
 import ws from 'next/dist/compiled/ws'
 
@@ -15,7 +15,7 @@ import type {
   TurbopackConnectedAction,
 } from './hot-reloader-types'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import type { Issue, Update as TurbopackUpdate } from '../../build/swc'
+import type { Update as TurbopackUpdate } from '../../build/swc'
 import {
   createDefineEnv,
   type Endpoint,
@@ -31,31 +31,35 @@ import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import {
-  deleteAppClientCache,
-  deleteCache,
-} from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
+import { deleteAppClientCache, deleteCache } from './require-cache'
 import {
   clearAllModuleContexts,
   clearModuleContext,
 } from '../lib/render-server'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 import { trace } from '../../trace'
-import type { VersionInfo } from './parse-version-info'
 import {
+  AssetMapper,
   type ChangeSubscriptions,
+  type ClientState,
   type EntryIssuesMap,
   formatIssue,
   getTurbopackJsConfig,
   handleEntrypoints,
   handlePagesErrorRoute,
   handleRouteType,
+  hasEntrypointForKey,
   msToNs,
   processIssues,
   type ReadyIds,
   renderStyledStringToErrorAnsi,
   type SendHmr,
   type StartBuilding,
+  processTopLevelIssues,
+  type TopLevelIssuesMap,
+  isWellKnownError,
+  printNonFatalIssue,
+  normalizedPageToTurbopackStructureRoute,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -65,13 +69,16 @@ import {
 import { TurbopackManifestLoader } from './turbopack/manifest-loader'
 import type { Entrypoints } from './turbopack/types'
 import { findPagePathData } from './on-demand-entry-handler'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteDefinition } from '../route-definitions/route-definition'
 import {
   type EntryKey,
   getEntryKey,
   splitEntryKey,
 } from './turbopack/entry-key'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
+import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils'
+import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -79,6 +86,8 @@ const isTestMode = !!(
   process.env.__NEXT_TEST_MODE ||
   process.env.DEBUG
 )
+
+const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 export async function createHotReloaderTurbopack(
   opts: SetupOpts,
@@ -114,29 +123,40 @@ export async function createHotReloaderTurbopack(
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
 
-  const project = await bindings.turbo.createProject({
-    projectPath: dir,
-    rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
-    nextConfig: opts.nextConfig,
-    jsConfig: await getTurbopackJsConfig(dir, nextConfig),
-    watch: true,
-    dev: true,
-    env: process.env as Record<string, string>,
-    defineEnv: createDefineEnv({
-      isTurbopack: true,
-      allowedRevalidateHeaderKeys: undefined,
-      clientRouterFilters: undefined,
-      config: nextConfig,
+  const encryptionKey = await generateEncryptionKeyBase64(true)
+  const project = await bindings.turbo.createProject(
+    {
+      projectPath: dir,
+      rootPath: opts.nextConfig.outputFileTracingRoot || dir,
+      nextConfig: opts.nextConfig,
+      jsConfig: await getTurbopackJsConfig(dir, nextConfig),
+      watch: true,
       dev: true,
-      distDir,
-      fetchCacheKeyPrefix: undefined,
-      hasRewrites,
-      middlewareMatchers: undefined,
-      previewModeId: undefined,
-    }),
-  })
+      env: process.env as Record<string, string>,
+      defineEnv: createDefineEnv({
+        isTurbopack: true,
+        // TODO: Implement
+        clientRouterFilters: undefined,
+        config: nextConfig,
+        dev: true,
+        distDir,
+        fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
+        hasRewrites,
+        // TODO: Implement
+        middlewareMatchers: undefined,
+      }),
+      buildId,
+      encryptionKey,
+      previewProps: opts.fsChecker.prerenderManifest.preview,
+    },
+    {
+      memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
+    }
+  )
+  opts.onCleanup(() => project.onExit())
   const entrypointsSubscription = project.entrypointsSubscribe()
 
+  const currentWrittenEntrypoints: Map<EntryKey, WrittenEndpoint> = new Map()
   const currentEntrypoints: Entrypoints = {
     global: {
       app: undefined,
@@ -151,9 +171,14 @@ export async function createHotReloaderTurbopack(
     app: new Map(),
   }
 
+  const currentTopLevelIssues: TopLevelIssuesMap = new Map()
   const currentEntryIssues: EntryIssuesMap = new Map()
 
-  const manifestLoader = new TurbopackManifestLoader({ buildId, distDir })
+  const manifestLoader = new TurbopackManifestLoader({
+    buildId,
+    distDir,
+    encryptionKey,
+  })
 
   // Dev specific
   const changeSubscriptions: ChangeSubscriptions = new Map()
@@ -164,37 +189,51 @@ export async function createHotReloaderTurbopack(
     (resolve) => (currentEntriesHandlingResolve = resolve)
   )
 
+  const assetMapper = new AssetMapper()
+
   function clearRequireCache(
     key: EntryKey,
-    writtenEndpoint: WrittenEndpoint
+    writtenEndpoint: WrittenEndpoint,
+    {
+      force,
+    }: {
+      // Always clear the cache, don't check if files have changed
+      force?: boolean
+    } = {}
   ): void {
-    // Figure out if the server files have changed
-    let hasChange = false
-    for (const { path, contentHash } of writtenEndpoint.serverPaths) {
-      // We ignore source maps
-      if (path.endsWith('.map')) continue
-      const localKey = `${key}:${path}`
-      const localHash = serverPathState.get(localKey)
-      const globalHash = serverPathState.get(path)
-      if (
-        (localHash && localHash !== contentHash) ||
-        (globalHash && globalHash !== contentHash)
-      ) {
-        hasChange = true
-        serverPathState.set(key, contentHash)
+    if (force) {
+      for (const { path, contentHash } of writtenEndpoint.serverPaths) {
         serverPathState.set(path, contentHash)
-      } else {
-        if (!localHash) {
+      }
+    } else {
+      // Figure out if the server files have changed
+      let hasChange = false
+      for (const { path, contentHash } of writtenEndpoint.serverPaths) {
+        // We ignore source maps
+        if (path.endsWith('.map')) continue
+        const localKey = `${key}:${path}`
+        const localHash = serverPathState.get(localKey)
+        const globalHash = serverPathState.get(path)
+        if (
+          (localHash && localHash !== contentHash) ||
+          (globalHash && globalHash !== contentHash)
+        ) {
+          hasChange = true
           serverPathState.set(key, contentHash)
-        }
-        if (!globalHash) {
           serverPathState.set(path, contentHash)
+        } else {
+          if (!localHash) {
+            serverPathState.set(key, contentHash)
+          }
+          if (!globalHash) {
+            serverPathState.set(path, contentHash)
+          }
         }
       }
-    }
 
-    if (!hasChange) {
-      return
+      if (!hasChange) {
+        return
+      }
     }
 
     const hasAppPaths = writtenEndpoint.serverPaths.some(({ path: p }) =>
@@ -216,6 +255,7 @@ export async function createHotReloaderTurbopack(
 
     return
   }
+
   const buildingIds = new Set()
 
   const startBuilding: StartBuilding = (id, requestUrl, forceRebuild) => {
@@ -240,6 +280,7 @@ export async function createHotReloaderTurbopack(
       readyIds.add(id)
       buildingIds.delete(id)
       if (buildingIds.size === 0) {
+        hmrEventHappened = false
         consoleStore.setState(
           {
             loading: false,
@@ -252,31 +293,48 @@ export async function createHotReloaderTurbopack(
 
   let hmrEventHappened = false
   let hmrHash = 0
-  const sendEnqueuedMessages = () => {
+
+  const clients = new Set<ws>()
+  const clientStates = new WeakMap<ws, ClientState>()
+
+  function sendToClient(client: ws, payload: HMR_ACTION_TYPES) {
+    client.send(JSON.stringify(payload))
+  }
+
+  function sendEnqueuedMessages() {
     for (const [, issueMap] of currentEntryIssues) {
-      if (issueMap.size > 0) {
+      if (
+        [...issueMap.values()].filter((i) => i.severity !== 'warning').length >
+        0
+      ) {
         // During compilation errors we want to delay the HMR events until errors are fixed
         return
       }
     }
+
     for (const client of clients) {
       const state = clientStates.get(client)
-      if (!state) continue
+      if (!state) {
+        continue
+      }
+
       for (const [, issueMap] of state.clientIssues) {
-        if (issueMap.size > 0) {
+        if (
+          [...issueMap.values()].filter((i) => i.severity !== 'warning')
+            .length > 0
+        ) {
           // During compilation errors we want to delay the HMR events until errors are fixed
           return
         }
       }
-      const sendToClient = (payload: any) => {
-        client.send(JSON.stringify(payload))
-      }
+
       for (const payload of state.hmrPayloads.values()) {
-        sendToClient(payload)
+        sendToClient(client, payload)
       }
       state.hmrPayloads.clear()
+
       if (state.turbopackUpdates.length > 0) {
-        sendToClient({
+        sendToClient(client, {
           action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
           data: state.turbopackUpdates,
         })
@@ -288,52 +346,48 @@ export async function createHotReloaderTurbopack(
 
   const sendHmr: SendHmr = (id: string, payload: HMR_ACTION_TYPES) => {
     for (const client of clients) {
-      const state = clientStates.get(client)
-      if (!state) continue
-      state.hmrPayloads.set(`${id}`, payload)
+      clientStates.get(client)?.hmrPayloads.set(id, payload)
     }
+
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
   }
 
   function sendTurbopackMessage(payload: TurbopackUpdate) {
+    // TODO(PACK-2049): For some reason we end up emitting hundreds of issues messages on bigger apps,
+    //   a lot of which are duplicates.
+    //   They are currently not handled on the client at all, so might as well not send them for now.
+    payload.diagnostics = []
+    payload.issues = []
+
     for (const client of clients) {
-      const state = clientStates.get(client)
-      if (!state) continue
-      state.turbopackUpdates.push(payload)
+      clientStates.get(client)?.turbopackUpdates.push(payload)
     }
+
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
   }
 
-  type ClientState = {
-    clientIssues: EntryIssuesMap
-    hmrPayloads: Map<string, HMR_ACTION_TYPES>
-    turbopackUpdates: TurbopackUpdate[]
-    subscriptions: Map<string, AsyncIterator<any>>
-  }
-
-  const clients = new Set<ws>()
-  const clientStates = new WeakMap<ws, ClientState>()
-
   async function subscribeToChanges(
     key: EntryKey,
     includeIssues: boolean,
-    endpoint: Endpoint | undefined,
+    endpoint: Endpoint,
     makePayload: (
       change: TurbopackResult
     ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
   ) {
-    const { side } = splitEntryKey(key)
+    if (changeSubscriptions.has(key)) {
+      return
+    }
 
-    if (!endpoint || changeSubscriptions.has(key)) return
+    const { side } = splitEntryKey(key)
 
     const changedPromise = endpoint[`${side}Changed`](includeIssues)
     changeSubscriptions.set(key, changedPromise)
     const changed = await changedPromise
 
     for await (const change of changed) {
-      processIssues(currentEntryIssues, key, change)
+      processIssues(currentEntryIssues, key, change, false, true)
       const payload = await makePayload(change)
       if (payload) {
         sendHmr(key, payload)
@@ -351,14 +405,19 @@ export async function createHotReloaderTurbopack(
   }
 
   async function subscribeToHmrEvents(client: ws, id: string) {
+    const key = getEntryKey('assets', 'client', id)
+    if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
+      // maybe throw an error / force the client to reload?
+      return
+    }
+
     const state = clientStates.get(client)
-    if (!state) return
-    if (state.subscriptions.has(id)) return
+    if (!state || state.subscriptions.has(id)) {
+      return
+    }
 
     const subscription = project!.hmrEvents(id)
     state.subscriptions.set(id, subscription)
-
-    const key = getEntryKey('assets', 'client', id)
 
     // The subscription will always emit once, which is the initial
     // computation. This is not a change, so swallow it.
@@ -366,7 +425,7 @@ export async function createHotReloaderTurbopack(
       await subscription.next()
 
       for await (const data of subscription) {
-        processIssues(state.clientIssues, key, data)
+        processIssues(state.clientIssues, key, data, false, true)
         if (data.type !== 'issues') {
           sendTurbopackMessage(data)
         }
@@ -379,7 +438,7 @@ export async function createHotReloaderTurbopack(
       const reloadAction: ReloadPageAction = {
         action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
       }
-      client.send(JSON.stringify(reloadAction))
+      sendToClient(client, reloadAction)
       client.close()
       return
     }
@@ -387,9 +446,13 @@ export async function createHotReloaderTurbopack(
 
   function unsubscribeFromHmrEvents(client: ws, id: string) {
     const state = clientStates.get(client)
-    if (!state) return
+    if (!state) {
+      return
+    }
+
     const subscription = state.subscriptions.get(id)
     subscription?.return!()
+
     const key = getEntryKey('assets', 'client', id)
     state.clientIssues.delete(key)
   }
@@ -403,27 +466,39 @@ export async function createHotReloaderTurbopack(
         )
       }
 
+      processTopLevelIssues(currentTopLevelIssues, entrypoints)
+
       await handleEntrypoints({
         entrypoints,
 
         currentEntrypoints,
 
-        changeSubscriptions,
-        currentEntryIssues: currentEntryIssues,
+        currentEntryIssues,
         manifestLoader,
         nextConfig: opts.nextConfig,
-        rewrites: opts.fsChecker.rewrites,
-        serverFields,
+        devRewrites: opts.fsChecker.rewrites,
+        productionRewrites: undefined,
+        logErrors: true,
 
-        hooks: {
-          handleWrittenEndpoint: (id, result) => {
-            clearRequireCache(id, result)
+        dev: {
+          assetMapper,
+          changeSubscriptions,
+          clients,
+          clientStates,
+          serverFields,
+
+          hooks: {
+            handleWrittenEndpoint: (id, result) => {
+              currentWrittenEntrypoints.set(id, result)
+              clearRequireCache(id, result)
+            },
+            propagateServerField: propagateServerField.bind(null, opts),
+            sendHmr,
+            startBuilding,
+            subscribeToChanges,
+            unsubscribeFromChanges,
+            unsubscribeFromHmrEvents,
           },
-          propagateServerField: propagateServerField.bind(null, opts),
-          sendHmr,
-          startBuilding,
-          subscribeToChanges,
-          unsubscribeFromChanges,
         },
       })
 
@@ -445,7 +520,7 @@ export async function createHotReloaderTurbopack(
     )
   )
   const overlayMiddleware = getOverlayMiddleware(project)
-  const versionInfo: VersionInfo = await getVersionInfo(
+  const versionInfoPromise = getVersionInfo(
     isTestMode || opts.telemetry.isEnabled
   )
 
@@ -484,8 +559,9 @@ export async function createHotReloaderTurbopack(
     },
 
     // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
-    onHMR(req, socket: Socket, head) {
+    onHMR(req, socket: Socket, head, onUpgrade) {
       wsServer.handleUpgrade(req, socket, head, (client) => {
+        onUpgrade(client)
         const clientIssues: EntryIssuesMap = new Map()
         const subscriptions: Map<string, AsyncIterator<any>> = new Map()
 
@@ -496,6 +572,7 @@ export async function createHotReloaderTurbopack(
           turbopackUpdates: [],
           subscriptions,
         })
+
         client.on('close', () => {
           // Remove active subscriptions
           for (const subscription of subscriptions.values()) {
@@ -543,9 +620,20 @@ export async function createHotReloaderTurbopack(
             case 'client-reload-page': // { clientId }
             case 'client-removed-page': // { page }
             case 'client-full-reload': // { stackTrace, hadRuntimeError }
-              const { hadRuntimeError } = parsedData
+              const { hadRuntimeError, dependencyChain } = parsedData
               if (hadRuntimeError) {
                 Log.warn(FAST_REFRESH_RUNTIME_RELOAD)
+              }
+              if (
+                Array.isArray(dependencyChain) &&
+                typeof dependencyChain[0] === 'string'
+              ) {
+                const cleanedModulePath = dependencyChain[0]
+                  .replace(/^\[project\]/, '.')
+                  .replace(/ \[.*\] \(.*\)$/, '')
+                Log.warn(
+                  `Fast Refresh had to perform a full reload when ${cleanedModulePath} changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload`
+                )
               }
               break
             case 'client-added-page':
@@ -578,29 +666,37 @@ export async function createHotReloaderTurbopack(
 
         const turbopackConnected: TurbopackConnectedAction = {
           action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+          data: { sessionId },
         }
-        client.send(JSON.stringify(turbopackConnected))
+        sendToClient(client, turbopackConnected)
 
         const errors: CompilationError[] = []
-        const addIssues = (entryIssues: Map<string, Issue>) => {
+
+        for (const entryIssues of currentEntryIssues.values()) {
           for (const issue of entryIssues.values()) {
-            errors.push({
-              message: formatIssue(issue),
-            })
+            if (issue.severity !== 'warning') {
+              errors.push({
+                message: formatIssue(issue),
+              })
+            } else {
+              printNonFatalIssue(issue)
+            }
           }
         }
-        clientIssues.forEach(addIssues)
-        currentEntryIssues.forEach(addIssues)
 
-        const sync: SyncAction = {
-          action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
-          errors,
-          warnings: [],
-          hash: '',
-          versionInfo,
-        }
+        ;(async function () {
+          const versionInfo = await versionInfoPromise
 
-        this.send(sync)
+          const sync: SyncAction = {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+            errors,
+            warnings: [],
+            hash: '',
+            versionInfo,
+          }
+
+          sendToClient(client, sync)
+        })()
       })
     },
 
@@ -625,21 +721,44 @@ export async function createHotReloaderTurbopack(
       const appEntryKey = getEntryKey('app', 'server', page)
       const pagesEntryKey = getEntryKey('pages', 'server', page)
 
+      const topLevelIssues = currentTopLevelIssues.values()
+
       const thisEntryIssues =
         currentEntryIssues.get(appEntryKey) ??
         currentEntryIssues.get(pagesEntryKey)
+
       if (thisEntryIssues !== undefined && thisEntryIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
-        return [...thisEntryIssues.values()].map(
-          (issue) => new Error(formatIssue(issue))
-        )
+        return [...topLevelIssues, ...thisEntryIssues.values()]
+          .map((issue) => {
+            const formattedIssue = formatIssue(issue)
+            if (issue.severity === 'warning') {
+              printNonFatalIssue(issue)
+              return null
+            } else if (isWellKnownError(issue)) {
+              Log.error(formattedIssue)
+            }
+
+            return new Error(formattedIssue)
+          })
+          .filter((error) => error !== null)
       }
 
       // Otherwise, return all errors across pages
       const errors = []
+      for (const issue of topLevelIssues) {
+        if (issue.severity !== 'warning') {
+          errors.push(new Error(formatIssue(issue)))
+        }
+      }
       for (const entryIssues of currentEntryIssues.values()) {
         for (const issue of entryIssues.values()) {
-          errors.push(new Error(formatIssue(issue)))
+          if (issue.severity !== 'warning') {
+            const message = formatIssue(issue)
+            errors.push(new Error(message))
+          } else {
+            printNonFatalIssue(issue)
+          }
         }
       }
       return errors
@@ -649,6 +768,10 @@ export async function createHotReloaderTurbopack(
       reloadAfterInvalidation,
     }) {
       if (reloadAfterInvalidation) {
+        for (const [key, entrypoint] of currentWrittenEntrypoints) {
+          clearRequireCache(key, entrypoint, { force: true })
+        }
+
         await clearAllModuleContexts()
         this.send({
           action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
@@ -662,7 +785,7 @@ export async function createHotReloaderTurbopack(
       page: inputPage,
       // Unused parameters
       // clientOnly,
-      // appPaths,
+      appPaths,
       definition,
       isApp,
       url: requestUrl,
@@ -681,7 +804,25 @@ export async function createHotReloaderTurbopack(
           opts.appDir
         ))
 
-      const page = routeDef.page
+      // If the route is actually an app page route, then we should have access
+      // to the app route definition, and therefore, the appPaths from it.
+      if (!appPaths && definition && isAppPageRouteDefinition(definition)) {
+        appPaths = definition.appPaths
+      }
+
+      let page = routeDef.page
+      if (appPaths) {
+        const normalizedPage = normalizeAppPath(page)
+
+        // filter out paths that are not exact matches (e.g. catchall)
+        const matchingAppPaths = appPaths.filter(
+          (path) => normalizeAppPath(path) === normalizedPage
+        )
+
+        // the last item in the array is the root page, if there are parallel routes
+        page = matchingAppPaths[matchingAppPaths.length - 1]
+      }
+
       const pathname = definition?.pathname ?? inputPage
 
       if (page === '/_error') {
@@ -691,12 +832,16 @@ export async function createHotReloaderTurbopack(
             currentEntryIssues,
             entrypoints: currentEntrypoints,
             manifestLoader,
-            rewrites: opts.fsChecker.rewrites,
+            devRewrites: opts.fsChecker.rewrites,
+            productionRewrites: undefined,
+            logErrors: true,
 
             hooks: {
               subscribeToChanges,
               handleWrittenEndpoint: (id, result) => {
                 clearRequireCache(id, result)
+                currentWrittenEntrypoints.set(id, result)
+                assetMapper.setPathsForKey(id, result.clientPaths)
               },
             },
           })
@@ -709,9 +854,13 @@ export async function createHotReloaderTurbopack(
       await currentEntriesHandling
 
       const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
+      const normalizedAppPage = normalizedPageToTurbopackStructureRoute(
+        page,
+        extname(routeDef.filename)
+      )
 
       const route = isInsideAppDir
-        ? currentEntrypoints.app.get(page)
+        ? currentEntrypoints.app.get(normalizedAppPage)
         : currentEntrypoints.page.get(page)
 
       if (!route) {
@@ -738,16 +887,20 @@ export async function createHotReloaderTurbopack(
           page,
           pathname,
           route,
-          currentEntryIssues: currentEntryIssues,
+          currentEntryIssues,
           entrypoints: currentEntrypoints,
           manifestLoader,
           readyIds,
-          rewrites: opts.fsChecker.rewrites,
+          devRewrites: opts.fsChecker.rewrites,
+          productionRewrites: undefined,
+          logErrors: true,
 
           hooks: {
             subscribeToChanges,
             handleWrittenEndpoint: (id, result) => {
+              currentWrittenEntrypoints.set(id, result)
               clearRequireCache(id, result)
+              assetMapper.setPathsForKey(id, result.clientPaths)
             },
           },
         })
@@ -765,8 +918,9 @@ export async function createHotReloaderTurbopack(
   // Write empty manifests
   await currentEntriesHandling
   await manifestLoader.writeManifests({
-    rewrites: opts.fsChecker.rewrites,
-    pageEntrypoints: currentEntrypoints.page,
+    devRewrites: opts.fsChecker.rewrites,
+    productionRewrites: undefined,
+    entrypoints: currentEntrypoints,
   })
 
   async function handleProjectUpdates() {
@@ -779,13 +933,13 @@ export async function createHotReloaderTurbopack(
         case 'end': {
           sendEnqueuedMessages()
 
-          const errors = new Map<string, CompilationError>()
-          const addErrors = (
+          function addErrors(
             errorsMap: Map<string, CompilationError>,
             issues: EntryIssuesMap
-          ) => {
+          ) {
             for (const issueMap of issues.values()) {
               for (const [key, issue] of issueMap) {
+                if (issue.severity === 'warning') continue
                 if (errorsMap.has(key)) continue
 
                 const message = formatIssue(issue)
@@ -799,22 +953,25 @@ export async function createHotReloaderTurbopack(
               }
             }
           }
+
+          const errors = new Map<string, CompilationError>()
           addErrors(errors, currentEntryIssues)
 
           for (const client of clients) {
             const state = clientStates.get(client)
-            if (!state) continue
+            if (!state) {
+              continue
+            }
+
             const clientErrors = new Map(errors)
             addErrors(clientErrors, state.clientIssues)
 
-            client.send(
-              JSON.stringify({
-                action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
-                hash: String(++hmrHash),
-                errors: [...clientErrors.values()],
-                warnings: [],
-              })
-            )
+            sendToClient(client, {
+              action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+              hash: String(++hmrHash),
+              errors: [...clientErrors.values()],
+              warnings: [],
+            })
           }
 
           if (hmrEventHappened) {

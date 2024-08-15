@@ -77,5 +77,13 @@ export const config = {
         },
       ],
     },
+    {
+      source:
+        '/((?!api|monitoring|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|manifest|icon|source-match|has-match-1|has-match-2|has-match-3|has-match-4|has-match-5|missing-match-1|missing-match-2|routes).*)',
+      missing: [
+        { type: 'header', key: 'next-router-prefetch' },
+        { type: 'header', key: 'purpose', value: 'prefetch' },
+      ],
+    },
   ],
 }

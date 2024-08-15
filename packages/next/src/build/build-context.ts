@@ -54,6 +54,7 @@ export const NextBuildContext: Partial<{
   // core fields
   dir: string
   buildId: string
+  encryptionKey: string
   config: NextConfigComplete
   appDir: string
   pagesDir: string

@@ -1,27 +1,35 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type {
+  Compilation,
+  Chunk,
+  ChunkGroup,
+  NormalModule,
+  Module,
+  ModuleGraph,
+} from 'webpack'
 import { isAppRouteRoute } from '../../lib/is-app-route-route'
+import type { ModuleGraphConnection } from 'webpack'
 
 export function traverseModules(
-  compilation: webpack.Compilation,
+  compilation: Compilation,
   callback: (
     mod: any,
-    chunk: webpack.Chunk,
+    chunk: Chunk,
     chunkGroup: (typeof compilation.chunkGroups)[0],
-    modId: string | number
+    modId: string | null
   ) => any,
-  filterChunkGroup?: (chunkGroup: webpack.ChunkGroup) => boolean
+  filterChunkGroup?: (chunkGroup: ChunkGroup) => boolean
 ) {
   compilation.chunkGroups.forEach((chunkGroup) => {
     if (filterChunkGroup && !filterChunkGroup(chunkGroup)) {
       return
     }
-    chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+    chunkGroup.chunks.forEach((chunk: Chunk) => {
       const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
         chunk
         // TODO: Update type so that it doesn't have to be cast.
-      ) as Iterable<webpack.NormalModule>
+      ) as Iterable<NormalModule>
       for (const mod of chunkModules) {
-        const modId = compilation.chunkGraph.getModuleId(mod)
+        const modId = compilation.chunkGraph.getModuleId(mod)?.toString()
         callback(mod, chunk, chunkGroup, modId)
         const anyModule = mod as any
         if (anyModule.modules) {
@@ -49,8 +57,7 @@ export function forEachEntryModule(
     }
 
     // Check if the page entry is a server component or not.
-    const entryDependency: webpack.NormalModule | undefined =
-      entry.dependencies?.[0]
+    const entryDependency: NormalModule | undefined = entry.dependencies?.[0]
     // Ensure only next-app-loader entries are handled.
     if (!entryDependency || !entryDependency.request) continue
 
@@ -62,7 +69,7 @@ export function forEachEntryModule(
     )
       continue
 
-    let entryModule: webpack.NormalModule =
+    let entryModule: NormalModule =
       compilation.moduleGraph.getResolvedModule(entryDependency)
 
     if (request.startsWith('next-edge-ssr-loader?')) {
@@ -83,4 +90,21 @@ export function formatBarrelOptimizedResource(
   matchResource: string
 ) {
   return `${resource}@${matchResource}`
+}
+
+export function getModuleReferencesInOrder(
+  module: Module,
+  moduleGraph: ModuleGraph
+): ModuleGraphConnection[] {
+  const connections = []
+  for (const connection of moduleGraph.getOutgoingConnections(module)) {
+    if (connection.dependency && connection.module) {
+      connections.push({
+        connection,
+        index: moduleGraph.getParentBlockIndex(connection.dependency),
+      })
+    }
+  }
+  connections.sort((a, b) => a.index - b.index)
+  return connections.map((c) => c.connection)
 }

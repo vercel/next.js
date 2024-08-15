@@ -2,18 +2,20 @@ import type { NextRequest } from './spec-extension/request'
 import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
-} from '../future/route-modules/app-route/module'
-import type { PrerenderManifest } from '../../build'
+} from '../route-modules/app-route/module'
 
 import './globals'
 
 import { adapter, type AdapterOptions } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
-import { RouteMatcher } from '../future/route-matchers/route-matcher'
+import { RouteMatcher } from '../route-matchers/route-matcher'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 import { getUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
+import type { RequestLifecycleOpts } from '../base-server'
+import { CloseController, trackStreamConsumed } from './web-on-close'
+import { getEdgePreviewProps } from './get-edge-preview-props'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -82,10 +84,17 @@ export class EdgeRouteModuleWrapper {
       searchParamsToUrlQuery(request.nextUrl.searchParams)
     )
 
-    const prerenderManifest: PrerenderManifest | undefined =
-      typeof self.__PRERENDER_MANIFEST === 'string'
-        ? JSON.parse(self.__PRERENDER_MANIFEST)
-        : undefined
+    const isAfterEnabled = !!process.env.__NEXT_AFTER
+
+    let waitUntil: RequestLifecycleOpts['waitUntil'] = undefined
+    let closeController: CloseController | undefined
+
+    if (isAfterEnabled) {
+      waitUntil = evt.waitUntil.bind(evt)
+      closeController = new CloseController()
+    }
+
+    const previewProps = getEdgePreviewProps()
 
     // Create the context for the handler. This contains the params from the
     // match (if any).
@@ -95,28 +104,50 @@ export class EdgeRouteModuleWrapper {
         version: 4,
         routes: {},
         dynamicRoutes: {},
-        preview: prerenderManifest?.preview || {
-          previewModeEncryptionKey: '',
-          previewModeId: 'development-id',
-          previewModeSigningKey: '',
-        },
+        preview: previewProps,
         notFoundRoutes: [],
       },
       renderOpts: {
-        supportsDynamicHTML: true,
-        // App Route's cannot be postponed.
-        experimental: { ppr: false },
+        supportsDynamicResponse: true,
+        waitUntil,
+        onClose: closeController
+          ? closeController.onClose.bind(closeController)
+          : undefined,
+        experimental: {
+          after: isAfterEnabled,
+        },
       },
     }
 
     // Get the response from the handler.
-    const res = await this.routeModule.handle(request, context)
+    let res = await this.routeModule.handle(request, context)
 
     const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
-    if (context.renderOpts.waitUntil) {
-      waitUntilPromises.push(context.renderOpts.waitUntil)
+    if (context.renderOpts.pendingWaitUntil) {
+      waitUntilPromises.push(context.renderOpts.pendingWaitUntil)
     }
     evt.waitUntil(Promise.all(waitUntilPromises))
+
+    if (closeController) {
+      const _closeController = closeController // TS annoyance - "possibly undefined" in callbacks
+
+      if (!res.body) {
+        // we can delay running it until a bit later --
+        // if it's needed, we'll have a `waitUntil` lock anyway.
+        setTimeout(() => _closeController.dispatchClose(), 0)
+      } else {
+        // NOTE: if this is a streaming response, onClose may be called later,
+        // so we can't rely on `closeController.listeners` -- it might be 0 at this point.
+        const trackedBody = trackStreamConsumed(res.body, () =>
+          _closeController.dispatchClose()
+        )
+        res = new Response(trackedBody, {
+          status: res.status,
+          statusText: res.statusText,
+          headers: res.headers,
+        })
+      }
+    }
 
     return res
   }

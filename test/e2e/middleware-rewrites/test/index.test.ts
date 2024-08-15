@@ -3,10 +3,11 @@
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { check, fetchViaHTTP } from 'next-test-utils'
+import { NextInstance } from 'e2e-utils'
+import { check, fetchViaHTTP, retry } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
+import { Request, Response } from 'playwright'
 
 describe('Middleware Rewrite', () => {
   let next: NextInstance
@@ -23,6 +24,29 @@ describe('Middleware Rewrite', () => {
   })
 
   function tests() {
+    it('should handle catch-all rewrite correctly', async () => {
+      const browser = await next.browser('/', { waitHydration: false })
+
+      if (!(global as any).isNextDev) {
+        let requests = []
+
+        browser.on('request', (req: Request) => {
+          requests.push(new URL(req.url()).pathname)
+        })
+
+        browser.elementByCss('#to-article-rewrite').moveTo()
+
+        await retry(async () => {
+          expect(requests.some((item) => item.includes('article'))).toBe(true)
+        })
+      }
+
+      await browser.elementByCss('#to-article-rewrite').click()
+
+      const preQuery = JSON.parse(await browser.elementByCss('pre').text())
+      expect(preQuery).toEqual({ slug: ['foo', 'bar', '123'] })
+    })
+
     it('should handle next.config.js rewrite with body correctly', async () => {
       const body = JSON.stringify({ hello: 'world' })
       const res = await next.fetch('/external-rewrite-body', {
@@ -339,6 +363,36 @@ describe('Middleware Rewrite', () => {
     })
 
     if (!(global as any).isNextDev) {
+      it('should opt out of prefetch caching for dynamic routes', async () => {
+        const browser = await webdriver(next.url, '/')
+        await browser.eval('window.__SAME_PAGE = true')
+        await browser.waitForIdleNetwork()
+        let hasResolvedPrefetch = false
+
+        browser.on('response', async (res: Response) => {
+          const req = res.request()
+          const headers = await req.allHeaders()
+          if (
+            headers['purpose'] === 'prefetch' &&
+            req.url().includes('/dynamic-no-cache/1')
+          ) {
+            hasResolvedPrefetch = true
+          }
+        })
+
+        await browser.elementByCss("[href='/dynamic-no-cache/1']").moveTo()
+
+        await retry(async () => {
+          expect(hasResolvedPrefetch).toBe(true)
+        })
+
+        await browser.elementByCss("[href='/dynamic-no-cache/1']").click()
+
+        await browser.waitForElementByCss('#dynamic-page')
+        expect(await browser.elementById('dynamic-page').text()).toBe('Page 2')
+        expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
+      })
+
       it('should not prefetch non-SSG routes', async () => {
         const browser = await webdriver(next.url, '/')
 

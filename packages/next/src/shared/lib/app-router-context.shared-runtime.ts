@@ -5,8 +5,10 @@ import type {
   PrefetchKind,
   RouterChangeByServerResponse,
 } from '../../client/components/router-reducer/router-reducer-types'
-import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
-import type { FlightRouterState } from '../../server/app-render/types'
+import type {
+  FlightRouterState,
+  FetchServerResponseResult,
+} from '../../server/app-render/types'
 import React from 'react'
 
 export type ChildSegmentMap = Map<string, CacheNode>
@@ -15,6 +17,10 @@ export type ChildSegmentMap = Map<string, CacheNode>
  * Cache node used in app-router / layout-router.
  */
 export type CacheNode = ReadyCacheNode | LazyCacheNode
+
+export type LoadingModuleData =
+  | [React.JSX.Element, React.ReactNode, React.ReactNode]
+  | null
 
 export type LazyCacheNode = {
   /**
@@ -46,12 +52,11 @@ export type LazyCacheNode = {
    */
   lazyData: Promise<FetchServerResponseResult> | null
 
-  // TODO: We should make both of these non-optional. Most of the places that
-  // clone the Cache Nodes do not preserve this field. In practice this ends up
-  // working out because we only clone nodes when we're receiving a new head,
-  // anyway. But it's fragile. It also breaks monomorphization.
-  prefetchHead?: React.ReactNode
-  head?: React.ReactNode
+  prefetchHead: React.ReactNode
+  head: React.ReactNode
+
+  loading: LoadingModuleData
+
   /**
    * Child parallel routes.
    */
@@ -89,8 +94,11 @@ export type ReadyCacheNode = {
    * There should never be a lazy data request in this case.
    */
   lazyData: null
-  prefetchHead?: React.ReactNode
-  head?: React.ReactNode
+  prefetchHead: React.ReactNode
+  head: React.ReactNode
+
+  loading: LoadingModuleData
+
   parallelRoutes: Map<string, ChildSegmentMap>
 }
 
@@ -116,6 +124,11 @@ export interface AppRouterInstance {
    */
   refresh(): void
   /**
+   * Refresh the current page. Use in development only.
+   * @internal
+   */
+  hmrRefresh(): void
+  /**
    * Navigate to the provided href.
    * Pushes a new history entry.
    */
@@ -138,7 +151,9 @@ export const LayoutRouterContext = React.createContext<{
   childNodes: CacheNode['parallelRoutes']
   tree: FlightRouterState
   url: string
-}>(null as any)
+  loading: LoadingModuleData
+} | null>(null)
+
 export const GlobalLayoutRouterContext = React.createContext<{
   buildId: string
   tree: FlightRouterState

@@ -1,0 +1,55 @@
+[package]
+edition = "2018"
+name = "wasm"
+publish = false
+version = "0.0.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+default = ["swc_v1"]
+swc_v1 = []
+
+plugin = ["swc_core/plugin_transform_host_js"]
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = "1.0.66"
+console_error_panic_hook = "0.1.6"
+next-custom-transforms = { workspace = true }
+serde_json = "1"
+tracing = { version = "0.1.37" }
+wasm-bindgen = { version = "0.2", features = ["enable-interning"] }
+wasm-bindgen-futures = "0.4.8"
+getrandom = { version = "0.2.9", default-features = false, features = ["js"] }
+js-sys = "0.3.59"
+serde-wasm-bindgen = "0.4.3"
+
+swc_core = { workspace = true, features = [
+  "common",
+  "common_concurrent",
+  "binding_macro_wasm",
+  "ecma_ast_serde",
+  "ecma_codegen",
+  "ecma_minifier",
+  "ecma_transforms",
+  "ecma_transforms_typescript",
+  "ecma_transforms_optimization",
+  "ecma_transforms_react",
+  "ecma_parser",
+  "ecma_parser_typescript",
+  "ecma_utils",
+  "ecma_visit",
+] }
+mdxjs = { workspace = true, features = ["serializable"] }
+
+# Workaround a bug
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+# Workaround a bug
+[package.metadata.wasm-pack.profile.dev]
+wasm-opt = false

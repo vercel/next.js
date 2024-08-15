@@ -2,12 +2,13 @@ import type { CacheNode } from '../../../shared/lib/app-router-context.shared-ru
 import type { FlightDataPath } from '../../../server/app-render/types'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
+import type { PrefetchCacheEntry } from './router-reducer-types'
 
 export function applyFlightData(
   existingCache: CacheNode,
   cache: CacheNode,
   flightDataPath: FlightDataPath,
-  hasReusablePrefetch: boolean = false
+  prefetchEntry?: PrefetchCacheEntry
 ): boolean {
   // The one before last item is the router state tree patch
   const [treePatch, cacheNodeSeedData, head] = flightDataPath.slice(-3)
@@ -18,7 +19,9 @@ export function applyFlightData(
   }
 
   if (flightDataPath.length === 3) {
-    const rsc = cacheNodeSeedData[2]
+    const rsc = cacheNodeSeedData[1]
+    const loading = cacheNodeSeedData[3]
+    cache.loading = loading
     cache.rsc = rsc
     // This is a PPR-only field. When PPR is enabled, we shouldn't hit
     // this path during a navigation, but until PPR is fully implemented
@@ -32,7 +35,7 @@ export function applyFlightData(
       treePatch,
       cacheNodeSeedData,
       head,
-      hasReusablePrefetch
+      prefetchEntry
     )
   } else {
     // Copy rsc for the root node of the cache.
@@ -42,12 +45,13 @@ export function applyFlightData(
     // PPR value, if it exists.
     cache.prefetchRsc = existingCache.prefetchRsc
     cache.parallelRoutes = new Map(existingCache.parallelRoutes)
+    cache.loading = existingCache.loading
     // Create a copy of the existing cache with the rsc applied.
     fillCacheWithNewSubTreeData(
       cache,
       existingCache,
       flightDataPath,
-      hasReusablePrefetch
+      prefetchEntry
     )
   }
 

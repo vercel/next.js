@@ -1,15 +1,15 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import {
-  getRedboxCallStack,
-  hasRedbox,
+  assertHasRedbox,
   shouldRunTurboDevTest,
-  expandCallStack,
   getRedboxSource,
 } from 'next-test-utils'
+import { outdent } from 'outdent'
 
-createNextDescribe(
-  'app dir - dynamic error trace',
-  {
+const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
+describe('app dir - dynamic error trace', () => {
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     dependencies: {
       swr: 'latest',
@@ -25,18 +25,55 @@ createNextDescribe(
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     buildCommand: 'pnpm build',
     skipDeployment: true,
-  },
-  ({ next }) => {
-    it('should show the error trace', async () => {
-      const browser = await next.browser('/')
-      await hasRedbox(browser)
-      await expandCallStack(browser)
-      const callStack = await getRedboxCallStack(browser)
+  })
+  if (skipped) return
 
-      expect(callStack).toContain('node_modules/headers-lib/index.mjs')
+  it('should show the error trace', async () => {
+    const browser = await next.browser('/')
 
-      const source = await getRedboxSource(browser)
-      expect(source).toContain('app/lib.js')
-    })
-  }
-)
+    await assertHasRedbox(browser)
+
+    await expect(
+      browser.hasElementByCssSelector(
+        '[data-nextjs-data-runtime-error-collapsed-action]'
+      )
+    ).resolves.toEqual(false)
+
+    const stackFrameElements = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+    const stackFrames = await Promise.all(
+      stackFrameElements.map((f) => f.innerText())
+    )
+    expect(stackFrames).toEqual(isReactExperimental ? ['', ''] : [])
+
+    const codeframe = await getRedboxSource(browser)
+    // TODO(NDX-115): column for "^"" marker is inconsistent between native, Webpack, and Turbopack
+    expect(codeframe).toEqual(
+      process.env.TURBOPACK
+        ? outdent`
+            app/lib.js (4:12) @ Foo
+            
+              2 |
+              3 | export function Foo() {
+            > 4 |   useHeaders()
+                |            ^
+              5 |   return 'foo'
+              6 | }
+              7 |
+          `
+        : // TODO: should be "@ Foo" since that's where we put the codeframe and print the source location
+          outdent`
+            app/lib.js (4:13) @ useHeaders
+
+              2 |
+              3 | export function Foo() {
+            > 4 |   useHeaders()
+                |             ^
+              5 |   return 'foo'
+              6 | }
+              7 |
+          `
+    )
+  })
+})

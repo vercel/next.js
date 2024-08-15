@@ -1,0 +1,21 @@
+error[E0277]: the trait bound `IntegersVec: ResolvedValue` is not satisfied
+  --> tests/function/fail_resolved_inherent_impl.rs:14:29
+   |
+14 |     #[turbo_tasks::function(resolved)]
+   |                             ^^^^^^^^ the trait `ResolvedValue` is not implemented for `IntegersVec`
+   |
+   = help: the following other types implement trait `ResolvedValue`:
+             &T
+             &mut T
+             ()
+             (A, Z, Y, X, W, V, U, T)
+             (B, A, Z, Y, X, W, V, U, T)
+             (C, B, A, Z, Y, X, W, V, U, T)
+             (D, C, B, A, Z, Y, X, W, V, U, T)
+             (E, D, C, B, A, Z, Y, X, W, V, U, T)
+           and $N others
+note: required by a bound in `assert_returns_resolved_value`
+  --> tests/function/fail_resolved_inherent_impl.rs:14:29
+   |
+14 |     #[turbo_tasks::function(resolved)]
+   |                             ^^^^^^^^ required by this bound in `assert_returns_resolved_value`

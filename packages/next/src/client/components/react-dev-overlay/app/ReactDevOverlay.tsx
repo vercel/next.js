@@ -1,26 +1,25 @@
 import * as React from 'react'
-import { ACTION_UNHANDLED_ERROR } from './error-overlay-reducer'
-import type {
-  OverlayState,
-  UnhandledErrorAction,
-} from './error-overlay-reducer'
+import { ACTION_UNHANDLED_ERROR, type OverlayState } from '../shared'
 
 import { ShadowPortal } from '../internal/components/ShadowPortal'
 import { BuildError } from '../internal/container/BuildError'
 import { Errors } from '../internal/container/Errors'
+import { StaticIndicator } from '../internal/container/StaticIndicator'
 import type { SupportedErrorEvent } from '../internal/container/Errors'
-import { RootLayoutError } from '../internal/container/RootLayoutError'
 import { parseStack } from '../internal/helpers/parseStack'
 import { Base } from '../internal/styles/Base'
 import { ComponentStyles } from '../internal/styles/ComponentStyles'
 import { CssReset } from '../internal/styles/CssReset'
+import { RootLayoutMissingTagsError } from '../internal/container/root-layout-missing-tags-error'
+import type { Dispatcher } from './hot-reloader-client'
 
 interface ReactDevOverlayState {
   reactError: SupportedErrorEvent | null
 }
-class ReactDevOverlay extends React.PureComponent<
+export default class ReactDevOverlay extends React.PureComponent<
   {
     state: OverlayState
+    dispatcher?: Dispatcher
     children: React.ReactNode
     onReactError: (error: Error) => void
   },
@@ -29,17 +28,17 @@ class ReactDevOverlay extends React.PureComponent<
   state = { reactError: null }
 
   static getDerivedStateFromError(error: Error): ReactDevOverlayState {
-    const e = error
-    const event: UnhandledErrorAction = {
-      type: ACTION_UNHANDLED_ERROR,
-      reason: error,
-      frames: parseStack(e.stack!),
+    if (!error.stack) return { reactError: null }
+    return {
+      reactError: {
+        id: 0,
+        event: {
+          type: ACTION_UNHANDLED_ERROR,
+          reason: error,
+          frames: parseStack(error.stack),
+        },
+      },
     }
-    const errorEvent: SupportedErrorEvent = {
-      id: 0,
-      event,
-    }
-    return { reactError: errorEvent }
   }
 
   componentDidCatch(componentErr: Error) {
@@ -47,17 +46,12 @@ class ReactDevOverlay extends React.PureComponent<
   }
 
   render() {
-    const { state, children } = this.props
+    const { state, children, dispatcher } = this.props
     const { reactError } = this.state
 
     const hasBuildError = state.buildError != null
     const hasRuntimeErrors = Boolean(state.errors.length)
-    const rootLayoutMissingTagsError = state.rootLayoutMissingTagsError
-    const isMounted =
-      hasBuildError ||
-      hasRuntimeErrors ||
-      reactError ||
-      rootLayoutMissingTagsError
+    const hasStaticIndicator = state.staticIndicator
 
     return (
       <>
@@ -69,41 +63,46 @@ class ReactDevOverlay extends React.PureComponent<
         ) : (
           children
         )}
-        {isMounted ? (
-          <ShadowPortal>
-            <CssReset />
-            <Base />
-            <ComponentStyles />
+        <ShadowPortal>
+          <CssReset />
+          <Base />
+          <ComponentStyles />
+          {state.rootLayoutMissingTags?.length ? (
+            <RootLayoutMissingTagsError
+              missingTags={state.rootLayoutMissingTags}
+            />
+          ) : hasBuildError ? (
+            <BuildError
+              message={state.buildError!}
+              versionInfo={state.versionInfo}
+            />
+          ) : (
+            <>
+              {reactError ? (
+                <Errors
+                  isAppDir={true}
+                  versionInfo={state.versionInfo}
+                  initialDisplayState="fullscreen"
+                  errors={[reactError]}
+                  hasStaticIndicator={hasStaticIndicator}
+                />
+              ) : hasRuntimeErrors ? (
+                <Errors
+                  isAppDir={true}
+                  initialDisplayState="minimized"
+                  errors={state.errors}
+                  versionInfo={state.versionInfo}
+                  hasStaticIndicator={hasStaticIndicator}
+                />
+              ) : null}
 
-            {rootLayoutMissingTagsError ? (
-              <RootLayoutError
-                missingTags={rootLayoutMissingTagsError.missingTags}
-              />
-            ) : hasBuildError ? (
-              <BuildError
-                message={state.buildError!}
-                versionInfo={state.versionInfo}
-              />
-            ) : reactError ? (
-              <Errors
-                isAppDir={true}
-                versionInfo={state.versionInfo}
-                initialDisplayState="fullscreen"
-                errors={[reactError]}
-              />
-            ) : hasRuntimeErrors ? (
-              <Errors
-                isAppDir={true}
-                initialDisplayState="minimized"
-                errors={state.errors}
-                versionInfo={state.versionInfo}
-              />
-            ) : undefined}
-          </ShadowPortal>
-        ) : undefined}
+              {hasStaticIndicator && (
+                <StaticIndicator dispatcher={dispatcher} />
+              )}
+            </>
+          )}
+        </ShadowPortal>
       </>
     )
   }
 }
-
-export default ReactDevOverlay

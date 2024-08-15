@@ -1,19 +1,23 @@
 {
   "version": 2,
   "suites": {
+    "test/production/app-dir/fetch-cache/fetch-cache.test.ts": {
+      "passed": [],
+      "failed": [
+        "fetch-cache should have correct fetchUrl field for fetches and unstable_cache",
+        "fetch-cache should retry 3 times when revalidate times out",
+        "fetch-cache should not retry for failed fetch-cache GET"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/app-static/app-static.test.ts": {
       "failed": [
         "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
         "app-dir static/dynamic handling should have correct prerender-manifest entries",
         "app-dir static/dynamic handling should output HTML/RSC files for static paths",
         "app-dir static/dynamic handling should output debug info for static bailouts"
-      ]
-    },
-    "test/e2e/app-dir/app-client-cache/client-cache.test.ts": {
-      "failed": [
-        "app dir client cache semantics prefetch={undefined} - default should re-use the full cache for only 30 seconds",
-        "app dir client cache semantics prefetch={undefined} - default should refetch below the fold after 30 seconds",
-        "app dir client cache semantics prefetch={undefined} - default should renew the 30s cache once the data is revalidated"
       ]
     },
     "test/e2e/app-dir/headers-static-bailout/headers-static-bailout.test.ts": {
@@ -24,6 +28,13 @@
     "test/e2e/app-dir/error-boundary-navigation/override-node-env.test.ts": {
       "failed": [
         "app dir - not found navigation - with overridden node env should be able to navigate to other page from root not-found page"
+      ]
+    },
+    "test/e2e/on-request-error/isr/isr.test.ts": {
+      "failed": [
+        "on-request-error - isr app router ISR should capture correct reason for stale errored page",
+        "on-request-error - isr app router ISR should capture correct reason for on-demand revalidated page",
+        "on-request-error - isr app router ISR should capture revalidate from server action"
       ]
     },
     "test/e2e/opentelemetry/opentelemetry.test.ts": {
@@ -75,7 +86,11 @@
       "test/e2e/app-dir/ppr/**/*",
       "test/e2e/app-dir/ppr-*/**/*",
       "test/e2e/app-dir/app-prefetch*/**/*",
-      "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts"
+      "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts",
+      "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts",
+      "test/e2e/app-dir/app-client-cache/client-cache.original.test.ts",
+      "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts",
+      "test/e2e/app-dir/react-max-headers-length/react-max-headers-length.test.ts"
     ]
   }
 }

@@ -1,27 +1,19 @@
 import type { ReactNode } from 'react'
-import React, {
-  useCallback,
-  useEffect,
-  useReducer,
-  useMemo,
-  startTransition,
-} from 'react'
+import { useCallback, useEffect, startTransition, useMemo, useRef } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import formatWebpackMessages from '../../../dev/error-overlay/format-webpack-messages'
-import { useRouter } from '../../navigation'
+import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
+import { usePathname, useRouter } from '../../navigation'
 import {
-  ACTION_VERSION_INFO,
-  INITIAL_OVERLAY_STATE,
-  errorOverlayReducer,
-} from './error-overlay-reducer'
-import {
-  ACTION_BUILD_OK,
-  ACTION_BUILD_ERROR,
   ACTION_BEFORE_REFRESH,
+  ACTION_BUILD_ERROR,
+  ACTION_BUILD_OK,
   ACTION_REFRESH,
+  ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from './error-overlay-reducer'
+  ACTION_VERSION_INFO,
+  useErrorOverlayReducer,
+} from '../shared'
 import { parseStack } from '../internal/helpers/parseStack'
 import ReactDevOverlay from './ReactDevOverlay'
 import { useErrorHandler } from '../internal/helpers/use-error-handler'
@@ -40,14 +32,16 @@ import type {
   TurbopackMsgToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
-import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../../../dev/error-overlay/messages'
+import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
+import type { HydrationErrorState } from '../internal/helpers/hydration-error-info'
 
-interface Dispatcher {
+export interface Dispatcher {
   onBuildOk(): void
   onBuildError(message: string): void
   onVersionInfo(versionInfo: VersionInfo): void
   onBeforeRefresh(): void
   onRefresh(): void
+  onStaticIndicator(status: boolean): void
 }
 
 let mostRecentCompilationHash: any = null
@@ -55,19 +49,36 @@ let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let reloading = false
 let startLatency: number | null = null
 
-function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
+let pendingHotUpdateWebpack = Promise.resolve()
+let resolvePendingHotUpdateWebpack: () => void = () => {}
+function setPendingHotUpdateWebpack() {
+  pendingHotUpdateWebpack = new Promise((resolve) => {
+    resolvePendingHotUpdateWebpack = () => {
+      resolve()
+    }
+  })
+}
+
+export function waitForWebpackRuntimeHotUpdate() {
+  return pendingHotUpdateWebpack
+}
+
+function handleBeforeHotUpdateWebpack(
+  dispatcher: Dispatcher,
+  hasUpdates: boolean
+) {
   if (hasUpdates) {
     dispatcher.onBeforeRefresh()
   }
 }
 
-function onFastRefresh(
+function handleSuccessfulHotUpdateWebpack(
   dispatcher: Dispatcher,
   sendMessage: (message: string) => void,
   updatedModules: ReadonlyArray<string>
 ) {
+  resolvePendingHotUpdateWebpack()
   dispatcher.onBuildOk()
-
   reportHmrLatency(sendMessage, updatedModules)
 
   dispatcher.onRefresh()
@@ -151,6 +162,7 @@ function performFullReload(err: any, sendMessage: any) {
       event: 'client-full-reload',
       stackTrace,
       hadRuntimeError: !!RuntimeErrorHandler.hadRuntimeError,
+      dependencyChain: err ? err.dependencyChain : undefined,
     })
   )
 
@@ -167,7 +179,9 @@ function tryApplyUpdates(
   dispatcher: Dispatcher
 ) {
   if (!isUpdateAvailable() || !canApplyUpdates()) {
+    resolvePendingHotUpdateWebpack()
     dispatcher.onBuildOk()
+    reportHmrLatency(sendMessage, [])
     return
   }
 
@@ -243,12 +257,15 @@ function tryApplyUpdates(
     )
 }
 
+/** Handles messages from the sevrer for the App Router. */
 function processMessage(
   obj: HMR_ACTION_TYPES,
   sendMessage: (message: string) => void,
   processTurbopackMessage: (msg: TurbopackMsgToBrowser) => void,
   router: ReturnType<typeof useRouter>,
-  dispatcher: Dispatcher
+  dispatcher: Dispatcher,
+  appIsrManifestRef: ReturnType<typeof useRef>,
+  pathnameRef: ReturnType<typeof useRef>
 ) {
   if (!('action' in obj)) {
     return
@@ -285,12 +302,16 @@ function processMessage(
     } else {
       tryApplyUpdates(
         function onBeforeHotUpdate(hasUpdates: boolean) {
-          onBeforeFastRefresh(dispatcher, hasUpdates)
+          handleBeforeHotUpdateWebpack(dispatcher, hasUpdates)
         },
         function onSuccessfulHotUpdate(webpackUpdatedModules: string[]) {
           // Only dismiss it when we're sure it's a hot update.
           // Otherwise it would flicker right before the reload.
-          onFastRefresh(dispatcher, sendMessage, webpackUpdatedModules)
+          handleSuccessfulHotUpdateWebpack(
+            dispatcher,
+            sendMessage,
+            webpackUpdatedModules
+          )
         },
         sendMessage,
         dispatcher
@@ -299,8 +320,29 @@ function processMessage(
   }
 
   switch (obj.action) {
+    case HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST: {
+      if (process.env.__NEXT_APP_ISR_INDICATOR) {
+        if (appIsrManifestRef) {
+          appIsrManifestRef.current = obj.data
+
+          // handle initial status on receiving manifest
+          // navigation is handled in useEffect for pathname changes
+          // as we'll receive the updated manifest before usePathname
+          // triggers for new value
+          if ((pathnameRef.current as string) in obj.data) {
+            dispatcher.onStaticIndicator(true)
+          } else {
+            dispatcher.onStaticIndicator(false)
+          }
+        }
+      }
+      break
+    }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()
+      if (!process.env.TURBOPACK) {
+        setPendingHotUpdateWebpack()
+      }
       console.log('[Fast Refresh] rebuilding')
       break
     }
@@ -313,9 +355,8 @@ function processMessage(
       const { errors, warnings } = obj
 
       // Is undefined when it's a 'built' event
-      if ('versionInfo' in obj) {
-        dispatcher.onVersionInfo(obj.versionInfo)
-      }
+      if ('versionInfo' in obj) dispatcher.onVersionInfo(obj.versionInfo)
+
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
       if (hasErrors) {
@@ -377,6 +418,9 @@ function processMessage(
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED: {
       processTurbopackMessage({
         type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+        data: {
+          sessionId: obj.data.sessionId,
+        },
       })
       break
     }
@@ -408,9 +452,9 @@ function processMessage(
         reloading = true
         return window.location.reload()
       }
+      resolvePendingHotUpdateWebpack()
       startTransition(() => {
-        // @ts-ignore it exists, it's just hidden
-        router.fastRefresh()
+        router.hmrRefresh()
         dispatcher.onRefresh()
       })
 
@@ -434,17 +478,10 @@ function processMessage(
       reloading = true
       return window.location.reload()
     }
+    case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE:
     case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE: {
-      // TODO-APP: potentially only refresh if the currently viewed page was removed.
-      // @ts-ignore it exists, it's just hidden
-      router.fastRefresh()
-      return
-    }
-    case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE: {
-      // TODO-APP: potentially only refresh if the currently viewed page was added.
-      // @ts-ignore it exists, it's just hidden
-      router.fastRefresh()
-      return
+      // TODO-APP: potentially only refresh if the currently viewed page was added/removed.
+      return router.hmrRefresh()
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = obj
@@ -471,11 +508,9 @@ export default function HotReload({
   assetPrefix: string
   children?: ReactNode
 }) {
-  const [state, dispatch] = useReducer(
-    errorOverlayReducer,
-    INITIAL_OVERLAY_STATE
-  )
-  const dispatcher = useMemo((): Dispatcher => {
+  const [state, dispatch] = useErrorOverlayReducer()
+
+  const dispatcher = useMemo<Dispatcher>(() => {
     return {
       onBuildOk() {
         dispatch({ type: ACTION_BUILD_OK })
@@ -492,27 +527,44 @@ export default function HotReload({
       onVersionInfo(versionInfo) {
         dispatch({ type: ACTION_VERSION_INFO, versionInfo })
       },
+      onStaticIndicator(status: boolean) {
+        dispatch({ type: ACTION_STATIC_INDICATOR, staticIndicator: status })
+      },
     }
   }, [dispatch])
 
-  const handleOnUnhandledError = useCallback((error: Error): void => {
-    // Component stack is added to the error in use-error-handler in case there was a hydration errror
-    const componentStack = (error as any)._componentStack
-    dispatch({
-      type: ACTION_UNHANDLED_ERROR,
-      reason: error,
-      frames: parseStack(error.stack!),
-      componentStackFrames:
-        componentStack && parseComponentStack(componentStack),
-    })
-  }, [])
-  const handleOnUnhandledRejection = useCallback((reason: Error): void => {
-    dispatch({
-      type: ACTION_UNHANDLED_REJECTION,
-      reason: reason,
-      frames: parseStack(reason.stack!),
-    })
-  }, [])
+  const handleOnUnhandledError = useCallback(
+    (error: Error): void => {
+      const errorDetails = (error as any).details as
+        | HydrationErrorState
+        | undefined
+      // Component stack is added to the error in use-error-handler in case there was a hydration errror
+      const componentStackTrace =
+        (error as any)._componentStack || errorDetails?.componentStack
+      const warning = errorDetails?.warning
+      dispatch({
+        type: ACTION_UNHANDLED_ERROR,
+        reason: error,
+        frames: parseStack(error.stack!),
+        componentStackFrames:
+          typeof componentStackTrace === 'string'
+            ? parseComponentStack(componentStackTrace)
+            : undefined,
+        warning,
+      })
+    },
+    [dispatch]
+  )
+  const handleOnUnhandledRejection = useCallback(
+    (reason: Error): void => {
+      dispatch({
+        type: ACTION_UNHANDLED_REJECTION,
+        reason: reason,
+        frames: parseStack(reason.stack!),
+      })
+    },
+    [dispatch]
+  )
   const handleOnReactError = useCallback(() => {
     RuntimeErrorHandler.hadRuntimeError = true
   }, [])
@@ -521,11 +573,38 @@ export default function HotReload({
   const webSocketRef = useWebsocket(assetPrefix)
   useWebsocketPing(webSocketRef)
   const sendMessage = useSendMessage(webSocketRef)
-  const processTurbopackMessage = useTurbopack(sendMessage)
+  const processTurbopackMessage = useTurbopack(sendMessage, (err) =>
+    performFullReload(err, sendMessage)
+  )
 
   const router = useRouter()
+  const pathname = usePathname()
+  const appIsrManifestRef = useRef<Record<string, false | number>>({})
+  const pathnameRef = useRef(pathname)
+
+  if (process.env.__NEXT_APP_ISR_INDICATOR) {
+    // this conditional is only for dead-code elimination which
+    // isn't a runtime conditional only build-time so ignore hooks rule
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      pathnameRef.current = pathname
+
+      const appIsrManifest = appIsrManifestRef.current
+
+      if (appIsrManifest) {
+        if (pathname in appIsrManifest) {
+          dispatcher.onStaticIndicator(true)
+        } else {
+          dispatcher.onStaticIndicator(false)
+        }
+      }
+    }, [pathname, dispatcher])
+  }
 
   useEffect(() => {
+    const websocket = webSocketRef.current
+    if (!websocket) return
+
     const handler = (event: MessageEvent<any>) => {
       try {
         const obj = JSON.parse(event.data)
@@ -534,7 +613,9 @@ export default function HotReload({
           sendMessage,
           processTurbopackMessage,
           router,
-          dispatcher
+          dispatcher,
+          appIsrManifestRef,
+          pathnameRef
         )
       } catch (err: any) {
         console.warn(
@@ -543,16 +624,23 @@ export default function HotReload({
       }
     }
 
-    const websocket = webSocketRef.current
-    if (websocket) {
-      websocket.addEventListener('message', handler)
-    }
-
-    return () => websocket && websocket.removeEventListener('message', handler)
-  }, [sendMessage, router, webSocketRef, dispatcher, processTurbopackMessage])
+    websocket.addEventListener('message', handler)
+    return () => websocket.removeEventListener('message', handler)
+  }, [
+    sendMessage,
+    router,
+    webSocketRef,
+    dispatcher,
+    processTurbopackMessage,
+    appIsrManifestRef,
+  ])
 
   return (
-    <ReactDevOverlay onReactError={handleOnReactError} state={state}>
+    <ReactDevOverlay
+      onReactError={handleOnReactError}
+      state={state}
+      dispatcher={dispatcher}
+    >
       {children}
     </ReactDevOverlay>
   )

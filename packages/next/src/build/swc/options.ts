@@ -6,6 +6,7 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 import type { ResolvedBaseUrl } from '../load-jsconfig'
+import { isWebpackServerOnlyLayer } from '../utils'
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
@@ -78,8 +79,7 @@ function getBaseSWCOptions({
   serverComponents?: boolean
   bundleLayer?: WebpackLayerName
 }) {
-  const isReactServerLayer =
-    bundleLayer === WEBPACK_LAYERS.reactServerComponents
+  const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
@@ -382,14 +382,7 @@ export function getLoaderSWCOptions({
     esm: !!esm,
   })
   baseOptions.fontLoaders = {
-    fontLoaders: [
-      'next/font/local',
-      'next/font/google',
-
-      // TODO: remove this in the next major version
-      '@next/font/local',
-      '@next/font/google',
-    ],
+    fontLoaders: ['next/font/local', 'next/font/google'],
     relativeFilePathFromRoot,
   }
   baseOptions.cjsRequireOptimizer = {
@@ -408,7 +401,7 @@ export function getLoaderSWCOptions({
 
   if (optimizeServerReact && isServer && !development) {
     baseOptions.optimizeServerReact = {
-      optimize_use_state: true,
+      optimize_use_state: false,
     }
   }
 

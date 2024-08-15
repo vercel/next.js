@@ -2,7 +2,8 @@ import type {
   FlightRouterState,
   Segment,
 } from '../../../server/app-render/types'
-import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/future/helpers/interception-routes'
+import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/lib/interception-routes'
+import type { Params } from '../params'
 import {
   isGroupSegment,
   DEFAULT_SEGMENT_KEY,
@@ -16,6 +17,10 @@ const removeLeadingSlash = (segment: string): string => {
 
 const segmentToPathname = (segment: Segment): string => {
   if (typeof segment === 'string') {
+    // 'children' is not a valid path -- it's technically a parallel route that corresponds with the current segment's page
+    // if we don't skip it, then the computed pathname might be something like `/children` which doesn't make sense.
+    if (segment === 'children') return ''
+
     return segment
   }
 
@@ -50,7 +55,7 @@ export function extractPathFromFlightRouterState(
 
   if (segment.startsWith(PAGE_SEGMENT_KEY)) return ''
 
-  const segments = [segment]
+  const segments = [segmentToPathname(segment)]
   const parallelRoutes = flightRouterState[1] ?? {}
 
   const childrenPath = parallelRoutes.children
@@ -125,4 +130,35 @@ export function computeChangedPath(
 
   // lightweight normalization to remove route groups
   return normalizeSegments(changedPath.split('/'))
+}
+
+/**
+ * Recursively extracts dynamic parameters from FlightRouterState.
+ */
+export function getSelectedParams(
+  currentTree: FlightRouterState,
+  params: Params = {}
+): Params {
+  const parallelRoutes = currentTree[1]
+
+  for (const parallelRoute of Object.values(parallelRoutes)) {
+    const segment = parallelRoute[0]
+    const isDynamicParameter = Array.isArray(segment)
+    const segmentValue = isDynamicParameter ? segment[1] : segment
+    if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
+
+    // Ensure catchAll and optional catchall are turned into an array
+    const isCatchAll =
+      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
+
+    if (isCatchAll) {
+      params[segment[0]] = segment[1].split('/')
+    } else if (isDynamicParameter) {
+      params[segment[0]] = segment[1]
+    }
+
+    params = getSelectedParams(parallelRoute, params)
+  }
+
+  return params
 }

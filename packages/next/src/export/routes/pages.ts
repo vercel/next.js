@@ -18,7 +18,7 @@ import {
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { FileType, fileExists } from '../../lib/file-exists'
-import { lazyRenderPagesPage } from '../../server/future/route-modules/pages/module.render'
+import { lazyRenderPagesPage } from '../../server/route-modules/pages/module.render'
 
 export const enum ExportedPagesFiles {
   HTML = 'HTML',
@@ -27,7 +27,10 @@ export const enum ExportedPagesFiles {
   AMP_DATA = 'AMP_PAGE_DATA',
 }
 
-export async function exportPages(
+/**
+ * Renders & exports a page associated with the /pages directory
+ */
+export async function exportPagesPage(
   req: MockedRequest,
   res: MockedResponse,
   path: string,
@@ -117,7 +120,7 @@ export async function exportPages(
   const validateAmp = async (
     rawAmpHtml: string,
     ampPageName: string,
-    validatorPath?: string
+    validatorPath: string | undefined
   ) => {
     const validator = await AmpHtmlValidator.getInstance(validatorPath)
     const result = validator.validateString(rawAmpHtml)
@@ -170,7 +173,7 @@ export async function exportPages(
           ? ampRenderResult.toUnchunkedString()
           : ''
       if (!renderOpts.ampSkipValidation) {
-        await validateAmp(ampHtml, page + '?amp=1')
+        await validateAmp(ampHtml, page + '?amp=1', ampValidatorPath)
       }
 
       await fileWriter(

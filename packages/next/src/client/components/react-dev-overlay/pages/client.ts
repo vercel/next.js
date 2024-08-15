@@ -2,51 +2,66 @@ import * as Bus from './bus'
 import { parseStack } from '../internal/helpers/parseStack'
 import { parseComponentStack } from '../internal/helpers/parse-component-stack'
 import {
-  hydrationErrorComponentStack,
-  hydrationErrorWarning,
-  patchConsoleError,
+  hydrationErrorState,
+  storeHydrationErrorStateFromConsoleArgs,
 } from '../internal/helpers/hydration-error-info'
-
-// Patch console.error to collect information about hydration errors
-patchConsoleError()
+import {
+  ACTION_BEFORE_REFRESH,
+  ACTION_BUILD_ERROR,
+  ACTION_BUILD_OK,
+  ACTION_REFRESH,
+  ACTION_UNHANDLED_ERROR,
+  ACTION_UNHANDLED_REJECTION,
+  ACTION_VERSION_INFO,
+} from '../shared'
+import type { VersionInfo } from '../../../../server/dev/parse-version-info'
+import { attachHydrationErrorState } from '../internal/helpers/attach-hydration-error-state'
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
 
-function onUnhandledError(ev: ErrorEvent) {
-  const error = ev?.error
+function handleError(error: unknown) {
   if (!error || !(error instanceof Error) || typeof error.stack !== 'string') {
     // A non-error was thrown, we don't have anything to show. :-(
     return
   }
 
-  if (
-    error.message.match(/(hydration|content does not match|did not match)/i)
-  ) {
-    if (hydrationErrorWarning) {
-      // The patched console.error found hydration errors logged by React
-      // Append the logged warning to the error message
-      error.message += '\n\n' + hydrationErrorWarning
-    }
-    error.message += `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`
-  }
+  attachHydrationErrorState(error)
 
-  const e = error
+  const componentStackTrace =
+    (error as any)._componentStack || hydrationErrorState.componentStack
   const componentStackFrames =
-    typeof hydrationErrorComponentStack === 'string'
-      ? parseComponentStack(hydrationErrorComponentStack)
+    typeof componentStackTrace === 'string'
+      ? parseComponentStack(componentStackTrace)
       : undefined
 
   // Skip ModuleBuildError and ModuleNotFoundError, as it will be sent through onBuildError callback.
   // This is to avoid same error as different type showing up on client to cause flashing.
-  if (e.name !== 'ModuleBuildError' && e.name !== 'ModuleNotFoundError') {
+  if (
+    error.name !== 'ModuleBuildError' &&
+    error.name !== 'ModuleNotFoundError'
+  ) {
     Bus.emit({
-      type: Bus.TYPE_UNHANDLED_ERROR,
+      type: ACTION_UNHANDLED_ERROR,
       reason: error,
-      frames: parseStack(e.stack!),
+      frames: parseStack(error.stack!),
       componentStackFrames,
     })
   }
+}
+
+let origConsoleError = console.error
+function nextJsHandleConsoleError(...args: any[]) {
+  // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
+  const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
+  storeHydrationErrorStateFromConsoleArgs(...args)
+  handleError(error)
+  origConsoleError.apply(window.console, args)
+}
+
+function onUnhandledError(event: ErrorEvent) {
+  const error = event?.error
+  handleError(error)
 }
 
 function onUnhandledRejection(ev: PromiseRejectionEvent) {
@@ -62,13 +77,13 @@ function onUnhandledRejection(ev: PromiseRejectionEvent) {
 
   const e = reason
   Bus.emit({
-    type: Bus.TYPE_UNHANDLED_REJECTION,
+    type: ACTION_UNHANDLED_REJECTION,
     reason: reason,
     frames: parseStack(e.stack!),
   })
 }
 
-function register() {
+export function register() {
   if (isRegistered) {
     return
   }
@@ -82,9 +97,10 @@ function register() {
 
   window.addEventListener('error', onUnhandledError)
   window.addEventListener('unhandledrejection', onUnhandledRejection)
+  window.console.error = nextJsHandleConsoleError
 }
 
-function unregister() {
+export function unregister() {
   if (!isRegistered) {
     return
   }
@@ -99,32 +115,29 @@ function unregister() {
 
   window.removeEventListener('error', onUnhandledError)
   window.removeEventListener('unhandledrejection', onUnhandledRejection)
+  window.console.error = origConsoleError
 }
 
-function onBuildOk() {
-  Bus.emit({ type: Bus.TYPE_BUILD_OK })
+export function onBuildOk() {
+  Bus.emit({ type: ACTION_BUILD_OK })
 }
 
-function onBuildError(message: string) {
-  Bus.emit({ type: Bus.TYPE_BUILD_ERROR, message })
+export function onBuildError(message: string) {
+  Bus.emit({ type: ACTION_BUILD_ERROR, message })
 }
 
-function onRefresh() {
-  Bus.emit({ type: Bus.TYPE_REFRESH })
+export function onRefresh() {
+  Bus.emit({ type: ACTION_REFRESH })
 }
 
-function onBeforeRefresh() {
-  Bus.emit({ type: Bus.TYPE_BEFORE_REFRESH })
+export function onBeforeRefresh() {
+  Bus.emit({ type: ACTION_BEFORE_REFRESH })
+}
+
+export function onVersionInfo(versionInfo: VersionInfo) {
+  Bus.emit({ type: ACTION_VERSION_INFO, versionInfo })
 }
 
 export { getErrorByType } from '../internal/helpers/getErrorByType'
 export { getServerError } from '../internal/helpers/nodeStackFrames'
 export { default as ReactDevOverlay } from './ReactDevOverlay'
-export {
-  onBuildOk,
-  onBuildError,
-  register,
-  unregister,
-  onBeforeRefresh,
-  onRefresh,
-}

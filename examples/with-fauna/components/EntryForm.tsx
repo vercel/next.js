@@ -3,7 +3,9 @@
 import cn from "classnames";
 import { createEntryAction } from "@/actions/entry";
 // @ts-ignore
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+// @ts-ignore
+import { useFormStatus } from "react-dom";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import SuccessMessage from "@/components/SuccessMessage";
 import ErrorMessage from "@/components/ErrorMessage";
@@ -20,7 +22,7 @@ const initialState = {
 };
 
 export default function EntryForm() {
-  const [state, formAction] = useFormState(createEntryAction, initialState);
+  const [state, formAction] = useActionState(createEntryAction, initialState);
   const { pending } = useFormStatus();
 
   return (

@@ -74,7 +74,7 @@ docker compose -f docker-compose.prod.yml build
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-Alternatively, run the production server without without multistage builds (Final image approximately 1 GB).
+Alternatively, run the production server without multistage builds (Final image approximately 1 GB).
 
 ```bash
 # Create a network, which allows containers to communicate

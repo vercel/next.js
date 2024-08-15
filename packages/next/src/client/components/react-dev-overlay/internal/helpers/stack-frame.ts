@@ -32,9 +32,7 @@ function getOriginalStackFrame(
         `${
           process.env.__NEXT_ROUTER_BASEPATH || ''
         }/__nextjs_original-stack-frame?${params.toString()}`,
-        {
-          signal: controller.signal,
-        }
+        { signal: controller.signal }
       )
       .finally(() => {
         clearTimeout(tm)
@@ -104,6 +102,15 @@ export function getOriginalStackFrames(
   )
 }
 
+const webpackRegExes = [
+  /^webpack-internal:\/\/\/(\.)?(\((\w+)\))?/,
+  /^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
+]
+
+function isWebpackBundled(file: string) {
+  return webpackRegExes.some((regEx) => regEx.test(file))
+}
+
 /**
  * Format the webpack internal id to original file path
  * webpack-internal:///./src/hello.tsx => ./src/hello.tsx
@@ -111,23 +118,23 @@ export function getOriginalStackFrames(
  * webpack://./src/hello.tsx => ./src/hello.tsx
  * webpack:///./src/hello.tsx => ./src/hello.tsx
  *
+ * <anonymous> => ''
  */
 function formatFrameSourceFile(file: string) {
+  if (file === '<anonymous>') return ''
+  for (const regex of webpackRegExes) file = file.replace(regex, '')
   return file
-    .replace(/^webpack-internal:\/\/\/(\.)?(\((\w+)\))?/, '')
-    .replace(/^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/, '')
 }
 
 export function getFrameSource(frame: StackFrame): string {
+  if (!frame.file) return ''
+
   let str = ''
   try {
-    const u = new URL(frame.file!)
+    const u = new URL(frame.file)
 
     // Strip the origin for same-origin scripts.
-    if (
-      typeof globalThis !== 'undefined' &&
-      globalThis.location?.origin !== u.origin
-    ) {
+    if (globalThis.location?.origin !== u.origin) {
       // URLs can be valid without an `origin`, so long as they have a
       // `protocol`. However, `origin` is preferred.
       if (u.origin === 'null') {
@@ -143,10 +150,10 @@ export function getFrameSource(frame: StackFrame): string {
     str += ' '
     str = formatFrameSourceFile(str)
   } catch {
-    str += formatFrameSourceFile(frame.file || '(unknown)') + ' '
+    str += formatFrameSourceFile(frame.file || '') + ' '
   }
 
-  if (frame.lineNumber != null) {
+  if (!isWebpackBundled(frame.file) && frame.lineNumber != null) {
     if (frame.column != null) {
       str += `(${frame.lineNumber}:${frame.column}) `
     } else {

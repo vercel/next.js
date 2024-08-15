@@ -22,6 +22,9 @@ export function getEntryKey(
   return JSON.stringify({ type, side, page }) as EntryKey
 }
 
+/**
+ * Split an `EntryKey` up into its components.
+ */
 export function splitEntryKey(key: EntryKey): {
   type: EntryKeyType
   side: EntryKeySide
