@@ -10,19 +10,6 @@ export const COMPILER_NAMES = {
   edgeServer: 'edge-server',
 } as const
 
-/**
- * Headers that are set by the Next.js server and should be stripped from the
- * request headers going to the user's application.
- */
-export const INTERNAL_HEADERS = [
-  'x-invoke-error',
-  'x-invoke-output',
-  'x-invoke-path',
-  'x-invoke-query',
-  'x-invoke-status',
-  'x-middleware-invoke',
-] as const
-
 export type CompilerNameValues = ValueOf<typeof COMPILER_NAMES>
 
 export const COMPILER_INDEXES: {
@@ -57,11 +44,17 @@ export const IMAGES_MANIFEST = 'images-manifest.json'
 export const SERVER_FILES_MANIFEST = 'required-server-files.json'
 export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
 export const MIDDLEWARE_MANIFEST = 'middleware-manifest.json'
-export const DEV_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
+export const TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST =
+  '_clientMiddlewareManifest.json'
+export const DEV_CLIENT_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
 export const AUTOMATIC_FONT_OPTIMIZATION_MANIFEST = 'font-manifest.json'
 export const SERVER_DIRECTORY = 'server'
-export const CONFIG_FILES = ['next.config.js', 'next.config.mjs']
+export const CONFIG_FILES = [
+  'next.config.js',
+  'next.config.mjs',
+  'next.config.ts',
+]
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
 export const CLIENT_PUBLIC_FILES_PATH = 'public'

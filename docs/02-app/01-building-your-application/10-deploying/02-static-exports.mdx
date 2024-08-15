@@ -11,12 +11,6 @@ When running `next build`, Next.js generates an HTML file per route. By breaking
 
 Since Next.js supports this static export, it can be deployed and hosted on any web server that can serve HTML/CSS/JS static assets.
 
-<PagesOnly>
-
-> **Good to know**: We recommend using the App Router for enhanced static export support.
-
-</PagesOnly>
-
 ## Configuration
 
 To enable a static export, change the output mode inside `next.config.js`:
@@ -293,6 +287,7 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 - [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/caching-and-revalidating)
 - [Image Optimization](/docs/app/building-your-application/optimizing/images) with the default `loader`
 - [Draft Mode](/docs/app/building-your-application/configuring/draft-mode)
+- [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations)
 
 Attempting to use any of these features with `next dev` will result in an error, similar to setting the [`dynamic`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) option to `error` in the root layout.
 

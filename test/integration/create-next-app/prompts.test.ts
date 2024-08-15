@@ -1,19 +1,22 @@
-import { join } from 'path'
 import { check } from 'next-test-utils'
+import { join } from 'path'
 import { createNextApp, projectFilesShouldExist, useTempDir } from './utils'
 
-let testVersion
-beforeAll(async () => {
-  // TODO: investigate moving this post publish or create deployed GH#57025
-  // tarballs to avoid these failing while a publish is in progress
-  testVersion = 'canary'
-  // const span = new Span({ name: 'parent' })
-  // testVersion = (
-  //   await createNextInstall({ onlyPackages: true, parentSpan: span })
-  // ).get('next')
-})
+describe('create-next-app prompts', () => {
+  let nextTgzFilename: string
 
-describe.skip('create-next-app prompts', () => {
+  beforeAll(() => {
+    if (!process.env.NEXT_TEST_PKG_PATHS) {
+      throw new Error('This test needs to be run with `node run-tests.js`.')
+    }
+
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
+
+    nextTgzFilename = pkgPaths.get('next')
+  })
+
   it('should prompt user for choice if directory name is absent', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'no-dir-name'
@@ -29,7 +32,8 @@ describe.skip('create-next-app prompts', () => {
         ],
         {
           cwd,
-        }
+        },
+        nextTgzFilename
       )
 
       await new Promise<void>((resolve) => {
@@ -68,7 +72,7 @@ describe.skip('create-next-app prompts', () => {
         {
           cwd,
         },
-        testVersion
+        nextTgzFilename
       )
 
       await new Promise<void>((resolve) => {
@@ -104,7 +108,7 @@ describe.skip('create-next-app prompts', () => {
         {
           cwd,
         },
-        testVersion
+        nextTgzFilename
       )
 
       await new Promise<void>((resolve) => {
@@ -140,7 +144,7 @@ describe.skip('create-next-app prompts', () => {
         {
           cwd,
         },
-        testVersion
+        nextTgzFilename
       )
 
       await new Promise<void>(async (resolve) => {
@@ -168,6 +172,82 @@ describe.skip('create-next-app prompts', () => {
           ],
         }
       `)
+    })
+  })
+
+  it('should not prompt user for choice and use defaults if --yes is defined', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'yes-we-can'
+      const childProcess = createNextApp(
+        [projectName, '--yes'],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: [
+              'app',
+              '.eslintrc.json',
+              'package.json',
+              'tailwind.config.ts',
+              'tsconfig.json',
+            ],
+          })
+          resolve()
+        })
+      })
+
+      const pkg = require(join(cwd, projectName, 'package.json'))
+      expect(pkg.name).toBe(projectName)
+      const tsConfig = require(join(cwd, projectName, 'tsconfig.json'))
+      expect(tsConfig.compilerOptions.paths).toMatchInlineSnapshot(`
+        {
+          "@/*": [
+            "./*",
+          ],
+        }
+      `)
+    })
+  })
+
+  it('should prompt user to confirm reset preferences', async () => {
+    await useTempDir(async (cwd) => {
+      const childProcess = createNextApp(
+        ['--reset'],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      await new Promise<void>(async (resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          resolve()
+        })
+        let output = ''
+        childProcess.stdout.on('data', (data) => {
+          output += data
+          process.stdout.write(data)
+        })
+        await check(
+          () => output,
+          /Would you like to reset the saved preferences/
+        )
+        // cursor forward, choose 'Yes' for reset preferences
+        childProcess.stdin.write('\u001b[C\n')
+        await check(
+          () => output,
+          /The preferences have been reset successfully/
+        )
+      })
     })
   })
 })

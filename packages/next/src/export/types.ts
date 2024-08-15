@@ -6,7 +6,6 @@ import type { OutgoingHttpHeaders } from 'http'
 import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import type { FontConfig } from '../server/font-utils'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
-import type { Span } from '../trace'
 import type { Revalidate } from '../server/lib/revalidate'
 import type {
   NextEnabledDirectories,
@@ -16,6 +15,7 @@ import type {
   SerializableTurborepoAccessTraceResult,
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
+import type { FetchMetrics } from '../server/base-http'
 
 export interface AmpValidation {
   page: string
@@ -41,9 +41,25 @@ export type FileWriter = (
 
 type PathMap = ExportPathMap[keyof ExportPathMap]
 
+export interface ExportPagesInput {
+  paths: string[]
+  exportPathMap: ExportPathMap
+  parentSpanId: number
+  dir: string
+  distDir: string
+  outDir: string
+  pagesDataDir: string
+  renderOpts: WorkerRenderOptsPartial
+  nextConfig: NextConfigComplete
+  cacheMaxMemorySize: NextConfigComplete['cacheMaxMemorySize'] | undefined
+  fetchCache: boolean | undefined
+  cacheHandler: string | undefined
+  fetchCacheKeyPrefix: string | undefined
+  options: ExportAppOptions
+}
+
 export interface ExportPageInput {
   path: string
-  dir: string
   pathMap: PathMap
   distDir: string
   outDir: string
@@ -57,16 +73,11 @@ export interface ExportPageInput {
   optimizeFonts: FontConfig
   optimizeCss: any
   disableOptimizedLoading: any
-  parentSpanId: any
+  parentSpanId: number
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   debugOutput?: boolean
-  cacheMaxMemorySize?: NextConfigComplete['cacheMaxMemorySize']
-  fetchCache?: boolean
-  cacheHandler?: string
-  fetchCacheKeyPrefix?: string
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
-  enabledDirectories: NextEnabledDirectories
 }
 
 export type ExportedPageFile = {
@@ -85,6 +96,7 @@ export type ExportRouteResult =
       ssgNotFound?: boolean
       hasEmptyPrelude?: boolean
       hasPostponed?: boolean
+      fetchMetrics?: FetchMetrics
     }
   | {
       error: boolean
@@ -96,16 +108,18 @@ export type ExportPageResult = ExportRouteResult & {
   turborepoAccessTraceResult?: SerializableTurborepoAccessTraceResult
 }
 
+export type ExportPagesResult = {
+  result: ExportPageResult | undefined
+  path: string
+  pageKey: string
+}[]
+
 export type WorkerRenderOptsPartial = PagesRenderOptsPartial &
   AppRenderOptsPartial
 
 export type WorkerRenderOpts = WorkerRenderOptsPartial &
   RequestLifecycleOpts &
   LoadComponentsReturnType
-
-export type ExportWorker = (
-  input: ExportPageInput
-) => Promise<ExportPageResult | undefined>
 
 export interface ExportAppOptions {
   outdir: string
@@ -115,11 +129,9 @@ export interface ExportAppOptions {
   pages?: string[]
   buildExport: boolean
   statusMessage?: string
-  exportPageWorker?: ExportWorker
-  exportAppPageWorker?: ExportWorker
-  endWorker: () => Promise<void>
   nextConfig?: NextConfigComplete
   hasOutdirFromCli?: boolean
+  numWorkers: number
 }
 
 export type ExportPageMetadata = {
@@ -156,6 +168,8 @@ export type ExportAppResult = {
        * If the page has postponed when using PPR.
        */
       hasPostponed?: boolean
+
+      fetchMetrics?: FetchMetrics
     }
   >
 
@@ -174,9 +188,3 @@ export type ExportAppResult = {
    */
   turborepoAccessTraceResults: Map<string, TurborepoAccessTraceResult>
 }
-
-export type ExportAppWorker = (
-  dir: string,
-  options: ExportAppOptions,
-  span: Span
-) => Promise<ExportAppResult | null>

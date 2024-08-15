@@ -1,13 +1,13 @@
 /* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 import {
+  assertHasRedbox,
   check,
   retry,
   waitFor,
   getRedboxSource,
-  hasRedbox,
 } from 'next-test-utils'
-import type { Request, Response, Route } from 'playwright'
+import type { Page, Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import { join } from 'path'
 
@@ -19,10 +19,41 @@ describe('app-dir action handling', () => {
     nextTestSetup({
       files: __dirname,
       dependencies: {
-        nanoid: 'latest',
+        nanoid: '4.0.1',
         'server-only': 'latest',
       },
     })
+
+  it('should handle action correctly with middleware rewrite', async () => {
+    const browser = await next.browser('/rewrite-to-static-first')
+    const requests: Array<{
+      url: string
+      method: string
+      status: number
+      headers: Record<string, string>
+    }> = []
+
+    browser.on('request', async (req: import('playwright').Request) => {
+      requests.push({
+        url: req.url(),
+        status: await req.response().then((res) => res.status()),
+        method: req.method(),
+        headers: req.headers(),
+      })
+    })
+    await browser.elementByCss('#inc').click()
+
+    await retry(async () => {
+      expect(Number(await browser.elementByCss('#count').text())).toBe(1)
+    })
+
+    const actionRequest = requests.find((req) => {
+      return (
+        req.url.includes('rewrite-to-static-first') && req.method === 'POST'
+      )
+    })
+    expect(actionRequest.status).toBe(200)
+  })
 
   it('should handle basic actions correctly', async () => {
     const browser = await next.browser('/server')
@@ -58,6 +89,56 @@ describe('app-dir action handling', () => {
         )
       )
     ).toBe(true)
+  })
+
+  it('should propagate errors from a `text/plain` response to an error boundary', async () => {
+    const customErrorText = 'Custom error!'
+    const browser = await next.browser('/error-handling', {
+      beforePageLoad(page: Page) {
+        page.route('**/error-handling', async (route: Route) => {
+          const requestHeaders = await route.request().allHeaders()
+          if (requestHeaders['next-action']) {
+            await route.fulfill({
+              status: 500,
+              contentType: 'text/plain',
+              body: customErrorText,
+            })
+          } else {
+            await route.continue()
+          }
+        })
+      },
+    })
+
+    await browser.elementById('submit-transition').click()
+    const error = await browser.waitForElementByCss('#error-text')
+    expect(await error.text()).toBe(customErrorText)
+  })
+
+  it('should trigger an error boundary for action responses with an invalid content-type', async () => {
+    const customErrorText = 'Custom error!'
+    const browser = await next.browser('/error-handling', {
+      beforePageLoad(page: Page) {
+        page.route('**/error-handling', async (route: Route) => {
+          const requestHeaders = await route.request().allHeaders()
+          if (requestHeaders['next-action']) {
+            await route.fulfill({
+              status: 500,
+              contentType: 'application/json',
+              body: JSON.stringify({ error: customErrorText }),
+            })
+          } else {
+            await route.continue()
+          }
+        })
+      },
+    })
+
+    await browser.elementById('submit-transition').click()
+    const error = await browser.waitForElementByCss('#error-text')
+    expect(await error.text()).toBe(
+      'An unexpected response was received from the server.'
+    )
   })
 
   it('should support headers and cookies', async () => {
@@ -674,7 +755,7 @@ describe('app-dir action handling', () => {
             origContent + '\n\nexport const foo = 1'
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          await assertHasRedbox(browser)
           expect(await getRedboxSource(browser)).toContain(
             'Only async functions are allowed to be exported in a "use server" file.'
           )
@@ -778,25 +859,61 @@ describe('app-dir action handling', () => {
       }, 'Prefix: HELLO, WORLD')
     })
 
-    it('should handle redirect to a relative URL in a single pass', async () => {
-      const browser = await next.browser('/client/edge')
+    it.each(['relative', 'absolute'])(
+      `should handle calls to redirect() with a %s URL in a single pass`,
+      async (redirectType) => {
+        const initialPagePath = '/client/redirects'
+        const destinationPagePath = '/redirect-target'
 
-      await waitFor(3000)
+        const browser = await next.browser(initialPagePath)
 
-      let requests = []
+        const requests: Request[] = []
+        const responses: Response[] = []
 
-      browser.on('request', (req: Request) => {
-        requests.push(new URL(req.url()).pathname)
-      })
+        browser.on('request', (req: Request) => {
+          const url = req.url()
 
-      await browser.elementByCss('#redirect').click()
+          if (
+            url.includes(initialPagePath) ||
+            url.includes(destinationPagePath)
+          ) {
+            requests.push(req)
+          }
+        })
 
-      // no other requests should be made
-      expect(requests).toEqual(['/client/edge'])
-    })
+        browser.on('response', (res: Response) => {
+          const url = res.url()
 
-    it('should handle regular redirects', async () => {
-      const browser = await next.browser('/client/edge')
+          if (
+            url.includes(initialPagePath) ||
+            url.includes(destinationPagePath)
+          ) {
+            responses.push(res)
+          }
+        })
+
+        await browser.elementById(`redirect-${redirectType}`).click()
+        await check(() => browser.url(), `${next.url}${destinationPagePath}`)
+
+        expect(await browser.waitForElementByCss('#redirected').text()).toBe(
+          'redirected'
+        )
+
+        // no other requests should be made
+        expect(requests).toHaveLength(1)
+        expect(responses).toHaveLength(1)
+
+        const request = requests[0]
+        const response = responses[0]
+
+        expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
+        expect(request.method()).toEqual('POST')
+        expect(response.status()).toEqual(303)
+      }
+    )
+
+    it('should handle calls to redirect() with external URLs', async () => {
+      const browser = await next.browser('/client/redirects')
 
       await browser.elementByCss('#redirect-external').click()
 
@@ -845,36 +962,57 @@ describe('app-dir action handling', () => {
       await check(() => browser.elementByCss('#count').text(), '2')
     })
 
-    it('should handle redirect to a relative URL in a single pass', async () => {
-      let responseCode: number
-      const browser = await next.browser('/client', {
-        beforePageLoad(page) {
-          page.on('response', async (res: Response) => {
-            const headers = await res.allHeaders()
-            if (headers['x-action-redirect']) {
-              responseCode = res.status()
-            }
-          })
-        },
-      })
+    it.each(['relative', 'absolute'])(
+      `should handle calls to redirect() with a %s URL in a single pass`,
+      async (redirectType) => {
+        const initialPagePath = '/client/redirects'
+        const destinationPagePath = '/redirect-target'
 
-      await waitFor(3000)
+        const browser = await next.browser(initialPagePath)
 
-      let requests = []
+        const requests: Request[] = []
+        const responses: Response[] = []
 
-      browser.on('request', (req: Request) => {
-        requests.push(new URL(req.url()).pathname)
-      })
+        browser.on('request', (req: Request) => {
+          const url = req.url()
 
-      await browser.elementByCss('#redirect').click()
+          if (
+            url.includes(initialPagePath) ||
+            url.includes(destinationPagePath)
+          ) {
+            requests.push(req)
+          }
+        })
 
-      // no other requests should be made
-      expect(requests).toEqual(['/client'])
-      await check(() => responseCode, 303)
-    })
+        browser.on('response', (res: Response) => {
+          const url = res.url()
 
-    it('should handle regular redirects', async () => {
-      const browser = await next.browser('/client')
+          if (
+            url.includes(initialPagePath) ||
+            url.includes(destinationPagePath)
+          ) {
+            responses.push(res)
+          }
+        })
+
+        await browser.elementById(`redirect-${redirectType}`).click()
+        await check(() => browser.url(), `${next.url}${destinationPagePath}`)
+
+        // no other requests should be made
+        expect(requests).toHaveLength(1)
+        expect(responses).toHaveLength(1)
+
+        const request = requests[0]
+        const response = responses[0]
+
+        expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
+        expect(request.method()).toEqual('POST')
+        expect(response.status()).toEqual(303)
+      }
+    )
+
+    it('should handle calls to redirect() with external URLs', async () => {
+      const browser = await next.browser('/client/redirects')
 
       await browser.elementByCss('#redirect-external').click()
 

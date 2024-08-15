@@ -23,6 +23,7 @@ import {
 import type { PageExtensions } from '../page-extensions-type'
 import type { __ApiPreviewProps } from '../../server/api-utils'
 import { getReactCompilerLoader } from '../get-babel-loader-config'
+import { TurbopackInternalError } from '../../server/dev/turbopack-utils'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -677,6 +678,8 @@ export interface Project {
   updateInfoSubscribe(
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+
+  onExit(): Promise<void>
 }
 
 export type Route =
@@ -767,6 +770,12 @@ export type WrittenEndpoint =
       serverPaths: ServerPath[]
       config: EndpointConfig
     }
+  | {
+      type: 'none'
+      clientPaths: []
+      serverPaths: []
+      config: EndpointConfig
+    }
 
 function rustifyEnv(env: Record<string, string>): RustifiedEnv {
   return Object.entries(env)
@@ -802,7 +811,9 @@ function bindingToApi(
     try {
       return await fn()
     } catch (nativeError: any) {
-      throw new Error(nativeError.message, { cause: nativeError })
+      throw new TurbopackInternalError(nativeError.message, {
+        cause: nativeError,
+      })
     }
   }
 
@@ -1087,6 +1098,10 @@ function bindingToApi(
           )
       )
       return subscription
+    }
+
+    onExit(): Promise<void> {
+      return binding.projectOnExit(this._nativeProject)
     }
   }
 

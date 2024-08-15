@@ -16,21 +16,39 @@ export interface ResponseCacheBase {
        * this is so it knows where to look up the cache entry from. If not
        * provided it will test the filesystem to check.
        */
-      routeKind?: RouteKind
+      routeKind: RouteKind
 
       isRoutePPREnabled?: boolean
     }
   ): Promise<ResponseCacheEntry | null>
 }
 
+// The server components HMR cache might store other data as well in the future,
+// at which point this should be refactored to a discriminated union type.
+export interface ServerComponentsHmrCache {
+  get(key: string): CachedFetchData | undefined
+  set(key: string, data: CachedFetchData): void
+}
+
+export type CachedFetchData = {
+  headers: Record<string, string>
+  body: string
+  url: string
+  status?: number
+}
+
+export const enum CachedRouteKind {
+  APP_PAGE = 'APP_PAGE',
+  APP_ROUTE = 'APP_ROUTE',
+  PAGES = 'PAGES',
+  FETCH = 'FETCH',
+  REDIRECT = 'REDIRECT',
+  IMAGE = 'IMAGE',
+}
+
 export interface CachedFetchValue {
-  kind: 'FETCH'
-  data: {
-    headers: { [k: string]: string }
-    body: string
-    url: string
-    status?: number
-  }
+  kind: CachedRouteKind.FETCH
+  data: CachedFetchData
   // tags are only present with file-system-cache
   // fetch cache stores tags outside of cache entry
   tags?: string[]
@@ -38,12 +56,12 @@ export interface CachedFetchValue {
 }
 
 export interface CachedRedirectValue {
-  kind: 'REDIRECT'
+  kind: CachedRouteKind.REDIRECT
   props: Object
 }
 
 export interface CachedAppPageValue {
-  kind: 'APP_PAGE'
+  kind: CachedRouteKind.APP_PAGE
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   html: RenderResult
@@ -54,7 +72,7 @@ export interface CachedAppPageValue {
 }
 
 export interface CachedPageValue {
-  kind: 'PAGE'
+  kind: CachedRouteKind.PAGES
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   html: RenderResult
@@ -64,7 +82,7 @@ export interface CachedPageValue {
 }
 
 export interface CachedRouteValue {
-  kind: 'ROUTE'
+  kind: CachedRouteKind.APP_ROUTE
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   body: Buffer
@@ -73,7 +91,7 @@ export interface CachedRouteValue {
 }
 
 export interface CachedImageValue {
-  kind: 'IMAGE'
+  kind: CachedRouteKind.IMAGE
   etag: string
   buffer: Buffer
   extension: string
@@ -82,7 +100,7 @@ export interface CachedImageValue {
 }
 
 export interface IncrementalCachedAppPageValue {
-  kind: 'APP_PAGE'
+  kind: CachedRouteKind.APP_PAGE
   // this needs to be a string since the cache expects to store
   // the string value
   html: string
@@ -93,7 +111,7 @@ export interface IncrementalCachedAppPageValue {
 }
 
 export interface IncrementalCachedPageValue {
-  kind: 'PAGE'
+  kind: CachedRouteKind.PAGES
   // this needs to be a string since the cache expects to store
   // the string value
   html: string
@@ -152,17 +170,19 @@ export type IncrementalCacheItem = {
   isMiss?: boolean
 } | null
 
-export type IncrementalCacheKindHint = 'app' | 'pages' | 'fetch'
+export const enum IncrementalCacheKind {
+  APP_PAGE = 'APP_PAGE',
+  APP_ROUTE = 'APP_ROUTE',
+  PAGES = 'PAGES',
+  FETCH = 'FETCH',
+  IMAGE = 'IMAGE',
+}
 
 export interface IncrementalCache {
   get: (
     key: string,
-    ctx?: {
-      /**
-       * The kind of cache entry to get. If not provided it will try to
-       * determine the kind from the filesystem.
-       */
-      kindHint?: IncrementalCacheKindHint
+    ctx: {
+      kind: IncrementalCacheKind
 
       isRoutePPREnabled?: boolean
     }

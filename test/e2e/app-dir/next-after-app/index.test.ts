@@ -104,7 +104,8 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
         source: '[action] /[id]/with-action',
         value: '123',
         assertions: {
-          'cache() works in after()': true,
+          // cache() does not currently work in actions, and after() shouldn't affect that
+          'cache() works in after()': false,
           'headers() works in after()': true,
         },
       })
@@ -131,11 +132,14 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   describe('interrupted RSC renders', () => {
     it('runs callbacks if redirect() was called', async () => {
       await next.browser('/interrupted/calls-redirect')
-      expect(getLogs()).toContainEqual({
-        source: '[page] /interrupted/calls-redirect',
-      })
-      expect(getLogs()).toContainEqual({
-        source: '[page] /interrupted/redirect-target',
+
+      await retry(() => {
+        expect(getLogs()).toContainEqual({
+          source: '[page] /interrupted/calls-redirect',
+        })
+        expect(getLogs()).toContainEqual({
+          source: '[page] /interrupted/redirect-target',
+        })
       })
     })
 
@@ -339,7 +343,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
           )
 
           try {
-            expect(await session.hasRedbox()).toBe(true)
+            await session.assertHasRedbox()
             expect(await session.getRedboxDescription()).toContain(
               `Route /static with \`dynamic = "${dynamicValue}"\` couldn't be rendered statically because it used \`unstable_after\``
             )
@@ -365,7 +369,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
           '/invalid-in-client'
         )
         try {
-          expect(await session.hasRedbox()).toBe(true)
+          await session.assertHasRedbox()
           expect(await session.getRedboxSource(true)).toMatch(
             /You're importing a component that needs "?unstable_after"?\. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component\./
           )

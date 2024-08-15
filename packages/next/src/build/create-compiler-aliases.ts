@@ -199,6 +199,7 @@ export function createNextApiEsmAliases() {
     dynamic: 'next/dist/api/dynamic',
     script: 'next/dist/api/script',
     link: 'next/dist/api/link',
+    form: 'next/dist/api/form',
     navigation: 'next/dist/api/navigation',
     headers: 'next/dist/api/headers',
     og: 'next/dist/api/og',
@@ -235,6 +236,16 @@ export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
   return aliasMap
 }
 
+export function createRSCRendererAliases(bundledReactChannel: string) {
+  return {
+    // react-server-dom-webpack alias
+    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
+    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
+    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
+    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+  }
+}
+
 export function createRSCAliases(
   bundledReactChannel: string,
   {
@@ -255,17 +266,14 @@ export function createRSCAliases(
     'react/compiler-runtime$': `next/dist/compiled/react${bundledReactChannel}/compiler-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
     'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
-    'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
-    'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
-    'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
+    'react-dom/static$': `next/dist/compiled/react-dom${bundledReactChannel}/static`,
+    'react-dom/static.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/static.edge`,
+    'react-dom/static.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/static.browser`,
     // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
     'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
     'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
     // react-server-dom-webpack alias
-    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
-    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
-    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+    ...createRSCRendererAliases(bundledReactChannel),
   }
 
   if (!isEdgeServer) {
@@ -316,8 +324,9 @@ export function createRSCAliases(
       `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
   }
 
-  alias['@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'] =
-    `next/dist/client/dev/noop-turbopack-hmr`
+  alias[
+    '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
+  ] = `next/dist/client/dev/noop-turbopack-hmr`
 
   return alias
 }

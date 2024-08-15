@@ -55,6 +55,7 @@ export class Playwright extends BrowserInterface {
   private activeTrace?: string
   private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
     request: new Set(),
+    response: new Set(),
   }
   private async initContextTracing(url: string, context: BrowserContext) {
     if (!tracePlaywright) {
@@ -236,6 +237,9 @@ export class Playwright extends BrowserInterface {
     })
     page.on('request', (req) => {
       this.eventCallbacks.request.forEach((cb) => cb(req))
+    })
+    page.on('response', (res) => {
+      this.eventCallbacks.response.forEach((cb) => cb(res))
     })
 
     if (opts?.disableCache) {

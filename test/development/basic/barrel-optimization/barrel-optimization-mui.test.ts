@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { hasRedbox } from 'next-test-utils'
+import { assertNoRedbox } from 'next-test-utils'
 
 // Skipped in Turbopack, will be added later.
 ;(process.env.TURBOPACK ? describe.skip : describe)(
@@ -32,7 +32,7 @@ import { hasRedbox } from 'next-test-utils'
         expect(await $('#typography').text()).toContain('typography')
 
         const browser = await next.browser('/mui')
-        expect(await hasRedbox(browser)).toBe(false)
+        await assertNoRedbox(browser)
 
         const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
         expect(modules.length).toBeGreaterThanOrEqual(1)

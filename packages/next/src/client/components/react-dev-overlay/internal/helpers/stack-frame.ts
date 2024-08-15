@@ -117,8 +117,11 @@ function isWebpackBundled(file: string) {
  * webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
  * webpack://./src/hello.tsx => ./src/hello.tsx
  * webpack:///./src/hello.tsx => ./src/hello.tsx
+ *
+ * <anonymous> => ''
  */
 function formatFrameSourceFile(file: string) {
+  if (file === '<anonymous>') return ''
   for (const regex of webpackRegExes) file = file.replace(regex, '')
   return file
 }
@@ -147,7 +150,7 @@ export function getFrameSource(frame: StackFrame): string {
     str += ' '
     str = formatFrameSourceFile(str)
   } catch {
-    str += formatFrameSourceFile(frame.file || '(unknown)') + ' '
+    str += formatFrameSourceFile(frame.file || '') + ' '
   }
 
   if (!isWebpackBundled(frame.file) && frame.lineNumber != null) {

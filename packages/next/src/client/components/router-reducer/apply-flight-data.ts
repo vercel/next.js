@@ -11,16 +11,15 @@ export function applyFlightData(
   prefetchEntry?: PrefetchCacheEntry
 ): boolean {
   // The one before last item is the router state tree patch
-  const [treePatch, cacheNodeSeedData, head, layerAssets] =
-    flightDataPath.slice(-4)
+  const [treePatch, cacheNodeSeedData, head] = flightDataPath.slice(-3)
 
   // Handles case where prefetch only returns the router tree patch without rendered components.
   if (cacheNodeSeedData === null) {
     return false
   }
 
-  if (flightDataPath.length === 4) {
-    const rsc = cacheNodeSeedData[2]
+  if (flightDataPath.length === 3) {
+    const rsc = cacheNodeSeedData[1]
     const loading = cacheNodeSeedData[3]
     cache.loading = loading
     cache.rsc = rsc
@@ -36,7 +35,6 @@ export function applyFlightData(
       treePatch,
       cacheNodeSeedData,
       head,
-      layerAssets,
       prefetchEntry
     )
   } else {

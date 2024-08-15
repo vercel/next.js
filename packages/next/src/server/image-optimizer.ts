@@ -14,14 +14,16 @@ import { hasMatch } from '../shared/lib/match-remote-pattern'
 import type { NextConfigComplete } from './config-shared'
 import { createRequestResponseMocks } from './lib/mock-request'
 import type { NextUrlWithParsedQuery } from './request-meta'
-import type {
-  IncrementalCacheEntry,
-  IncrementalCacheValue,
+import {
+  CachedRouteKind,
+  type IncrementalCacheEntry,
+  type IncrementalCacheValue,
 } from './response-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
+import { parseUrl } from '../lib/url'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -32,6 +34,8 @@ const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const ICO = 'image/x-icon'
+const TIFF = 'image/tiff'
+const BMP = 'image/bmp'
 const CACHE_VERSION = 3
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
@@ -158,6 +162,12 @@ export function detectContentType(buffer: Buffer) {
   if ([0x00, 0x00, 0x01, 0x00].every((b, i) => buffer[i] === b)) {
     return ICO
   }
+  if ([0x49, 0x49, 0x2a, 0x00].every((b, i) => buffer[i] === b)) {
+    return TIFF
+  }
+  if ([0x42, 0x4d].every((b, i) => buffer[i] === b)) {
+    return BMP
+  }
   return null
 }
 
@@ -205,6 +215,16 @@ export class ImageOptimizerCache {
       }
     }
 
+    const parsedUrl = parseUrl(url)
+    if (parsedUrl) {
+      const decodedPathname = decodeURIComponent(parsedUrl.pathname)
+      if (/\/_next\/image($|\/)/.test(decodedPathname)) {
+        return {
+          errorMessage: '"url" parameter cannot be recursive',
+        }
+      }
+    }
+
     let isAbsolute: boolean
 
     if (url.startsWith('/')) {
@@ -234,19 +254,28 @@ export class ImageOptimizerCache {
       return { errorMessage: '"w" parameter (width) is required' }
     } else if (Array.isArray(w)) {
       return { errorMessage: '"w" parameter (width) cannot be an array' }
+    } else if (!/^[0-9]+$/.test(w)) {
+      return {
+        errorMessage: '"w" parameter (width) must be an integer greater than 0',
+      }
     }
 
     if (!q) {
       return { errorMessage: '"q" parameter (quality) is required' }
     } else if (Array.isArray(q)) {
       return { errorMessage: '"q" parameter (quality) cannot be an array' }
+    } else if (!/^[0-9]+$/.test(q)) {
+      return {
+        errorMessage:
+          '"q" parameter (quality) must be an integer between 1 and 100',
+      }
     }
 
     const width = parseInt(w, 10)
 
     if (width <= 0 || isNaN(width)) {
       return {
-        errorMessage: '"w" parameter (width) must be a number greater than 0',
+        errorMessage: '"w" parameter (width) must be an integer greater than 0',
       }
     }
 
@@ -265,12 +294,12 @@ export class ImageOptimizerCache {
       }
     }
 
-    const quality = parseInt(q)
+    const quality = parseInt(q, 10)
 
     if (isNaN(quality) || quality < 1 || quality > 100) {
       return {
         errorMessage:
-          '"q" parameter (quality) must be a number between 1 and 100',
+          '"q" parameter (quality) must be an integer between 1 and 100',
       }
     }
 
@@ -331,7 +360,7 @@ export class ImageOptimizerCache {
 
         return {
           value: {
-            kind: 'IMAGE',
+            kind: CachedRouteKind.IMAGE,
             etag,
             buffer,
             extension,
@@ -357,7 +386,7 @@ export class ImageOptimizerCache {
       revalidate?: number | false
     }
   ) {
-    if (value?.kind !== 'IMAGE') {
+    if (value?.kind !== CachedRouteKind.IMAGE) {
       throw new Error('invariant attempted to set non-image to image-cache')
     }
 
