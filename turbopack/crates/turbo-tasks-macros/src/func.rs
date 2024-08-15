@@ -338,14 +338,7 @@ impl TurboFn {
             quote_spanned! {
                 span =>
                 {
-                    fn assert_returns_resolved_value<
-                        ReturnType,
-                        Rv,
-                    >() where
-                        ReturnType: turbo_tasks::task::TaskOutput<Return = Vc<Rv>>,
-                        Rv: turbo_tasks::ResolvedValue + Send,
-                    {}
-                    assert_returns_resolved_value::<#return_type, _>()
+                    turbo_tasks::macro_helpers::assert_returns_resolved_value::<#return_type, _>()
                 }
             }
         } else {
