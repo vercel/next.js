@@ -155,7 +155,7 @@ The `geo` and `ip` properties on `NextRequest` have been removed. These values h
 
 If you are using Vercel, you can alternatively use the `geolocation` and `ipAddress` functions from [`@vercel/functions](https://vercel.com/docs/functions/vercel-functions-package) instead:
 
-```js filename="middleware.ts"
+```ts filename="middleware.ts"
 import { geolocation } from '@vercel/functions';
 import type { NextRequest } from 'next/server'
 
@@ -166,7 +166,7 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-```js filename="middleware.ts"
+```ts filename="middleware.ts"
 import { ipAddress } from '@vercel/functions';
 import type { NextRequest } from 'next/server'
 
