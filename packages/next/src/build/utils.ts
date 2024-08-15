@@ -944,10 +944,19 @@ export async function getJsPageSizeInKb(
   return [-1, -1]
 }
 
-export type PrerenderedRoute = {
+type StaticPrerenderedRoute = {
   path: string
   encoded: string
+  unknownRouteParams: undefined
 }
+
+type FallbackPrerenderedRoute = {
+  path: string
+  encoded: string
+  unknownRouteParams: readonly string[]
+}
+
+export type PrerenderedRoute = StaticPrerenderedRoute | FallbackPrerenderedRoute
 
 export type StaticPathsResult = {
   fallbackMode: FallbackMode
@@ -1068,6 +1077,7 @@ export async function buildStaticPaths({
           )
           .join('/'),
         encoded: entry,
+        unknownRouteParams: undefined,
       })
     }
     // For the object-provided path, we must make sure it specifies all
@@ -1170,6 +1180,7 @@ export async function buildStaticPaths({
         encoded: `${curLocale ? `/${curLocale}` : ''}${
           curLocale && encodedBuiltPage === '/' ? '' : encodedBuiltPage
         }`,
+        unknownRouteParams: undefined,
       })
     }
   })
@@ -1352,6 +1363,7 @@ export async function buildAppStaticPaths({
   fetchCacheKeyPrefix,
   nextConfigOutput,
   ComponentMod,
+  isRoutePPREnabled,
 }: {
   dir: string
   page: string
@@ -1365,6 +1377,7 @@ export async function buildAppStaticPaths({
   requestHeaders: IncrementalCache['requestHeaders']
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule
+  isRoutePPREnabled: boolean | undefined
 }): Promise<PartialStaticPathsResult> {
   ComponentMod.patchFetch()
 
@@ -1401,6 +1414,9 @@ export async function buildAppStaticPaths({
     ComponentMod.staticGenerationAsyncStorage,
     {
       page,
+      // We're discovering the parameters here, so we don't have any unknown
+      // ones.
+      unknownRouteParams: null,
       renderOpts: {
         incrementalCache,
         supportsDynamicResponse: true,
@@ -1505,10 +1521,12 @@ export async function buildAppStaticPaths({
           // the prerender-manifest to allow this behavior
           (generate) => generate.config?.dynamicParams === false
         )
-          ? FallbackMode.BLOCKING_STATIC_RENDER
+          ? isRoutePPREnabled
+            ? FallbackMode.STATIC_PRERENDER
+            : FallbackMode.BLOCKING_STATIC_RENDER
           : FallbackMode.NOT_FOUND
 
-        if (!hadAllParamsGenerated) {
+        if (!hadAllParamsGenerated && !isRoutePPREnabled) {
           return {
             fallbackMode:
               process.env.NODE_ENV === 'production' && isDynamicRoute(page)
@@ -1708,6 +1726,7 @@ export async function isPageStatic({
               cacheHandler,
               ComponentMod,
               nextConfigOutput,
+              isRoutePPREnabled,
             }))
         }
       } else {
@@ -1817,7 +1836,9 @@ type ReducedAppConfig = Pick<
  * @param segments the generate param segments
  * @returns the reduced app config
  */
-function reduceAppConfig(segments: GenerateParamsResults): ReducedAppConfig {
+export function reduceAppConfig(
+  segments: GenerateParamsResults
+): ReducedAppConfig {
   const config: ReducedAppConfig = {}
 
   for (const segment of segments) {

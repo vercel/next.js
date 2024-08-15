@@ -30,6 +30,7 @@ import type {
 } from './types/metadata-interface'
 import { isNotFoundError } from '../../client/components/not-found'
 import type { MetadataContext } from './types/resolvers'
+import type { CreateDynamicallyTrackedParams } from '../../client/components/params'
 
 export function createMetadataContext(
   pathname: string,
@@ -56,6 +57,7 @@ export function createMetadataComponents({
   appUsingSizeAdjustment,
   errorType,
   createDynamicallyTrackedSearchParams,
+  createDynamicallyTrackedParams,
 }: {
   tree: LoaderTree
   query: ParsedUrlQuery
@@ -63,6 +65,7 @@ export function createMetadataComponents({
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
   errorType?: 'not-found' | 'redirect'
+  createDynamicallyTrackedParams: CreateDynamicallyTrackedParams
   createDynamicallyTrackedSearchParams: (
     searchParams: ParsedUrlQuery
   ) => ParsedUrlQuery
@@ -81,6 +84,7 @@ export function createMetadataComponents({
       getDynamicParamFromSegment,
       metadataContext,
       createDynamicallyTrackedSearchParams,
+      createDynamicallyTrackedParams,
       errorType
     )
 
@@ -145,6 +149,7 @@ async function getResolvedMetadata(
   createDynamicallyTrackedSearchParams: (
     searchParams: ParsedUrlQuery
   ) => ParsedUrlQuery,
+  createDynamicallyTrackedParams: CreateDynamicallyTrackedParams,
   errorType?: 'not-found' | 'redirect'
 ): Promise<[any, Array<React.ReactNode>]> {
   const errorMetadataItem: [null, null, null] = [null, null, null]
@@ -160,6 +165,7 @@ async function getResolvedMetadata(
     getDynamicParamFromSegment,
     errorConvention,
     metadataContext,
+    createDynamicallyTrackedParams,
   })
   if (!error) {
     return [null, createMetadataElements(metadata, viewport)]
@@ -179,6 +185,7 @@ async function getResolvedMetadata(
           getDynamicParamFromSegment,
           errorConvention: 'not-found',
           metadataContext,
+          createDynamicallyTrackedParams,
         })
       return [
         notFoundMetadataError || error,

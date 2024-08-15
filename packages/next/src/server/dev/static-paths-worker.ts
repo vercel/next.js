@@ -7,6 +7,7 @@ import {
   buildAppStaticPaths,
   buildStaticPaths,
   collectGenerateParams,
+  reduceAppConfig,
 } from '../../build/utils'
 import type {
   GenerateParamsResults,
@@ -15,9 +16,17 @@ import type {
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
-import { isAppRouteRouteModule } from '../route-modules/checks'
+import {
+  isAppPageRouteModule,
+  isAppRouteRouteModule,
+} from '../route-modules/checks'
+import {
+  checkIsRoutePPREnabled,
+  type ExperimentalPPRConfig,
+} from '../lib/experimental/ppr'
 
 type RuntimeConfig = {
+  pprConfig: ExperimentalPPRConfig | undefined
   configFileName: string
   publicRuntimeConfig: { [key: string]: any }
   serverRuntimeConfig: { [key: string]: any }
@@ -97,6 +106,10 @@ export async function loadStaticPaths({
           ]
         : await collectGenerateParams(components.ComponentMod.tree)
 
+    const isRoutePPREnabled =
+      isAppPageRouteModule(routeModule) &&
+      checkIsRoutePPREnabled(config.pprConfig, reduceAppConfig(generateParams))
+
     return await buildAppStaticPaths({
       dir,
       page: pathname,
@@ -110,6 +123,7 @@ export async function loadStaticPaths({
       maxMemoryCacheSize,
       ComponentMod: components.ComponentMod,
       nextConfigOutput,
+      isRoutePPREnabled,
     })
   }
 

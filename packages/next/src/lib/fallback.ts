@@ -35,7 +35,7 @@ export type GetStaticPathsFallback = boolean | 'blocking'
  * @returns The fallback mode.
  */
 export function parseFallbackField(
-  fallbackField: string | false | null | undefined
+  fallbackField: string | boolean | null | undefined
 ): FallbackMode | undefined {
   if (typeof fallbackField === 'string') {
     return FallbackMode.STATIC_PRERENDER
@@ -49,6 +49,28 @@ export function parseFallbackField(
     throw new Error(
       `Invalid fallback option: ${fallbackField}. Fallback option must be a string, null, undefined, or false.`
     )
+  }
+}
+
+export function fallbackToFallbackField(
+  fallback: FallbackMode,
+  page: string | undefined
+): string | false | null {
+  switch (fallback) {
+    case FallbackMode.BLOCKING_STATIC_RENDER:
+      return null
+    case FallbackMode.NOT_FOUND:
+      return false
+    case FallbackMode.STATIC_PRERENDER:
+      if (!page) {
+        throw new Error(
+          `Invariant: expected a page to be provided when fallback mode is "${fallback}"`
+        )
+      }
+
+      return page
+    default:
+      throw new Error(`Invalid fallback mode: ${fallback}`)
   }
 }
 

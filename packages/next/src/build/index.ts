@@ -75,7 +75,11 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
-import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
+import {
+  getSortedRoutes,
+  isDynamicRoute,
+  getSortedRouteObjects,
+} from '../shared/lib/router/utils'
 import type { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
 import type { BuildManifest } from '../server/get-page-files'
@@ -199,7 +203,8 @@ import {
 import { storeShuttle } from './flying-shuttle/store-shuttle'
 import { stitchBuilds } from './flying-shuttle/stitch-builds'
 import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
-import { FallbackMode } from '../lib/fallback'
+import { FallbackMode, fallbackToFallbackField } from '../lib/fallback'
+import { getParamKeys } from '../client/components/params'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -213,6 +218,8 @@ interface DataRouteRouteInfo {
   dataRoute: string | null
   prefetchDataRoute: string | null | undefined
 }
+
+type Fallback = null | boolean | string
 
 export interface SsgRoute
   extends ExperimentalBypassForInfo,
@@ -228,7 +235,13 @@ export interface DynamicSsgRoute
   extends ExperimentalBypassForInfo,
     DataRouteRouteInfo,
     ExperimentalPPRInfo {
-  fallback: string | null | false
+  fallback: Fallback
+
+  /**
+   * When defined, it describes the revalidation configuration for the fallback
+   * route.
+   */
+  fallbackRevalidate: Revalidate | undefined
   routeRegex: string
   dataRouteRegex: string | null
   prefetchDataRouteRegex: string | null | undefined
@@ -2056,6 +2069,7 @@ export default async function build(
                                 {
                                   path: page,
                                   encoded: page,
+                                  unknownRouteParams: [],
                                 },
                               ])
                               isStatic = true
@@ -2071,7 +2085,7 @@ export default async function build(
                           }
 
                           if (
-                            workerResult.prerenderFallbackMode !== undefined &&
+                            workerResult.prerenderFallbackMode &&
                             workerResult.prerenderFallbackMode !==
                               FallbackMode.NOT_FOUND
                           ) {
@@ -2079,6 +2093,7 @@ export default async function build(
                             // returned from generateStaticParams
                             appDynamicParamPaths.add(originalAppPath)
                           }
+
                           appDefaultConfigs.set(originalAppPath, appConfig)
                         }
                       } else {
@@ -2685,6 +2700,7 @@ export default async function build(
                   defaultMap[route.path] = {
                     page: originalAppPath,
                     query: { __nextSsgPath: route.encoded },
+                    _unknownRouteParams: route.unknownRouteParams,
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
@@ -2771,14 +2787,15 @@ export default async function build(
             await fs.unlink(serverBundle)
           }
 
-          staticPaths.forEach((routes, originalAppPath) => {
+          staticPaths.forEach((prerenderedRoutes, originalAppPath) => {
             const page = appNormalizedPaths.get(originalAppPath) || ''
             const appConfig = appDefaultConfigs.get(originalAppPath) || {}
-            let hasDynamicData =
+
+            let hasRevalidateZero =
               appConfig.revalidate === 0 ||
               exportResult.byPath.get(page)?.revalidate === 0
 
-            if (hasDynamicData && pageInfos.get(page)?.isStatic) {
+            if (hasRevalidateZero && pageInfos.get(page)?.isStatic) {
               // if the page was marked as being static, but it contains dynamic data
               // (ie, in the case of a static generation bailout), then it should be marked dynamic
               pageInfos.set(page, {
@@ -2809,113 +2826,121 @@ export default async function build(
               },
             ]
 
-            // Always sort the routes to get consistent output in manifests
-            getSortedRoutes(routes.map((route) => route.path)).forEach(
-              (route) => {
-                if (isDynamicRoute(page) && route === page) return
-                if (route === UNDERSCORE_NOT_FOUND_ROUTE) return
-
-                const {
-                  revalidate = appConfig.revalidate ?? false,
-                  metadata = {},
-                  hasEmptyPrelude,
-                  hasPostponed,
-                } = exportResult.byPath.get(route) ?? {}
-
-                pageInfos.set(route, {
-                  ...(pageInfos.get(route) as PageInfo),
-                  hasPostponed,
-                  hasEmptyPrelude,
-                })
-
-                // update the page (eg /blog/[slug]) to also have the postpone metadata
-                pageInfos.set(page, {
-                  ...(pageInfos.get(page) as PageInfo),
-                  hasPostponed,
-                  hasEmptyPrelude,
-                })
-
-                if (revalidate !== 0) {
-                  const normalizedRoute = normalizePagePath(route)
-
-                  let dataRoute: string | null
-                  if (isRouteHandler) {
-                    dataRoute = null
-                  } else {
-                    dataRoute = path.posix.join(
-                      `${normalizedRoute}${RSC_SUFFIX}`
-                    )
-                  }
-
-                  let prefetchDataRoute: string | null | undefined
-                  // While we may only write the `.rsc` when the route does not
-                  // have PPR enabled, we still want to generate the route when
-                  // deployed so it doesn't 404. If the app has PPR enabled, we
-                  // should add this key.
-                  if (!isRouteHandler && isAppPPREnabled) {
-                    prefetchDataRoute = path.posix.join(
-                      `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
-                    )
-                  }
-
-                  const routeMeta: Partial<SsgRoute> = {}
-
-                  if (metadata.status !== 200) {
-                    routeMeta.initialStatus = metadata.status
-                  }
-
-                  const exportHeaders = metadata.headers
-                  const headerKeys = Object.keys(exportHeaders || {})
-
-                  if (exportHeaders && headerKeys.length) {
-                    routeMeta.initialHeaders = {}
-
-                    // normalize header values as initialHeaders
-                    // must be Record<string, string>
-                    for (const key of headerKeys) {
-                      // set-cookie is already handled - the middleware cookie setting case
-                      // isn't needed for the prerender manifest since it can't read cookies
-                      if (key === 'x-middleware-set-cookie') continue
-
-                      let value = exportHeaders[key]
-
-                      if (Array.isArray(value)) {
-                        if (key === 'set-cookie') {
-                          value = value.join(',')
-                        } else {
-                          value = value[value.length - 1]
-                        }
-                      }
-
-                      if (typeof value === 'string') {
-                        routeMeta.initialHeaders[key] = value
-                      }
-                    }
-                  }
-
-                  prerenderManifest.routes[route] = {
-                    ...routeMeta,
-                    experimentalPPR,
-                    experimentalBypassFor: bypassFor,
-                    initialRevalidateSeconds: revalidate,
-                    srcRoute: page,
-                    dataRoute,
-                    prefetchDataRoute,
-                  }
-                } else {
-                  hasDynamicData = true
-                  // we might have determined during prerendering that this page
-                  // used dynamic data
-                  pageInfos.set(route, {
-                    ...(pageInfos.get(route) as PageInfo),
-                    isSSG: false,
-                    isStatic: false,
-                  })
-                }
-              }
+            // Sort the outputted routes to ensure consistent output.
+            prerenderedRoutes = getSortedRouteObjects(
+              prerenderedRoutes,
+              (prerenderedRoute) => prerenderedRoute.path
             )
 
-            if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
+            // Handle all the static routes.
+            for (const { path: route } of prerenderedRoutes) {
+              // TODO: check if still needed?
+              // Exclude the /_not-found route.
+              if (route === UNDERSCORE_NOT_FOUND_ROUTE) continue
+              if (isDynamicRoute(page) && route === page) continue
+
+              const {
+                revalidate = appConfig.revalidate ?? false,
+                metadata = {},
+                hasEmptyPrelude,
+                hasPostponed,
+              } = exportResult.byPath.get(route) ?? {}
+
+              pageInfos.set(route, {
+                ...(pageInfos.get(route) as PageInfo),
+                hasPostponed,
+                hasEmptyPrelude,
+              })
+
+              // update the page (eg /blog/[slug]) to also have the postpone metadata
+              pageInfos.set(page, {
+                ...(pageInfos.get(page) as PageInfo),
+                hasPostponed,
+                hasEmptyPrelude,
+              })
+
+              if (revalidate !== 0) {
+                const normalizedRoute = normalizePagePath(route)
+
+                let dataRoute: string | null
+                if (isRouteHandler) {
+                  dataRoute = null
+                } else {
+                  dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
+                }
+
+                let prefetchDataRoute: string | null | undefined
+                // While we may only write the `.rsc` when the route does not
+                // have PPR enabled, we still want to generate the route when
+                // deployed so it doesn't 404. If the app has PPR enabled, we
+                // should add this key.
+                if (!isRouteHandler && isAppPPREnabled) {
+                  prefetchDataRoute = path.posix.join(
+                    `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
+                  )
+                }
+
+                const routeMeta: Partial<SsgRoute> = {}
+
+                if (metadata.status !== 200) {
+                  routeMeta.initialStatus = metadata.status
+                }
+
+                const exportHeaders = metadata.headers
+                const headerKeys = Object.keys(exportHeaders || {})
+
+                if (exportHeaders && headerKeys.length) {
+                  routeMeta.initialHeaders = {}
+
+                  // normalize header values as initialHeaders
+                  // must be Record<string, string>
+                  for (const key of headerKeys) {
+                    // set-cookie is already handled - the middleware cookie setting case
+                    // isn't needed for the prerender manifest since it can't read cookies
+                    if (key === 'x-middleware-set-cookie') continue
+
+                    let value = exportHeaders[key]
+
+                    if (Array.isArray(value)) {
+                      if (key === 'set-cookie') {
+                        value = value.join(',')
+                      } else {
+                        value = value[value.length - 1]
+                      }
+                    }
+
+                    if (typeof value === 'string') {
+                      routeMeta.initialHeaders[key] = value
+                    }
+                  }
+                }
+
+                prerenderManifest.routes[route] = {
+                  ...routeMeta,
+                  experimentalPPR,
+                  experimentalBypassFor: bypassFor,
+                  initialRevalidateSeconds: revalidate,
+                  srcRoute: page,
+                  dataRoute,
+                  prefetchDataRoute,
+                }
+              } else {
+                hasRevalidateZero = true
+                // we might have determined during prerendering that this page
+                // used dynamic data
+                pageInfos.set(route, {
+                  ...(pageInfos.get(route) as PageInfo),
+                  isSSG: false,
+                  isStatic: false,
+                })
+              }
+            }
+
+            if (!hasRevalidateZero && isDynamicRoute(originalAppPath)) {
+              const unknownRouteParams = experimentalPPR
+                ? getParamKeys(page)
+                : undefined
+
               const normalizedRoute = normalizePagePath(page)
 
               let dataRoute: string | null = null
@@ -2943,6 +2968,35 @@ export default async function build(
                 hasPostponed: experimentalPPR,
               })
 
+              let fallbackMode: FallbackMode
+              let fallbackRevalidate: Revalidate | undefined
+
+              // If there are unknown route parameters, we should fallback to
+              // the generated prerender shell.
+              if (unknownRouteParams && unknownRouteParams.length > 0) {
+                fallbackMode = FallbackMode.STATIC_PRERENDER
+                fallbackRevalidate =
+                  exportResult.byPath.get(page)?.revalidate ?? false
+              }
+              // If the page should allow requests to paths that haven't been
+              // generated, then we should fallback to blocking the render.
+              else if (appDynamicParamPaths.has(originalAppPath)) {
+                fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
+
+                // When PPR is enabled, we should use `undefined` rather than
+                // `false` as fallbacks aren't supported for non-ppr pages.
+                if (experimentalPPR) fallbackRevalidate = false
+              }
+              // Otherwise, we should fallback to 404.
+              else {
+                fallbackMode = FallbackMode.NOT_FOUND
+              }
+
+              const fallback: Fallback = fallbackToFallbackField(
+                fallbackMode,
+                page
+              )
+
               prerenderManifest.dynamicRoutes[page] = {
                 experimentalPPR,
                 experimentalBypassFor: bypassFor,
@@ -2950,11 +3004,8 @@ export default async function build(
                   getNamedRouteRegex(page, false).re.source
                 ),
                 dataRoute,
-                // if dynamicParams are enabled treat as fallback:
-                // 'blocking' if not it's fallback: false
-                fallback: appDynamicParamPaths.has(originalAppPath)
-                  ? null
-                  : false,
+                fallback,
+                fallbackRevalidate,
                 dataRouteRegex: !dataRoute
                   ? null
                   : normalizeRouteRegex(
@@ -3372,6 +3423,7 @@ export default async function build(
               : ssgStaticFallbackPages.has(tbdRoute)
                 ? `${normalizedRoute}.html`
                 : false,
+            fallbackRevalidate: undefined,
             dataRouteRegex: normalizeRouteRegex(
               getNamedRouteRegex(
                 dataRoute.replace(/\.json$/, ''),
