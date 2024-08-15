@@ -984,6 +984,8 @@ export default class NextNodeServer extends BaseServer<
             routePath: match.definition.page,
             routerKind: 'Pages Router',
             routeType: 'route',
+            // Edge runtime does not support ISR
+            revalidateReason: undefined,
           })
           throw apiError
         }
