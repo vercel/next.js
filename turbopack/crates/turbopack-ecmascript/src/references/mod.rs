@@ -2007,7 +2007,7 @@ async fn handle_typeof(
                 continue;
             }
             let mut it = name.iter().map(Cow::Borrowed).rev();
-            if it.next().unwrap().as_ref() == &DefineableNameSegment::TypeOf {
+            if it.next().unwrap().as_ref() != &DefineableNameSegment::TypeOf {
                 continue;
             }
 
