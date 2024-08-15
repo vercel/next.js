@@ -1,4 +1,3 @@
-
 services:
   with-docker-multi-env-production:
     build:
