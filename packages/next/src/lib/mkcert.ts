@@ -3,6 +3,9 @@ import path from 'path'
 import { getCacheDirectory } from './helpers/get-cache-directory'
 import * as Log from '../build/output/log'
 import { execSync } from 'child_process'
+const { WritableStream } = require('node:stream/web') as {
+  WritableStream: typeof global.WritableStream
+}
 
 const MKCERT_VERSION = 'v1.4.4'
 
@@ -53,10 +56,37 @@ async function downloadBinary() {
 
     Log.info(`Download response was successful, writing to disk`)
 
-    const arrayBuffer = await response.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
+    const binaryWriteStream = fs.createWriteStream(binaryPath)
 
-    await fs.promises.writeFile(binaryPath, buffer)
+    await response.body.pipeTo(
+      new WritableStream({
+        write(chunk) {
+          return new Promise((resolve, reject) => {
+            binaryWriteStream.write(chunk, (error) => {
+              if (error) {
+                reject(error)
+                return
+              }
+
+              resolve()
+            })
+          })
+        },
+        close() {
+          return new Promise((resolve, reject) => {
+            binaryWriteStream.close((error) => {
+              if (error) {
+                reject(error)
+                return
+              }
+
+              resolve()
+            })
+          })
+        },
+      })
+    )
+
     await fs.promises.chmod(binaryPath, 0o755)
 
     return binaryPath

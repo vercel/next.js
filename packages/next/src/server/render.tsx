@@ -22,26 +22,26 @@ import {
 } from './api-utils'
 import { getCookieParser } from './api-utils/get-cookie-parser'
 import type { FontManifest, FontConfig } from './font-utils'
-import type { LoadComponentsReturnType, ManifestItem } from './load-components'
+import type { LoadComponentsReturnType } from './load-components'
 import type {
   GetServerSideProps,
   GetStaticProps,
   PreviewData,
   ServerRuntime,
   SizeLimit,
-} from 'next/types'
+} from '../types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import type { PagesModule } from './future/route-modules/pages/module'
+import type { PagesModule } from './route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import type { Revalidate } from './lib/revalidate'
+import type { Revalidate, SwrDelta } from './lib/revalidate'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
-import React from 'react'
-import ReactDOMServer from 'react-dom/server.browser'
+import React, { type JSX } from 'react'
+import ReactDOMServerEdge from 'react-dom/server.edge'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -81,11 +81,8 @@ import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult, { type PagesRenderResultMetadata } from './render-result'
 import isError from '../lib/is-error'
 import {
-  streamFromString,
   streamToString,
-  chainStreams,
   renderToInitialFizzStream,
-  continueFizzStream,
 } from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
@@ -105,6 +102,8 @@ import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 import { formatRevalidate } from './lib/revalidate'
+import { getErrorSource } from '../shared/lib/error-source'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -129,7 +128,7 @@ function noRouter() {
 }
 
 async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  const renderStream = await ReactDOMServerEdge.renderToReadableStream(element)
   await renderStream.allReady
   return streamToString(renderStream)
 }
@@ -247,29 +246,29 @@ export type RenderOptsPartial = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
-  isDataReq?: boolean
+  isNextDataRequest?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps | undefined
   basePath: string
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   optimizeFonts: FontConfig
-  fontManifest?: FontManifest
+  fontManifest?: DeepReadonly<FontManifest>
   optimizeCss: any
   nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
   assetQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  clientReferenceManifest?: ClientReferenceManifest
-  nextFontManifest?: NextFontManifest
+  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
+  nextFontManifest?: DeepReadonly<NextFontManifest>
   distDir?: string
   locale?: string
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
-  supportsDynamicHTML: boolean
+  supportsDynamicResponse: boolean
   isBot?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
@@ -288,6 +287,7 @@ export type RenderOptsPartial = {
   isServerAction?: boolean
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
+  swrDelta?: SwrDelta
 }
 
 export type RenderOpts = LoadComponentsReturnType<PagesModule> &
@@ -370,10 +370,7 @@ export function errorToJSON(err: Error) {
     'server'
 
   if (process.env.NEXT_RUNTIME !== 'edge') {
-    source =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
-        err
-      ) || 'server'
+    source = getErrorSource(err) || 'server'
   }
 
   return {
@@ -452,13 +449,14 @@ export async function renderToHTMLImpl(
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
-    isDataReq,
+    isNextDataRequest,
     params,
     previewProps,
     basePath,
     images,
     runtime: globalRuntime,
     isExperimentalCompile,
+    swrDelta,
   } = renderOpts
   const { App } = extra
 
@@ -469,11 +467,6 @@ export async function renderToHTMLImpl(
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
   const OriginComponent = Component
-
-  let serverComponentsInlinedTransformStream: TransformStream<
-    Uint8Array,
-    Uint8Array
-  > | null = null
 
   const isFallback = !!query.__nextFallback
   const notFoundSrcPage = query.__nextNotFoundSrcPage
@@ -520,7 +513,13 @@ export async function renderToHTMLImpl(
   // ensure we set cache header so it's not rendered on-demand
   // every request
   if (isAutoExport && !dev && isExperimentalCompile) {
-    res.setHeader('Cache-Control', formatRevalidate(false))
+    res.setHeader(
+      'Cache-Control',
+      formatRevalidate({
+        revalidate: false,
+        swrDelta,
+      })
+    )
     isAutoExport = false
   }
 
@@ -839,7 +838,7 @@ export async function renderToHTMLImpl(
           },
         },
         () =>
-          getStaticProps!({
+          getStaticProps({
             ...(pageIsDynamic
               ? { params: query as ParsedUrlQuery }
               : undefined),
@@ -849,6 +848,11 @@ export async function renderToHTMLImpl(
             locales: renderOpts.locales,
             locale: renderOpts.locale,
             defaultLocale: renderOpts.defaultLocale,
+            revalidateReason: renderOpts.isOnDemandRevalidate
+              ? 'on-demand'
+              : isBuildTimeSSG
+                ? 'build'
+                : 'stale',
           })
       )
     } catch (staticPropsError: any) {
@@ -1166,7 +1170,7 @@ export async function renderToHTMLImpl(
 
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
-  if ((isDataReq && !isSSG) || metadata.isRedirect) {
+  if ((isNextDataRequest && !isSSG) || metadata.isRedirect) {
     return new RenderResult(JSON.stringify(props), {
       metadata,
     })
@@ -1234,7 +1238,7 @@ export async function renderToHTMLImpl(
     }
 
     async function loadDocumentInitialProps(
-      renderShell?: (
+      renderShell: (
         _App: AppType,
         _Component: NextComponentType
       ) => Promise<ReactReadableStream>
@@ -1265,26 +1269,10 @@ export async function renderToHTMLImpl(
         const { App: EnhancedApp, Component: EnhancedComponent } =
           enhanceComponents(options, App, Component)
 
-        if (renderShell) {
-          return renderShell(EnhancedApp, EnhancedComponent).then(
-            async (stream) => {
-              await stream.allReady
-              const html = await streamToString(stream)
-              return { html, head }
-            }
-          )
-        }
+        const stream = await renderShell(EnhancedApp, EnhancedComponent)
+        await stream.allReady
+        const html = await streamToString(stream)
 
-        const html = await renderToString(
-          <Body>
-            <AppContainerWithIsomorphicFiberStructure>
-              {renderPageTree(EnhancedApp, EnhancedComponent, {
-                ...props,
-                router,
-              })}
-            </AppContainerWithIsomorphicFiberStructure>
-          </Body>
-        )
         return { html, head }
       }
       const documentCtx = { ...ctx, renderPage }
@@ -1332,53 +1320,44 @@ export async function renderToHTMLImpl(
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
       return await renderToInitialFizzStream({
-        ReactDOMServer,
+        ReactDOMServer: ReactDOMServerEdge,
         element: content,
       })
     }
 
-    const createBodyResult = getTracer().wrap(
-      RenderSpan.createBodyResult,
-      (initialStream: ReactReadableStream, suffix?: string) => {
-        return continueFizzStream(initialStream, {
-          suffix,
-          inlinedDataStream: serverComponentsInlinedTransformStream?.readable,
-          isStaticGeneration: true,
-          // this must be called inside bodyResult so appWrappers is
-          // up to date when `wrapApp` is called
-          getServerInsertedHTML: () => {
-            return renderToString(styledJsxInsertedHTML())
-          },
-          serverInsertedHTMLToHead: false,
-          validateRootLayout: undefined,
-        })
-      }
-    )
-
-    const hasDocumentGetInitialProps = !(
-      process.env.NEXT_RUNTIME === 'edge' || !Document.getInitialProps
-    )
-
-    let bodyResult: (s: string) => Promise<ReadableStream<Uint8Array>>
+    const hasDocumentGetInitialProps =
+      process.env.NEXT_RUNTIME !== 'edge' && !!Document.getInitialProps
 
     // If it has getInitialProps, we will render the shell in `renderPage`.
     // Otherwise we do it right now.
     let documentInitialPropsRes:
       | {}
       | Awaited<ReturnType<typeof loadDocumentInitialProps>>
-    if (hasDocumentGetInitialProps) {
-      documentInitialPropsRes = await loadDocumentInitialProps(renderShell)
-      if (documentInitialPropsRes === null) return null
-      const { docProps } = documentInitialPropsRes as any
-      // includes suffix in initial html stream
-      bodyResult = (suffix: string) =>
-        createBodyResult(streamFromString(docProps.html + suffix))
-    } else {
-      const stream = await renderShell(App, Component)
-      bodyResult = (suffix: string) => createBodyResult(stream, suffix)
-      documentInitialPropsRes = {}
+
+    const [rawStyledJsxInsertedHTML, content] = await Promise.all([
+      renderToString(styledJsxInsertedHTML()),
+      (async () => {
+        if (hasDocumentGetInitialProps) {
+          documentInitialPropsRes = await loadDocumentInitialProps(renderShell)
+          if (documentInitialPropsRes === null) return null
+          const { docProps } = documentInitialPropsRes as any
+          return docProps.html
+        } else {
+          documentInitialPropsRes = {}
+          const stream = await renderShell(App, Component)
+          await stream.allReady
+          return streamToString(stream)
+        }
+      })(),
+    ])
+
+    if (content === null) {
+      return null
     }
 
+    const contentHTML = rawStyledJsxInsertedHTML + content
+
+    // @ts-ignore: documentInitialPropsRes is set
     const { docProps } = (documentInitialPropsRes as any) || {}
     const documentElement = (htmlProps: any) => {
       if (process.env.NEXT_RUNTIME === 'edge') {
@@ -1398,7 +1377,7 @@ export async function renderToHTMLImpl(
     }
 
     return {
-      bodyResult,
+      contentHTML,
       documentElement,
       head,
       headTags: [],
@@ -1425,7 +1404,7 @@ export async function renderToHTMLImpl(
   const dynamicImports = new Set<string>()
 
   for (const mod of reactLoadableModules) {
-    const manifestItem: ManifestItem = reactLoadableManifest[mod]
+    const manifestItem = reactLoadableManifest[mod]
 
     if (manifestItem) {
       dynamicImportsIds.add(manifestItem.id)
@@ -1565,12 +1544,7 @@ export async function renderToHTMLImpl(
     prefix += '<!-- __NEXT_DATA__ -->'
   }
 
-  const content = await streamToString(
-    chainStreams(
-      streamFromString(prefix),
-      await documentResult.bodyResult(renderTargetSuffix)
-    )
-  )
+  const content = prefix + documentResult.contentHTML + renderTargetSuffix
 
   const optimizedHtml = await postProcessHTML(pathname, content, renderOpts, {
     inAmpMode,

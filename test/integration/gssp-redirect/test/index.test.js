@@ -505,44 +505,49 @@ const runTests = (isDev) => {
 }
 
 describe('GS(S)P Redirect Support', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-
-    runTests(true)
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    let output = ''
-
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort, {
-        onStdout(msg) {
-          output += msg
-        },
-        onStderr(msg) {
-          output += msg
-        },
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
       })
-    })
-    afterAll(() => killApp(app))
+      afterAll(() => killApp(app))
 
-    runTests()
+      runTests(true)
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      let output = ''
 
-    it('should not have errors in output', async () => {
-      expect(output).not.toContain('Failed to update prerender files')
-    })
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort, {
+          onStdout(msg) {
+            output += msg
+          },
+          onStderr(msg) {
+            output += msg
+          },
+        })
+      })
+      afterAll(() => killApp(app))
 
-    it('should error for redirect during prerendering', async () => {
-      await fs.mkdirp(join(appDir, 'pages/invalid'))
-      await fs.writeFile(
-        join(appDir, 'pages', 'invalid', '[slug].js'),
-        `
+      runTests()
+
+      it('should not have errors in output', async () => {
+        expect(output).not.toContain('Failed to update prerender files')
+      })
+
+      it('should error for redirect during prerendering', async () => {
+        await fs.mkdirp(join(appDir, 'pages/invalid'))
+        await fs.writeFile(
+          join(appDir, 'pages', 'invalid', '[slug].js'),
+          `
         export default function Post(props) {
           return "hi"
         }
@@ -563,17 +568,18 @@ describe('GS(S)P Redirect Support', () => {
           }
         }
       `
-      )
-      const { stdout, stderr } = await nextBuild(appDir, undefined, {
-        stdout: true,
-        stderr: true,
-      })
-      const output = stdout + stderr
-      await fs.remove(join(appDir, 'pages/invalid'))
+        )
+        const { stdout, stderr } = await nextBuild(appDir, undefined, {
+          stdout: true,
+          stderr: true,
+        })
+        const output = stdout + stderr
+        await fs.remove(join(appDir, 'pages/invalid'))
 
-      expect(output).toContain(
-        '`redirect` can not be returned from getStaticProps during prerendering'
-      )
-    })
-  })
+        expect(output).toContain(
+          '`redirect` can not be returned from getStaticProps during prerendering'
+        )
+      })
+    }
+  )
 })

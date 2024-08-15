@@ -1,5 +1,5 @@
 import { createHrefFromUrl } from '../create-href-from-url'
-import { applyRouterStatePatchToTreeSkipDefault } from '../apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import type {
   ServerPatchAction,
@@ -18,7 +18,9 @@ export function serverPatchReducer(
   state: ReadonlyReducerState,
   action: ServerPatchAction
 ): ReducerState {
-  const { flightData, overrideCanonicalUrl } = action
+  const {
+    serverResponse: { flightData, canonicalUrl: canonicalUrlOverride },
+  } = action
 
   const mutable: Mutable = {}
 
@@ -42,11 +44,12 @@ export function serverPatchReducer(
     const flightSegmentPath = flightDataPath.slice(0, -4)
 
     const [treePatch] = flightDataPath.slice(-3, -2)
-    const newTree = applyRouterStatePatchToTreeSkipDefault(
+    const newTree = applyRouterStatePatchToTree(
       // TODO-APP: remove ''
       ['', ...flightSegmentPath],
       currentTree,
-      treePatch
+      treePatch,
+      state.canonicalUrl
     )
 
     if (newTree === null) {
@@ -62,8 +65,8 @@ export function serverPatchReducer(
       )
     }
 
-    const canonicalUrlOverrideHref = overrideCanonicalUrl
-      ? createHrefFromUrl(overrideCanonicalUrl)
+    const canonicalUrlOverrideHref = canonicalUrlOverride
+      ? createHrefFromUrl(canonicalUrlOverride)
       : undefined
 
     if (canonicalUrlOverrideHref) {

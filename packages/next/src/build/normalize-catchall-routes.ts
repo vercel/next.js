@@ -1,5 +1,5 @@
-import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
-import { AppPathnameNormalizer } from '../server/future/normalizers/built/app/app-pathname-normalizer'
+import { isInterceptionRouteAppPath } from '../server/lib/interception-routes'
+import { AppPathnameNormalizer } from '../server/normalizers/built/app/app-pathname-normalizer'
 
 /**
  * This function will transform the appPaths in order to support catch-all routes and parallel routes.
@@ -36,17 +36,26 @@ export function normalizeCatchAllRoutes(
         0,
         normalizedCatchAllRoute.search(catchAllRouteRegex)
       )
+
       if (
         // check if the appPath could match the catch-all
         appPath.startsWith(normalizedCatchAllRouteBasePath) &&
         // check if there's not already a slot value that could match the catch-all
-        !appPaths[appPath].some((path) =>
-          hasMatchedSlots(path, catchAllRoute)
-        ) &&
-        // check if the catch-all is not already matched by a default route
-        !appPaths[`${appPath}/default`]
+        !appPaths[appPath].some((path) => hasMatchedSlots(path, catchAllRoute))
       ) {
-        appPaths[appPath].push(catchAllRoute)
+        // optional catch-all routes are not currently supported, but leaving this logic in place
+        // for when they are eventually supported.
+        if (isOptionalCatchAll(catchAllRoute)) {
+          // optional catch-all routes should match both the root segment and any segment after it
+          // for example, `/[[...slug]]` should match `/` and `/foo` and `/foo/bar`
+          appPaths[appPath].push(catchAllRoute)
+        } else if (isCatchAll(catchAllRoute)) {
+          // regular catch-all (single bracket) should only match segments after it
+          // for example, `/[...slug]` should match `/foo` and `/foo/bar` but not `/`
+          if (normalizedCatchAllRouteBasePath !== appPath) {
+            appPaths[appPath].push(catchAllRoute)
+          }
+        }
       }
     }
   }
@@ -79,5 +88,14 @@ function isMatchableSlot(segment: string): boolean {
 const catchAllRouteRegex = /\[?\[\.\.\./
 
 function isCatchAllRoute(pathname: string): boolean {
-  return pathname.includes('[...') || pathname.includes('[[...')
+  // Optional catch-all slots are not currently supported, and as such they are not considered when checking for match compatability.
+  return !isOptionalCatchAll(pathname) && isCatchAll(pathname)
+}
+
+function isOptionalCatchAll(pathname: string): boolean {
+  return pathname.includes('[[...')
+}
+
+function isCatchAll(pathname: string): boolean {
+  return pathname.includes('[...')
 }

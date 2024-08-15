@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type RenderResult from './render-result'
-import type { Revalidate } from './lib/revalidate'
+import type { Revalidate, SwrDelta } from './lib/revalidate'
 
 import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
@@ -40,6 +40,7 @@ export async function sendRenderResult({
   generateEtags,
   poweredByHeader,
   revalidate,
+  swrDelta,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -48,6 +49,7 @@ export async function sendRenderResult({
   generateEtags: boolean
   poweredByHeader: boolean
   revalidate: Revalidate | undefined
+  swrDelta: SwrDelta | undefined
 }): Promise<void> {
   if (isResSent(res)) {
     return
@@ -58,13 +60,60 @@ export async function sendRenderResult({
   }
 
   if (typeof revalidate !== 'undefined') {
-    res.setHeader('Cache-Control', formatRevalidate(revalidate))
+    res.setHeader(
+      'Cache-Control',
+      formatRevalidate({
+        revalidate,
+        swrDelta,
+      })
+    )
   }
 
   const payload = result.isDynamic ? null : result.toUnchunkedString()
 
   if (payload !== null) {
-    const etag = generateEtags ? generateETag(payload) : undefined
+    let etagPayload = payload
+    if (type === 'rsc') {
+      // ensure etag generation is deterministic as
+      // ordering can differ even if underlying content
+      // does not differ
+      etagPayload = payload.split('\n').sort().join('\n')
+    } else if (type === 'html' && payload.includes('__next_f')) {
+      const { parse } =
+        require('next/dist/compiled/node-html-parser') as typeof import('next/dist/compiled/node-html-parser')
+
+      try {
+        // Parse the HTML
+        let root = parse(payload)
+
+        // Get script tags in the body element
+        let scriptTags = root
+          .querySelector('body')
+          ?.querySelectorAll('script')
+          .filter(
+            (node) =>
+              !node.hasAttribute('src') && node.innerHTML?.includes('__next_f')
+          )
+
+        // Sort the script tags by their inner text
+        scriptTags?.sort((a, b) => a.innerHTML.localeCompare(b.innerHTML))
+
+        // Remove the original script tags
+        scriptTags?.forEach((script: any) => script.remove())
+
+        // Append the sorted script tags to the body
+        scriptTags?.forEach((script: any) =>
+          root.querySelector('body')?.appendChild(script)
+        )
+
+        // Stringify back to HTML
+        etagPayload = root.toString()
+      } catch (err) {
+        console.error(`Error parsing HTML payload`, err)
+      }
+    }
+
+    const etag = generateEtags ? generateETag(etagPayload) : undefined
     if (sendEtagResponse(req, res, etag)) {
       return
     }
@@ -76,10 +125,10 @@ export async function sendRenderResult({
       result.contentType
         ? result.contentType
         : type === 'rsc'
-        ? RSC_CONTENT_TYPE_HEADER
-        : type === 'json'
-        ? 'application/json'
-        : 'text/html; charset=utf-8'
+          ? RSC_CONTENT_TYPE_HEADER
+          : type === 'json'
+            ? 'application/json'
+            : 'text/html; charset=utf-8'
     )
   }
 

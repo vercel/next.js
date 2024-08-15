@@ -15,46 +15,13 @@ import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import type { PageExtensions } from '../../page-extensions-type'
+import { getLoaderModuleNamedExports } from './utils'
 
 interface Options {
   segment: string
   type: PossibleImageFileNameConvention
   pageExtensions: PageExtensions
   basePath: string
-}
-
-export async function getNamedExports(
-  resourcePath: string,
-  context: webpack.LoaderContext<any>
-): Promise<string[]> {
-  const mod = await new Promise<webpack.NormalModule>((res, rej) => {
-    context.loadModule(
-      resourcePath,
-      (err: null | Error, _source: any, _sourceMap: any, module: any) => {
-        if (err) {
-          return rej(err)
-        }
-        res(module)
-      }
-    )
-  })
-
-  const exportNames =
-    mod.dependencies
-      ?.filter((dep) => {
-        return (
-          [
-            'HarmonyExportImportedSpecifierDependency',
-            'HarmonyExportSpecifierDependency',
-          ].includes(dep.constructor.name) &&
-          'name' in dep &&
-          dep.name !== 'default'
-        )
-      })
-      .map((dep: any) => {
-        return dep.name
-      }) || []
-  return exportNames
 }
 
 // [NOTE] For turbopack
@@ -95,7 +62,7 @@ async function nextMetadataImageLoader(
 
   if (isDynamicResource) {
     const exportedFieldsExcludingDefault = (
-      await getNamedExports(resourcePath, this)
+      await getLoaderModuleNamedExports(resourcePath, this)
     ).filter((name) => name !== 'default')
 
     // re-export and spread as `exportedImageData` to avoid non-exported error
@@ -160,8 +127,7 @@ async function nextMetadataImageLoader(
   }
 
   const imageSize: { width?: number; height?: number } = await getImageSize(
-    content,
-    extension as 'avif' | 'webp' | 'png' | 'jpeg'
+    content
   ).catch((err) => err)
 
   if (imageSize instanceof Error) {

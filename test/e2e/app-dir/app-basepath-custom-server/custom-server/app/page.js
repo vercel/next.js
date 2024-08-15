@@ -1,8 +1,12 @@
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 
 async function action() {
   'use server'
-
+  cookies().set(
+    'custom-server-action-test-cookie',
+    'custom-server-action-test-cookie-val'
+  )
   redirect('/another')
 }
 

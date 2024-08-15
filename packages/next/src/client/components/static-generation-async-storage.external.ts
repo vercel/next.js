@@ -4,24 +4,28 @@ import type { DynamicServerError } from './hooks-server-context'
 import type { FetchMetrics } from '../../server/base-http'
 import type { Revalidate } from '../../server/lib/revalidate'
 
-import { createAsyncLocalStorage } from './async-local-storage'
+// Share the instance module in the next-shared layer
+import { staticGenerationAsyncStorage } from './static-generation-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 
 export interface StaticGenerationStore {
   readonly isStaticGeneration: boolean
-  readonly pagePath?: string
-  readonly urlPathname: string
+
+  /**
+   * The page that is being rendered. This relates to the path to the page file.
+   */
+  readonly page: string
+
+  /**
+   * The route that is being rendered. This is the page property without the
+   * trailing `/page` or `/route` suffix.
+   */
+  readonly route: string
+
   readonly incrementalCache?: IncrementalCache
   readonly isOnDemandRevalidate?: boolean
   readonly isPrerendering?: boolean
   readonly isRevalidate?: boolean
   readonly isUnstableCacheCallback?: boolean
-
-  /**
-   * If defined, this function when called will throw an error postponing
-   * rendering during the React render phase. This should not be invoked outside
-   * of the React render phase as it'll throw an error.
-   */
-  readonly postpone: ((reason: string) => never) | undefined
 
   forceDynamic?: boolean
   fetchCache?:
@@ -36,7 +40,6 @@ export interface StaticGenerationStore {
   forceStatic?: boolean
   dynamicShouldError?: boolean
   pendingRevalidates?: Record<string, Promise<any>>
-  postponeWasTriggered?: boolean
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
@@ -52,10 +55,11 @@ export interface StaticGenerationStore {
 
   isDraftMode?: boolean
   isUnstableNoStore?: boolean
+
+  requestEndedState?: { ended?: boolean }
 }
 
 export type StaticGenerationAsyncStorage =
   AsyncLocalStorage<StaticGenerationStore>
 
-export const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
-  createAsyncLocalStorage()
+export { staticGenerationAsyncStorage }

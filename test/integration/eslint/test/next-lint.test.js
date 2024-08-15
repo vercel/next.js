@@ -4,7 +4,7 @@ import os from 'os'
 import { join } from 'path'
 
 import findUp from 'next/dist/compiled/find-up'
-import { File, nextBuild, nextLint } from 'next-test-utils'
+import { nextLint } from 'next-test-utils'
 
 const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
@@ -21,27 +21,20 @@ const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
 const dirBaseDirectories = join(__dirname, '../base-directories')
 const dirCustomDirectories = join(__dirname, '../custom-directories')
 const dirConfigInPackageJson = join(__dirname, '../config-in-package-json')
-const dirInvalidOlderEslintVersion = join(
-  __dirname,
-  '../invalid-eslint-version'
-)
 const dirMaxWarnings = join(__dirname, '../max-warnings')
 const dirEmptyDirectory = join(__dirname, '../empty-directory')
-const dirEslintIgnore = join(__dirname, '../eslint-ignore')
-const dirNoEslintPlugin = join(__dirname, '../no-eslint-plugin')
 const dirNoConfig = join(__dirname, '../no-config')
-const dirEslintCache = join(__dirname, '../eslint-cache')
-const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 const dirFileLinting = join(__dirname, '../file-linting')
 const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
 const dirTypescript = join(__dirname, '../with-typescript')
+const formatterAsync = join(__dirname, '../formatter-async/format.js')
 
 describe('Next Lint', () => {
   describe('First Time Setup ', () => {
-    async function nextLintTemp(setupCallback) {
+    async function nextLintTemp(setupCallback, isApp = false) {
       const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
       await fs.mkdirp(folder)
-      await fs.copy(dirNoConfig, folder)
+      await fs.copy(join(dirNoConfig, isApp ? 'app' : ''), folder)
       await setupCallback?.(folder)
 
       try {
@@ -101,6 +94,23 @@ describe('Next Lint', () => {
         expect(stdout).toContain(packageManger)
         expect(pkgJson.devDependencies).toHaveProperty('eslint')
         expect(pkgJson.devDependencies).toHaveProperty('eslint-config-next')
+
+        // App Router
+        const { stdout: appStdout, pkgJson: appPkgJson } = await nextLintTemp(
+          async (folder) => {
+            await fs.writeFile(join(folder, lockFile), '')
+          },
+          true
+        )
+
+        expect(appStdout).toContain(
+          `Installing devDependencies (${packageManger}):`
+        )
+        expect(appStdout).toContain('eslint')
+        expect(appStdout).toContain('eslint-config-next')
+        expect(appStdout).toContain(packageManger)
+        expect(appPkgJson.devDependencies).toHaveProperty('eslint')
+        expect(appPkgJson.devDependencies).toHaveProperty('eslint-config-next')
       })
     }
 
@@ -113,10 +123,27 @@ describe('Next Lint', () => {
       expect(eslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
     })
 
+    test('creates .eslintrc.json file with a default app router configuration', async () => {
+      // App Router
+      const { stdout: appStdout, eslintrcJson: appEslintrcJson } =
+        await nextLintTemp(null, true)
+
+      expect(appStdout).toContain(
+        'We created the .eslintrc.json file for you and included your selected configuration'
+      )
+      expect(appEslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
+    })
+
     test('shows a successful message when completed', async () => {
       const { stdout } = await nextLintTemp()
 
       expect(stdout).toContain(
+        'ESLint has successfully been configured. Run next lint again to view warnings and errors'
+      )
+
+      // App Router
+      const { stdout: appStdout } = await nextLintTemp(null, true)
+      expect(appStdout).toContain(
         'ESLint has successfully been configured. Run next lint again to view warnings and errors'
       )
     })
@@ -177,6 +204,42 @@ describe('Next Lint', () => {
     expect(output).toContain(
       'Error: Comments inside children section of tag should be placed inside braces'
     )
+  })
+
+  test('verify options name and type with auto-generated help output', async () => {
+    const options = [
+      '-d, --dir, <dirs...>',
+      '--file, <files...>',
+      '--ext, [exts...]',
+      '-c, --config, <config>',
+      '--resolve-plugins-relative-to, <rprt>',
+      '--strict',
+      '--rulesdir, <rulesdir...>',
+      '--fix',
+      '--fix-type <fixType>',
+      '--ignore-path <path>',
+      '--no-ignore',
+      '--quiet',
+      '--max-warnings [maxWarnings]',
+      '-o, --output-file, <outputFile>',
+      '-f, --format, <format>',
+      '--no-inline-config',
+      '--report-unused-disable-directives-severity <level>',
+      '--no-cache',
+      '--cache-location, <cacheLocation>',
+      '--cache-strategy, [cacheStrategy]',
+      '--error-on-unmatched-pattern',
+    ]
+    const { stdout, stderr } = await nextLint(dirNoConfig, ['-h'], {
+      stdout: true,
+      stderr: true,
+    })
+
+    const output = stdout + stderr
+
+    for (let option of options) {
+      expect(output).toContain(option)
+    }
   })
 
   test('base directories are linted by default', async () => {
@@ -379,6 +442,21 @@ describe('Next Lint', () => {
     expect(stdout).toContain('2 warnings found')
   })
 
+  test('format flag supports async formatters', async () => {
+    const { stdout, stderr } = await nextLint(
+      dirMaxWarnings,
+      ['-f', formatterAsync],
+      {
+        stdout: true,
+        stderr: true,
+      }
+    )
+
+    const output = stdout + stderr
+    expect(output).toContain('Async results:')
+    expect(stdout).toContain('Synchronous scripts should not be used.')
+  })
+
   test('file flag can selectively lint only a single file', async () => {
     const { stdout, stderr } = await nextLint(
       dirFileLinting,
@@ -426,7 +504,7 @@ describe('Next Lint', () => {
     expect(output).not.toContain('Synchronous scripts should not be used.')
   })
 
-  test('output flag create a file respecting the chosen format', async () => {
+  test('format flag "json" creates a file respecting the chosen format', async () => {
     const filePath = `${__dirname}/output/output.json`
     const { stdout, stderr } = await nextLint(
       dirFileLinting,
@@ -478,7 +556,7 @@ describe('Next Lint', () => {
     }
   })
 
-  test('output flag create a file respecting the chosen format', async () => {
+  test('format flag "compact" creates a file respecting the chosen format', async () => {
     const filePath = `${__dirname}/output/output.txt`
     const { stdout, stderr } = await nextLint(
       dirFileLinting,

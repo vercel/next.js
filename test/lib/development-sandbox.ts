@@ -1,10 +1,16 @@
 import {
+  hasErrorToast,
   getRedboxComponentStack,
   getRedboxDescription,
   getRedboxHeader,
   getRedboxSource,
-  hasRedbox,
+  getVersionCheckerText,
+  assertHasRedbox,
+  assertNoRedbox,
   waitFor,
+  waitForAndOpenRuntimeError,
+  getRedboxDescriptionWarning,
+  toggleCollapseComponentStack,
 } from './next-test-utils'
 import webdriver from './next-webdriver'
 import { NextInstance } from './next-modes/base'
@@ -107,20 +113,23 @@ export async function sandbox(
           )
         }
       },
-      async hasRedbox() {
-        return hasRedbox(browser)
+      async assertHasRedbox() {
+        return assertHasRedbox(browser)
+      },
+      async assertNoRedbox() {
+        return assertNoRedbox(browser)
+      },
+      async waitForAndOpenRuntimeError() {
+        return waitForAndOpenRuntimeError(browser)
       },
       async hasErrorToast() {
-        return browser.eval(() => {
-          return Boolean(
-            Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
-              p.shadowRoot.querySelector('[data-nextjs-toast]')
-            )
-          )
-        })
+        return Boolean(await hasErrorToast(browser))
       },
       async getRedboxDescription() {
         return getRedboxDescription(browser)
+      },
+      async getRedboxDescriptionWarning() {
+        return getRedboxDescriptionWarning(browser)
       },
       async getRedboxSource(includeHeader = false) {
         const header = includeHeader ? await getRedboxHeader(browser) : ''
@@ -134,8 +143,11 @@ export async function sandbox(
       async getRedboxComponentStack() {
         return getRedboxComponentStack(browser)
       },
-      async waitForAndOpenRuntimeError() {
-        return browser.waitForElementByCss('[data-nextjs-toast]').click()
+      async toggleCollapseComponentStack() {
+        return toggleCollapseComponentStack(browser)
+      },
+      async getVersionCheckerText() {
+        return getVersionCheckerText(browser)
       },
     },
     async cleanup() {

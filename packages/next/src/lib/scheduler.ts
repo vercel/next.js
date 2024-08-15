@@ -32,3 +32,12 @@ export const scheduleImmediate = <T = void>(cb: ScheduledFn<T>): void => {
     setImmediate(cb)
   }
 }
+
+/**
+ * returns a promise than resolves in a future task. There is no guarantee that the task it resolves in
+ * will be the next task but if you await it you can at least be sure that the current task is over and
+ * most usefully that the entire microtask queue of the current task has been emptied.
+ */
+export function atLeastOneTask() {
+  return new Promise<void>((resolve) => scheduleImmediate(resolve))
+}

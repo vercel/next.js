@@ -23,10 +23,8 @@ describe('Exported runtimes value validation', () => {
       { stdout: true, stderr: true }
     )
 
-    console.log(result.stderr, result.stdout)
-
-    // The build should still succeed with invalid config being ignored
-    expect(result.code).toBe(0)
+    // The build should fail to prevent unexpected behavior
+    expect(result.code).toBe(1)
 
     // Template Literal with Expressions
     expect(result.stderr).toEqual(
@@ -46,7 +44,9 @@ describe('Exported runtimes value validation', () => {
       )
     )
     expect(result.stderr).toEqual(
-      expect.stringContaining('Unsupported node type at "config.runtime"')
+      expect.stringContaining(
+        'Unsupported node type "BinaryExpression" at "config.runtime"'
+      )
     )
     // Spread Operator within Object Expression
     expect(result.stderr).toEqual(
@@ -65,6 +65,11 @@ describe('Exported runtimes value validation', () => {
         'Next.js can\'t recognize the exported `config` field in route "/array-spread-operator"'
       )
     )
+    // ensure only 1 occurrence of the log
+    expect(
+      result.stderr.match(/field in route "\/array-spread-operator"/g)?.length
+    ).toBe(1)
+
     expect(result.stderr).toEqual(
       expect.stringContaining(
         'Unsupported spread operator in the Array Expression at "config.runtime"'
@@ -88,7 +93,9 @@ describe('Exported runtimes value validation', () => {
       )
     )
     expect(result.stderr).toEqual(
-      expect.stringContaining('Unsupported node type at "config.runtime"')
+      expect.stringContaining(
+        'Unsupported node type "CallExpression" at "config.runtime"'
+      )
     )
     // Unknown Object Key
     expect(result.stderr).toEqual(
@@ -98,7 +105,7 @@ describe('Exported runtimes value validation', () => {
     )
     expect(result.stderr).toEqual(
       expect.stringContaining(
-        'Unsupported key type in the Object Expression at "config.runtime"'
+        'Unsupported key type "Computed" in the Object Expression at "config.runtime"'
       )
     )
   })

@@ -1,7 +1,9 @@
 // this must come first as it includes require hooks
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
-import type { DevBundler } from './router-utils/setup-dev-bundler'
-import type { NextUrlWithParsedQuery } from '../request-meta'
+import type { DevBundler, ServerFields } from './router-utils/setup-dev-bundler'
+import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
+import type { NextServer } from '../next'
+
 // This is required before other imports to ensure the require hook is setup.
 import '../node-environment'
 import '../require-hook'
@@ -11,29 +13,39 @@ import path from 'path'
 import loadConfig from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
-import { Telemetry } from '../../telemetry/storage'
 import { DecodeError } from '../../shared/lib/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
 import { isAbortError, pipeToNodeResponse } from '../pipe-readable'
 import { getResolveRoutes } from './router-utils/resolve-routes'
-import { getRequestMeta } from '../request-meta'
+import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
 import { NoFallbackError } from '../base-server'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { isPostpone } from './router-utils/is-postpone'
+import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
 
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
+  UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../../shared/lib/constants'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { DevBundlerService } from './dev-bundler-service'
 import { type Span, trace } from '../../trace'
 import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
+import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
+import { getHostname } from '../../shared/lib/get-hostname'
+import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
+import { MockedResponse } from './mock-request'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  type AppIsrManifestAction,
+} from '../dev/hot-reloader-types'
+import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -42,10 +54,9 @@ const isNextFont = (pathname: string | null) =>
 export type RenderServer = Pick<
   typeof import('./render-server'),
   | 'initialize'
-  | 'deleteCache'
   | 'clearModuleContext'
-  | 'deleteAppClientCache'
   | 'propagateServerField'
+  | 'getServerField'
 >
 
 export interface LazyRenderServerInstance {
@@ -58,16 +69,16 @@ export async function initialize(opts: {
   dir: string
   port: number
   dev: boolean
+  onCleanup: (listener: () => Promise<void>) => void
   server?: import('http').Server
   minimalMode?: boolean
   hostname?: string
-  isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
-  experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
   startServerSpan?: Span
-}): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
+  quiet?: boolean
+}): Promise<[WorkerRequestHandler, WorkerUpgradeHandler, NextServer]> {
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
@@ -99,6 +110,9 @@ export async function initialize(opts: {
   let devBundlerService: DevBundlerService | undefined
 
   if (opts.dev) {
+    const { Telemetry } =
+      require('../../telemetry/storage') as typeof import('../../telemetry/storage')
+
     const telemetry = new Telemetry({
       distDir: path.join(opts.dir, config.distDir),
     })
@@ -123,6 +137,7 @@ export async function initialize(opts: {
         isCustomServer: opts.customServer,
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
+        onCleanup: opts.onCleanup,
       })
     )
 
@@ -139,49 +154,58 @@ export async function initialize(opts: {
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
-  const renderServerOpts: Parameters<RenderServer['initialize']>[0] = {
-    port: opts.port,
-    dir: opts.dir,
-    hostname: opts.hostname,
-    minimalMode: opts.minimalMode,
-    dev: !!opts.dev,
-    server: opts.server,
-    isNodeDebugging: !!opts.isNodeDebugging,
-    serverFields: developmentBundler?.serverFields || {},
-    experimentalTestProxy: !!opts.experimentalTestProxy,
-    experimentalHttpsServer: !!opts.experimentalHttpsServer,
-    bundlerService: devBundlerService,
-    startServerSpan: opts.startServerSpan,
-  }
-
-  // pre-initialize workers
-  const handlers = await renderServer.instance.initialize(renderServerOpts)
-
-  const logError = async (
-    type: 'uncaughtException' | 'unhandledRejection',
-    err: Error | undefined
-  ) => {
-    if (isPostpone(err)) {
-      // React postpones that are unhandled might end up logged here but they're
-      // not really errors. They're just part of rendering.
-      return
-    }
-    await developmentBundler?.logErrorWithOriginalStack(err, type)
-  }
-
-  process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
-  process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
-
-  const resolveRoutes = getResolveRoutes(
-    fsChecker,
-    config,
-    opts,
-    renderServer.instance,
-    renderServerOpts,
-    developmentBundler?.ensureMiddleware
-  )
-
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    if (
+      !opts.minimalMode &&
+      config.i18n &&
+      config.i18n.localeDetection !== false
+    ) {
+      const urlParts = (req.url || '').split('?', 1)
+      let urlNoQuery = urlParts[0] || ''
+
+      if (config.basePath) {
+        urlNoQuery = removePathPrefix(urlNoQuery, config.basePath)
+      }
+
+      const pathnameInfo = getNextPathnameInfo(urlNoQuery, {
+        nextConfig: config,
+      })
+
+      const domainLocale = detectDomainLocale(
+        config.i18n.domains,
+        getHostname({ hostname: urlNoQuery }, req.headers)
+      )
+
+      const defaultLocale =
+        domainLocale?.defaultLocale || config.i18n.defaultLocale
+
+      const { getLocaleRedirect } =
+        require('../../shared/lib/i18n/get-locale-redirect') as typeof import('../../shared/lib/i18n/get-locale-redirect')
+
+      const parsedUrl = parseUrlUtil((req.url || '')?.replace(/^\/+/, '/'))
+
+      const redirect = getLocaleRedirect({
+        defaultLocale,
+        domainLocale,
+        headers: req.headers,
+        nextConfig: config,
+        pathLocale: pathnameInfo.locale,
+        urlParsed: {
+          ...parsedUrl,
+          pathname: pathnameInfo.locale
+            ? `/${pathnameInfo.locale}${urlNoQuery}`
+            : urlNoQuery,
+        },
+      })
+
+      if (redirect) {
+        res.setHeader('Location', redirect)
+        res.statusCode = RedirectStatusCode.TemporaryRedirect
+        res.end(redirect)
+        return
+      }
+    }
+
     if (compress) {
       // @ts-expect-error not express req/res
       compress(req, res, () => {})
@@ -199,7 +223,7 @@ export async function initialize(opts: {
       parsedUrl: NextUrlWithParsedQuery,
       invokePath: string,
       handleIndex: number,
-      additionalInvokeHeaders: Record<string, string> = {}
+      additionalRequestMeta?: RequestMeta
     ) {
       // invokeRender expects /api routes to not be locale prefixed
       // so normalize here before continuing
@@ -220,7 +244,7 @@ export async function initialize(opts: {
         removePathPrefix(invokePath, config.basePath) === '/404'
       ) {
         res.setHeader('x-nextjs-matched-path', parsedUrl.pathname || '')
-        res.statusCode = 200
+        res.statusCode = 404
         res.setHeader('content-type', 'application/json')
         res.end('{}')
         return null
@@ -230,21 +254,23 @@ export async function initialize(opts: {
         throw new Error('Failed to initialize render server')
       }
 
-      const invokeHeaders: typeof req.headers = {
-        ...req.headers,
-        'x-middleware-invoke': '',
-        'x-invoke-path': invokePath,
-        'x-invoke-query': encodeURIComponent(JSON.stringify(parsedUrl.query)),
-        ...(additionalInvokeHeaders || {}),
-      }
-      Object.assign(req.headers, invokeHeaders)
+      addRequestMeta(req, 'invokePath', invokePath)
+      addRequestMeta(req, 'invokeQuery', parsedUrl.query)
+      addRequestMeta(req, 'middlewareInvoke', false)
 
-      debug('invokeRender', req.url, invokeHeaders)
+      for (const key in additionalRequestMeta || {}) {
+        addRequestMeta(
+          req,
+          key as keyof RequestMeta,
+          additionalRequestMeta![key as keyof RequestMeta]
+        )
+      }
+
+      debug('invokeRender', req.url, req.headers)
 
       try {
-        const initResult = await renderServer?.instance?.initialize(
-          renderServerOpts
-        )
+        const initResult =
+          await renderServer?.instance?.initialize(renderServerOpts)
         try {
           await initResult?.requestHandler(req, res)
         } catch (err) {
@@ -387,10 +413,10 @@ export async function initialize(opts: {
         ) {
           res.statusCode = 500
           await invokeRender(parsedUrl, '/_error', handleIndex, {
-            'x-invoke-status': '500',
-            'x-invoke-error': JSON.stringify({
-              message: `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`,
-            }),
+            invokeStatus: 500,
+            invokeError: new Error(
+              `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`
+            ),
           })
           return
         }
@@ -416,7 +442,7 @@ export async function initialize(opts: {
             '/405',
             handleIndex,
             {
-              'x-invoke-status': '405',
+              invokeStatus: 405,
             }
           )
         }
@@ -474,14 +500,14 @@ export async function initialize(opts: {
 
           if (typeof err.statusCode === 'number') {
             const invokePath = `/${err.statusCode}`
-            const invokeStatus = `${err.statusCode}`
+            const invokeStatus = err.statusCode
             res.statusCode = err.statusCode
             return await invokeRender(
               url.parse(invokePath, true),
               invokePath,
               handleIndex,
               {
-                'x-invoke-status': invokeStatus,
+                invokeStatus,
               }
             )
           }
@@ -497,7 +523,7 @@ export async function initialize(opts: {
           parsedUrl.pathname || '/',
           handleIndex,
           {
-            'x-invoke-output': matchedOutput.itemPath,
+            invokeOutput: matchedOutput.itemPath,
           }
         )
       }
@@ -517,23 +543,23 @@ export async function initialize(opts: {
 
       const appNotFound = opts.dev
         ? developmentBundler?.serverFields.hasAppNotFound
-        : await fsChecker.getItem('/_not-found')
+        : await fsChecker.getItem(UNDERSCORE_NOT_FOUND_ROUTE)
 
       res.statusCode = 404
 
       if (appNotFound) {
         return await invokeRender(
           parsedUrl,
-          opts.dev ? '/not-found' : '/_not-found',
+          UNDERSCORE_NOT_FOUND_ROUTE,
           handleIndex,
           {
-            'x-invoke-status': '404',
+            invokeStatus: 404,
           }
         )
       }
 
       await invokeRender(parsedUrl, '/404', handleIndex, {
-        'x-invoke-status': '404',
+        invokeStatus: 404,
       })
     }
 
@@ -552,7 +578,7 @@ export async function initialize(opts: {
         }
         res.statusCode = Number(invokeStatus)
         return await invokeRender(url.parse(invokePath, true), invokePath, 0, {
-          'x-invoke-status': invokeStatus,
+          invokeStatus: res.statusCode,
         })
       } catch (err2) {
         console.error(err2)
@@ -563,7 +589,7 @@ export async function initialize(opts: {
   }
 
   let requestHandler: WorkerRequestHandler = requestHandlerImpl
-  if (opts.experimentalTestProxy) {
+  if (config.experimental.testProxy) {
     // Intercept fetch and other testmode apis.
     const {
       wrapRequestHandlerWorker,
@@ -573,6 +599,53 @@ export async function initialize(opts: {
     interceptTestApis()
   }
   requestHandlers[opts.dir] = requestHandler
+
+  const renderServerOpts: Parameters<RenderServer['initialize']>[0] = {
+    port: opts.port,
+    dir: opts.dir,
+    hostname: opts.hostname,
+    minimalMode: opts.minimalMode,
+    dev: !!opts.dev,
+    server: opts.server,
+    serverFields: {
+      ...(developmentBundler?.serverFields || {}),
+      setAppIsrStatus:
+        devBundlerService?.setAppIsrStatus.bind(devBundlerService),
+    } satisfies ServerFields,
+    experimentalTestProxy: !!config.experimental.testProxy,
+    experimentalHttpsServer: !!opts.experimentalHttpsServer,
+    bundlerService: devBundlerService,
+    startServerSpan: opts.startServerSpan,
+    quiet: opts.quiet,
+  }
+  renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
+
+  // pre-initialize workers
+  const handlers = await renderServer.instance.initialize(renderServerOpts)
+
+  const logError = async (
+    type: 'uncaughtException' | 'unhandledRejection',
+    err: Error | undefined
+  ) => {
+    if (isPostpone(err)) {
+      // React postpones that are unhandled might end up logged here but they're
+      // not really errors. They're just part of rendering.
+      return
+    }
+    await developmentBundler?.logErrorWithOriginalStack(err, type)
+  }
+
+  process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
+  process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
+
+  const resolveRoutes = getResolveRoutes(
+    fsChecker,
+    config,
+    opts,
+    renderServer.instance,
+    renderServerOpts,
+    developmentBundler?.ensureMiddleware
+  )
 
   const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
     try {
@@ -588,20 +661,53 @@ export async function initialize(opts: {
       if (opts.dev && developmentBundler && req.url) {
         const { basePath, assetPrefix } = config
 
+        let hmrPrefix = basePath
+
+        // assetPrefix overrides basePath for HMR path
+        if (assetPrefix) {
+          hmrPrefix = normalizedAssetPrefix(assetPrefix)
+
+          if (URL.canParse(hmrPrefix)) {
+            // remove trailing slash from pathname
+            // return empty string if pathname is '/'
+            // to avoid conflicts with '/_next' below
+            hmrPrefix = new URL(hmrPrefix).pathname.replace(/\/$/, '')
+          }
+        }
+
         const isHMRRequest = req.url.startsWith(
-          ensureLeadingSlash(`${assetPrefix || basePath}/_next/webpack-hmr`)
+          ensureLeadingSlash(`${hmrPrefix}/_next/webpack-hmr`)
         )
 
         // only handle HMR requests if the basePath in the request
         // matches the basePath for the handler responding to the request
         if (isHMRRequest) {
-          return developmentBundler.hotReloader.onHMR(req, socket, head)
+          return developmentBundler.hotReloader.onHMR(
+            req,
+            socket,
+            head,
+            (client) => {
+              client.send(
+                JSON.stringify({
+                  action: HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST,
+                  data: devBundlerService?.appIsrManifest || {},
+                } satisfies AppIsrManifestAction)
+              )
+            }
+          )
         }
       }
 
+      const res = new MockedResponse({
+        resWriter: () => {
+          throw new Error(
+            'Invariant: did not expect response writer to be written to for upgrade request'
+          )
+        },
+      })
       const { matchedOutput, parsedUrl } = await resolveRoutes({
         req,
-        res: socket as any,
+        res,
         isUpgradeReq: true,
         signal: signalFromNodeResponse(socket),
       })
@@ -613,7 +719,7 @@ export async function initialize(opts: {
       }
 
       if (parsedUrl.protocol) {
-        return await proxyRequest(req, socket as any, parsedUrl, head)
+        return await proxyRequest(req, socket, parsedUrl, head)
       }
 
       // If there's no matched output, we don't handle the request as user's
@@ -624,5 +730,5 @@ export async function initialize(opts: {
     }
   }
 
-  return [requestHandler, upgradeHandler]
+  return [requestHandler, upgradeHandler, handlers.app]
 }

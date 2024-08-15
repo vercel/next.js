@@ -22,7 +22,7 @@ export function Video() {
       <track
         src="/path/to/captions.vtt"
         kind="subtitles"
-        srclang="en"
+        srcLang="en"
         label="English"
       />
       Your browser does not support the video tag.
@@ -39,13 +39,13 @@ export function Video() {
 | `width`       | Sets the width of the video player.                                                                       | `<video width="320" />`              |
 | `height`      | Sets the height of the video player.                                                                      | `<video height="240" />`             |
 | `controls`    | If present, it displays the default set of playback controls.                                             | `<video controls />`                 |
-| `autoplay`    | Automatically starts playing the video when the page loads. Note: Autoplay policies vary across browsers. | `<video autoplay />`                 |
+| `autoPlay`    | Automatically starts playing the video when the page loads. Note: Autoplay policies vary across browsers. | `<video autoPlay />`                 |
 | `loop`        | Loops the video playback.                                                                                 | `<video loop />`                     |
-| `muted`       | Mutes the audio by default. Often used with `autoplay`.                                                   | `<video muted />`                    |
+| `muted`       | Mutes the audio by default. Often used with `autoPlay`.                                                   | `<video muted />`                    |
 | `preload`     | Specifies how the video is preloaded. Values: `none`, `metadata`, `auto`.                                 | `<video preload="none" />`           |
 | `playsInline` | Enables inline playback on iOS devices, often necessary for autoplay to work on iOS Safari.               | `<video playsInline />`              |
 
-> **Good to know**: When using the `autoplay` attribute, it is important to also include the `muted` attribute to ensure the video plays automatically in most browsers and the `playsInline` attribute for compatibility with iOS devices.
+> **Good to know**: When using the `autoPlay` attribute, it is important to also include the `muted` attribute to ensure the video plays automatically in most browsers and the `playsInline` attribute for compatibility with iOS devices.
 
 For a comprehensive list of video attributes, refer to the [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video#attributes).
 
@@ -104,7 +104,7 @@ To embed videos from external platforms, you can use Next.js to fetch the video 
 The first step is to create a [Server Component](https://nextjs.org/docs/app/building-your-application/rendering/server-components) that generates the appropriate iframe for embedding the video. This component will fetch the source URL for the video and render the iframe.
 
 ```jsx filename="app/ui/video-component.jsx"
-export const async function VideoComponent (){
+export default async function VideoComponent() {
   const src = await getVideoSrc()
 
   return <iframe src={src} frameborder="0" allowfullscreen />
@@ -168,75 +168,69 @@ Self-hosting videos may be preferable for several reasons:
 
 ### Using Vercel Blob for video hosting
 
-[Vercel Blob](https://vercel.com/docs/storage/vercel-blob) offers an efficient way to host videos, providing a scalable cloud storage solution that works well with Next.js. Here's how you can host a video using Vercel Blob:
+[Vercel Blob](https://vercel.com/docs/storage/vercel-blob?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) offers an efficient way to host videos, providing a scalable cloud storage solution that works well with Next.js. Here's how you can host a video using Vercel Blob:
 
 **1. Uploading a video to Vercel Blob**
 
-In your Vercel dashboard, navigate to the "Storage" tab and select your Vercel Blob database. In the Blob table's upper-right corner, find and click the "Upload" button. Then, choose the video file you wish to upload. After the upload completes, the video file will appear in the Blob table.
+In your Vercel dashboard, navigate to the "Storage" tab and select your [Vercel Blob](https://vercel.com/docs/storage/vercel-blob?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) store. In the Blob table's upper-right corner, find and click the "Upload" button. Then, choose the video file you wish to upload. After the upload completes, the video file will appear in the Blob table.
 
 Alternatively, you can upload your video using a server action. For detailed instructions, refer to the Vercel documentation on [server-side uploads](https://vercel.com/docs/storage/vercel-blob/server-upload). Vercel also supports [client-side uploads](https://vercel.com/docs/storage/vercel-blob/client-upload). This method may be preferable for certain use cases.
-
-> Good to know: Ensure to [add the necessary hostname](https://vercel.com/docs/storage/vercel-blob/server-upload) to your `next.config.js` to configure the domain from where the video files will be served.
 
 **2. Displaying the video in Next.js**
 
 Once the video is uploaded and stored, you can display it in your Next.js application. Here's an example of how to do this using the `<video>` tag and React Suspense:
 
 ```jsx filename="app/page.jsx"
-import { Suspense } from 'react';
-import { list } from '@vercel/blob';
+import { Suspense } from 'react'
+import { list } from '@vercel/blob'
 
 export default function Page() {
   return (
     <Suspense fallback={<p>Loading video...</p>}>
       <VideoComponent fileName="my-video.mp4" />
     </Suspense>
-  );
-};
+  )
+}
 
 async function VideoComponent({ fileName }) {
-  const {blobs} = await list({
+  const { blobs } = await list({
     prefix: fileName,
-    limit: 1
-  });
-  const { url } = blobs[0];
+    limit: 1,
+  })
+  const { url } = blobs[0]
 
   return (
     <video controls preload="none" aria-label="Video player">
-      <source src={url} type="video/mp4">
+      <source src={url} type="video/mp4" />
       Your browser does not support the video tag.
     </video>
-  );
-};
+  )
+}
 ```
 
 In this approach, the page uses the video's `@vercel/blob` URL to display the video using the `VideoComponent`. React Suspense is used to show a fallback until the video URL is fetched and the video is ready to be displayed.
 
 ### Adding subtitles to your video
 
-If you have subtitles for your video, you can easily add them using the `<track>` element inside your `<video>` tag. You can fetch the subtitle file from Vercel Blob in a similar way as the video file. Here's how you can update the `<VideoComponent>` to include subtitles.
+If you have subtitles for your video, you can easily add them using the `<track>` element inside your `<video>` tag. You can fetch the subtitle file from [Vercel Blob](https://vercel.com/docs/storage/vercel-blob?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) in a similar way as the video file. Here's how you can update the `<VideoComponent>` to include subtitles.
 
 ```jsx filename="app/page.jsx"
 async function VideoComponent({ fileName }) {
-  const {blobs} = await list({
+  const { blobs } = await list({
     prefix: fileName,
-    limit: 2
-  });
-  const { url } = blobs[0];
-  const { url: captionsUrl } = blobs[1];
+    limit: 2,
+  })
+  const { url } = blobs[0]
+  const { url: captionsUrl } = blobs[1]
 
   return (
     <video controls preload="none" aria-label="Video player">
-      <source src={url} type="video/mp4">
-      <track
-        src={captionsUrl}
-        kind="subtitles"
-        srclang="en"
-        label="English">
+      <source src={url} type="video/mp4" />
+      <track src={captionsUrl} kind="subtitles" srcLang="en" label="English" />
       Your browser does not support the video tag.
     </video>
-  );
-};
+  )
+}
 ```
 
 By following this approach, you can effectively self-host and integrate videos into your Next.js applications.
@@ -254,13 +248,15 @@ Explore these video streaming platforms for integrating video into your Next.js 
 
 ### Open source `next-video` component
 
-- Provides a `<Video>` component for Next.js, compatible with various hosting services including Vercel Blob, S3, Backblaze, and Mux.
+- Provides a `<Video>` component for Next.js, compatible with various hosting services including [Vercel Blob](https://vercel.com/docs/storage/vercel-blob?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), S3, Backblaze, and Mux.
 - [Detailed documentation](https://next-video.dev/docs) for using `next-video.dev` with different hosting services.
 
 ### Cloudinary Integration
 
-- Official [documentation and integration guides](https://support.cloudinary.com/hc/en-us/categories/200477762-Client-Libraries-and-Integration-Guides) for using Cloudinary with Next.js.
-- A [specific guide](https://next.cloudinary.dev/nextjs-13) on integrating Cloudinary with Next.js.
+- Official [documentation and integration guide](https://next.cloudinary.dev/) for using Cloudinary with Next.js.
+- Includes a `<CldVideoPlayer>` component for [drop-in video support](https://next.cloudinary.dev/cldvideoplayer/basic-usage).
+- Find [examples](https://github.com/cloudinary-community/cloudinary-examples/?tab=readme-ov-file#nextjs) of integrating Cloudinary with Next.js including [Adaptive Bitrate Streaming](https://github.com/cloudinary-community/cloudinary-examples/tree/main/examples/nextjs-cldvideoplayer-abr).
+- Other [Cloudinary libraries](https://cloudinary.com/documentation) including a Node.js SDK are also available.
 
 ### Mux Video API
 

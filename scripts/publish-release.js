@@ -11,6 +11,7 @@ const cwd = process.cwd()
 
 ;(async function () {
   let isCanary = true
+  let isReleaseCandidate = false
 
   try {
     const tagOutput = execSync(
@@ -21,6 +22,7 @@ const cwd = process.cwd()
     if (tagOutput.trim().startsWith('v')) {
       isCanary = tagOutput.includes('-canary')
     }
+    isReleaseCandidate = tagOutput.includes('-rc')
   } catch (err) {
     console.log(err)
 
@@ -30,7 +32,9 @@ const cwd = process.cwd()
     }
     throw err
   }
-  console.log(`Publishing ${isCanary ? 'canary' : 'stable'}`)
+  console.log(
+    `Publishing ${isCanary ? 'canary' : isReleaseCandidate ? 'rc' : 'stable'}`
+  )
 
   if (!process.env.NPM_TOKEN) {
     console.log('No NPM_TOKEN, exiting...')
@@ -42,9 +46,10 @@ const cwd = process.cwd()
   const publishSema = new Sema(2)
 
   const publish = async (pkg, retry = 0) => {
+    let output = ''
     try {
       await publishSema.acquire()
-      await execa(
+      const child = execa(
         `npm`,
         [
           'publish',
@@ -52,20 +57,27 @@ const cwd = process.cwd()
           '--access',
           'public',
           '--ignore-scripts',
-          ...(isCanary ? ['--tag', 'canary'] : []),
+          ...(isCanary
+            ? ['--tag', 'canary']
+            : isReleaseCandidate
+              ? ['--tag', 'rc']
+              : []),
         ],
-        { stdio: 'inherit' }
+        { stdio: 'pipe' }
       )
+      const handleData = (type) => (chunk) => {
+        process[type].write(chunk)
+        output += chunk.toString()
+      }
+      child.stdout?.on('data', handleData('stdout'))
+      child.stderr?.on('data', handleData('stderr'))
       // Return here to avoid retry logic
-      return
+      return await child
     } catch (err) {
       console.error(`Failed to publish ${pkg}`, err)
 
       if (
-        err.message &&
-        err.message.includes(
-          'You cannot publish over the previously published versions'
-        )
+        output.includes('cannot publish over the previously published versions')
       ) {
         console.error('Ignoring already published error', pkg)
         return
@@ -155,7 +167,7 @@ const cwd = process.cwd()
     }
   }
 
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     packageDirs.map(async (packageDir) => {
       const pkgJson = JSON.parse(
         await fs.promises.readFile(
@@ -172,5 +184,9 @@ const cwd = process.cwd()
     })
   )
 
+  if (results.some((item) => item.status === 'rejected')) {
+    console.error(`Not all packages published successfully`, results)
+    process.exit(1)
+  }
   await undraft()
 })()

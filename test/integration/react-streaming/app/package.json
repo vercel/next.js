@@ -1,9 +1,9 @@
 {
   "private": true,
   "scripts": {
-    "dev": "yarn next dev",
-    "build": "yarn next build",
-    "start": "yarn next start"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
   },
   "dependencies": {
     "moment": "*"

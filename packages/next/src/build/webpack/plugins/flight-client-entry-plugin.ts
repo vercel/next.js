@@ -1,7 +1,7 @@
 import type {
   CssImports,
   ClientComponentImports,
-  NextFlightClientEntryLoaderOptions,
+  FlightClientEntryModuleItem,
 } from '../loaders/next-flight-client-entry-loader'
 
 import { webpack } from 'next/dist/compiled/webpack/webpack'
@@ -19,8 +19,10 @@ import {
   APP_CLIENT_INTERNALS,
   BARREL_OPTIMIZATION_PREFIX,
   COMPILER_NAMES,
+  DEFAULT_RUNTIME_WEBPACK,
   EDGE_RUNTIME_WEBPACK,
   SERVER_REFERENCE_MANIFEST,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../../shared/lib/constants'
 import {
   getActions,
@@ -33,16 +35,19 @@ import {
   traverseModules,
   forEachEntryModule,
   formatBarrelOptimizedResource,
+  getModuleReferencesInOrder,
 } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
-import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
 import { PAGE_TYPES } from '../../../lib/page-types'
+import { getModuleBuildInfo } from '../loaders/get-module-build-info'
+import { getAssumedSourceType } from '../loaders/next-flight-loader'
 
 interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
+  encryptionKey: string
 }
 
 const PLUGIN_NAME = 'FlightClientEntryPlugin'
@@ -89,11 +94,6 @@ const pluginState = getProxiedPluginState({
   // Mapping of resource path to module id for server/edge server.
   serverModuleIds: {} as Record<string, string | number>,
   edgeServerModuleIds: {} as Record<string, string | number>,
-
-  // Collect modules from server/edge compiler in client layer,
-  // and detect if it's been used, and mark it as `async: true` for react.
-  // So that react could unwrap the async module from promise and render module itself.
-  ASYNC_CLIENT_MODULES: [] as string[],
 
   injectedClientEntries: {} as Record<string, string>,
 })
@@ -161,6 +161,7 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
 export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
+  encryptionKey: string
   isEdgeServer: boolean
   assetPrefix: string
 
@@ -169,6 +170,7 @@ export class FlightClientEntryPlugin {
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
+    this.encryptionKey = options.encryptionKey
   }
 
   apply(compiler: webpack.Compiler) {
@@ -231,15 +233,7 @@ export class FlightClientEntryPlugin {
       }
 
       traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
-        // The module must has request, and resource so it's not a new entry created with loader.
-        // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
-        if (mod.request && mod.resource && !mod.buildInfo.rsc) {
-          if (compilation.moduleGraph.isAsync(mod)) {
-            pluginState.ASYNC_CLIENT_MODULES.push(mod.resource)
-          }
-        }
-
-        recordModule(String(modId), mod)
+        if (modId) recordModule(modId, mod)
       })
     })
 
@@ -254,7 +248,10 @@ export class FlightClientEntryPlugin {
     })
   }
 
-  async createClientEntries(compiler: webpack.Compiler, compilation: any) {
+  async createClientEntries(
+    compiler: webpack.Compiler,
+    compilation: webpack.Compilation
+  ) {
     const addClientEntryAndSSRModulesList: Array<
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
@@ -266,22 +263,24 @@ export class FlightClientEntryPlugin {
     const addActionEntryList: Array<ReturnType<typeof this.injectActionEntry>> =
       []
     const actionMapsPerEntry: Record<string, Map<string, string[]>> = {}
+    const createdActions = new Set<string>()
 
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
     forEachEntryModule(compilation, ({ name, entryModule }) => {
-      const internalClientComponentEntryImports = new Set<
-        ClientComponentImports[0]
-      >()
+      const internalClientComponentEntryImports: ClientComponentImports = {}
       const actionEntryImports = new Map<string, string[]>()
       const clientEntriesToInject = []
       const mergedCSSimports: CssImports = {}
 
-      for (const connection of compilation.moduleGraph.getOutgoingConnections(
-        entryModule
+      for (const connection of getModuleReferencesInOrder(
+        entryModule,
+        compilation.moduleGraph
       )) {
         // Entry can be any user defined entry files such as layout, page, error, loading, etc.
-        const entryRequest = connection.dependency.request
+        const entryRequest = (
+          connection.dependency as unknown as webpack.NormalModule
+        ).request
 
         const { clientComponentImports, actionImports, cssImports } =
           this.collectComponentInfoFromServerEntryDependency({
@@ -298,8 +297,8 @@ export class FlightClientEntryPlugin {
 
         // Next.js internals are put into a separate entry.
         if (!isAbsoluteRequest) {
-          clientComponentImports.forEach((value) =>
-            internalClientComponentEntryImports.add(value)
+          Object.keys(clientComponentImports).forEach(
+            (value) => (internalClientComponentEntryImports[value] = new Set())
           )
           continue
         }
@@ -311,7 +310,7 @@ export class FlightClientEntryPlugin {
         // }
 
         const relativeRequest = isAbsoluteRequest
-          ? path.relative(compilation.options.context, entryRequest)
+          ? path.relative(compilation.options.context!, entryRequest)
           : entryRequest
 
         // Replace file suffix as `.js` will be added.
@@ -328,6 +327,23 @@ export class FlightClientEntryPlugin {
           bundlePath,
           absolutePagePath: entryRequest,
         })
+
+        // The webpack implementation of writing the client reference manifest relies on all entrypoints writing a page.js even when there is no client components in the page.
+        // It needs the file in order to write the reference manifest for the path in the `.next/server` folder.
+        // TODO-APP: This could be better handled, however Turbopack does not have the same problem as we resolve client components in a single graph.
+        if (
+          name === `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}` &&
+          bundlePath === 'app/not-found'
+        ) {
+          clientEntriesToInject.push({
+            compiler,
+            compilation,
+            entryName: name,
+            clientComponentImports: {},
+            bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+            absolutePagePath: entryRequest,
+          })
+        }
       }
 
       // Make sure CSS imports are deduplicated before injecting the client entry
@@ -336,10 +352,15 @@ export class FlightClientEntryPlugin {
       for (const clientEntryToInject of clientEntriesToInject) {
         const injected = this.injectClientEntryAndSSRModules({
           ...clientEntryToInject,
-          clientImports: [
+          clientImports: {
             ...clientEntryToInject.clientComponentImports,
-            ...(dedupedCSSImports[clientEntryToInject.absolutePagePath] || []),
-          ],
+            ...(
+              dedupedCSSImports[clientEntryToInject.absolutePagePath] || []
+            ).reduce((res, curr) => {
+              res[curr] = new Set()
+              return res
+            }, {} as ClientComponentImports),
+          },
         })
 
         // Track all created SSR dependencies for each entry from the server layer.
@@ -359,7 +380,7 @@ export class FlightClientEntryPlugin {
           compiler,
           compilation,
           entryName: name,
-          clientImports: [...internalClientComponentEntryImports],
+          clientImports: { ...internalClientComponentEntryImports },
           bundlePath: APP_CLIENT_INTERNALS,
         })
       )
@@ -375,7 +396,6 @@ export class FlightClientEntryPlugin {
       }
     })
 
-    const createdActions = new Set<string>()
     for (const [name, actionEntryImports] of Object.entries(
       actionMapsPerEntry
     )) {
@@ -394,74 +414,6 @@ export class FlightClientEntryPlugin {
         })
       )
     }
-
-    compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, () => {
-      const addedClientActionEntryList: Promise<any>[] = []
-      const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
-
-      // We need to create extra action entries that are created from the
-      // client layer.
-      // Start from each entry's created SSR dependency from our previous step.
-      for (const [name, ssrEntryDependencies] of Object.entries(
-        createdSSRDependenciesForEntry
-      )) {
-        // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
-        // add aggregate them.
-        const actionEntryImports = this.collectClientActionsFromDependencies({
-          compilation,
-          dependencies: ssrEntryDependencies,
-        })
-
-        if (actionEntryImports.size > 0) {
-          if (!actionMapsPerClientEntry[name]) {
-            actionMapsPerClientEntry[name] = new Map()
-          }
-          actionMapsPerClientEntry[name] = new Map([
-            ...actionMapsPerClientEntry[name],
-            ...actionEntryImports,
-          ])
-        }
-      }
-
-      for (const [name, actionEntryImports] of Object.entries(
-        actionMapsPerClientEntry
-      )) {
-        // If an action method is already created in the server layer, we don't
-        // need to create it again in the action layer.
-        // This is to avoid duplicate action instances and make sure the module
-        // state is shared.
-        let remainingClientImportedActions = false
-        const remainingActionEntryImports = new Map<string, string[]>()
-        for (const [dep, actionNames] of actionEntryImports) {
-          const remainingActionNames = []
-          for (const actionName of actionNames) {
-            const id = name + '@' + dep + '@' + actionName
-            if (!createdActions.has(id)) {
-              remainingActionNames.push(actionName)
-            }
-          }
-          if (remainingActionNames.length > 0) {
-            remainingActionEntryImports.set(dep, remainingActionNames)
-            remainingClientImportedActions = true
-          }
-        }
-
-        if (remainingClientImportedActions) {
-          addedClientActionEntryList.push(
-            this.injectActionEntry({
-              compiler,
-              compilation,
-              actions: remainingActionEntryImports,
-              entryName: name,
-              bundlePath: name,
-              fromClient: true,
-            })
-          )
-        }
-      }
-
-      return Promise.all(addedClientActionEntryList)
-    })
 
     // Invalidate in development to trigger recompilation
     const invalidator = getInvalidator(compiler.outputPath)
@@ -485,13 +437,79 @@ export class FlightClientEntryPlugin {
 
     // Wait for action entries to be added.
     await Promise.all(addActionEntryList)
+
+    const addedClientActionEntryList: Promise<any>[] = []
+    const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
+
+    // We need to create extra action entries that are created from the
+    // client layer.
+    // Start from each entry's created SSR dependency from our previous step.
+    for (const [name, ssrEntryDependencies] of Object.entries(
+      createdSSRDependenciesForEntry
+    )) {
+      // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
+      // add aggregate them.
+      const actionEntryImports = this.collectClientActionsFromDependencies({
+        compilation,
+        dependencies: ssrEntryDependencies,
+      })
+
+      if (actionEntryImports.size > 0) {
+        if (!actionMapsPerClientEntry[name]) {
+          actionMapsPerClientEntry[name] = new Map()
+        }
+        actionMapsPerClientEntry[name] = new Map([
+          ...actionMapsPerClientEntry[name],
+          ...actionEntryImports,
+        ])
+      }
+    }
+
+    for (const [name, actionEntryImports] of Object.entries(
+      actionMapsPerClientEntry
+    )) {
+      // If an action method is already created in the server layer, we don't
+      // need to create it again in the action layer.
+      // This is to avoid duplicate action instances and make sure the module
+      // state is shared.
+      let remainingClientImportedActions = false
+      const remainingActionEntryImports = new Map<string, string[]>()
+      for (const [dep, actionNames] of actionEntryImports) {
+        const remainingActionNames = []
+        for (const actionName of actionNames) {
+          const id = name + '@' + dep + '@' + actionName
+          if (!createdActions.has(id)) {
+            remainingActionNames.push(actionName)
+          }
+        }
+        if (remainingActionNames.length > 0) {
+          remainingActionEntryImports.set(dep, remainingActionNames)
+          remainingClientImportedActions = true
+        }
+      }
+
+      if (remainingClientImportedActions) {
+        addedClientActionEntryList.push(
+          this.injectActionEntry({
+            compiler,
+            compilation,
+            actions: remainingActionEntryImports,
+            entryName: name,
+            bundlePath: name,
+            fromClient: true,
+          })
+        )
+      }
+    }
+
+    await Promise.all(addedClientActionEntryList)
   }
 
   collectClientActionsFromDependencies({
     compilation,
     dependencies,
   }: {
-    compilation: any
+    compilation: webpack.Compilation
     dependencies: ReturnType<typeof webpack.EntryPlugin.createDependency>[]
   }) {
     // action file path -> action names
@@ -511,11 +529,12 @@ export class FlightClientEntryPlugin {
       const collectActionsInDep = (mod: webpack.NormalModule): void => {
         if (!mod) return
 
+        const modPath: string = mod.resourceResolveData?.path || ''
         // We have to always use the resolved request here to make sure the
         // server and client are using the same module path (required by RSC), as
         // the server compiler and client compiler have different resolve configs.
-        let modRequest: string | undefined =
-          mod.resourceResolveData?.path + mod.resourceResolveData?.query
+        let modRequest: string =
+          modPath + (mod.resourceResolveData?.query || '')
 
         // For the barrel optimization, we need to use the match resource instead
         // because there will be 2 modules for the same file (same resource path)
@@ -533,15 +552,20 @@ export class FlightClientEntryPlugin {
           collectedActions.set(modRequest, actions)
         }
 
-        compilation.moduleGraph
-          .getOutgoingConnections(mod)
-          .forEach((connection: any) => {
-            collectActionsInDep(connection.resolvedModule)
-          })
+        getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
+          (connection) => {
+            collectActionsInDep(
+              connection.resolvedModule as webpack.NormalModule
+            )
+          }
+        )
       }
 
       // Don't traverse the module graph anymore once hitting the action layer.
-      if (!entryRequest.includes('next-flight-action-entry-loader')) {
+      if (
+        entryRequest &&
+        !entryRequest.includes('next-flight-action-entry-loader')
+      ) {
         // Traverse the module graph to find all client components.
         collectActionsInDep(resolvedModule)
       }
@@ -549,12 +573,13 @@ export class FlightClientEntryPlugin {
 
     for (const entryDependency of dependencies) {
       const ssrEntryModule =
-        compilation.moduleGraph.getResolvedModule(entryDependency)
-      for (const connection of compilation.moduleGraph.getOutgoingConnections(
-        ssrEntryModule
+        compilation.moduleGraph.getResolvedModule(entryDependency)!
+      for (const connection of getModuleReferencesInOrder(
+        ssrEntryModule,
+        compilation.moduleGraph
       )) {
-        const dependency = connection.dependency
-        const request = dependency.request
+        const dependency = connection.dependency!
+        const request = (dependency as unknown as webpack.NormalModule).request
 
         // It is possible that the same entry is added multiple times in the
         // connection graph. We can just skip these to speed up the process.
@@ -577,7 +602,7 @@ export class FlightClientEntryPlugin {
     resolvedModule,
   }: {
     entryRequest: string
-    compilation: any
+    compilation: webpack.Compilation
     resolvedModule: any /* Dependency */
   }): {
     cssImports: CssImports
@@ -588,20 +613,24 @@ export class FlightClientEntryPlugin {
     const visited = new Set()
 
     // Info to collect.
-    const clientComponentImports: ClientComponentImports = []
+    const clientComponentImports: ClientComponentImports = {}
     const actionImports: [string, string[]][] = []
     const CSSImports = new Set<string>()
 
-    const filterClientComponents = (mod: webpack.NormalModule): void => {
+    const filterClientComponents = (
+      mod: webpack.NormalModule,
+      importedIdentifiers: string[]
+    ): void => {
       if (!mod) return
 
       const isCSS = isCSSMod(mod)
 
+      const modPath: string = mod.resourceResolveData?.path || ''
+      const modQuery = mod.resourceResolveData?.query || ''
       // We have to always use the resolved request here to make sure the
       // server and client are using the same module path (required by RSC), as
       // the server compiler and client compiler have different resolve configs.
-      let modRequest: string | undefined =
-        mod.resourceResolveData?.path + mod.resourceResolveData?.query
+      let modRequest: string = modPath + modQuery
 
       // Context modules don't have a resource path, we use the identifier instead.
       if (mod.constructor.name === 'ContextModule') {
@@ -616,13 +645,29 @@ export class FlightClientEntryPlugin {
         modRequest = mod.matchResource + ':' + modRequest
       }
 
-      if (!modRequest || visited.has(modRequest)) return
+      if (!modRequest) return
+      if (visited.has(modRequest)) {
+        if (clientComponentImports[modRequest]) {
+          addClientImport(
+            mod,
+            modRequest,
+            clientComponentImports,
+            importedIdentifiers,
+            false
+          )
+        }
+        return
+      }
       visited.add(modRequest)
 
       const actions = getActions(mod)
       if (actions) {
         actionImports.push([modRequest, actions])
       }
+
+      const webpackRuntime = this.isEdgeServer
+        ? EDGE_RUNTIME_WEBPACK
+        : DEFAULT_RUNTIME_WEBPACK
 
       if (isCSS) {
         const sideEffectFree =
@@ -631,30 +676,47 @@ export class FlightClientEntryPlugin {
         if (sideEffectFree) {
           const unused = !compilation.moduleGraph
             .getExportsInfo(mod)
-            .isModuleUsed(
-              this.isEdgeServer ? EDGE_RUNTIME_WEBPACK : 'webpack-runtime'
-            )
+            .isModuleUsed(webpackRuntime)
 
           if (unused) return
         }
 
         CSSImports.add(modRequest)
-      }
+      } else if (isClientComponentEntryModule(mod)) {
+        if (!clientComponentImports[modRequest]) {
+          clientComponentImports[modRequest] = new Set()
+        }
+        addClientImport(
+          mod,
+          modRequest,
+          clientComponentImports,
+          importedIdentifiers,
+          true
+        )
 
-      if (isClientComponentEntryModule(mod)) {
-        clientComponentImports.push(modRequest)
         return
       }
 
-      compilation.moduleGraph
-        .getOutgoingConnections(mod)
-        .forEach((connection: any) => {
-          filterClientComponents(connection.resolvedModule)
-        })
+      getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
+        (connection: any) => {
+          let dependencyIds: string[] = []
+          const depModule = connection.resolvedModule
+
+          // `ids` are the identifiers that are imported from the dependency,
+          // if it's present, it's an array of strings.
+          if (connection.dependency?.ids) {
+            dependencyIds.push(...connection.dependency.ids)
+          } else {
+            dependencyIds = ['*']
+          }
+
+          filterClientComponents(depModule, dependencyIds)
+        }
+      )
     }
 
     // Traverse the module graph to find all client components.
-    filterClientComponents(resolvedModule)
+    filterClientComponents(resolvedModule, [])
 
     return {
       clientComponentImports,
@@ -684,34 +746,42 @@ export class FlightClientEntryPlugin {
   }): [
     shouldInvalidate: boolean,
     addEntryPromise: Promise<void>,
-    ssrDep: ReturnType<typeof webpack.EntryPlugin.createDependency>
+    ssrDep: ReturnType<typeof webpack.EntryPlugin.createDependency>,
   ] {
     let shouldInvalidate = false
 
-    const loaderOptions: NextFlightClientEntryLoaderOptions = {
-      modules: clientImports.sort((a, b) =>
-        regexCSS.test(b) ? 1 : a.localeCompare(b)
-      ),
+    const loaderOptions: {
+      modules: FlightClientEntryModuleItem[]
+      server: boolean
+    } = {
+      modules: Object.keys(clientImports)
+        .sort((a, b) => (regexCSS.test(b) ? 1 : a.localeCompare(b)))
+        .map((clientImportPath) => ({
+          request: clientImportPath,
+          ids: [...clientImports[clientImportPath]],
+        })),
       server: false,
     }
 
     // For the client entry, we always use the CJS build of Next.js. If the
     // server is using the ESM build (when using the Edge runtime), we need to
     // replace them.
-    const clientLoader = `next-flight-client-entry-loader?${stringify({
-      modules: this.isEdgeServer
-        ? loaderOptions.modules.map((importPath) =>
-            importPath.replace(
+    const clientBrowserLoader = `next-flight-client-entry-loader?${stringify({
+      modules: (this.isEdgeServer
+        ? loaderOptions.modules.map(({ request, ids }) => ({
+            request: request.replace(
               /[\\/]next[\\/]dist[\\/]esm[\\/]/,
               '/next/dist/'.replace(/\//g, path.sep)
-            )
-          )
-        : loaderOptions.modules,
+            ),
+            ids,
+          }))
+        : loaderOptions.modules
+      ).map((x) => JSON.stringify(x)),
       server: false,
     })}!`
 
     const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
-      ...loaderOptions,
+      modules: loaderOptions.modules.map((x) => JSON.stringify(x)),
       server: true,
     })}!`
 
@@ -731,7 +801,7 @@ export class FlightClientEntryPlugin {
           parentEntries: new Set([entryName]),
           absoluteEntryFilePath: absolutePagePath,
           bundlePath,
-          request: clientLoader,
+          request: clientBrowserLoader,
           dispose: false,
           lastActiveTime: Date.now(),
         }
@@ -739,8 +809,8 @@ export class FlightClientEntryPlugin {
       } else {
         const entryData = entries[pageKey]
         // New version of the client loader
-        if (entryData.request !== clientLoader) {
-          entryData.request = clientLoader
+        if (entryData.request !== clientBrowserLoader) {
+          entryData.request = clientBrowserLoader
           shouldInvalidate = true
         }
         if (entryData.type === EntryTypes.CHILD_ENTRY) {
@@ -750,7 +820,7 @@ export class FlightClientEntryPlugin {
         entryData.lastActiveTime = Date.now()
       }
     } else {
-      pluginState.injectedClientEntries[bundlePath] = clientLoader
+      pluginState.injectedClientEntries[bundlePath] = clientBrowserLoader
     }
 
     // Inject the entry to the server compiler (__ssr__).
@@ -884,6 +954,7 @@ export class FlightClientEntryPlugin {
       if (
         chunkGroup.name &&
         mod.request &&
+        modId &&
         /next-flight-action-entry-loader/.test(mod.request)
       ) {
         const fromClient = /&__client_imported__=true/.test(mod.request)
@@ -927,23 +998,74 @@ export class FlightClientEntryPlugin {
       edgeServerActions[id] = action
     }
 
-    const json = JSON.stringify(
-      {
-        node: serverActions,
-        edge: edgeServerActions,
+    const serverManifest = {
+      node: serverActions,
+      edge: edgeServerActions,
+      encryptionKey: this.encryptionKey,
+    }
+    const edgeServerManifest = {
+      ...serverManifest,
+      encryptionKey: 'process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
+    }
 
-        // Assign encryption
-        encryptionKey: await generateRandomActionKeyRaw(this.dev),
-      },
+    const json = JSON.stringify(serverManifest, null, this.dev ? 2 : undefined)
+    const edgeJson = JSON.stringify(
+      edgeServerManifest,
       null,
       this.dev ? 2 : undefined
     )
 
     assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`] =
       new sources.RawSource(
-        `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`
+        `self.__RSC_SERVER_MANIFEST=${JSON.stringify(edgeJson)}`
       ) as unknown as webpack.sources.RawSource
     assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`] =
       new sources.RawSource(json) as unknown as webpack.sources.RawSource
+  }
+}
+
+function addClientImport(
+  mod: webpack.NormalModule,
+  modRequest: string,
+  clientComponentImports: ClientComponentImports,
+  importedIdentifiers: string[],
+  isFirstImport: boolean
+) {
+  const clientEntryType = getModuleBuildInfo(mod).rsc?.clientEntryType
+  const isCjsModule = clientEntryType === 'cjs'
+  const assumedSourceType = getAssumedSourceType(
+    mod,
+    isCjsModule ? 'commonjs' : 'auto'
+  )
+
+  const clientImportsSet = clientComponentImports[modRequest]
+
+  if (importedIdentifiers[0] === '*') {
+    // If there's collected import path with named import identifiers,
+    // or there's nothing in collected imports are empty.
+    // we should include the whole module.
+    if (!isFirstImport && [...clientImportsSet][0] !== '*') {
+      clientComponentImports[modRequest] = new Set(['*'])
+    }
+  } else {
+    const isAutoModuleSourceType = assumedSourceType === 'auto'
+    if (isAutoModuleSourceType) {
+      clientComponentImports[modRequest] = new Set(['*'])
+    } else {
+      // If it's not analyzed as named ESM exports, e.g. if it's mixing `export *` with named exports,
+      // We'll include all modules since it's not able to do tree-shaking.
+      for (const name of importedIdentifiers) {
+        // For cjs module default import, we include the whole module since
+        const isCjsDefaultImport = isCjsModule && name === 'default'
+
+        // Always include __esModule along with cjs module default export,
+        // to make sure it work with client module proxy from React.
+        if (isCjsDefaultImport) {
+          clientComponentImports[modRequest].add('__esModule')
+        }
+
+        clientComponentImports[modRequest].add(name)
+      }
+    }
   }
 }

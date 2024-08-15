@@ -1,6 +1,6 @@
 import { bold, cyan, green, red, yellow } from '../../../../lib/picocolors'
 import { SimpleWebpackError } from './simpleWebpackError'
-import { createOriginalStackFrame } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
+import { createOriginalStackFrame } from '../../../../client/components/react-dev-overlay/server/middleware'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 // Based on https://github.com/webpack/webpack/blob/fcdd04a833943394bbb0a9eeb54a962a24cc7e41/lib/stats/DefaultStatsFactoryPlugin.js#L422-L431
@@ -49,18 +49,21 @@ async function getSourceFrame(
   compilation: any
 ): Promise<{ frame: string; lineNumber: string; column: string }> {
   try {
-    const loc = input.loc
-      ? input.loc
-      : input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
+    const loc =
+      input.loc || input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
     const originalSource = input.module.originalSource()
 
     const result = await createOriginalStackFrame({
-      line: loc.start.line,
-      column: loc.start.column,
       source: originalSource,
       rootDirectory: compilation.options.context!,
       modulePath: fileName,
-      frame: {},
+      frame: {
+        arguments: [],
+        file: fileName,
+        methodName: '',
+        lineNumber: loc.start.line,
+        column: loc.start.column,
+      },
     })
 
     return {

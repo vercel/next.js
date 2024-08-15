@@ -6,12 +6,12 @@ export async function writeAppTypeDeclarations({
   baseDir,
   imageImportsEnabled,
   hasPagesDir,
-  isAppDirEnabled,
+  hasAppDir,
 }: {
   baseDir: string
   imageImportsEnabled: boolean
   hasPagesDir: boolean
-  isAppDirEnabled: boolean
+  hasAppDir: boolean
 }): Promise<void> {
   // Reference `next` types
   const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
@@ -49,7 +49,7 @@ export async function writeAppTypeDeclarations({
     directives.push('/// <reference types="next/image-types/global" />')
   }
 
-  if (isAppDirEnabled && hasPagesDir) {
+  if (hasAppDir && hasPagesDir) {
     directives.push(
       '/// <reference types="next/navigation-types/compat/navigation" />'
     )
@@ -59,7 +59,7 @@ export async function writeAppTypeDeclarations({
   directives.push(
     '',
     '// NOTE: This file should not be edited',
-    '// see https://nextjs.org/docs/basic-features/typescript for more information.'
+    `// see https://nextjs.org/docs/${hasAppDir ? 'app' : 'pages'}/building-your-application/configuring/typescript for more information.`
   )
 
   const content = directives.join(eol) + eol

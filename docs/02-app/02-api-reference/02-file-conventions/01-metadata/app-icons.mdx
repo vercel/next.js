@@ -83,9 +83,6 @@ The easiest way to generate an icon is to use the [`ImageResponse`](/docs/app/ap
 ```tsx filename="app/icon.tsx" switcher
 import { ImageResponse } from 'next/og'
 
-// Route segment config
-export const runtime = 'edge'
-
 // Image metadata
 export const size = {
   width: 32,
@@ -125,9 +122,6 @@ export default function Icon() {
 
 ```jsx filename="app/icon.js" switcher
 import { ImageResponse } from 'next/og'
-
-// Route segment config
-export const runtime = 'edge'
 
 // Image metadata
 export const size = {
@@ -175,6 +169,7 @@ export default function Icon() {
 > - By default, generated icons are [**statically optimized**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) (generated at build time and cached) unless they use [dynamic functions](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions) or uncached data.
 > - You can generate multiple icons in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
 > - You cannot generate a `favicon` icon. Use [`icon`](#icon) or a [favicon.ico](#favicon) file instead.
+> - App icons are special Route Handlers that is cached by default unless it uses a [dynamic function](/docs/app/building-your-application/caching#dynamic-functions) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
 
 ### Props
 
@@ -201,7 +196,6 @@ export default function Icon({ params }) {
 | `app/shop/icon.js`              | `/shop`     | `undefined`               |
 | `app/shop/[slug]/icon.js`       | `/shop/1`   | `{ slug: '1' }`           |
 | `app/shop/[tag]/[item]/icon.js` | `/shop/1/2` | `{ tag: '1', item: '2' }` |
-| `app/shop/[...slug]/icon.js`    | `/shop/1/2` | `{ slug: ['1', '2'] }`    |
 
 ### Returns
 
@@ -257,25 +251,6 @@ export default function Icon() {}
 #### Route Segment Config
 
 `icon` and `apple-icon` are specialized [Route Handlers](/docs/app/building-your-application/routing/route-handlers) that can use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) options as Pages and Layouts.
-
-| Option                                                                                             | Type                                                     | Default    |
-| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------- |
-| [`dynamic`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic)                 | `'auto' \| 'force-dynamic' \| 'error' \| 'force-static'` | `'auto'`   |
-| [`revalidate`](/docs/app/api-reference/file-conventions/route-segment-config#revalidate)           | `false \| 'force-cache' \| 0 \| number`                  | `false`    |
-| [`runtime`](/docs/app/api-reference/file-conventions/route-segment-config#runtime)                 | `'nodejs' \| 'edge'`                                     | `'nodejs'` |
-| [`preferredRegion`](/docs/app/api-reference/file-conventions/route-segment-config#preferredregion) | `'auto' \| 'global' \| 'home' \| string \| string[]`     | `'auto'`   |
-
-```tsx filename="app/icon.tsx" switcher
-export const runtime = 'edge'
-
-export default function Icon() {}
-```
-
-```jsx filename="app/icon.js" switcher
-export const runtime = 'edge'
-
-export default function Icon() {}
-```
 
 ## Version History
 

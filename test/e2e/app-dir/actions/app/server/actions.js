@@ -7,9 +7,12 @@ export async function slowInc(value) {
   return value + 1
 }
 
-export default async function dec(value) {
+export const dec = async (value) => {
   return value - 1
 }
+
+// Test case for https://github.com/vercel/next.js/issues/54655
+export default dec
 
 export async function redirectAction(formData) {
   'use server'
@@ -20,3 +23,6 @@ export async function redirectAction(formData) {
       formData.get('hidden-info')
   )
 }
+
+// Test case for https://github.com/vercel/next.js/issues/61183
+export const dummyServerAction = () => new Promise((r) => setTimeout(r, 2000))

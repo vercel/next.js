@@ -18,6 +18,7 @@ import React, {
   startTransition,
   Suspense,
   useDeferredValue,
+  type JSX,
 } from 'react'
 import ReactDOM from 'react-dom'
 import {
@@ -26,7 +27,7 @@ import {
   TemplateContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
-import { createInfinitePromise } from './infinite-promise'
+import { unresolvedThenable } from './unresolved-thenable'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
@@ -34,6 +35,7 @@ import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
+import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -85,31 +87,25 @@ function walkAddRefetch(
   return treeToRecreate
 }
 
+const __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = (
+  ReactDOM as any
+).__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE
+
 // TODO-APP: Replace with new React API for finding dom nodes without a `ref` when available
 /**
  * Wraps ReactDOM.findDOMNode with additional logic to hide React Strict Mode warning
  */
 function findDOMNode(
-  instance: Parameters<typeof ReactDOM.findDOMNode>[0]
-): ReturnType<typeof ReactDOM.findDOMNode> {
+  instance: React.ReactInstance | null | undefined
+): Element | Text | null {
   // Tree-shake for server bundle
   if (typeof window === 'undefined') return null
-  // Only apply strict mode warning when not in production
-  if (process.env.NODE_ENV !== 'production') {
-    const originalConsoleError = console.error
-    try {
-      console.error = (...messages) => {
-        // Ignore strict mode warning for the findDomNode call below
-        if (!messages[0].includes('Warning: %s is deprecated in StrictMode.')) {
-          originalConsoleError(...messages)
-        }
-      }
-      return ReactDOM.findDOMNode(instance)
-    } finally {
-      console.error = originalConsoleError!
-    }
-  }
-  return ReactDOM.findDOMNode(instance)
+
+  // __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.findDOMNode is null during module init.
+  // We need to lazily reference it.
+  const internal_reactDOMfindDOMNode =
+    __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.findDOMNode
+  return internal_reactDOMfindDOMNode(instance)
 }
 
 const rectProperties = [
@@ -354,7 +350,9 @@ function InnerLayoutRouter({
       rsc: null,
       prefetchRsc: null,
       head: null,
+      prefetchHead: null,
       parallelRoutes: new Map(),
+      loading: null,
     }
 
     /**
@@ -405,31 +403,28 @@ function InnerLayoutRouter({
        */
       // TODO-APP: remove ''
       const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
+      const includeNextUrl = hasInterceptionRouteInCurrentTree(fullTree)
       childNode.lazyData = lazyData = fetchServerResponse(
         new URL(url, location.origin),
-        refetchTree,
-        context.nextUrl,
-        buildId
-      )
-    }
+        {
+          flightRouterState: refetchTree,
+          nextUrl: includeNextUrl ? context.nextUrl : null,
+          buildId,
+        }
+      ).then((serverResponse) => {
+        startTransition(() => {
+          changeByServerResponse({
+            previousTree: fullTree,
+            serverResponse,
+          })
+        })
 
-    /**
-     * Flight response data
-     */
-    // When the data has not resolved yet `use` will suspend here.
-    const [flightData, overrideCanonicalUrl] = use(lazyData)
-
-    // segmentPath from the server does not match the layout's segmentPath
-    childNode.lazyData = null
-
-    // setTimeout is used to start a new transition during render, this is an intentional hack around React.
-    setTimeout(() => {
-      startTransition(() => {
-        changeByServerResponse(fullTree, flightData, overrideCanonicalUrl)
+        return serverResponse
       })
-    })
+    }
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-    use(createInfinitePromise()) as never
+    // A falsey `resolvedRsc` indicates missing data -- we should not commit that branch, and we need to wait for the data to arrive.
+    use(unresolvedThenable) as never
   }
 
   // If we get to this point, then we know we have something we can render.
@@ -441,6 +436,7 @@ function InnerLayoutRouter({
         childNodes: childNode.parallelRoutes,
         // TODO-APP: overriding of url for parallel routes
         url: url,
+        loading: childNode.loading,
       }}
     >
       {resolvedRsc}
@@ -456,17 +452,19 @@ function InnerLayoutRouter({
  */
 function LoadingBoundary({
   children,
+  hasLoading,
   loading,
   loadingStyles,
   loadingScripts,
-  hasLoading,
 }: {
   children: React.ReactNode
+  hasLoading: boolean
   loading?: React.ReactNode
   loadingStyles?: React.ReactNode
   loadingScripts?: React.ReactNode
-  hasLoading: boolean
 }): JSX.Element {
+  // We have an explicit prop for checking if `loading` is provided, to disambiguate between a loading
+  // component that returns `null` / `undefined`, vs not having a loading component at all.
   if (hasLoading) {
     return (
       <Suspense
@@ -498,14 +496,9 @@ export default function OuterLayoutRouter({
   errorScripts,
   templateStyles,
   templateScripts,
-  loading,
-  loadingStyles,
-  loadingScripts,
-  hasLoading,
   template,
   notFound,
   notFoundStyles,
-  styles,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -515,20 +508,15 @@ export default function OuterLayoutRouter({
   templateStyles: React.ReactNode | undefined
   templateScripts: React.ReactNode | undefined
   template: React.ReactNode
-  loading: React.ReactNode | undefined
-  loadingStyles: React.ReactNode | undefined
-  loadingScripts: React.ReactNode | undefined
-  hasLoading: boolean
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
-  styles?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
     throw new Error('invariant expected layout router to be mounted')
   }
 
-  const { childNodes, tree, url } = context
+  const { childNodes, tree, url, loading } = context
 
   // Get the current parallelRouter cache node
   let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
@@ -554,7 +542,6 @@ export default function OuterLayoutRouter({
 
   return (
     <>
-      {styles}
       {preservedSegments.map((preservedSegment) => {
         const preservedSegmentValue = getSegmentValue(preservedSegment)
         const cacheKey = createRouterCacheKey(preservedSegment)
@@ -579,10 +566,10 @@ export default function OuterLayoutRouter({
                   errorScripts={errorScripts}
                 >
                   <LoadingBoundary
-                    hasLoading={hasLoading}
-                    loading={loading}
-                    loadingStyles={loadingStyles}
-                    loadingScripts={loadingScripts}
+                    hasLoading={Boolean(loading)}
+                    loading={loading?.[0]}
+                    loadingStyles={loading?.[1]}
+                    loadingScripts={loading?.[2]}
                   >
                     <NotFoundBoundary
                       notFound={notFound}
