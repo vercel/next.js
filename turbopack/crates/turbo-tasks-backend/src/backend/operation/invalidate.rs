@@ -66,11 +66,14 @@ pub fn make_task_dirty(task_id: TaskId, queue: &mut AggregationUpdateQueue, ctx:
 
     if task.add(CachedDataItem::Dirty { value: () }) {
         let in_progress = match get!(task, InProgress) {
-            Some(InProgressState::InProgress { stale, .. }) => {
+            Some(InProgressState::InProgress {
+                stale, once_task, ..
+            }) if !once_task => {
                 if !*stale {
                     update!(task, InProgress, |in_progress| {
                         let Some(InProgressState::InProgress {
                             stale: _,
+                            once_task,
                             done_event,
                         }) = in_progress
                         else {
@@ -78,6 +81,7 @@ pub fn make_task_dirty(task_id: TaskId, queue: &mut AggregationUpdateQueue, ctx:
                         };
                         Some(InProgressState::InProgress {
                             stale: true,
+                            once_task,
                             done_event,
                         })
                     });
