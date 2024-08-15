@@ -4240,7 +4240,7 @@ function pingTask(request, task) {
   request.pingedTasks.push(task);
   1 === request.pingedTasks.length &&
     ((request.flushScheduled = null !== request.destination),
-    setTimeout(function () {
+    setTimeoutOrImmediate(function () {
       return performWork(request);
     }, 0));
 }
@@ -6448,22 +6448,22 @@ function flushCompletedQueues(request, destination) {
 function startWork(request) {
   request.flushScheduled = null !== request.destination;
   supportsRequestStorage
-    ? setTimeout(function () {
+    ? setTimeoutOrImmediate(function () {
         return requestStorage.run(request, performWork, request);
       }, 0)
-    : setTimeout(function () {
+    : setTimeoutOrImmediate(function () {
         return performWork(request);
       }, 0);
   null === request.trackedPostpones &&
     (supportsRequestStorage
-      ? setTimeout(function () {
+      ? setTimeoutOrImmediate(function () {
           return requestStorage.run(
             request,
             enqueueEarlyPreloadsAfterInitialWork,
             request
           );
         }, 0)
-      : setTimeout(function () {
+      : setTimeoutOrImmediate(function () {
           return enqueueEarlyPreloadsAfterInitialWork(request);
         }, 0));
 }
@@ -6475,7 +6475,7 @@ function enqueueFlush(request) {
     0 === request.pingedTasks.length &&
     null !== request.destination &&
     ((request.flushScheduled = !0),
-    setTimeout(function () {
+    setTimeoutOrImmediate(function () {
       var destination = request.destination;
       destination
         ? flushCompletedQueues(request, destination)
@@ -6780,4 +6780,6 @@ exports.resume = function (children, postponedState, options) {
     startWork(request);
   });
 };
+
+;const setTimeoutOrImmediate = typeof setImmediate === 'function' ? setImmediate : setTimeout;
 exports.version = "19.0.0-experimental-49496d49-20240814";

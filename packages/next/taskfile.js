@@ -1634,7 +1634,7 @@ export async function copy_vendor_react(task_) {
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
         // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source
+        let newSource = source
           .replace(
             /require\(["']scheduler["']\)/g,
             `require("next/dist/compiled/scheduler${packageSuffix}")`
@@ -1643,6 +1643,48 @@ export async function copy_vendor_react(task_) {
             /require\(["']react["']\)/g,
             `require("next/dist/compiled/react${packageSuffix}")`
           )
+
+        const filepath = file.dir + '/' + file.base
+        if (
+          /cjs\/react-dom-server\.edge\.(?:development|production)\.js$/.test(
+            filepath
+          )
+        ) {
+          // replace `setTimeout` with `setImmediate` if available
+          //
+          // We expect all `setTimeout` calls to be of the form
+          //   setTimeout(() => ..., 0)
+          // because that's how `scheduleWork` is defined:
+          // https://github.com/facebook/react/blob/19bd26beb689e554fceb0b929dc5199be8cba594/packages/react-server/src/ReactServerStreamConfigEdge.js#L31-L33
+          //
+          // This replacement means that instead we might call
+          //   setImmediate(() => ..., 0)
+          // so technically we'll pass 0 in as the first argument.
+          // but this is always safe, because the callbacks passed to `createWork`
+          // cannot take any arguments.
+
+          // note: we have to replace these before inserting `setTimeoutOrImmediate`,
+          // otherwise we'd break its definition!
+          newSource = newSource.replaceAll(
+            `setTimeout`,
+            `setTimeoutOrImmediate`
+          )
+
+          const anchor = 'exports.version ='
+          const insertionPoint = newSource.indexOf(anchor)
+          if (insertionPoint === -1) {
+            throw new Error(
+              `Cannot find insertion point for setTimeoutOrImmediate in ${filepath}`
+            )
+          }
+          const toInsert = `\n;const setTimeoutOrImmediate = typeof setImmediate === 'function' ? setImmediate : setTimeout;\n`
+          newSource =
+            newSource.slice(0, insertionPoint) +
+            toInsert +
+            newSource.slice(insertionPoint)
+        }
+
+        file.data = newSource
 
         // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
         // as it mighe be aliased to the server rendering stub.
