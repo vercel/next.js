@@ -1,6 +1,8 @@
 #![feature(arbitrary_self_types)]
 
-use turbo_tasks::{debug::ValueDebug, test_helpers::current_task_for_testing, ValueDefault, Vc};
+use turbo_tasks::{
+    debug::ValueDebug, test_helpers::current_task_for_testing, ResolvedValue, ValueDefault, Vc,
+};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();
@@ -44,9 +46,11 @@ async fn test_store_and_read_generic() {
     .await
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(local_cells)]
 async fn returns_resolved_local_vc() -> Vc<u32> {
-    Vc::<u32>::local_cell(42).resolve().await.unwrap()
+    let cell = Vc::<u32>::cell(42);
+    assert!(cell.is_local());
+    cell.resolve().await.unwrap()
 }
 
 #[tokio::test]
@@ -116,6 +120,8 @@ struct Untracked {
     cell: Vc<u32>,
 }
 
+unsafe impl ResolvedValue for Untracked {}
+
 impl PartialEq for Untracked {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(self as *const _, other as *const _)
@@ -124,12 +130,13 @@ impl PartialEq for Untracked {
 
 impl Eq for Untracked {}
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(local_cells)]
 async fn get_untracked_local_cell() -> Vc<Untracked> {
-    Untracked {
-        cell: Vc::local_cell(42),
-    }
-    .cell()
+    Untracked { cell: Vc::cell(42) }
+        .cell()
+        .resolve()
+        .await
+        .unwrap()
 }
 
 #[tokio::test]

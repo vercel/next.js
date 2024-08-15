@@ -19,11 +19,13 @@ async fn one_unnamed_field(input: OneUnnamedField) -> Vc<Completion> {
 
 #[tokio::test]
 async fn tests() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         assert!(ReadRef::ptr_eq(
-            &one_unnamed_field(OneUnnamedField(42)).await.unwrap(),
-            &Completion::immutable().await.unwrap(),
-        ))
+            &one_unnamed_field(OneUnnamedField(42)).await?,
+            &Completion::immutable().await?,
+        ));
+        anyhow::Ok(())
     })
     .await
+    .unwrap()
 }

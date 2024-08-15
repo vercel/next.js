@@ -8,7 +8,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn recompute() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let input = ChangingInput {
             state: State::new(1),
         }

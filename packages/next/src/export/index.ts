@@ -551,7 +551,6 @@ async function exportAppImpl(
           dir,
           distDir,
           outDir,
-          enabledDirectories,
           nextConfig,
           cacheHandler: nextConfig.cacheHandler,
           cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,

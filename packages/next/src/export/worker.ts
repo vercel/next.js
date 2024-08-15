@@ -43,7 +43,6 @@ import {
 } from '../build/turborepo-access-trace'
 import type { Params } from '../client/components/params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
-import { ExportError } from '.'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -53,6 +52,10 @@ const envConfig = require('../shared/lib/runtime-config.external')
 
 class TimeoutError extends Error {
   code = 'NEXT_EXPORT_TIMEOUT_ERROR'
+}
+
+class ExportPageError extends Error {
+  code = 'NEXT_EXPORT_PAGE_ERROR'
 }
 
 async function exportPageImpl(
@@ -328,7 +331,6 @@ export async function exportPages(
     cacheHandler,
     cacheMaxMemorySize,
     fetchCacheKeyPrefix,
-    enabledDirectories,
     pagesDataDir,
     renderOpts,
     nextConfig,
@@ -343,7 +345,6 @@ export async function exportPages(
     fetchCacheKeyPrefix,
     distDir,
     dir,
-    enabledDirectories: enabledDirectories,
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,
@@ -398,7 +399,7 @@ export async function exportPages(
         // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,
         // or immediately fail the build, depending on user configuration. We might also continue on and attempt other pages.
         if (result && 'error' in result) {
-          throw new ExportError()
+          throw new ExportPageError()
         }
 
         // If the export succeeds, break out of the retry loop
@@ -406,7 +407,7 @@ export async function exportPages(
       } catch (err) {
         // The only error that should be caught here is an ExportError, as `exportPage` doesn't throw and instead returns an object with an `error` property.
         // This is an overly cautious check to ensure that we don't accidentally catch an unexpected error.
-        if (!(err instanceof ExportError || err instanceof TimeoutError)) {
+        if (!(err instanceof ExportPageError || err instanceof TimeoutError)) {
           throw err
         }
 
@@ -426,7 +427,7 @@ export async function exportPages(
           }
           // If prerenderEarlyExit is enabled, we'll exit the build immediately.
           if (nextConfig.experimental.prerenderEarlyExit) {
-            throw new ExportError(
+            throw new ExportPageError(
               `Export encountered an error on ${pageKey}, exiting the build.`
             )
           } else {

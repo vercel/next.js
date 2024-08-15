@@ -875,7 +875,7 @@ export async function assertNoRedbox(browser: BrowserInterface) {
         `description: ${redboxDescription}\n` +
         `source: ${redboxSource}`
     )
-    Error.captureStackTrace(error, assertHasRedbox)
+    Error.captureStackTrace(error, assertNoRedbox)
     throw error
   }
 }

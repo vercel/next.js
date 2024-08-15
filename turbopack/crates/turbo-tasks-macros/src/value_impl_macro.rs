@@ -116,9 +116,10 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             {
                 let ident = &sig.ident;
                 let (func_args, attrs) = split_function_attributes(item, attrs);
-                if let Err(err) = &func_args {
-                    errors.push(err.to_compile_error());
-                }
+                let func_args = func_args
+                    .inspect_err(|err| errors.push(err.to_compile_error()))
+                    .unwrap_or_default();
+                let local_cells = func_args.local_cells.is_some();
 
                 // TODO(alexkirsz) These should go into their own utilities.
                 let inline_function_ident: Ident =
@@ -127,11 +128,9 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let mut inline_signature = sig.clone();
                 inline_signature.ident = inline_function_ident;
 
-                let Some(turbo_fn) = TurboFn::new(
-                    sig,
-                    DefinitionContext::ValueInherentImpl,
-                    func_args.unwrap_or_default(),
-                ) else {
+                let Some(turbo_fn) =
+                    TurboFn::new(sig, DefinitionContext::ValueInherentImpl, func_args)
+                else {
                     return quote! {
                         // An error occurred while parsing the function signature.
                     };
@@ -141,6 +140,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     &format!("{ty}::{ident}", ty = ty.to_token_stream()),
                     &inline_function_path,
                     turbo_fn.is_method(),
+                    local_cells,
                 );
 
                 let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
@@ -222,14 +222,14 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let ident = &sig.ident;
 
                 let (func_args, attrs) = split_function_attributes(item, attrs);
-                if let Err(err) = &func_args {
-                    errors.push(err.to_compile_error());
-                }
-                let Some(turbo_fn) = TurboFn::new(
-                    sig,
-                    DefinitionContext::ValueTraitImpl,
-                    func_args.unwrap_or_default(),
-                ) else {
+                let func_args = func_args
+                    .inspect_err(|err| errors.push(err.to_compile_error()))
+                    .unwrap_or_default();
+                let local_cells = func_args.local_cells.is_some();
+
+                let Some(turbo_fn) =
+                    TurboFn::new(sig, DefinitionContext::ValueTraitImpl, func_args)
+                else {
                     return quote! {
                         // An error occurred while parsing the function signature.
                     };
@@ -255,6 +255,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     ),
                     &inline_function_path,
                     turbo_fn.is_method(),
+                    local_cells,
                 );
 
                 let native_function_ident =

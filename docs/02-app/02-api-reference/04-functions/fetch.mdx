@@ -68,7 +68,10 @@ fetch(`https://...`, { cache: 'force-cache' | 'no-store' })
   - If there is a match and it is fresh, it will be returned from the cache.
   - If there is no match or a stale match, Next.js will fetch the resource from the remote server and update the cache with the downloaded resource.
 
-> **Good to know**: The `no-cache` option behaves the same way as `no-store` in Next.js.
+> **Good to know**:
+>
+> - In version 15, the default cache option was changed from `'force-cache'` to `'no-store'`. If you're using an older version of Next.js, the default cache option is `'force-cache'`.
+> - The `no-cache` option behaves the same way as `no-store` in Next.js.
 
 ### `options.next.revalidate`
 

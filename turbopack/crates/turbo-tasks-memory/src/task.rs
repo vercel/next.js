@@ -21,7 +21,7 @@ use tokio::task_local;
 use tracing::Span;
 use turbo_prehash::PreHashed;
 use turbo_tasks::{
-    backend::{CellContent, PersistentTaskType, TaskCollectiblesMap, TaskExecutionSpec},
+    backend::{CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec},
     event::{Event, EventListener},
     get_invalidator, registry, CellId, Invalidator, RawVc, TaskId, TaskIdSet, TraitTypeId,
     TurboTasksBackendApi, ValueTypeId,
@@ -55,7 +55,7 @@ task_local! {
 type OnceTaskFn = Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>;
 
 /// Different Task types
-enum TaskType {
+pub enum TaskType {
     // Note: double boxed to reduce TaskType size
     /// A root task that will track dependencies and re-execute when
     /// dependencies change. Task will eventually settle to the correct
@@ -71,16 +71,17 @@ enum TaskType {
     Once(Box<OnceTaskFn>),
 
     /// A normal persistent task
-    Persistent {
-        ty: Arc<PreHashed<PersistentTaskType>>,
-    },
+    Persistent { ty: Arc<PreHashed<CachedTaskType>> },
+
+    /// A cached transient task
+    Transient { ty: Arc<PreHashed<CachedTaskType>> },
 }
 
 #[derive(Clone)]
 enum TaskTypeForDescription {
     Root,
     Once,
-    Persistent(Arc<PreHashed<PersistentTaskType>>),
+    Persistent(Arc<PreHashed<CachedTaskType>>),
 }
 
 impl TaskTypeForDescription {
@@ -89,6 +90,7 @@ impl TaskTypeForDescription {
             TaskType::Root(..) => Self::Root,
             TaskType::Once(..) => Self::Once,
             TaskType::Persistent { ty, .. } => Self::Persistent(ty.clone()),
+            TaskType::Transient { ty, .. } => Self::Persistent(ty.clone()),
         }
     }
 }
@@ -99,6 +101,7 @@ impl Debug for TaskType {
             Self::Root(..) => f.debug_tuple("Root").finish(),
             Self::Once(..) => f.debug_tuple("Once").finish(),
             Self::Persistent { ty, .. } => Debug::fmt(ty, f),
+            Self::Transient { ty } => Debug::fmt(ty, f),
         }
     }
 }
@@ -109,6 +112,7 @@ impl Display for TaskType {
             Self::Root(..) => f.debug_tuple("Root").finish(),
             Self::Once(..) => f.debug_tuple("Once").finish(),
             Self::Persistent { ty, .. } => Display::fmt(ty, f),
+            Self::Transient { ty } => Display::fmt(ty, f),
         }
     }
 }
@@ -119,7 +123,7 @@ impl Display for TaskType {
 pub struct Task {
     id: TaskId,
     /// The type of the task
-    ty: TaskType,
+    pub(crate) ty: TaskType,
     /// The mutable state of the task
     /// Unset state is equal to a Dirty task that has not been executed yet
     state: RwLock<TaskMetaState>,
@@ -178,8 +182,6 @@ impl TaskState {
             output: Default::default(),
             cells: Default::default(),
             gc: Default::default(),
-            #[cfg(feature = "track_wait_dependencies")]
-            last_waiting_task: Default::default(),
         }
     }
 
@@ -201,8 +203,6 @@ impl TaskState {
             output: Default::default(),
             cells: Default::default(),
             gc: Default::default(),
-            #[cfg(feature = "track_wait_dependencies")]
-            last_waiting_task: Default::default(),
         }
     }
 }
@@ -464,11 +464,18 @@ pub enum ReadCellError {
 }
 
 impl Task {
-    pub(crate) fn new_persistent(
-        id: TaskId,
-        task_type: Arc<PreHashed<PersistentTaskType>>,
-    ) -> Self {
+    pub(crate) fn new_persistent(id: TaskId, task_type: Arc<PreHashed<CachedTaskType>>) -> Self {
         let ty = TaskType::Persistent { ty: task_type };
+        Self {
+            id,
+            ty,
+            state: RwLock::new(TaskMetaState::Full(Box::new(TaskState::new()))),
+            graph_modification_in_progress_counter: AtomicU32::new(0),
+        }
+    }
+
+    pub(crate) fn new_transient(id: TaskId, task_type: Arc<PreHashed<CachedTaskType>>) -> Self {
+        let ty = TaskType::Transient { ty: task_type };
         Self {
             id,
             ty,
@@ -512,6 +519,7 @@ impl Task {
     pub(crate) fn is_pure(&self) -> bool {
         match &self.ty {
             TaskType::Persistent { .. } => true,
+            TaskType::Transient { .. } => true,
             TaskType::Root(_) => false,
             TaskType::Once(_) => false,
         }
@@ -520,6 +528,7 @@ impl Task {
     pub(crate) fn is_once(&self) -> bool {
         match &self.ty {
             TaskType::Persistent { .. } => false,
+            TaskType::Transient { .. } => false,
             TaskType::Root(_) => false,
             TaskType::Once(_) => true,
         }
@@ -583,7 +592,7 @@ impl Task {
     }
 
     pub(crate) fn get_function_name(&self) -> Option<Cow<'static, str>> {
-        if let TaskType::Persistent { ty, .. } = &self.ty {
+        if let TaskType::Persistent { ty, .. } | TaskType::Transient { ty, .. } = &self.ty {
             Some(ty.get_name())
         } else {
             None
@@ -599,14 +608,14 @@ impl Task {
             TaskTypeForDescription::Root => format!("[{}] root", id),
             TaskTypeForDescription::Once => format!("[{}] once", id),
             TaskTypeForDescription::Persistent(ty) => match &***ty {
-                PersistentTaskType::Native {
+                CachedTaskType::Native {
                     fn_type: native_fn,
                     this: _,
                     arg: _,
                 } => {
                     format!("[{}] {}", id, registry::get_function(*native_fn).name)
                 }
-                PersistentTaskType::ResolveNative {
+                CachedTaskType::ResolveNative {
                     fn_type: native_fn,
                     this: _,
                     arg: _,
@@ -617,7 +626,7 @@ impl Task {
                         registry::get_function(*native_fn).name
                     )
                 }
-                PersistentTaskType::ResolveTrait {
+                CachedTaskType::ResolveTrait {
                     trait_type,
                     method_name: fn_name,
                     this: _,
@@ -774,8 +783,8 @@ impl Task {
                 mutex.lock().take().expect("Task can only be executed once"),
                 tracing::trace_span!("turbo_tasks::once_task"),
             ),
-            TaskType::Persistent { ty, .. } => match &***ty {
-                PersistentTaskType::Native {
+            TaskType::Persistent { ty, .. } | TaskType::Transient { ty, .. } => match &***ty {
+                CachedTaskType::Native {
                     fn_type: native_fn,
                     this,
                     arg,
@@ -787,7 +796,7 @@ impl Task {
                     drop(entered);
                     (future, span)
                 }
-                PersistentTaskType::ResolveNative {
+                CachedTaskType::ResolveNative {
                     fn_type: ref native_fn_id,
                     this,
                     arg,
@@ -797,16 +806,17 @@ impl Task {
                     let span = func.resolve_span();
                     let entered = span.enter();
                     let turbo_tasks = turbo_tasks.pin();
-                    let future = Box::pin(PersistentTaskType::run_resolve_native(
+                    let future = Box::pin(CachedTaskType::run_resolve_native(
                         native_fn_id,
                         *this,
                         &**arg,
+                        self.id.is_transient(),
                         turbo_tasks,
                     ));
                     drop(entered);
                     (future, span)
                 }
-                PersistentTaskType::ResolveTrait {
+                CachedTaskType::ResolveTrait {
                     trait_type: trait_type_id,
                     method_name: name,
                     this,
@@ -818,11 +828,12 @@ impl Task {
                     let entered = span.enter();
                     let name = name.clone();
                     let turbo_tasks = turbo_tasks.pin();
-                    let future = Box::pin(PersistentTaskType::run_resolve_trait(
+                    let future = Box::pin(CachedTaskType::run_resolve_trait(
                         trait_type_id,
                         name,
                         *this,
                         &**arg,
+                        self.id.is_transient(),
                         turbo_tasks,
                     ));
                     drop(entered);
