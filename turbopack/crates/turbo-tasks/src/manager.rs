@@ -257,8 +257,8 @@ pub enum TaskPersistence {
     /// Tasks that will be persisted in memory for the life of this session, but won't persist
     /// between sessions.
     ///
-    /// This is used for tasks with an argument of type
-    /// [`TransientValue`][crate::value::TransientValue] or
+    /// This is used for [root tasks][TurboTasks::spawn_root_task] and tasks with an argument of
+    /// type [`TransientValue`][crate::value::TransientValue] or
     /// [`TransientInstance`][crate::value::TransientInstance].
     Transient,
 
