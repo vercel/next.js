@@ -3623,13 +3623,11 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/scss/compilation-and-prefixing/compilation-and-prefixing.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "SCSS Support ({\"sass\": \"1.54.0\"}) Production only CSS Compilation and Prefixing should've compiled and prefixed",
-        "SCSS Support ({\"sass\": \"1.54.0\"}) Production only CSS Compilation and Prefixing should've emitted a source map",
-        "SCSS Support ({\"sass-embedded\": \"1.75.0\"}) Production only CSS Compilation and Prefixing should've compiled and prefixed",
-        "SCSS Support ({\"sass-embedded\": \"1.75.0\"}) Production only CSS Compilation and Prefixing should've emitted a source map"
+        "SCSS Support ({\"sass-embedded\": \"1.75.0\"}) Production only CSS Compilation and Prefixing should've compiled and prefixed"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
