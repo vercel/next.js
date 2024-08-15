@@ -171,6 +171,15 @@ macro_rules! get_many {
             })
             .collect()
     };
+    ($task:ident, $key:ident $input:tt $value_ident:ident => $value:expr) => {
+        $task
+            .iter()
+            .filter_map(|(key, value)| match (key, value) {
+                (&CachedDataItemKey::$key $input, &CachedDataItemValue::$key { value: $value_ident }) => Some($value),
+                _ => None,
+            })
+            .collect()
+    };
     ($task:ident, $key1:ident $input1:tt => $value1:ident, $key2:ident $input2:tt => $value2:ident) => {
         $task
             .iter()

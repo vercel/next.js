@@ -5,6 +5,7 @@ use turbo_tasks::TaskId;
 
 use super::{
     aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
+    invalidate::make_task_dirty,
     ExecuteContext, Operation,
 };
 use crate::{
@@ -32,6 +33,7 @@ pub enum OutdatedEdge {
     Child(TaskId),
     CellDependency(CellRef),
     OutputDependency(TaskId),
+    RemovedCellDependent(TaskId),
 }
 
 impl CleanupOldEdgesOperation {
@@ -100,6 +102,9 @@ impl Operation for CleanupOldEdgesOperation {
                                         target: output_task_id,
                                     });
                                 }
+                            }
+                            OutdatedEdge::RemovedCellDependent(task_id) => {
+                                make_task_dirty(task_id, queue, ctx);
                             }
                         }
                     }
