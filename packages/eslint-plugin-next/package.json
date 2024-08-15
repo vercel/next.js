@@ -12,10 +12,10 @@
     "dist"
   ],
   "dependencies": {
-    "fast-glob": "3.3.1"
+    "fast-glob": "catalog:"
   },
   "devDependencies": {
-    "eslint": "8.56.0"
+    "eslint": "catalog:"
   },
   "scripts": {
     "build": "swc -d dist src",

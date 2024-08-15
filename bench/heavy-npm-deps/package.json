@@ -9,11 +9,11 @@
     "start-application": "next start"
   },
   "dependencies": {
-    "@mantine/core": "^7.10.1",
-    "lodash-es": "^4.17.21",
-    "lucide-react": "^0.383.0",
-    "mermaid": "^10.9.1",
-    "next": "workspace:*"
+    "@mantine/core": "catalog:",
+    "lodash-es": "catalog:",
+    "lucide-react": "catalog:",
+    "mermaid": "catalog:",
+    "next": "catalog:"
   },
   "devDependencies": {}
 }

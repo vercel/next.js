@@ -26,7 +26,7 @@
     }
   },
   "devDependencies": {
-    "react-refresh": "0.12.0",
+    "react-refresh": "catalog:",
     "webpack": "^4 || ^5"
   }
 }
