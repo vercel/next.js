@@ -1,7 +1,11 @@
 import type { __ApiPreviewProps } from './api-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
-import type { Params } from '../client/components/params'
+import {
+  getParamKeys,
+  type Params,
+  type DynamicRouteParams,
+} from '../client/components/params'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type {
   NextParsedUrlQuery,
@@ -1912,9 +1916,9 @@ export default abstract class Server<
     this.setVaryHeader(req, res, isAppPath, resolvedUrlPathname)
 
     let staticPaths: string[] | undefined
-
     let fallbackMode: FallbackMode | undefined
     let hasFallback = false
+
     const isDynamic = isDynamicRoute(components.page)
 
     const prerenderManifest = this.getPrerenderManifest()
@@ -2311,7 +2315,7 @@ export default abstract class Server<
       }))
 
     // TODO: investigate, this is not safe across multiple concurrent requests
-    incrementalCache?.resetRequestCache()
+    incrementalCache.resetRequestCache()
 
     type RendererContext = {
       /**
@@ -2319,12 +2323,17 @@ export default abstract class Server<
        * a render that has been postponed.
        */
       postponed: string | undefined
+
+      /**
+       * The unknown route params for this render.
+       */
+      unknownRouteParams: DynamicRouteParams | null
     }
     type Renderer = (
       context: RendererContext
     ) => Promise<ResponseCacheEntry | null>
 
-    const doRender: Renderer = async ({ postponed }) => {
+    const doRender: Renderer = async ({ postponed, unknownRouteParams }) => {
       // In development, we always want to generate dynamic HTML.
       let supportsDynamicResponse: boolean =
         // If we're in development, we always support dynamic HTML, unless it's
@@ -2584,6 +2593,7 @@ export default abstract class Server<
               page: is404Page ? '/404' : pathname,
               params: opts.params,
               query,
+              unknownRouteParams,
               renderOpts,
               serverComponentsHmrCache: this.getServerComponentsHmrCache(),
             })
@@ -2688,7 +2698,7 @@ export default abstract class Server<
           headers,
           status: isAppPath ? res.statusCode : undefined,
         } satisfies CachedPageValue,
-        revalidate: metadata.revalidate,
+        revalidate: metadata.revalidate ?? 1,
       }
     }
 
@@ -2744,6 +2754,7 @@ export default abstract class Server<
         isOnDemandRevalidate = true
       }
 
+      // TODO: adapt for PPR
       // only allow on-demand revalidate for fallback: true/blocking
       // or for prerendered fallback: false paths
       if (
@@ -2807,34 +2818,56 @@ export default abstract class Server<
         }
 
         if (!isNextDataRequest && !isRSCRequest) {
-          const key = isProduction
-            ? isAppPath
-              ? pathname
-              : locale
-                ? `/${locale}${pathname}`
-                : pathname
-            : null
+          let fallbackKey: string | null = null
+          if (isProduction) {
+            if (isAppPath) {
+              fallbackKey = pathname
+            } else if (locale) {
+              fallbackKey = `/${locale}${pathname}`
+            } else {
+              fallbackKey = pathname
+            }
+          }
 
+          // We use the response cache here to handle the revalidation and
+          // management of the fallback shell.
           const fallbackResponse = await this.responseCache.get(
-            key,
+            fallbackKey,
+            // This is the response generator for the fallback shell.
             async ({ previousCacheEntry: previousFallbackCacheEntry }) => {
-              // For the pages router, fallbacks cannot be revalidated or
-              // generated in production. In the case of a missing fallback,
-              // we return null, but if it's being revalidated, we just return
-              // the previous fallback cache entry. This preserves the previous
-              // behavior.
-              if (isProduction) {
-                if (!previousFallbackCacheEntry) {
-                  return null
-                }
+              let unknownRouteParams: DynamicRouteParams | null = null
 
-                return toResponseCacheEntry(previousFallbackCacheEntry)
+              if (isProduction) {
+                if (isAppPath) {
+                  // Mark that all the params in the page are unknown.
+                  unknownRouteParams = new Set(getParamKeys(pathname))
+                }
+                // For the pages router, fallbacks cannot be revalidated or
+                // generated in production. In the case of a missing fallback,
+                // we return null, but if it's being revalidated, we just return
+                // the previous fallback cache entry. This preserves the previous
+                // behavior.
+                else {
+                  if (!previousFallbackCacheEntry) {
+                    return null
+                  }
+
+                  return toResponseCacheEntry(previousFallbackCacheEntry)
+                }
+              } else if (!isAppPath) {
+                // For the pages router, fallbacks can only be generated on
+                // demand in development, so if we're not in production, and we
+                // aren't a app path, then just add the __nextFallback query
+                // and render.
+                query.__nextFallback = 'true'
               }
 
-              query.__nextFallback = 'true'
-
-              // We pass `undefined` as rendering a fallback isn't resumed here.
-              return doRender({ postponed: undefined })
+              return doRender({
+                // We pass `undefined` as rendering a fallback isn't resumed
+                // here.
+                postponed: undefined,
+                unknownRouteParams,
+              })
             },
             {
               routeKind: isAppPath ? RouteKind.APP_PAGE : RouteKind.PAGES,
@@ -2850,6 +2883,8 @@ export default abstract class Server<
           // used in the surrounding cache.
           delete fallbackResponse.revalidate
 
+          // TODO: when we're not in minimal mode, we should also kick off the
+          // more specific fallback shell generation.
           return fallbackResponse
         }
       }
@@ -2861,6 +2896,9 @@ export default abstract class Server<
           !isOnDemandRevalidate && !isRevalidating && minimalPostponed
             ? minimalPostponed
             : undefined,
+        // This is a regular render, not a fallback render, so we don't need to
+        // set this.
+        unknownRouteParams: null,
       }
 
       // When we're in minimal mode, if we're trying to debug the static shell,
@@ -2887,10 +2925,7 @@ export default abstract class Server<
 
       return {
         ...result,
-        revalidate:
-          result.revalidate !== undefined
-            ? result.revalidate
-            : /* default to minimum revalidate (this should be an invariant) */ 1,
+        revalidate: result.revalidate ?? 1,
       }
     }
 
@@ -2907,7 +2942,6 @@ export default abstract class Server<
         isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
         isRoutePPREnabled,
-        isFallback: false,
       }
     )
 
@@ -3012,7 +3046,7 @@ export default abstract class Server<
       else if (typeof cacheEntry.revalidate === 'number') {
         if (cacheEntry.revalidate < 1) {
           throw new Error(
-            `Invariant: invalid Cache-Control duration provided: ${cacheEntry.revalidate} < 1`
+            `Invalid revalidate configuration provided: ${cacheEntry.revalidate} < 1`
           )
         }
 
@@ -3250,7 +3284,12 @@ export default abstract class Server<
       // Perform the render again, but this time, provide the postponed state.
       // We don't await because we want the result to start streaming now, and
       // we've already chained the transformer's readable to the render result.
-      doRender({ postponed: cachedData.postponed })
+      doRender({
+        postponed: cachedData.postponed,
+        // This is a resume render, not a fallback render, so we don't need to
+        // set this.
+        unknownRouteParams: null,
+      })
         .then(async (result) => {
           if (!result) {
             throw new Error('Invariant: expected a result to be returned')

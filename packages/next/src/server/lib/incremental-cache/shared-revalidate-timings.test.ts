@@ -22,6 +22,7 @@ describe('SharedRevalidateTimings', () => {
           experimentalPPR: undefined,
         },
       },
+      dynamicRoutes: {},
     }
     sharedRevalidateTimings = new SharedRevalidateTimings(prerenderManifest)
   })

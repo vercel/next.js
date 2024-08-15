@@ -93,12 +93,11 @@ import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-st
 import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './encryption-utils'
+import { DynamicState, type PostponedState } from './postponed-state'
 import {
-  DYNAMIC_DATA,
   getDynamicDataPostponedState,
   getDynamicHTMLPostponedState,
   getPostponedFromState,
-  type PostponedState,
 } from './postponed-state'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import {
@@ -134,6 +133,12 @@ import { createMutableActionQueue } from '../../shared/lib/router/action-queue'
 import { prerenderAsyncStorage } from './prerender-async-storage.external'
 import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
+import {
+  isUnknownDynamicRouteParams,
+  isKnownDynamicRouteParams,
+  type DynamicRouteParams,
+} from '../../client/components/params'
+import { isFallbackDynamicParamType } from './fallbacks'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -252,13 +257,14 @@ export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
  */
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
-  pagePath: string
+  pagePath: string,
+  unknownRouteParams: DynamicRouteParams | null
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
     // [slug] / [[slug]] / [...slug]
     segment: string
   ) {
-    const segmentParam = getSegmentParam(segment)
+    const segmentParam = getSegmentParam(segment, unknownRouteParams)
     if (!segmentParam) {
       return null
     }
@@ -267,7 +273,9 @@ function makeGetDynamicParamFromSegment(
 
     let value = params[key]
 
-    if (Array.isArray(value)) {
+    if (isFallbackDynamicParamType(segmentParam.type)) {
+      value = ''
+    } else if (Array.isArray(value)) {
       value = value.map((i) => encodeURIComponent(i))
     } else if (typeof value === 'string') {
       value = encodeURIComponent(value)
@@ -355,7 +363,11 @@ async function generateDynamicRSCPayload(
   let flightData: FlightData | null = null
 
   const {
-    componentMod: { tree: loaderTree, createDynamicallyTrackedSearchParams },
+    componentMod: {
+      tree: loaderTree,
+      createDynamicallyTrackedSearchParams,
+      createDynamicallyTrackedParams,
+    },
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
     requestStore: { url },
@@ -374,6 +386,7 @@ async function generateDynamicRSCPayload(
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
       createDynamicallyTrackedSearchParams,
+      createDynamicallyTrackedParams,
     })
     flightData = (
       await walkTreeWithFlightRouterState({
@@ -406,6 +419,7 @@ async function generateDynamicRSCPayload(
   // the result is falsey.
   if (options?.actionResult) {
     return {
+      t: 'a',
       a: options.actionResult,
       f: flightData,
       b: ctx.renderOpts.buildId,
@@ -414,6 +428,7 @@ async function generateDynamicRSCPayload(
 
   // Otherwise, it's a regular RSC response.
   return {
+    t: 'n',
     b: ctx.renderOpts.buildId,
     // Anything besides an action response should have non-null flightData.
     // We don't ever expect this to be null because `skipFlight` is only
@@ -497,7 +512,7 @@ async function getRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
   is404: boolean
-) {
+): Promise<InitialRSCPayload & { P: React.ReactNode }> {
   const injectedCSS = new Set<string>()
   const injectedJS = new Set<string>()
   const injectedFontPreloadTags = new Set<string>()
@@ -512,8 +527,13 @@ async function getRSCPayload(
     getDynamicParamFromSegment,
     query,
     appUsingSizeAdjustment,
-    componentMod: { GlobalError, createDynamicallyTrackedSearchParams },
+    componentMod: {
+      GlobalError,
+      createDynamicallyTrackedSearchParams,
+      createDynamicallyTrackedParams,
+    },
     requestStore: { url },
+    staticGenerationStore: { unknownRouteParams },
   } = ctx
   const initialTree = createFlightRouterStateFromLoaderTree(
     tree,
@@ -526,9 +546,10 @@ async function getRSCPayload(
     errorType: is404 ? 'not-found' : undefined,
     query,
     metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
-    getDynamicParamFromSegment: getDynamicParamFromSegment,
-    appUsingSizeAdjustment: appUsingSizeAdjustment,
+    getDynamicParamFromSegment,
+    appUsingSizeAdjustment,
     createDynamicallyTrackedSearchParams,
+    createDynamicallyTrackedParams,
   })
 
   const preloadCallbacks: PreloadCallbacks = []
@@ -564,6 +585,14 @@ async function getRSCPayload(
   )
 
   return {
+    t: 'i',
+    // When the unknown route params are provided and is a map, we need to pass it
+    // to the client so it can use the now known route params to perform
+    // replacements in the flight data.
+    u:
+      unknownRouteParams && isKnownDynamicRouteParams(unknownRouteParams)
+        ? Object.fromEntries(unknownRouteParams)
+        : null,
     // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: <Preloads preloadCallbacks={preloadCallbacks} />,
     b: ctx.renderOpts.buildId,
@@ -574,7 +603,7 @@ async function getRSCPayload(
     m: missingSlots,
     G: GlobalError,
     s: typeof ctx.renderOpts.postponed === 'string',
-  } satisfies InitialRSCPayload & { P: React.ReactNode }
+  }
 }
 
 /**
@@ -598,7 +627,11 @@ async function getErrorRSCPayload(
     getDynamicParamFromSegment,
     query,
     appUsingSizeAdjustment,
-    componentMod: { GlobalError, createDynamicallyTrackedSearchParams },
+    componentMod: {
+      GlobalError,
+      createDynamicallyTrackedSearchParams,
+      createDynamicallyTrackedParams,
+    },
     requestStore: { url },
     requestId,
   } = ctx
@@ -611,6 +644,7 @@ async function getErrorRSCPayload(
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
     createDynamicallyTrackedSearchParams,
+    createDynamicallyTrackedParams,
   })
 
   const initialHead = (
@@ -642,7 +676,10 @@ async function getErrorRSCPayload(
     null,
   ]
 
+  const { unknownRouteParams } = ctx.staticGenerationStore
+
   return {
+    t: 'i',
     b: ctx.renderOpts.buildId,
     p: ctx.assetPrefix,
     c: prepareInitialCanonicalUrl(url),
@@ -650,6 +687,11 @@ async function getErrorRSCPayload(
     i: false,
     f: [[initialTree, initialSeedData, initialHead]],
     G: GlobalError,
+    u:
+      unknownRouteParams && isKnownDynamicRouteParams(unknownRouteParams)
+        ? Object.fromEntries(unknownRouteParams)
+        : null,
+    s: typeof ctx.renderOpts.postponed === 'string',
   } satisfies RSCPayload
 }
 
@@ -773,7 +815,8 @@ async function renderToHTMLOrFlightImpl(
   requestStore: RequestStore,
   staticGenerationStore: StaticGenerationStore,
   parsedRequestHeaders: ParsedRequestHeaders,
-  requestEndedState: { ended?: boolean }
+  requestEndedState: { ended?: boolean },
+  postponedState: PostponedState | null
 ) {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
@@ -923,9 +966,12 @@ async function renderToHTMLOrFlightImpl(
    */
   const params = renderOpts.params ?? {}
 
+  const { isStaticGeneration, unknownRouteParams } = staticGenerationStore
+
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
-    pagePath
+    pagePath,
+    unknownRouteParams
   )
 
   const isActionRequest = getServerActionRequestMetadata(req).isServerAction
@@ -954,8 +1000,6 @@ async function renderToHTMLOrFlightImpl(
   }
 
   getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
-
-  const { isStaticGeneration } = staticGenerationStore
 
   if (isStaticGeneration) {
     // We're either building or revalidating. In either case we need to
@@ -1087,7 +1131,8 @@ async function renderToHTMLOrFlightImpl(
             res,
             ctx,
             notFoundLoaderTree,
-            formState
+            formState,
+            postponedState
           )
 
           return new RenderResult(stream, { metadata })
@@ -1111,7 +1156,8 @@ async function renderToHTMLOrFlightImpl(
       res,
       ctx,
       loaderTree,
-      formState
+      formState,
+      postponedState
     )
 
     // If we have pending revalidates, wait until they are all resolved.
@@ -1140,6 +1186,7 @@ export type AppPageRender = (
   res: BaseNextResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
+  unknownRouteParams: DynamicRouteParams | null,
   renderOpts: RenderOpts,
   serverComponentsHmrCache?: ServerComponentsHmrCache
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
@@ -1149,6 +1196,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   res,
   pagePath,
   query,
+  unknownRouteParams,
   renderOpts,
   serverComponentsHmrCache
 ) => {
@@ -1167,6 +1215,35 @@ export const renderToHTMLOrFlight: AppPageRender = (
   const { isHmrRefresh } = parsedRequestHeaders
 
   const requestEndedState = { ended: false }
+  let postponedState: PostponedState | null = null
+
+  // If provided, the postpone state should be parsed as JSON so it can be
+  // provided to React.
+  if (typeof renderOpts.postponed === 'string') {
+    try {
+      postponedState = JSON.parse(renderOpts.postponed) as PostponedState
+    } catch {
+      // If we failed to parse the postponed state, we should default to
+      // performing a dynamic data render.
+      postponedState = getDynamicDataPostponedState(unknownRouteParams)
+    }
+
+    // If the postpone state is an object and the unknown route params are
+    // provided, we should parse the unknown route params from the query
+    // string. This happens during resume operations.
+    const { params } = renderOpts
+    if (postponedState.u && params) {
+      if (!postponedState.u.every((v) => v in params)) {
+        throw new Error(
+          'The provided `unknownRouteParams` must be a list of unknown route params that are present in the query string.'
+        )
+      }
+
+      unknownRouteParams = new Map(
+        postponedState.u.map((v) => [v, params[v] as string | string[]])
+      )
+    }
+  }
 
   return withRequestStore(
     renderOpts.ComponentMod.requestAsyncStorage,
@@ -1183,6 +1260,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
         renderOpts.ComponentMod.staticGenerationAsyncStorage,
         {
           page: renderOpts.routeModule.definition.page,
+          unknownRouteParams,
           renderOpts,
           requestEndedState,
         },
@@ -1196,7 +1274,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
             requestStore,
             staticGenerationStore,
             parsedRequestHeaders,
-            requestEndedState
+            requestEndedState,
+            postponedState
           )
       )
   )
@@ -1207,7 +1286,8 @@ async function renderToStream(
   res: BaseNextResponse,
   ctx: AppRenderContext,
   tree: LoaderTree,
-  formState: any
+  formState: any,
+  postponedState: PostponedState | null
 ): Promise<ReadableStream<Uint8Array>> {
   const renderOpts = ctx.renderOpts
   const ComponentMod = renderOpts.ComponentMod
@@ -1306,17 +1386,7 @@ async function renderToStream(
     // If provided, the postpone state should be parsed as JSON so it can be
     // provided to React.
     if (typeof renderOpts.postponed === 'string') {
-      let postponedState: PostponedState | null = null
-
-      // We are resuming a partial prerender
-      try {
-        postponedState = JSON.parse(renderOpts.postponed)
-      } catch {
-        // If we failed to parse the postponed state, we should default to
-        // performing a dynamic data render.
-        postponedState = DYNAMIC_DATA
-      }
-      if (postponedState === DYNAMIC_DATA) {
+      if (postponedState?.t === DynamicState.DATA) {
         // We have a complete HTML Document in the prerender but we need to
         // still include the new server component render because it was not included
         // in the static prelude.
@@ -1607,6 +1677,22 @@ type PrenderToStringResult = {
   err?: unknown
 }
 
+/**
+ * Determines whether we should generate static flight data.
+ */
+function shouldGenerateStaticFlightData(
+  staticGenerationStore: StaticGenerationStore
+): boolean {
+  const { unknownRouteParams, isStaticGeneration } = staticGenerationStore
+  if (!isStaticGeneration) return false
+
+  if (unknownRouteParams && isUnknownDynamicRouteParams(unknownRouteParams)) {
+    return false
+  }
+
+  return true
+}
+
 async function prerenderToStream(
   req: BaseNextRequest,
   res: BaseNextResponse,
@@ -1624,6 +1710,7 @@ async function prerenderToStream(
   const ComponentMod = renderOpts.ComponentMod
   // TODO: fix this typescript
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
+  const { unknownRouteParams } = staticGenerationStore
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
@@ -1785,7 +1872,11 @@ async function prerenderToStream(
       // After awaiting here we've waited for the entire RSC render to complete. Crucially this means
       // that when we detect whether we've used dynamic APIs below we know we'll have picked up even
       // parts of the React Server render that might not be used in the SSR render.
-      metadata.flightData = await streamToBuffer(persistedReactServerDataStream)
+      const flightData = await streamToBuffer(persistedReactServerDataStream)
+
+      if (shouldGenerateStaticFlightData(staticGenerationStore)) {
+        metadata.flightData = flightData
+      }
 
       /**
        * When prerendering there are three outcomes to consider
@@ -1806,11 +1897,13 @@ async function prerenderToStream(
         if (postponed != null) {
           // Dynamic HTML case.
           metadata.postponed = JSON.stringify(
-            getDynamicHTMLPostponedState(postponed)
+            getDynamicHTMLPostponedState(postponed, unknownRouteParams)
           )
         } else {
           // Dynamic Data case.
-          metadata.postponed = JSON.stringify(getDynamicDataPostponedState())
+          metadata.postponed = JSON.stringify(
+            getDynamicDataPostponedState(unknownRouteParams)
+          )
         }
         // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
         // server inserted html in the static response because the html that is part of the prerender may depend on it
@@ -1922,10 +2015,16 @@ async function prerenderToStream(
         }
       )
 
-      const [persistedReactServerDataStream, inlinedReactServerDataStream] =
-        reactServerDataStream.tee()
+      let continueInlineDataStream = reactServerDataStream
+      if (shouldGenerateStaticFlightData(staticGenerationStore)) {
+        const [persistedReactServerDataStream, inlinedReactServerDataStream] =
+          reactServerDataStream.tee()
+        continueInlineDataStream = inlinedReactServerDataStream
 
-      metadata.flightData = await streamToBuffer(persistedReactServerDataStream)
+        metadata.flightData = await streamToBuffer(
+          persistedReactServerDataStream
+        )
+      }
 
       const getServerInsertedHTML = makeGetServerInsertedHTML({
         polyfills,
@@ -1939,7 +2038,7 @@ async function prerenderToStream(
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
           inlinedDataStream: createInlinedDataReadableStream(
-            inlinedReactServerDataStream,
+            continueInlineDataStream,
             ctx.nonce,
             formState
           ),
@@ -2062,12 +2161,16 @@ async function prerenderToStream(
         },
       })
 
-      const [persistedReactServerDataStream, inlinedReactServerDataStream] =
-        primaryRenderReactServerStream.tee()
-      const flightRenderResult = new FlightRenderResult(
-        persistedReactServerDataStream
-      )
-      metadata.flightData = await flightRenderResult.toUnchunkedBuffer(true)
+      if (shouldGenerateStaticFlightData(staticGenerationStore)) {
+        const [persistedReactServerDataStream, inlinedReactServerDataStream] =
+          primaryRenderReactServerStream.tee()
+        primaryRenderReactServerStream = inlinedReactServerDataStream
+
+        const flightRenderResult = new FlightRenderResult(
+          persistedReactServerDataStream
+        )
+        metadata.flightData = await flightRenderResult.toUnchunkedBuffer(true)
+      }
 
       const validateRootLayout = renderOpts.dev
       return {
@@ -2081,7 +2184,7 @@ async function prerenderToStream(
             // This is intentionally using the readable datastream from the
             // main render rather than the flight data from the error page
             // render
-            inlinedReactServerDataStream,
+            primaryRenderReactServerStream,
             ctx.nonce,
             formState
           ),

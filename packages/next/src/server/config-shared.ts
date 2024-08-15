@@ -526,6 +526,13 @@ export type ExportPathMap = {
     query?: NextParsedUrlQuery
 
     /**
+     * The parameters that are currently unknown.
+     *
+     * @internal
+     */
+    _unknownRouteParams?: readonly string[]
+
+    /**
      * @internal
      */
     _isAppDir?: boolean

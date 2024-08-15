@@ -1,4 +1,5 @@
 'use client'
+import { createDynamicallyTrackedParams } from './params'
 import { createDynamicallyTrackedSearchParams } from './search-params'
 
 export function ClientPageRoot({
@@ -17,5 +18,8 @@ export function ClientPageRoot({
   props.searchParams = createDynamicallyTrackedSearchParams(
     props.searchParams || {}
   )
+  props.params = props.params
+    ? createDynamicallyTrackedParams(props.params)
+    : {}
   return <Component {...props} />
 }

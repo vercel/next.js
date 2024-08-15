@@ -124,6 +124,8 @@ describe('required server files app router', () => {
       body: delayedPostpone,
     })
 
+    expect(res.status).toBe(200)
+
     let chunks = []
 
     for await (const chunk of res.body) {

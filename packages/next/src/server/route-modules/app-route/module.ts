@@ -277,6 +277,8 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Get the context for the static generation.
     const staticGenerationContext: StaticGenerationContext = {
+      // App Routes don't support unknown route params.
+      unknownRouteParams: null,
       page: this.definition.page,
       renderOpts: context.renderOpts,
     }

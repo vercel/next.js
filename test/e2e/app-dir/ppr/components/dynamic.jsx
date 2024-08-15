@@ -1,8 +1,8 @@
-import React, { use } from 'react'
+import React from 'react'
 import { cookies } from 'next/headers'
 import { Delay, Login } from './state'
 
-export function Dynamic({ fallback }) {
+export async function Dynamic({ fallback }) {
   const dynamic = fallback !== true
 
   let signedIn
@@ -11,7 +11,7 @@ export function Dynamic({ fallback }) {
     signedIn = cookies().has('session')
     active = cookies().has('delay')
     if (active) {
-      use(new Promise((resolve) => setTimeout(resolve, 1000)))
+      await new Promise((resolve) => setTimeout(resolve, 1000))
     }
   }
 
