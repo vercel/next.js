@@ -49,7 +49,8 @@ pub fn scope_stress(c: &mut Criterion) {
                                         rectangle(a, b).strongly_consistent().await?;
                                         Ok::<Vc<()>, _>(Default::default())
                                     });
-                                    tt.wait_task_completion(task, ReadConsistency::Weak).await
+                                    tt.wait_task_completion(task, ReadConsistency::Eventual)
+                                        .await
                                 }
                             })
                             .try_join()

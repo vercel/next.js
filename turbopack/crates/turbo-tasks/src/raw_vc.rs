@@ -144,7 +144,7 @@ impl RawVc {
         loop {
             match current {
                 RawVc::TaskOutput(task) => {
-                    current = read_task_output(&*tt, task, ReadConsistency::Weak)
+                    current = read_task_output(&*tt, task, ReadConsistency::Eventual)
                         .await
                         .map_err(|source| ResolveTypeError::TaskError { source })?;
                 }
@@ -181,7 +181,7 @@ impl RawVc {
 
     /// See [`crate::Vc::resolve`].
     pub(crate) async fn resolve(self) -> Result<RawVc> {
-        self.resolve_inner(ReadConsistency::Weak).await
+        self.resolve_inner(ReadConsistency::Eventual).await
     }
 
     /// See [`crate::Vc::resolve_strongly_consistent`].
@@ -262,7 +262,7 @@ impl ReadRawVcFuture {
         let tt = turbo_tasks();
         ReadRawVcFuture {
             turbo_tasks: tt,
-            consistency: ReadConsistency::Weak,
+            consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: false,
             listener: None,
@@ -273,7 +273,7 @@ impl ReadRawVcFuture {
         let tt = turbo_tasks.pin();
         ReadRawVcFuture {
             turbo_tasks: tt,
-            consistency: ReadConsistency::Weak,
+            consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: true,
             listener: None,
@@ -284,7 +284,7 @@ impl ReadRawVcFuture {
         let tt = turbo_tasks();
         ReadRawVcFuture {
             turbo_tasks: tt,
-            consistency: ReadConsistency::Weak,
+            consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: true,
             listener: None,
@@ -344,7 +344,7 @@ impl Future for ReadRawVcFuture {
                             // We no longer need to read strongly consistent, as any Vc returned
                             // from the first task will be inside of the scope of the first task. So
                             // it's already strongly consistent.
-                            this.consistency = ReadConsistency::Weak;
+                            this.consistency = ReadConsistency::Eventual;
                             this.current = vc;
                             continue 'outer;
                         }

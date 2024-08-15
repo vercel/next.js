@@ -29,8 +29,7 @@ use turbo_tasks::{
 
 use crate::{
     aggregation::{
-        aggregation_data, handle_new_edge, prepare_aggregation_data, query_root_info,
-        AggregationDataGuard, PreparedOperation,
+        aggregation_data, handle_new_edge, query_root_info, AggregationDataGuard, PreparedOperation,
     },
     cell::{Cell, ReadContentError},
     edges_set::{TaskEdge, TaskEdgesList, TaskEdgesSet},
@@ -1629,7 +1628,6 @@ impl Task {
     ) -> Result<Result<T, EventListener>> {
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let mut state = if consistency == ReadConsistency::Strong {
-            prepare_aggregation_data(&aggregation_context, &self.id);
             let mut aggregation = aggregation_data(&aggregation_context, &self.id);
             if aggregation.unfinished > 0 {
                 if aggregation.root_type.is_none() {

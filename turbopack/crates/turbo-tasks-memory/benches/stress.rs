@@ -43,7 +43,7 @@ pub fn fibonacci(c: &mut Criterion) {
                         (0..size).map(|i| fib(i, i)).try_join().await?;
                         Ok::<Vc<()>, _>(Default::default())
                     });
-                    tt.wait_task_completion(task, ReadConsistency::Weak)
+                    tt.wait_task_completion(task, ReadConsistency::Eventual)
                         .await
                         .unwrap();
                     tt

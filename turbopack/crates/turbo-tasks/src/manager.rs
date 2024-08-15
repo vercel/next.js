@@ -281,7 +281,7 @@ pub enum TaskPersistence {
 pub enum ReadConsistency {
     /// The default behavior for most APIs. Reads are faster, but may return stale values, which
     /// may later trigger re-computation.
-    Weak,
+    Eventual,
     /// Ensures all dependencies are fully resolved before returning the cell or output data, at
     /// the cost of slower reads.
     ///
@@ -455,7 +455,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
         });
         // INVALIDATION: A Once task will never invalidate, therefore we don't need to
         // track a dependency
-        let raw_result = read_task_output_untracked(self, task_id, ReadConsistency::Weak).await?;
+        let raw_result =
+            read_task_output_untracked(self, task_id, ReadConsistency::Eventual).await?;
         ReadVcFuture::<Completion>::from(raw_result.into_read_untracked_with_turbo_tasks(self))
             .await?;
 
@@ -1544,7 +1545,7 @@ pub async fn run_once<T: Send + 'static>(
 
     // INVALIDATION: A Once task will never invalidate, therefore we don't need to
     // track a dependency
-    let raw_result = read_task_output_untracked(&*tt, task_id, ReadConsistency::Weak).await?;
+    let raw_result = read_task_output_untracked(&*tt, task_id, ReadConsistency::Eventual).await?;
     ReadVcFuture::<Completion>::from(raw_result.into_read_untracked_with_turbo_tasks(&*tt)).await?;
 
     Ok(rx.await?)
@@ -1569,7 +1570,7 @@ pub async fn run_once_with_reason<T: Send + 'static>(
 
     // INVALIDATION: A Once task will never invalidate, therefore we don't need to
     // track a dependency
-    let raw_result = read_task_output_untracked(&*tt, task_id, ReadConsistency::Weak).await?;
+    let raw_result = read_task_output_untracked(&*tt, task_id, ReadConsistency::Eventual).await?;
     ReadVcFuture::<Completion>::from(raw_result.into_read_untracked_with_turbo_tasks(&*tt)).await?;
 
     Ok(rx.await?)
