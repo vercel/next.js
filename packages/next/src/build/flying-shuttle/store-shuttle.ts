@@ -26,13 +26,10 @@ export function generateShuttleManifest(config: NextConfigComplete) {
       basePath: config.basePath,
       sassOptions: config.sassOptions,
       trailingSlash: config.trailingSlash,
-      productionBrowserSourceMaps: config.productionBrowserSourceMaps,
 
       experimental: {
         ppr: config.experimental.ppr,
         reactCompiler: config.experimental.reactCompiler,
-        serverSourceMaps: config.experimental.serverSourceMaps,
-        serverMinification: config.experimental.serverMinification,
       },
     },
   } satisfies ShuttleManifest)

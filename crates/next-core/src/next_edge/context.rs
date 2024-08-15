@@ -1,23 +1,20 @@
 use anyhow::Result;
 use indexmap::IndexMap;
 use turbo_tasks::{RcStr, Value, Vc};
-use turbopack_binding::{
-    turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
-    turbopack::{
-        browser::BrowserChunkingContext,
-        core::{
-            chunk::ChunkingContext,
-            compile_time_info::{
-                CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
-                FreeVarReferences,
-            },
-            environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment},
-            free_var_references,
-        },
-        node::execution_context::ExecutionContext,
-        turbopack::resolve_options_context::ResolveOptionsContext,
+use turbo_tasks_env::EnvMap;
+use turbo_tasks_fs::FileSystemPath;
+use turbopack::resolve_options_context::ResolveOptionsContext;
+use turbopack_browser::BrowserChunkingContext;
+use turbopack_core::{
+    chunk::ChunkingContext,
+    compile_time_info::{
+        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
+        FreeVarReferences,
     },
+    environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment},
+    free_var_references,
 };
+use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
     mode::NextMode,

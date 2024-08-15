@@ -8,7 +8,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 2.0.7
+  TURBO_VERSION: 2.0.9
   NODE_MAINTENANCE_VERSION: 18
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 8
@@ -101,7 +101,6 @@ jobs:
   check-types-precompiled:
     name: types and precompiled
     needs: ['changes', 'build-native', 'build-next']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -117,11 +116,19 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'
-      skipInstallBuild: 'yes'
+      needsNextest: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: turbo run test-cargo-unit
       mold: 'yes'
       stepName: 'test-cargo-unit'
+    secrets: inherit
+
+  test-bench:
+    name: test cargo benches
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/test-turbopack-rust-bench-test.yml
     secrets: inherit
 
   rust-check:
@@ -151,6 +158,17 @@ jobs:
       afterBuild: ./scripts/deploy-turbopack-docs.sh
       stepName: 'rust-doc-check'
     secrets: inherit
+
+  ast-grep:
+    needs: ['changes', 'build-next']
+    runs-on: ubuntu-latest
+    name: ast-grep lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: ast-grep lint step
+        uses: ast-grep/action@v1.5.0
+        with:
+          version: 0.25.6
 
   devlow-bench:
     name: Run devlow benchmarks

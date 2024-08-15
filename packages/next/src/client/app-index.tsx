@@ -28,10 +28,8 @@ window.console.error = (...args) => {
   const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
   if (!isNextRouterError(error)) {
     if (process.env.NODE_ENV !== 'production') {
-      const storeHydrationErrorStateFromConsoleArgs =
-        require('./components/react-dev-overlay/internal/helpers/hydration-error-info')
-          .storeHydrationErrorStateFromConsoleArgs as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info').storeHydrationErrorStateFromConsoleArgs
-      storeHydrationErrorStateFromConsoleArgs()
+      const { storeHydrationErrorStateFromConsoleArgs } =
+        require('./components/react-dev-overlay/internal/helpers/hydration-error-info') as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info')
 
       storeHydrationErrorStateFromConsoleArgs(...args)
       handleClientError(error)
@@ -39,16 +37,6 @@ window.console.error = (...args) => {
 
     origConsoleError.apply(window.console, args)
   }
-}
-
-if (process.env.NODE_ENV === 'development') {
-  const initializePrerenderIndicator =
-    require('./components/prerender-indicator')
-      .default as typeof import('./components/prerender-indicator').default
-
-  initializePrerenderIndicator((handlers) => {
-    window.next.isrIndicatorHandlers = handlers
-  })
 }
 
 /// <reference types="react-dom/experimental" />
@@ -190,6 +178,7 @@ const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
               initialParallelRoutes: new Map(),
               location: window.location,
               couldBeIntercepted: initialRSCPayload.i,
+              postponed: initialRSCPayload.s,
             })
           )
         )

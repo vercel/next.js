@@ -74,7 +74,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { getCloneableBody } from './body-streams'
 import { checkIsOnDemandRevalidate } from './api-utils'
-import ResponseCache from './response-cache'
+import ResponseCache, { CachedRouteKind } from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
@@ -100,8 +100,8 @@ import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
-import { stripNextRscUnionQuery } from '../lib/url'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
+import { RouteKind } from './route-kind'
 
 export * from './base-server'
 
@@ -117,16 +117,6 @@ const dynamicImportEsmDefault = process.env.NEXT_MINIMAL
 const dynamicRequire = process.env.NEXT_MINIMAL
   ? __non_webpack_require__
   : require
-
-function writeStdoutLine(text: string) {
-  process.stdout.write(' ' + text + '\n')
-}
-
-function formatRequestUrl(url: string, maxLength: number | undefined) {
-  return maxLength !== undefined && url.length > maxLength
-    ? url.substring(0, maxLength) + '..'
-    : url
-}
 
 export type NodeRequestHandler = BaseRequestHandler<
   IncomingMessage | NodeNextRequest,
@@ -167,6 +157,7 @@ export default class NextNodeServer extends BaseServer<
   protected middlewareManifestPath: string
   private _serverDistDir: string | undefined
   private imageResponseCache?: ResponseCache
+  private registeredInstrumentation: boolean = false
   protected renderWorkersPromises?: Promise<void>
   protected dynamicRoutes?: {
     match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
@@ -335,6 +326,8 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected async runInstrumentationHookIfAvailable() {
+    if (this.registeredInstrumentation) return
+    this.registeredInstrumentation = true
     await this.instrumentation?.register?.()
   }
 
@@ -382,8 +375,6 @@ export default class NextNodeServer extends BaseServer<
       dev,
       requestHeaders,
       requestProtocol,
-      pagesDir: this.enabledDirectories.pages,
-      appDir: this.enabledDirectories.app,
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -884,7 +875,7 @@ export default class NextNodeServer extends BaseServer<
 
             return {
               value: {
-                kind: 'IMAGE',
+                kind: CachedRouteKind.IMAGE,
                 buffer,
                 etag,
                 extension: getExtension(contentType) as string,
@@ -893,11 +884,12 @@ export default class NextNodeServer extends BaseServer<
             }
           },
           {
+            routeKind: RouteKind.IMAGE,
             incrementalCache: imageOptimizerCache,
           }
         )
 
-        if (cacheEntry?.value?.kind !== 'IMAGE') {
+        if (cacheEntry?.value?.kind !== CachedRouteKind.IMAGE) {
           throw new Error(
             'invariant did not get entry from image response cache'
           )
@@ -992,6 +984,8 @@ export default class NextNodeServer extends BaseServer<
             routePath: match.definition.page,
             routerKind: 'Pages Router',
             routeType: 'route',
+            // Edge runtime does not support ISR
+            revalidateReason: undefined,
           })
           throw apiError
         }
@@ -1080,13 +1074,13 @@ export default class NextNodeServer extends BaseServer<
     return nodeFs
   }
 
-  private normalizeReq(
+  protected normalizeReq(
     req: NodeNextRequest | IncomingMessage
   ): NodeNextRequest {
     return !(req instanceof NodeNextRequest) ? new NodeNextRequest(req) : req
   }
 
-  private normalizeRes(
+  protected normalizeRes(
     res: NodeNextResponse | ServerResponse
   ): NodeNextResponse {
     return !(res instanceof NodeNextResponse) ? new NodeNextResponse(res) : res
@@ -1106,157 +1100,16 @@ export default class NextNodeServer extends BaseServer<
   private makeRequestHandler(): NodeRequestHandler {
     // This is just optimization to fire prepare as soon as possible. It will be
     // properly awaited later. We add the catch here to ensure that it does not
-    // cause a unhandled promise rejection. The promise rejection wil be
+    // cause an unhandled promise rejection. The promise rejection will be
     // handled later on via the `await` when the request handler is called.
     this.prepare().catch((err) => {
       console.error('Failed to prepare server', err)
     })
 
     const handler = super.getRequestHandler()
-    return (req, res, parsedUrl) => {
-      const normalizedReq = this.normalizeReq(req)
-      const normalizedRes = this.normalizeRes(res)
 
-      const logConfig = this.nextConfig.logging
-      const isLoggingDisabled = logConfig === false
-      const fetchesLoggingConfig = isLoggingDisabled
-        ? false
-        : logConfig?.fetches
-
-      const enabledVerboseLogging = !!fetchesLoggingConfig
-      const shouldTruncateUrl =
-        typeof fetchesLoggingConfig === 'object' &&
-        !fetchesLoggingConfig.fullUrl
-
-      if (this.renderOpts.dev) {
-        const { blue, green, yellow, red, gray, white, bold } =
-          require('../lib/picocolors') as typeof import('../lib/picocolors')
-
-        const { originalResponse } = normalizedRes
-
-        const reqStart = Date.now()
-        const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
-
-        const reqCallback = () => {
-          const fetchMetrics = normalizedReq.fetchMetrics || []
-          delete normalizedReq.fetchMetrics
-
-          if (isLoggingDisabled) return
-
-          // we don't log for non-route requests
-          const routeMatch = getRequestMeta(req).match
-
-          if (!routeMatch || isMiddlewareRequest) return
-
-          // NOTE: this is only attached after handle has started, this runs
-          // after the response has been sent, so it should have it set.
-          const isRSC = getRequestMeta(normalizedReq, 'isRSCRequest')
-
-          const reqEnd = Date.now()
-          const reqDuration = reqEnd - reqStart
-
-          const statusColor = (status?: number) => {
-            if (!status || status < 200) return white
-            else if (status < 300) return green
-            else if (status < 400) return blue
-            else if (status < 500) return yellow
-            return red
-          }
-
-          const color = statusColor(res.statusCode)
-          const method = req.method || 'GET'
-          const requestUrl = req.url || ''
-          const loggingUrl = isRSC
-            ? stripNextRscUnionQuery(requestUrl)
-            : requestUrl
-          const indentation = '│ '
-
-          writeStdoutLine(
-            `${method} ${loggingUrl} ${color(
-              res.statusCode.toString()
-            )} in ${reqDuration}ms`
-          )
-
-          for (let i = 0; i < fetchMetrics.length; i++) {
-            const metric = fetchMetrics[i]
-            let { cacheStatus, cacheReason, cacheWarning, url } = metric
-
-            if (cacheStatus === 'hmr') {
-              // Cache hits during HMR refreshes are intentionally not logged.
-              continue
-            }
-
-            if (enabledVerboseLogging) {
-              let cacheReasonStr = ''
-
-              let cacheColor
-              const duration = metric.end - metric.start
-              if (cacheStatus === 'hit') {
-                cacheColor = green
-              } else {
-                cacheColor = yellow
-                const status = cacheStatus === 'skip' ? 'skipped' : 'missed'
-                cacheReasonStr = gray(
-                  `Cache ${status} reason: (${white(cacheReason)})`
-                )
-              }
-
-              if (url.length > 48) {
-                const parsed = new URL(url)
-                const truncatedHost = formatRequestUrl(
-                  parsed.host,
-                  shouldTruncateUrl ? 16 : undefined
-                )
-                const truncatedPath = formatRequestUrl(
-                  parsed.pathname,
-                  shouldTruncateUrl ? 24 : undefined
-                )
-                const truncatedSearch = formatRequestUrl(
-                  parsed.search,
-                  shouldTruncateUrl ? 16 : undefined
-                )
-
-                url =
-                  parsed.protocol +
-                  '//' +
-                  truncatedHost +
-                  truncatedPath +
-                  truncatedSearch
-              }
-
-              const status = cacheColor(`(cache ${cacheStatus})`)
-
-              writeStdoutLine(
-                `${indentation}${white(
-                  metric.method
-                )} ${white(url)} ${metric.status} in ${duration}ms ${status}`
-              )
-
-              if (cacheReasonStr) {
-                writeStdoutLine(`${indentation}${indentation}${cacheReasonStr}`)
-              }
-
-              if (cacheWarning) {
-                writeStdoutLine(
-                  `${indentation}${indentation}${yellow(bold('⚠'))} ${white(cacheWarning)}`
-                )
-              }
-            } else if (cacheWarning) {
-              writeStdoutLine(
-                `${indentation}${white(metric.method)} ${white(url)}`
-              )
-
-              writeStdoutLine(
-                `${indentation}${indentation}${yellow(bold('⚠'))} ${white(cacheWarning)}`
-              )
-            }
-          }
-          originalResponse.off('close', reqCallback)
-        }
-        originalResponse.on('close', reqCallback)
-      }
-      return handler(normalizedReq, normalizedRes, parsedUrl)
-    }
+    return (req, res, parsedUrl) =>
+      handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
   }
 
   public async revalidate({

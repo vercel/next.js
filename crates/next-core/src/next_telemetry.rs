@@ -1,9 +1,6 @@
 use indexmap::IndexMap;
-use turbo_tasks::RcStr;
-use turbopack_binding::{
-    turbo::tasks::Vc,
-    turbopack::core::diagnostics::{Diagnostic, DiagnosticPayload},
-};
+use turbo_tasks::{RcStr, Vc};
+use turbopack_core::diagnostics::{Diagnostic, DiagnosticPayload};
 
 /// A structure that keeps track of whether a particular Next.js feature is
 /// enabled for the telemetry. The original implementation code can be found at the following [link](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516).

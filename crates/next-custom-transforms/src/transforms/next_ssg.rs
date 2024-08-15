@@ -2,7 +2,7 @@ use std::{cell::RefCell, mem::take, rc::Rc};
 
 use easy_error::{bail, Error};
 use fxhash::FxHashSet;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{
         errors::HANDLER,
         pass::{Repeat, Repeated},

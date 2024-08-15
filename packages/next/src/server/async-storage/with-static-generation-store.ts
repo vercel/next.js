@@ -6,7 +6,6 @@ import type { RenderOptsPartial } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
 
-import { createPrerenderState } from '../app-render/dynamic-rendering'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 export type StaticGenerationContext = {
@@ -84,11 +83,6 @@ export const withStaticGenerationStore: WithStore<
     !renderOpts.isDraftMode &&
     !renderOpts.isServerAction
 
-  const prerenderState: StaticGenerationStore['prerenderState'] =
-    isStaticGeneration && renderOpts.experimental?.isRoutePPREnabled
-      ? createPrerenderState(renderOpts.isDebugDynamicAccesses)
-      : null
-
   const store: StaticGenerationStore = {
     isStaticGeneration,
     page,
@@ -104,7 +98,6 @@ export const withStaticGenerationStore: WithStore<
 
     isDraftMode: renderOpts.isDraftMode,
 
-    prerenderState,
     requestEndedState,
   }
 

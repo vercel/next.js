@@ -1,0 +1,23 @@
+0 -> 3 member call = [1, 2, 3]["concat"](4, 5, 6, [7, 8, 9], `hello ${(2 | ???*0*)}`)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+0 -> 6 free var = FreeVar(unknown)
+
+0 -> 7 member call = ([1, 2, 3] | ???*0*)["concat"]([4, 5, 6, ???*1*])
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+- *1* FreeVar(unknown)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 10 free var = FreeVar(unknown)
+
+0 -> 11 member call = ([1, 2, 3] | ???*0*)["concat"](4, 5, 6, ???*1*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+- *1* FreeVar(unknown)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 14 member call = [1, 2, 3]["concat"]([7, 8, 9])

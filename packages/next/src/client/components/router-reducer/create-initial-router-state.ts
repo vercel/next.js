@@ -5,7 +5,7 @@ import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
 import { createPrefetchCacheEntryForInitialLoad } from './prefetch-cache-utils'
-import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
+import type { PrefetchCacheEntry } from './router-reducer-types'
 import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
 
 export interface InitialRouterStateParameters {
@@ -14,7 +14,8 @@ export interface InitialRouterStateParameters {
   initialParallelRoutes: CacheNode['parallelRoutes']
   initialFlightData: FlightDataPath[]
   location: Location | null
-  couldBeIntercepted?: boolean
+  couldBeIntercepted: boolean
+  postponed: boolean
 }
 
 export function createInitialRouterState({
@@ -24,12 +25,13 @@ export function createInitialRouterState({
   initialParallelRoutes,
   location,
   couldBeIntercepted,
+  postponed,
 }: InitialRouterStateParameters) {
   // The initialFlightData is an array of FlightDataPath arrays.
   // For the root render, there'll only be a top-level FlightDataPath array.
   const [initialTree, initialSeedData, initialHead] = initialFlightData[0]
   const isServer = !location
-  const rsc = initialSeedData[2]
+  const rsc = initialSeedData[1]
 
   const cache: CacheNode = {
     lazyData: null,
@@ -101,13 +103,13 @@ export function createInitialRouterState({
 
     createPrefetchCacheEntryForInitialLoad({
       url,
-      kind: PrefetchKind.AUTO,
       data: {
-        f: initialFlightData,
-        c: undefined,
-        i: !!couldBeIntercepted,
+        flightData: initialFlightData,
+        canonicalUrl: undefined,
+        couldBeIntercepted: !!couldBeIntercepted,
         // TODO: the server should probably send a value for this. Default to false for now.
-        p: false,
+        isPrerender: false,
+        postponed,
       },
       tree: initialState.tree,
       prefetchCache: initialState.prefetchCache,
