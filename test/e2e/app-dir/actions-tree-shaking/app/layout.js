@@ -1,11 +1,10 @@
-import { action } from './actions'
+import { layoutAction } from './actions'
 
 export default function Layout({ children }) {
-  console.log('layout action', action)
+  console.log('layout action', layoutAction)
   return (
     <html>
       <body>{children}</body>
-    
     </html>
   )
 }
