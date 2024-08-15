@@ -6,15 +6,19 @@ export const metadata = {
 };
 
 export default function Layout(props) {
-  const { t, lang } = useTranslation()
+  const { t, lang } = useTranslation();
 
   return (
     <html lang={lang}>
       <body className="container">
         {props.children}
         <footer>
-          <span>{t('common:powered')} </span>
-          <a href="https://vercel.com" target="_blank" rel="noopener noreferrer">
+          <span>{t("common:powered")} </span>
+          <a
+            href="https://vercel.com"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             ▲ Vercel
           </a>
           <span>&amp;</span>
@@ -28,5 +32,5 @@ export default function Layout(props) {
         </footer>
       </body>
     </html>
-  )
+  );
 }
