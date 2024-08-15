@@ -22,11 +22,6 @@ const requiredPackages = [
     exportsRestrict: true,
   },
   {
-    file: '@types/react/index.d.ts',
-    pkg: '@types/react',
-    exportsRestrict: true,
-  },
-  {
     file: '@types/node/index.d.ts',
     pkg: '@types/node',
     exportsRestrict: true,
@@ -61,6 +56,24 @@ export async function verifyTypeScriptSetup({
     const intent = await getTypeScriptIntent(dir, intentDirs, tsconfigPath)
     if (!intent) {
       return { version: null }
+    }
+
+    if (
+      (
+        await hasNecessaryDependencies(dir, [
+          {
+            file: 'react/index.js',
+            pkg: 'react',
+            exportsRestrict: false,
+          },
+        ])
+      ).resolved.has('react')
+    ) {
+      requiredPackages.push({
+        file: '@types/react/index.d.ts',
+        pkg: '@types/react',
+        exportsRestrict: true,
+      })
     }
 
     // Ensure TypeScript and necessary `@types/*` are installed:
