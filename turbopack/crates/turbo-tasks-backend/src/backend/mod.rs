@@ -4,7 +4,7 @@ mod storage;
 
 use std::{
     borrow::Cow,
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     future::Future,
     hash::BuildHasherDefault,
     pin::Pin,
@@ -15,7 +15,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use auto_hash_map::{AutoMap, AutoSet};
 use dashmap::DashMap;
 pub use operation::AnyOperation;
@@ -39,9 +39,9 @@ use self::{operation::ExecuteContext, storage::Storage};
 use crate::{
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate, CellRef,
-        InProgressState, OutputValue, RootType,
+        InProgressCellState, InProgressState, OutputValue, RootType,
     },
-    get, remove,
+    get, get_many, remove,
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc},
 };
 
@@ -253,7 +253,14 @@ impl TurboTasksBackend {
             }
         }
 
-        todo!("Output of is not available, recompute task: {task:#?}");
+        // Output doesn't exist. We need to schedule the task to compute it.
+        let dirty = task.has_key(&CachedDataItemKey::Dirty {});
+        let (item, listener) = CachedDataItem::new_scheduled_with_listener(task_id, !dirty);
+        if task.add(item) {
+            turbo_tasks.schedule(task_id);
+        }
+
+        Ok(Err(listener))
     }
 
     fn try_read_task_cell(
@@ -289,7 +296,45 @@ impl TurboTasksBackend {
             return Ok(Ok(CellContent(Some(content)).into_typed(cell.type_id)));
         }
 
-        todo!("Cell {cell:?} is not available, recompute task or error: {task:#?}");
+        // Check cell index range (cell might not exist at all)
+        let Some(max_id) = get!(
+            task,
+            CellTypeMaxIndex {
+                cell_type: cell.type_id
+            }
+        ) else {
+            bail!(
+                "Cell {cell:?} no longer exists in task {task_id:?} (no cell of this type exists)"
+            );
+        };
+        if cell.index > *max_id {
+            bail!("Cell {cell:?} no longer exists in task {task_id:?} (index out of bounds)");
+        }
+
+        // Cell should exist, but data was dropped or is not serializable. We need to recompute the
+        // task the get the cell content.
+
+        // Register event listener for cell computation
+        if let Some(in_progress) = get!(task, InProgressCell { cell }) {
+            // Someone else is already computing the cell
+            let listener = in_progress.event.listen();
+            return Ok(Err(listener));
+        }
+
+        // We create the event and potentially schedule the task
+        let in_progress = InProgressCellState::new(task_id, cell);
+        let listener = in_progress.event.listen();
+        task.add(CachedDataItem::InProgressCell {
+            cell,
+            value: in_progress,
+        });
+
+        // Schedule the task
+        if task.add(CachedDataItem::new_scheduled(task_id)) {
+            turbo_tasks.schedule(task_id);
+        }
+
+        Ok(Err(listener))
     }
 
     fn lookup_task_type(&self, task_id: TaskId) -> Option<Arc<CachedTaskType>> {
@@ -626,9 +671,6 @@ impl Backend for TurboTasksBackend {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
 
-        // TODO handle cell counters
-        let _ = cell_counters;
-
         // TODO handle stateful
         let _ = stateful;
 
@@ -643,6 +685,48 @@ impl Backend for TurboTasksBackend {
             drop(task);
             drop(ctx);
         } else {
+            // handle cell counters: update max index and remove cells that are no longer used
+            let mut removed_cells = HashMap::new();
+            let mut old_counters: HashMap<_, _> =
+                get_many!(task, CellTypeMaxIndex { cell_type } max_index => (cell_type, max_index));
+            for (&cell_type, &max_index) in cell_counters.iter() {
+                if let Some(old_max_index) = old_counters.remove(&cell_type) {
+                    if old_max_index != max_index {
+                        task.insert(CachedDataItem::CellTypeMaxIndex {
+                            cell_type,
+                            value: max_index,
+                        });
+                        if old_max_index > max_index {
+                            removed_cells.insert(cell_type, max_index + 1..=old_max_index);
+                        }
+                    }
+                } else {
+                    task.add(CachedDataItem::CellTypeMaxIndex {
+                        cell_type,
+                        value: max_index,
+                    });
+                }
+            }
+            for (cell_type, old_max_index) in old_counters {
+                task.remove(&CachedDataItemKey::CellTypeMaxIndex { cell_type });
+                removed_cells.insert(cell_type, 0..=old_max_index);
+            }
+            let mut removed_data = Vec::new();
+            for (&cell_type, range) in removed_cells.iter() {
+                for index in range.clone() {
+                    removed_data.extend(
+                        task.remove(&CachedDataItemKey::CellData {
+                            cell: CellId {
+                                type_id: cell_type,
+                                index,
+                            },
+                        })
+                        .into_iter(),
+                    );
+                }
+            }
+
+            // find all outdated data items (removed cells, outdated edges)
             let old_edges = task
                 .iter()
                 .filter_map(|(key, _)| match *key {
@@ -652,6 +736,13 @@ impl Backend for TurboTasksBackend {
                     }
                     CachedDataItemKey::OutdatedOutputDependency { target } => {
                         Some(OutdatedEdge::OutputDependency(target))
+                    }
+                    CachedDataItemKey::CellDependent { cell, task }
+                        if removed_cells
+                            .get(&cell.type_id)
+                            .map_or(false, |range| range.contains(&cell.index)) =>
+                    {
+                        Some(OutdatedEdge::RemovedCellDependent(task))
                     }
                     _ => None,
                 })
@@ -663,6 +754,8 @@ impl Backend for TurboTasksBackend {
             drop(task);
 
             CleanupOldEdgesOperation::run(task_id, old_edges, ctx);
+
+            drop(removed_data)
         }
 
         stale

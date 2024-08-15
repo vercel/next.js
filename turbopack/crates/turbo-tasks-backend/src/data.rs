@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    event::Event, util::SharedError, CellId, KeyValuePair, SharedReference, TaskId, ValueTypeId,
+    event::{Event, EventListener},
+    util::SharedError,
+    CellId, KeyValuePair, SharedReference, TaskId, ValueTypeId,
 };
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
@@ -43,11 +45,13 @@ pub enum RootType {
 #[derive(Debug)]
 pub enum InProgressState {
     Scheduled {
+        // TODO remove in favor of Dirty
         clean: bool,
         done_event: Event,
         start_event: Event,
     },
     InProgress {
+        // TODO remove in favor of Dirty
         clean: bool,
         stale: bool,
         done_event: Event,
@@ -57,6 +61,27 @@ pub enum InProgressState {
 impl Clone for InProgressState {
     fn clone(&self) -> Self {
         panic!("InProgressState cannot be cloned");
+    }
+}
+
+#[derive(Debug)]
+pub struct InProgressCellState {
+    pub event: Event,
+}
+
+impl Clone for InProgressCellState {
+    fn clone(&self) -> Self {
+        panic!("InProgressCell cannot be cloned");
+    }
+}
+
+impl InProgressCellState {
+    pub fn new(task_id: TaskId, cell: CellId) -> Self {
+        InProgressCellState {
+            event: Event::new(move || {
+                format!("InProgressCellState::event ({} {:?})", task_id, cell)
+            }),
+        }
     }
 }
 
@@ -89,6 +114,10 @@ pub enum CachedDataItem {
     CellData {
         cell: CellId,
         value: SharedReference,
+    },
+    CellTypeMaxIndex {
+        cell_type: ValueTypeId,
+        value: u32,
     },
 
     // Dependencies
@@ -156,6 +185,10 @@ pub enum CachedDataItem {
     InProgress {
         value: InProgressState,
     },
+    InProgressCell {
+        cell: CellId,
+        value: InProgressCellState,
+    },
     OutdatedCollectible {
         collectible: CellRef,
         value: (),
@@ -188,6 +221,7 @@ impl CachedDataItem {
             CachedDataItem::DirtyWhenPersisted { .. } => true,
             CachedDataItem::Child { task, .. } => !task.is_transient(),
             CachedDataItem::CellData { .. } => true,
+            CachedDataItem::CellTypeMaxIndex { .. } => true,
             CachedDataItem::OutputDependency { target, .. } => !target.is_transient(),
             CachedDataItem::CellDependency { target, .. } => !target.task.is_transient(),
             CachedDataItem::CollectiblesDependency { target, .. } => !target.task.is_transient(),
@@ -204,6 +238,7 @@ impl CachedDataItem {
             CachedDataItem::AggregatedUnfinishedTasks { .. } => true,
             CachedDataItem::AggregateRootType { .. } => false,
             CachedDataItem::InProgress { .. } => false,
+            CachedDataItem::InProgressCell { .. } => false,
             CachedDataItem::OutdatedCollectible { .. } => false,
             CachedDataItem::OutdatedOutputDependency { .. } => false,
             CachedDataItem::OutdatedCellDependency { .. } => false,
@@ -221,6 +256,21 @@ impl CachedDataItem {
             },
         }
     }
+
+    pub fn new_scheduled_with_listener(task_id: TaskId, clean: bool) -> (Self, EventListener) {
+        let done_event = Event::new(move || format!("{} done_event", task_id));
+        let listener = done_event.listen();
+        (
+            CachedDataItem::InProgress {
+                value: InProgressState::Scheduled {
+                    clean,
+                    done_event,
+                    start_event: Event::new(move || format!("{} start_event", task_id)),
+                },
+            },
+            listener,
+        )
+    }
 }
 
 impl CachedDataItemKey {
@@ -232,6 +282,7 @@ impl CachedDataItemKey {
             CachedDataItemKey::DirtyWhenPersisted { .. } => true,
             CachedDataItemKey::Child { task, .. } => !task.is_transient(),
             CachedDataItemKey::CellData { .. } => true,
+            CachedDataItemKey::CellTypeMaxIndex { .. } => true,
             CachedDataItemKey::OutputDependency { target, .. } => !target.is_transient(),
             CachedDataItemKey::CellDependency { target, .. } => !target.task.is_transient(),
             CachedDataItemKey::CollectiblesDependency { target, .. } => !target.task.is_transient(),
@@ -248,6 +299,7 @@ impl CachedDataItemKey {
             CachedDataItemKey::AggregatedUnfinishedTasks { .. } => true,
             CachedDataItemKey::AggregateRootType { .. } => false,
             CachedDataItemKey::InProgress { .. } => false,
+            CachedDataItemKey::InProgressCell { .. } => false,
             CachedDataItemKey::OutdatedCollectible { .. } => false,
             CachedDataItemKey::OutdatedOutputDependency { .. } => false,
             CachedDataItemKey::OutdatedCellDependency { .. } => false,
