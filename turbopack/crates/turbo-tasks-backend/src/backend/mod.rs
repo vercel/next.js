@@ -262,8 +262,7 @@ impl TurboTasksBackend {
         }
 
         // Output doesn't exist. We need to schedule the task to compute it.
-        let dirty = task.has_key(&CachedDataItemKey::Dirty {});
-        let (item, listener) = CachedDataItem::new_scheduled_with_listener(task_id, !dirty);
+        let (item, listener) = CachedDataItem::new_scheduled_with_listener(task_id);
         if task.add(item) {
             turbo_tasks.schedule(task_id);
         }
@@ -572,7 +571,6 @@ impl Backend for TurboTasksBackend {
             let mut task = ctx.task(task_id);
             let in_progress = remove!(task, InProgress)?;
             let InProgressState::Scheduled {
-                clean,
                 done_event,
                 start_event,
             } = in_progress
@@ -582,7 +580,6 @@ impl Backend for TurboTasksBackend {
             };
             task.add(CachedDataItem::InProgress {
                 value: InProgressState::InProgress {
-                    clean,
                     stale: false,
                     done_event,
                 },
@@ -781,12 +778,7 @@ impl Backend for TurboTasksBackend {
         else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
-        let InProgressState::InProgress {
-            done_event,
-            clean: _,
-            stale,
-        } = in_progress
-        else {
+        let InProgressState::InProgress { done_event, stale } = in_progress else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
 
@@ -796,7 +788,6 @@ impl Backend for TurboTasksBackend {
         if stale {
             task.add(CachedDataItem::InProgress {
                 value: InProgressState::InProgress {
-                    clean: false,
                     stale: false,
                     done_event,
                 },
