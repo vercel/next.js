@@ -1,6 +1,6 @@
-import { GoogleTagManager } from '@next/third-parties/google'
+import { GoogleTagManager } from "@next/third-parties/google";
 
-const GTM_ID = process.env.NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID
+const GTM_ID = process.env.NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID;
 
 export default function RootLayout({ children }) {
   return (
@@ -8,5 +8,5 @@ export default function RootLayout({ children }) {
       <body>{children}</body>
       <GoogleTagManager gtmId={GTM_ID} />
     </html>
-  )
+  );
 }
