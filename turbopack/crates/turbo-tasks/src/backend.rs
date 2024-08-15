@@ -27,7 +27,7 @@ use crate::{
     TraitTypeId, ValueTypeId, VcRead, VcValueTrait, VcValueType,
 };
 
-type TransientTaskRoot =
+pub type TransientTaskRoot =
     Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> + Send + Sync>;
 
 pub enum TransientTaskType {
