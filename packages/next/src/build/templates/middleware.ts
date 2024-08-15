@@ -40,6 +40,7 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
           routerKind: 'Pages Router',
           routePath: '/middleware',
           routeType: 'middleware',
+          revalidateReason: undefined,
         }
       )
 
