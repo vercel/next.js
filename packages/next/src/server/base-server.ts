@@ -161,6 +161,7 @@ import {
 } from './after/builtin-request-context'
 import { ENCODED_TAGS } from './stream-utils/encodedTags'
 import { NextRequestHint } from './web/adapter'
+import { getRevalidateReason } from './instrumentation/utils'
 import { RouteKind } from './route-kind'
 import type { RouteModule } from './route-modules/route-module'
 
@@ -2520,16 +2521,17 @@ export default abstract class Server<
             )
             return null
           } catch (err) {
-            // If this is during static generation, throw the error again.
-            if (isSSG) throw err
-
-            Log.error(err)
-
             await this.instrumentationOnRequestError(err, req, {
               routerKind: 'App Router',
               routePath: pathname,
               routeType: 'route',
+              revalidateReason: getRevalidateReason(renderOpts),
             })
+
+            // If this is during static generation, throw the error again.
+            if (isSSG) throw err
+
+            Log.error(err)
 
             // Otherwise, send a 500 response.
             await sendResponse(req, res, handleInternalServerErrorResponse())
@@ -2579,6 +2581,10 @@ export default abstract class Server<
                 routerKind: 'Pages Router',
                 routePath: pathname,
                 routeType: 'render',
+                revalidateReason: getRevalidateReason({
+                  isRevalidate: isSSG,
+                  isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
+                }),
               })
               throw err
             }
