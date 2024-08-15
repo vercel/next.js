@@ -117,7 +117,7 @@ export async function getStaticInfoIncludingLayouts({
     pageFilePath,
     isDev,
     page,
-    // TODO: sync types for pages: PAGE_TYPES, ROUTE_TYPES, 'app' | 'pages', etc.
+    // TODO: sync types for pages: PAGE_TYPES, ROUTER_TYPE, 'app' | 'pages', etc.
     pageType: isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
   })
 
