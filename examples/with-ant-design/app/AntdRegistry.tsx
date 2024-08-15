@@ -14,7 +14,12 @@ const StyledComponentsRegistry = ({ children }: React.PropsWithChildren) => {
       return;
     }
     isServerInserted.current = true;
-    return <style id="antd" dangerouslySetInnerHTML={{ __html: extractStyle(cache, true) }} />;
+    return (
+      <style
+        id="antd"
+        dangerouslySetInnerHTML={{ __html: extractStyle(cache, true) }}
+      />
+    );
   });
   return <StyleProvider cache={cache}>{children}</StyleProvider>;
 };
