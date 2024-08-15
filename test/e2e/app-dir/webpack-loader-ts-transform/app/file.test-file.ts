@@ -1,1 +1,1 @@
-throw new Error('will be replaced by loader')
+export default 'wrong'

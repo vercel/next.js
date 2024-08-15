@@ -12,7 +12,7 @@ describe('webpack-loader-ts-transform', () => {
     return
   }
 
-  it('should render correctly on client side', async () => {
+  it('should accept Typescript returned from Webpack loaders', async () => {
     const $ = await next.render$('/')
     expect($('p').text()).toBe('something')
   })
