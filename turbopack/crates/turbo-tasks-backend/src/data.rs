@@ -45,14 +45,10 @@ pub enum RootType {
 #[derive(Debug)]
 pub enum InProgressState {
     Scheduled {
-        // TODO remove in favor of Dirty
-        clean: bool,
         done_event: Event,
         start_event: Event,
     },
     InProgress {
-        // TODO remove in favor of Dirty
-        clean: bool,
         stale: bool,
         done_event: Event,
     },
@@ -250,20 +246,18 @@ impl CachedDataItem {
     pub fn new_scheduled(task_id: TaskId) -> Self {
         CachedDataItem::InProgress {
             value: InProgressState::Scheduled {
-                clean: false,
                 done_event: Event::new(move || format!("{} done_event", task_id)),
                 start_event: Event::new(move || format!("{} start_event", task_id)),
             },
         }
     }
 
-    pub fn new_scheduled_with_listener(task_id: TaskId, clean: bool) -> (Self, EventListener) {
+    pub fn new_scheduled_with_listener(task_id: TaskId) -> (Self, EventListener) {
         let done_event = Event::new(move || format!("{} done_event", task_id));
         let listener = done_event.listen();
         (
             CachedDataItem::InProgress {
                 value: InProgressState::Scheduled {
-                    clean,
                     done_event,
                     start_event: Event::new(move || format!("{} start_event", task_id)),
                 },
