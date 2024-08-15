@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -10,5 +10,5 @@ export default function Home() {
       <h2>If you want to see old implementation, go to `_pages/index.js`</h2>
       <Link href="/about">About page</Link>
     </>
-  )
+  );
 }

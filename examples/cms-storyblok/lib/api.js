@@ -1,24 +1,24 @@
 async function fetchAPI(query, { variables, preview } = {}) {
-  const res = await fetch('https://gapi.storyblok.com/v1/api', {
-    method: 'POST',
+  const res = await fetch("https://gapi.storyblok.com/v1/api", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       Token: process.env.STORYBLOK_API_KEY,
-      Version: preview ? 'draft' : 'published',
+      Version: preview ? "draft" : "published",
     },
     body: JSON.stringify({
       query,
       variables,
     }),
-  })
+  });
 
-  const json = await res.json()
+  const json = await res.json();
   if (json.errors) {
-    console.error(json.errors)
-    throw new Error('Failed to fetch API')
+    console.error(json.errors);
+    throw new Error("Failed to fetch API");
   }
 
-  return json.data
+  return json.data;
 }
 
 export async function getPreviewPostBySlug(slug) {
@@ -35,9 +35,9 @@ export async function getPreviewPostBySlug(slug) {
       variables: {
         slug: `posts/${slug}`,
       },
-    }
-  )
-  return post
+    },
+  );
+  return post;
 }
 
 export async function getAllPostsWithSlug() {
@@ -49,8 +49,8 @@ export async function getAllPostsWithSlug() {
         }
       }
     }
-  `)
-  return data?.PostItems.items
+  `);
+  return data?.PostItems.items;
 }
 
 export async function getAllPostsForHome(preview) {
@@ -76,9 +76,9 @@ export async function getAllPostsForHome(preview) {
       }
     }
   `,
-    { preview }
-  )
-  return data?.PostItems.items
+    { preview },
+  );
+  return data?.PostItems.items;
 }
 
 export async function getPostAndMorePosts(slug, preview) {
@@ -125,13 +125,13 @@ export async function getPostAndMorePosts(slug, preview) {
       variables: {
         slug: `posts/${slug}`,
       },
-    }
-  )
+    },
+  );
 
   return {
     post: data?.PostItem,
     morePosts: (data?.PostItems?.items || [])
       .filter((item) => item.slug !== slug)
       .slice(0, 2),
-  }
+  };
 }

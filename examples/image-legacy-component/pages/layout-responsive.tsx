@@ -1,6 +1,6 @@
-import Image from 'next/legacy/image'
-import ViewSource from '../components/view-source'
-import mountains from '../public/mountains.jpg'
+import Image from "next/legacy/image";
+import ViewSource from "../components/view-source";
+import mountains from "../public/mountains.jpg";
 
 const Responsive = () => (
   <div>
@@ -14,6 +14,6 @@ const Responsive = () => (
       height={475}
     />
   </div>
-)
+);
 
-export default Responsive
+export default Responsive;

@@ -1,19 +1,19 @@
-import type { MouseEvent } from 'react'
-import Link from 'next/link'
-import { useCount, useDispatchCount } from '../components/Counter'
+import type { MouseEvent } from "react";
+import Link from "next/link";
+import { useCount, useDispatchCount } from "../components/Counter";
 
 const IndexPage = () => {
-  const count = useCount()
-  const dispatch = useDispatchCount()
+  const count = useCount();
+  const dispatch = useDispatchCount();
 
   const handleIncrease = (event: MouseEvent<HTMLButtonElement>) =>
     dispatch({
-      type: 'INCREASE',
-    })
+      type: "INCREASE",
+    });
   const handleDecrease = (event: MouseEvent<HTMLButtonElement>) =>
     dispatch({
-      type: 'DECREASE',
-    })
+      type: "DECREASE",
+    });
 
   return (
     <>
@@ -25,7 +25,7 @@ const IndexPage = () => {
         <Link href="/about">About</Link>
       </p>
     </>
-  )
-}
+  );
+};
 
-export default IndexPage
+export default IndexPage;

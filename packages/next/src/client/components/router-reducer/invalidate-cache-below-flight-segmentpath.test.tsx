@@ -1,7 +1,7 @@
 import React from 'react'
 import type { FlightData } from '../../../server/app-render/types'
 import { invalidateCacheBelowFlightSegmentPath } from './invalidate-cache-below-flight-segmentpath'
-import { CacheStates, CacheNode } from '../../../shared/lib/app-router-context'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 
 const getFlightData = (): FlightData => {
@@ -17,7 +17,7 @@ const getFlightData = (): FlightData => {
           children: ['', {}],
         },
       ],
-      <h1>About Page!</h1>,
+      ['about', {}, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
@@ -28,15 +28,21 @@ const getFlightData = (): FlightData => {
 describe('invalidateCacheBelowFlightSegmentPath', () => {
   it('should invalidate cache below flight segment path', () => {
     const cache: CacheNode = {
-      status: CacheStates.LAZY_INITIALIZED,
-      data: null,
-      subTreeData: null,
+      lazyData: null,
+      rsc: null,
+      prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
-      data: null,
-      status: CacheStates.READY,
-      subTreeData: <>Root layout</>,
+      lazyData: null,
+      rsc: <>Root layout</>,
+      prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -44,9 +50,12 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
             [
               'linking',
               {
-                data: null,
-                status: CacheStates.READY,
-                subTreeData: <>Linking</>,
+                lazyData: null,
+                rsc: <>Linking</>,
+                prefetchRsc: null,
+                head: null,
+                prefetchHead: null,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -54,9 +63,12 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                       [
                         '',
                         {
-                          data: null,
-                          status: CacheStates.READY,
-                          subTreeData: <>Page</>,
+                          lazyData: null,
+                          rsc: <>Page</>,
+                          prefetchRsc: null,
+                          head: null,
+                          prefetchHead: null,
+                          loading: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -80,13 +92,11 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
     const flightDataPath = flightData[0]
     const flightSegmentPath = flightDataPath.slice(0, -3)
 
-    // @ts-expect-error TODO-APP: investigate why this is not a TS error in router-reducer.
-    cache.status = CacheStates.READY
-    // Copy subTreeData for the root node of the cache.
-    // @ts-expect-error TODO-APP: investigate why this is not a TS error in router-reducer.
-    cache.subTreeData = existingCache.subTreeData
-    // Create a copy of the existing cache with the subTreeData applied.
-    fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath, false)
+    // Copy rsc for the root node of the cache.
+    cache.rsc = existingCache.rsc
+    cache.prefetchRsc = existingCache.prefetchRsc
+    // Create a copy of the existing cache with the rsc applied.
+    fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath)
 
     // Invalidate the cache below the flight segment path. This should remove the 'about' node.
     invalidateCacheBelowFlightSegmentPath(
@@ -96,7 +106,10 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
     )
 
     const expectedCache: CacheNode = {
-      data: null,
+      lazyData: null,
+      head: null,
+      prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -104,7 +117,10 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
             [
               'linking',
               {
-                data: null,
+                lazyData: null,
+                head: null,
+                prefetchHead: null,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -112,24 +128,27 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                       [
                         '',
                         {
-                          data: null,
+                          lazyData: null,
+                          loading: null,
                           parallelRoutes: new Map(),
-                          status: CacheStates.READY,
-                          subTreeData: <React.Fragment>Page</React.Fragment>,
+                          rsc: <React.Fragment>Page</React.Fragment>,
+                          prefetchRsc: null,
+                          head: null,
+                          prefetchHead: null,
                         },
                       ],
                     ]),
                   ],
                 ]),
-                status: CacheStates.READY,
-                subTreeData: <React.Fragment>Linking</React.Fragment>,
+                rsc: <React.Fragment>Linking</React.Fragment>,
+                prefetchRsc: null,
               },
             ],
           ]),
         ],
       ]),
-      status: CacheStates.READY,
-      subTreeData: <>Root layout</>,
+      rsc: <>Root layout</>,
+      prefetchRsc: null,
     }
 
     expect(cache).toMatchObject(expectedCache)

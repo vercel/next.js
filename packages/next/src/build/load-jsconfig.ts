@@ -1,6 +1,6 @@
 import path from 'path'
-import { fileExists } from '../lib/file-exists'
-import { NextConfigComplete } from '../server/config-shared'
+import fs from 'fs'
+import type { NextConfigComplete } from '../server/config-shared'
 import * as Log from './output/log'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import { readFileSync } from 'fs'
@@ -9,7 +9,7 @@ import { hasNecessaryDependencies } from '../lib/has-necessary-dependencies'
 
 let TSCONFIG_WARNED = false
 
-function parseJsonFile(filePath: string) {
+export function parseJsonFile(filePath: string) {
   const JSON5 = require('next/dist/compiled/json5')
   const contents = readFileSync(filePath, 'utf8')
 
@@ -37,10 +37,20 @@ function parseJsonFile(filePath: string) {
   }
 }
 
+export type ResolvedBaseUrl =
+  | { baseUrl: string; isImplicit: boolean }
+  | undefined
+
+export type JsConfig = { compilerOptions: Record<string, any> } | undefined
+
 export default async function loadJsConfig(
   dir: string,
   config: NextConfigComplete
-) {
+): Promise<{
+  useTypeScript: boolean
+  jsConfig: JsConfig
+  resolvedBaseUrl: ResolvedBaseUrl
+}> {
   let typeScriptPath: string | undefined
   try {
     const deps = await hasNecessaryDependencies(dir, [
@@ -51,14 +61,12 @@ export default async function loadJsConfig(
       },
     ])
     typeScriptPath = deps.resolved.get('typescript')
-  } catch (_) {}
+  } catch {}
   const tsConfigPath = path.join(dir, config.typescript.tsconfigPath)
-  const useTypeScript = Boolean(
-    typeScriptPath && (await fileExists(tsConfigPath))
-  )
+  const useTypeScript = Boolean(typeScriptPath && fs.existsSync(tsConfigPath))
 
   let implicitBaseurl
-  let jsConfig
+  let jsConfig: { compilerOptions: Record<string, any> } | undefined
   // jsconfig is a subset of tsconfig
   if (useTypeScript) {
     if (
@@ -78,17 +86,23 @@ export default async function loadJsConfig(
   }
 
   const jsConfigPath = path.join(dir, 'jsconfig.json')
-  if (!useTypeScript && (await fileExists(jsConfigPath))) {
+  if (!useTypeScript && fs.existsSync(jsConfigPath)) {
     jsConfig = parseJsonFile(jsConfigPath)
     implicitBaseurl = path.dirname(jsConfigPath)
   }
 
-  let resolvedBaseUrl
-  if (jsConfig) {
-    if (jsConfig.compilerOptions?.baseUrl) {
-      resolvedBaseUrl = path.resolve(dir, jsConfig.compilerOptions.baseUrl)
-    } else {
-      resolvedBaseUrl = implicitBaseurl
+  let resolvedBaseUrl: ResolvedBaseUrl
+  if (jsConfig?.compilerOptions?.baseUrl) {
+    resolvedBaseUrl = {
+      baseUrl: path.resolve(dir, jsConfig.compilerOptions.baseUrl),
+      isImplicit: false,
+    }
+  } else {
+    if (implicitBaseurl) {
+      resolvedBaseUrl = {
+        baseUrl: implicitBaseurl,
+        isImplicit: true,
+      }
     }
   }
 

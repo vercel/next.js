@@ -8,14 +8,23 @@
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
+  APP_CLIENT_INTERNALS,
+  BARREL_OPTIMIZATION_PREFIX,
   CLIENT_REFERENCE_MANIFEST,
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
 import { relative } from 'path'
 import { getProxiedPluginState } from '../../build-context'
 
-import { nonNullable } from '../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
+import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
+import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
+import { getDeploymentIdQueryOrEmptyString } from '../../deployment-id'
+import {
+  formatBarrelOptimizedResource,
+  getModuleReferencesInOrder,
+} from '../utils'
+import type { ChunkGroup } from 'webpack'
 
 interface Options {
   dev: boolean
@@ -28,12 +37,12 @@ interface Options {
 // TODO-APP ensure `null` is included as it is used.
 type ModuleId = string | number /*| null*/
 
-export type ManifestChunks = Array<`${string}:${string}` | string>
+// double indexed chunkId, filename
+export type ManifestChunks = Array<string>
 
 const pluginState = getProxiedPluginState({
   serverModuleIds: {} as Record<string, string | number>,
   edgeServerModuleIds: {} as Record<string, string | number>,
-  ASYNC_CLIENT_MODULES: [] as string[],
 })
 
 export interface ManifestNode {
@@ -59,6 +68,10 @@ export interface ManifestNode {
 }
 
 export type ClientReferenceManifest = {
+  readonly moduleLoading: {
+    prefix: string
+    crossOrigin: string | null
+  }
   clientModules: ManifestNode
   ssrModuleMapping: {
     [moduleId: string]: ManifestNode
@@ -69,30 +82,80 @@ export type ClientReferenceManifest = {
   entryCSSFiles: {
     [entry: string]: string[]
   }
+  entryJSFiles?: {
+    [entry: string]: string[]
+  }
 }
 
-function getAppPathRequiredChunks(chunkGroup: webpack.ChunkGroup) {
-  return chunkGroup.chunks
-    .map((requiredChunk: webpack.Chunk) => {
-      if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name || '')) {
-        return null
-      }
+function getAppPathRequiredChunks(
+  chunkGroup: webpack.ChunkGroup,
+  excludedFiles: Set<string>
+) {
+  const deploymentIdChunkQuery = getDeploymentIdQueryOrEmptyString()
 
-      // Get the actual chunk file names from the chunk file list.
-      // It's possible that the chunk is generated via `import()`, in
-      // that case the chunk file name will be '[name].[contenthash]'
-      // instead of '[name]-[chunkhash]'.
-      return [...requiredChunk.files].map((file) => {
+  const chunks: Array<string> = []
+  chunkGroup.chunks.forEach((chunk) => {
+    if (SYSTEM_ENTRYPOINTS.has(chunk.name || '')) {
+      return null
+    }
+
+    // Get the actual chunk file names from the chunk file list.
+    // It's possible that the chunk is generated via `import()`, in
+    // that case the chunk file name will be '[name].[contenthash]'
+    // instead of '[name]-[chunkhash]'.
+    if (chunk.id != null) {
+      const chunkId = '' + chunk.id
+      chunk.files.forEach((file) => {
         // It's possible that a chunk also emits CSS files, that will
         // be handled separatedly.
         if (!file.endsWith('.js')) return null
         if (file.endsWith('.hot-update.js')) return null
+        if (excludedFiles.has(file)) return null
 
-        return requiredChunk.id + ':' + file
+        // We encode the file as a URI because our server (and many other services such as S3)
+        // expect to receive reserved characters such as `[` and `]` as encoded. This was
+        // previously done for dynamic chunks by patching the webpack runtime but we want
+        // these filenames to be managed by React's Flight runtime instead and so we need
+        // to implement any special handling of the file name here.
+        return chunks.push(chunkId, encodeURI(file + deploymentIdChunkQuery))
       })
-    })
-    .flat()
-    .filter(nonNullable)
+    }
+  })
+  return chunks
+}
+
+// Normalize the entry names to their "group names" so a page can easily track
+// all the manifest items it needs from parent groups by looking up the group
+// segments:
+// - app/foo/loading -> app/foo
+// - app/foo/page -> app/foo
+// - app/(group)/@named/foo/page -> app/foo
+// - app/(.)foo/(..)bar/loading -> app/bar
+// - app/[...catchAll]/page -> app
+// - app/foo/@slot/[...catchAll]/page -> app/foo
+function entryNameToGroupName(entryName: string) {
+  let groupName = entryName
+    .slice(0, entryName.lastIndexOf('/'))
+    // Remove slots
+    .replace(/\/@[^/]+/g, '')
+    // Remove the group with lookahead to make sure it's not interception route
+    .replace(/\/\([^/]+\)(?=(\/|$))/g, '')
+    // Remove catch-all routes since they should be part of the parent group that the catch-all would apply to.
+    // This is necessary to support parallel routes since multiple page components can be rendered on the same page.
+    // In order to do that, we need to ensure that the manifests are merged together by putting them in the same group.
+    .replace(/\/\[?\[\.\.\.[^\]]*\]\]?/g, '')
+
+  // Interception routes
+  groupName = groupName
+    .replace(/^.+\/\(\.\.\.\)/g, 'app/')
+    .replace(/\/\(\.\)/g, '/')
+
+  // Interception routes (recursive)
+  while (/\/[^/]+\/\(\.\.\)/.test(groupName)) {
+    groupName = groupName.replace(/\/[^/]+\/\(\.\.\)/g, '/')
+  }
+
+  return groupName
 }
 
 function mergeManifest(
@@ -114,13 +177,11 @@ export class ClientReferenceManifestPlugin {
   dev: Options['dev'] = false
   appDir: Options['appDir']
   appDirBase: string
-  ASYNC_CLIENT_MODULES: Set<string>
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.appDirBase = path.dirname(this.appDir) + path.sep
-    this.ASYNC_CLIENT_MODULES = new Set(pluginState.ASYNC_CLIENT_MODULES)
   }
 
   apply(compiler: webpack.Compiler) {
@@ -154,40 +215,69 @@ export class ClientReferenceManifestPlugin {
     context: string
   ) {
     const manifestsPerGroup = new Map<string, ClientReferenceManifest[]>()
+    const manifestEntryFiles: string[] = []
 
-    compilation.chunkGroups.forEach((chunkGroup) => {
-      // By default it's the shared chunkGroup (main-app) for every page.
-      let entryName = ''
+    const configuredCrossOriginLoading =
+      compilation.outputOptions.crossOriginLoading
+    const crossOriginMode =
+      typeof configuredCrossOriginLoading === 'string'
+        ? configuredCrossOriginLoading === 'use-credentials'
+          ? configuredCrossOriginLoading
+          : 'anonymous'
+        : null
+
+    if (typeof compilation.outputOptions.publicPath !== 'string') {
+      throw new Error(
+        'Expected webpack publicPath to be a string when using App Router. To customize where static assets are loaded from, use the `assetPrefix` option in next.config.js. If you are customizing your webpack config please make sure you are not modifying or removing the publicPath configuration option'
+      )
+    }
+    const prefix = compilation.outputOptions.publicPath || ''
+
+    // We want to omit any files that will always be loaded on any App Router page
+    // because they will already be loaded by the main entrypoint.
+    const rootMainFiles: Set<string> = new Set()
+    compilation.entrypoints
+      .get(CLIENT_STATIC_FILES_RUNTIME_MAIN_APP)
+      ?.getFiles()
+      .forEach((file) => {
+        if (/(?<!\.hot-update)\.(js|css)($|\?)/.test(file)) {
+          rootMainFiles.add(file.replace(/\\/g, '/'))
+        }
+      })
+
+    for (let [entryName, entrypoint] of compilation.entrypoints) {
+      if (
+        entryName === CLIENT_STATIC_FILES_RUNTIME_MAIN_APP ||
+        entryName === APP_CLIENT_INTERNALS
+      ) {
+        entryName = ''
+      } else if (!/^app[\\/]/.test(entryName)) {
+        continue
+      }
+
       const manifest: ClientReferenceManifest = {
+        moduleLoading: {
+          prefix,
+          crossOrigin: crossOriginMode,
+        },
         ssrModuleMapping: {},
         edgeSSRModuleMapping: {},
         clientModules: {},
         entryCSSFiles: {},
       }
 
-      if (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name)) {
-        // Absolute path without the extension
-        const chunkEntryName = (this.appDirBase + chunkGroup.name).replace(
-          /[\\/]/g,
-          path.sep
-        )
-        manifest.entryCSSFiles[chunkEntryName] = chunkGroup
-          .getFiles()
-          .filter(
-            (f) => !f.startsWith('static/css/pages/') && f.endsWith('.css')
-          )
+      // Absolute path without the extension
+      const chunkEntryName = (this.appDirBase + entryName).replace(
+        /[\\/]/g,
+        path.sep
+      )
+      manifest.entryCSSFiles[chunkEntryName] = entrypoint
+        .getFiles()
+        .filter((f) => !f.startsWith('static/css/pages/') && f.endsWith('.css'))
 
-        entryName = chunkGroup.name
-      }
-
-      const requiredChunks = getAppPathRequiredChunks(chunkGroup)
-      const recordModule = (id: ModuleId, mod: webpack.NormalModule) => {
-        // Skip all modules from the pages folder.
-        if (mod.layer !== WEBPACK_LAYERS.appClient) {
-          return
-        }
-
-        const resource =
+      const requiredChunks = getAppPathRequiredChunks(entrypoint, rootMainFiles)
+      const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {
+        let resource =
           mod.type === 'css/mini-extract'
             ? // @ts-expect-error TODO: use `identifier()` instead.
               mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
@@ -212,8 +302,6 @@ export class ClientReferenceManifestPlugin {
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
-        const isAsyncModule = this.ASYNC_CLIENT_MODULES.has(mod.resource)
-
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
         const esmResource = /[\\/]next[\\/]dist[\\/]/.test(resource)
@@ -223,13 +311,25 @@ export class ClientReferenceManifestPlugin {
             )
           : null
 
+        // An extra query param is added to the resource key when it's optimized
+        // through the Barrel Loader. That's because the same file might be created
+        // as multiple modules (depending on what you import from it).
+        // See also: webpack/loaders/next-flight-loader/index.ts.
+        if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
+          ssrNamedModuleId = formatBarrelOptimizedResource(
+            ssrNamedModuleId,
+            mod.matchResource
+          )
+          resource = formatBarrelOptimizedResource(resource, mod.matchResource)
+        }
+
         function addClientReference() {
           const exportName = resource
           manifest.clientModules[exportName] = {
-            id,
+            id: modId,
             name: '*',
             chunks: requiredChunks,
-            async: isAsyncModule,
+            async: false,
           }
           if (esmResource) {
             const edgeExportName = esmResource
@@ -243,8 +343,8 @@ export class ClientReferenceManifestPlugin {
           if (
             typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
           ) {
-            moduleIdMapping[id] = moduleIdMapping[id] || {}
-            moduleIdMapping[id]['*'] = {
+            moduleIdMapping[modId] = moduleIdMapping[modId] || {}
+            moduleIdMapping[modId]['*'] = {
               ...manifest.clientModules[exportName],
               // During SSR, we don't have external chunks to load on the server
               // side with our architecture of Webpack / Turbopack. We can keep
@@ -258,8 +358,8 @@ export class ClientReferenceManifestPlugin {
             typeof pluginState.edgeServerModuleIds[ssrNamedModuleId] !==
             'undefined'
           ) {
-            edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
-            edgeModuleIdMapping[id]['*'] = {
+            edgeModuleIdMapping[modId] = edgeModuleIdMapping[modId] || {}
+            edgeModuleIdMapping[modId]['*'] = {
               ...manifest.clientModules[exportName],
               // During SSR, we don't have external chunks to load on the server
               // side with our architecture of Webpack / Turbopack. We can keep
@@ -278,146 +378,124 @@ export class ClientReferenceManifestPlugin {
         manifest.edgeSSRModuleMapping = edgeModuleIdMapping
       }
 
-      // Only apply following logic to client module requests from client entry,
-      // or if the module is marked as client module. That's because other
-      // client modules don't need to be in the manifest at all as they're
-      // never be referenced by the server/client boundary.
-      // This saves a lot of bytes in the manifest.
-      chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
-        const entryMods =
-          compilation.chunkGraph.getChunkEntryModulesIterable(chunk)
-        for (const mod of entryMods) {
-          if (mod.layer !== WEBPACK_LAYERS.appClient) continue
+      const checkedChunkGroups = new Set()
+      const checkedChunks = new Set()
 
-          const request = (mod as webpack.NormalModule).request
+      function recordChunkGroup(chunkGroup: ChunkGroup) {
+        // Ensure recursion is stopped if we've already checked this chunk group.
+        if (checkedChunkGroups.has(chunkGroup)) return
+        checkedChunkGroups.add(chunkGroup)
+        // Only apply following logic to client module requests from client entry,
+        // or if the module is marked as client module. That's because other
+        // client modules don't need to be in the manifest at all as they're
+        // never be referenced by the server/client boundary.
+        // This saves a lot of bytes in the manifest.
+        chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+          // Ensure recursion is stopped if we've already checked this chunk.
+          if (checkedChunks.has(chunk)) return
+          checkedChunks.add(chunk)
+          const entryMods =
+            compilation.chunkGraph.getChunkEntryModulesIterable(chunk)
+          for (const mod of entryMods) {
+            if (mod.layer !== WEBPACK_LAYERS.appPagesBrowser) continue
 
-          if (
-            !request ||
-            !request.includes('next-flight-client-entry-loader.js?')
-          ) {
-            continue
-          }
+            const request = (mod as webpack.NormalModule).request
 
-          const connections =
-            compilation.moduleGraph.getOutgoingConnections(mod)
+            if (
+              !request ||
+              !request.includes('next-flight-client-entry-loader.js?')
+            ) {
+              continue
+            }
 
-          for (const connection of connections) {
-            const dependency = connection.dependency
-            if (!dependency) continue
+            const connections = getModuleReferencesInOrder(
+              mod,
+              compilation.moduleGraph
+            )
 
-            const clientEntryMod = compilation.moduleGraph.getResolvedModule(
-              dependency
-            ) as webpack.NormalModule
-            const modId = compilation.chunkGraph.getModuleId(clientEntryMod) as
-              | string
-              | number
-              | null
+            for (const connection of connections) {
+              const dependency = connection.dependency
+              if (!dependency) continue
 
-            if (modId !== null) {
-              recordModule(modId, clientEntryMod)
-            } else {
-              // If this is a concatenation, register each child to the parent ID.
-              if (
-                connection.module?.constructor.name === 'ConcatenatedModule'
-              ) {
-                const concatenatedMod = connection.module
-                const concatenatedModId =
-                  compilation.chunkGraph.getModuleId(concatenatedMod)
-                recordModule(concatenatedModId, clientEntryMod)
+              const clientEntryMod = compilation.moduleGraph.getResolvedModule(
+                dependency
+              ) as webpack.NormalModule
+              const modId = compilation.chunkGraph.getModuleId(
+                clientEntryMod
+              ) as string | number | null
+
+              if (modId !== null) {
+                recordModule(modId, clientEntryMod)
+              } else {
+                // If this is a concatenation, register each child to the parent ID.
+                if (
+                  connection.module?.constructor.name === 'ConcatenatedModule'
+                ) {
+                  const concatenatedMod = connection.module
+                  const concatenatedModId =
+                    compilation.chunkGraph.getModuleId(concatenatedMod)
+                  recordModule(concatenatedModId, clientEntryMod)
+                }
               }
             }
           }
+        })
+
+        // Walk through all children chunk groups too.
+        for (const child of chunkGroup.childrenIterable) {
+          recordChunkGroup(child)
         }
-      })
+      }
+
+      recordChunkGroup(entrypoint)
 
       // A page's entry name can have extensions. For example, these are both valid:
       // - app/foo/page
       // - app/foo/page.page
-      // Let's normalize the entry name to remove the extra extension
-      const groupName = /\/page(\.[^/]+)?$/.test(entryName)
-        ? entryName.replace(/\/page(\.[^/]+)?$/, '/page')
-        : entryName.slice(0, entryName.lastIndexOf('/'))
+      if (/\/page(\.[^/]+)?$/.test(entryName)) {
+        manifestEntryFiles.push(entryName.replace(/\/page(\.[^/]+)?$/, '/page'))
+      }
 
+      const groupName = entryNameToGroupName(entryName)
       if (!manifestsPerGroup.has(groupName)) {
         manifestsPerGroup.set(groupName, [])
       }
       manifestsPerGroup.get(groupName)!.push(manifest)
-
-      if (entryName.includes('/@')) {
-        // Remove parallel route labels:
-        // - app/foo/@bar/page -> app/foo
-        // - app/foo/@bar/layout -> app/foo/layout -> app/foo
-        const entryNameWithoutNamedSegments = entryName.replace(/\/@[^/]+/g, '')
-        const groupNameWithoutNamedSegments =
-          entryNameWithoutNamedSegments.slice(
-            0,
-            entryNameWithoutNamedSegments.lastIndexOf('/')
-          )
-        if (!manifestsPerGroup.has(groupNameWithoutNamedSegments)) {
-          manifestsPerGroup.set(groupNameWithoutNamedSegments, [])
-        }
-        manifestsPerGroup.get(groupNameWithoutNamedSegments)!.push(manifest)
-      }
-
-      // Special case for the root not-found page.
-      if (/^app\/not-found(\.[^.]+)?$/.test(entryName)) {
-        if (!manifestsPerGroup.has('app/not-found')) {
-          manifestsPerGroup.set('app/not-found', [])
-        }
-        manifestsPerGroup.get('app/not-found')!.push(manifest)
-      }
-    })
-
-    // Generate per-page manifests.
-    for (const [groupName] of manifestsPerGroup) {
-      if (groupName.endsWith('/page') || groupName === 'app/not-found') {
-        const mergedManifest: ClientReferenceManifest = {
-          ssrModuleMapping: {},
-          edgeSSRModuleMapping: {},
-          clientModules: {},
-          entryCSSFiles: {},
-        }
-
-        const segments = groupName.split('/')
-        let group = ''
-        for (const segment of segments) {
-          if (segment.startsWith('@')) continue
-          for (const manifest of manifestsPerGroup.get(group) || []) {
-            mergeManifest(mergedManifest, manifest)
-          }
-          group += (group ? '/' : '') + segment
-        }
-        for (const manifest of manifestsPerGroup.get(groupName) || []) {
-          mergeManifest(mergedManifest, manifest)
-        }
-
-        const json = JSON.stringify(mergedManifest)
-
-        const pagePath = groupName.replace(/%5F/g, '_')
-        assets['server/' + pagePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js'] =
-          new sources.RawSource(
-            `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
-              pagePath.slice('app'.length)
-            )}]=${JSON.stringify(json)}`
-          ) as unknown as webpack.sources.RawSource
-
-        if (pagePath === 'app/not-found') {
-          // Create a separate special manifest for the root not-found page.
-          assets[
-            'server/' +
-              'app/_not-found' +
-              '_' +
-              CLIENT_REFERENCE_MANIFEST +
-              '.js'
-          ] = new sources.RawSource(
-            `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
-              '/_not-found'
-            )}]=${JSON.stringify(json)}`
-          ) as unknown as webpack.sources.RawSource
-        }
-      }
     }
 
-    pluginState.ASYNC_CLIENT_MODULES = []
+    // Generate per-page manifests.
+    for (const pageName of manifestEntryFiles) {
+      const mergedManifest: ClientReferenceManifest = {
+        moduleLoading: {
+          prefix,
+          crossOrigin: crossOriginMode,
+        },
+        ssrModuleMapping: {},
+        edgeSSRModuleMapping: {},
+        clientModules: {},
+        entryCSSFiles: {},
+      }
+
+      const segments = [...entryNameToGroupName(pageName).split('/'), 'page']
+      let group = ''
+      for (const segment of segments) {
+        for (const manifest of manifestsPerGroup.get(group) || []) {
+          mergeManifest(mergedManifest, manifest)
+        }
+        group += (group ? '/' : '') + segment
+      }
+
+      const json = JSON.stringify(mergedManifest)
+
+      const pagePath = pageName.replace(/%5F/g, '_')
+      const pageBundlePath = normalizePagePath(pagePath.slice('app'.length))
+      assets[
+        'server/app' + pageBundlePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
+      ] = new sources.RawSource(
+        `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
+          pagePath.slice('app'.length)
+        )}]=${json}`
+      ) as unknown as webpack.sources.RawSource
+    }
   }
 }

@@ -1,5 +1,4 @@
 import { strict as assert } from 'node:assert'
-// @ts-ignore
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 export function GET(request) {

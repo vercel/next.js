@@ -24,7 +24,7 @@ export default class Warning extends Error {
     }
 
     this.message += plugin ? `${plugin}: ` : ''
-    this.message += `${text}`
+    this.message += text
 
     this.stack = false
   }

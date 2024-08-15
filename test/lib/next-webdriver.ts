@@ -1,4 +1,4 @@
-import { getFullUrl } from 'next-test-utils'
+import { getFullUrl, waitFor } from 'next-test-utils'
 import os from 'os'
 import { BrowserInterface } from './browsers/base'
 
@@ -26,21 +26,20 @@ if (isBrowserStack) {
   }
 }
 
-let browserQuit: () => Promise<void>
+let browserTeardown: (() => Promise<void>)[] = []
+let browserQuit: (() => Promise<void>) | undefined
 
 if (typeof afterAll === 'function') {
   afterAll(async () => {
+    await Promise.all(browserTeardown.map((f) => f())).catch((e) =>
+      console.error('browser teardown', e)
+    )
+
     if (browserQuit) {
       await browserQuit()
     }
   })
 }
-
-export const USE_SELENIUM = Boolean(
-  process.env.LEGACY_SAFARI ||
-    process.env.BROWSER_NAME === 'internet explorer' ||
-    process.env.SKIP_LOCAL_SELENIUM_SERVER
-)
 
 /**
  *
@@ -53,6 +52,7 @@ export const USE_SELENIUM = Boolean(
  * @param options.beforePageLoad the callback receiving page instance before loading page
  * @param options.locale browser locale
  * @param options.disableJavaScript disable javascript
+ * @param options.ignoreHttpsErrors ignore https errors
  * @returns thenable browser instance
  */
 export default async function webdriver(
@@ -65,6 +65,10 @@ export default async function webdriver(
     beforePageLoad?: (page: any) => void
     locale?: string
     disableJavaScript?: boolean
+    headless?: boolean
+    ignoreHTTPSErrors?: boolean
+    cpuThrottleRate?: number
+    pushErrorAsConsoleLog?: boolean
   }
 ): Promise<BrowserInterface> {
   let CurrentInterface: new () => BrowserInterface
@@ -82,14 +86,17 @@ export default async function webdriver(
     beforePageLoad,
     locale,
     disableJavaScript,
+    ignoreHTTPSErrors,
+    headless,
+    cpuThrottleRate,
+    pushErrorAsConsoleLog,
   } = options
 
   // we import only the needed interface
-  if (USE_SELENIUM) {
-    const { Selenium, quit } = await import('./browsers/selenium')
-    CurrentInterface = Selenium
-    browserQuit = quit
-  } else if (process.env.RECORD_REPLAY === 'true') {
+  if (
+    process.env.RECORD_REPLAY === 'true' ||
+    process.env.RECORD_REPLAY === '1'
+  ) {
     const { Replay, quit } = await require('./browsers/replay')
     CurrentInterface = Replay
     browserQuit = quit
@@ -101,7 +108,14 @@ export default async function webdriver(
 
   const browser = new CurrentInterface()
   const browserName = process.env.BROWSER_NAME || 'chrome'
-  await browser.setup(browserName, locale, !disableJavaScript)
+  await browser.setup(
+    browserName,
+    locale,
+    !disableJavaScript,
+    ignoreHTTPSErrors,
+    // allow headless to be overwritten for a particular test
+    typeof headless !== 'undefined' ? headless : !!process.env.HEADLESS
+  )
   ;(global as any).browserName = browserName
 
   const fullUrl = getFullUrl(
@@ -112,8 +126,15 @@ export default async function webdriver(
 
   console.log(`\n> Loading browser with ${fullUrl}\n`)
 
-  await browser.loadPage(fullUrl, { disableCache, beforePageLoad })
+  await browser.loadPage(fullUrl, {
+    disableCache,
+    cpuThrottleRate,
+    beforePageLoad,
+    pushErrorAsConsoleLog,
+  })
   console.log(`\n> Loaded browser with ${fullUrl}\n`)
+
+  browserTeardown.push(browser.close.bind(browser))
 
   // Wait for application to hydrate
   if (waitHydration) {
@@ -165,5 +186,14 @@ export default async function webdriver(
 
     console.log(`\n> Hydration complete for ${fullUrl}\n`)
   }
+
+  // This is a temporary workaround for turbopack starting watching too late.
+  // So we delay file changes by 500ms to give it some time
+  // to connect the WebSocket and start watching.
+  if (process.env.TURBOPACK) {
+    await waitFor(1000)
+  }
   return browser
 }
+
+export { BrowserInterface }

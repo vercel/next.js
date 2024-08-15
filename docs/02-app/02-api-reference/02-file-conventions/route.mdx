@@ -3,11 +3,11 @@ title: route.js
 description: API reference for the route.js special file.
 ---
 
-Route Handlers allow you to create custom request handlers for a given route using the Web [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) APIs.
+Route Handlers allow you to create custom request handlers for a given route using the Web [Request](https://developer.mozilla.org/docs/Web/API/Request) and [Response](https://developer.mozilla.org/docs/Web/API/Response) APIs.
 
 ## HTTP Methods
 
-A **route** file allows you to create custom request handlers for a given route. The following [HTTP methods](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods) are supported: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`.
+A **route** file allows you to create custom request handlers for a given route. The following [HTTP methods](https://developer.mozilla.org/docs/Web/HTTP/Methods) are supported: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`.
 
 ```ts filename="route.ts" switcher
 export async function GET(request: Request) {}
@@ -43,20 +43,34 @@ export async function PATCH(request) {}
 export async function OPTIONS(request) {}
 ```
 
-> **Good to know**: Route Handlers are only available inside the `app` directory. You **do not** need to use API Routes (`pages`) and Route Handlers (`app`) together, as Route Handlers should be able to handle all use cases.
+> **Good to know**: Route Handlers are only available inside the App Router. You **do not** need to use API Routes (`pages`) and Route Handlers (`app`) together, as Route Handlers should be able to handle all use cases.
 
 ## Parameters
 
 ### `request` (optional)
 
-The `request` object is a [NextRequest](/docs/app/api-reference/functions/next-request) object, which is an extension of the Web [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) API. `NextRequest` gives you further control over the incoming request, including easily accessing `cookies` and an extended, parsed, URL object `nextUrl`.
+The `request` object is a [NextRequest](/docs/app/api-reference/functions/next-request) object, which is an extension of the Web [Request](https://developer.mozilla.org/docs/Web/API/Request) API. `NextRequest` gives you further control over the incoming request, including easily accessing `cookies` and an extended, parsed, URL object `nextUrl`.
 
 ### `context` (optional)
 
-```ts filename="app/dashboard/[team]/route.js"
-export async function GET(request, context: { params }) {
-  const team = params.team // '1'
+```ts filename="app/dashboard/[team]/route.ts" switcher
+type Params = {
+  team: string
 }
+
+export async function GET(request: Request, context: { params: Params }) {
+  const team = context.params.team // '1'
+}
+
+// Define params type according to your route parameters (see table below)
+```
+
+```js filename="app/dashboard/[team]/route.js" switcher
+
+export async function GET(request, context: { params }) {
+  const team = context.params.team // '1'
+}
+
 ```
 
 Currently, the only value of `context` is `params`, which is an object containing the [dynamic route parameters](/docs/app/building-your-application/routing/dynamic-routes) for the current route.
@@ -73,6 +87,7 @@ Route Handlers can extend the Web Response API by returning a `NextResponse` obj
 
 ## Version History
 
-| Version   | Changes                        |
-| --------- | ------------------------------ |
-| `v13.2.0` | Route handlers are introduced. |
+| Version   | Changes                                                                   |
+| --------- | ------------------------------------------------------------------------- |
+| `v15.0.0` | The default caching for `GET` handlers was changed from static to dynamic |
+| `v13.2.0` | Route Handlers are introduced.                                            |

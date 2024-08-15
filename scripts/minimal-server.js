@@ -1,22 +1,83 @@
-// Usage: node scripts/minimal-server.js <path-to-app-dir>
+console.time('next-wall-time')
+// Usage: node scripts/minimal-server.js <path-to-app-dir-build> <path-to-page>
 // This script is used to run a minimal Next.js server in production mode.
 
 process.env.NODE_ENV = 'production'
 
-// Change this to 'experimental' for server actions
+// Change this to 'experimental' to opt into the React experimental channel (needed for server actions, ppr)
 process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = 'next'
 
+let currentNode = null
+
+let outliers = []
+
+const chalk = {
+  yellow: (str) => `\x1b[33m${str}\x1b[0m`,
+  green: (str) => `\x1b[32m${str}\x1b[0m`,
+}
+
 if (process.env.LOG_REQUIRE) {
-  const originalRequire = require('module').prototype.require
+  const originalCompile = require('module').prototype._compile
 
-  require('module').prototype.require = function (path) {
+  require('module').prototype._compile = function (_content, filename) {
+    let parent = currentNode
+
+    currentNode = {
+      id: filename,
+      selfDuration: 0,
+      totalDuration: 0,
+      children: [],
+    }
+
     const start = performance.now()
-    const result = originalRequire.apply(this, arguments)
+    const result = originalCompile.apply(this, arguments)
     const end = performance.now()
-    console.log(`${path}, ${end - start}`)
 
+    currentNode.totalDuration = end - start
+    currentNode.selfDuration = currentNode.children.reduce(
+      (acc, child) => acc - child.selfDuration,
+      currentNode.totalDuration
+    )
+
+    parent?.children.push(currentNode)
+    currentNode = parent || currentNode
     return result
   }
+}
+
+function prettyPrint(
+  node,
+  distDir,
+  prefix = '',
+  isLast = false,
+  isRoot = true
+) {
+  let duration = `${node.selfDuration.toFixed(
+    2
+  )}ms / ${node.totalDuration.toFixed(2)}ms`
+
+  if (node.selfDuration > 70) {
+    duration = chalk.yellow(duration)
+    outliers.push(node)
+  }
+
+  let output = `${prefix}${isLast || isRoot ? '└─ ' : '├─ '}${chalk.green(
+    path.relative(distDir, node.id)
+  )} ${chalk.yellow(duration)}\n`
+
+  const childPrefix = `${prefix}${isRoot ? '  ' : isLast ? '   ' : '│  '}`
+
+  node.children.forEach((child, i) => {
+    output += prettyPrint(
+      child,
+      node.id,
+      childPrefix,
+      i === node.children.length - 1,
+      false
+    )
+  })
+
+  return output
 }
 
 if (process.env.LOG_COMPILE) {
@@ -44,11 +105,15 @@ if (process.env.LOG_READFILE) {
 
   require('fs').readFile = function (path, options, callback) {
     readFileCount++
+    console.log(`readFile: ${require('path').relative(absoluteAppDir, path)}`)
     return originalReadFile.apply(this, arguments)
   }
 
   require('fs').readFileSync = function (path, options) {
     readFileSyncCount++
+    console.log(
+      `readFileSync: ${require('path').relative(absoluteAppDir, path)}`
+    )
     return originalReadFileSync.apply(this, arguments)
   }
 }
@@ -56,10 +121,9 @@ if (process.env.LOG_READFILE) {
 console.time('next-cold-start')
 
 const NextServer = process.env.USE_BUNDLED_NEXT
-  ? require('next/dist/compiled/minimal-next-server/next-server-cached').default
+  ? require('next/dist/compiled/next-server/server.runtime.prod').default
   : require('next/dist/server/next-server').default
 
-console.timeEnd('next-cold-start')
 if (process.env.LOG_READFILE) {
   console.log(`readFileCount: ${readFileCount + readFileSyncCount}`)
 }
@@ -68,11 +132,9 @@ const path = require('path')
 
 const distDir = '.next'
 
-const compiledConfig = require(path.join(
-  absoluteAppDir,
-  distDir,
-  'required-server-files.json'
-)).config
+const compiledConfig = require(
+  path.join(absoluteAppDir, distDir, 'required-server-files.json')
+).config
 
 const nextServer = new NextServer({
   conf: compiledConfig,
@@ -101,9 +163,35 @@ require('http')
         if (process.env.LOG_READFILE) {
           console.log(`readFileCount: ${readFileCount + readFileSyncCount}`)
         }
-        require('process').exit(0)
       })
   })
   .listen(3000, () => {
     console.timeEnd('next-cold-start')
+    fetch('http://localhost:3000/' + (process.argv[3] || ''))
+      .then((res) => res.text())
+      .catch((err) => {
+        console.error(err)
+      })
+      .finally(() => {
+        console.timeEnd('next-wall-time')
+        if (process.env.LOG_REQUIRE) {
+          console.log(
+            prettyPrint(currentNode, path.join(absoluteAppDir, distDir))
+          )
+          if (outliers.length > 0) {
+            console.log('Outliers:')
+            outliers.forEach((node) => {
+              console.log(
+                `  ${path.relative(
+                  path.join(absoluteAppDir, distDir),
+                  node.id
+                )} ${node.selfDuration.toFixed(
+                  2
+                )}ms / ${node.totalDuration.toFixed(2)}ms`
+              )
+            })
+          }
+        }
+        require('process').exit(0)
+      })
   })

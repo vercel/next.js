@@ -3,27 +3,22 @@
 This is a full-stack TypeScript example using:
 
 - Frontend:
-  - Next.js and [SWR](https://github.com/vercel/swr)
+  - Next.js
   - [react-stripe-js](https://github.com/stripe/react-stripe-js) for [Checkout](https://stripe.com/checkout) and [Elements](https://stripe.com/elements)
 - Backend
-  - Next.js [API routes](https://nextjs.org/docs/api-routes/introduction)
+  - Next.js [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) and [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations)
   - [stripe-node with TypeScript](https://github.com/stripe/stripe-node#usage-with-typescript)
 
 ## Demo
 
-- Live demo: https://nextjs-typescript-react-stripe-js.vercel.app/
-- CodeSandbox: https://codesandbox.io/s/github/stripe-samples/nextjs-typescript-react-stripe-js
-- Tutorial: https://dev.to/thorwebdev/type-safe-payments-with-next-js-typescript-and-stripe-4jo7
+- [Live demo](https://nextjs-with-stripe-typescript-demo.vercel.app)
+- [Guide](https://vercel.com/guides/getting-started-with-nextjs-typescript-stripe)
 
 The demo is running in test mode -- use `4242424242424242` as a test card number with any CVC + future expiration date.
 
-Use the `4000000000003220` test card number to trigger a 3D Secure challenge flow.
+Use the `4000002760003184` test card number to trigger a 3D Secure challenge flow.
 
-Read more about testing on Stripe at https://stripe.com/docs/testing.
-
-<details open><summary>Shopping Cart Checkout Demo</summary>
-<img src="./public/shopping_cart_demo.gif" alt="A gif of the Shopping Cart Checkout payment page." align="center">
-</details>
+[Read more](https://stripe.com/docs/testing) about testing on Stripe.
 
 <details><summary>Checkout Donations Demo</summary>
 <img src="./public/checkout_demo.gif" alt="A gif of the Checkout payment page." align="center">
@@ -41,25 +36,18 @@ Once you have access to [the environment variables you'll need](#required-config
 
 ## Included functionality
 
-- [Global CSS styles](https://nextjs.org/blog/next-9-2#built-in-css-support-for-global-stylesheets)
-- Implementation of a Layout component that loads and sets up Stripe.js and Elements for usage with SSR via `loadStripe` helper: [components/Layout.tsx](components/Layout.tsx).
 - Stripe Checkout
   - Custom Amount Donation with redirect to Stripe Checkout:
-    - Frontend: [pages/donate-with-checkout.tsx](pages/donate-with-checkout.tsx)
-    - Backend: [pages/api/checkout_sessions/](pages/api/checkout_sessions/)
-    - Checkout payment result page that uses [SWR](https://github.com/vercel/swr) hooks to fetch the CheckoutSession status from the API route: [pages/result.tsx](pages/result.tsx).
+    - Server Component: [app/donate-with-checkout/page.tsx](app/donate-with-checkout/page.tsx)
+    - Server Action: [app/actions/stripe.ts](app/actions/stripe.ts)
+    - Checkout Session 'success' page fetches the Checkout Session object from Stripe: [donate-with-checkout/result/page.tsx](app/donate-with-checkout/result/page.tsx)
 - Stripe Elements
-  - Custom Amount Donation with Stripe Elements & PaymentIntents (no redirect):
-    - Frontend: [pages/donate-with-elements.tsx](pages/donate-with-elements.tsx)
-    - Backend: [pages/api/payment_intents/](pages/api/payment_intents/)
-- Webhook handling for [post-payment events](https://stripe.com/docs/payments/accept-a-payment#web-fulfillment)
-  - By default Next.js API routes are same-origin only. To allow Stripe webhook event requests to reach our API route, we need to add `micro-cors` and [verify the webhook signature](https://stripe.com/docs/webhooks/signatures) of the event. All of this happens in [pages/api/webhooks/index.ts](pages/api/webhooks/index.ts).
-- Helpers
-  - [utils/api-helpers.ts](utils/api-helpers.ts)
-    - helpers for GET and POST requests.
-  - [utils/stripe-helpers.ts](utils/stripe-helpers.ts)
-    - Format amount strings properly using `Intl.NumberFormat`.
-    - Format amount for usage with Stripe, including zero decimal currency detection.
+  - Custom Amount Donation with Stripe Payment Element & PaymentIntents:
+    - Server Component: [app/donate-with-elements/page.tsx](app/donate-with-elements/page.tsx)
+    - Server Action: [app/actions/stripe.ts](app/actions/stripe.ts)
+    - Payment Intent 'success' page (via `returl_url`) fetches the Payment Intent object from Stripe: [donate-with-elements/result/page.tsx](app/donate-with-elements/result/page.tsx)
+- Webhook handling for [post-payment events](https://stripe.com/docs/payments/handling-payment-events)
+  - Route Handler: [app/api/webhooks/route.ts](app/api/webhooks/route.ts)
 
 ## How to use
 
@@ -85,7 +73,7 @@ Copy the `.env.local.example` file into a file named `.env.local` in the root di
 cp .env.local.example .env.local
 ```
 
-You will need a Stripe account ([register](https://dashboard.stripe.com/register)) to run this sample. Go to the Stripe [developer dashboard](https://stripe.com/docs/development#api-keys) to find your API keys and replace them in the `.env.local` file.
+You will need a Stripe account ([register](https://dashboard.stripe.com/register)) to run this sample. Go to the Stripe [developer dashboard](https://dashboard.stripe.com/apikeys) to find your API keys and replace them in the `.env.local` file.
 
 ```bash
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=<replace-with-your-publishable-key>
@@ -146,3 +134,4 @@ Alternatively, you can deploy using our template by clicking on the Deploy butto
 
 - [@thorsten-stripe](https://twitter.com/thorwebdev)
 - [@lfades](https://twitter.com/luis_fades)
+- [@jsteele-stripe](https://twitter.com/ynnoj)

@@ -1,14 +1,14 @@
-import type { DocumentContext, DocumentInitialProps } from 'next/document'
-import Document, { Html, Head, Main, NextScript } from 'next/document'
-import cxs from 'cxs'
+import type { DocumentContext, DocumentInitialProps } from "next/document";
+import Document, { Html, Head, Main, NextScript } from "next/document";
+import cxs from "cxs";
 
 export default class MyDocument extends Document {
   static async getInitialProps(
-    ctx: DocumentContext
+    ctx: DocumentContext,
   ): Promise<DocumentInitialProps> {
-    const initialProps = await Document.getInitialProps(ctx)
-    const styles = cxs.css()
-    cxs.reset()
+    const initialProps = await Document.getInitialProps(ctx);
+    const styles = cxs.css();
+    cxs.reset();
 
     return {
       ...initialProps,
@@ -18,7 +18,7 @@ export default class MyDocument extends Document {
           <style dangerouslySetInnerHTML={{ __html: styles }} />
         </>
       ),
-    }
+    };
   }
 
   render() {
@@ -30,6 +30,6 @@ export default class MyDocument extends Document {
           <NextScript />
         </body>
       </Html>
-    )
+    );
   }
 }

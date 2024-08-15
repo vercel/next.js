@@ -10,15 +10,18 @@ const testResolveDataDir = join(__dirname, 'isolated', 'test_resolvedata')
 const testpreservefileDir = join(__dirname, 'isolated', 'preservefiles')
 
 describe('recursiveDelete', () => {
+  if (process.platform === 'win32') {
+    it('should skip on windows to avoid symlink issues', () => {})
+    return
+  }
+
   it('should work', async () => {
     expect.assertions(1)
     try {
       await recursiveCopy(resolveDataDir, testResolveDataDir)
       await fs.symlink('./aa', join(testResolveDataDir, 'symlink'))
       await recursiveDelete(testResolveDataDir)
-      const result = await recursiveReadDir(testResolveDataDir, (f) =>
-        /.*/.test(f)
-      )
+      const result = await recursiveReadDir(testResolveDataDir)
       expect(result.length).toBe(0)
     } finally {
       await recursiveDelete(testResolveDataDir)
@@ -34,17 +37,13 @@ describe('recursiveDelete', () => {
       // preserve cache dir
       await recursiveDelete(testpreservefileDir, /^cache/)
 
-      const result = await recursiveReadDir(testpreservefileDir, (f) =>
-        /.*/.test(f)
-      )
+      const result = await recursiveReadDir(testpreservefileDir)
       expect(result.length).toBe(1)
     } finally {
       // Ensure test cleanup
       await recursiveDelete(testpreservefileDir)
 
-      const cleanupResult = await recursiveReadDir(testpreservefileDir, (f) =>
-        /.*/.test(f)
-      )
+      const cleanupResult = await recursiveReadDir(testpreservefileDir)
       expect(cleanupResult.length).toBe(0)
     }
   })

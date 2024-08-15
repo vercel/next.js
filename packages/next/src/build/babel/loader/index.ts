@@ -1,6 +1,6 @@
-import { Span } from '../../../trace'
+import type { Span } from '../../../trace'
 import transform from './transform'
-import { NextJsLoaderContext } from './types'
+import type { NextJsLoaderContext } from './types'
 
 async function nextBabelLoader(
   this: NextJsLoaderContext,
@@ -10,10 +10,14 @@ async function nextBabelLoader(
 ) {
   const filename = this.resourcePath
   const target = this.target
-  const loaderOptions = parentTrace
+  const loaderOptions: any = parentTrace
     .traceChild('get-options')
     // @ts-ignore TODO: remove ignore once webpack 5 types are used
     .traceFn(() => this.getOptions())
+
+  if (loaderOptions.exclude && loaderOptions.exclude(filename)) {
+    return [inputSource, inputSourceMap]
+  }
 
   const loaderSpanInner = parentTrace.traceChild('next-babel-turbo-transform')
   const { code: transformedSource, map: outputSourceMap } =

@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server'
 
 /**
  * @param {import('next/server').NextRequest} request
- * @returns {NextResponse | undefined}
+ * @returns {Promise<NextResponse | undefined>}
  */
-export function middleware(request) {
+export async function middleware(request) {
   if (request.nextUrl.pathname === '/searchparams-normalization-bug') {
     const headers = new Headers(request.headers)
     headers.set('test', request.nextUrl.searchParams.get('val') || '')
@@ -23,6 +23,17 @@ export function middleware(request) {
 
   if (request.nextUrl.pathname === '/middleware-to-dashboard') {
     return NextResponse.rewrite(new URL('/dashboard', request.url))
+  }
+
+  // In dev this route will fail to bootstrap because webpack uses eval which is dissallowed by
+  // this policy. In production this route will work
+  if (request.nextUrl.pathname === '/bootstrap/with-nonce') {
+    const nonce = crypto.randomUUID()
+    return NextResponse.next({
+      headers: {
+        'Content-Security-Policy': `script-src 'nonce-${nonce}' 'strict-dynamic';`,
+      },
+    })
   }
 
   if (request.nextUrl.pathname.startsWith('/internal/test')) {
@@ -56,5 +67,25 @@ export function middleware(request) {
         request.url
       )
     )
+  }
+
+  if (request.nextUrl.pathname === '/script-nonce') {
+    const nonce = crypto.randomUUID()
+
+    return NextResponse.next({
+      headers: {
+        'content-security-policy': `script-src 'nonce-${nonce}' 'strict-dynamic';`,
+      },
+    })
+  }
+
+  if (request.nextUrl.pathname === '/script-nonce/with-next-font') {
+    const nonce = crypto.randomUUID()
+
+    return NextResponse.next({
+      headers: {
+        'content-security-policy': `script-src 'nonce-${nonce}' 'strict-dynamic';`,
+      },
+    })
   }
 }

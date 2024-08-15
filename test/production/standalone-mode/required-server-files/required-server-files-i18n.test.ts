@@ -3,7 +3,7 @@ import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -14,11 +14,12 @@ import {
   waitFor,
 } from 'next-test-utils'
 import nodeFetch from 'node-fetch'
+import { ChildProcess } from 'child_process'
 
-describe('should set-up next', () => {
+describe('required server files i18n', () => {
   let next: NextInstance
-  let server
-  let appPort
+  let server: ChildProcess
+  let appPort: number | string
   let errors = []
   let requiredFilesManifest
 
@@ -48,11 +49,12 @@ describe('should set-up next', () => {
       packageJson: {
         scripts: {
           build: wasmPkgIsAvailable
-            ? 'rm -rfv node_modules/@next/swc && yarn next build'
-            : 'yarn next build',
+            ? 'rm -rfv node_modules/@next/swc && next build'
+            : 'next build',
         },
       },
-      buildCommand: 'yarn build',
+      installCommand: 'pnpm i',
+      buildCommand: 'pnpm build',
       nextConfig: {
         i18n: {
           locales: ['en', 'fr'],
@@ -105,17 +107,18 @@ describe('should set-up next', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('conf:', 'minimalMode: true,conf:')
+      (await fs.readFile(testServer, 'utf8')).replace(
+        'port:',
+        'minimalMode: true,port:'
+      )
     )
     appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /Listening on/,
+      /- Local:/,
       {
         ...process.env,
-        PORT: appPort,
+        PORT: `${appPort}`,
       },
       undefined,
       {
@@ -126,6 +129,7 @@ describe('should set-up next', () => {
       }
     )
   })
+
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)
@@ -587,35 +591,41 @@ describe('should set-up next', () => {
   })
 
   it('should bubble error correctly for gip page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
 
     await check(
-      () => (errors[0].includes('gip hit an oops') ? 'success' : errors[0]),
+      () =>
+        errors.join('').includes('gip hit an oops')
+          ? 'success'
+          : errors.join('\n'),
       'success'
     )
   })
 
   it('should bubble error correctly for gssp page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
-      () => (errors[0].includes('gssp hit an oops') ? 'success' : errors[0]),
+      () =>
+        errors.join('\n').includes('gssp hit an oops')
+          ? 'success'
+          : errors.join('\n'),
       'success'
     )
   })
 
   it('should bubble error correctly for gsp page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
-      () => (errors[0].includes('gsp hit an oops') ? 'success' : errors[0]),
+      () =>
+        errors.join('\n').includes('gsp hit an oops')
+          ? 'success'
+          : errors.join('\n'),
       'success'
     )
   })
@@ -627,9 +637,9 @@ describe('should set-up next', () => {
     expect(await res.text()).toBe('Internal Server Error')
     await check(
       () =>
-        errors[0].includes('some error from /api/error')
+        errors.join('\n').includes('some error from /api/error')
           ? 'success'
-          : errors[0],
+          : errors.join('\n'),
       'success'
     )
   })

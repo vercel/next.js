@@ -1,5 +1,6 @@
 import type { AdjustFontFallback } from '../../../../../font'
-import postcss, { Declaration } from 'postcss'
+import type { Declaration } from 'postcss'
+import postcss from 'postcss'
 
 /**
  * The next/font postcss plugin recieves the @font-face declarations returned from the next/font loaders.
@@ -19,7 +20,6 @@ import postcss, { Declaration } from 'postcss'
  */
 const postcssNextFontPlugin = ({
   exports,
-  fontFamilyHash,
   fallbackFonts = [],
   adjustFontFallback,
   variable,
@@ -27,7 +27,6 @@ const postcssNextFontPlugin = ({
   style,
 }: {
   exports: { name: any; value: any }[]
-  fontFamilyHash: string
   fallbackFonts?: string[]
   adjustFontFallback?: AdjustFontFallback
   variable?: string
@@ -44,8 +43,7 @@ const postcssNextFontPlugin = ({
       }
 
       const formatFamily = (family: string) => {
-        // Turn the font family unguessable to make it locally scoped
-        return `'__${family.replace(/ /g, '_')}_${fontFamilyHash}'`
+        return `'${family}'`
       }
 
       // Hash font-family names

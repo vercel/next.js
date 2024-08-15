@@ -1,34 +1,6 @@
 {
   "$schema": "https://turborepo.org/schema.json",
-  "pipeline": {
-    "build-native": {
-      "dependsOn": ["^build-native"],
-      "outputs": ["native/*.node"]
-    },
-    "build-native-release": {
-      "dependsOn": ["^build-native-release"],
-      "outputs": ["native/*.node"]
-    },
-    "build-native-no-plugin": {
-      "dependsOn": ["^build-native-no-plugin"],
-      "outputs": ["native/*.node"]
-    },
-    "build-native-no-plugin-woa": {
-      "dependsOn": ["^build-native-no-plugin-woa"],
-      "outputs": ["native/*.node"]
-    },
-    "build-native-no-plugin-woa-release": {
-      "dependsOn": ["^build-native-no-plugin-woa-release"],
-      "outputs": ["native/*.node"]
-    },
-    "build-wasm": {
-      "dependsOn": ["^build-wasm"],
-      "outputs": ["crates/wasm/pkg/*"]
-    },
-    "cache-build-native": {
-      "dependsOn": ["^cache-build-native"],
-      "outputs": ["native/*.node"]
-    },
+  "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
@@ -39,42 +11,10 @@
     },
     "typescript": {},
     "//#typescript": {},
-    "rust-check": {
-      "inputs": [
-        "../../.cargo/**",
-        "../../packages/next-swc/crates/**",
-        "../../**/Cargo.toml",
-        "../../**/Cargo.lock"
-      ]
-    },
-    "test-cargo-unit": {
-      "inputs": [
-        "../../.cargo/**",
-        "../../packages/next-swc/crates/**",
-        "../../**/Cargo.toml",
-        "../../**/Cargo.lock"
-      ]
-    },
-    "test-cargo-integration": {
-      "inputs": [
-        "../../.cargo/**",
-        "../../packages/next-swc/crates/**",
-        "../../packages/next/**",
-        "../../**/Cargo.toml",
-        "../../**/Cargo.lock"
-      ]
-    },
-    "test-cargo-bench": {
-      "inputs": [
-        "../../.cargo/**",
-        "../../packages/next-swc/crates/**",
-        "../../**/Cargo.toml",
-        "../../**/Cargo.lock"
-      ]
-    },
     "//#get-test-timings": {
       "inputs": ["run-tests.js"],
       "outputs": ["test-timings.json"]
     }
-  }
+  },
+  "ui": "tui"
 }

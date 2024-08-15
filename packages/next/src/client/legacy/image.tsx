@@ -7,16 +7,18 @@ import React, {
   useContext,
   useMemo,
   useState,
+  type JSX,
 } from 'react'
-import Head from '../../shared/lib/head'
 import {
-  ImageConfigComplete,
   imageConfigDefault,
-  LoaderValue,
   VALID_LOADERS,
 } from '../../shared/lib/image-config'
+import type {
+  ImageConfigComplete,
+  LoaderValue,
+} from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
-import { ImageConfigContext } from '../../shared/lib/image-config-context'
+import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
 
@@ -256,7 +258,7 @@ export type ImageProps = Omit<
   quality?: SafeNumber
   priority?: boolean
   loading?: LoadingValue
-  lazyRoot?: React.RefObject<HTMLElement> | null
+  lazyRoot?: React.RefObject<HTMLElement | null> | null
   lazyBoundary?: string
   placeholder?: PlaceholderValue
   blurDataURL?: string
@@ -672,7 +674,7 @@ export default function Image({
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src.startsWith('data:') || src.startsWith('blob:')) {
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    // https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
     isLazy = false
   }
@@ -807,7 +809,7 @@ export default function Image({
             - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
             - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
               ','
-            )}
+            )} (animated images not supported)
             - Remove the "placeholder" property, effectively no blur effect
           Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
           )
@@ -976,16 +978,6 @@ export default function Image({
     }
   }
 
-  const linkProps: React.DetailedHTMLProps<
-    React.LinkHTMLAttributes<HTMLLinkElement>,
-    HTMLLinkElement
-  > = {
-    imageSrcSet: imgAttributes.srcSet,
-    imageSizes: imgAttributes.sizes,
-    crossOrigin: rest.crossOrigin,
-    referrerPolicy: rest.referrerPolicy,
-  }
-
   const useLayoutEffect =
     typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
   const onLoadingCompleteRef = useRef(onLoadingComplete)
@@ -1027,54 +1019,31 @@ export default function Image({
   }
   return (
     <>
-      {
-        <span style={wrapperStyle}>
-          {hasSizer ? (
-            <span style={sizerStyle}>
-              {sizerSvgUrl ? (
-                <img
-                  style={{
-                    display: 'block',
-                    maxWidth: '100%',
-                    width: 'initial',
-                    height: 'initial',
-                    background: 'none',
-                    opacity: 1,
-                    border: 0,
-                    margin: 0,
-                    padding: 0,
-                  }}
-                  alt=""
-                  aria-hidden={true}
-                  src={sizerSvgUrl}
-                />
-              ) : null}
-            </span>
-          ) : null}
-          <ImageElement {...imgElementArgs} />
-        </span>
-      }
-      {priority ? (
-        // Note how we omit the `href` attribute, as it would only be relevant
-        // for browsers that do not support `imagesrcset`, and in those cases
-        // it would likely cause the incorrect image to be preloaded.
-        //
-        // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
-        <Head>
-          <link
-            key={
-              '__nimg-' +
-              imgAttributes.src +
-              imgAttributes.srcSet +
-              imgAttributes.sizes
-            }
-            rel="preload"
-            as="image"
-            href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            {...linkProps}
-          />
-        </Head>
-      ) : null}
+      <span style={wrapperStyle}>
+        {hasSizer ? (
+          <span style={sizerStyle}>
+            {sizerSvgUrl ? (
+              <img
+                style={{
+                  display: 'block',
+                  maxWidth: '100%',
+                  width: 'initial',
+                  height: 'initial',
+                  background: 'none',
+                  opacity: 1,
+                  border: 0,
+                  margin: 0,
+                  padding: 0,
+                }}
+                alt=""
+                aria-hidden={true}
+                src={sizerSvgUrl}
+              />
+            ) : null}
+          </span>
+        ) : null}
+        <ImageElement {...imgElementArgs} />
+      </span>
     </>
   )
 }

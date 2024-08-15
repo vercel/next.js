@@ -13,7 +13,7 @@ import inquirer from 'inquirer'
 import meow from 'meow'
 import path from 'path'
 import execa from 'execa'
-import chalk from 'chalk'
+import { yellow } from 'picocolors'
 import isGitClean from 'is-git-clean'
 import { uninstallPackage } from '../lib/uninstall-package'
 
@@ -38,7 +38,7 @@ export function checkGitStatus(force) {
     } else {
       console.log('Thank you for using @next/codemod!')
       console.log(
-        chalk.yellow(
+        yellow(
           '\nBut before we continue, please stash or commit your git changes.'
         )
       )
@@ -132,8 +132,20 @@ const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'cra-to-next',
   },
   {
-    name: 'new-link: Ensures your <Link> usage is backwards compatible. Used in combination with experimental newNextLinkBehavior',
+    name: 'new-link: Ensures your <Link> usage is backwards compatible.',
     value: 'new-link',
+  },
+  {
+    name: 'next-og-import: Transforms imports from `next/server` to `next/og` for usage of Dynamic OG Image Generation.',
+    value: 'next-og-import',
+  },
+  {
+    name: 'metadata-to-viewport-export: Migrates certain viewport related metadata from the `metadata` export to a new `viewport` export.',
+    value: 'metadata-to-viewport-export',
+  },
+  {
+    name: 'next-dynamic-access-named-export: Transforms dynamic imports that return the named export itself to a module like object.',
+    value: 'next-dynamic-access-named-export',
   },
   {
     name: 'next-image-to-legacy-image: safely migrate Next.js 10, 11, 12 applications importing `next/image` to the renamed `next/legacy/image` import in Next.js 13',

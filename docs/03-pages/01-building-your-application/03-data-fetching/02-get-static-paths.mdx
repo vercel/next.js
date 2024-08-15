@@ -1,6 +1,6 @@
 ---
 title: getStaticPaths
-description: Fetch data and generate static pages with `getStaticProps`. Learn more about this API for data fetching in Next.js.
+description: Fetch data and generate static pages with `getStaticPaths`. Learn more about this API for data fetching in Next.js.
 ---
 
 If a page has [Dynamic Routes](/docs/pages/building-your-application/routing/dynamic-routes) and uses `getStaticProps`, it needs to define a list of paths to be statically generated.
@@ -19,7 +19,7 @@ type Repo = {
   stargazers_count: number
 }
 
-export const getStaticPaths: GetStaticPaths = async () => {
+export const getStaticPaths = (async () => {
   return {
     paths: [
       {
@@ -30,15 +30,15 @@ export const getStaticPaths: GetStaticPaths = async () => {
     ],
     fallback: true, // false or "blocking"
   }
-}
+}) satisfies GetStaticPaths
 
-export const getStaticProps: GetStaticProps<{
-  repo: Repo
-}> = async () => {
+export const getStaticProps = (async (context) => {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
   return { props: { repo } }
-}
+}) satisfies GetStaticProps<{
+  repo: Repo
+}>
 
 export default function Page({
   repo,
@@ -48,7 +48,7 @@ export default function Page({
 ```
 
 ```jsx filename="pages/repo/[name].js" switcher
-export const getStaticPaths = async () => {
+export async function getStaticPaths() {
   return {
     paths: [
       {
@@ -61,7 +61,7 @@ export const getStaticPaths = async () => {
   }
 }
 
-export const getStaticProps = async () => {
+export async function getStaticProps() {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
   return { props: { repo } }

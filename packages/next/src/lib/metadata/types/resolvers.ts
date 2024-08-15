@@ -1,13 +1,20 @@
-import { Metadata, ResolvedMetadata } from './metadata-interface'
+import type { Metadata, ResolvedMetadata } from './metadata-interface'
 
-export type FieldResolver<Key extends keyof Metadata> = (
-  T: Metadata[Key]
-) => ResolvedMetadata[Key]
+export type FieldResolver<
+  Key extends keyof Data & keyof ResolvedData,
+  Data = Metadata,
+  ResolvedData = ResolvedMetadata,
+> = (T: Data[Key]) => ResolvedData[Key]
+
 export type FieldResolverExtraArgs<
-  Key extends keyof Metadata,
-  ExtraArgs extends unknown[] = any[]
-> = (T: Metadata[Key], ...args: ExtraArgs) => ResolvedMetadata[Key]
+  Key extends keyof Data & keyof ResolvedData,
+  ExtraArgs extends unknown[] = any[],
+  Data = Metadata,
+  ResolvedData = ResolvedMetadata,
+> = (T: Data[Key], ...args: ExtraArgs) => ResolvedData[Key]
 
 export type MetadataContext = {
   pathname: string
+  trailingSlash: boolean
+  isStandaloneMode: boolean
 }

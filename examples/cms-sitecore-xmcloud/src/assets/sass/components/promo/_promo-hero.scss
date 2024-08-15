@@ -1,0 +1,42 @@
+@import "@sass/abstracts/vars";
+@import "@sass/abstracts/mixins";
+
+.promo.promo-hero {
+  position: relative;
+  text-align: center;
+  &.promo-hero-half {
+    float: left;
+    width: 50%;
+    @include respond-to(all-mobile) {
+      float: none;
+      width: 100%;
+    }
+  }
+  .field-promotext {
+    display: inline-block;
+    transform: translateY(-50%);
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    padding: 20px;
+    color: $promo-hero-text-color;
+    background: $promo-bg-hero;
+    > a {
+      color: inherit;
+      text-decoration: none;
+    }
+    @include respond-to(all-mobile) {
+      width: 100%;
+      margin: 0;
+      h1 {
+        @include font-size(2.4);
+      }
+      h2,
+      h3,
+      h4 {
+        @include font-size(2);
+      }
+    }
+  }
+}

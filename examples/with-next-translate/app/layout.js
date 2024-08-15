@@ -1,9 +1,9 @@
-import useTranslation from 'next-translate/useTranslation'
-import './style.css'
+import useTranslation from "next-translate/useTranslation";
+import "./style.css";
 
 export const metadata = {
-  title: 'Next.js',
-}
+  title: "Next.js",
+};
 
 export default function Layout(props) {
   const { t, lang } = useTranslation()

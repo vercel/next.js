@@ -3,68 +3,26 @@
 // Individually compiled modules are as defined for the compilation in bundles/webpack/packages/*.
 
 // This module will only be loaded once per process.
-
-const { dirname } = require('path')
+const path = require('path')
 const mod = require('module')
+const originalRequire = mod.prototype.require
 const resolveFilename = mod._resolveFilename
-const hookPropertyMap = new Map()
 
-let aliasedPrebundledReact = false
-
-const resolve = process.env.NEXT_MINIMAL
+let resolve: typeof require.resolve = process.env.NEXT_MINIMAL
   ? // @ts-ignore
     __non_webpack_require__.resolve
   : require.resolve
 
+export const hookPropertyMap = new Map()
+
+export const defaultOverrides = {
+  'styled-jsx': path.dirname(resolve('styled-jsx/package.json')),
+  'styled-jsx/style': resolve('styled-jsx/style'),
+  'styled-jsx/style.js': resolve('styled-jsx/style'),
+}
+
 const toResolveMap = (map: Record<string, string>): [string, string][] =>
   Object.entries(map).map(([key, value]) => [key, resolve(value)])
-
-export const baseOverrides = {
-  react: 'next/dist/compiled/react',
-  'react/package.json': 'next/dist/compiled/react/package.json',
-  'react/jsx-runtime': 'next/dist/compiled/react/jsx-runtime',
-  'react/jsx-dev-runtime': 'next/dist/compiled/react/jsx-dev-runtime',
-  'react-dom': 'next/dist/compiled/react-dom/server-rendering-stub',
-  'react-dom/package.json': 'next/dist/compiled/react-dom/package.json',
-  'react-dom/client': 'next/dist/compiled/react-dom/client',
-  'react-dom/server': 'next/dist/compiled/react-dom/server',
-  'react-dom/server.browser': 'next/dist/compiled/react-dom/server.browser',
-  'react-dom/server.edge': 'next/dist/compiled/react-dom/server.edge',
-  'react-server-dom-webpack/client':
-    'next/dist/compiled/react-server-dom-webpack/client',
-  'react-server-dom-webpack/client.edge':
-    'next/dist/compiled/react-server-dom-webpack/client.edge',
-  'react-server-dom-webpack/server.edge':
-    'next/dist/compiled/react-server-dom-webpack/server.edge',
-  'react-server-dom-webpack/server.node':
-    'next/dist/compiled/react-server-dom-webpack/server.node',
-}
-
-export const experimentalOverrides = {
-  react: 'next/dist/compiled/react-experimental',
-  'react/jsx-runtime': 'next/dist/compiled/react-experimental/jsx-runtime',
-  'react/jsx-dev-runtime':
-    'next/dist/compiled/react-experimental/jsx-dev-runtime',
-  'react-dom':
-    'next/dist/compiled/react-dom-experimental/server-rendering-stub',
-  'react/package.json': 'next/dist/compiled/react-experimental/package.json',
-  'react-dom/package.json':
-    'next/dist/compiled/react-dom-experimental/package.json',
-  'react-dom/client': 'next/dist/compiled/react-dom-experimental/client',
-  'react-dom/server': 'next/dist/compiled/react-dom-experimental/server',
-  'react-dom/server.browser':
-    'next/dist/compiled/react-dom-experimental/server.browser',
-  'react-dom/server.edge':
-    'next/dist/compiled/react-dom-experimental/server.edge',
-  'react-server-dom-webpack/client':
-    'next/dist/compiled/react-server-dom-webpack-experimental/client',
-  'react-server-dom-webpack/client.edge':
-    'next/dist/compiled/react-server-dom-webpack-experimental/client.edge',
-  'react-server-dom-webpack/server.edge':
-    'next/dist/compiled/react-server-dom-webpack-experimental/server.edge',
-  'react-server-dom-webpack/server.node':
-    'next/dist/compiled/react-server-dom-webpack-experimental/server.node',
-}
 
 export function addHookAliases(aliases: [string, string][] = []) {
   for (const [key, value] of aliases) {
@@ -72,47 +30,42 @@ export function addHookAliases(aliases: [string, string][] = []) {
   }
 }
 
-// Add default aliases
-addHookAliases([
-  // Use `require.resolve` explicitly to make them statically analyzable
-  // styled-jsx needs to be resolved as the external dependency.
-  ['styled-jsx', dirname(resolve('styled-jsx/package.json'))],
-  ['styled-jsx/style', resolve('styled-jsx/style')],
-])
-
-// Override built-in React packages if necessary
-function overrideReact() {
-  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT) {
-    aliasedPrebundledReact = true
-
-    // Require these modules with static paths to make sure they are tracked by
-    // NFT when building the app in standalone mode, as we are now conditionally
-    // aliasing them it's tricky to track them in build time.
-    if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT === 'experimental') {
-      addHookAliases(toResolveMap(experimentalOverrides))
-    } else {
-      addHookAliases(toResolveMap(baseOverrides))
-    }
-  }
-}
-overrideReact()
+addHookAliases(toResolveMap(defaultOverrides))
 
 mod._resolveFilename = function (
-  originalResolveFilename: typeof resolveFilename,
+  originalResolveFilename: (
+    request: string,
+    parent: string,
+    isMain: boolean,
+    opts: any
+  ) => string,
   requestMap: Map<string, string>,
   request: string,
-  parent: any,
+  parent: string,
   isMain: boolean,
   options: any
 ) {
-  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT && !aliasedPrebundledReact) {
-    // In case the environment variable is set after the module is loaded.
-    overrideReact()
-  }
-
   const hookResolved = requestMap.get(request)
   if (hookResolved) request = hookResolved
+
   return originalResolveFilename.call(mod, request, parent, isMain, options)
 
   // We use `bind` here to avoid referencing outside variables to create potential memory leaks.
 }.bind(null, resolveFilename, hookPropertyMap)
+
+// This is a hack to make sure that if a user requires a Next.js module that wasn't bundled
+// that needs to point to the rendering runtime version, it will point to the correct one.
+// This can happen on `pages` when a user requires a dependency that uses next/image for example.
+mod.prototype.require = function (request: string) {
+  if (request.endsWith('.shared-runtime')) {
+    return originalRequire.call(
+      this,
+      `next/dist/server/route-modules/pages/vendored/contexts/${path.basename(
+        request,
+        '.shared-runtime'
+      )}`
+    )
+  }
+
+  return originalRequire.call(this, request)
+}

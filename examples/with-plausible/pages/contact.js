@@ -1,24 +1,24 @@
-import { useState } from 'react'
-import Page from '../components/Page'
-import { usePlausible } from 'next-plausible'
+import { useState } from "react";
+import Page from "../components/Page";
+import { usePlausible } from "next-plausible";
 
 export default function Contact() {
-  const [message, setMessage] = useState('')
-  const plausible = usePlausible()
+  const [message, setMessage] = useState("");
+  const plausible = usePlausible();
 
   const handleSubmit = (e) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    plausible('customEventName', {
+    plausible("customEventName", {
       props: {
         message,
       },
-    })
+    });
 
     // your own submit logic
 
-    setMessage('')
-  }
+    setMessage("");
+  };
 
   return (
     <Page>
@@ -34,5 +34,5 @@ export default function Contact() {
         <button type="submit">submit</button>
       </form>
     </Page>
-  )
+  );
 }

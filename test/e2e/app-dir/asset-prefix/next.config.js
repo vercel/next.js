@@ -1,8 +1,17 @@
 module.exports = {
-  assetPrefix: '/assets',
-  rewrites() {
+  assetPrefix: '/custom-asset-prefix',
+  async rewrites() {
     return {
-      beforeFiles: [{ source: '/assets/:path*', destination: '/:path*' }],
+      afterFiles: [
+        {
+          source: '/custom-asset-prefix/:path*',
+          destination: '/:path*',
+        },
+        {
+          source: '/not-custom-asset-prefix/:path*',
+          destination: '/:path*',
+        },
+      ],
     }
   },
 }

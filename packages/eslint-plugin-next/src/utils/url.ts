@@ -43,8 +43,8 @@ export function normalizeURL(url: string) {
   if (!url) {
     return
   }
-  url = url.split('?')[0]
-  url = url.split('#')[0]
+  url = url.split('?', 1)[0]
+  url = url.split('#', 1)[0]
   url = url = url.replace(/(\/index\.html)$/, '/')
   // Empty URLs should not be trailed with `/`, e.g. `#heading`
   if (url === '') {
@@ -77,7 +77,7 @@ export function getUrlFromPagesDirectories(
   })
 }
 
-export function execOnce<TArgs extends any[], TResult extends unknown>(
+export function execOnce<TArgs extends any[], TResult>(
   fn: (...args: TArgs) => TResult
 ): (...args: TArgs) => TResult {
   let used = false

@@ -1,7 +1,7 @@
-import 'bulma-pro/css/bulma.css'
+import "bulma-pro/css/bulma.css";
 
 function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />
+  return <Component {...pageProps} />;
 }
 
-export default MyApp
+export default MyApp;

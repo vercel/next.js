@@ -36,7 +36,7 @@ First, you will see these terms being used throughout the documentation. Here's 
 
 ## The `app` Router
 
-In version 13, Next.js introduced a new **App Router** built on [React Server Components](/docs/getting-started/react-essentials#server-components), which supports shared layouts, nested routing, loading states, error handling, and more.
+In version 13, Next.js introduced a new **App Router** built on [React Server Components](/docs/app/building-your-application/rendering/server-components), which supports shared layouts, nested routing, loading states, error handling, and more.
 
 The App Router works in a new directory named `app`. The `app` directory works alongside the `pages` directory to allow for incremental adoption. This allows you to opt some routes of your application into the new behavior while keeping other routes in the `pages` directory for previous behavior. If your application uses the `pages` directory, please also see the [Pages Router](/docs/pages/building-your-application/routing) documentation.
 
@@ -50,9 +50,9 @@ The App Router works in a new directory named `app`. The `app` directory works a
   height="444"
 />
 
-By default, components inside `app` are [React Server Components](/docs/getting-started/react-essentials#server-components). This is a performance optimization and allows you to easily adopt them, and you can also use [Client Components](/docs/getting-started/react-essentials#client-components).
+By default, components inside `app` are [React Server Components](/docs/app/building-your-application/rendering/server-components). This is a performance optimization and allows you to easily adopt them, and you can also use [Client Components](/docs/app/building-your-application/rendering/client-components).
 
-> **Recommendation:** Check out the [Server and Client Components](/docs/getting-started/react-essentials) page if you're new to Server Components.
+> **Recommendation:** Check out the [Server](/docs/app/building-your-application/rendering/server-components) page if you're new to Server Components.
 
 ## Roles of Folders and Files
 
@@ -87,17 +87,17 @@ The `/dashboard/settings` route is composed of three segments:
 
 Next.js provides a set of special files to create UI with specific behavior in nested routes:
 
-|                                                                                       |                                                                                                |
-| ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| [`layout`](/docs/app/building-your-application/routing/pages-and-layouts#layouts)     | Shared UI for a segment and its children                                                       |
-| [`page`](/docs/app/building-your-application/routing/pages-and-layouts#pages)         | Unique UI of a route and make routes publicly accessible                                       |
-| [`loading`](/docs/app/building-your-application/routing/loading-ui-and-streaming)     | Loading UI for a segment and its children                                                      |
-| [`not-found`](/docs/app/api-reference/file-conventions/not-found)                     | Not found UI for a segment and its children                                                    |
-| [`error`](/docs/app/building-your-application/routing/error-handling)                 | Error UI for a segment and its children                                                        |
-| [`global-error`](/docs/app/building-your-application/routing/error-handling)          | Global Error UI                                                                                |
-| [`route`](/docs/app/building-your-application/routing/router-handlers)                | Server-side API endpoint                                                                       |
-| [`template`](/docs/app/building-your-application/routing/pages-and-layouts#templates) | Specialized re-rendered Layout UI                                                              |
-| [`default`](/docs/app/api-reference/file-conventions/default)                         | Fallback UI for [Parallel Routes](/docs/app/building-your-application/routing/parallel-routes) |
+|                                                                                           |                                                                                                |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| [`layout`](/docs/app/building-your-application/routing/layouts-and-templates#layouts)     | Shared UI for a segment and its children                                                       |
+| [`page`](/docs/app/building-your-application/routing/pages)                               | Unique UI of a route and make routes publicly accessible                                       |
+| [`loading`](/docs/app/building-your-application/routing/loading-ui-and-streaming)         | Loading UI for a segment and its children                                                      |
+| [`not-found`](/docs/app/api-reference/file-conventions/not-found)                         | Not found UI for a segment and its children                                                    |
+| [`error`](/docs/app/building-your-application/routing/error-handling)                     | Error UI for a segment and its children                                                        |
+| [`global-error`](/docs/app/building-your-application/routing/error-handling)              | Global Error UI                                                                                |
+| [`route`](/docs/app/building-your-application/routing/route-handlers)                     | Server-side API endpoint                                                                       |
+| [`template`](/docs/app/building-your-application/routing/layouts-and-templates#templates) | Specialized re-rendered Layout UI                                                              |
+| [`default`](/docs/app/api-reference/file-conventions/default)                             | Fallback UI for [Parallel Routes](/docs/app/building-your-application/routing/parallel-routes) |
 
 > **Good to know**: `.js`, `.jsx`, or `.tsx` file extensions can be used for special files.
 
@@ -134,7 +134,7 @@ In a nested route, the components of a segment will be nested **inside** the com
 
 In addition to special files, you have the option to colocate your own files (e.g. components, styles, tests, etc) inside folders in the `app` directory.
 
-This is because while folders define routes, only the contents returned by `page.js` or `route.js` are publically addressable.
+This is because while folders define routes, only the contents returned by `page.js` or `route.js` are publicly addressable.
 
 <Image
   alt="An example folder structure with colocated files"
@@ -145,30 +145,6 @@ This is because while folders define routes, only the contents returned by `page
 />
 
 Learn more about [Project Organization and Colocation](/docs/app/building-your-application/routing/colocation).
-
-## Server-Centric Routing with Client-side Navigation
-
-Unlike the `pages` directory which uses client-side routing, the App Router uses **server-centric routing** to align with [Server Components](/docs/getting-started/react-essentials#server-components) and [data fetching on the server](/docs/app/building-your-application/data-fetching/fetching). With server-centric routing, the client does not have to download a route map and the same request for Server Components can be used to look up routes. This optimization is useful for all applications, but has a larger impact on applications with many routes.
-
-Although routing is server-centric, the router uses **client-side navigation** with the [Link Component](/docs/app/building-your-application/routing/linking-and-navigating#link-component) - resembling the behavior of a Single-Page Application. This means when a user navigates to a new route, the browser will not reload the page. Instead, the URL will be updated and Next.js will [only render the segments that change](#partial-rendering).
-
-Additionally, as users navigate around the app, the router will store the result of the React Server Component payload in an **in-memory client-side cache**. The cache is split by route segments which allows invalidation at any level and ensures consistency across [React's concurrent renders](https://react.dev/blog/2022/03/29/react-v18#what-is-concurrent-react). This means that for certain cases, the cache of a previously fetched segment can be re-used, further improving performance.
-
-Learn more about [Linking and Navigating](/docs/app/building-your-application/routing/linking-and-navigating).
-
-## Partial Rendering
-
-When navigating between sibling routes (e.g. `/dashboard/settings` and `/dashboard/analytics` below), Next.js will only fetch and render the layouts and pages in routes that change. It will **not** re-fetch or re-render anything above the segments in the subtree. This means that in routes that share a layout, the layout will be preserved when a user navigates between sibling pages.
-
-<Image
-  alt="How partial rendering works"
-  srcLight="/docs/light/partial-rendering.png"
-  srcDark="/docs/dark/partial-rendering.png"
-  width="1600"
-  height="945"
-/>
-
-Without partial rendering, each navigation would cause the full page to re-render on the server. Rendering only the segment that’s updating reduces the amount of data transferred and execution time, leading to improved performance.
 
 ## Advanced Routing Patterns
 

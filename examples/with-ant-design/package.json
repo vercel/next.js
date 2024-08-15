@@ -6,20 +6,21 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ant-design/icons": "^4.8.0",
+    "@ant-design/cssinjs": ">=1.21.0",
+    "@ant-design/icons": "^5.1.4",
     "antd": "^5.0.0",
     "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },
+  "devDependencies": {
+    "@types/node": "^20.4.5",
+    "@types/react": "^18.2.17",
+    "@types/react-dom": "^18.2.7",
+    "typescript": "^5.1.6"
+  },
   "browser": {
     "fs": false,
     "path": false
-  },
-  "devDependencies": {
-    "@types/node": "18.0.3",
-    "@types/react": "18.0.15",
-    "@types/react-dom": "18.0.6",
-    "typescript": "4.7.4"
   }
 }

@@ -1,4 +1,9 @@
-import { parse, StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import { parse } from 'next/dist/compiled/stacktrace-parser'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import {
+  decorateServerError,
+  type ErrorSourceType,
+} from '../../../../../shared/lib/error-source'
 
 export function getFilesystemFrame(frame: StackFrame): StackFrame {
   const f: StackFrame = { ...frame }
@@ -19,24 +24,17 @@ export function getFilesystemFrame(frame: StackFrame): StackFrame {
   return f
 }
 
-const symbolError = Symbol('NextjsError')
+export function getServerError(error: Error, type: ErrorSourceType): Error {
+  if (error.name === 'TurbopackInternalError') {
+    // If this is an internal Turbopack error we shouldn't show internal details
+    // to the user. These are written to a log file instead.
+    const turbopackInternalError = new Error(
+      'An unexpected Turbopack error occurred. Please see the output of `next dev` for more details.'
+    )
+    decorateServerError(turbopackInternalError, type)
+    return turbopackInternalError
+  }
 
-export function getErrorSource(error: Error): 'server' | 'edge-server' | null {
-  return (error as any)[symbolError] || null
-}
-
-type ErrorType = 'edge-server' | 'server'
-
-export function decorateServerError(error: Error, type: ErrorType) {
-  Object.defineProperty(error, symbolError, {
-    writable: false,
-    enumerable: false,
-    configurable: false,
-    value: type,
-  })
-}
-
-export function getServerError(error: Error, type: ErrorType): Error {
   let n: Error
   try {
     throw new Error(error.message)

@@ -3,81 +3,78 @@
 import { join } from 'path'
 import cheerio from 'cheerio'
 import {
-  stopApp,
-  startApp,
   nextBuild,
-  nextServer,
   fetchViaHTTP,
   findPort,
   launchApp,
   killApp,
+  nextStart,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
-let server
 let app
 
-describe('Root components import order', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    app = nextServer({
-      dir: join(__dirname, '../'),
-      dev: false,
-      quiet: true,
-    })
+const respectsSideEffects = async () => {
+  const res = await fetchViaHTTP(appPort, '/')
+  const html = await res.text()
+  const $ = cheerio.load(html)
 
-    server = await startApp(app)
-    appPort = server.address().port
+  const expectSideEffectsOrder = ['_document', '_app', 'page']
+
+  const sideEffectCalls = $('.side-effect-calls')
+
+  Array.from(sideEffectCalls).forEach((sideEffectCall, index) => {
+    expect($(sideEffectCall).text()).toEqual(expectSideEffectsOrder[index])
   })
-  afterAll(() => stopApp(server))
+}
 
-  const respectsSideEffects = async () => {
-    const res = await fetchViaHTTP(appPort, '/')
-    const html = await res.text()
-    const $ = cheerio.load(html)
+const respectsChunkAttachmentOrder = async () => {
+  const res = await fetchViaHTTP(appPort, '/')
+  const html = await res.text()
+  const $ = cheerio.load(html)
 
-    const expectSideEffectsOrder = ['_document', '_app', 'page']
+  const requiredByRegex = /^\/_next\/static\/chunks\/(requiredBy\w*).*\.js/
+  const chunks = Array.from($('head').contents())
+    .filter(
+      (child) =>
+        child.type === 'script' &&
+        child.name === 'script' &&
+        child.attribs.src.match(requiredByRegex)
+    )
+    .map((child) => child.attribs.src.match(requiredByRegex)[1])
 
-    const sideEffectCalls = $('.side-effect-calls')
+  const requiredByAppIndex = chunks.indexOf('requiredByApp')
+  const requiredByPageIndex = chunks.indexOf('requiredByPage')
 
-    Array.from(sideEffectCalls).forEach((sideEffectCall, index) => {
-      expect($(sideEffectCall).text()).toEqual(expectSideEffectsOrder[index])
-    })
-  }
+  expect(requiredByAppIndex).toBeLessThan(requiredByPageIndex)
+}
 
-  it(
-    'root components should be imported in this order _document > _app > page in order to respect side effects',
-    respectsSideEffects
-  )
+describe('Root components import order', () => {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-  const respectsChunkAttachmentOrder = async () => {
-    const res = await fetchViaHTTP(appPort, '/')
-    const html = await res.text()
-    const $ = cheerio.load(html)
-
-    const requiredByRegex = /^\/_next\/static\/chunks\/(requiredBy\w*).*\.js/
-    const chunks = Array.from($('head').contents())
-      .filter(
-        (child) =>
-          child.type === 'script' &&
-          child.name === 'script' &&
-          child.attribs.src.match(requiredByRegex)
+      it(
+        '_app chunks should be attached to de dom before page chunks',
+        respectsChunkAttachmentOrder
       )
-      .map((child) => child.attribs.src.match(requiredByRegex)[1])
-
-    const requiredByAppIndex = chunks.indexOf('requiredByApp')
-    const requiredByPageIndex = chunks.indexOf('requiredByPage')
-
-    expect(requiredByAppIndex).toBeLessThan(requiredByPageIndex)
-  }
-
-  it(
-    '_app chunks should be attached to de dom before page chunks',
-    respectsChunkAttachmentOrder
+      it(
+        'root components should be imported in this order _document > _app > page in order to respect side effects',
+        respectsSideEffects
+      )
+    }
   )
-
-  describe('on dev server', () => {
+})
+;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+  'development mode',
+  () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(join(__dirname, '../'), appPort)
@@ -90,9 +87,15 @@ describe('Root components import order', () => {
       respectsSideEffects
     )
 
-    it(
-      '_app chunks should be attached to de dom before page chunks',
-      respectsChunkAttachmentOrder
+    // Test relies on webpack splitChunks overrides.
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'Skipped in Turbopack',
+      () => {
+        it(
+          '_app chunks should be attached to de dom before page chunks',
+          respectsChunkAttachmentOrder
+        )
+      }
     )
-  })
-})
+  }
+)

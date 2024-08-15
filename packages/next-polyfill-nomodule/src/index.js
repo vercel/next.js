@@ -1,5 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 // Keep in sync with eslint no-unwanted-polyfillio rule: https://github.com/vercel/next.js/blob/master/packages/eslint-plugin-next/lib/rules/no-unwanted-polyfillio.js
+import 'core-js/features/array/at'
 import 'core-js/features/array/copy-within'
 import 'core-js/features/array/fill'
 import 'core-js/features/array/find'
@@ -28,6 +29,7 @@ import 'core-js/features/object/get-own-property-descriptors'
 import 'core-js/features/object/keys'
 import 'core-js/features/object/is'
 import 'core-js/features/object/values'
+import 'core-js/features/object/has-own'
 import 'core-js/features/reflect'
 import 'core-js/features/regexp'
 import 'core-js/features/set'

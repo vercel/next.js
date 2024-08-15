@@ -3,18 +3,7 @@ title: Fast Refresh
 description: Fast Refresh is a hot module reloading experience that gives you instantaneous feedback on edits made to your React components.
 ---
 
-<details open>
-  <summary>Examples</summary>
-
-- [Fast Refresh Demo](https://github.com/vercel/next.js/tree/canary/examples/fast-refresh-demo)
-
-</details>
-
-Fast Refresh is a Next.js feature that gives you instantaneous feedback on
-edits made to your React components. Fast Refresh is enabled by default in all
-Next.js applications on **9.4 or newer**. With Next.js Fast Refresh enabled,
-most edits should be visible within a second, **without losing component
-state**.
+Fast refresh is a React feature integrated into Next.js that allows you live reload the browser page while maintaining temporary client-side state when you save changes to a file. It's enabled by default in all Next.js applications on **9.4 or newer**. With Fast Refresh enabled, most edits should be visible within a second.
 
 ## How It Works
 
@@ -91,6 +80,9 @@ state to be preserved in more cases.
   edit.
 - You can put `console.log` or `debugger;` into the components you edit during
   development.
+- Remember that imports are case sensitive. Both fast and full refresh can fail,
+  when your import doesn't match the actual filename.
+  For example, `'./header'` vs `'./Header'`.
 
 ## Fast Refresh and Hooks
 

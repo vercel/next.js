@@ -64,7 +64,7 @@ Your headless CMS might allow you to include a variable in the draft URL so that
 - Check that the secret matches and that the `slug` parameter exists (if not, the request should fail).
 -
 - Call `res.setDraftMode`.
-- Then redirect the browser to the path specified by `slug`. (The following example uses a [307 redirect](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307)).
+- Then redirect the browser to the path specified by `slug`. (The following example uses a [307 redirect](https://developer.mozilla.org/docs/Web/HTTP/Status/307)).
 
 ```js
 export default async (req, res) => {
@@ -156,7 +156,9 @@ Then, send a request to `/api/disable-draft` to invoke the API Route. If calling
 
 ### Works with `getServerSideProps`
 
-Draft Mode works with `getServerSideProps` as well. It will also be available on the `context` object containing `draftMode`
+Draft Mode works with `getServerSideProps`, and is available as a `draftMode` key in the [`context`](/docs/pages/api-reference/functions/get-server-side-props#context-parameter) object.
+
+> **Good to know**: You shouldn't set the `Cache-Control` header when using Draft Mode because it cannot be bypassed. Instead, we recommend using [ISR](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration).
 
 ### Works with API Routes
 

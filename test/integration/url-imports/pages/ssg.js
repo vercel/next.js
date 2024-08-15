@@ -1,7 +1,7 @@
 import value from 'http://localhost:12345/value1.js'
 
 const url = new URL(
-  'https://github.com/vercel/next.js/raw/canary/test/integration/production/public/vercel.png?_=ssg',
+  'https://github.com/vercel/next.js/raw/canary/test/integration/url/public/vercel.png?_=ssg',
   import.meta.url
 )
 

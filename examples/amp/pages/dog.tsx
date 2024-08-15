@@ -1,13 +1,13 @@
-import Head from 'next/head'
-import { useAmp } from 'next/amp'
-import Byline from '../components/Byline'
+import Head from "next/head";
+import { useAmp } from "next/amp";
+import Byline from "../components/Byline";
 
 export const config = {
-  amp: 'hybrid',
-}
+  amp: "hybrid",
+};
 
 export default function DogPage() {
-  const isAmp = useAmp()
+  const isAmp = useAmp();
 
   return (
     <div>
@@ -17,14 +17,14 @@ export default function DogPage() {
       <h1>The Dog (Hybrid AMP Page)</h1>
       <Byline author="Meow Meow Fuzzyface" />
       <p>
-        <a href={isAmp ? '/dog' : '/dog?amp=1'}>
-          {isAmp ? 'View Non-AMP' : 'View AMP'} Version
+        <a href={isAmp ? "/dog" : "/dog?amp=1"}>
+          {isAmp ? "View Non-AMP" : "View AMP"} Version
         </a>
       </p>
       <p className="caption">Woooooooooooof</p>
       <p>
-        Wafer donut candy soufflé{' '}
-        <a href={isAmp ? '/?amp=1' : '/'}>lemon drops</a> icing. Marzipan gummi
+        Wafer donut candy soufflé{" "}
+        <a href={isAmp ? "/?amp=1" : "/"}>lemon drops</a> icing. Marzipan gummi
         bears pie danish lollipop pudding powder gummi bears sweet. Pie sweet
         roll sweet roll topping chocolate bar dragée pudding chocolate cake.
         Croissant sweet chocolate bar cheesecake candy canes. Tootsie roll icing
@@ -90,5 +90,5 @@ export default function DogPage() {
         tiramisu.
       </p>
     </div>
-  )
+  );
 }

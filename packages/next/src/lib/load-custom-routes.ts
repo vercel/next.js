@@ -1,10 +1,11 @@
 import type { NextConfig } from '../server/config'
 import type { Token } from 'next/dist/compiled/path-to-regexp'
 
-import chalk from './chalk'
+import { bold, yellow } from './picocolors'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { tryToParsePath } from './try-to-parse-path'
 import { allowedStatusCodes } from './redirect-status'
+import { isFullStringUrl } from './url'
 
 export type RouteHas =
   | {
@@ -25,6 +26,11 @@ export type Rewrite = {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+
+  /**
+   * @internal - used internally for routing
+   */
+  internal?: boolean
 }
 
 export type Header = {
@@ -34,6 +40,11 @@ export type Header = {
   headers: Array<{ key: string; value: string }>
   has?: RouteHas[]
   missing?: RouteHas[]
+
+  /**
+   * @internal - used internally for routing
+   */
+  internal?: boolean
 }
 
 // internal type used for validation (not user facing)
@@ -44,6 +55,11 @@ export type Redirect = {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+
+  /**
+   * @internal - used internally for routing
+   */
+  internal?: boolean
 } & (
   | {
       statusCode?: never
@@ -569,7 +585,7 @@ async function loadRedirects(config: NextConfig) {
 
   // save original redirects before transforms
   if (Array.isArray(redirects)) {
-    ;(config as any)._originalRedirects = redirects.map((r) => ({ ...r }))
+    config._originalRedirects = redirects.map((r) => ({ ...r }))
   }
   redirects = processRoutes(redirects, config, 'redirect')
   checkCustomRoutes(redirects, 'redirect')
@@ -577,9 +593,28 @@ async function loadRedirects(config: NextConfig) {
 }
 
 async function loadRewrites(config: NextConfig) {
+  // If assetPrefix is set, add a rewrite for `/${assetPrefix}/_next/*`
+  // requests so that they are handled in any of dev, start, or deploy
+  // automatically without the user having to configure this.
+  // If the assetPrefix is an absolute URL, we can't add an automatic rewrite.
+  let maybeAssetPrefixRewrite: Rewrite[] = []
+  if (config.assetPrefix && !isFullStringUrl(config.assetPrefix)) {
+    const assetPrefix = config.assetPrefix.startsWith('/')
+      ? config.assetPrefix
+      : `/${config.assetPrefix}`
+    const basePath = config.basePath || ''
+    // If these are the same, then this would result in an infinite rewrite.
+    if (assetPrefix !== basePath) {
+      maybeAssetPrefixRewrite.push({
+        source: `${assetPrefix}/_next/:path+`,
+        destination: `${basePath}/_next/:path+`,
+      })
+    }
+  }
+
   if (typeof config.rewrites !== 'function') {
     return {
-      beforeFiles: [],
+      beforeFiles: [...maybeAssetPrefixRewrite],
       afterFiles: [],
       fallback: [],
     }
@@ -610,13 +645,16 @@ async function loadRewrites(config: NextConfig) {
   checkCustomRoutes(fallback, 'rewrite')
 
   // save original rewrites before transforms
-  ;(config as any)._originalRewrites = {
+  config._originalRewrites = {
     beforeFiles: beforeFiles.map((r) => ({ ...r })),
     afterFiles: afterFiles.map((r) => ({ ...r })),
     fallback: fallback.map((r) => ({ ...r })),
   }
 
-  beforeFiles = processRoutes(beforeFiles, config, 'rewrite')
+  beforeFiles = [
+    ...maybeAssetPrefixRewrite,
+    ...processRoutes(beforeFiles, config, 'rewrite'),
+  ]
   afterFiles = processRoutes(afterFiles, config, 'rewrite')
   fallback = processRoutes(fallback, config, 'rewrite')
 
@@ -663,7 +701,7 @@ export default async function loadCustomRoutes(
 
   if (totalRoutes > 1000) {
     console.warn(
-      chalk.bold.yellow(`Warning: `) +
+      bold(yellow(`Warning: `)) +
         `total number of custom routes exceeds 1000, this can reduce performance. Route counts:\n` +
         `headers: ${headers.length}\n` +
         `rewrites: ${totalRewrites}\n` +
@@ -688,14 +726,14 @@ export default async function loadCustomRoutes(
               key: 'x-nextjs-data',
             },
           ],
-        } as Redirect,
+        },
         {
           source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
           destination: '/:notfile/',
           permanent: true,
           locale: config.i18n ? false : undefined,
           internal: true,
-        } as Redirect
+        }
       )
       if (config.basePath) {
         redirects.unshift({
@@ -705,7 +743,7 @@ export default async function loadCustomRoutes(
           basePath: false,
           locale: config.i18n ? false : undefined,
           internal: true,
-        } as Redirect)
+        })
       }
     } else {
       redirects.unshift({
@@ -714,7 +752,7 @@ export default async function loadCustomRoutes(
         permanent: true,
         locale: config.i18n ? false : undefined,
         internal: true,
-      } as Redirect)
+      })
       if (config.basePath) {
         redirects.unshift({
           source: config.basePath + '/',
@@ -723,7 +761,7 @@ export default async function loadCustomRoutes(
           basePath: false,
           locale: config.i18n ? false : undefined,
           internal: true,
-        } as Redirect)
+        })
       }
     }
   }

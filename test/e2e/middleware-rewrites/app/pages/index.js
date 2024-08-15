@@ -7,6 +7,10 @@ export default function Home() {
     <div>
       <p className="title">Home Page</p>
       <div />
+      <Link href="/article/foo/bar/123" id="to-article-rewrite">
+        to /article/foo/bar/123
+      </Link>
+      <div />
       <Link href="/rewrite-to-ab-test">A/B test homepage</Link>
       <div />
       <Link
@@ -62,6 +66,7 @@ export default function Home() {
       <Link href="/ssg" id="normal-ssg-link">
         normal SSG link
       </Link>
+      <Link href="/dynamic-no-cache/1">/dynamic-no-cache/1</Link>
       <div />
       <a
         href=""

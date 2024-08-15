@@ -53,7 +53,6 @@ Next, open the command palette again, and search for `Markdown: Preview File` or
 We also recommend the following extensions for VSCode users:
 
 - [MDX](https://marketplace.visualstudio.com/items?itemName=unifiedjs.vscode-mdx): Intellisense and syntax highlighting for MDX.
-- [Grammarly](https://marketplace.visualstudio.com/items?itemName=znck.grammarly): Grammar and spell checker.
 - [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode): Format MDX files on save.
 
 ### Review Process
@@ -66,7 +65,7 @@ Please let us know if you have any questions or need further assistance in your 
 
 ## File Structure
 
-The docs use **file-system routing**. Each folder and files inside [`/docs`](/vercel/next.js/tree/canary/docs) represent a route segment. These segments are used to generate the URL paths, navigation, and breadcrumbs.
+The docs use **file-system routing**. Each folder and files inside [`/docs`](https://github.com/vercel/next.js/tree/canary/docs) represent a route segment. These segments are used to generate the URL paths, navigation, and breadcrumbs.
 
 The file structure reflects the navigation that you see on the site, and by default, navigation items are sorted alphabetically. However, we can change the order of the items by prepending a two-digit number (`00-`) to the folder or file name.
 
@@ -111,7 +110,7 @@ The following fields are **required**:
 
 ```yaml filename="required-fields.mdx"
 ---
-tile: Page Title
+title: Page Title
 description: Page Description
 ---
 ```
@@ -305,7 +304,7 @@ For information that is important but not critical, use notes. Notes are a good 
 > **Good to know**:
 >
 > - We also use this format for multi-line notes.
-> - There are sometimes multiple item worths knowing or keeping in mind.
+> - There are sometimes multiple items worth knowing or keeping in mind.
 ```
 
 **Output:**
@@ -349,7 +348,7 @@ related:
 
 Diagrams are a great way to explain complex concepts. We use [Figma](https://www.figma.com/) to create diagrams, following Vercel's design guide.
 
-The diagrams currently live in a `/public` folder in our private Next.js site. If you'd like to update or add a diagram, please open a [GitHub issue](https://github.com/vercel/next.js/issues/new?assignees=&labels=template%3A+documentation&projects=&template=4.docs_request.yml&title=Docs%3A+) with your ideas.
+The diagrams currently live in the `/public` folder in our private Next.js site. If you'd like to update or add a diagram, please open a [GitHub issue](https://github.com/vercel/next.js/issues/new?assignees=&labels=template%3A+documentation&projects=&template=4.docs_request.yml&title=Docs%3A+) with your ideas.
 
 ## Custom Components and HTML
 

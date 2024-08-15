@@ -1,17 +1,18 @@
-import type { HtmlProps } from './html-context'
-import type { ComponentType } from 'react'
+import type { HtmlProps } from './html-context.shared-runtime'
+import type { ComponentType, JSX } from 'react'
 import type { DomainLocale } from '../../server/config'
 import type { Env } from '@next/env'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
-import type { PreviewData } from 'next/types'
-import { COMPILER_NAMES } from './constants'
+import type { PreviewData } from '../../types'
+import type { COMPILER_NAMES } from './constants'
+import type fs from 'fs'
 
 export type NextComponentType<
   Context extends BaseContext = NextPageContext,
   InitialProps = {},
-  Props = {}
+  Props = {},
 > = ComponentType<Props> & {
   /**
    * Used for initial page load data population. Data returned from `getInitialProps` is serialized when server rendered.
@@ -94,6 +95,7 @@ export type NEXT_DATA = {
   nextExport?: boolean
   autoExport?: boolean
   isFallback?: boolean
+  isExperimentalCompile?: boolean
   dynamicIds?: (string | number)[]
   err?: Error & {
     statusCode?: number
@@ -172,7 +174,7 @@ export type AppInitialProps<PageProps = any> = {
 
 export type AppPropsType<
   Router extends NextRouter = NextRouter,
-  PageProps = {}
+  PageProps = {},
 > = AppInitialProps<PageProps> & {
   Component: NextComponentType<NextPageContext, any, any>
   router: Router
@@ -189,7 +191,7 @@ export type DocumentContext = NextPageContext & {
 }
 
 export type DocumentInitialProps = RenderPageResult & {
-  styles?: React.ReactElement[] | React.ReactFragment | JSX.Element
+  styles?: React.ReactElement[] | Iterable<React.ReactNode> | JSX.Element
 }
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
@@ -360,7 +362,7 @@ export function normalizeRepeatedSlashes(url: string) {
 export async function loadGetInitialProps<
   C extends BaseContext,
   IP = {},
-  P = {}
+  P = {},
 >(App: NextComponentType<C, IP, P>, ctx: C): Promise<IP> {
   if (process.env.NODE_ENV !== 'production') {
     if (App.prototype?.getInitialProps) {
@@ -446,8 +448,9 @@ export class MiddlewareNotFoundError extends Error {
 }
 
 export interface CacheFs {
-  readFile(f: string): Promise<Buffer>
-  readFileSync(f: string): Buffer
+  existsSync: typeof fs.existsSync
+  readFile: typeof fs.promises.readFile
+  readFileSync: typeof fs.readFileSync
   writeFile(f: string, d: any): Promise<void>
   mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>

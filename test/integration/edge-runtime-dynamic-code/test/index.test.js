@@ -22,7 +22,7 @@ const context = {
   appDir: join(__dirname, '../'),
 }
 
-describe('Page using eval in dev mode', () => {
+describe('Page using eval in development mode', () => {
   let output = ''
 
   beforeAll(async () => {
@@ -74,107 +74,116 @@ describe.each([
 ])(
   '$title usage of dynamic code evaluation',
   ({ extractValue, computeRoute }) => {
-    describe('dev mode', () => {
-      let output = ''
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        let output = ''
 
-      beforeAll(async () => {
-        context.appPort = await findPort()
-        context.app = await launchApp(context.appDir, context.appPort, {
-          env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
-          onStdout(msg) {
-            output += msg
-          },
-          onStderr(msg) {
-            output += msg
-          },
+        beforeAll(async () => {
+          context.appPort = await findPort()
+          context.app = await launchApp(context.appDir, context.appPort, {
+            env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+            onStdout(msg) {
+              output += msg
+            },
+            onStderr(msg) {
+              output += msg
+            },
+          })
         })
-      })
 
-      beforeEach(() => (output = ''))
-      afterAll(() => killApp(context.app))
+        beforeEach(() => (output = ''))
+        afterAll(() => killApp(context.app))
 
-      it('shows a warning when running code with eval', async () => {
-        const res = await fetchViaHTTP(
-          context.appPort,
-          computeRoute('using-eval')
-        )
-        expect(await extractValue(res)).toEqual(100)
-        await waitFor(500)
-        expect(output).toContain(EVAL_ERROR)
-        // TODO check why that has a backslash on windows
-        expect(output).toMatch(/lib[\\/]utils\.js/)
-        expect(output).toContain('usingEval')
-        expect(stripAnsi(output)).toContain("value: eval('100')")
-      })
-
-      it('does not show warning when no code uses eval', async () => {
-        const res = await fetchViaHTTP(
-          context.appPort,
-          computeRoute('not-using-eval')
-        )
-        expect(await extractValue(res)).toEqual(100)
-        await waitFor(500)
-        expect(output).not.toContain('Dynamic Code Evaluation')
-      })
-
-      it('shows a warning when running WebAssembly.compile', async () => {
-        const res = await fetchViaHTTP(
-          context.appPort,
-          computeRoute('using-webassembly-compile')
-        )
-        expect(await extractValue(res)).toEqual(81)
-        await waitFor(500)
-        expect(output).toContain(WASM_COMPILE_ERROR)
-        expect(output).toMatch(/lib[\\/]wasm\.js/)
-        expect(output).toContain('usingWebAssemblyCompile')
-        expect(stripAnsi(output)).toContain(
-          'await WebAssembly.compile(SQUARE_WASM_BUFFER)'
-        )
-      })
-
-      it('shows a warning when running WebAssembly.instantiate with a buffer parameter', async () => {
-        const res = await fetchViaHTTP(
-          context.appPort,
-          computeRoute('using-webassembly-instantiate-with-buffer')
-        )
-        expect(await extractValue(res)).toEqual(81)
-        await waitFor(500)
-        expect(output).toContain(WASM_INSTANTIATE_ERROR)
-        expect(output).toMatch(/lib[\\/]wasm\.js/)
-        expect(output).toContain('usingWebAssemblyInstantiateWithBuffer')
-        expect(stripAnsi(output)).toContain(
-          'await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})'
-        )
-      })
-
-      it('does not show a warning when running WebAssembly.instantiate with a module parameter', async () => {
-        const res = await fetchViaHTTP(
-          context.appPort,
-          computeRoute('using-webassembly-instantiate')
-        )
-        expect(await extractValue(res)).toEqual(81)
-        await waitFor(500)
-        expect(output).not.toContain(WASM_INSTANTIATE_ERROR)
-        expect(output).not.toContain('DynamicWasmCodeGenerationWarning')
-      })
-    })
-
-    describe('production mode', () => {
-      let buildResult
-
-      beforeAll(async () => {
-        buildResult = await nextBuild(context.appDir, undefined, {
-          stderr: true,
-          stdout: true,
+        it('shows a warning when running code with eval', async () => {
+          const res = await fetchViaHTTP(
+            context.appPort,
+            computeRoute('using-eval')
+          )
+          expect(await extractValue(res)).toEqual(100)
+          await waitFor(500)
+          expect(output).toContain(EVAL_ERROR)
+          // TODO check why that has a backslash on windows
+          expect(output).toMatch(/lib[\\/]utils\.js/)
+          expect(output).toContain('usingEval')
+          expect(stripAnsi(output)).toContain("value: eval('100')")
         })
-      })
 
-      it('should have middleware warning during build', () => {
-        expect(buildResult.stderr).toContain(`Failed to compile`)
-        expect(buildResult.stderr).toContain(`Used by usingEval, usingEvalSync`)
-        expect(buildResult.stderr).toContain(`Used by usingWebAssemblyCompile`)
-        expect(buildResult.stderr).toContain(DYNAMIC_CODE_ERROR)
-      })
-    })
+        it('does not show warning when no code uses eval', async () => {
+          const res = await fetchViaHTTP(
+            context.appPort,
+            computeRoute('not-using-eval')
+          )
+          expect(await extractValue(res)).toEqual(100)
+          await waitFor(500)
+          expect(output).not.toContain('Dynamic Code Evaluation')
+        })
+
+        it('shows a warning when running WebAssembly.compile', async () => {
+          const res = await fetchViaHTTP(
+            context.appPort,
+            computeRoute('using-webassembly-compile')
+          )
+          expect(await extractValue(res)).toEqual(81)
+          await waitFor(500)
+          expect(output).toContain(WASM_COMPILE_ERROR)
+          expect(output).toMatch(/lib[\\/]wasm\.js/)
+          expect(output).toContain('usingWebAssemblyCompile')
+          expect(stripAnsi(output)).toContain(
+            'await WebAssembly.compile(SQUARE_WASM_BUFFER)'
+          )
+        })
+
+        it('shows a warning when running WebAssembly.instantiate with a buffer parameter', async () => {
+          const res = await fetchViaHTTP(
+            context.appPort,
+            computeRoute('using-webassembly-instantiate-with-buffer')
+          )
+          expect(await extractValue(res)).toEqual(81)
+          await waitFor(500)
+          expect(output).toContain(WASM_INSTANTIATE_ERROR)
+          expect(output).toMatch(/lib[\\/]wasm\.js/)
+          expect(output).toContain('usingWebAssemblyInstantiateWithBuffer')
+          expect(stripAnsi(output)).toContain(
+            'await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})'
+          )
+        })
+
+        it('does not show a warning when running WebAssembly.instantiate with a module parameter', async () => {
+          const res = await fetchViaHTTP(
+            context.appPort,
+            computeRoute('using-webassembly-instantiate')
+          )
+          expect(await extractValue(res)).toEqual(81)
+          await waitFor(500)
+          expect(output).not.toContain(WASM_INSTANTIATE_ERROR)
+          expect(output).not.toContain('DynamicWasmCodeGenerationWarning')
+        })
+      }
+    )
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        let buildResult
+
+        beforeAll(async () => {
+          buildResult = await nextBuild(context.appDir, undefined, {
+            stderr: true,
+            stdout: true,
+          })
+        })
+
+        it('should have middleware warning during build', () => {
+          expect(buildResult.stderr).toContain(`Failed to compile`)
+          expect(buildResult.stderr).toContain(
+            `Used by usingEval, usingEvalSync`
+          )
+          expect(buildResult.stderr).toContain(
+            `Used by usingWebAssemblyCompile`
+          )
+          expect(buildResult.stderr).toContain(DYNAMIC_CODE_ERROR)
+        })
+      }
+    )
   }
 )

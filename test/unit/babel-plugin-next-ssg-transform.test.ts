@@ -36,7 +36,7 @@ describe('babel plugin (next-ssg-transform)', () => {
         }
       `)
       expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx("div",null);}"`
       )
     })
 
@@ -49,7 +49,7 @@ describe('babel plugin (next-ssg-transform)', () => {
         }
       `)
       expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx("div",null);}"`
       )
     })
 
@@ -62,7 +62,7 @@ describe('babel plugin (next-ssg-transform)', () => {
         }
       `)
       expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export{foo,bar as baz}from'.';export default function Test(){return __jsx(\\"div\\",null);}"`
+        `"export var __N_SSG=true;export{foo,bar as baz}from'.';export default function Test(){return __jsx("div",null);}"`
       )
     })
 
@@ -82,7 +82,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx("div",null);}"`
       )
     })
 
@@ -102,7 +102,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx("div",null);}"`
       )
     })
 
@@ -120,7 +120,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export function Noop(){}export default function Test(){return __jsx(\\"div\\",null);}"`
+        `"export var __N_SSG=true;export function Noop(){}export default function Test(){return __jsx("div",null);}"`
       )
     })
 
@@ -140,7 +140,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx("div",null);}"`
       )
     })
 
@@ -160,7 +160,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx("div",null);}"`
       )
     })
 
@@ -180,7 +180,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export const foo=2;export default function Test(){return __jsx(\\"div\\",null);}"`
+        `"export var __N_SSG=true;export const foo=2;export default function Test(){return __jsx("div",null);}"`
       )
     })
 
@@ -198,7 +198,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx("div",null);}"`
       )
     })
 
@@ -216,7 +216,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const a=2;export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
+        `"const a=2;export var __N_SSG=true;export default function Test(){return __jsx("div",null);}"`
       )
     })
 
@@ -234,7 +234,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
+        `"export var __N_SSG=true;export default function Test(){return __jsx("div",null);}"`
       )
     })
 
@@ -254,7 +254,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export class MyClass{}export default function Test(){return __jsx(\\"div\\",null);}"`
+        `"export var __N_SSG=true;export class MyClass{}export default function Test(){return __jsx("div",null);}"`
       )
     })
 
@@ -301,7 +301,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"import keep_me from'hello';import{keep_me2}from'hello2';import*as keep_me3 from'hello3';import{but_not_me}from'bar';var leave_me_alone=1;function dont_bug_me_either(){}export var __N_SSG=true;export default function Test(){return __jsx(\\"div\\",null);}"`
+        `"import keep_me from'hello';import{keep_me2}from'hello2';import*as keep_me3 from'hello3';import{but_not_me}from'bar';var leave_me_alone=1;function dont_bug_me_either(){}export var __N_SSG=true;export default function Test(){return __jsx("div",null);}"`
       )
     })
 
@@ -342,7 +342,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export default class Test extends React.Component{render(){return __jsx(\\"div\\",null);}}"`
+        `"export var __N_SSG=true;export default class Test extends React.Component{render(){return __jsx("div",null);}}"`
       )
     })
 
@@ -362,7 +362,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"class Test extends React.Component{render(){return __jsx(\\"div\\",null);}}export var __N_SSG=true;export default Test;"`
+        `"class Test extends React.Component{render(){return __jsx("div",null);}}export var __N_SSG=true;export default Test;"`
       )
     })
 
@@ -380,7 +380,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"function El(){return __jsx(\\"div\\",null);}export var __N_SSG=true;export{El as default};"`
+        `"function El(){return __jsx("div",null);}export var __N_SSG=true;export{El as default};"`
       )
     })
 
@@ -400,7 +400,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"function El(){return __jsx(\\"div\\",null);}const a=5;export var __N_SSG=true;export{El as default,a};"`
+        `"function El(){return __jsx("div",null);}const a=5;export var __N_SSG=true;export{El as default,a};"`
       )
     })
 
@@ -422,7 +422,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"class El extends React.Component{render(){return __jsx(\\"div\\",null);}}const a=5;export var __N_SSG=true;export{El as default,a};"`
+        `"class El extends React.Component{render(){return __jsx("div",null);}}const a=5;export var __N_SSG=true;export{El as default,a};"`
       )
     })
 
@@ -449,7 +449,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export default function Home(){return __jsx(\\"div\\",null);}"`
+        `"export var __N_SSG=true;export default function Home(){return __jsx("div",null);}"`
       )
     })
 
@@ -473,7 +473,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"import other from'other';const{a,cat:bar}=other;export var __N_SSG=true;export default function Home(){return __jsx(\\"div\\",null);}"`
+        `"import other from'other';const{a,cat:bar}=other;export var __N_SSG=true;export default function Home(){return __jsx("div",null);}"`
       )
     })
 
@@ -495,7 +495,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"import other from'other';const[foo]=other;export var __N_SSG=true;export default function Home(){return __jsx(\\"div\\",null);}"`
+        `"import other from'other';const[foo]=other;export var __N_SSG=true;export default function Home(){return __jsx("div",null);}"`
       )
     })
 
@@ -505,7 +505,7 @@ describe('babel plugin (next-ssg-transform)', () => {
           export function getStaticProps() {}
           export function getServerSideProps() {}
         `)
-      ).toThrowError(
+      ).toThrow(
         `You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps`
       )
 
@@ -514,7 +514,7 @@ describe('babel plugin (next-ssg-transform)', () => {
           export function getServerSideProps() {}
           export function getStaticProps() {}
         `)
-      ).toThrowError(
+      ).toThrow(
         `You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps`
       )
 
@@ -523,7 +523,7 @@ describe('babel plugin (next-ssg-transform)', () => {
           export function getStaticPaths() {}
           export function getServerSideProps() {}
         `)
-      ).toThrowError(
+      ).toThrow(
         `You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps`
       )
 
@@ -532,7 +532,7 @@ describe('babel plugin (next-ssg-transform)', () => {
           export function getServerSideProps() {}
           export function getStaticPaths() {}
         `)
-      ).toThrowError(
+      ).toThrow(
         `You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps`
       )
     })

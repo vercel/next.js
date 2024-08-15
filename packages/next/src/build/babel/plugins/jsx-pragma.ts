@@ -1,8 +1,8 @@
-import {
+import type {
   NodePath,
-  PluginObj,
   types as BabelTypes,
 } from 'next/dist/compiled/babel/core'
+import type { PluginObj } from 'next/dist/compiled/babel/core'
 import jsx from 'next/dist/compiled/babel/plugin-syntax-jsx'
 
 export default function ({
@@ -88,9 +88,9 @@ export default function ({
                         t.identifier(state.opts.import)
                       )
                     : state.opts.importNamespace
-                    ? t.importNamespaceSpecifier(importAs)
-                    : // import _pragma from '$module'
-                      t.importDefaultSpecifier(importAs),
+                      ? t.importNamespaceSpecifier(importAs)
+                      : // import _pragma from '$module'
+                        t.importDefaultSpecifier(importAs),
                 ],
                 t.stringLiteral(state.opts.module || 'react')
               )

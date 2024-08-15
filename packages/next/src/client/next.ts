@@ -1,3 +1,4 @@
+import './webpack'
 import { initialize, hydrate, version, router, emitter } from './'
 
 declare global {

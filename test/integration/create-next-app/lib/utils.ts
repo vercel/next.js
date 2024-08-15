@@ -4,9 +4,9 @@
  * This file contains utilities for  `create-next-app` testing.
  */
 
-import { ChildProcess, spawn, SpawnOptions } from 'child_process'
+import { execSync, spawn, SpawnOptions } from 'child_process'
 import { existsSync } from 'fs'
-import { resolve } from 'path'
+import { join, resolve } from 'path'
 import glob from 'glob'
 import Conf from 'next/dist/compiled/conf'
 
@@ -15,7 +15,12 @@ import {
   mapSrcFiles,
   projectSpecification,
 } from './specification'
-import { CustomTemplateOptions, ProjectDeps, ProjectFiles } from './types'
+import {
+  CustomTemplateOptions,
+  DefaultTemplateOptions,
+  ProjectDeps,
+  ProjectFiles,
+} from './types'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
@@ -31,44 +36,42 @@ export const createNextApp = (
   conf.clear()
 
   console.log(`[TEST] $ ${cli} ${args.join(' ')}`, { options })
+
+  const cloneEnv = { ...process.env }
+  // unset CI env as this skips the auto-install behavior
+  // being tested
+  delete cloneEnv.CI
+  delete cloneEnv.CIRCLECI
+  delete cloneEnv.GITHUB_ACTIONS
+  delete cloneEnv.CONTINUOUS_INTEGRATION
+  delete cloneEnv.RUN_ID
+  delete cloneEnv.BUILD_NUMBER
+
+  cloneEnv.NEXT_PRIVATE_TEST_VERSION = testVersion || 'canary'
+
   return spawn('node', [cli].concat(args), {
     ...options,
     env: {
-      ...process.env,
-      // unset CI env as this skips the auto-install behavior
-      // being tested
-      CI: '',
-      CIRCLECI: '',
-      GITHUB_ACTIONS: '',
-      CONTINUOUS_INTEGRATION: '',
-      RUN_ID: '',
-      BUILD_NUMBER: '',
-      ...(testVersion
-        ? {
-            NEXT_PRIVATE_TEST_VERSION: testVersion,
-          }
-        : {}),
+      ...cloneEnv,
       ...options.env,
     },
   })
 }
 
-/**
- * Return a Promise that resolves when the process exits with code 0 and rejects
- * otherwise.
- */
-export const spawnExitPromise = (childProcess: ChildProcess) => {
-  return new Promise((resolve, reject) => {
-    childProcess
-      .on('exit', (code) => {
-        if (code === 0) {
-          resolve(code)
-        } else {
-          reject(code)
-        }
-      })
-      .on('error', reject)
-  })
+export const projectShouldHaveNoGitChanges = ({
+  cwd,
+  projectName,
+}: DefaultTemplateOptions) => {
+  const projectDirname = join(cwd, projectName)
+
+  try {
+    execSync('git diff --quiet', { cwd: projectDirname })
+  } catch {
+    execSync('git status', { cwd: projectDirname, stdio: 'inherit' })
+    execSync('git --no-pager diff', { cwd: projectDirname, stdio: 'inherit' })
+
+    throw new Error('Found unexpected git changes.')
+  }
 }
 
 export const projectFilesShouldExist = ({
@@ -135,8 +138,12 @@ export const shouldBeTemplateProject = ({
     files: getProjectSetting({ template, mode, setting: 'files', srcDir }),
   })
 
-  // Tailwind templates share the same files (tailwind.config.js, postcss.config.js)
-  if (template !== 'app-tw' && template !== 'default-tw') {
+  // Tailwind templates share the same files (tailwind.config.js, postcss.config.mjs)
+  if (
+    !['app-tw', 'app-tw-empty', 'default-tw', 'default-tw-empty'].includes(
+      template
+    )
+  ) {
     projectFilesShouldNotExist({
       cwd,
       projectName,

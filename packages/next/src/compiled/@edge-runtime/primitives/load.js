@@ -36,6 +36,7 @@ __export(load_exports, {
 module.exports = __toCommonJS(load_exports);
 var import_module = __toESM(require("module"));
 var import_crypto = __toESM(require("crypto"));
+var import_web = require("stream/web");
 function requireWithFakeGlobalScope(params) {
   const getModuleCode = `(function(module,exports,require,globalThis,${Object.keys(
     params.scopedContext
@@ -73,17 +74,14 @@ function requireWithFakeGlobalScope(params) {
 __name(requireWithFakeGlobalScope, "requireWithFakeGlobalScope");
 function load(scopedContext = {}) {
   const context = {};
-  const encodingImpl = requireWithFakeGlobalScope({
-    context,
-    id: "encoding.js",
-    sourceCode: require("./encoding.js.text.js"),
-    scopedContext
-  });
   assign(context, {
     TextDecoder,
     TextEncoder,
-    atob: encodingImpl.atob,
-    btoa: encodingImpl.btoa
+    TextEncoderStream: import_web.TextEncoderStream,
+    TextDecoderStream: import_web.TextDecoderStream,
+    atob,
+    btoa,
+    performance
   });
   const consoleImpl = requireWithFakeGlobalScope({
     context,
@@ -92,6 +90,16 @@ function load(scopedContext = {}) {
     scopedContext
   });
   assign(context, { console: consoleImpl.console });
+  const timersImpl = requireWithFakeGlobalScope({
+    context,
+    id: "timers.js",
+    sourceCode: require("./timers.js.text.js"),
+    scopedContext
+  });
+  assign(context, {
+    setTimeout: timersImpl.setTimeout,
+    setInterval: timersImpl.setInterval
+  });
   const eventsImpl = requireWithFakeGlobalScope({
     context,
     id: "events.js",
@@ -99,39 +107,26 @@ function load(scopedContext = {}) {
     scopedContext
   });
   assign(context, {
-    Event: eventsImpl.Event,
-    EventTarget: eventsImpl.EventTarget,
+    Event,
+    EventTarget,
     FetchEvent: eventsImpl.FetchEvent,
     // @ts-expect-error we need to add this to the type definitions maybe
     PromiseRejectionEvent: eventsImpl.PromiseRejectionEvent
   });
-  const streamsImpl = requireWithFakeGlobalScope({
-    context,
-    id: "streams.js",
-    sourceCode: require("./streams.js.text.js"),
-    scopedContext: { ...scopedContext }
-  });
-  const textEncodingStreamImpl = requireWithFakeGlobalScope({
-    context,
-    id: "text-encoding-streams.js",
-    sourceCode: require("./text-encoding-streams.js.text.js"),
-    scopedContext: { ...streamsImpl, ...scopedContext }
-  });
-  assign(context, {
-    ReadableStream: streamsImpl.ReadableStream,
-    ReadableStreamBYOBReader: streamsImpl.ReadableStreamBYOBReader,
-    ReadableStreamDefaultReader: streamsImpl.ReadableStreamDefaultReader,
-    TextDecoderStream: textEncodingStreamImpl.TextDecoderStream,
-    TextEncoderStream: textEncodingStreamImpl.TextEncoderStream,
-    TransformStream: streamsImpl.TransformStream,
-    WritableStream: streamsImpl.WritableStream,
-    WritableStreamDefaultWriter: streamsImpl.WritableStreamDefaultWriter
-  });
+  const streamsImpl = {
+    ReadableStream: import_web.ReadableStream,
+    ReadableStreamBYOBReader: import_web.ReadableStreamBYOBReader,
+    ReadableStreamDefaultReader: import_web.ReadableStreamDefaultReader,
+    TransformStream: import_web.TransformStream,
+    WritableStream: import_web.WritableStream,
+    WritableStreamDefaultWriter: import_web.WritableStreamDefaultWriter
+  };
+  assign(context, streamsImpl);
   const abortControllerImpl = requireWithFakeGlobalScope({
     context,
     id: "abort-controller.js",
     sourceCode: require("./abort-controller.js.text.js"),
-    scopedContext: { ...eventsImpl, ...scopedContext }
+    scopedContext: { ...scopedContext }
   });
   assign(context, {
     AbortController: abortControllerImpl.AbortController,
@@ -156,10 +151,7 @@ function load(scopedContext = {}) {
     if (typeof Blob === "function") {
       return { Blob };
     }
-    const global = {
-      ...streamsImpl,
-      ...scopedContext
-    };
+    const global = { ...streamsImpl, ...scopedContext };
     const globalGlobal = { ...global, Blob: void 0 };
     Object.setPrototypeOf(globalGlobal, globalThis);
     global.global = globalGlobal;
@@ -193,10 +185,10 @@ function load(scopedContext = {}) {
     scopedContext: {
       global: { ...scopedContext },
       ...scopedContext,
-      ...streamsImpl,
       ...urlImpl,
       ...abortControllerImpl,
       ...eventsImpl,
+      ...streamsImpl,
       structuredClone: context.structuredClone
     }
   });

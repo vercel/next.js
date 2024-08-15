@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   with-docker-multi-env-staging:
     build:
@@ -7,4 +5,4 @@ services:
       dockerfile: docker/staging/Dockerfile
     image: with-docker-multi-env-staging
     ports:
-      - '3002:3000'
+      - "3002:3000"

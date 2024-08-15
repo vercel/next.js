@@ -1,10 +1,10 @@
 'use client'
 
 import ReactDOM from 'react-dom'
-import React, { useEffect, useContext, useRef } from 'react'
-import { ScriptHTMLAttributes } from 'react'
-import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import { DOMAttributeNames } from './head-manager'
+import React, { useEffect, useContext, useRef, type JSX } from 'react'
+import type { ScriptHTMLAttributes } from 'react'
+import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
+import { setAttributesFromProps } from './set-attributes-from-props'
 import { requestIdleCallback } from './request-idle-callback'
 
 const ScriptCache = new Map()
@@ -17,6 +17,7 @@ export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
   onReady?: () => void | null
   onError?: (e: any) => void
   children?: React.ReactNode
+  stylesheets?: string[]
 }
 
 /**
@@ -24,14 +25,38 @@ export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
  */
 export type Props = ScriptProps
 
-const ignoreProps = [
-  'onLoad',
-  'onReady',
-  'dangerouslySetInnerHTML',
-  'children',
-  'onError',
-  'strategy',
-]
+const insertStylesheets = (stylesheets: string[]) => {
+  // Case 1: Styles for afterInteractive/lazyOnload with appDir injected via handleClientScriptLoad
+  //
+  // Using ReactDOM.preinit to feature detect appDir and inject styles
+  // Stylesheets might have already been loaded if initialized with Script component
+  // Re-inject styles here to handle scripts loaded via handleClientScriptLoad
+  // ReactDOM.preinit handles dedup and ensures the styles are loaded only once
+  if (ReactDOM.preinit) {
+    stylesheets.forEach((stylesheet: string) => {
+      ReactDOM.preinit(stylesheet, { as: 'style' })
+    })
+
+    return
+  }
+
+  // Case 2: Styles for afterInteractive/lazyOnload with pages injected via handleClientScriptLoad
+  //
+  // We use this function to load styles when appdir is not detected
+  // TODO: Use React float APIs to load styles once available for pages dir
+  if (typeof window !== 'undefined') {
+    let head = document.head
+    stylesheets.forEach((stylesheet: string) => {
+      let link = document.createElement('link')
+
+      link.type = 'text/css'
+      link.rel = 'stylesheet'
+      link.href = stylesheet
+
+      head.appendChild(link)
+    })
+  }
+}
 
 const loadScript = (props: ScriptProps): void => {
   const {
@@ -43,6 +68,7 @@ const loadScript = (props: ScriptProps): void => {
     children = '',
     strategy = 'afterInteractive',
     onError,
+    stylesheets,
   } = props
 
   const cacheKey = id || src
@@ -100,8 +126,8 @@ const loadScript = (props: ScriptProps): void => {
       typeof children === 'string'
         ? children
         : Array.isArray(children)
-        ? children.join('')
-        : ''
+          ? children.join('')
+          : ''
 
     afterLoad()
   } else if (src) {
@@ -112,20 +138,18 @@ const loadScript = (props: ScriptProps): void => {
     ScriptCache.set(src, loadPromise)
   }
 
-  for (const [k, value] of Object.entries(props)) {
-    if (value === undefined || ignoreProps.includes(k)) {
-      continue
-    }
-
-    const attr = DOMAttributeNames[k] || k.toLowerCase()
-    el.setAttribute(attr, value)
-  }
+  setAttributesFromProps(el, props)
 
   if (strategy === 'worker') {
     el.setAttribute('type', 'text/partytown')
   }
 
   el.setAttribute('data-nscript', strategy)
+
+  // Load styles associated with this script
+  if (stylesheets) {
+    insertStylesheets(stylesheets)
+  }
 
   document.body.appendChild(el)
 }
@@ -167,6 +191,11 @@ export function initScriptLoader(scriptLoaderItems: ScriptProps[]) {
   addBeforeInteractiveToCache()
 }
 
+/**
+ * Load a third-party scripts in an optimized way.
+ *
+ * Read more: [Next.js Docs: `next/script`](https://nextjs.org/docs/app/api-reference/components/script)
+ */
 function Script(props: ScriptProps): JSX.Element | null {
   const {
     id,
@@ -175,6 +204,7 @@ function Script(props: ScriptProps): JSX.Element | null {
     onReady = null,
     strategy = 'afterInteractive',
     onError,
+    stylesheets,
     ...restProps
   } = props
 
@@ -259,6 +289,21 @@ function Script(props: ScriptProps): JSX.Element | null {
 
   // For the app directory, we need React Float to preload these scripts.
   if (appDir) {
+    // Injecting stylesheets here handles beforeInteractive and worker scripts correctly
+    // For other strategies injecting here ensures correct stylesheet order
+    // ReactDOM.preinit handles loading the styles in the correct order,
+    // also ensures the stylesheet is loaded only once and in a consistent manner
+    //
+    // Case 1: Styles for beforeInteractive/worker with appDir - handled here
+    // Case 2: Styles for beforeInteractive/worker with pages dir - Not handled yet
+    // Case 3: Styles for afterInteractive/lazyOnload with appDir - handled here
+    // Case 4: Styles for afterInteractive/lazyOnload with pages dir - handled in insertStylesheets function
+    if (stylesheets) {
+      stylesheets.forEach((styleSrc) => {
+        ReactDOM.preinit(styleSrc, { as: 'style' })
+      })
+    }
+
     // Before interactive scripts need to be loaded by Next.js' runtime instead
     // of native <script> tags, because they no longer have `defer`.
     if (strategy === 'beforeInteractive') {
@@ -277,38 +322,49 @@ function Script(props: ScriptProps): JSX.Element | null {
             dangerouslySetInnerHTML={{
               __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
                 0,
-                { ...restProps },
+                { ...restProps, id },
+              ])})`,
+            }}
+          />
+        )
+      } else {
+        // @ts-ignore
+        ReactDOM.preload(
+          src,
+          restProps.integrity
+            ? {
+                as: 'script',
+                integrity: restProps.integrity,
+                nonce,
+                crossOrigin: restProps.crossOrigin,
+              }
+            : { as: 'script', nonce, crossOrigin: restProps.crossOrigin }
+        )
+        return (
+          <script
+            nonce={nonce}
+            dangerouslySetInnerHTML={{
+              __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
+                src,
+                { ...restProps, id },
               ])})`,
             }}
           />
         )
       }
-
-      // @ts-ignore
-      ReactDOM.preload(
-        src,
-        restProps.integrity
-          ? { as: 'script', integrity: restProps.integrity }
-          : { as: 'script' }
-      )
-      return (
-        <script
-          nonce={nonce}
-          dangerouslySetInnerHTML={{
-            __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-              src,
-            ])})`,
-          }}
-        />
-      )
     } else if (strategy === 'afterInteractive') {
       if (src) {
         // @ts-ignore
         ReactDOM.preload(
           src,
           restProps.integrity
-            ? { as: 'script', integrity: restProps.integrity }
-            : { as: 'script' }
+            ? {
+                as: 'script',
+                integrity: restProps.integrity,
+                nonce,
+                crossOrigin: restProps.crossOrigin,
+              }
+            : { as: 'script', nonce, crossOrigin: restProps.crossOrigin }
         )
       }
     }

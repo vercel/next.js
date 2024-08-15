@@ -14,35 +14,61 @@ description: Next.js supports API Routes, which allow you to build your API with
 
 </details>
 
-<PagesOnly>
+> **Good to know**: If you are using the App Router, you can use [Server Components](/docs/app/building-your-application/rendering/server-components) or [Route Handlers](/docs/app/building-your-application/routing/route-handlers) instead of API Routes.
 
-> **Good to know**: If you are using the App Router, you can use [Server Components](/docs/app/building-your-application/data-fetching/fetching) or [Route Handlers](/docs/app/building-your-application/routing/router-handlers) instead of API Routes.
-
-</PagesOnly>
-
-API routes provide a solution to build your **API** with Next.js.
+API routes provide a solution to build a **public API** with Next.js.
 
 Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated as an API endpoint instead of a `page`. They are server-side only bundles and won't increase your client-side bundle size.
 
-For example, the following API route `pages/api/user.js` returns a `json` response with a status code of `200`:
+For example, the following API route returns a JSON response with a status code of `200`:
 
-```js
-export default function handler(req, res) {
-  res.status(200).json({ name: 'John Doe' })
+```ts filename="pages/api/hello.ts" switcher
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+type ResponseData = {
+  message: string
+}
+
+export default function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<ResponseData>
+) {
+  res.status(200).json({ message: 'Hello from Next.js!' })
 }
 ```
 
-> **Good to know**: API Routes will be affected by [`pageExtensions` configuration](/docs/pages/api-reference/next-config-js/pageExtensions) in `next.config.js`.
+```js filename="pages/api/hello.js" switcher
+export default function handler(req, res) {
+  res.status(200).json({ message: 'Hello from Next.js!' })
+}
+```
 
-For an API route to work, you need to export a function as default (a.k.a **request handler**), which then receives the following parameters:
+> **Good to know**:
+>
+> - API Routes [do not specify CORS headers](https://developer.mozilla.org/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with the [CORS request helpers](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors).
 
-- `req`: An instance of [http.IncomingMessage](https://nodejs.org/api/http.html#class-httpincomingmessage), plus some [pre-built middlewares](/docs/pages/api-reference/functions/next-server)
-- `res`: An instance of [http.ServerResponse](https://nodejs.org/api/http.html#class-httpserverresponse), plus some [helper functions](/docs/pages/api-reference/functions/next-server)
+- API Routes can't be used with [static exports](/docs/pages/building-your-application/deploying/static-exports). However, [Route Handlers](/docs/app/building-your-application/routing/route-handlers) in the App Router can.
+  > - API Routes will be affected by [`pageExtensions` configuration](/docs/pages/api-reference/next-config-js/pageExtensions) in `next.config.js`.
+
+## Parameters
+
+```tsx
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  // ...
+}
+```
+
+- `req`: An instance of [http.IncomingMessage](https://nodejs.org/api/http.html#class-httpincomingmessage)
+- `res`: An instance of [http.ServerResponse](https://nodejs.org/api/http.html#class-httpserverresponse)
+
+## HTTP Methods
 
 To handle different HTTP methods in an API route, you can use `req.method` in your request handler, like so:
 
-```js
-export default function handler(req, res) {
+```ts filename="pages/api/hello.ts" switcher
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
     // Process a POST request
   } else {
@@ -51,19 +77,15 @@ export default function handler(req, res) {
 }
 ```
 
-To fetch API endpoints, take a look into any of the examples at the start of this section.
-
-## Use Cases
-
-For new projects, you can build your entire API with API Routes. If you have an existing API, you do not need to forward calls to the API through an API Route. Some other use cases for API Routes are:
-
-- Masking the URL of an external service (e.g. `/api/secret` instead of `https://company.com/secret-url`)
-- Using [Environment Variables](/docs/pages/building-your-application/configuring/environment-variables) on the server to securely access external services.
-
-## Caveats
-
-- API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with the [CORS request helpers](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors).
-- API Routes can't be used with [`output: 'export'`](/docs/pages/building-your-application/deploying/static-exports)
+```js filename="pages/api/hello.js" switcher
+export default function handler(req, res) {
+  if (req.method === 'POST') {
+    // Process a POST request
+  } else {
+    // Handle any other HTTP method
+  }
+}
+```
 
 ## Request Helpers
 
@@ -84,10 +106,10 @@ export const config = {
       sizeLimit: '1mb',
     },
   },
+  // Specifies the maximum allowed duration for this function to execute (in seconds)
+  maxDuration: 5,
 }
 ```
-
-The `api` object includes all config options available for API Routes.
 
 `bodyParser` is automatically enabled. If you want to consume the body as a `Stream` or with [`raw-body`](https://www.npmjs.com/package/raw-body), you can set this to `false`.
 
@@ -146,112 +168,6 @@ export const config = {
 }
 ```
 
-### Extending the `req` / `res` objects with TypeScript
-
-For better type-safety, it is not recommended to extend the `req` and `res` objects. Instead, use functions to work with them:
-
-```ts filename="utils/cookies.ts" switcher
-import { serialize, CookieSerializeOptions } from 'cookie'
-import { NextApiResponse } from 'next'
-
-/**
- * This sets `cookie` using the `res` object
- */
-export const setCookie = (
-  res: NextApiResponse,
-  name: string,
-  value: unknown,
-  options: CookieSerializeOptions = {}
-) => {
-  const stringValue =
-    typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value)
-
-  if (typeof options.maxAge === 'number') {
-    options.expires = new Date(Date.now() + options.maxAge * 1000)
-  }
-
-  res.setHeader('Set-Cookie', serialize(name, stringValue, options))
-}
-```
-
-```js filename="utils/cookies.js" switcher
-import { serialize } from 'cookie'
-
-/**
- * This sets `cookie` using the `res` object
- */
-export const setCookie = (res, name, value, options = {}) => {
-  const stringValue =
-    typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value)
-
-  if (typeof options.maxAge === 'number') {
-    options.expires = new Date(Date.now() + options.maxAge * 1000)
-  }
-
-  res.setHeader('Set-Cookie', serialize(name, stringValue, options))
-}
-```
-
-```ts filename="pages/api/cookies.ts" switcher
-import { NextApiRequest, NextApiResponse } from 'next'
-import { setCookie } from '../../utils/cookies'
-
-const handler = (req: NextApiRequest, res: NextApiResponse) => {
-  // Calling our pure function using the `res` object, it will add the `set-cookie` header
-  // Add the `set-cookie` header on the main domain and expire after 30 days
-  setCookie(res, 'Next.js', 'api-middleware!', { path: '/', maxAge: 2592000 })
-  // Return the `set-cookie` header so we can display it in the browser and show that it works!
-  res.end(res.getHeader('Set-Cookie'))
-}
-
-export default handler
-```
-
-```js filename="pages/api/cookies.js" switcher
-import { setCookie } from '../../utils/cookies'
-
-const handler = (req, res) => {
-  // Calling our pure function using the `res` object, it will add the `set-cookie` header
-  // Add the `set-cookie` header on the main domain and expire after 30 days
-  setCookie(res, 'Next.js', 'api-middleware!', { path: '/', maxAge: 2592000 })
-  // Return the `set-cookie` header so we can display it in the browser and show that it works!
-  res.end(res.getHeader('Set-Cookie'))
-}
-
-export default handler
-```
-
-If you can't avoid these objects from being extended, you have to create your own type to include the extra properties:
-
-```ts filename="pages/api/foo.ts" switcher
-import { NextApiRequest, NextApiResponse } from 'next'
-import { withFoo } from 'external-lib-foo'
-
-type NextApiRequestWithFoo = NextApiRequest & {
-  foo: (bar: string) => void
-}
-
-const handler = (req: NextApiRequestWithFoo, res: NextApiResponse) => {
-  req.foo('bar') // we can now use `req.foo` without type errors
-  res.end('ok')
-}
-
-export default withFoo(handler)
-```
-
-```js filename="pages/api/foo.js" switcher
-import { withFoo } from 'external-lib-foo'
-
-const handler = (req, res) => {
-  req.foo('bar') // we can now use `req.foo` without type errors
-  res.end('ok')
-}
-
-export default withFoo(handler)
-```
-
-Keep in mind this is not safe since the code will still compile even if you remove `withFoo()` from the export.
-
 ## Response Helpers
 
 The [Server Response object](https://nodejs.org/api/http.html#http_class_http_serverresponse), (often abbreviated as `res`) includes a set of Express.js-like helper methods to improve the developer experience and increase the speed of creating new API endpoints.
@@ -259,7 +175,7 @@ The [Server Response object](https://nodejs.org/api/http.html#http_class_http_se
 The included helpers are:
 
 - `res.status(code)` - A function to set the status code. `code` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
-- `res.json(body)` - Sends a JSON response. `body` must be a [serializable object](https://developer.mozilla.org/en-US/docs/Glossary/Serialization)
+- `res.json(body)` - Sends a JSON response. `body` must be a [serializable object](https://developer.mozilla.org/docs/Glossary/Serialization)
 - `res.send(body)` - Sends the HTTP response. `body` can be a `string`, an `object` or a `Buffer`
 - `res.redirect([status,] path)` - Redirects to a specified path or URL. `status` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes). If not specified, `status` defaults to "307" "Temporary redirect".
 - `res.revalidate(urlPath)` - [Revalidate a page on demand](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation) using `getStaticProps`. `urlPath` must be a `string`.
@@ -270,7 +186,22 @@ When sending a response back to the client, you can set the status code of the r
 
 The following example sets the status code of the response to `200` (`OK`) and returns a `message` property with the value of `Hello from Next.js!` as a JSON response:
 
-```js
+```ts filename="pages/api/hello.ts" switcher
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+type ResponseData = {
+  message: string
+}
+
+export default function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<ResponseData>
+) {
+  res.status(200).json({ message: 'Hello from Next.js!' })
+}
+```
+
+```js filename="pages/api/hello.js" switcher
 export default function handler(req, res) {
   res.status(200).json({ message: 'Hello from Next.js!' })
 }
@@ -278,12 +209,28 @@ export default function handler(req, res) {
 
 ### Sending a JSON response
 
-When sending a response back to the client you can send a JSON response, this must be a [serializable object](https://developer.mozilla.org/en-US/docs/Glossary/Serialization).
+When sending a response back to the client you can send a JSON response, this must be a [serializable object](https://developer.mozilla.org/docs/Glossary/Serialization).
 In a real world application you might want to let the client know the status of the request depending on the result of the requested endpoint.
 
 The following example sends a JSON response with the status code `200` (`OK`) and the result of the async operation. It's contained in a try catch block to handle any errors that may occur, with the appropriate status code and error message caught and sent back to the client:
 
-```js
+```ts filename="pages/api/hello.ts" switcher
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  try {
+    const result = await someAsyncOperation()
+    res.status(200).json({ result })
+  } catch (err) {
+    res.status(500).json({ error: 'failed to load data' })
+  }
+}
+```
+
+```js filename="pages/api/hello.js" switcher
 export default async function handler(req, res) {
   try {
     const result = await someAsyncOperation()
@@ -300,7 +247,23 @@ Sending an HTTP response works the same way as when sending a JSON response. The
 
 The following example sends a HTTP response with the status code `200` (`OK`) and the result of the async operation.
 
-```js
+```ts filename="pages/api/hello.ts" switcher
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  try {
+    const result = await someAsyncOperation()
+    res.status(200).send({ result })
+  } catch (err) {
+    res.status(500).send({ error: 'failed to fetch data' })
+  }
+}
+```
+
+```js filename="pages/api/hello.js" switcher
 export default async function handler(req, res) {
   try {
     const result = await someAsyncOperation()
@@ -317,9 +280,28 @@ Taking a form as an example, you may want to redirect your client to a specified
 
 The following example redirects the client to the `/` path if the form is successfully submitted:
 
-```js
+```ts filename="pages/api/hello.ts" switcher
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  const { name, message } = req.body
+
+  try {
+    await handleFormInputAsync({ name, message })
+    res.redirect(307, '/')
+  } catch (err) {
+    res.status(500).send({ error: 'Failed to fetch data' })
+  }
+}
+```
+
+```js filename="pages/api/hello.js" switcher
 export default async function handler(req, res) {
   const { name, message } = req.body
+
   try {
     await handleFormInputAsync({ name, message })
     res.redirect(307, '/')
@@ -331,7 +313,7 @@ export default async function handler(req, res) {
 
 ### Adding TypeScript types
 
-You can make your response handlers more type-safe by importing the `NextApiRequest` and `NextApiResponse` types from `next`, in addition to those, you can also type your response data:
+You can make your API Routes more type-safe by importing the `NextApiRequest` and `NextApiResponse` types from `next`, in addition to those, you can also type your response data:
 
 ```ts
 import type { NextApiRequest, NextApiResponse } from 'next'
@@ -352,11 +334,18 @@ export default function handler(
 
 ## Dynamic API Routes
 
-API routes support [dynamic routes](/docs/pages/building-your-application/routing/dynamic-routes), and follow the same file naming rules used for `pages`.
+API Routes support [dynamic routes](/docs/pages/building-your-application/routing/dynamic-routes), and follow the same file naming rules used for `pages/`.
 
-For example, the API route `pages/api/post/[pid].js` has the following code:
+```ts filename="pages/api/post/[pid].ts" switcher
+import type { NextApiRequest, NextApiResponse } from 'next'
 
-```js
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  const { pid } = req.query
+  res.end(`Post: ${pid}`)
+}
+```
+
+```js filename="pages/api/post/[pid].js" switcher
 export default function handler(req, res) {
   const { pid } = req.query
   res.end(`Post: ${pid}`)
@@ -364,24 +353,6 @@ export default function handler(req, res) {
 ```
 
 Now, a request to `/api/post/abc` will respond with the text: `Post: abc`.
-
-### Index routes and Dynamic API routes
-
-A very common RESTful pattern is to set up routes like this:
-
-- `GET api/posts` - gets a list of posts, probably paginated
-- `GET api/posts/12345` - gets post id 12345
-
-We can model this in two ways:
-
-- Option 1:
-  - `/api/posts.js`
-  - `/api/posts/[postId].js`
-- Option 2:
-  - `/api/posts/index.js`
-  - `/api/posts/[postId].js`
-
-Both are equivalent. A third option of only using `/api/posts/[postId].js` is not valid because Dynamic Routes (including Catch-all routes - see below) do not have an `undefined` state and `GET api/posts` will not match `/api/posts/[postId].js` under any circumstances.
 
 ### Catch all API routes
 
@@ -403,9 +374,18 @@ And in the case of `/api/post/a/b`, and any other matching path, new parameters 
 { "slug": ["a", "b"] }
 ```
 
-An API route for `pages/api/post/[...slug].js` could look like this:
+For example:
 
-```js
+```ts filename="pages/api/post/[...slug].ts" switcher
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  const { slug } = req.query
+  res.end(`Post: ${slug.join(', ')}`)
+}
+```
+
+```js filename="pages/api/post/[...slug].js" switcher
 export default function handler(req, res) {
   const { slug } = req.query
   res.end(`Post: ${slug.join(', ')}`)
@@ -439,133 +419,6 @@ The `query` objects are as follows:
 
 ## Edge API Routes
 
-Edge API Routes enable you to build high performance APIs with Next.js. Using the [Edge Runtime](/docs/pages/api-reference/edge), they are often faster than Node.js-based API Routes. This performance improvement does come with [constraints](/docs/pages/api-reference/edge#unsupported-apis), like not having access to native Node.js APIs. Instead, Edge API Routes are built on standard Web APIs.
+If you would like to use API Routes with the Edge Runtime, we recommend incrementally adopting the App Router and using [Route Handlers](/docs/app/building-your-application/routing/route-handlers) instead.
 
-Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated as an API endpoint instead of a page. They are server-side only bundles and won't increase your client-side bundle size.
-
-### Examples
-
-#### Basic
-
-```typescript
-export const config = {
-  runtime: 'edge',
-}
-
-export default (req) => new Response('Hello world!')
-```
-
-#### JSON Response
-
-```typescript
-import type { NextRequest } from 'next/server'
-
-export const config = {
-  runtime: 'edge',
-}
-
-export default async function handler(req: NextRequest) {
-  return new Response(
-    JSON.stringify({
-      name: 'Jim Halpert',
-    }),
-    {
-      status: 200,
-      headers: {
-        'content-type': 'application/json',
-      },
-    }
-  )
-}
-```
-
-#### Cache-Control
-
-```typescript
-import type { NextRequest } from 'next/server'
-
-export const config = {
-  runtime: 'edge',
-}
-
-export default async function handler(req: NextRequest) {
-  return new Response(
-    JSON.stringify({
-      name: 'Jim Halpert',
-    }),
-    {
-      status: 200,
-      headers: {
-        'content-type': 'application/json',
-        'cache-control': 'public, s-maxage=1200, stale-while-revalidate=600',
-      },
-    }
-  )
-}
-```
-
-#### Query Parameters
-
-```typescript
-import type { NextRequest } from 'next/server'
-
-export const config = {
-  runtime: 'edge',
-}
-
-export default async function handler(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const email = searchParams.get('email')
-  return new Response(email)
-}
-```
-
-### Forwarding Headers
-
-```typescript
-import { type NextRequest } from 'next/server'
-
-export const config = {
-  runtime: 'edge',
-}
-
-export default async function handler(req: NextRequest) {
-  const authorization = req.cookies.get('authorization')?.value
-  return fetch('https://backend-api.com/api/protected', {
-    method: req.method,
-    headers: {
-      authorization,
-    },
-    redirect: 'manual',
-  })
-}
-```
-
-#### Configuring Regions (for deploying)
-
-You may want to restrict your edge function to specific regions when deploying so that you can colocate near your data sources ensuring lower response times which can be achieved as shown.
-
-> **Good to know**: This configuration is available in `v12.3.2` of Next.js and up.
-
-```js
-import { NextResponse } from 'next/server'
-
-export const config = {
-  regions: ['sfo1', 'iad1'], // defaults to 'all'
-}
-
-export default async function handler(req: NextRequest) {
-  const myData = await getNearbyData()
-  return NextResponse.json(myData)
-}
-```
-
-## Differences between API Routes
-
-Edge API Routes use the [Edge Runtime](/docs/pages/api-reference/edge), whereas API Routes use the [Node.js runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
-
-Edge API Routes can [stream responses](/docs/pages/api-reference/edge#stream-apis) from the server and run _after_ cached files (e.g. HTML, CSS, JavaScript) have been accessed. Server-side streaming can help improve performance with faster [Time To First Byte (TTFB)](https://web.dev/ttfb/).
-
-> **Good to know**: Using [Edge Runtime](/docs/pages/api-reference/edge) with `getServerSideProps` does not give you access to the response object. If you need access to `res`, you should use the [Node.js runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) by setting `runtime: 'nodejs'`.
-
-View the [supported APIs](/docs/pages/api-reference/edge) and [unsupported APIs](/docs/pages/api-reference/edge#unsupported-apis) for the Edge Runtime.
+The Route Handlers function signature is isomorphic, meaning you can use the same function for both Edge and Node.js runtimes.

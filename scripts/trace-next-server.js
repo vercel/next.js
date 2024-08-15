@@ -1,7 +1,7 @@
 const os = require('os')
 const path = require('path')
 const execa = require('execa')
-const fs = require('fs-extra')
+const fsp = require('fs/promises')
 const prettyBytes = require('pretty-bytes')
 const gzipSize = require('next/dist/compiled/gzip-size')
 const { nodeFileTrace } = require('next/dist/compiled/@vercel/nft')
@@ -24,7 +24,7 @@ async function main() {
   const origTestDir = path.join(origRepoDir, 'test')
   const dotDir = path.join(origRepoDir, './') + '.'
 
-  await fs.copy(origRepoDir, repoDir, {
+  await fsp.cp(origRepoDir, repoDir, {
     filter: (item) => {
       return (
         !item.startsWith(origTestDir) &&
@@ -32,15 +32,20 @@ async function main() {
         !item.includes('node_modules')
       )
     },
+    force: true,
+    recursive: true,
   })
 
   console.log('using workdir', workDir)
   console.log('using repodir', repoDir)
-  await fs.ensureDir(workDir)
+  await fsp.mkdir(workDir, { recursive: true })
 
-  const pkgPaths = await linkPackages({ repoDir: origRepoDir })
+  const pkgPaths = await linkPackages({
+    repoDir: origRepoDir,
+    nextSwcVersion: null,
+  })
 
-  await fs.writeFile(
+  await fsp.writeFile(
     path.join(workDir, 'package.json'),
     JSON.stringify(
       {
@@ -77,7 +82,6 @@ async function main() {
       'node_modules/next/dist/pages/**/*',
       'node_modules/next/dist/server/image-optimizer.js',
       'node_modules/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
-      'node_modules/next/dist/server/lib/squoosh/**/*.wasm',
       'node_modules/next/dist/compiled/webpack/(bundle4|bundle5).js',
       'node_modules/react/**/*.development.js',
       'node_modules/react-dom/**/*.development.js',
@@ -95,7 +99,7 @@ async function main() {
       continue
     }
     tracedDeps.add(file.replace(/\\/g, '/'))
-    const stat = await fs.stat(path.join(workDir, file))
+    const stat = await fsp.stat(path.join(workDir, file))
 
     if (stat.isFile()) {
       const compressedSize = await gzipSize(path.join(workDir, file))
@@ -112,7 +116,7 @@ async function main() {
     totalUncompressedSize: prettyBytes(totalUncompressedSize),
   })
 
-  await fs.writeFile(
+  await fsp.writeFile(
     path.join(
       __dirname,
       '../packages/next/dist/server/next-server.js.nft.json'
@@ -122,8 +126,8 @@ async function main() {
       version: 1,
     })
   )
-  await fs.remove(workDir)
-  await fs.remove(repoDir)
+  await fsp.rm(workDir, { recursive: true, force: true })
+  await fsp.rm(repoDir, { recursive: true, force: true })
 
   console.timeEnd(traceLabel)
 

@@ -4,7 +4,6 @@
   "dependencies": {
     "async-sema": "^3.1.0",
     "execa": "2.0.3",
-    "fs-extra": "^8.1.0",
     "get-port": "^5.0.0",
     "glob": "^7.1.4",
     "gzip-size": "^5.1.1",
@@ -14,5 +13,12 @@
     "pretty-bytes": "^5.3.0",
     "pretty-ms": "^5.0.0",
     "semver": "7.3.4"
-  }
+  },
+  "devDependencies": {
+    "typescript": "5.1.6"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "packageManager": "pnpm@9.6.0"
 }

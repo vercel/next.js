@@ -85,7 +85,7 @@ function getShadowHost() {
     element = element.parentNode
   }
 
-  // https://developer.mozilla.org/en-US/docs/Web/API/Node.nodeType
+  // https://developer.mozilla.org/docs/Web/API/Node.nodeType
   // NOTE: Firefox 34 does not expose ShadowRoot.host (but 37 does)
   if (
     container.nodeType === container.DOCUMENT_FRAGMENT_NODE &&
@@ -433,7 +433,7 @@ function cssShadowPiercingDeepCombinator() {
 var gif =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-usemap
+// https://developer.mozilla.org/docs/Web/HTML/Element/img#attr-usemap
 var focusAreaImgTabindex = {
   element: 'div',
   mutate: function mutate(element) {
@@ -448,7 +448,7 @@ var focusAreaImgTabindex = {
   },
 }
 
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-usemap
+// https://developer.mozilla.org/docs/Web/HTML/Element/img#attr-usemap
 var focusAreaTabindex = {
   element: 'div',
   mutate: function mutate(element) {
@@ -474,7 +474,7 @@ var focusAreaTabindex = {
   },
 }
 
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-usemap
+// https://developer.mozilla.org/docs/Web/HTML/Element/img#attr-usemap
 var focusAreaWithoutHref = {
   element: 'div',
   mutate: function mutate(element) {
@@ -515,7 +515,7 @@ var invalidGif =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ'
 
 // NOTE: https://github.com/medialize/ally.js/issues/35
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-usemap
+// https://developer.mozilla.org/docs/Web/HTML/Element/img#attr-usemap
 var focusBrokenImageMap = {
   element: 'div',
   mutate: function mutate(element) {
@@ -587,7 +587,7 @@ var focusFormDisabled = {
 
 // NOTE: https://github.com/medialize/ally.js/issues/35
 // fixes https://github.com/medialize/ally.js/issues/20
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-ismap
+// https://developer.mozilla.org/docs/Web/HTML/Element/img#attr-ismap
 var focusImgIsmap = {
   element: 'a',
   mutate: function mutate(element) {
@@ -598,7 +598,7 @@ var focusImgIsmap = {
 }
 
 // NOTE: https://github.com/medialize/ally.js/issues/35
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-usemap
+// https://developer.mozilla.org/docs/Web/HTML/Element/img#attr-usemap
 var focusImgUsemapTabindex = {
   element: 'div',
   mutate: function mutate(element) {
@@ -918,7 +918,7 @@ var focusSvgForeignobjectTabindex = {
     element.innerHTML = generate(
       '<foreignObject tabindex="-1"><input type="text" /></foreignObject>'
     )
-    // Safari 8's quersSelector() can't identify foreignObject, but getElementyByTagName() can
+    // Safari 8's querySelector() can't identify foreignObject, but getElementsByTagName() can
     return (
       element.querySelector('foreignObject') ||
       element.getElementsByTagName('foreignObject')[0]
@@ -1393,13 +1393,13 @@ function isFocusRelevantRules() {
   ) {
     // IE10-11 considers the <img> in <a href><img ismap> focusable
     // https://github.com/medialize/ally.js/issues/20
-    var hasLinkParent = getParents({ context: element }).some(function (
-      parent
-    ) {
-      return (
-        parent.nodeName.toLowerCase() === 'a' && parent.hasAttribute('href')
-      )
-    })
+    var hasLinkParent = getParents({ context: element }).some(
+      function (parent) {
+        return (
+          parent.nodeName.toLowerCase() === 'a' && parent.hasAttribute('href')
+        )
+      }
+    )
 
     if (hasLinkParent) {
       return true
@@ -1417,7 +1417,7 @@ function isFocusRelevantRules() {
       }
     } else if (hasCssOverflowScroll(style)) {
       // Firefox requires proper overflow setting, IE does not necessarily
-      // https://developer.mozilla.org/en-US/docs/Web/CSS/overflow
+      // https://developer.mozilla.org/docs/Web/CSS/overflow
       return true
     }
   }
@@ -1584,7 +1584,7 @@ function getFrameElement(element) {
   }
 
   try {
-    // see https://developer.mozilla.org/en-US/docs/Web/API/Window/frameElement
+    // see https://developer.mozilla.org/docs/Web/API/Window/frameElement
     // does not work within <embed> anywhere, and not within in <object> in IE
     return _window.frameElement || findDocumentHostElement(_window)
   } catch (e) {
@@ -1736,7 +1736,7 @@ var isVisible = isVisibleRules.except({})
 
 function getMapByName(name, _document) {
   // apparently getElementsByName() also considers id attribute in IE & opera
-  // https://developer.mozilla.org/en-US/docs/Web/API/Document/getElementsByName
+  // https://developer.mozilla.org/docs/Web/API/Document/getElementsByName
   var map = _document.querySelector('map[name="' + cssEscape(name) + '"]')
   return map || null
 }
@@ -1754,7 +1754,7 @@ function getImageOfArea(element) {
   // HTML5 specifies HTMLMapElement.images to be an HTMLCollection of all
   // <img> and <object> referencing the <map> element, but no browser implements this
   //   https://www.w3.org/TR/html5/embedded-content-0.html#the-map-element
-  //   https://developer.mozilla.org/en-US/docs/Web/API/HTMLMapElement
+  //   https://developer.mozilla.org/docs/Web/API/HTMLMapElement
   // the image must be valid and loaded for the map to take effect
   var _document = getDocument(element)
   return (
@@ -1765,8 +1765,8 @@ function getImageOfArea(element) {
 
 var supports$2 = void 0
 
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/map
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-usemap
+// https://developer.mozilla.org/docs/Web/HTML/Element/map
+// https://developer.mozilla.org/docs/Web/HTML/Element/img#attr-usemap
 // https://github.com/jquery/jquery-ui/blob/master/ui/core.js#L88-L107
 function isValidArea(context) {
   if (!supports$2) {
@@ -1816,7 +1816,7 @@ function isValidArea(context) {
     )
   }
 
-  // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-usemap
+  // https://developer.mozilla.org/docs/Web/HTML/Element/img#attr-usemap
   var childOfInteractive = getParents({ context: img })
     .slice(1)
     .some(function (_element) {
@@ -2170,7 +2170,7 @@ isFocusableRules.except = function () {
 var isFocusable = isFocusableRules.except({})
 
 function createFilter(condition) {
-  // see https://developer.mozilla.org/en-US/docs/Web/API/NodeFilter
+  // see https://developer.mozilla.org/docs/Web/API/NodeFilter
   var filter = function filter(node) {
     if (node.shadowRoot) {
       // return ShadowRoot elements regardless of them being focusable,
@@ -2210,7 +2210,7 @@ function queryFocusableStrict() {
   })
 
   var _document = getDocument(context)
-  // see https://developer.mozilla.org/en-US/docs/Web/API/Document/createTreeWalker
+  // see https://developer.mozilla.org/docs/Web/API/Document/createTreeWalker
   var walker = _document.createTreeWalker(
     // root element to start search in
     context,
@@ -3105,7 +3105,7 @@ function sortShadowed(elements, context, sortElements) {
 }
 
 function sortTabindex(elements) {
-  // https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement.tabIndex
+  // https://developer.mozilla.org/docs/Web/API/HTMLElement.tabIndex
   // elements with tabIndex "0" (including tabbableElements without tabIndex) should be navigated in the order they appear.
   // elements with a positive tabIndex:
   //   Elements that have identical tabIndexes should be navigated in the order they appear.
@@ -3119,7 +3119,7 @@ function sortTabindex(elements) {
   // see http://blog.rodneyrehm.de/archives/14-Sorting-Were-Doing-It-Wrong.html#stability
 
   // NOTE: compareDocumentPosition seemed like more overhead than just sorting this with buckets
-  // https://developer.mozilla.org/en-US/docs/Web/API/Node.compareDocumentPosition
+  // https://developer.mozilla.org/docs/Web/API/Node.compareDocumentPosition
 
   var map = {}
   var indexes = []
@@ -3389,7 +3389,7 @@ function keyBinding(text) {
 }
 
 // Node.compareDocumentPosition is available since IE9
-// see https://developer.mozilla.org/en-US/docs/Web/API/Node.compareDocumentPosition
+// see https://developer.mozilla.org/docs/Web/API/Node.compareDocumentPosition
 
 // callback returns true when element is contained by parent or is the parent suited for use with Array.some()
 /*

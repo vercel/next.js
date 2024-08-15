@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import React from 'react'
-import ReactDOM from 'react-dom/server'
+import ReactDOMServer from 'react-dom/server'
 import Image from 'next/image'
 import cheerio from 'cheerio'
 
@@ -14,7 +14,7 @@ describe('Image rendering', () => {
       height: 100,
       loading: 'eager',
     })
-    const html = ReactDOM.renderToString(element)
+    const html = ReactDOMServer.renderToString(element)
     const $ = cheerio.load(html)
     const img = $('#unit-image')
     // order matters here
@@ -54,9 +54,9 @@ describe('Image rendering', () => {
       width: 100,
       height: 100,
     })
-    const $ = cheerio.load(ReactDOM.renderToString(element))
-    const $2 = cheerio.load(ReactDOM.renderToString(element2))
-    const $lazy = cheerio.load(ReactDOM.renderToString(elementLazy))
+    const $ = cheerio.load(ReactDOMServer.renderToString(element))
+    const $2 = cheerio.load(ReactDOMServer.renderToString(element2))
+    const $lazy = cheerio.load(ReactDOMServer.renderToString(elementLazy))
     expect($('noscript').length).toBe(0)
     expect($2('noscript').length).toBe(0)
     expect($lazy('noscript').length).toBe(0)
@@ -90,9 +90,9 @@ describe('Image rendering', () => {
       blurDataURL: 'data:image/png;base64',
       priority: true,
     })
-    const $1 = cheerio.load(ReactDOM.renderToString(element1))
-    const $2 = cheerio.load(ReactDOM.renderToString(element2))
-    const $3 = cheerio.load(ReactDOM.renderToString(element3))
+    const $1 = cheerio.load(ReactDOMServer.renderToString(element1))
+    const $2 = cheerio.load(ReactDOMServer.renderToString(element2))
+    const $3 = cheerio.load(ReactDOMServer.renderToString(element3))
     expect($1('noscript').length).toBe(0)
     expect($2('noscript').length).toBe(0)
     expect($3('noscript').length).toBe(0)

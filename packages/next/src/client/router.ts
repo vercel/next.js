@@ -2,7 +2,7 @@
 import React from 'react'
 import Router from '../shared/lib/router/router'
 import type { NextRouter } from '../shared/lib/router/router'
-import { RouterContext } from '../shared/lib/router-context'
+import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import isError from '../lib/is-error'
 
 type SingletonRouterBase = {
@@ -20,10 +20,10 @@ export type SingletonRouter = SingletonRouterBase & NextRouter
 const singletonRouter: SingletonRouterBase = {
   router: null, // holds the actual router instance
   readyCallbacks: [],
-  ready(cb: () => void) {
-    if (this.router) return cb()
+  ready(callback: () => void) {
+    if (this.router) return callback()
     if (typeof window !== 'undefined') {
-      this.readyCallbacks.push(cb)
+      this.readyCallbacks.push(callback)
     }
   },
 }
@@ -44,7 +44,7 @@ const urlPropertyFields = [
   'isPreview',
   'isLocaleDomain',
   'domainLocales',
-]
+] as const
 const routerEvents = [
   'routeChangeStart',
   'beforeHistoryChange',
@@ -62,7 +62,7 @@ const coreMethodFields = [
   'back',
   'prefetch',
   'beforePopState',
-]
+] as const
 
 // Events is a static property on the router, the router doesn't have to be initialized to use it
 Object.defineProperty(singletonRouter, 'events', {
@@ -81,20 +81,20 @@ function getRouter(): Router {
   return singletonRouter.router
 }
 
-urlPropertyFields.forEach((field: string) => {
+urlPropertyFields.forEach((field) => {
   // Here we need to use Object.defineProperty because we need to return
   // the property assigned to the actual router
   // The value might get changed as we change routes and this is the
   // proper way to access it
   Object.defineProperty(singletonRouter, field, {
     get() {
-      const router = getRouter() as any
+      const router = getRouter()
       return router[field] as string
     },
   })
 })
 
-coreMethodFields.forEach((field: string) => {
+coreMethodFields.forEach((field) => {
   // We don't really know the types here, so we add them later instead
   ;(singletonRouter as any)[field] = (...args: any[]) => {
     const router = getRouter() as any
@@ -129,6 +129,12 @@ export default singletonRouter as SingletonRouter
 // Reexport the withRouter HOC
 export { default as withRouter } from './with-router'
 
+/**
+ * This hook gives access the [router object](https://nextjs.org/docs/pages/api-reference/functions/use-router#router-object)
+ * inside the [Pages Router](https://nextjs.org/docs/pages/building-your-application).
+ *
+ * Read more: [Next.js Docs: `useRouter`](https://nextjs.org/docs/pages/api-reference/functions/use-router)
+ */
 export function useRouter(): NextRouter {
   const router = React.useContext(RouterContext)
   if (!router) {
@@ -139,10 +145,6 @@ export function useRouter(): NextRouter {
 
   return router
 }
-
-// INTERNAL APIS
-// -------------
-// (do not use following exports inside the app)
 
 /**
  * Create a router and assign it as the singleton instance.

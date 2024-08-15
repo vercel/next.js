@@ -7,6 +7,7 @@ import type { RouterEvent } from '../../../client/router'
 import type { StyleSheetTuple } from '../../../client/page-loader'
 import type { UrlObject } from 'url'
 import type PageLoader from '../../../client/page-loader'
+import type { AppContextType, NextPageContext, NEXT_DATA } from '../utils'
 import { removeTrailingSlash } from './utils/remove-trailing-slash'
 import {
   getClientBuildManifest,
@@ -18,15 +19,7 @@ import isError, { getProperError } from '../../../lib/is-error'
 import { denormalizePagePath } from '../page-path/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt from '../mitt'
-import {
-  AppContextType,
-  getLocationOrigin,
-  getURL,
-  loadGetInitialProps,
-  NextPageContext,
-  ST,
-  NEXT_DATA,
-} from '../utils'
+import { getLocationOrigin, getURL, loadGetInitialProps, ST } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import resolveRewrites from './utils/resolve-rewrites'
@@ -40,6 +33,7 @@ import { removeLocale } from '../../../client/remove-locale'
 import { removeBasePath } from '../../../client/remove-base-path'
 import { addBasePath } from '../../../client/add-base-path'
 import { hasBasePath } from '../../../client/has-base-path'
+import { resolveHref } from '../../../client/resolve-href'
 import { isAPIRoute } from '../../../lib/is-api-route'
 import { getNextPathnameInfo } from './utils/get-next-pathname-info'
 import { formatNextPathnameInfo } from './utils/format-next-pathname-info'
@@ -47,9 +41,9 @@ import { compareRouterStates } from './utils/compare-states'
 import { isLocalURL } from './utils/is-local-url'
 import { isBot } from './utils/is-bot'
 import { omit } from './utils/omit'
-import { resolveHref } from './utils/resolve-href'
 import { interpolateAs } from './utils/interpolate-as'
 import { handleSmoothScroll } from './utils/handle-smooth-scroll'
+import type { Params } from '../../../client/components/params'
 
 declare global {
   interface Window {
@@ -330,30 +324,17 @@ async function withMiddlewareEffects<T extends FetchDataOutput>(
     return null
   }
 
-  try {
-    const data = await options.fetchData()
+  const data = await options.fetchData()
 
-    const effect = await getMiddlewareData(
-      data.dataHref,
-      data.response,
-      options
-    )
+  const effect = await getMiddlewareData(data.dataHref, data.response, options)
 
-    return {
-      dataHref: data.dataHref,
-      json: data.json,
-      response: data.response,
-      text: data.text,
-      cacheKey: data.cacheKey,
-      effect,
-    }
-  } catch {
-    /**
-     * TODO: Revisit this in the future.
-     * For now we will not consider middleware data errors to be fatal.
-     * maybe we should revisit in the future.
-     */
-    return null
+  return {
+    dataHref: data.dataHref,
+    json: data.json,
+    response: data.response,
+    text: data.text,
+    cacheKey: data.cacheKey,
+    effect,
   }
 }
 
@@ -453,7 +434,7 @@ function fetchRetry(
     //
     // > `fetch` won’t send cookies, unless you set the credentials init
     // > option.
-    // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+    // https://developer.mozilla.org/docs/Web/API/Fetch_API/Using_Fetch
     //
     // > For maximum browser compatibility when it comes to sending &
     // > receiving cookies, always supply the `credentials: 'same-origin'`
@@ -608,7 +589,11 @@ function fetchNextData({
   // without blocking navigation when stale data is available
   if (unstable_skipClientCache && persistCache) {
     return getData({}).then((data) => {
-      inflightCache[cacheKey] = Promise.resolve(data)
+      if (data.response.headers.get('x-middleware-cache') !== 'no-cache') {
+        // only update cache if not marked as no-cache
+        inflightCache[cacheKey] = Promise.resolve(data)
+      }
+
       return data
     })
   }
@@ -781,34 +766,6 @@ export default class Router implements BaseRouter {
       ],
     }
 
-    if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
-      const { BloomFilter } =
-        require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
-
-      const staticFilterData:
-        | ReturnType<import('../../lib/bloom-filter').BloomFilter['export']>
-        | undefined = process.env.__NEXT_CLIENT_ROUTER_S_FILTER as any
-
-      const dynamicFilterData: typeof staticFilterData = process.env
-        .__NEXT_CLIENT_ROUTER_D_FILTER as any
-
-      if (staticFilterData?.numHashes) {
-        this._bfl_s = new BloomFilter(
-          staticFilterData.numItems,
-          staticFilterData.errorRate
-        )
-        this._bfl_s.import(staticFilterData)
-      }
-
-      if (dynamicFilterData?.numHashes) {
-        this._bfl_d = new BloomFilter(
-          dynamicFilterData.numItems,
-          dynamicFilterData.errorRate
-        )
-        this._bfl_d.import(dynamicFilterData)
-      }
-    }
-
     // Backwards compat for Router.router.events
     // TODO: Should be remove the following major version as it was never documented
     this.events = Router.events
@@ -830,6 +787,7 @@ export default class Router implements BaseRouter {
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
+      self.__NEXT_DATA__.isExperimentalCompile ||
       (self.__NEXT_DATA__.appGip && !self.__NEXT_DATA__.gsp) ||
       (!autoExportDynamic &&
         !self.location.search &&
@@ -1064,10 +1022,86 @@ export default class Router implements BaseRouter {
     skipNavigate?: boolean
   ) {
     if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
+      if (!this._bfl_s && !this._bfl_d) {
+        const { BloomFilter } =
+          require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
+
+        type Filter = ReturnType<
+          import('../../lib/bloom-filter').BloomFilter['export']
+        >
+        let staticFilterData: Filter | undefined
+        let dynamicFilterData: Filter | undefined
+
+        try {
+          ;({
+            __routerFilterStatic: staticFilterData,
+            __routerFilterDynamic: dynamicFilterData,
+          } = (await getClientBuildManifest()) as any as {
+            __routerFilterStatic?: Filter
+            __routerFilterDynamic?: Filter
+          })
+        } catch (err) {
+          // failed to load build manifest hard navigate
+          // to be safe
+          console.error(err)
+          if (skipNavigate) {
+            return true
+          }
+          handleHardNavigation({
+            url: addBasePath(
+              addLocale(as, locale || this.locale, this.defaultLocale)
+            ),
+            router: this,
+          })
+          return new Promise(() => {})
+        }
+
+        const routerFilterSValue: Filter | false = process.env
+          .__NEXT_CLIENT_ROUTER_S_FILTER as any
+
+        if (!staticFilterData && routerFilterSValue) {
+          staticFilterData = routerFilterSValue ? routerFilterSValue : undefined
+        }
+
+        const routerFilterDValue: Filter | false = process.env
+          .__NEXT_CLIENT_ROUTER_D_FILTER as any
+
+        if (!dynamicFilterData && routerFilterDValue) {
+          dynamicFilterData = routerFilterDValue
+            ? routerFilterDValue
+            : undefined
+        }
+
+        if (staticFilterData?.numHashes) {
+          this._bfl_s = new BloomFilter(
+            staticFilterData.numItems,
+            staticFilterData.errorRate
+          )
+          this._bfl_s.import(staticFilterData)
+        }
+
+        if (dynamicFilterData?.numHashes) {
+          this._bfl_d = new BloomFilter(
+            dynamicFilterData.numItems,
+            dynamicFilterData.errorRate
+          )
+          this._bfl_d.import(dynamicFilterData)
+        }
+      }
+
       let matchesBflStatic = false
       let matchesBflDynamic = false
+      const pathsToCheck: Array<{ as?: string; allowMatchCurrent?: boolean }> =
+        [{ as }, { as: resolvedAs }]
 
-      for (const curAs of [as, resolvedAs]) {
+      if (process.env.__NEXT_FLYING_SHUTTLE) {
+        // if existing page changed we hard navigate to
+        // avoid runtime conflict with new page
+        // TODO: check buildManifest files instead?
+        pathsToCheck.push({ as: this.asPath, allowMatchCurrent: true })
+      }
+
+      for (const { as: curAs, allowMatchCurrent } of pathsToCheck) {
         if (curAs) {
           const asNoSlash = removeTrailingSlash(
             new URL(curAs, 'http://n').pathname
@@ -1077,8 +1111,9 @@ export default class Router implements BaseRouter {
           )
 
           if (
+            allowMatchCurrent ||
             asNoSlash !==
-            removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
+              removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
           ) {
             matchesBflStatic =
               matchesBflStatic ||
@@ -1325,13 +1360,6 @@ export default class Router implements BaseRouter {
     let parsed = parseRelativeUrl(url)
     let { pathname, query } = parsed
 
-    // if we detected the path as app route during prefetching
-    // trigger hard navigation
-    if ((this.components[pathname] as any)?.__appRouter) {
-      handleHardNavigation({ url: as, router: this })
-      return new Promise(() => {})
-    }
-
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
     // when rewritten to
@@ -1371,6 +1399,13 @@ export default class Router implements BaseRouter {
 
     let route = removeTrailingSlash(pathname)
     const parsedAsPathname = as.startsWith('/') && parseRelativeUrl(as).pathname
+
+    // if we detected the path as app route during prefetching
+    // trigger hard navigation
+    if ((this.components[pathname] as any)?.__appRouter) {
+      handleHardNavigation({ url: as, router: this })
+      return new Promise(() => {})
+    }
 
     const isMiddlewareRewrite = !!(
       parsedAsPathname &&
@@ -1452,7 +1487,7 @@ export default class Router implements BaseRouter {
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
     route = removeTrailingSlash(pathname)
-    let routeMatch: { [paramName: string]: string | string[] } | false = false
+    let routeMatch: Params | false = false
 
     if (isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
@@ -1843,7 +1878,7 @@ export default class Router implements BaseRouter {
         } as HistoryState,
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
-        // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
+        // https://developer.mozilla.org/docs/Web/API/History/replaceState
         '',
         as
       )
@@ -1886,9 +1921,8 @@ export default class Router implements BaseRouter {
 
     try {
       let props: Record<string, any> | undefined
-      const { page: Component, styleSheets } = await this.fetchComponent(
-        '/_error'
-      )
+      const { page: Component, styleSheets } =
+        await this.fetchComponent('/_error')
 
       const routeInfo: CompletePrivateRouteInfo = {
         props,
@@ -1962,12 +1996,12 @@ export default class Router implements BaseRouter {
     let route = requestedRoute
 
     try {
-      const handleCancelled = getCancelledHandler({ route, router: this })
-
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
       if (routeProps.shallow && existingInfo && this.route === route) {
         return existingInfo
       }
+
+      const handleCancelled = getCancelledHandler({ route, router: this })
 
       if (hasMiddleware) {
         existingInfo = undefined
@@ -2225,8 +2259,8 @@ export default class Router implements BaseRouter {
 
   onlyAHashChange(as: string): boolean {
     if (!this.asPath) return false
-    const [oldUrlNoHash, oldHash] = this.asPath.split('#')
-    const [newUrlNoHash, newHash] = as.split('#')
+    const [oldUrlNoHash, oldHash] = this.asPath.split('#', 2)
+    const [newUrlNoHash, newHash] = as.split('#', 2)
 
     // Makes sure we scroll to the provided hash if the url/hash are the same
     if (newHash && oldUrlNoHash === newUrlNoHash && oldHash === newHash) {
@@ -2246,28 +2280,36 @@ export default class Router implements BaseRouter {
   }
 
   scrollToHash(as: string): void {
-    const [, hash = ''] = as.split('#')
-    // Scroll to top if the hash is just `#` with no value or `#top`
-    // To mirror browsers
-    if (hash === '' || hash === 'top') {
-      handleSmoothScroll(() => window.scrollTo(0, 0))
-      return
-    }
+    const [, hash = ''] = as.split('#', 2)
 
-    // Decode hash to make non-latin anchor works.
-    const rawHash = decodeURIComponent(hash)
-    // First we check if the element by id is found
-    const idEl = document.getElementById(rawHash)
-    if (idEl) {
-      handleSmoothScroll(() => idEl.scrollIntoView())
-      return
-    }
-    // If there's no element with the id, we check the `name` property
-    // To mirror browsers
-    const nameEl = document.getElementsByName(rawHash)[0]
-    if (nameEl) {
-      handleSmoothScroll(() => nameEl.scrollIntoView())
-    }
+    handleSmoothScroll(
+      () => {
+        // Scroll to top if the hash is just `#` with no value or `#top`
+        // To mirror browsers
+        if (hash === '' || hash === 'top') {
+          window.scrollTo(0, 0)
+          return
+        }
+
+        // Decode hash to make non-latin anchor works.
+        const rawHash = decodeURIComponent(hash)
+        // First we check if the element by id is found
+        const idEl = document.getElementById(rawHash)
+        if (idEl) {
+          idEl.scrollIntoView()
+          return
+        }
+        // If there's no element with the id, we check the `name` property
+        // To mirror browsers
+        const nameEl = document.getElementsByName(rawHash)[0]
+        if (nameEl) {
+          nameEl.scrollIntoView()
+        }
+      },
+      {
+        onlyHashChange: this.onlyAHashChange(as),
+      }
+    )
   }
 
   urlIsNew(asPath: string): boolean {
@@ -2401,7 +2443,7 @@ export default class Router implements BaseRouter {
                   locale,
                 }),
                 hasMiddleware: true,
-                isServerRender: this.isSsr,
+                isServerRender: false,
                 parseJSON: true,
                 inflightCache: this.sdc,
                 persistCache: !this.isPreview,
@@ -2500,18 +2542,6 @@ export default class Router implements BaseRouter {
 
       return data
     })
-  }
-
-  _getFlightData(dataHref: string) {
-    // Do not cache RSC flight response since it's not a static resource
-    return fetchNextData({
-      dataHref,
-      isServerRender: true,
-      parseJSON: false,
-      inflightCache: this.sdc,
-      persistCache: false,
-      isPrefetch: false,
-    }).then(({ text }) => ({ data: text }))
   }
 
   getInitialProps(

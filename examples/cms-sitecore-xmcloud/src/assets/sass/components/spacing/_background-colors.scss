@@ -1,0 +1,14 @@
+@import "@sass/abstracts/vars";
+
+.container-gray-background {
+  background: $bg-light-gray;
+}
+.container-clean-background {
+  background: $bg-basic-color;
+}
+.container-dark-background {
+  background: $bg-black-active;
+}
+.container-color-background {
+  background: $bg-blue;
+}

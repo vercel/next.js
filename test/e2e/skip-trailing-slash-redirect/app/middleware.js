@@ -18,6 +18,13 @@ export default function handler(req) {
   console.log(req.nextUrl)
   let { pathname } = req.nextUrl
 
+  if (pathname.startsWith('/_next/data') && pathname.includes('locale-test')) {
+    return NextResponse.json({
+      locale: req.nextUrl.locale,
+      pathname: req.nextUrl.pathname,
+    })
+  }
+
   if (pathname.includes('docs') || pathname.includes('chained-rewrite')) {
     if (pathname.startsWith('/en')) {
       pathname = pathname.replace(/^\/en/, '') || '/'

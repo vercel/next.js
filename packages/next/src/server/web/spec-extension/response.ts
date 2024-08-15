@@ -1,6 +1,8 @@
+import { stringifyCookie } from '../../web/spec-extension/cookies'
 import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
 import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
+import { ReflectAdapter } from './adapters/reflect'
 
 import { ResponseCookies } from './cookies'
 
@@ -26,6 +28,11 @@ function handleMiddlewareField(
   }
 }
 
+/**
+ * This class extends the [Web `Response` API](https://developer.mozilla.org/docs/Web/API/Response) with additional convenience methods.
+ *
+ * Read more: [Next.js Docs: `NextResponse`](https://nextjs.org/docs/app/api-reference/functions/next-response)
+ */
 export class NextResponse<Body = unknown> extends Response {
   [INTERNALS]: {
     cookies: ResponseCookies
@@ -36,11 +43,43 @@ export class NextResponse<Body = unknown> extends Response {
   constructor(body?: BodyInit | null, init: ResponseInit = {}) {
     super(body, init)
 
+    const headers = this.headers
+    const cookies = new ResponseCookies(headers)
+
+    const cookiesProxy = new Proxy(cookies, {
+      get(target, prop, receiver) {
+        switch (prop) {
+          case 'delete':
+          case 'set': {
+            return (...args: [string, string]) => {
+              const result = Reflect.apply(target[prop], target, args)
+              const newHeaders = new Headers(headers)
+
+              if (result instanceof ResponseCookies) {
+                headers.set(
+                  'x-middleware-set-cookie',
+                  result
+                    .getAll()
+                    .map((cookie) => stringifyCookie(cookie))
+                    .join(',')
+                )
+              }
+
+              handleMiddlewareField(init, newHeaders)
+              return result
+            }
+          }
+          default:
+            return ReflectAdapter.get(target, prop, receiver)
+        }
+      },
+    })
+
     this[INTERNALS] = {
-      cookies: new ResponseCookies(this.headers),
+      cookies: cookiesProxy,
       url: init.url
         ? new NextURL(init.url, {
-            headers: toNodeOutgoingHttpHeaders(this.headers),
+            headers: toNodeOutgoingHttpHeaders(headers),
             nextConfig: init.nextConfig,
           })
         : undefined,
@@ -71,7 +110,6 @@ export class NextResponse<Body = unknown> extends Response {
     body: JsonBody,
     init?: ResponseInit
   ): NextResponse<JsonBody> {
-    // @ts-expect-error This is not in lib/dom right now, and we can't augment it.
     const response: Response = Response.json(body, init)
     return new NextResponse(response.body, response)
   }

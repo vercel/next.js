@@ -1,7 +1,11 @@
 /* globals __webpack_hash__ */
 import { displayContent } from './fouc'
 import initOnDemandEntries from './on-demand-entries-client'
-import { addMessageListener, connectHMR } from './error-overlay/websocket'
+import {
+  addMessageListener,
+  connectHMR,
+} from '../components/react-dev-overlay/pages/websocket'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
 
 declare global {
   const __webpack_runtime_id__: string
@@ -77,32 +81,34 @@ async function tryApplyUpdates() {
   }
 }
 
-addMessageListener((event) => {
-  if (event.data === '\uD83D\uDC93') {
+addMessageListener((message) => {
+  if (!('action' in message)) {
     return
   }
 
   try {
-    const message = JSON.parse(event.data)
-
     // actions which are not related to amp-dev
     if (
-      message.action === 'serverError' ||
-      message.action === 'devPagesManifestUpdate'
-    )
+      message.action === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR ||
+      message.action === HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE
+    ) {
       return
-    if (message.action === 'sync' || message.action === 'built') {
+    }
+    if (
+      message.action === HMR_ACTIONS_SENT_TO_BROWSER.SYNC ||
+      message.action === HMR_ACTIONS_SENT_TO_BROWSER.BUILT
+    ) {
       if (!message.hash) {
         return
       }
       mostRecentHash = message.hash
       tryApplyUpdates()
-    } else if (message.action === 'reloadPage') {
+    } else if (message.action === HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE) {
       window.location.reload()
     }
   } catch (err: any) {
     console.warn(
-      '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')
+      '[HMR] Invalid message: ' + message + '\n' + (err?.stack ?? '')
     )
   }
 })

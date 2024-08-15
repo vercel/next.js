@@ -1,7 +1,7 @@
 import curry from 'next/dist/compiled/lodash.curry'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { COMPILER_NAMES } from '../../../../shared/lib/constants'
-import { ConfigurationContext } from '../utils'
+import type { ConfigurationContext } from '../utils'
 
 export const base = curry(function base(
   ctx: ConfigurationContext,
@@ -15,10 +15,10 @@ export const base = curry(function base(
     : COMPILER_NAMES.client
 
   config.target = !ctx.targetWeb
-    ? 'node16.8' // Same version defined in packages/next/package.json#engines
+    ? 'node18.17' // Same version defined in packages/next/package.json#engines
     : ctx.isEdgeRuntime
-    ? ['web', 'es6']
-    : ['web', 'es5']
+      ? ['web', 'es6']
+      : ['web', 'es6']
 
   // https://webpack.js.org/configuration/devtool/#development
   if (ctx.isDevelopment) {

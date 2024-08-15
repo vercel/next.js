@@ -1,22 +1,37 @@
-import { FlightRouterState, Segment } from '../../../server/app-render/types'
-import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/future/helpers/interception-routes'
+import type {
+  FlightRouterState,
+  Segment,
+} from '../../../server/app-render/types'
+import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/lib/interception-routes'
+import type { Params } from '../params'
+import {
+  isGroupSegment,
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
+
+const removeLeadingSlash = (segment: string): string => {
+  return segment[0] === '/' ? segment.slice(1) : segment
+}
 
 const segmentToPathname = (segment: Segment): string => {
   if (typeof segment === 'string') {
+    // 'children' is not a valid path -- it's technically a parallel route that corresponds with the current segment's page
+    // if we don't skip it, then the computed pathname might be something like `/children` which doesn't make sense.
+    if (segment === 'children') return ''
+
     return segment
   }
 
   return segment[1]
 }
 
-function normalizePathname(pathname: string): string {
+function normalizeSegments(segments: string[]): string {
   return (
-    pathname.split('/').reduce((acc, segment) => {
-      if (
-        segment === '' ||
-        (segment.startsWith('(') && segment.endsWith(')'))
-      ) {
+    segments.reduce((acc, segment) => {
+      segment = removeLeadingSlash(segment)
+      if (segment === '' || isGroupSegment(segment)) {
         return acc
       }
 
@@ -33,15 +48,14 @@ export function extractPathFromFlightRouterState(
     : flightRouterState[0]
 
   if (
-    segment === '__DEFAULT__' ||
+    segment === DEFAULT_SEGMENT_KEY ||
     INTERCEPTION_ROUTE_MARKERS.some((m) => segment.startsWith(m))
   )
     return undefined
 
-  if (segment.startsWith('__PAGE__')) return ''
+  if (segment.startsWith(PAGE_SEGMENT_KEY)) return ''
 
-  const path = [segment]
-
+  const segments = [segmentToPathname(segment)]
   const parallelRoutes = flightRouterState[1] ?? {}
 
   const childrenPath = parallelRoutes.children
@@ -49,7 +63,7 @@ export function extractPathFromFlightRouterState(
     : undefined
 
   if (childrenPath !== undefined) {
-    path.push(childrenPath)
+    segments.push(childrenPath)
   } else {
     for (const [key, value] of Object.entries(parallelRoutes)) {
       if (key === 'children') continue
@@ -57,13 +71,12 @@ export function extractPathFromFlightRouterState(
       const childPath = extractPathFromFlightRouterState(value)
 
       if (childPath !== undefined) {
-        path.push(childPath)
+        segments.push(childPath)
       }
     }
   }
 
-  // TODO-APP: optimise this, it's not ideal to join and split
-  return normalizePathname(path.join('/'))
+  return normalizeSegments(segments)
 }
 
 function computeChangedPathImpl(
@@ -116,5 +129,36 @@ export function computeChangedPath(
   }
 
   // lightweight normalization to remove route groups
-  return normalizePathname(changedPath)
+  return normalizeSegments(changedPath.split('/'))
+}
+
+/**
+ * Recursively extracts dynamic parameters from FlightRouterState.
+ */
+export function getSelectedParams(
+  currentTree: FlightRouterState,
+  params: Params = {}
+): Params {
+  const parallelRoutes = currentTree[1]
+
+  for (const parallelRoute of Object.values(parallelRoutes)) {
+    const segment = parallelRoute[0]
+    const isDynamicParameter = Array.isArray(segment)
+    const segmentValue = isDynamicParameter ? segment[1] : segment
+    if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
+
+    // Ensure catchAll and optional catchall are turned into an array
+    const isCatchAll =
+      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
+
+    if (isCatchAll) {
+      params[segment[0]] = segment[1].split('/')
+    } else if (isDynamicParameter) {
+      params[segment[0]] = segment[1]
+    }
+
+    params = getSelectedParams(parallelRoute, params)
+  }
+
+  return params
 }

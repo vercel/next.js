@@ -9,4 +9,5 @@ export default function Page() {
 
 export const config = {
   runtime: 'edge',
+  regions: ['us-east-1'],
 }

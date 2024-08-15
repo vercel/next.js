@@ -3,45 +3,12 @@ title: revalidateTag
 description: API Reference for the revalidateTag function.
 ---
 
-`revalidateTag` allows you to revalidate data associated with a specific cache tag. This is useful for scenarios where you want to update your cached data without waiting for a revalidation period to expire.
-
-```ts filename="app/api/revalidate/route.ts" switcher
-import { NextRequest, NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
-
-export async function GET(request: NextRequest) {
-  const tag = request.nextUrl.searchParams.get('tag')
-  revalidateTag(tag)
-  return NextResponse.json({ revalidated: true, now: Date.now() })
-}
-```
-
-```js filename="app/api/revalidate/route.js" switcher
-import { NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
-
-export async function GET(request) {
-  const tag = request.nextUrl.searchParams.get('tag')
-  revalidateTag(tag)
-  return NextResponse.json({ revalidated: true, now: Date.now() })
-}
-```
-
-<AppOnly>
+`revalidateTag` allows you to purge [cached data](/docs/app/building-your-application/caching) on-demand for a specific cache tag.
 
 > **Good to know**:
 >
 > - `revalidateTag` is available in both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
-
-</AppOnly>
-
-<PagesOnly>
-
-> **Good to know**:
->
-> - `revalidateTag` is available in both [Node.js and Edge runtimes](/docs/pages/building-your-application/rendering/edge-and-nodejs-runtimes).
-
-</PagesOnly>
+> - `revalidateTag` only invalidates the cache when the path is next visited. This means calling `revalidateTag` with a dynamic route segment will not immediately trigger many revalidations at once. The invalidation only happens when the path is next visited.
 
 ## Parameters
 
@@ -49,7 +16,7 @@ export async function GET(request) {
 revalidateTag(tag: string): void;
 ```
 
-- `tag`: A string representing the cache tag associated with the data you want to revalidate.
+- `tag`: A string representing the cache tag associated with the data you want to revalidate. Must be less than or equal to 256 characters. This value is case-sensitive.
 
 You can add tags to `fetch` as follows:
 
@@ -59,58 +26,53 @@ fetch(url, { next: { tags: [...] } });
 
 ## Returns
 
-`revalidateTag` does not return any value.
+`revalidateTag` does not return a value.
 
 ## Examples
 
-### Node.js Runtime
+### Server Action
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { revalidateTag } from 'next/cache'
+
+export default async function submit() {
+  await addPost()
+  revalidateTag('posts')
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+import { revalidateTag } from 'next/cache'
+
+export default async function submit() {
+  await addPost()
+  revalidateTag('posts')
+}
+```
+
+### Route Handler
 
 ```ts filename="app/api/revalidate/route.ts" switcher
-import { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
 export async function GET(request: NextRequest) {
   const tag = request.nextUrl.searchParams.get('tag')
   revalidateTag(tag)
-  return NextResponse.json({ revalidated: true, now: Date.now() })
+  return Response.json({ revalidated: true, now: Date.now() })
 }
 ```
 
 ```js filename="app/api/revalidate/route.js" switcher
-import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
 export async function GET(request) {
   const tag = request.nextUrl.searchParams.get('tag')
   revalidateTag(tag)
-  return NextResponse.json({ revalidated: true, now: Date.now() })
-}
-```
-
-### Edge Runtime
-
-```ts filename="app/api/revalidate/route.ts" switcher
-import { NextRequest, NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
-
-export const runtime = 'edge'
-
-export async function GET(request: NextRequest) {
-  const tag = request.nextUrl.searchParams.get('tag')
-  revalidateTag(tag)
-  return NextResponse.json({ revalidated: true, now: Date.now() })
-}
-```
-
-```js filename="app/api/revalidate/route.js" switcher
-import { NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
-
-export const runtime = 'edge'
-
-export async function GET(request) {
-  const tag = request.nextUrl.searchParams.get('tag')
-  revalidateTag(tag)
-  return NextResponse.json({ revalidated: true, now: Date.now() })
+  return Response.json({ revalidated: true, now: Date.now() })
 }
 ```

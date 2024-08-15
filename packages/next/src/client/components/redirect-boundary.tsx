@@ -1,6 +1,6 @@
 'use client'
 import React, { useEffect } from 'react'
-import { AppRouterInstance } from '../../shared/lib/app-router-context'
+import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { useRouter } from './navigation'
 import {
   RedirectType,
@@ -26,7 +26,6 @@ function HandleRedirect({
   const router = useRouter()
 
   useEffect(() => {
-    // @ts-ignore startTransition exists
     React.startTransition(() => {
       if (redirectType === RedirectType.push) {
         router.push(redirect, {})
@@ -59,7 +58,8 @@ export class RedirectErrorBoundary extends React.Component<
     throw error
   }
 
-  render() {
+  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific the the `@types/react` version.
+  render(): React.ReactNode {
     const { redirect, redirectType } = this.state
     if (redirect !== null && redirectType !== null) {
       return (

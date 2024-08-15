@@ -1,52 +1,59 @@
-const { default: AppRouter } =
-  require('next/dist/client/components/app-router') as typeof import('../../client/components/app-router')
-const { default: LayoutRouter } =
-  require('next/dist/client/components/layout-router') as typeof import('../../client/components/layout-router')
-const { default: RenderFromTemplateContext } =
-  require('next/dist/client/components/render-from-template-context') as typeof import('../../client/components/render-from-template-context')
-
-const { staticGenerationAsyncStorage } =
-  require('next/dist/client/components/static-generation-async-storage') as typeof import('../../client/components/static-generation-async-storage')
-
-const { requestAsyncStorage } =
-  require('next/dist/client/components/request-async-storage') as typeof import('../../client/components/request-async-storage')
-const { actionAsyncStorage } =
-  require('next/dist/client/components/action-async-storage') as typeof import('../../client/components/action-async-storage')
-
-const { staticGenerationBailout } =
-  require('next/dist/client/components/static-generation-bailout') as typeof import('../../client/components/static-generation-bailout')
-const { default: StaticGenerationSearchParamsBailoutProvider } =
-  require('next/dist/client/components/static-generation-searchparams-bailout-provider') as typeof import('../../client/components/static-generation-searchparams-bailout-provider')
-const { createSearchParamsBailoutProxy } =
-  require('next/dist/client/components/searchparams-bailout-proxy') as typeof import('../../client/components/searchparams-bailout-proxy')
-
-const serverHooks =
-  require('next/dist/client/components/hooks-server-context') as typeof import('../../client/components/hooks-server-context')
-
-const {
+// eslint-disable-next-line import/no-extraneous-dependencies
+export {
   renderToReadableStream,
   decodeReply,
   decodeAction,
-  // eslint-disable-next-line import/no-extraneous-dependencies
-} = require('react-server-dom-webpack/server.edge')
-const { preloadStyle, preloadFont, preconnect } =
-  require('next/dist/server/app-render/rsc/preloads') as typeof import('../../server/app-render/rsc/preloads')
+  decodeFormState,
+} from 'react-server-dom-webpack/server.edge'
+
+import LayoutRouter from '../../client/components/layout-router'
+import RenderFromTemplateContext from '../../client/components/render-from-template-context'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
+import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
+import { ClientPageRoot } from '../../client/components/client-page'
+import {
+  createUntrackedSearchParams,
+  createDynamicallyTrackedSearchParams,
+} from '../../client/components/search-params'
+import * as serverHooks from '../../client/components/hooks-server-context'
+import { NotFoundBoundary } from '../../client/components/not-found-boundary'
+import { patchFetch as _patchFetch } from '../lib/patch-fetch'
+// not being used but needs to be included in the client manifest for /_not-found
+import '../../client/components/error-boundary'
+
+import {
+  preloadStyle,
+  preloadFont,
+  preconnect,
+} from '../../server/app-render/rsc/preloads'
+import { Postpone } from '../../server/app-render/rsc/postpone'
+import { taintObjectReference } from '../../server/app-render/rsc/taint'
+
+// patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
+// in the experimental channel of React, so export it from here so that it comes from the bundled runtime
+function patchFetch() {
+  return _patchFetch({
+    staticGenerationAsyncStorage,
+    requestAsyncStorage,
+  })
+}
 
 export {
-  AppRouter,
   LayoutRouter,
   RenderFromTemplateContext,
   staticGenerationAsyncStorage,
   requestAsyncStorage,
   actionAsyncStorage,
-  staticGenerationBailout,
-  createSearchParamsBailoutProxy,
+  createUntrackedSearchParams,
+  createDynamicallyTrackedSearchParams,
   serverHooks,
-  renderToReadableStream,
-  decodeReply,
-  decodeAction,
   preloadStyle,
   preloadFont,
   preconnect,
-  StaticGenerationSearchParamsBailoutProvider,
+  Postpone,
+  taintObjectReference,
+  ClientPageRoot,
+  NotFoundBoundary,
+  patchFetch,
 }

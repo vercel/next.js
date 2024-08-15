@@ -1,7 +1,12 @@
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { createNext, FileRef } from 'e2e-utils'
-import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
-import cheerio from 'cheerio'
+import {
+  check,
+  fetchViaHTTP,
+  renderViaHTTP,
+  retry,
+  waitFor,
+} from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import assert from 'assert'
@@ -15,66 +20,29 @@ describe('Prerender prefetch', () => {
     optimisticClientCache?: boolean
   }) => {
     it('should not revalidate during prefetching', async () => {
-      // restart revalidate period
-      for (const path of ['/blog/first', '/blog/second']) {
-        await fetchViaHTTP(next.url, path)
-        await check(
-          // eslint-disable-next-line no-loop-func
-          async () => {
-            return fetchViaHTTP(next.url, path).then((res) =>
-              res.headers.get('x-nextjs-cache')
-            )
-          },
-          /HIT/
-        )
+      const cliOutputStart = next.cliOutput.length
+
+      for (let i = 0; i < 3; i++) {
+        for (const path of ['/blog/first', '/blog/second']) {
+          const res = await fetchViaHTTP(
+            next.url,
+            `/_next/data/${next.buildId}${path}.json`,
+            undefined,
+            {
+              headers: {
+                purpose: 'prefetch',
+              },
+            }
+          )
+          expect(res.status).toBe(200)
+        }
+        // do requests three times with 1 second between
+        // to go over revalidate period
+        await waitFor(1000)
       }
-
-      const reqs = {}
-
-      // get initial values
-      for (const path of ['/blog/first', '/blog/second']) {
-        const res = await fetchViaHTTP(next.url, path)
-        expect(res.status).toBe(200)
-
-        const $ = cheerio.load(await res.text())
-        const props = JSON.parse($('#props').text())
-        reqs[path] = props
-      }
-
-      const browser = await webdriver(next.url, '/')
-
-      // wait for prefetch to occur
-      await check(async () => {
-        const cache = await browser.eval(
-          'JSON.stringify(window.next.router.sdc)'
-        )
-        return cache.includes('/blog/first') && cache.includes('/blog/second')
-          ? 'success'
-          : cache
-      }, 'success')
-
-      await waitFor(3000)
-      await browser.refresh()
-
-      // reload after revalidate period and wait for prefetch again
-      await check(async () => {
-        const cache = await browser.eval(
-          'JSON.stringify(window.next.router.sdc)'
-        )
-        return cache.includes('/blog/first') && cache.includes('/blog/second')
-          ? 'success'
-          : cache
-      }, 'success')
-
-      // ensure revalidate did not occur from prefetch
-      for (const path of ['/blog/first', '/blog/second']) {
-        const res = await fetchViaHTTP(next.url, path)
-        expect(res.status).toBe(200)
-
-        const $ = cheerio.load(await res.text())
-        const props = JSON.parse($('#props').text())
-        expect(props).toEqual(reqs[path])
-      }
+      expect(next.cliOutput.substring(cliOutputStart)).not.toContain(
+        'revalidating /blog'
+      )
     })
 
     it('should trigger revalidation after navigation', async () => {
@@ -133,6 +101,22 @@ describe('Prerender prefetch', () => {
         return next.cliOutput.substring(outputIndex)
       }, /revalidating \/blog first/)
 
+      // wait for the revalidation to finish by comparing timestamps
+      await retry(async () => {
+        const timeRes = await fetchViaHTTP(
+          next.url,
+          `/_next/data/${next.buildId}/blog/first.json`,
+          undefined,
+          {
+            headers: {
+              purpose: 'prefetch',
+            },
+          }
+        )
+        const updatedTime = (await timeRes.json()).pageProps.now
+        expect(updatedTime).not.toBe(startTime)
+      })
+
       // now trigger cache update and navigate again
       await browser.eval(
         'next.router.prefetch("/blog/first", undefined, { unstable_skipClientCache: true }).finally(() => { window.prefetchDone = "yes" })'
@@ -179,6 +163,22 @@ describe('Prerender prefetch', () => {
         await renderViaHTTP(next.url, '/blog/first')
         return next.cliOutput.substring(outputIndex)
       }, /revalidating \/blog first/)
+
+      // wait for the revalidation to finish by comparing timestamps
+      await retry(async () => {
+        const timeRes = await fetchViaHTTP(
+          next.url,
+          `/_next/data/${next.buildId}/blog/first.json`,
+          undefined,
+          {
+            headers: {
+              purpose: 'prefetch',
+            },
+          }
+        )
+        const updatedTime = (await timeRes.json()).pageProps.now
+        expect(updatedTime).not.toBe(startTime)
+      })
 
       // now trigger cache update and navigate again
       await browser.eval(

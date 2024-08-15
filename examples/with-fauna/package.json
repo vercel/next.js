@@ -9,19 +9,17 @@
   "dependencies": {
     "classnames": "2.3.1",
     "date-fns": "2.28.0",
-    "faunadb": "4.5.4",
-    "graphql": "16.5.0",
-    "graphql-request": "4.3.0",
+    "fauna": "^1.2.0",
     "next": "latest",
-    "react": "18.1.0",
-    "react-dom": "18.1.0",
-    "swr": "^2.0.0"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.7",
-    "postcss": "^8.4.14",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31",
+    "request": "^2.88.2",
     "stream-to-promise": "3.0.0",
-    "tailwindcss": "^3.1.2",
-    "request": "^2.88.2"
+    "tailwindcss": "^3.3.3"
   }
 }

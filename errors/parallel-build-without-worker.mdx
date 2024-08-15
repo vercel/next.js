@@ -1,0 +1,18 @@
+---
+title: Parallel Build Without Build Worker
+---
+
+## Why This Error Occurred
+
+The `experimental.parallelServerCompiles` and `experimental.parallelServerBuildTraces`
+options require that the `experimental.webpackBuildWorker` option is set to `true`. These
+options use workers to improve the parallelization of the build which may improve performance,
+but the build may use more memory at the same time.
+
+## Possible Ways to Fix It
+
+Build workers are enabled by default unless you have a custom webpack config. You can force enable the option by setting `experimental.webpackBuildWorker: true` in your `next.config.js` file, but some webpack configuration options may not be compatible.
+
+## Useful Links
+
+Also see https://nextjs.org/docs/messages/webpack-build-worker-opt-out

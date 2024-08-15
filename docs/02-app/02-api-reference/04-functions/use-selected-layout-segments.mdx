@@ -45,16 +45,16 @@ export default function ExampleClientComponent() {
 
 > **Good to know**:
 >
-> - Since `useSelectedLayoutSegments` is a [Client Component](/docs/getting-started/react-essentials#client-components) hook, and Layouts are [Server Components](/docs/getting-started/react-essentials#server-components) by default, `useSelectedLayoutSegments` is usually called via a Client Component that is imported into a Layout.
+> - Since `useSelectedLayoutSegments` is a [Client Component](/docs/app/building-your-application/rendering/client-components) hook, and Layouts are [Server Components](/docs/app/building-your-application/rendering/server-components) by default, `useSelectedLayoutSegments` is usually called via a Client Component that is imported into a Layout.
 > - The returned segments include [Route Groups](/docs/app/building-your-application/routing/route-groups), which you might not want to be included in your UI. You can use the `filter()` array method to remove items that start with a bracket.
 
 ## Parameters
 
 ```tsx
-const segments = useSelectedLayoutSegments()
+const segments = useSelectedLayoutSegments(parallelRoutesKey?: string)
 ```
 
-`useSelectedLayoutSegments` does not take any parameters.
+`useSelectedLayoutSegments` _optionally_ accepts a [`parallelRoutesKey`](/docs/app/building-your-application/routing/parallel-routes#useselectedlayoutsegments), which allows you to read the active route segment within that slot.
 
 ## Returns
 

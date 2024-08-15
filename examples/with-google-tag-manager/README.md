@@ -1,6 +1,6 @@
 ## Example app using Google Tag Manager
 
-This example shows how to use Next.js along with Google Tag Manager. [`pages/_document.js`](pages/_document.js) is used to inject [base code](https://developers.google.com/tag-manager/quickstart). [`pages/_app.js`](pages/_app.js) is used to track route changes and send page views to Google Tag Manager.
+This example shows how to include Google Tag Manager in a Next.js application using `@next/third-parties`. The GTM container is instantiated in `layout.js` and the `sendGTMEvent` function is fired in the `EventButton` client component.
 
 ## Deploy your own
 

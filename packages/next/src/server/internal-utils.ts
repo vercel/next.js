@@ -1,5 +1,6 @@
-import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import type { NextParsedUrlQuery } from './request-meta'
+
+import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 
 const INTERNAL_QUERY_NAMES = [
   '__nextFallback',

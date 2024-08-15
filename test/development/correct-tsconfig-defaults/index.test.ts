@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 
 describe('correct tsconfig.json defaults', () => {
   let next: NextInstance
@@ -28,13 +28,14 @@ describe('correct tsconfig.json defaults', () => {
 
       await next.start()
 
+      let content: string
       // wait for tsconfig to be written
       await check(async () => {
-        await next.readFile('tsconfig.json')
-        return 'success'
-      }, 'success')
+        content = await next.readFile('tsconfig.json')
+        return content && content !== '{}' ? 'ready' : 'retry'
+      }, 'ready')
 
-      const tsconfig = JSON.parse(await next.readFile('tsconfig.json'))
+      const tsconfig = JSON.parse(content)
       expect(next.cliOutput).not.toContain('moduleResolution')
 
       expect(tsconfig.compilerOptions).toEqual(

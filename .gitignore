@@ -1,8 +1,11 @@
 # build output
 dist
+!.github/actions/*/dist
 .next
 target
 packages/next/wasm/@next
+tarballs/
+packages/next/*.tgz
 
 # dependencies
 node_modules
@@ -11,11 +14,13 @@ yarn.lock
 !/yarn.lock
 test/node_modules
 .pnpm-store/
+.github/**/node_modules
 
 # logs & pids
 *.log
 pids
 *.cpuprofile
+*.heapsnapshot
 
 # coverage
 .nyc_output

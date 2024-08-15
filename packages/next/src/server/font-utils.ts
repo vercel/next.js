@@ -5,7 +5,6 @@ import {
   DEFAULT_SANS_SERIF_FONT,
 } from '../shared/lib/constants'
 const capsizeFontsMetrics = require('next/dist/server/capsize-font-metrics.json')
-const https = require('https')
 
 const CHROME_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36'
@@ -22,30 +21,9 @@ function isGoogleFont(url: string): boolean {
   return url.startsWith(GOOGLE_FONT_PROVIDER)
 }
 
-function getFontForUA(url: string, UA: string): Promise<String> {
-  return new Promise((resolve, reject) => {
-    let rawData: any = ''
-    https
-      .get(
-        url,
-        {
-          headers: {
-            'user-agent': UA,
-          },
-        },
-        (res: any) => {
-          res.on('data', (chunk: any) => {
-            rawData += chunk
-          })
-          res.on('end', () => {
-            resolve(rawData.toString('utf8'))
-          })
-        }
-      )
-      .on('error', (e: Error) => {
-        reject(e)
-      })
-  })
+async function getFontForUA(url: string, UA: string): Promise<string> {
+  const res = await fetch(url, { headers: { 'user-agent': UA } })
+  return await res.text()
 }
 
 export async function getFontDefinitionFromNetwork(
@@ -69,20 +47,6 @@ export async function getFontDefinitionFromNetwork(
   }
 
   return result
-}
-
-export function getFontDefinitionFromManifest(
-  url: string,
-  manifest: FontManifest
-): string {
-  return (
-    manifest.find((font) => {
-      if (font && font.url === url) {
-        return true
-      }
-      return false
-    })?.content || ''
-  )
 }
 
 function parseGoogleFontName(css: string): Array<string> {

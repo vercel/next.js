@@ -1,20 +1,20 @@
-import type { InferGetStaticPropsType } from 'next'
-import { useRouter } from 'next/router'
-import ErrorPage from 'next/error'
-import Comment from '../../components/comment'
-import Container from '../../components/container'
-import distanceToNow from '../../lib/dateRelative'
-import { getAllPosts, getPostBySlug } from '../../lib/getPost'
-import markdownToHtml from '../../lib/markdownToHtml'
-import Head from 'next/head'
+import type { InferGetStaticPropsType } from "next";
+import { useRouter } from "next/router";
+import ErrorPage from "next/error";
+import Comment from "../../components/comment";
+import Container from "../../components/container";
+import distanceToNow from "../../lib/dateRelative";
+import { getAllPosts, getPostBySlug } from "../../lib/getPost";
+import markdownToHtml from "../../lib/markdownToHtml";
+import Head from "next/head";
 
 export default function PostPage({
   post,
 }: InferGetStaticPropsType<typeof getStaticProps>) {
-  const router = useRouter()
+  const router = useRouter();
 
   if (!router.isFallback && !post?.slug) {
-    return <ErrorPage statusCode={404} />
+    return <ErrorPage statusCode={404} />;
   }
 
   return (
@@ -48,24 +48,24 @@ export default function PostPage({
         </div>
       )}
     </Container>
-  )
+  );
 }
 
 type Params = {
   params: {
-    slug: string
-  }
-}
+    slug: string;
+  };
+};
 
 export async function getStaticProps({ params }: Params) {
   const post = getPostBySlug(params.slug, [
-    'slug',
-    'title',
-    'excerpt',
-    'date',
-    'content',
-  ])
-  const content = await markdownToHtml(post.content || '')
+    "slug",
+    "title",
+    "excerpt",
+    "date",
+    "content",
+  ]);
+  const content = await markdownToHtml(post.content || "");
 
   return {
     props: {
@@ -74,11 +74,11 @@ export async function getStaticProps({ params }: Params) {
         content,
       },
     },
-  }
+  };
 }
 
 export async function getStaticPaths() {
-  const posts = getAllPosts(['slug'])
+  const posts = getAllPosts(["slug"]);
 
   return {
     paths: posts.map(({ slug }) => {
@@ -86,8 +86,8 @@ export async function getStaticPaths() {
         params: {
           slug,
         },
-      }
+      };
     }),
     fallback: false,
-  }
+  };
 }

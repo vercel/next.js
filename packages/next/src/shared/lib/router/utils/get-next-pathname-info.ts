@@ -1,7 +1,7 @@
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
 import { removePathPrefix } from './remove-path-prefix'
 import { pathHasPrefix } from './path-has-prefix'
-import { I18NProvider } from '../../../../server/future/helpers/i18n-provider'
+import type { I18NProvider } from '../../../../server/lib/i18n-provider'
 
 export interface NextPathnameInfo {
   /**
@@ -56,7 +56,7 @@ export function getNextPathnameInfo(
 ): NextPathnameInfo {
   const { basePath, i18n, trailingSlash } = options.nextConfig ?? {}
   const info: NextPathnameInfo = {
-    pathname: pathname,
+    pathname,
     trailingSlash: pathname !== '/' ? pathname.endsWith('/') : trailingSlash,
   }
 
@@ -64,9 +64,9 @@ export function getNextPathnameInfo(
     info.pathname = removePathPrefix(info.pathname, basePath)
     info.basePath = basePath
   }
+  let pathnameNoDataPrefix = info.pathname
 
   if (
-    options.parseData === true &&
     info.pathname.startsWith('/_next/data/') &&
     info.pathname.endsWith('.json')
   ) {
@@ -76,21 +76,36 @@ export function getNextPathnameInfo(
       .split('/')
 
     const buildId = paths[0]
-    info.pathname = paths[1] !== 'index' ? `/${paths.slice(1).join('/')}` : '/'
     info.buildId = buildId
+    pathnameNoDataPrefix =
+      paths[1] !== 'index' ? `/${paths.slice(1).join('/')}` : '/'
+
+    // update pathname with normalized if enabled although
+    // we use normalized to populate locale info still
+    if (options.parseData === true) {
+      info.pathname = pathnameNoDataPrefix
+    }
   }
 
   // If provided, use the locale route normalizer to detect the locale instead
   // of the function below.
-  if (options.i18nProvider) {
-    const result = options.i18nProvider.analyze(info.pathname)
+  if (i18n) {
+    let result = options.i18nProvider
+      ? options.i18nProvider.analyze(info.pathname)
+      : normalizeLocalePath(info.pathname, i18n.locales)
+
     info.locale = result.detectedLocale
     info.pathname = result.pathname ?? info.pathname
-  } else if (i18n) {
-    const pathLocale = normalizeLocalePath(info.pathname, i18n.locales)
-    info.locale = pathLocale.detectedLocale
-    info.pathname = pathLocale.pathname ?? info.pathname
-  }
 
+    if (!result.detectedLocale && info.buildId) {
+      result = options.i18nProvider
+        ? options.i18nProvider.analyze(pathnameNoDataPrefix)
+        : normalizeLocalePath(pathnameNoDataPrefix, i18n.locales)
+
+      if (result.detectedLocale) {
+        info.locale = result.detectedLocale
+      }
+    }
+  }
   return info
 }

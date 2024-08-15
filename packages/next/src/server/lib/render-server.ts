@@ -1,148 +1,134 @@
-import type { RequestHandler } from '../next'
-
-import './cpu-profile'
-import v8 from 'v8'
-import http from 'http'
-import { isIPv6 } from 'net'
-
-// This is required before other imports to ensure the require hook is setup.
-import '../require-hook'
+import type { NextServer, RequestHandler } from '../next'
+import type { DevBundlerService } from './dev-bundler-service'
+import type { PropagateToWorkersField } from './router-utils/types'
 
 import next from '../next'
-import { warn } from '../../build/output/log'
-import { getFreePort } from '../lib/worker-utils'
+import type { Span } from '../../trace'
 
-export const WORKER_SELF_EXIT_CODE = 77
-
-const MAXIMUM_HEAP_SIZE_ALLOWED =
-  (v8.getHeapStatistics().heap_size_limit / 1024 / 1024) * 0.9
-
-let result:
+let initializations: Record<
+  string,
+  | Promise<{
+      requestHandler: ReturnType<
+        InstanceType<typeof NextServer>['getRequestHandler']
+      >
+      upgradeHandler: ReturnType<
+        InstanceType<typeof NextServer>['getUpgradeHandler']
+      >
+      app: ReturnType<typeof next>
+    }>
   | undefined
-  | {
-      port: number
-      hostname: string
-    }
+> = {}
 
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
-let requireCacheHotReloader:
-  | undefined
-  | typeof import('../../build/webpack/plugins/nextjs-require-cache-hot-reloader')
 
 if (process.env.NODE_ENV !== 'production') {
   sandboxContext = require('../web/sandbox/context')
-  requireCacheHotReloader = require('../../build/webpack/plugins/nextjs-require-cache-hot-reloader')
+}
+
+export function clearAllModuleContexts() {
+  return sandboxContext?.clearAllModuleContexts()
 }
 
 export function clearModuleContext(target: string) {
-  sandboxContext?.clearModuleContext(target)
+  return sandboxContext?.clearModuleContext(target)
 }
 
-export function deleteAppClientCache() {
-  requireCacheHotReloader?.deleteAppClientCache()
+export async function getServerField(
+  dir: string,
+  field: PropagateToWorkersField
+) {
+  const initialization = await initializations[dir]
+  if (!initialization) {
+    throw new Error('Invariant cant propagate server field, no app initialized')
+  }
+  const { app } = initialization
+  let appField = (app as any).server
+  return appField[field]
 }
 
-export function deleteCache(filePath: string) {
-  requireCacheHotReloader?.deleteCache(filePath)
+export async function propagateServerField(
+  dir: string,
+  field: PropagateToWorkersField,
+  value: any
+) {
+  const initialization = await initializations[dir]
+  if (!initialization) {
+    throw new Error('Invariant cant propagate server field, no app initialized')
+  }
+  const { app } = initialization
+  let appField = (app as any).server
+
+  if (appField) {
+    if (typeof appField[field] === 'function') {
+      await appField[field].apply(
+        (app as any).server,
+        Array.isArray(value) ? value : []
+      )
+    } else {
+      appField[field] = value
+    }
+  }
 }
 
-export async function initialize(opts: {
+async function initializeImpl(opts: {
   dir: string
   port: number
   dev: boolean
   minimalMode?: boolean
   hostname?: string
-  workerType: 'router' | 'render'
-  isNodeDebugging: boolean
   keepAliveTimeout?: number
-}): Promise<NonNullable<typeof result>> {
+  serverFields?: any
+  server?: any
+  experimentalTestProxy: boolean
+  experimentalHttpsServer: boolean
+  _ipcPort?: string
+  _ipcKey?: string
+  bundlerService: DevBundlerService | undefined
+  startServerSpan: Span | undefined
+  quiet?: boolean
+}) {
+  const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
+  if (type) {
+    process.title = 'next-render-worker-' + type
+  }
+
+  let requestHandler: RequestHandler
+  let upgradeHandler: any
+
+  const app = next({
+    ...opts,
+    hostname: opts.hostname || 'localhost',
+    customServer: false,
+    httpServer: opts.server,
+    port: opts.port,
+  })
+  requestHandler = app.getRequestHandler()
+  upgradeHandler = app.getUpgradeHandler()
+
+  await app.prepare(opts.serverFields)
+
+  return {
+    requestHandler,
+    upgradeHandler,
+    app,
+  }
+}
+
+export async function initialize(
+  opts: Parameters<typeof initializeImpl>[0]
+): Promise<{
+  requestHandler: ReturnType<
+    InstanceType<typeof NextServer>['getRequestHandler']
+  >
+  upgradeHandler: ReturnType<
+    InstanceType<typeof NextServer>['getUpgradeHandler']
+  >
+  app: NextServer
+}> {
   // if we already setup the server return as we only need to do
   // this on first worker boot
-  if (result) {
-    return result
+  if (initializations[opts.dir]) {
+    return initializations[opts.dir]!
   }
-  let requestHandler: RequestHandler
-
-  const server = http.createServer((req, res) => {
-    return requestHandler(req, res)
-      .catch((err) => {
-        res.statusCode = 500
-        res.end('Internal Server Error')
-        console.error(err)
-      })
-      .finally(() => {
-        if (
-          process.memoryUsage().heapUsed / 1024 / 1024 >
-          MAXIMUM_HEAP_SIZE_ALLOWED
-        ) {
-          warn(
-            'The server is running out of memory, restarting to free up memory.'
-          )
-          server.close()
-          process.exit(WORKER_SELF_EXIT_CODE)
-        }
-      })
-  })
-
-  if (opts.keepAliveTimeout) {
-    server.keepAliveTimeout = opts.keepAliveTimeout
-  }
-
-  return new Promise(async (resolve, reject) => {
-    server.on('error', (err: NodeJS.ErrnoException) => {
-      console.error(`Invariant: failed to start render worker`, err)
-      process.exit(1)
-    })
-
-    let upgradeHandler: any
-
-    if (!opts.dev) {
-      server.on('upgrade', (req, socket, upgrade) => {
-        upgradeHandler(req, socket, upgrade)
-      })
-    }
-
-    server.on('listening', async () => {
-      try {
-        const addr = server.address()
-        const port = addr && typeof addr === 'object' ? addr.port : 0
-
-        if (!port) {
-          console.error(`Invariant failed to detect render worker port`, addr)
-          process.exit(1)
-        }
-
-        let hostname =
-          !opts.hostname || opts.hostname === '0.0.0.0'
-            ? 'localhost'
-            : opts.hostname
-
-        if (isIPv6(hostname)) {
-          hostname = hostname === '::' ? '[::1]' : `[${hostname}]`
-        }
-        result = {
-          port,
-          hostname,
-        }
-        const app = next({
-          ...opts,
-          _routerWorker: opts.workerType === 'router',
-          _renderWorker: opts.workerType === 'render',
-          hostname,
-          customServer: false,
-          httpServer: server,
-          port: opts.port,
-          isNodeDebugging: opts.isNodeDebugging,
-        })
-
-        requestHandler = app.getRequestHandler()
-        upgradeHandler = app.getUpgradeHandler()
-        await app.prepare()
-        resolve(result)
-      } catch (err) {
-        return reject(err)
-      }
-    })
-    server.listen(await getFreePort(), '0.0.0.0')
-  })
+  return (initializations[opts.dir] = initializeImpl(opts))
 }

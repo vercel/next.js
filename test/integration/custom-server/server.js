@@ -7,13 +7,14 @@ if (process.env.POLYFILL_FETCH) {
 const { readFileSync } = require('fs')
 const next = require('next')
 const { join } = require('path')
+const { parse } = require('url')
 
 const dev = process.env.NODE_ENV !== 'production'
 const dir = __dirname
 const port = process.env.PORT || 3000
-const { createServer } = require(process.env.USE_HTTPS === 'true'
-  ? 'https'
-  : 'http')
+const { createServer } = require(
+  process.env.USE_HTTPS === 'true' ? 'https' : 'http'
+)
 
 const app = next({ dev, hostname: 'localhost', port, dir })
 const handleNextRequests = app.getRequestHandler()
@@ -22,6 +23,10 @@ const httpOptions = {
   key: readFileSync(join(__dirname, 'ssh/localhost-key.pem')),
   cert: readFileSync(join(__dirname, 'ssh/localhost.pem')),
 }
+
+process.on('unhandledRejection', (err) => {
+  console.error('unhandledRejection:', err)
+})
 
 app.prepare().then(() => {
   const server = createServer(httpOptions, async (req, res) => {
@@ -62,6 +67,10 @@ app.prepare().then(() => {
       } catch (err) {
         res.end(err.message)
       }
+    }
+
+    if (/custom-url-with-request-handler/.test(req.url)) {
+      return handleNextRequests(req, res, parse('/dashboard', true))
     }
 
     handleNextRequests(req, res)

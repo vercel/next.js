@@ -4,38 +4,53 @@ nav_title: Project Structure
 description: A list of folders and files conventions in a Next.js project
 ---
 
-This page provides an overview of the file and folder structure of a Next.js project. It covers top-level files and folders, configuration files, and routing conventions within the `app` and `pages` directories.
+This page provides an overview of the project structure of a Next.js application. It covers top-level files and folders, configuration files, and routing conventions within the `app` and `pages` directories.
+
+Click the file and folder names to learn more about each convention.
+
+## Top-level folders
+
+Top-level folders are used to organize your application's code and static assets.
+
+<Image
+  alt="Route segments to path segments"
+  srcLight="/docs/light/top-level-folders.png"
+  srcDark="/docs/dark/top-level-folders.png"
+  width="1600"
+  height="525"
+/>
+
+|                                                                          |                                    |
+| ------------------------------------------------------------------------ | ---------------------------------- |
+| [`app`](/docs/app/building-your-application/routing)                     | App Router                         |
+| [`pages`](/docs/pages/building-your-application/routing)                 | Pages Router                       |
+| [`public`](/docs/app/building-your-application/optimizing/static-assets) | Static assets to be served         |
+| [`src`](/docs/app/building-your-application/configuring/src-directory)   | Optional application source folder |
 
 ## Top-level files
+
+Top-level files are used to configure your application, manage dependencies, run middleware, integrate monitoring tools, and define environment variables.
 
 |                                                                                             |                                         |
 | ------------------------------------------------------------------------------------------- | --------------------------------------- |
 | **Next.js**                                                                                 |                                         |
 | [`next.config.js`](/docs/app/api-reference/next-config-js)                                  | Configuration file for Next.js          |
+| [`package.json`](/docs/getting-started/installation#manual-installation)                    | Project dependencies and scripts        |
+| [`instrumentation.ts`](/docs/app/building-your-application/optimizing/instrumentation)      | OpenTelemetry and Instrumentation file  |
 | [`middleware.ts`](/docs/app/building-your-application/routing/middleware)                   | Next.js request middleware              |
-| [`instrumentation.ts`](/docs/app/building-your-application/optimizing/instrumentation)      | OpenTelemetry and Instrumentation       |
 | [`.env`](/docs/app/building-your-application/configuring/environment-variables)             | Environment variables                   |
 | [`.env.local`](/docs/app/building-your-application/configuring/environment-variables)       | Local environment variables             |
 | [`.env.production`](/docs/app/building-your-application/configuring/environment-variables)  | Production environment variables        |
 | [`.env.development`](/docs/app/building-your-application/configuring/environment-variables) | Development environment variables       |
-| `.next-env.d.ts`                                                                            | TypeScript declaration file for Next.js |
-| **Ecosystem**                                                                               |                                         |
-| [`package.json`](/docs/getting-started/installation#manual-installation)                    | Project dependencies and scripts        |
+| [`.eslintrc.json`](/docs/app/building-your-application/configuring/eslint)                  | Configuration file for ESLint           |
 | `.gitignore`                                                                                | Git files and folders to ignore         |
+| `next-env.d.ts`                                                                             | TypeScript declaration file for Next.js |
 | `tsconfig.json`                                                                             | Configuration file for TypeScript       |
 | `jsconfig.json`                                                                             | Configuration file for JavaScript       |
-| [`.eslintrc.json`](/docs/app/building-your-application/configuring/eslint)                  | Configuration file for ESLint           |
-
-## Top-level folders
-
-|                                                                           |                                    |
-| ------------------------------------------------------------------------- | ---------------------------------- |
-| [`app`](/docs/app/building-your-application/routing)                      | App Router                         |
-| [`pages`](/docs/pages/building-your-application/routing)                  | Pages Router                       |
-| [`public`](/docs/getting-started/installation#the-public-folder-optional) | Static assets to be served         |
-| [`src`](/docs/app/building-your-application/configuring/src-directory)    | Optional application source folder |
 
 ## `app` Routing Conventions
+
+The following file conventions are used to define routes and handle metadata in the [`app` router](/docs/app).
 
 ### Routing Files
 
@@ -60,11 +75,11 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 ### Dynamic Routes
 
-|                                                                                                           |                             |
-| --------------------------------------------------------------------------------------------------------- | --------------------------- |
-| [`[folder]`](/docs/app/building-your-application/routing/dynamic-routes#convention)                       | Dynamic route segment       |
-| [`[...folder]`](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)            | Catch-all segments          |
-| [`[[...folder]]`](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments) | Optional catch-all segments |
+|                                                                                                           |                                  |
+| --------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| [`[folder]`](/docs/app/building-your-application/routing/dynamic-routes#convention)                       | Dynamic route segment            |
+| [`[...folder]`](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)            | Catch-all route segment          |
+| [`[[...folder]]`](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments) | Optional catch-all route segment |
 
 ### Route Groups and Private Folders
 
@@ -77,7 +92,7 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 |                                                                                                |                            |
 | ---------------------------------------------------------------------------------------------- | -------------------------- |
-| [`@folder`](/docs/app/building-your-application/routing/parallel-routes#convention)            | Named slot                 |
+| [`@folder`](/docs/app/building-your-application/routing/parallel-routes#slots)                 | Named slot                 |
 | [`(.)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention)      | Intercept same level       |
 | [`(..)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention)     | Intercept one level above  |
 | [`(..)(..)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention) | Intercept two levels above |
@@ -106,14 +121,16 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 #### SEO
 
-|                                                                                             |             |                       |
-| ------------------------------------------------------------------------------------------- | ----------- | --------------------- |
-| [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#static-sitemapxml)    | `.xml`      | Sitemap file          |
-| [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#generate-a-sitemap)   | `.js` `.ts` | Generated Sitemap     |
-| [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#static-robotstxt)       | `.txt`      | Robots file           |
-| [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file) | `.js` `.ts` | Generated Robots file |
+|                                                                                                              |             |                       |
+| ------------------------------------------------------------------------------------------------------------ | ----------- | --------------------- |
+| [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#sitemap-files-xml)                     | `.xml`      | Sitemap file          |
+| [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#generating-a-sitemap-using-code-js-ts) | `.js` `.ts` | Generated Sitemap     |
+| [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#static-robotstxt)                        | `.txt`      | Robots file           |
+| [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file)                  | `.js` `.ts` | Generated Robots file |
 
 ## `pages` Routing Conventions
+
+The following file conventions are used to define routes in the [`pages` router](/docs/pages).
 
 ### Special Files
 
@@ -138,13 +155,13 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 ### Dynamic Routes
 
-|                                                                                                                   |                     |                             |
-| ----------------------------------------------------------------------------------------------------------------- | ------------------- | --------------------------- |
-| **Folder convention**                                                                                             |                     |                             |
-| [`[folder]/index`](/docs/pages/building-your-application/routing/dynamic-routes)                                  | `.js` `.jsx` `.tsx` | Dynamic route segment       |
-| [`[...folder]/index`](/docs/pages/building-your-application/routing/dynamic-routes#catch-all-segments)            | `.js` `.jsx` `.tsx` | Catch-all segments          |
-| [`[[...folder]]/index`](/docs/pages/building-your-application/routing/dynamic-routes#optional-catch-all-segments) | `.js` `.jsx` `.tsx` | Optional catch-all segments |
-| **File convention**                                                                                               |                     |                             |
-| [`[file]`](/docs/pages/building-your-application/routing/dynamic-routes)                                          | `.js` `.jsx` `.tsx` | Dynamic route segment       |
-| [`[...file]`](/docs/pages/building-your-application/routing/dynamic-routes#catch-all-segments)                    | `.js` `.jsx` `.tsx` | Catch-all segments          |
-| [`[[...file]]`](/docs/pages/building-your-application/routing/dynamic-routes#optional-catch-all-segments)         | `.js` `.jsx` `.tsx` | Optional catch-all segments |
+|                                                                                                                   |                     |                                  |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------- | -------------------------------- |
+| **Folder convention**                                                                                             |                     |                                  |
+| [`[folder]/index`](/docs/pages/building-your-application/routing/dynamic-routes)                                  | `.js` `.jsx` `.tsx` | Dynamic route segment            |
+| [`[...folder]/index`](/docs/pages/building-your-application/routing/dynamic-routes#catch-all-segments)            | `.js` `.jsx` `.tsx` | Catch-all route segment          |
+| [`[[...folder]]/index`](/docs/pages/building-your-application/routing/dynamic-routes#optional-catch-all-segments) | `.js` `.jsx` `.tsx` | Optional catch-all route segment |
+| **File convention**                                                                                               |                     |                                  |
+| [`[file]`](/docs/pages/building-your-application/routing/dynamic-routes)                                          | `.js` `.jsx` `.tsx` | Dynamic route segment            |
+| [`[...file]`](/docs/pages/building-your-application/routing/dynamic-routes#catch-all-segments)                    | `.js` `.jsx` `.tsx` | Catch-all route segment          |
+| [`[[...file]]`](/docs/pages/building-your-application/routing/dynamic-routes#optional-catch-all-segments)         | `.js` `.jsx` `.tsx` | Optional catch-all route segment |

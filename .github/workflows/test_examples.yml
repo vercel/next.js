@@ -13,9 +13,6 @@ on:
 
 name: Test examples
 
-env:
-  PNPM_VERSION: 7.24.3
-
 jobs:
   testExamples:
     # Don't execute using cron on forks
@@ -28,9 +25,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [16, 18]
+        node: [18, 20]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
       # https://github.com/actions/virtual-environments/issues/1187
@@ -38,15 +35,14 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
-
-      - run: npm i -g pnpm@${PNPM_VERSION}
+      - run: corepack enable
 
       - run: pnpm install
       - run: pnpm build
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_TEST_JOB=1 NEXT_TEST_MODE=start xvfb-run node run-tests.js --type examples >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.35.1-focal /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && corepack enable > /dev/null && NEXT_TEST_JOB=1 NEXT_TEST_MODE=start xvfb-run node run-tests.js --type examples >> /proc/1/fd/1"
         name: Run test/examples

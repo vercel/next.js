@@ -1,11 +1,15 @@
-import type { reducer } from './router-reducer/router-reducer'
-import type {
-  ReducerState,
-  ReducerAction,
-  MutableRefObject,
-  Dispatch,
-} from 'react'
-import { useRef, useReducer, useEffect, useCallback } from 'react'
+import type { Dispatch } from 'react'
+import React, { use } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
+import {
+  isThenable,
+  type AppRouterState,
+  type ReducerActions,
+  type ReducerState,
+} from './router-reducer/router-reducer-types'
+import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
+
+export type ReduxDevtoolsSyncFn = (state: AppRouterState) => void
 
 function normalizeRouterState(val: any): any {
   if (val instanceof Map) {
@@ -61,72 +65,33 @@ function normalizeRouterState(val: any): any {
   return val
 }
 
-// Log router state when actions are triggered.
-// function logReducer(fn: typeof reducer) {
-//   return (
-//     state: ReducerState<typeof reducer>,
-//     action: ReducerAction<typeof reducer>
-//   ) => {
-//     console.groupCollapsed(action.type)
-//     console.log('action', action)
-//     console.log('old', state)
-//     const res = fn(state, action)
-//     console.log('new', res)
-//     console.groupEnd()
-//     return res
-//   }
-// }
-
 declare global {
   interface Window {
     __REDUX_DEVTOOLS_EXTENSION__: any
   }
 }
 
-interface ReduxDevToolsInstance {
+export interface ReduxDevToolsInstance {
   send(action: any, state: any): void
   init(initialState: any): void
 }
 
-function devToolReducer(
-  fn: typeof reducer,
-  ref: MutableRefObject<ReduxDevToolsInstance | undefined>
-) {
-  return (
-    state: ReducerState<typeof reducer>,
-    action: ReducerAction<typeof reducer>
-  ) => {
-    const res = fn(state, action)
-    if (ref.current) {
-      ref.current.send(action, normalizeRouterState(res))
-    }
-    return res
+export function useUnwrapState(state: ReducerState): AppRouterState {
+  // reducer actions can be async, so sometimes we need to suspend until the state is resolved
+  if (isThenable(state)) {
+    const result = use(state)
+    return result
   }
+
+  return state
 }
 
-function useReducerWithReduxDevtoolsNoop(
-  fn: typeof reducer,
-  initialState: ReturnType<typeof reducer>
-): [
-  ReturnType<typeof reducer>,
-  Dispatch<ReducerAction<typeof reducer>>,
-  () => void
-] {
-  const [state, dispatch] = useReducer(fn, initialState)
-
-  return [state, dispatch, () => {}]
-}
-
-function useReducerWithReduxDevtoolsImpl(
-  fn: typeof reducer,
-  initialState: ReturnType<typeof reducer>
-): [
-  ReturnType<typeof reducer>,
-  Dispatch<ReducerAction<typeof reducer>>,
-  () => void
-] {
-  const devtoolsConnectionRef = useRef<ReduxDevToolsInstance>()
-  const enabledRef = useRef<boolean>()
+export function useReducerWithReduxDevtools(
+  actionQueue: AppRouterActionQueue
+): [ReducerState, Dispatch<ReducerActions>, ReduxDevtoolsSyncFn] {
+  const [state, setState] = React.useState<ReducerState>(actionQueue.state)
+  const devtoolsConnectionRef = useRef<ReduxDevToolsInstance>(undefined)
+  const enabledRef = useRef<boolean>(undefined)
 
   useEffect(() => {
     if (devtoolsConnectionRef.current || enabledRef.current === false) {
@@ -148,31 +113,41 @@ function useReducerWithReduxDevtoolsImpl(
       }
     )
     if (devtoolsConnectionRef.current) {
-      devtoolsConnectionRef.current.init(normalizeRouterState(initialState))
+      devtoolsConnectionRef.current.init(
+        normalizeRouterState(actionQueue.state)
+      )
+
+      if (actionQueue) {
+        actionQueue.devToolsInstance = devtoolsConnectionRef.current
+      }
     }
 
     return () => {
       devtoolsConnectionRef.current = undefined
     }
-  }, [initialState])
+  }, [actionQueue])
 
-  const [state, dispatch] = useReducer(
-    devToolReducer(/* logReducer( */ fn /*)*/, devtoolsConnectionRef),
-    initialState
+  const dispatch = useCallback(
+    (action: ReducerActions) => {
+      actionQueue.dispatch(action, setState)
+    },
+    [actionQueue]
   )
 
-  const sync = useCallback(() => {
+  // Sync is called after a state update in the HistoryUpdater,
+  // for debugging purposes. Since the reducer state may be a Promise,
+  // we let the app router use() it and sync on the resolved value if
+  // something changed.
+  // Using the `state` here would be referentially unstable and cause
+  // undesirable re-renders and history updates.
+  const sync = useCallback<ReduxDevtoolsSyncFn>((resolvedState) => {
     if (devtoolsConnectionRef.current) {
       devtoolsConnectionRef.current.send(
         { type: 'RENDER_SYNC' },
-        normalizeRouterState(state)
+        normalizeRouterState(resolvedState)
       )
     }
-  }, [state])
+  }, [])
+
   return [state, dispatch, sync]
 }
-
-export const useReducerWithReduxDevtools =
-  typeof window !== 'undefined'
-    ? useReducerWithReduxDevtoolsImpl
-    : useReducerWithReduxDevtoolsNoop

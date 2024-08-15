@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const IndexPage = () => (
   <>
@@ -31,6 +31,6 @@ const IndexPage = () => (
       </li>
     </ol>
   </>
-)
+);
 
-export default IndexPage
+export default IndexPage;

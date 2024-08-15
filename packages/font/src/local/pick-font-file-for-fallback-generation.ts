@@ -5,14 +5,14 @@ const BOLD_WEIGHT = 700
 
 /**
  * Convert the weight string to a number so it can be used for comparison.
- * Weights can be defined as a number, 'normal' or 'bold'. https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-weight
+ * Weights can be defined as a number, 'normal' or 'bold'. https://developer.mozilla.org/docs/Web/CSS/@font-face/font-weight
  */
 function getWeightNumber(weight: string) {
   return weight === 'normal'
     ? NORMAL_WEIGHT
     : weight === 'bold'
-    ? BOLD_WEIGHT
-    : Number(weight)
+      ? BOLD_WEIGHT
+      : Number(weight)
 }
 
 /**
@@ -66,7 +66,7 @@ function getDistanceFromNormalWeight(weight?: string) {
  * - If two font files have the same distance from normal weight, the thinner one will most likely be the bulk of the text
  */
 export function pickFontFileForFallbackGeneration<
-  T extends { style?: string; weight?: string }
+  T extends { style?: string; weight?: string },
 >(fontFiles: T[]): T {
   return fontFiles.reduce((usedFontFile, currentFontFile) => {
     if (!usedFontFile) return currentFontFile

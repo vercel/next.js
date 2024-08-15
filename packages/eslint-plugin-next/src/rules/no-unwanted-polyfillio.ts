@@ -3,6 +3,7 @@ import { defineRule } from '../utils/define-rule'
 // Keep in sync with next.js polyfills file : https://github.com/vercel/next.js/blob/master/packages/next-polyfill-nomodule/src/index.js
 const NEXT_POLYFILLED_FEATURES = [
   'Array.prototype.@@iterator',
+  'Array.prototype.at',
   'Array.prototype.copyWithin',
   'Array.prototype.fill',
   'Array.prototype.find',
@@ -30,6 +31,7 @@ const NEXT_POLYFILLED_FEATURES = [
   'Object.fromEntries',
   'Object.getOwnPropertyDescriptor',
   'Object.getOwnPropertyDescriptors',
+  'Object.hasOwn',
   'Object.is',
   'Object.keys',
   'Object.values',
@@ -113,7 +115,12 @@ export = defineRule({
         const src = srcNode.value.value
         if (
           src.startsWith('https://cdn.polyfill.io/v2/') ||
-          src.startsWith('https://polyfill.io/v3/')
+          src.startsWith('https://polyfill.io/v3/') ||
+          // https://community.fastly.com/t/new-options-for-polyfill-io-users/2540
+          src.startsWith('https://polyfill-fastly.net/') ||
+          src.startsWith('https://polyfill-fastly.io/') ||
+          // https://blog.cloudflare.com/polyfill-io-now-available-on-cdnjs-reduce-your-supply-chain-risk
+          src.startsWith('https://cdnjs.cloudflare.com/polyfill/')
         ) {
           const featureQueryString = new URL(src).searchParams.get('features')
           const featuresRequested = (featureQueryString || '').split(',')

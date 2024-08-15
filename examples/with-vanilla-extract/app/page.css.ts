@@ -1,7 +1,7 @@
-import { style } from '@vanilla-extract/css'
+import { style } from "@vanilla-extract/css";
 
 export const page = style({
-  display: 'grid',
-  gap: '1em',
-  placeContent: 'center',
-})
+  display: "grid",
+  gap: "1em",
+  placeContent: "center",
+});

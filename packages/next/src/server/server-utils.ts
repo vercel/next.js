@@ -1,11 +1,11 @@
-import type { IncomingMessage, ServerResponse } from 'http'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from './config'
 import type { BaseNextRequest } from './base-http'
 import type { ParsedUrlQuery } from 'querystring'
+import type { UrlWithParsedQuery } from 'url'
 
-import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
+import { format as formatUrl, parse as parseUrl } from 'url'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -14,19 +14,15 @@ import {
   matchHas,
   prepareDestination,
 } from '../shared/lib/router/utils/prepare-destination'
-import { acceptLanguage } from './accept-header'
-import { detectLocaleCookie } from '../shared/lib/i18n/detect-locale-cookie'
-import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
-import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
-import cookie from 'next/dist/compiled/cookie'
-import { TEMPORARY_REDIRECT_STATUS } from '../shared/lib/constants'
-import { addRequestMeta } from './request-meta'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import { normalizeRscPath } from '../shared/lib/router/utils/app-paths'
-import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
+import { normalizeRscURL } from '../shared/lib/router/utils/app-paths'
+import {
+  NEXT_INTERCEPTION_MARKER_PREFIX,
+  NEXT_QUERY_PARAM_PREFIX,
+} from '../lib/constants'
 
 export function normalizeVercelUrl(
-  req: BaseNextRequest | IncomingMessage,
+  req: BaseNextRequest,
   trustQuery: boolean,
   paramKeys?: string[],
   pageIsDynamic?: boolean,
@@ -39,9 +35,17 @@ export function normalizeVercelUrl(
     delete (_parsedUrl as any).search
 
     for (const key of Object.keys(_parsedUrl.query)) {
+      const isNextQueryPrefix =
+        key !== NEXT_QUERY_PARAM_PREFIX &&
+        key.startsWith(NEXT_QUERY_PARAM_PREFIX)
+
+      const isNextInterceptionMarkerPrefix =
+        key !== NEXT_INTERCEPTION_MARKER_PREFIX &&
+        key.startsWith(NEXT_INTERCEPTION_MARKER_PREFIX)
+
       if (
-        (key !== NEXT_QUERY_PARAM_PREFIX &&
-          key.startsWith(NEXT_QUERY_PARAM_PREFIX)) ||
+        isNextQueryPrefix ||
+        isNextInterceptionMarkerPrefix ||
         (paramKeys || Object.keys(defaultRouteRegex.groups)).includes(key)
       ) {
         delete _parsedUrl.query[key]
@@ -90,6 +94,88 @@ export function interpolateDynamicPath(
   return pathname
 }
 
+export function normalizeDynamicRouteParams(
+  params: ParsedUrlQuery,
+  ignoreOptional?: boolean,
+  defaultRouteRegex?: ReturnType<typeof getNamedRouteRegex> | undefined,
+  defaultRouteMatches?: ParsedUrlQuery | undefined
+) {
+  let hasValidParams = true
+  if (!defaultRouteRegex) return { params, hasValidParams: false }
+
+  params = Object.keys(defaultRouteRegex.groups).reduce((prev, key) => {
+    let value: string | string[] | undefined = params[key]
+
+    if (typeof value === 'string') {
+      value = normalizeRscURL(value)
+    }
+    if (Array.isArray(value)) {
+      value = value.map((val) => {
+        if (typeof val === 'string') {
+          val = normalizeRscURL(val)
+        }
+        return val
+      })
+    }
+
+    // if the value matches the default value we can't rely
+    // on the parsed params, this is used to signal if we need
+    // to parse x-now-route-matches or not
+    const defaultValue = defaultRouteMatches![key]
+    const isOptional = defaultRouteRegex!.groups[key].optional
+
+    const isDefaultValue = Array.isArray(defaultValue)
+      ? defaultValue.some((defaultVal) => {
+          return Array.isArray(value)
+            ? value.some((val) => val.includes(defaultVal))
+            : value?.includes(defaultVal)
+        })
+      : value?.includes(defaultValue as string)
+
+    if (
+      isDefaultValue ||
+      (typeof value === 'undefined' && !(isOptional && ignoreOptional))
+    ) {
+      hasValidParams = false
+    }
+
+    // non-provided optional values should be undefined so normalize
+    // them to undefined
+    if (
+      isOptional &&
+      (!value ||
+        (Array.isArray(value) &&
+          value.length === 1 &&
+          // fallback optional catch-all SSG pages have
+          // [[...paramName]] for the root path on Vercel
+          (value[0] === 'index' || value[0] === `[[...${key}]]`)))
+    ) {
+      value = undefined
+      delete params[key]
+    }
+
+    // query values from the proxy aren't already split into arrays
+    // so make sure to normalize catch-all values
+    if (
+      value &&
+      typeof value === 'string' &&
+      defaultRouteRegex!.groups[key].repeat
+    ) {
+      value = value.split('/')
+    }
+
+    if (value) {
+      prev[key] = value
+    }
+    return prev
+  }, {} as ParsedUrlQuery)
+
+  return {
+    params,
+    hasValidParams,
+  }
+}
+
 export function getUtils({
   page,
   i18n,
@@ -103,9 +189,9 @@ export function getUtils({
   i18n?: NextConfig['i18n']
   basePath: string
   rewrites: {
-    fallback?: Rewrite[]
-    afterFiles?: Rewrite[]
-    beforeFiles?: Rewrite[]
+    fallback?: ReadonlyArray<Rewrite>
+    afterFiles?: ReadonlyArray<Rewrite>
+    beforeFiles?: ReadonlyArray<Rewrite>
   }
   pageIsDynamic: boolean
   trailingSlash?: boolean
@@ -121,10 +207,7 @@ export function getUtils({
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
 
-  function handleRewrites(
-    req: BaseNextRequest | IncomingMessage,
-    parsedUrl: UrlWithParsedQuery
-  ) {
+  function handleRewrites(req: BaseNextRequest, parsedUrl: UrlWithParsedQuery) {
     const rewriteParams = {}
     let fsPathname = parsedUrl.pathname
 
@@ -238,18 +321,8 @@ export function getUtils({
     return rewriteParams
   }
 
-  function handleBasePath(
-    req: BaseNextRequest | IncomingMessage,
-    parsedUrl: UrlWithParsedQuery
-  ) {
-    // always strip the basePath if configured since it is required
-    req.url = req.url!.replace(new RegExp(`^${basePath}`), '') || '/'
-    parsedUrl.pathname =
-      parsedUrl.pathname!.replace(new RegExp(`^${basePath}`), '') || '/'
-  }
-
   function getParamsFromRouteMatches(
-    req: BaseNextRequest | IncomingMessage,
+    req: BaseNextRequest,
     renderOpts?: any,
     detectedLocale?: string
   ) {
@@ -346,241 +419,24 @@ export function getUtils({
     )(req.headers['x-now-route-matches'] as string) as ParsedUrlQuery
   }
 
-  function normalizeDynamicRouteParams(
-    params: ParsedUrlQuery,
-    ignoreOptional?: boolean
-  ) {
-    let hasValidParams = true
-    if (!defaultRouteRegex) return { params, hasValidParams: false }
-
-    params = Object.keys(defaultRouteRegex.groups).reduce((prev, key) => {
-      let value: string | string[] | undefined = params[key]
-
-      if (typeof value === 'string') {
-        value = normalizeRscPath(value, true)
-      }
-      if (Array.isArray(value)) {
-        value = value.map((val) => {
-          if (typeof val === 'string') {
-            val = normalizeRscPath(val, true)
-          }
-          return val
-        })
-      }
-
-      // if the value matches the default value we can't rely
-      // on the parsed params, this is used to signal if we need
-      // to parse x-now-route-matches or not
-      const defaultValue = defaultRouteMatches![key]
-      const isOptional = defaultRouteRegex!.groups[key].optional
-
-      const isDefaultValue = Array.isArray(defaultValue)
-        ? defaultValue.some((defaultVal) => {
-            return Array.isArray(value)
-              ? value.some((val) => val.includes(defaultVal))
-              : value?.includes(defaultVal)
-          })
-        : value?.includes(defaultValue as string)
-
-      if (
-        isDefaultValue ||
-        (typeof value === 'undefined' && !(isOptional && ignoreOptional))
-      ) {
-        hasValidParams = false
-      }
-
-      // non-provided optional values should be undefined so normalize
-      // them to undefined
-      if (
-        isOptional &&
-        (!value ||
-          (Array.isArray(value) &&
-            value.length === 1 &&
-            // fallback optional catch-all SSG pages have
-            // [[...paramName]] for the root path on Vercel
-            (value[0] === 'index' || value[0] === `[[...${key}]]`)))
-      ) {
-        value = undefined
-        delete params[key]
-      }
-
-      // query values from the proxy aren't already split into arrays
-      // so make sure to normalize catch-all values
-      if (
-        value &&
-        typeof value === 'string' &&
-        defaultRouteRegex!.groups[key].repeat
-      ) {
-        value = value.split('/')
-      }
-
-      if (value) {
-        prev[key] = value
-      }
-      return prev
-    }, {} as ParsedUrlQuery)
-
-    return {
-      params,
-      hasValidParams,
-    }
-  }
-
-  function handleLocale(
-    req: IncomingMessage,
-    res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery,
-    routeNoAssetPath: string,
-    shouldNotRedirect: boolean
-  ) {
-    if (!i18n) return
-    const pathname = parsedUrl.pathname || '/'
-
-    let defaultLocale = i18n.defaultLocale
-    let detectedLocale = detectLocaleCookie(req, i18n.locales)
-    let acceptPreferredLocale
-    try {
-      acceptPreferredLocale =
-        i18n.localeDetection !== false
-          ? acceptLanguage(req.headers['accept-language'], i18n.locales)
-          : detectedLocale
-    } catch (_) {
-      acceptPreferredLocale = detectedLocale
-    }
-
-    const { host } = req.headers || {}
-    // remove port from host and remove port if present
-    const hostname = host && host.split(':')[0].toLowerCase()
-
-    const detectedDomain = detectDomainLocale(i18n.domains, hostname)
-    if (detectedDomain) {
-      defaultLocale = detectedDomain.defaultLocale
-      detectedLocale = defaultLocale
-      addRequestMeta(req as any, '__nextIsLocaleDomain', true)
-    }
-
-    // if not domain specific locale use accept-language preferred
-    detectedLocale = detectedLocale || acceptPreferredLocale
-
-    let localeDomainRedirect
-    const localePathResult = normalizeLocalePath(pathname, i18n.locales)
-
-    routeNoAssetPath = normalizeLocalePath(
-      routeNoAssetPath,
-      i18n.locales
-    ).pathname
-
-    if (localePathResult.detectedLocale) {
-      detectedLocale = localePathResult.detectedLocale
-      req.url = formatUrl({
-        ...parsedUrl,
-        pathname: localePathResult.pathname,
-      })
-      addRequestMeta(req as any, '__nextStrippedLocale', true)
-      parsedUrl.pathname = localePathResult.pathname
-    }
-
-    // If a detected locale is a domain specific locale and we aren't already
-    // on that domain and path prefix redirect to it to prevent duplicate
-    // content from multiple domains
-    if (detectedDomain) {
-      const localeToCheck = localePathResult.detectedLocale
-        ? detectedLocale
-        : acceptPreferredLocale
-
-      const matchedDomain = detectDomainLocale(
-        i18n.domains,
-        undefined,
-        localeToCheck
-      )
-
-      if (matchedDomain && matchedDomain.domain !== detectedDomain.domain) {
-        localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
-          matchedDomain.domain
-        }/${localeToCheck === matchedDomain.defaultLocale ? '' : localeToCheck}`
-      }
-    }
-
-    const denormalizedPagePath = denormalizePagePath(pathname)
-    const detectedDefaultLocale =
-      !detectedLocale ||
-      detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
-    const shouldStripDefaultLocale = false
-    // detectedDefaultLocale &&
-    // denormalizedPagePath.toLowerCase() === \`/\${i18n.defaultLocale.toLowerCase()}\`
-
-    const shouldAddLocalePrefix =
-      !detectedDefaultLocale && denormalizedPagePath === '/'
-
-    detectedLocale = detectedLocale || i18n.defaultLocale
-
-    if (
-      !shouldNotRedirect &&
-      !req.headers['x-vercel-id'] &&
-      i18n.localeDetection !== false &&
-      (localeDomainRedirect ||
-        shouldAddLocalePrefix ||
-        shouldStripDefaultLocale)
-    ) {
-      // set the NEXT_LOCALE cookie when a user visits the default locale
-      // with the locale prefix so that they aren't redirected back to
-      // their accept-language preferred locale
-      if (shouldStripDefaultLocale && acceptPreferredLocale !== defaultLocale) {
-        const previous = res.getHeader('set-cookie')
-
-        res.setHeader('set-cookie', [
-          ...(typeof previous === 'string'
-            ? [previous]
-            : Array.isArray(previous)
-            ? previous
-            : []),
-          cookie.serialize('NEXT_LOCALE', defaultLocale, {
-            httpOnly: true,
-            path: '/',
-          }),
-        ])
-      }
-
-      res.setHeader(
-        'Location',
-        formatUrl({
-          // make sure to include any query values when redirecting
-          ...parsedUrl,
-          pathname: localeDomainRedirect
-            ? localeDomainRedirect
-            : shouldStripDefaultLocale
-            ? basePath || '/'
-            : `${basePath}/${detectedLocale}`,
-        })
-      )
-      res.statusCode = TEMPORARY_REDIRECT_STATUS
-      res.end()
-      return
-    }
-
-    detectedLocale =
-      localePathResult.detectedLocale ||
-      (detectedDomain && detectedDomain.defaultLocale) ||
-      defaultLocale
-
-    return {
-      defaultLocale,
-      detectedLocale,
-      routeNoAssetPath,
-    }
-  }
-
   return {
-    handleLocale,
     handleRewrites,
-    handleBasePath,
     defaultRouteRegex,
     dynamicRouteMatcher,
     defaultRouteMatches,
     getParamsFromRouteMatches,
-    normalizeDynamicRouteParams,
+    normalizeDynamicRouteParams: (
+      params: ParsedUrlQuery,
+      ignoreOptional?: boolean
+    ) =>
+      normalizeDynamicRouteParams(
+        params,
+        ignoreOptional,
+        defaultRouteRegex,
+        defaultRouteMatches
+      ),
     normalizeVercelUrl: (
-      req: BaseNextRequest | IncomingMessage,
+      req: BaseNextRequest,
       trustQuery: boolean,
       paramKeys?: string[]
     ) =>

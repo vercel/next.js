@@ -2,34 +2,42 @@ import type {
   AlternateLinkDescriptor,
   ResolvedAlternateURLs,
 } from '../types/alternative-urls-types'
-import type { Metadata, ResolvedMetadata } from '../types/metadata-interface'
+import type {
+  Metadata,
+  ResolvedMetadata,
+  Viewport,
+} from '../types/metadata-interface'
 import type { ResolvedVerification } from '../types/metadata-types'
 import type {
   FieldResolver,
   FieldResolverExtraArgs,
   MetadataContext,
 } from '../types/resolvers'
-import type { Viewport } from '../types/extra-types'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
 import { resolveAbsoluteUrlWithPathname } from './resolve-url'
-import { ViewPortKeys } from '../constants'
 
 function resolveAlternateUrl(
   url: string | URL,
   metadataBase: URL | null,
-  pathname: string
+  metadataContext: MetadataContext
 ) {
   // If alter native url is an URL instance,
   // we treat it as a URL base and resolve with current pathname
   if (url instanceof URL) {
-    url = new URL(pathname, url)
+    const newUrl = new URL(metadataContext.pathname, url)
+    url.searchParams.forEach((value, key) =>
+      newUrl.searchParams.set(key, value)
+    )
+    url = newUrl
   }
-  return resolveAbsoluteUrlWithPathname(url, metadataBase, pathname)
+  return resolveAbsoluteUrlWithPathname(url, metadataBase, metadataContext)
 }
 
-export const resolveThemeColor: FieldResolver<'themeColor'> = (themeColor) => {
+export const resolveThemeColor: FieldResolver<'themeColor', Viewport> = (
+  themeColor
+) => {
   if (!themeColor) return null
-  const themeColorDescriptors: ResolvedMetadata['themeColor'] = []
+  const themeColorDescriptors: Viewport['themeColor'] = []
 
   resolveAsArrayOrUndefined(themeColor)?.forEach((descriptor) => {
     if (typeof descriptor === 'string')
@@ -44,33 +52,16 @@ export const resolveThemeColor: FieldResolver<'themeColor'> = (themeColor) => {
   return themeColorDescriptors
 }
 
-export const resolveViewport: FieldResolver<'viewport'> = (viewport) => {
-  let resolved: ResolvedMetadata['viewport'] = null
-
-  if (typeof viewport === 'string') {
-    resolved = viewport
-  } else if (viewport) {
-    resolved = ''
-    for (const viewportKey_ in ViewPortKeys) {
-      const viewportKey = viewportKey_ as keyof Viewport
-      if (viewportKey in viewport) {
-        let value = viewport[viewportKey]
-        if (typeof value === 'boolean') value = value ? 'yes' : 'no'
-        if (resolved) resolved += ', '
-        resolved += `${ViewPortKeys[viewportKey]}=${value}`
-      }
-    }
-  }
-  return resolved
-}
-
 function resolveUrlValuesOfObject(
   obj:
-    | Record<string, string | URL | AlternateLinkDescriptor[] | null>
+    | Record<
+        string,
+        string | URL | AlternateLinkDescriptor[] | null | undefined
+      >
     | null
     | undefined,
   metadataBase: ResolvedMetadata['metadataBase'],
-  pathname: string
+  metadataContext: MetadataContext
 ): null | Record<string, AlternateLinkDescriptor[]> {
   if (!obj) return null
 
@@ -79,13 +70,13 @@ function resolveUrlValuesOfObject(
     if (typeof value === 'string' || value instanceof URL) {
       result[key] = [
         {
-          url: resolveAlternateUrl(value, metadataBase, pathname),
+          url: resolveAlternateUrl(value, metadataBase, metadataContext),
         },
       ]
     } else {
       result[key] = []
       value?.forEach((item, index) => {
-        const url = resolveAlternateUrl(item.url, metadataBase, pathname)
+        const url = resolveAlternateUrl(item.url, metadataBase, metadataContext)
         result[key][index] = {
           url,
           title: item.title,
@@ -99,7 +90,7 @@ function resolveUrlValuesOfObject(
 function resolveCanonicalUrl(
   urlOrDescriptor: string | URL | null | AlternateLinkDescriptor | undefined,
   metadataBase: URL | null,
-  pathname: string
+  metadataContext: MetadataContext
 ): null | AlternateLinkDescriptor {
   if (!urlOrDescriptor) return null
 
@@ -110,35 +101,35 @@ function resolveCanonicalUrl(
 
   // Return string url because structureClone can't handle URL instance
   return {
-    url: resolveAlternateUrl(url, metadataBase, pathname),
+    url: resolveAlternateUrl(url, metadataBase, metadataContext),
   }
 }
 
 export const resolveAlternates: FieldResolverExtraArgs<
   'alternates',
   [ResolvedMetadata['metadataBase'], MetadataContext]
-> = (alternates, metadataBase, { pathname }) => {
+> = (alternates, metadataBase, context) => {
   if (!alternates) return null
 
   const canonical = resolveCanonicalUrl(
     alternates.canonical,
     metadataBase,
-    pathname
+    context
   )
   const languages = resolveUrlValuesOfObject(
     alternates.languages,
     metadataBase,
-    pathname
+    context
   )
   const media = resolveUrlValuesOfObject(
     alternates.media,
     metadataBase,
-    pathname
+    context
   )
   const types = resolveUrlValuesOfObject(
     alternates.types,
     metadataBase,
-    pathname
+    context
   )
 
   const result: ResolvedAlternateURLs = {
@@ -255,12 +246,20 @@ export const resolveAppLinks: FieldResolver<'appLinks'> = (appLinks) => {
 export const resolveItunes: FieldResolverExtraArgs<
   'itunes',
   [ResolvedMetadata['metadataBase'], MetadataContext]
-> = (itunes, metadataBase, { pathname }) => {
+> = (itunes, metadataBase, context) => {
   if (!itunes) return null
   return {
     appId: itunes.appId,
     appArgument: itunes.appArgument
-      ? resolveAlternateUrl(itunes.appArgument, metadataBase, pathname)
+      ? resolveAlternateUrl(itunes.appArgument, metadataBase, context)
       : undefined,
+  }
+}
+
+export const resolveFacebook: FieldResolver<'facebook'> = (facebook) => {
+  if (!facebook) return null
+  return {
+    appId: facebook.appId,
+    admins: resolveAsArrayOrUndefined(facebook.admins),
   }
 }

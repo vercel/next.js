@@ -1,5 +1,6 @@
 // TODO-APP: hydration warning
 
+import './app-webpack'
 import { appBootstrap } from './app-bootstrap'
 
 appBootstrap(() => {

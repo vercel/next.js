@@ -1,5 +1,5 @@
 import type { RemotePattern } from './image-config'
-import { makeRe } from 'next/dist/compiled/micromatch'
+import { makeRe } from 'next/dist/compiled/picomatch'
 
 export function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
   if (pattern.protocol !== undefined) {
@@ -24,7 +24,7 @@ export function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
     }
   }
 
-  if (!makeRe(pattern.pathname ?? '**').test(url.pathname)) {
+  if (!makeRe(pattern.pathname ?? '**', { dot: true }).test(url.pathname)) {
     return false
   }
 

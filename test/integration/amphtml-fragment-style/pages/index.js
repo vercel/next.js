@@ -1,6 +1,6 @@
 export const config = { amp: true }
 
-export default () => (
+const Comp = () => (
   <div>
     <p>Hello world!</p>
     <style jsx>{`
@@ -10,3 +10,6 @@ export default () => (
     `}</style>
   </div>
 )
+
+Comp.getInitialProps = () => ({})
+export default Comp

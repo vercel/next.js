@@ -1,20 +1,20 @@
 {
   "name": "@next/swc",
-  "version": "13.4.10-canary.6",
+  "version": "15.0.0-canary.115",
   "private": true,
   "scripts": {
     "clean": "node ../../scripts/rm.mjs native",
-    "build-native": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --features plugin,rustls-tls,image-webp --js false native",
-    "build-native-release": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --release --features plugin,rustls-tls,image-webp,tracing/release_max_level_info --js false native",
+    "build-native": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --features plugin,image-extended --js false native",
+    "build-native-release": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --release --features plugin,image-extended,tracing/release_max_level_info --js false native",
     "build-native-no-plugin": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --features image-webp --js false native",
-    "build-native-no-plugin-woa": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --cargo-flags=--no-default-features --features native-tls,image-webp --js false native",
-    "build-native-no-plugin-woa-release": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --release --cargo-flags=--no-default-features --features native-tls,image-webp,tracing/release_max_level_info --js false native",
-    "build-wasm": "wasm-pack build crates/wasm --scope=next",
-    "cache-build-native": "echo $(ls native)",
-    "rust-check": "cd ../../; cargo fmt -- --check && cargo clippy --all -- -D warnings -A deprecated && cargo check -p next-dev --no-default-features --features cli,custom_allocator,rustls-tls,serializable && rm -rf target",
-    "test-cargo-unit": "cargo test --workspace --exclude next-dev-tests",
-    "test-cargo-integration": "cross-env CARGO_PROFILE_RELEASE_LTO=false cargo nextest run -p next-dev-tests --release --no-fail-fast",
-    "test-cargo-bench": "cross-env CARGO_PROFILE_RELEASE_LTO=false TURBOPACK_BENCH_COUNTS=10 TURBOPACK_BENCH_CACHED=1 TURBOPACK_BENCH_PROGRESS=1 cargo test --benches -p next-dev --release --no-fail-fast"
+    "build-native-no-plugin-release": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --release --features image-webp,tracing/release_max_level_info --js false native",
+    "build-native-wasi": "npx --package=@napi-rs/cli@3.0.0-alpha.45 napi build --platform --target wasm32-wasip1-threads -p next-swc-napi --cwd ../../ --output-dir packages/next-swc/native --no-default-features",
+    "build-wasm": "wasm-pack build ../../crates/wasm --scope=next",
+    "cache-build-native": "[ -d native ] && echo $(ls native)",
+    "rust-check-fmt": "cd ../..; cargo fmt -- --check",
+    "rust-check-clippy": "cargo clippy --workspace --all-targets -- -D warnings -A deprecated",
+    "rust-check-napi-rustls": "cargo check -p next-swc-napi",
+    "test-cargo-unit": "cargo nextest run --workspace --exclude next-swc-napi --release --no-fail-fast --features rustls-tls"
   },
   "napi": {
     "name": "next-swc",
@@ -26,12 +26,13 @@
         "aarch64-apple-darwin",
         "x86_64-unknown-linux-musl",
         "aarch64-unknown-linux-musl",
-        "aarch64-pc-windows-msvc"
+        "aarch64-pc-windows-msvc",
+        "wasm32-wasip1-threads"
       ]
     }
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.14.7",
+    "@napi-rs/cli": "2.18.0",
     "cross-env": "6.0.3"
   }
 }

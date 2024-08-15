@@ -44,22 +44,63 @@ export function resolveRobots(data: MetadataRoute.Robots): string {
 // TODO-METADATA: support multi sitemap files
 // convert sitemap data to xml string
 export function resolveSitemap(data: MetadataRoute.Sitemap): string {
+  const hasAlternates = data.some(
+    (item) => Object.keys(item.alternates ?? {}).length > 0
+  )
+  const hasImages = data.some((item) => Boolean(item.images?.length))
+
   let content = ''
   content += '<?xml version="1.0" encoding="UTF-8"?>\n'
-  content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+  content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+  if (hasImages) {
+    content += ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"'
+  }
+  if (hasAlternates) {
+    content += ' xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
+  } else {
+    content += '>\n'
+  }
   for (const item of data) {
     content += '<url>\n'
     content += `<loc>${item.url}</loc>\n`
+
+    const languages = item.alternates?.languages
+    if (languages && Object.keys(languages).length) {
+      // Since sitemap is separated from the page rendering, there's not metadataBase accessible yet.
+      // we give the default setting that won't effect the languages resolving.
+      for (const language in languages) {
+        content += `<xhtml:link rel="alternate" hreflang="${language}" href="${
+          languages[language as keyof typeof languages]
+        }" />\n`
+      }
+    }
+    if (item.images?.length) {
+      for (const image of item.images) {
+        content += `<image:image>\n<image:loc>${image}</image:loc>\n</image:image>\n`
+      }
+    }
     if (item.lastModified) {
-      content += `<lastmod>${
+      const serializedDate =
         item.lastModified instanceof Date
           ? item.lastModified.toISOString()
           : item.lastModified
-      }</lastmod>\n`
+
+      content += `<lastmod>${serializedDate}</lastmod>\n`
     }
+
+    if (item.changeFrequency) {
+      content += `<changefreq>${item.changeFrequency}</changefreq>\n`
+    }
+
+    if (typeof item.priority === 'number') {
+      content += `<priority>${item.priority}</priority>\n`
+    }
+
     content += '</url>\n'
   }
+
   content += '</urlset>\n'
+
   return content
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "@next/codemod",
-  "version": "13.4.10-canary.6",
+  "version": "15.0.0-canary.115",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,14 +8,14 @@
     "directory": "packages/next-codemod"
   },
   "dependencies": {
-    "chalk": "4.1.0",
     "cheerio": "1.0.0-rc.9",
     "execa": "4.0.3",
     "globby": "11.0.1",
     "inquirer": "7.3.3",
     "is-git-clean": "1.1.0",
     "jscodeshift": "0.13.1",
-    "meow": "7.0.1"
+    "meow": "7.0.1",
+    "picocolors": "1.0.0"
   },
   "files": [
     "transforms/*.js",

@@ -53,7 +53,7 @@ In the same folder, `loading.js` will be nested inside `layout.js`. It will auto
 
 > **Good to know**:
 >
-> - Navigation is immediate, even with [server-centric routing](/docs/app/building-your-application/routing#server-centric-routing-with-client-side-navigation).
+> - Navigation is immediate, even with [server-centric routing](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works).
 > - Navigation is interruptible, meaning changing routes does not need to wait for the content of the route to fully load before navigating to another route.
 > - Shared layouts remain interactive while new route segments load.
 
@@ -62,6 +62,10 @@ In the same folder, `loading.js` will be nested inside `layout.js`. It will auto
 ## Streaming with Suspense
 
 In addition to `loading.js`, you can also manually create Suspense Boundaries for your own UI components. The App Router supports streaming with [Suspense](https://react.dev/reference/react/Suspense) for both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
+
+> **Good to know**:
+>
+> - [Some browsers](https://bugs.webkit.org/show_bug.cgi?id=252413) buffer a streaming response. You may not see the streamed response until the response exceeds 1024 bytes. This typically only affects “hello world” applications, but not real applications.
 
 ### What is Streaming?
 
@@ -171,4 +175,10 @@ For more Suspense examples and use cases, please see the [React Documentation](h
 ### SEO
 
 - Next.js will wait for data fetching inside [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) to complete before streaming UI to the client. This guarantees the first part of a streamed response includes `<head>` tags.
-- Since streaming is server-rendered, it does not impact SEO. You can use the [Mobile Friendly Test](https://search.google.com/test/mobile-friendly) tool from Google to see how your page appears to Google's web crawlers and view the serialized HTML ([source](https://web.dev/rendering-on-the-web/#seo-considerations)).
+- Since streaming is server-rendered, it does not impact SEO. You can use the [Rich Results Test](https://search.google.com/test/rich-results) tool from Google to see how your page appears to Google's web crawlers and view the serialized HTML ([source](https://web.dev/rendering-on-the-web/#seo-considerations)).
+
+### Status Codes
+
+When streaming, a `200` status code will be returned to signal that the request was successful.
+
+The server can still communicate errors or issues to the client within the streamed content itself, for example, when using [`redirect`](/docs/app/api-reference/functions/redirect) or [`notFound`](/docs/app/api-reference/functions/not-found). Since the response headers have already been sent to the client, the status code of the response cannot be updated. This does not affect SEO.

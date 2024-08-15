@@ -2,8 +2,9 @@ import glob from 'glob'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
+import { nanoid } from 'nanoid'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -11,24 +12,21 @@ import {
   initNextServerScript,
   killApp,
   renderViaHTTP,
+  retry,
   waitFor,
 } from 'next-test-utils'
+import { ChildProcess } from 'child_process'
 
-describe('should set-up next', () => {
+describe('required server files', () => {
   let next: NextInstance
-  let server
-  let appPort
+  let server: ChildProcess
+  let appPort: number | string
   let errors = []
   let stderr = ''
   let requiredFilesManifest
+  let minimalMode = true
 
-  const setupNext = async ({
-    nextEnv,
-    minimalMode,
-  }: {
-    nextEnv?: boolean
-    minimalMode?: boolean
-  }) => {
+  const setupNext = async ({ nextEnv }: { nextEnv?: boolean }) => {
     // test build against environment with next support
     process.env.NOW_BUILDER = nextEnv ? '1' : ''
 
@@ -44,9 +42,8 @@ describe('should set-up next', () => {
         '.env.production': new FileRef(join(__dirname, '.env.production')),
       },
       nextConfig: {
-        experimental: {
-          incrementalCacheHandlerPath: './cache-handler.js',
-        },
+        cacheHandler: './cache-handler.js',
+        cacheMaxMemorySize: 0,
         eslint: {
           ignoreDuringBuilds: true,
         },
@@ -107,21 +104,36 @@ describe('should set-up next', () => {
         await fs.remove(join(next.testDir, '.next/server', file))
       }
     }
+  }
 
-    const testServer = join(next.testDir, 'standalone/server.js')
+  beforeAll(async () => {
+    await setupNext({ nextEnv: true })
+  })
+
+  beforeEach(async () => {
+    errors = []
+    stderr = ''
+
+    const testServerFilename = join(next.testDir, 'standalone/server.js')
+    const testServerContent = await fs.readFile(testServerFilename, 'utf8')
+
     await fs.writeFile(
-      testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('conf:', `minimalMode: ${minimalMode},conf:`)
+      testServerFilename,
+      testServerContent.replace(
+        /(startServer\({\s*)(minimalMode: (true|false),\n {2})?/,
+        `$1minimalMode: ${minimalMode},\n  `
+      )
     )
+
     appPort = await findPort()
+
     server = await initNextServerScript(
-      testServer,
-      /Listening on/,
+      testServerFilename,
+      /- Local:/,
       {
         ...process.env,
-        PORT: appPort,
+        ENV_FROM_HOST: 'FOOBAR',
+        PORT: `${appPort}`,
       },
       undefined,
       {
@@ -130,16 +142,17 @@ describe('should set-up next', () => {
           errors.push(msg)
           stderr += msg
         },
+        shouldRejectOnError: true,
       }
     )
-  }
-
-  beforeAll(async () => {
-    await setupNext({ nextEnv: true, minimalMode: true })
   })
+
+  afterEach(async () => {
+    await killApp(server)
+  })
+
   afterAll(async () => {
     await next.destroy()
-    if (server) await killApp(server)
   })
 
   it('should resolve correctly when a redirect is returned', async () => {
@@ -301,14 +314,20 @@ describe('should set-up next', () => {
     ).toContain('"compress":false')
   })
 
-  it('`incrementalCacheHandlerPath` should have correct path', async () => {
+  it('`cacheHandler` should have correct path', async () => {
     expect(
       await fs.pathExists(join(next.testDir, 'standalone/cache-handler.js'))
     ).toBe(true)
 
     expect(
       await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"incrementalCacheHandlerPath":"../cache-handler.js"')
+    ).toContain('"cacheHandler":"../cache-handler.js"')
+  })
+
+  it('`cacheMaxMemorySize` should be disabled by setting to 0', async () => {
+    expect(
+      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+    ).toContain('"cacheMaxMemorySize":0')
   })
 
   it('should output middleware correctly', async () => {
@@ -950,51 +969,43 @@ describe('should set-up next', () => {
   })
 
   it('should bubble error correctly for gip page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
 
-    await check(
-      () => (errors[0].includes('gip hit an oops') ? 'success' : errors[0]),
-      'success'
-    )
+    await retry(() => {
+      expect(errors.join('\n')).toInclude('gip hit an oops')
+    })
   })
 
   it('should bubble error correctly for gssp page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () => (errors[0].includes('gssp hit an oops') ? 'success' : errors[0]),
-      'success'
-    )
+
+    await retry(() => {
+      expect(errors.join('\n')).toInclude('gssp hit an oops')
+    })
   })
 
   it('should bubble error correctly for gsp page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () => (errors[0].includes('gsp hit an oops') ? 'success' : errors[0]),
-      'success'
-    )
+
+    await retry(() => {
+      expect(errors.join('\n')).toInclude('gsp hit an oops')
+    })
   })
 
   it('should bubble error correctly for API page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/api/error')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
-        errors[0].includes('some error from /api/error')
-          ? 'success'
-          : errors[0],
-      'success'
-    )
+
+    await retry(() => {
+      expect(errors.join('\n')).toInclude('some error from /api/error')
+    })
   })
 
   it('should normalize optional values correctly for SSP page', async () => {
@@ -1256,7 +1267,7 @@ describe('should set-up next', () => {
     }
   })
 
-  it('should copy and read .env file', async () => {
+  it('should read .env files and process.env', async () => {
     const res = await fetchViaHTTP(appPort, '/api/env')
 
     const envVariables = await res.json()
@@ -1264,57 +1275,46 @@ describe('should set-up next', () => {
     expect(envVariables.env).not.toBeUndefined()
     expect(envVariables.envProd).not.toBeUndefined()
     expect(envVariables.envLocal).toBeUndefined()
+    expect(envVariables.envFromHost).toBe('FOOBAR')
   })
 
-  it('should run middleware correctly (without minimalMode, with wasm)', async () => {
-    await next.destroy()
-    await killApp(server)
-    await setupNext({ nextEnv: false, minimalMode: false })
+  describe('without minimalMode, with wasm', () => {
+    beforeAll(() => {
+      minimalMode = false
+    })
 
-    const standaloneDir = join(next.testDir, 'standalone')
+    it('should run middleware correctly', async () => {
+      const standaloneDir = join(next.testDir, 'standalone')
+      const res = await fetchViaHTTP(appPort, '/')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('index page')
 
-    const testServer = join(standaloneDir, 'server.js')
-    await fs.writeFile(
-      testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('minimalMode: true', 'minimalMode: false')
-    )
-    appPort = await findPort()
-    server = await initNextServerScript(
-      testServer,
-      /Listening on/,
-      {
-        ...process.env,
-        PORT: appPort,
-      },
+      expect(
+        fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))
+      ).toBe(true)
+
+      const resImageResponse = await fetchViaHTTP(
+        appPort,
+        '/a-non-existent-page/to-test-with-middleware'
+      )
+
+      expect(resImageResponse.status).toBe(200)
+      expect(resImageResponse.headers.get('content-type')).toBe('image/png')
+    })
+  })
+
+  it('should correctly handle a mismatch in buildIds when normalizing next data', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${nanoid()}/index.json`,
       undefined,
       {
-        cwd: next.testDir,
-        onStderr(msg) {
-          errors.push(msg)
-          stderr += msg
+        headers: {
+          'x-matched-path': '/[teamSlug]/[project]/[id]/[suffix]',
         },
       }
     )
 
-    const res = await fetchViaHTTP(appPort, '/')
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('index page')
-
-    expect(fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))).toBe(
-      true
-    )
-
-    const resImageResponse = await fetchViaHTTP(
-      appPort,
-      '/a-non-existent-page/to-test-with-middleware'
-    )
-
-    expect(resImageResponse.status).toBe(200)
-    expect(resImageResponse.headers.get('content-type')).toBe('image/png')
-
-    // when not in next env should be compress: true
-    expect(fs.readFileSync(testServer, 'utf8')).toContain('"compress":true')
+    expect(res.status).toBe(404)
   })
 })

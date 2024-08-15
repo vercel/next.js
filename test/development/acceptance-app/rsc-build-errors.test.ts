@@ -5,12 +5,8 @@ import { sandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 describe('Error overlay - RSC build errors', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-build-errors')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 
@@ -29,7 +25,7 @@ describe('Error overlay - RSC build errors', () => {
     )
     await session.patch(pageFile, uncomment)
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
       '"getServerSideProps" is not supported in app/'
     )
@@ -53,14 +49,14 @@ describe('Error overlay - RSC build errors', () => {
       'export const metadata'
     )
     await session.patch(pageFile, uncomment)
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
       'You are attempting to export "metadata" from a component marked with "use client", which is disallowed.'
     )
 
     // Restore file
     await session.patch(pageFile, content)
-    expect(await session.hasRedbox(false)).toBe(false)
+    await session.assertNoRedbox()
 
     // Add `generateMetadata` error
     uncomment = content.replace(
@@ -68,10 +64,14 @@ describe('Error overlay - RSC build errors', () => {
       'export async function generateMetadata'
     )
     await session.patch(pageFile, uncomment)
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
       'You are attempting to export "generateMetadata" from a component marked with "use client", which is disallowed.'
     )
+
+    // Fix the error again to test error overlay works with hmr rebuild
+    await session.patch(pageFile, content)
+    await session.assertNoRedbox()
 
     await cleanup()
   })
@@ -91,7 +91,7 @@ describe('Error overlay - RSC build errors', () => {
     )
 
     await session.patch(pageFile, uncomment)
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
       '"metadata" and "generateMetadata" cannot be exported at the same time, please keep one of them.'
     )
@@ -116,29 +116,9 @@ describe('Error overlay - RSC build errors', () => {
     await session.patch(pageFile, uncomment)
     await next.patchFile(pageFile, content)
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
       '"getStaticProps" is not supported in app/'
-    )
-
-    await cleanup()
-  })
-
-  it('should error when page component export is not valid', async () => {
-    const { session, cleanup } = await sandbox(
-      next,
-      undefined,
-      '/server-with-errors/page-export'
-    )
-
-    await next.patchFile(
-      'app/server-with-errors/page-export/page.js',
-      'export const a = 123'
-    )
-
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in page:'
     )
 
     await cleanup()
@@ -156,7 +136,7 @@ describe('Error overlay - RSC build errors', () => {
     const uncomment = content.replace("// 'use client'", "'use client'")
     await next.patchFile(pageFile, uncomment)
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
       'directive must be placed before other expressions'
     )
@@ -179,7 +159,7 @@ describe('Error overlay - RSC build errors', () => {
     )
     await session.patch(pageFile, uncomment)
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
       `You’re importing a class component. It only works in a Client Component`
     )
@@ -203,13 +183,90 @@ describe('Error overlay - RSC build errors', () => {
     )
     await next.patchFile(file, uncomment)
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toInclude(
-      `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-    )
+    await session.assertHasRedbox()
+    if (isTurbopack) {
+      // TODO: fix the issue ordering.
+      // turbopack emits the resolve issue first instead of the transform issue.
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./app/server-with-errors/client-only-in-server/client-only-lib.js:1:1
+        Ecmascript file had an error
+        > 1 | import 'client-only'
+            | ^^^^^^^^^^^^^^^^^^^^
+          2 |
+          3 | export default function ClientOnlyLib() {
+          4 |   return 'client-only-lib'
+
+        You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\\n\\n"
+      `)
+    } else {
+      expect(await session.getRedboxSource()).toInclude(
+        `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+      )
+    }
 
     await cleanup()
   })
+
+  const invalidReactServerApis = [
+    'Component',
+    'createContext',
+    'createFactory',
+    'PureComponent',
+    'useDeferredValue',
+    'useEffect',
+    'useImperativeHandle',
+    'useInsertionEffect',
+    'useLayoutEffect',
+    'useReducer',
+    'useRef',
+    'useState',
+    'useSyncExternalStore',
+    'useTransition',
+    'useOptimistic',
+    'useActionState',
+  ]
+  for (const api of invalidReactServerApis) {
+    it(`should error when ${api} from react is used in server component`, async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        `/server-with-errors/react-apis/${api.toLowerCase()}`
+      )
+
+      await session.assertHasRedbox()
+      expect(await session.getRedboxSource()).toInclude(
+        // `Component` has a custom error message
+        api === 'Component'
+          ? `You’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+          : `You're importing a component that needs \`${api}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+      )
+
+      await cleanup()
+    })
+  }
+
+  const invalidReactDomServerApis = [
+    'flushSync',
+    'unstable_batchedUpdates',
+    'useFormStatus',
+    'useFormState',
+  ]
+  for (const api of invalidReactDomServerApis) {
+    it(`should error when ${api} from react-dom is used in server component`, async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        `/server-with-errors/react-dom-apis/${api.toLowerCase()}`
+      )
+
+      await session.assertHasRedbox()
+      expect(await session.getRedboxSource()).toInclude(
+        `You're importing a component that needs \`${api}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+      )
+
+      await cleanup()
+    })
+  }
 
   it('should allow to use and handle rsc poisoning server-only', async () => {
     const { session, cleanup } = await sandbox(
@@ -228,9 +285,9 @@ describe('Error overlay - RSC build errors', () => {
 
     await session.patch(file, uncomment)
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
-      `You're importing a component that needs server-only. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+      `You're importing a component that needs "server-only". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
     )
 
     await cleanup()
@@ -250,7 +307,7 @@ describe('Error overlay - RSC build errors', () => {
       content.replace('() => <p>hello dynamic world</p>', 'undefined')
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxDescription()).toInclude(
       `Element type is invalid. Received a promise that resolves to: undefined. Lazy element type must resolve to a class or function.`
     )
@@ -271,27 +328,43 @@ describe('Error overlay - RSC build errors', () => {
       'export default function Error() {}'
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    await check(() => session.getRedboxSource(), /must be a Client Component/)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
-        "./app/server-with-errors/error-file/error.js
-        ReactServerComponentsError:
-
-        ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
-        Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
-
-           ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
-         1 | export default function Error() {}
-           : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-           \`----
-
-        Import path:
-        ./app/server-with-errors/error-file/error.js"
-      `)
+    await session.assertHasRedbox()
+    await check(
+      () => session.getRedboxSource(),
+      /must be a Client \n| Component/
     )
+    if (process.env.TURBOPACK) {
+      expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+        .toMatchInlineSnapshot(`
+        "./app/server-with-errors/error-file/error.js:1:1
+        Ecmascript file had an error
+        > 1 | export default function Error() {}
+            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+        app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
+        Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components"
+      `)
+    } else {
+      await check(() => session.getRedboxSource(), /Add the "use client"/)
+
+      // TODO: investigate flakey snapshot due to spacing below
+      // expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+      //   .toMatchInlineSnapshot(`
+      //   "./app/server-with-errors/error-file/error.js
+      //   Error:   x TEST_DIR/app/server-with-errors/error-file/error.js must be a Client
+      //     | Component. Add the "use client" directive the top of the file to resolve this issue.
+      //     | Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
+      //     |
+      //     |
+      //      ,----
+      //    1 | export default function Error() {}
+      //      : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      //      \`----
+
+      //   Import trace for requested module:
+      //   ./app/server-with-errors/error-file/error.js"
+      // `)
+    }
 
     await cleanup()
   })
@@ -306,16 +379,16 @@ describe('Error overlay - RSC build errors', () => {
     // Empty file
     await session.patch('app/server-with-errors/error-file/error.js', '')
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    await check(() => session.getRedboxSource(), /must be a Client Component/)
+    await session.assertHasRedbox()
+    await check(() => session.getRedboxSource(), /Add the "use client"/)
 
     // TODO: investigate flakey snapshot due to spacing below
     // expect(next.normalizeTestDirContent(await session.getRedboxSource()))
-    //   .toMatchInlineSnapshot(next.normalizeSnapshot(`
+    //   .toMatchInlineSnapshot(n`
     //   "./app/server-with-errors/error-file/error.js
     //   ReactServerComponentsError:
 
-    //   ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
+    //   ./app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
 
     //      ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
     //    1 |
@@ -324,7 +397,7 @@ describe('Error overlay - RSC build errors', () => {
 
     //   Import path:
     //   ./app/server-with-errors/error-file/error.js"
-    // `))
+    // `)
 
     await cleanup()
   })
@@ -353,72 +426,10 @@ describe('Error overlay - RSC build errors', () => {
 
     await session.patch(pagePath, content)
 
-    await check(
-      async () => ((await session.hasRedbox(true)) ? 'success' : 'fail'),
-      /success/
-    )
+    await session.assertHasRedbox()
 
     expect(await session.getRedboxDescription()).toContain(
       'Cannot add property x, object is not extensible'
-    )
-
-    await cleanup()
-  })
-
-  it('should show which import caused an error in node_modules', async () => {
-    const { session, cleanup } = await sandbox(
-      next,
-      new Map([
-        [
-          'node_modules/client-package/module2.js',
-          "import { useState } from 'react'",
-        ],
-        ['node_modules/client-package/module1.js', "import './module2.js'"],
-        ['node_modules/client-package/index.js', "import './module1.js'"],
-        [
-          'node_modules/client-package/package.json',
-          outdent`
-            {
-              "name": "client-package",
-              "version": "0.0.1"
-            }
-          `,
-        ],
-        ['app/Component.js', "import 'client-package'"],
-        [
-          'app/page.js',
-          outdent`
-            import './Component.js'
-            export default function Page() {
-              return <p>Hello world</p>
-            }
-          `,
-        ],
-      ])
-    )
-
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
-        "./app/Component.js
-        ReactServerComponentsError:
-
-        You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
-        Learn more: https://nextjs.org/docs/getting-started/react-essentials
-
-           ,-[TEST_DIR/node_modules/client-package/module2.js:1:1]
-         1 | import { useState } from 'react'
-           :          ^^^^^^^^
-           \`----
-
-        The error was caused by importing 'client-package/index.js' in './app/Component.js'.
-
-        Maybe one of these should be marked as a client entry with \\"use client\\":
-          ./app/Component.js
-          ./app/page.js"
-      `)
     )
 
     await cleanup()

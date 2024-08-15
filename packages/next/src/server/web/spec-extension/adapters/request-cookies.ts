@@ -1,10 +1,8 @@
 import type { RequestCookies } from '../cookies'
-import type { BaseNextResponse } from '../../../base-http'
-import type { ServerResponse } from 'http'
-import { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage'
 
 import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
+import { staticGenerationAsyncStorage } from '../../../../client/components/static-generation-async-storage.external'
 
 /**
  * @internal
@@ -72,7 +70,7 @@ export function appendMutableCookies(
   }
 
   // Return a new response that extends the response with
-  // the modified cookies as fallbacks. `res`' cookies
+  // the modified cookies as fallbacks. `res` cookies
   // will still take precedence.
   const resCookies = new ResponseCookies(headers)
   const returnedCookies = resCookies.getAll()
@@ -97,38 +95,37 @@ type ResponseCookie = NonNullable<
 export class MutableRequestCookiesAdapter {
   public static wrap(
     cookies: RequestCookies,
-    res: ServerResponse | BaseNextResponse | undefined
+    onUpdateCookies?: (cookies: string[]) => void
   ): ResponseCookies {
-    const responseCookes = new ResponseCookies(new Headers())
+    const responseCookies = new ResponseCookies(new Headers())
     for (const cookie of cookies.getAll()) {
-      responseCookes.set(cookie)
+      responseCookies.set(cookie)
     }
 
     let modifiedValues: ResponseCookie[] = []
     const modifiedCookies = new Set<string>()
     const updateResponseCookies = () => {
       // TODO-APP: change method of getting staticGenerationAsyncStore
-      const staticGenerationAsyncStore = (fetch as any)
-        .__nextGetStaticStore?.()
-        ?.getStore() as undefined | StaticGenerationStore
+      const staticGenerationAsyncStore = staticGenerationAsyncStorage.getStore()
       if (staticGenerationAsyncStore) {
         staticGenerationAsyncStore.pathWasRevalidated = true
       }
 
-      const allCookies = responseCookes.getAll()
+      const allCookies = responseCookies.getAll()
       modifiedValues = allCookies.filter((c) => modifiedCookies.has(c.name))
-      if (res) {
+      if (onUpdateCookies) {
         const serializedCookies: string[] = []
         for (const cookie of modifiedValues) {
           const tempCookies = new ResponseCookies(new Headers())
           tempCookies.set(cookie)
           serializedCookies.push(tempCookies.toString())
         }
-        res.setHeader('Set-Cookie', serializedCookies)
+
+        onUpdateCookies(serializedCookies)
       }
     }
 
-    return new Proxy(responseCookes, {
+    return new Proxy(responseCookies, {
       get(target, prop, receiver) {
         switch (prop) {
           // A special symbol to get the modified cookie values

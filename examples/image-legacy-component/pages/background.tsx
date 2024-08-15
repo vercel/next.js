@@ -1,6 +1,6 @@
-import Image from 'next/legacy/image'
-import ViewSource from '../components/view-source'
-import styles from '../styles.module.css'
+import Image from "next/legacy/image";
+import ViewSource from "../components/view-source";
+import styles from "../styles.module.css";
 
 const BackgroundPage = () => (
   <div>
@@ -20,6 +20,6 @@ const BackgroundPage = () => (
       as a Background
     </p>
   </div>
-)
+);
 
-export default BackgroundPage
+export default BackgroundPage;

@@ -15,9 +15,9 @@ To resolve this issue, you have two main options:
 
 1. Use the `next build` command instead of `next export` if you're deploying your application on platforms that don't require `next export`. For example, [Vercel](https://vercel.com) is a popular hosting platform for Next.js applications that supports this feature.
 2. If you still need to use `next export`, make sure to remove any paths that use API routes from your `exportPathMap` in your `next.config.js` file.
-3. Consider [incrementally adopting the App Router](/docs/app/building-your-application/upgrading/app-router-migration), which supportes [Route Handlers](/docs/app/building-your-application/routing/router-handlers). These "API Routes" can be used to create endpoints that can be statically exported in your application.
+3. Consider [incrementally adopting the App Router](/docs/app/building-your-application/upgrading/app-router-migration), which supports [Route Handlers](/docs/app/building-your-application/routing/route-handlers). These "API Routes" can be used to create endpoints that can be statically exported in your application.
 
 ## Useful Links
 
 - [Static HTML export](/docs/pages/building-your-application/deploying/static-exports) - Learn more about how you can create a static HTML export of your Next.js application.
-- [Route Handlers](/docs/app/building-your-application/routing/router-handlers) - Learn more about how you can use Route Handlers to create endpoints that can be statically exported in your application.
+- [Route Handlers](/docs/app/building-your-application/routing/route-handlers) - Learn more about how you can use Route Handlers to create endpoints that can be statically exported in your application.

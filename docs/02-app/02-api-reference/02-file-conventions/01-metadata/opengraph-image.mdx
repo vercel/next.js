@@ -68,7 +68,7 @@ About Acme
 ```
 
 ```html filename="<head> output"
-<meta property="og:image:alt" content="About Acme" />
+<meta property="twitter:image:alt" content="About Acme" />
 ```
 
 ## Generate images using code (.js, .ts, .tsx)
@@ -84,15 +84,15 @@ Generate a route segment's shared image by creating an `opengraph-image` or `twi
 
 > **Good to know**
 >
-> - By default, generated images are [**statically optimized**](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default) (generated at build time and cached) unless they use [dynamic functions](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-functions) or [dynamic data fetching](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#dynamic-data-fetching).
+> - By default, generated images are [**statically optimized**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) (generated at build time and cached) unless they use [dynamic functions](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions) or uncached data.
 > - You can generate multiple Images in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
+> - `opengraph-image.js` and `twitter-image.js` are special Route Handlers that is cached by default unless it uses a [dynamic function](/docs/app/building-your-application/caching#dynamic-functions) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
 
-The easiest way to generate an image is to use the [ImageResponse](/docs/app/api-reference/functions/image-response) API from `next/server`.
+The easiest way to generate an image is to use the [ImageResponse](/docs/app/api-reference/functions/image-response) API from `next/og`.
 
 ```tsx filename="app/about/opengraph-image.tsx" switcher
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 
-// Route segment config
 export const runtime = 'edge'
 
 // Image metadata
@@ -104,13 +104,13 @@ export const size = {
 
 export const contentType = 'image/png'
 
-// Font
-const interSemiBold = fetch(
-  new URL('./Inter-SemiBold.ttf', import.meta.url)
-).then((res) => res.arrayBuffer())
-
 // Image generation
 export default async function Image() {
+  // Font
+  const interSemiBold = fetch(
+    new URL('./Inter-SemiBold.ttf', import.meta.url)
+  ).then((res) => res.arrayBuffer())
+
   return new ImageResponse(
     (
       // ImageResponse JSX element
@@ -147,9 +147,8 @@ export default async function Image() {
 ```
 
 ```jsx filename="app/about/opengraph-image.js" switcher
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 
-// Route segment config
 export const runtime = 'edge'
 
 // Image metadata
@@ -159,15 +158,15 @@ export const size = {
   height: 630,
 }
 
-// Font
-const interSemiBold = fetch(
-  new URL('./Inter-SemiBold.ttf', import.meta.url)
-).then((res) => res.arrayBuffer())
-
 export const contentType = 'image/png'
 
 // Image generation
-export default function Image() {
+export default async function Image() {
+  // Font
+  const interSemiBold = fetch(
+    new URL('./Inter-SemiBold.ttf', import.meta.url)
+  ).then((res) => res.arrayBuffer())
+
   return new ImageResponse(
     (
       // ImageResponse JSX element
@@ -248,21 +247,21 @@ The default export function should return a `Blob` | `ArrayBuffer` | `TypedArray
 
 You can optionally configure the image's metadata by exporting `alt`, `size`, and `contentType` variables from `opengraph-image` or `twitter-image` route.
 
-| Option                        | Type                                                                                                                  |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| [`alt`](#alt)                 | `string`                                                                                                              |
-| [`size`](#size)               | `{ width: number; height: number }`                                                                                   |
-| [`contentType`](#contenttype) | `string` - [image MIME type](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types#image_types) |
+| Option                        | Type                                                                                                            |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [`alt`](#alt)                 | `string`                                                                                                        |
+| [`size`](#size)               | `{ width: number; height: number }`                                                                             |
+| [`contentType`](#contenttype) | `string` - [image MIME type](https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/MIME_types#image_types) |
 
 #### `alt`
 
-```tsx filename="opengraph-image.tsx / twitter-image.tsx" switcher
+```tsx filename="opengraph-image.tsx | twitter-image.tsx" switcher
 export const alt = 'My images alt text'
 
 export default function Image() {}
 ```
 
-```jsx filename="opengraph-image.js / twitter-image.js" switcher
+```jsx filename="opengraph-image.js | twitter-image.js" switcher
 export const alt = 'My images alt text'
 
 export default function Image() {}
@@ -274,13 +273,13 @@ export default function Image() {}
 
 #### `size`
 
-```tsx filename="opengraph-image.tsx / twitter-image.tsx" switcher
+```tsx filename="opengraph-image.tsx | twitter-image.tsx" switcher
 export const size = { width: 1200, height: 630 }
 
 export default function Image() {}
 ```
 
-```jsx filename="opengraph-image.js / twitter-image.js" switcher
+```jsx filename="opengraph-image.js | twitter-image.js" switcher
 export const size = { width: 1200, height: 630 }
 
 export default function Image() {}
@@ -293,13 +292,13 @@ export default function Image() {}
 
 #### `contentType`
 
-```tsx filename="opengraph-image.tsx / twitter-image.tsx" switcher
+```tsx filename="opengraph-image.tsx | twitter-image.tsx" switcher
 export const contentType = 'image/png'
 
 export default function Image() {}
 ```
 
-```jsx filename="opengraph-image.js / twitter-image.js" switcher
+```jsx filename="opengraph-image.js | twitter-image.js" switcher
 export const contentType = 'image/png'
 
 export default function Image() {}
@@ -311,26 +310,7 @@ export default function Image() {}
 
 #### Route Segment Config
 
-`opengraph-image` and `twitter-image` are specialized [Route Handlers](/docs/app/building-your-application/routing/router-handlers) that can use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) options as Pages and Layouts.
-
-| Option                                                                                             | Type                                                     | Default    |
-| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------- |
-| [`dynamic`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic)                 | `'auto' \| 'force-dynamic' \| 'error' \| 'force-static'` | `'auto'`   |
-| [`revalidate`](/docs/app/api-reference/file-conventions/route-segment-config#revalidate)           | `false \| 'force-cache' \| 0 \| number`                  | `false`    |
-| [`runtime`](/docs/app/api-reference/file-conventions/route-segment-config#runtime)                 | `'nodejs' \| 'edge'`                                     | `'nodejs'` |
-| [`preferredRegion`](/docs/app/api-reference/file-conventions/route-segment-config#preferredregion) | `'auto' \| 'global' \| 'home' \| string \| string[]`     | `'auto'`   |
-
-```tsx filename="app/opengraph-image.tsx" switcher
-export const runtime = 'edge'
-
-export default function Image() {}
-```
-
-```jsx filename="app/opengraph-image.js" switcher
-export const runtime = 'edge'
-
-export default function Image() {}
-```
+`opengraph-image` and `twitter-image` are specialized [Route Handlers](/docs/app/building-your-application/routing/route-handlers) that can use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) options as Pages and Layouts.
 
 ### Examples
 
@@ -339,12 +319,10 @@ export default function Image() {}
 This example uses the `params` object and external data to generate the image.
 
 > **Good to know**:
-> By default, this generated image will be [statically optimized](/docs/app/building-your-application/rendering/static-and-dynamic-rendering#static-rendering-default). You can configure the individual `fetch` [`options`](/docs/app/api-reference/functions/fetch) or route segments [options](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) to change this behavior.
+> By default, this generated image will be [statically optimized](/docs/app/building-your-application/rendering/server-components#static-rendering-default). You can configure the individual `fetch` [`options`](/docs/app/api-reference/functions/fetch) or route segments [options](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) to change this behavior.
 
 ```tsx filename="app/posts/[slug]/opengraph-image.tsx" switcher
-import { ImageResponse } from 'next/server'
-
-export const runtime = 'edge'
+import { ImageResponse } from 'next/og'
 
 export const alt = 'About Acme'
 export const size = {
@@ -382,9 +360,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
 ```
 
 ```jsx filename="app/posts/[slug]/opengraph-image.js" switcher
-import { ImageResponse } from 'next/server'
-
-export const runtime = 'edge'
+import { ImageResponse } from 'next/og'
 
 export const alt = 'About Acme'
 export const size = {
@@ -417,6 +393,116 @@ export default async function Image({ params }) {
     {
       ...size,
     }
+  )
+}
+```
+
+#### Using Edge runtime with local assets
+
+This example uses the Edge runtime to fetch a local image on the file system and passes it as an `ArrayBuffer` to the `src` attribute of an `<img>` element. The local asset should be placed relative to the example source file location.
+
+```tsx filename="app/opengraph-image.tsx" switcher
+import { ImageResponse } from 'next/og'
+
+export const runtime = 'edge'
+
+export default async function Image() {
+  const logoSrc = await fetch(new URL('./logo.png', import.meta.url)).then(
+    (res) => res.arrayBuffer()
+  )
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <img src={logoSrc} height="100" />
+      </div>
+    )
+  )
+}
+```
+
+```jsx filename="app/opengraph-image.js" switcher
+import { ImageResponse } from 'next/og'
+
+export const runtime = 'edge'
+
+export default async function Image() {
+  const logoSrc = await fetch(new URL('./logo.png', import.meta.url)).then(
+    (res) => res.arrayBuffer()
+  )
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <img src={logoSrc} height="100" />
+      </div>
+    )
+  )
+}
+```
+
+#### Using Node.js runtime with local assets
+
+This example uses the Node.js runtime to fetch a local image on the file system and passes it as an `ArrayBuffer` to the `src` attribute of an `<img>` element. The local asset should be placed relative to the root of your project, rather than the location of the example source file.
+
+```tsx filename="app/opengraph-image.tsx" switcher
+import { ImageResponse } from 'next/og'
+import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
+
+export default async function Image() {
+  const logoData = await readFile(join(process.cwd(), 'logo.png'))
+  const logoSrc = Uint8Array.from(logoData).buffer
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <img src={logoSrc} height="100" />
+      </div>
+    )
+  )
+}
+```
+
+```jsx filename="app/opengraph-image.js" switcher
+import { ImageResponse } from 'next/og'
+import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
+
+export default async function Image() {
+  const logoData = await readFile(join(process.cwd(), 'logo.png'))
+  const logoSrc = Uint8Array.from(logoData).buffer
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <img src={logoSrc} height="100" />
+      </div>
+    )
   )
 }
 ```

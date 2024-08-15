@@ -8,7 +8,7 @@
   "dependencies": {
     "contentlayer": "^0.2.4",
     "next": "latest",
-    "next-contentlayer": "^0.2.4",
+    "next-contentlayer": "^0.3.4",
     "react": "18.0.0",
     "react-dom": "18.0.0"
   }

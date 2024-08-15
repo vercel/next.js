@@ -1,23 +1,35 @@
-// TODO: Remove use of `any` type. Fix no-use-before-define violations.
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { addMessageListener } from './error-overlay/websocket'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
+import type { HMR_ACTION_TYPES } from '../../server/dev/hot-reloader-types'
+import { addMessageListener } from '../components/react-dev-overlay/pages/websocket'
+
+type VerticalPosition = 'top' | 'bottom'
+type HorizonalPosition = 'left' | 'right'
+
+export interface ShowHideHandler {
+  show: () => void
+  hide: () => void
+}
 
 export default function initializeBuildWatcher(
-  toggleCallback: any,
+  toggleCallback: (handlers: ShowHideHandler) => void,
   position = 'bottom-right'
 ) {
   const shadowHost = document.createElement('div')
-  const [verticalProperty, horizontalProperty] = position.split('-')
+  const [verticalProperty, horizontalProperty] = position.split('-', 2) as [
+    VerticalPosition,
+    HorizonalPosition,
+  ]
   shadowHost.id = '__next-build-watcher'
   // Make sure container is fixed and on a high zIndex so it shows
   shadowHost.style.position = 'fixed'
   // Ensure container's position to be top or bottom (default)
-  ;(shadowHost as any).style[verticalProperty] = '10px'
+  shadowHost.style[verticalProperty] = '10px'
   // Ensure container's position to be left or right (default)
-  ;(shadowHost as any).style[horizontalProperty] = '20px'
-  ;(shadowHost as any).style.width = 0
-  ;(shadowHost as any).style.height = 0
-  ;(shadowHost as any).style.zIndex = 99999
+  shadowHost.style[horizontalProperty] = '20px'
+  shadowHost.style.width = '0'
+  shadowHost.style.height = '0'
+  shadowHost.style.zIndex = '99999'
   document.body.appendChild(shadowHost)
 
   let shadowRoot
@@ -48,43 +60,50 @@ export default function initializeBuildWatcher(
 
   // Handle events
 
-  addMessageListener((event) => {
-    // This is the heartbeat event
-    if (event.data === '\uD83D\uDC93') {
-      return
-    }
-
+  addMessageListener((obj) => {
     try {
-      handleMessage(event)
+      handleMessage(obj)
     } catch {}
   })
 
-  function handleMessage(event: any) {
-    const obj =
-      typeof event === 'string' ? { action: event } : JSON.parse(event.data)
+  function show() {
+    timeoutId && clearTimeout(timeoutId)
+    isVisible = true
+    isBuilding = true
+    updateContainer()
+  }
+
+  function hide() {
+    isBuilding = false
+    // Wait for the fade out transition to complete
+    timeoutId = setTimeout(() => {
+      isVisible = false
+      updateContainer()
+    }, 100)
+    updateContainer()
+  }
+
+  function handleMessage(obj: HMR_ACTION_TYPES) {
+    if (!('action' in obj)) {
+      return
+    }
 
     // eslint-disable-next-line default-case
     switch (obj.action) {
-      case 'building':
-        timeoutId && clearTimeout(timeoutId)
-        isVisible = true
-        isBuilding = true
-        updateContainer()
+      case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING:
+        show()
         break
-      case 'built':
-      case 'sync':
-        isBuilding = false
-        // Wait for the fade out transition to complete
-        timeoutId = setTimeout(() => {
-          isVisible = false
-          updateContainer()
-        }, 100)
-        updateContainer()
+      case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
+      case HMR_ACTIONS_SENT_TO_BROWSER.SYNC:
+        hide()
         break
     }
   }
 
-  toggleCallback(handleMessage)
+  toggleCallback({
+    show,
+    hide,
+  })
 
   function updateContainer() {
     if (isBuilding) {

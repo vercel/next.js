@@ -12,7 +12,6 @@ const env = {
 function exec(command, noLog = false, opts = {}) {
   if (!noLog) logger(`exec: ${command}`)
   return execP(command, {
-    timeout: 180 * 1000,
     ...opts,
     env: { ...env, ...opts.env },
   })
@@ -33,6 +32,20 @@ exec.spawn = function spawn(command = '', opts = {}) {
     logger(`spawn exit (${code}, ${signal}): ${command}`)
   })
   return child
+}
+
+exec.spawnPromise = function spawnPromise(command = '', opts = {}) {
+  return new Promise((resolve, reject) => {
+    const child = exec.spawn(command)
+    child.on('exit', (code, signal) => {
+      if (code || signal) {
+        return reject(
+          new Error(`bad exit code/signal code: ${code} signal: ${signal}`)
+        )
+      }
+      resolve()
+    })
+  })
 }
 
 module.exports = exec

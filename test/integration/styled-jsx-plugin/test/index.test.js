@@ -21,21 +21,24 @@ function runTests() {
 }
 
 describe('styled-jsx using in node_modules', () => {
-  describe('production mode', () => {
-    beforeAll(async () => {
-      const output = await nextBuild(appDir, undefined, {
-        stdout: true,
-        stderr: true,
-        cwd: appDir,
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        const output = await nextBuild(appDir, undefined, {
+          stdout: true,
+          stderr: true,
+          cwd: appDir,
+        })
+
+        console.log(output.stdout, output.stderr)
+
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
       })
+      afterAll(() => killApp(app))
 
-      console.log(output.stdout, output.stderr)
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

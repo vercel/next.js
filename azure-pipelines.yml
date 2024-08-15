@@ -33,9 +33,8 @@ pr:
 
 variables:
   PNPM_CACHE_FOLDER: $(Pipeline.Workspace)/.pnpm-store
-  PNPM_VERSION: 7.24.3
   NEXT_TELEMETRY_DISABLED: '1'
-  node_16_version: ^16.8.0
+  node_version: ^18.18.2
 
 stages:
   - stage: Test
@@ -46,15 +45,16 @@ stages:
         steps:
           - task: NodeTool@0
             inputs:
-              versionSpec: $(node_16_version)
+              versionSpec: $(node_version)
             displayName: 'Install Node.js'
 
           - bash: |
               node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
             displayName: 'Check Docs Only Change'
 
-          - script: npm i -g pnpm@$(PNPM_VERSION)
+          - script: corepack enable
             condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Enable Corepack'
 
           - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
             condition: eq(variables['isDocsOnly'], 'No')
@@ -66,11 +66,12 @@ stages:
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Install and build'
 
-          - script: npx playwright@1.28.1 install chromium
+          - script: npx playwright@1.35.1 install chromium
             condition: eq(variables['isDocsOnly'], 'No')
 
+          # Test critical app router and CNA tests to cover basic usage cases with windows
           - script: |
-              node run-tests.js -c 1 test/integration/production/test/index.test.js test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js
+              node run-tests.js -c 1 test/production/pages-dir/production/test/index.test.ts test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js test/integration/create-next-app/examples.test.ts test/integration/create-next-app/index.test.ts test/integration/create-next-app/package-manager/pnpm.test.ts
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Run tests'
 
@@ -84,15 +85,16 @@ stages:
 
           - task: NodeTool@0
             inputs:
-              versionSpec: $(node_16_version)
+              versionSpec: $(node_version)
             displayName: 'Install Node.js'
 
           - bash: |
               node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
             displayName: 'Check Docs Only Change'
 
-          - script: npm i -g pnpm@$(PNPM_VERSION)
+          - script: corepack enable
             condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Enable Corepack'
 
           - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
             condition: eq(variables['isDocsOnly'], 'No')
@@ -107,75 +109,79 @@ stages:
           - script: node run-tests.js --type unit
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Run tests'
+            env:
+              NEXT_TEST_MODE: 'dev'
 
-      # - job: test_e2e_dev
-      #   pool:
-      #     vmImage: 'windows-2019'
-      #   steps:
-      #     - task: NodeTool@0
-      #       inputs:
-      #         versionSpec: $(node_16_version)
-      #       displayName: 'Install Node.js'
+      - job: test_e2e_dev
+        pool:
+          vmImage: 'windows-2019'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(node_version)
+            displayName: 'Install Node.js'
 
-      #     - bash: |
-      #         node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
-      #       displayName: 'Check Docs Only Change'
+          - bash: |
+              node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
+            displayName: 'Check Docs Only Change'
 
-      #     - script: npm i -g pnpm@$(PNPM_VERSION)
-      #       condition: eq(variables['isDocsOnly'], 'No')
+          - script: corepack enable
+            condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Enable Corepack'
 
-      #     - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
-      #       condition: eq(variables['isDocsOnly'], 'No')
+          - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+            condition: eq(variables['isDocsOnly'], 'No')
 
-      #     - script: pnpm store path
-      #       condition: eq(variables['isDocsOnly'], 'No')
+          - script: pnpm store path
+            condition: eq(variables['isDocsOnly'], 'No')
 
-      #     - script: pnpm install && pnpm run build
-      #       condition: eq(variables['isDocsOnly'], 'No')
-      #       displayName: 'Install and build'
+          - script: pnpm install && pnpm run build
+            condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Install and build'
 
-      #     - script: npx playwright@1.28.1 install chromium
-      #       condition: eq(variables['isDocsOnly'], 'No')
+          - script: npx playwright@1.35.1 install chromium
+            condition: eq(variables['isDocsOnly'], 'No')
 
-      #     - script: |
-      #         node run-tests.js -c 1 --debug test/e2e/app-dir/app/index.test.ts
-      #       condition: eq(variables['isDocsOnly'], 'No')
-      #       displayName: 'Run tests (E2E Development)'
-      #       env:
-      #         NEXT_TEST_MODE: 'dev'
+          - script: |
+              node run-tests.js -c 1 --debug test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-edge/app-edge.test.ts
+            condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Run tests (E2E Development)'
+            env:
+              NEXT_TEST_MODE: 'dev'
 
-      # - job: test_e2e_prod
-      #   pool:
-      #     vmImage: 'windows-2019'
-      #   steps:
-      #     - task: NodeTool@0
-      #       inputs:
-      #         versionSpec: $(node_16_version)
-      #       displayName: 'Install Node.js'
+      - job: test_e2e_prod
+        pool:
+          vmImage: 'windows-2019'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(node_version)
+            displayName: 'Install Node.js'
 
-      #     - bash: |
-      #         node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
-      #       displayName: 'Check Docs Only Change'
+          - bash: |
+              node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
+            displayName: 'Check Docs Only Change'
 
-      #     - script: npm i -g pnpm@$(PNPM_VERSION)
-      #       condition: eq(variables['isDocsOnly'], 'No')
+          - script: corepack enable
+            condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Enable Corepack'
 
-      #     - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
-      #       condition: eq(variables['isDocsOnly'], 'No')
+          - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+            condition: eq(variables['isDocsOnly'], 'No')
 
-      #     - script: pnpm store path
-      #       condition: eq(variables['isDocsOnly'], 'No')
+          - script: pnpm store path
+            condition: eq(variables['isDocsOnly'], 'No')
 
-      #     - script: pnpm install && pnpm run build
-      #       condition: eq(variables['isDocsOnly'], 'No')
-      #       displayName: 'Install and build'
+          - script: pnpm install && pnpm run build
+            condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Install and build'
 
-      #     - script: npx playwright@1.28.1 install chromium
-      #       condition: eq(variables['isDocsOnly'], 'No')
+          - script: npx playwright@1.35.1 install chromium
+            condition: eq(variables['isDocsOnly'], 'No')
 
-      #     - script: |
-      #         node run-tests.js -c 1 --debug test/e2e/app-dir/app/index.test.ts
-      #       condition: eq(variables['isDocsOnly'], 'No')
-      #       displayName: 'Run tests (E2E Production)'
-      #       env:
-      #         NEXT_TEST_MODE: 'start'
+          - script: |
+              node run-tests.js -c 1 --debug test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-edge/app-edge.test.ts
+            condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Run tests (E2E Production)'
+            env:
+              NEXT_TEST_MODE: 'start'

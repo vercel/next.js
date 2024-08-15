@@ -1,8 +1,8 @@
-const dotenv = require('dotenv')
-const { parse } = require('pg-connection-string')
+const dotenv = require("dotenv");
+const { parse } = require("pg-connection-string");
 
-dotenv.config({ path: '.env.local' })
+dotenv.config({ path: ".env.local" });
 
-const options = parse(process.env.DATABASE_URL || '')
+const options = parse(process.env.DATABASE_URL || "");
 
-module.exports = options
+module.exports = options;

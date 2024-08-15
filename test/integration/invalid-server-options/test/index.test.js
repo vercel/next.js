@@ -6,19 +6,19 @@ const warningMessage =
 
 describe('Invalid server options', () => {
   test('next() called with no parameters should throw error', () => {
-    expect(() => next()).toThrowError(
+    expect(() => next()).toThrow(
       'The server has not been instantiated properly. https://nextjs.org/docs/messages/invalid-server-options'
     )
   })
 
   test('next() called with undefined parameter should throw error', () => {
-    expect(() => next(undefined)).toThrowError(
+    expect(() => next(undefined)).toThrow(
       'The server has not been instantiated properly. https://nextjs.org/docs/messages/invalid-server-options'
     )
   })
 
   test('next() called with null parameter should throw error', () => {
-    expect(() => next(null)).toThrowError(
+    expect(() => next(null)).toThrow(
       'The server has not been instantiated properly. https://nextjs.org/docs/messages/invalid-server-options'
     )
   })

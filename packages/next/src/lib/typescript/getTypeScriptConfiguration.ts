@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import { bold, cyan } from '../picocolors'
 import os from 'os'
 import path from 'path'
 
@@ -58,9 +58,9 @@ export async function getTypeScriptConfiguration(
     if (isError(err) && err.name === 'SyntaxError') {
       const reason = '\n' + (err.message ?? '')
       throw new FatalError(
-        chalk.red.bold(
-          'Could not parse',
-          chalk.cyan('tsconfig.json') +
+        bold(
+          'Could not parse' +
+            cyan('tsconfig.json') +
             '.' +
             ' Please make sure it contains syntactically correct JSON.'
         ) + reason

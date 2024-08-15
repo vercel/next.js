@@ -9,6 +9,8 @@ const invalidServerComponentReactHooks = [
   'useState',
   'useSyncExternalStore',
   'useTransition',
+  'experimental_useOptimistic',
+  'useOptimistic',
 ]
 
 function setMessage(error: Error, message: string): void {
@@ -18,6 +20,22 @@ function setMessage(error: Error, message: string): void {
     lines[0] = message
     error.stack = lines.join('\n')
   }
+}
+
+/**
+ * Input:
+ * Error: Something went wrong
+    at funcName (/path/to/file.js:10:5)
+    at anotherFunc (/path/to/file.js:15:10)
+ 
+ * Output:
+    at funcName (/path/to/file.js:10:5)
+    at anotherFunc (/path/to/file.js:15:10) 
+ */
+export function getStackWithoutErrorMessage(error: Error): string {
+  const stack = error.stack
+  if (!stack) return ''
+  return stack.replace(/^[^\n]*\n/, '')
 }
 
 export function formatServerError(error: Error): void {
@@ -52,7 +70,8 @@ ${addedMessage}`
   }
 
   for (const clientHook of invalidServerComponentReactHooks) {
-    if (error.message.includes(`${clientHook} is not a function`)) {
+    const regex = new RegExp(`\\b${clientHook}\\b.*is not a function`)
+    if (regex.test(error.message)) {
       setMessage(
         error,
         `${clientHook} only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
