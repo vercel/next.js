@@ -487,7 +487,9 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/app-fetch-deduping/app-fetch-deduping.test.ts": {
-      "passed": ["app-fetch-deduping should skip other scenarios"],
+      "passed": [
+        "app-fetch-deduping during static generation dedupes requests amongst static workers"
+      ],
       "failed": [],
       "pending": [],
       "flakey": [],
@@ -579,6 +581,7 @@
         "app dir - prefetching fetch priority should have an auto priority for all other fetch operations",
         "app dir - prefetching fetch priority should prefetch links in viewport with low priority",
         "app dir - prefetching fetch priority should prefetch with high priority when navigating to a page without a prefetch entry",
+        "app dir - prefetching fetch priority should respect multiple prefetch types to the same URL",
         "app dir - prefetching invalid URLs should not throw when an invalid URL is passed to Link",
         "app dir - prefetching invalid URLs should throw when an invalid URL is passed to router.prefetch",
         "app dir - prefetching should calculate `_rsc` query based on `Next-Url`",
@@ -2078,8 +2081,8 @@
         "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
         "app dir - metadata dynamic routes sitemap should optimize routes without multiple generation API as static routes",
         "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
-        "app dir - metadata dynamic routes sitemap should support images in sitemap",
         "app dir - metadata dynamic routes sitemap should support generate multi sitemaps with generateSitemaps",
+        "app dir - metadata dynamic routes sitemap should support images in sitemap",
         "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
         "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
         "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime",
@@ -2100,6 +2103,29 @@
       "failed": [
         "app dir - Metadata API on the Edge runtime OG image route should not bundle `ImageResponse` into the page worker"
       ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/metadata-icons-parallel-routes/metadata-icons-parallel-routes.test.ts": {
+      "passed": [
+        "app-dir - metadata-icons-parallel-routes should inherit parent apple icon when child does not present but parent contain static apple icon",
+        "app-dir - metadata-icons-parallel-routes should override parent icon when both static icon presented",
+        "app-dir - metadata-icons-parallel-routes should present favicon with other icons when parallel routes are presented"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/metadata-icons/metadata-icons.test.ts": {
+      "passed": [
+        "app-dir - metadata-icons should only have 1 favicon link in nested page",
+        "app-dir - metadata-icons should only have 1 favicon link in root page",
+        "app-dir - metadata-icons should render custom icons along with favicon in nested page",
+        "app-dir - metadata-icons should render custom icons along with favicon in root page"
+      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -3168,6 +3194,7 @@
         "ppr-incremental ppr disabled /omitted/disabled/[slug] should render without the fallback in the initial load /omitted/disabled/a",
         "ppr-incremental ppr disabled /omitted/disabled/[slug] should render without the fallback in the initial load /omitted/disabled/b",
         "ppr-incremental ppr disabled /omitted/disabled/[slug] should render without the fallback in the initial load /omitted/disabled/c",
+        "ppr-incremental ppr disabled should not trigger a dynamic request for static pages",
         "ppr-incremental ppr enabled /dynamic/enabled/[slug] should have the dynamic content hidden /dynamic/enabled/a",
         "ppr-incremental ppr enabled /dynamic/enabled/[slug] should have the dynamic content hidden /dynamic/enabled/b",
         "ppr-incremental ppr enabled /dynamic/enabled/[slug] should have the dynamic content hidden /dynamic/enabled/c",
@@ -3596,13 +3623,11 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/scss/compilation-and-prefixing/compilation-and-prefixing.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "SCSS Support ({\"sass\": \"1.54.0\"}) Production only CSS Compilation and Prefixing should've compiled and prefixed",
-        "SCSS Support ({\"sass\": \"1.54.0\"}) Production only CSS Compilation and Prefixing should've emitted a source map",
-        "SCSS Support ({\"sass-embedded\": \"1.75.0\"}) Production only CSS Compilation and Prefixing should've compiled and prefixed",
-        "SCSS Support ({\"sass-embedded\": \"1.75.0\"}) Production only CSS Compilation and Prefixing should've emitted a source map"
+        "SCSS Support ({\"sass-embedded\": \"1.75.0\"}) Production only CSS Compilation and Prefixing should've compiled and prefixed"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -3704,10 +3729,10 @@
     },
     "test/e2e/app-dir/scss/invalid-module-document/invalid-module-document.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Invalid SCSS in _document production only should fail to build"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -3955,6 +3980,19 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/searchparams-reuse-loading/searchparams-reuse-loading.test.ts": {
+      "passed": [
+        "searchparams-reuse-loading should correctly return different RSC data for full prefetches with different searchParam values",
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-full route",
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-less route",
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-less URL when navigating to param-full route",
+        "searchparams-reuse-loading should re-use the prefetched loading state when navigating to a new searchParam value"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts": {
       "passed": [
         "searchparams-static-bailout client component should bailout when using searchParams",
@@ -3962,6 +4000,24 @@
         "searchparams-static-bailout client component should not bailout when not using searchParams",
         "searchparams-static-bailout server component should bailout when using searchParams",
         "searchparams-static-bailout server component should not bailout when not using searchParams"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/self-importing-package-monorepo/self-importing-package-monorepo.test.ts": {
+      "passed": [
+        "self-importing-package-monorepo should resolve self-imports inside a monorepo"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/self-importing-package/self-importing-package.test.ts": {
+      "passed": [
+        "self-importing-package should resolve self-imports in an external package"
       ],
       "failed": [],
       "pending": [],
@@ -5040,6 +5096,7 @@
     },
     "test/e2e/instrumentation-hook/register-once/register-once.test.ts": {
       "passed": [
+        "instrumentation-hook - register-once should not error when concurrent requests are made",
         "instrumentation-hook - register-once should only register once"
       ],
       "failed": [],
@@ -5732,6 +5789,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/og-routes-custom-font/og-routes-custom-font.test.ts": {
+      "passed": [
+        "og-routes-custom-font should render og with custom font for app routes"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/on-request-error/basic/basic.test.ts": {
       "passed": [
         "on-request-error - basic app router should catch app routes error in edge runtime",
@@ -5758,6 +5824,21 @@
         "on-request-error - dynamic-routes app router should catch suspense rendering page error in node runtime",
         "on-request-error - dynamic-routes pages router should catch pages router dynamic API route error with search params",
         "on-request-error - dynamic-routes pages router should catch pages router dynamic page error with search params"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/on-request-error/isr/isr.test.ts": {
+      "passed": [
+        "on-request-error - isr app router ISR should capture correct reason for build errored route",
+        "on-request-error - isr app router ISR should capture correct reason for on-demand revalidated page",
+        "on-request-error - isr app router ISR should capture correct reason for on-demand revalidated route",
+        "on-request-error - isr app router ISR should capture correct reason for stale errored page",
+        "on-request-error - isr app router ISR should capture revalidate from server action",
+        "on-request-error - isr pages router ISR should capture correct reason for on-demand revalidated page",
+        "on-request-error - isr pages router ISR should capture correct reason for stale errored page"
       ],
       "failed": [],
       "pending": [],
@@ -7668,32 +7749,28 @@
     },
     "test/integration/css-features/test/css-modules.test.js": {
       "passed": [
-        "CSS Modules: Import Exports production mode should have compiled successfully",
-        "CSS Modules: Import Global CSS production mode should have compiled successfully"
+        "CSS Modules: Import Global CSS production mode should've emitted a single CSS file"
       ],
       "failed": [
-        "CSS Modules: Import Exports production mode should've emitted a single CSS file",
-        "CSS Modules: Import Global CSS production mode should've emitted a single CSS file",
         "CSS Modules: Importing Invalid Global CSS production mode should fail to build",
-        "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build",
         "Custom Properties: Fail for global element in CSS Modules production mode should fail to build"
       ],
-      "pending": [],
+      "pending": [
+        "CSS Modules: Import Exports production mode should've emitted a single CSS file",
+        "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build"
+      ],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/css-features/test/index.test.js": {
       "passed": [
-        "Custom Properties: Pass-Through IE11 production mode should have compiled successfully",
-        "Custom Properties: Pass-Through Modern production mode should have compiled successfully",
-        "Inline Comments: Minify production mode should have compiled successfully"
-      ],
-      "failed": [
         "Custom Properties: Pass-Through IE11 production mode should've emitted a single CSS file",
-        "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file",
+        "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file"
+      ],
+      "failed": [],
+      "pending": [
         "Inline Comments: Minify production mode should've emitted a single CSS file"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -7781,37 +7858,22 @@
     },
     "test/integration/css/test/css-compilation.test.js": {
       "passed": [
-        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should compile successfully",
-        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should compile successfully",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have CSS for page",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have compiled successfully",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should've preloaded the CSS file and injected it in <head>",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have CSS for page",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have compiled successfully",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should've preloaded the CSS file and injected it in <head>",
-        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have compiled successfully",
-        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have the correct color on mount after navigation",
-        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have compiled successfully",
-        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have the correct color on mount after navigation"
-      ],
-      "failed": [
-        "CSS Property Ordering production mode useLightnincsss(false) should have compiled successfully",
         "CSS Property Ordering production mode useLightnincsss(false) should have the border width (property ordering)",
-        "CSS Property Ordering production mode useLightnincsss(true) should have compiled successfully",
         "CSS Property Ordering production mode useLightnincsss(true) should have the border width (property ordering)",
         "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've compiled and prefixed",
-        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've emitted a source map",
         "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've compiled and prefixed",
-        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've emitted a source map",
-        "CSS Support production mode Good CSS Import from node_modules useLightnincsss(false) should compile successfully",
         "CSS Support production mode Good CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
-        "CSS Support production mode Good CSS Import from node_modules useLightnincsss(true) should compile successfully",
         "CSS Support production mode Good CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
-        "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should compile successfully",
         "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
-        "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should compile successfully",
-        "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file"
+        "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have CSS for page",
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should've preloaded the CSS file and injected it in <head>",
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have CSS for page",
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should've preloaded the CSS file and injected it in <head>",
+        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have the correct color on mount after navigation",
+        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have the correct color on mount after navigation"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -7874,8 +7936,11 @@
     },
     "test/integration/css/test/css-rendering.test.js": {
       "passed": [
+        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct CSS injection order",
         "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on hover)",
         "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on load)",
+        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from index)",
+        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from other)",
         "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should not change color on hover",
         "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(false) production mode should hydrate black without dependencies manifest",
         "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(false) production mode should hydrate red without dependencies manifest",
@@ -7889,9 +7954,6 @@
       "failed": [
         "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
         "CSS Support CSS Cleanup on Render Failure useLightnincsss(true) production mode not have intermediary page styles on error rendering",
-        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct CSS injection order",
-        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from index)",
-        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from other)",
         "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
         "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS"
       ],
@@ -7914,16 +7976,15 @@
     },
     "test/integration/css/test/valid-invalid-css.test.js": {
       "passed": [
-        "Valid Global CSS from npm production mode should compile successfully"
+        "Valid Global CSS from npm production mode should've emitted a single CSS file"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Invalid CSS in _document production mode should fail to build",
         "Invalid Global CSS production mode should fail to build",
         "Invalid Global CSS with Custom App production mode should fail to build",
-        "Valid Global CSS from npm production mode should've emitted a single CSS file",
         "Valid and Invalid Global CSS with Custom App production mode should fail to build"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -11623,6 +11684,10 @@
     },
     "test/integration/image-optimizer/test/content-disposition-type.test.ts": {
       "passed": [
+        "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with contentDispositionType inline dev support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with contentDispositionType inline dev support with next.config.js should compress avif smaller than webp at q=100",
         "with contentDispositionType inline dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -11645,7 +11710,6 @@
         "with contentDispositionType inline dev support with next.config.js should fail when url has ftp protocol",
         "with contentDispositionType inline dev support with next.config.js should fail when url is missing",
         "with contentDispositionType inline dev support with next.config.js should fail when url is protocol relative",
-        "with contentDispositionType inline dev support with next.config.js should fail when url is recursive",
         "with contentDispositionType inline dev support with next.config.js should fail when url is too long",
         "with contentDispositionType inline dev support with next.config.js should fail when w is 0",
         "with contentDispositionType inline dev support with next.config.js should fail when w is less than 0",
@@ -11694,6 +11758,10 @@
       ],
       "failed": [],
       "pending": [
+        "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with contentDispositionType inline Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with contentDispositionType inline Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
         "with contentDispositionType inline Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -11716,7 +11784,6 @@
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url has ftp protocol",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is missing",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is protocol relative",
-        "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is recursive",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is too long",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is 0",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is less than 0",
@@ -11768,6 +11835,10 @@
     },
     "test/integration/image-optimizer/test/dangerously-allow-svg.test.ts": {
       "passed": [
+        "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with dangerouslyAllowSVG config dev support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with dangerouslyAllowSVG config dev support with next.config.js should compress avif smaller than webp at q=100",
         "with dangerouslyAllowSVG config dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -11790,7 +11861,6 @@
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when url has ftp protocol",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is missing",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is protocol relative",
-        "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is recursive",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is too long",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is 0",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is less than 0",
@@ -11836,6 +11906,10 @@
       ],
       "failed": [],
       "pending": [
+        "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -11858,7 +11932,6 @@
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url has ftp protocol",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is missing",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is protocol relative",
-        "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is recursive",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is too long",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is 0",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is less than 0",
@@ -11941,6 +12014,10 @@
     },
     "test/integration/image-optimizer/test/minimum-cache-ttl.test.ts": {
       "passed": [
+        "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should compress avif smaller than webp at q=100",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -11963,7 +12040,6 @@
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url has ftp protocol",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is missing",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is protocol relative",
-        "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is recursive",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is too long",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is 0",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is less than 0",
@@ -12012,6 +12088,10 @@
       ],
       "failed": [],
       "pending": [
+        "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -12034,7 +12114,6 @@
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url has ftp protocol",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is missing",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is protocol relative",
-        "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is recursive",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is too long",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is 0",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is less than 0",
@@ -12086,6 +12165,10 @@
     },
     "test/integration/image-optimizer/test/sharp.test.ts": {
       "passed": [
+        "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with relative next image url",
         "with latest sharp dev support w/o next.config.js should downlevel avif format to jpeg for old Safari",
         "with latest sharp dev support w/o next.config.js should downlevel webp format to jpeg for old Safari",
         "with latest sharp dev support w/o next.config.js should emit blur svg when width is 8 in dev but not prod",
@@ -12103,7 +12186,6 @@
         "with latest sharp dev support w/o next.config.js should fail when url has ftp protocol",
         "with latest sharp dev support w/o next.config.js should fail when url is missing",
         "with latest sharp dev support w/o next.config.js should fail when url is protocol relative",
-        "with latest sharp dev support w/o next.config.js should fail when url is recursive",
         "with latest sharp dev support w/o next.config.js should fail when url is too long",
         "with latest sharp dev support w/o next.config.js should fail when w is 0",
         "with latest sharp dev support w/o next.config.js should fail when w is less than 0",
@@ -12142,6 +12224,10 @@
         "with latest sharp dev support w/o next.config.js should set cache-control to immutable for static images",
         "with latest sharp dev support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
         "with latest sharp dev support w/o next.config.js should use cached image file when parameters are the same for animated gif",
+        "with latest sharp dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with latest sharp dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with latest sharp dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with latest sharp dev support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with latest sharp dev support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with latest sharp dev support with next.config.js should compress avif smaller than webp at q=100",
         "with latest sharp dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -12164,7 +12250,6 @@
         "with latest sharp dev support with next.config.js should fail when url has ftp protocol",
         "with latest sharp dev support with next.config.js should fail when url is missing",
         "with latest sharp dev support with next.config.js should fail when url is protocol relative",
-        "with latest sharp dev support with next.config.js should fail when url is recursive",
         "with latest sharp dev support with next.config.js should fail when url is too long",
         "with latest sharp dev support with next.config.js should fail when w is 0",
         "with latest sharp dev support with next.config.js should fail when w is less than 0",
@@ -12213,6 +12298,10 @@
       ],
       "failed": [],
       "pending": [
+        "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with relative next image url",
         "with latest sharp Production Mode Server support w/o next.config.js should downlevel avif format to jpeg for old Safari",
         "with latest sharp Production Mode Server support w/o next.config.js should downlevel webp format to jpeg for old Safari",
         "with latest sharp Production Mode Server support w/o next.config.js should emit blur svg when width is 8 in dev but not prod",
@@ -12230,7 +12319,6 @@
         "with latest sharp Production Mode Server support w/o next.config.js should fail when url has ftp protocol",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when url is missing",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when url is protocol relative",
-        "with latest sharp Production Mode Server support w/o next.config.js should fail when url is recursive",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when url is too long",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when w is 0",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when w is less than 0",
@@ -12269,6 +12357,10 @@
         "with latest sharp Production Mode Server support w/o next.config.js should set cache-control to immutable for static images",
         "with latest sharp Production Mode Server support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
         "with latest sharp Production Mode Server support w/o next.config.js should use cached image file when parameters are the same for animated gif",
+        "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with latest sharp Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with latest sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
         "with latest sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -12291,7 +12383,6 @@
         "with latest sharp Production Mode Server support with next.config.js should fail when url has ftp protocol",
         "with latest sharp Production Mode Server support with next.config.js should fail when url is missing",
         "with latest sharp Production Mode Server support with next.config.js should fail when url is protocol relative",
-        "with latest sharp Production Mode Server support with next.config.js should fail when url is recursive",
         "with latest sharp Production Mode Server support with next.config.js should fail when url is too long",
         "with latest sharp Production Mode Server support with next.config.js should fail when w is 0",
         "with latest sharp Production Mode Server support with next.config.js should fail when w is less than 0",
@@ -13034,16 +13125,16 @@
     },
     "test/integration/next-image-legacy/default/test/static.test.ts": {
       "passed": [
+        "Build Error Tests production mode should throw build error when import statement is used with missing file",
+        "Static Image Component Tests production mode Should add a blur placeholder to statically imported jpg",
+        "Static Image Component Tests production mode Should add a blur placeholder to statically imported png",
         "Static Image Component Tests production mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests production mode Should allow provided width and height to override intrinsic",
         "Static Image Component Tests production mode Should automatically provide an image height and width",
         "Static Image Component Tests production mode Should use immutable cache-control header even when unoptimized",
         "Static Image Component Tests production mode Should use immutable cache-control header for static import",
         "Static Image Component Tests production mode should load direct imported image",
-        "Static Image Component Tests production mode should load staticprops imported image",
-        "Build Error Tests production mode should throw build error when import statement is used with missing file",
-        "Static Image Component Tests production mode Should add a blur placeholder to statically imported jpg",
-        "Static Image Component Tests production mode Should add a blur placeholder to statically imported png"
+        "Static Image Component Tests production mode should load staticprops imported image"
       ],
       "failed": [],
       "pending": [],
@@ -13274,6 +13365,7 @@
     },
     "test/integration/next-image-new/app-dir/test/static.test.ts": {
       "passed": [
+        "Build Error Tests production mode should throw build error when import statement is used with missing file",
         "Static Image Component Tests production mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests production mode Should automatically provide an image height and width",
         "Static Image Component Tests production mode Should use immutable cache-control header even when unoptimized",
@@ -13288,8 +13380,7 @@
         "Static Image Component Tests production mode should load direct imported image",
         "Static Image Component Tests production mode should use height prop to adjust both width and height",
         "Static Image Component Tests production mode should use width and height prop to override import",
-        "Static Image Component Tests production mode should use width prop to adjust both width and height",
-        "Build Error Tests production mode should throw build error when import statement is used with missing file"
+        "Static Image Component Tests production mode should use width prop to adjust both width and height"
       ],
       "failed": [],
       "pending": [
@@ -13495,6 +13586,7 @@
     },
     "test/integration/next-image-new/default/test/static.test.ts": {
       "passed": [
+        "Build Error Tests production mode should throw build error when import statement is used with missing file",
         "Static Image Component Tests production mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests production mode Should automatically provide an image height and width",
         "Static Image Component Tests production mode Should use immutable cache-control header even when unoptimized",
@@ -13510,8 +13602,7 @@
         "Static Image Component Tests production mode should load staticprops imported image",
         "Static Image Component Tests production mode should use height prop to adjust both width and height",
         "Static Image Component Tests production mode should use width and height prop to override import",
-        "Static Image Component Tests production mode should use width prop to adjust both width and height",
-        "Build Error Tests production mode should throw build error when import statement is used with missing file"
+        "Static Image Component Tests production mode should use width prop to adjust both width and height"
       ],
       "failed": [],
       "pending": [
@@ -15560,6 +15651,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/client-page-error-bailout/client-page-error-bailout.test.ts": {
+      "passed": [
+        "app-dir - client-page-error-bailout should bail out in static generation build"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/deopted-into-client-rendering-warning/deopted-into-client-rendering-warning.test.ts": {
       "passed": ["should not show deopted into client rendering warning"],
       "failed": [],
@@ -15579,8 +15679,8 @@
       "runtimeError": false
     },
     "test/production/app-dir/mangle-reserved/mangle-reserved.test.ts": {
-      "passed": [],
-      "failed": ["mangle-reserved should preserve the name"],
+      "passed": ["mangle-reserved should preserve the name"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15788,14 +15888,13 @@
       "runtimeError": false
     },
     "test/production/disable-fallback-polyfills/index.test.ts": {
-      "passed": [
-        "Disable fallback polyfills Fallback polyfills added by default"
-      ],
-      "failed": [
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "Disable fallback polyfills Fallback polyfills added by default",
         "Disable fallback polyfills Pass build without error if non-polyfilled module is unreachable",
         "Disable fallback polyfills Reduced bundle size when polyfills are disabled"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -16490,8 +16589,8 @@
         "TypeScript basic have built and started correctly",
         "TypeScript basic should not have eslint setup started"
       ],
-      "failed": ["TypeScript basic should work with babel"],
-      "pending": [],
+      "failed": [],
+      "pending": ["TypeScript basic should work with babel"],
       "flakey": [],
       "runtimeError": false
     },

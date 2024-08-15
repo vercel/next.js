@@ -2676,7 +2676,7 @@ dependencies = [
  "once_cell",
  "phf 0.11.2",
  "rustc-hash",
- "triomphe",
+ "triomphe 0.1.13",
 ]
 
 [[package]]
@@ -8230,13 +8230,22 @@ dependencies = [
 
 [[package]]
 name = "triomphe"
+version = "0.1.12"
+source = "git+https://github.com/sokra/triomphe?branch=sokra/unstable#9c591aba443d01a9f525fe9b4a671359d1b455d2"
+dependencies = [
+ "serde",
+ "stable_deref_trait",
+ "unsize",
+]
+
+[[package]]
+name = "triomphe"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6631e42e10b40c0690bf92f404ebcfe6e1fdb480391d15f17cc8e96eeed5369"
 dependencies = [
  "serde",
  "stable_deref_trait",
- "unsize",
 ]
 
 [[package]]
@@ -8366,7 +8375,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "triomphe",
+ "triomphe 0.1.12",
  "turbo-tasks-build",
  "turbo-tasks-hash",
  "turbo-tasks-macros",

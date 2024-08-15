@@ -1,18 +1,21 @@
-name: Bug Report
-description: Create a bug report for Next.js.
+name: Report an issue
+description: Report a Next.js issue.
 labels: ['bug']
 body:
   - type: markdown
     attributes:
       value: |
-        This template is to report Next.js bugs. [Examples](https://github.com/vercel/next.js/tree/canary/examples) related issues should be reported using [this](https://github.com/vercel/next.js/issues/new?assignees=&labels=type%3A+example%2Ctemplate%3A+bug&template=2.example_bug_report.yml) issue template instead.
-        Feature requests should be opened as [discussions](https://github.com/vercel/next.js/discussions/new?category=ideas). [Read more](https://github.com/vercel/next.js/blob/canary/contributing/core/adding-features.md).
+        This template is used for reporting a Next.js issue. [Example](https://github.com/vercel/next.js/tree/canary/examples)-related issues should be reported using [this](https://github.com/vercel/next.js/issues/new?assignees=&labels=type%3A+example%2Ctemplate%3A+bug&template=2.example_bug_report.yml) issue template instead.
+
+        Feature requests should be opened in [discussions](https://github.com/vercel/next.js/discussions/new?category=ideas). For more information about opening a feature request, [read more](https://github.com/vercel/next.js/blob/canary/contributing/core/adding-features.md).
+
+        Documentation requests should also be opened in [discussions](https://github.com/vercel/next.js/discussions/new?category=ideas).
 
         Before opening a new issue, please do a [search](https://github.com/vercel/next.js/issues) of existing issues and :+1: upvote the existing issue instead. This will result in a quicker resolution.
 
         If you need help with your own project, you can:
-        - Start a discussion in the ["Help" section](https://github.com/vercel/next.js/discussions/categories/help)
-        - Ask a question on the [Next.js Discord](https://discord.com/invite/nextjs) server
+        - Start a discussion in the ["Help"](https://github.com/vercel/next.js/discussions/categories/help) section.
+        - Ask a question in [Vercel Community](https://vercel.community/tags/c/help/9/nextjs).
   - type: input
     attributes:
       label: Link to the code that reproduces this issue

@@ -254,6 +254,7 @@ pub async fn get_server_resolve_options_context(
         ServerContextType::Instrumentation { .. } => {
             vec![
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(server_external_packages_plugin),
                 Vc::upcast(next_external_plugin),
             ]
         }

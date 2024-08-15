@@ -31,10 +31,7 @@ import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import {
-  deleteAppClientCache,
-  deleteCache,
-} from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
+import { deleteAppClientCache, deleteCache } from './require-cache'
 import {
   clearAllModuleContexts,
   clearModuleContext,
