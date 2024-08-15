@@ -14,9 +14,9 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000/api](http://localhost:3000/api) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/index.ts`. The page auto-updates as you edit the file.
+You can start editing the page by modifying `app/route.ts`. The page auto-updates as you edit the file.
 
 ## Learn More
 
@@ -32,29 +32,48 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
 ## API Routes
 
 This directory contains example API routes for the headless API app.
 
-### GET /api/user-info
-Returns information about the user based on the request data.
-Query Parameters:
-- `name`: The name of the user (optional)
+Here's an overview of the available routes:
 
-Example usage:
-```http
-GET /api/user-info?name=John
+1. Root Route (`/`):
 
-### GET /api/error
-Demonstrates a custom error response.
+   - Provides a list of available API endpoints.
+   - Useful for discovering what the API offers.
 
-Example usage:
-```http
-GET /api/error
-```
-### GET /api/not-found
-Demonstrates a 404 Not Found response.
+2. Pokemon Routes:
 
-Example usage:
-```http
-GET /api/not-found
+   - List all Pokemon (`/pokemon`): Get an overview of available Pokemon.
+   - Filter Pokemon by type (`/pokemon?type=grass`): Find Pokemon of a specific element.
+   - Get a specific Pokemon (`/pokemon/25`): Fetch details about a particular Pokemon by ID.
+
+3. HTTP Methods Route (`/methods`):
+
+   - Information about supported HTTP methods.
+   - Great for learning about various types of API requests.
+
+4. Specific HTTP Method Routes (`/methods/[method]`):
+
+   - Demonstrates different HTTP methods (GET, POST, PUT, DELETE, PATCH).
+   - Helps understand how different types of API requests behave.
+
+5. Not Found Route:
+   - Handles requests to undefined routes.
+   - Returns a "Not Found" response for non-existent endpoints.
+
+Each route is wrapped with middleware that adds:
+
+- Request logging for monitoring and debugging.
+- Origin checking for security.
+- Authentication placeholders for future expansion.
+
+To explore these routes:
+
+1. Start the development server.
+2. Open your browser and navigate to `http://localhost:3000/[route]`.
+3. Examine the responses to understand how each route works.
+
+For more details on the implementation, check the corresponding files in the `app` directory.
