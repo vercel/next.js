@@ -25,8 +25,8 @@ use rustc_hash::FxHasher;
 use smallvec::smallvec;
 use turbo_tasks::{
     backend::{
-        Backend, BackendJobId, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskType,
-        TypedCellContent,
+        Backend, BackendJobId, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
+        TransientTaskType, TypedCellContent,
     },
     event::EventListener,
     registry,
@@ -61,13 +61,30 @@ impl SnapshotRequest {
     }
 }
 
+pub enum TransientTask {
+    /// A root task that will track dependencies and re-execute when
+    /// dependencies change. Task will eventually settle to the correct
+    /// execution.
+    /// Always active. Automatically scheduled.
+    Root(TransientTaskRoot),
+
+    // TODO implement these strongly consistency
+    /// A single root task execution. It won't track dependencies.
+    /// Task will definitely include all invalidations that happened before the
+    /// start of the task. It may or may not include invalidations that
+    /// happened after that. It may see these invalidations partially
+    /// applied.
+    /// Active until done. Automatically scheduled.
+    Once(tokio::sync::Mutex<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>),
+}
+
 pub struct TurboTasksBackend {
     persisted_task_id_factory: IdFactoryWithReuse<TaskId>,
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
 
     persisted_task_cache_log: Mutex<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
     task_cache: BiMap<Arc<CachedTaskType>, TaskId>,
-    transient_tasks: DashMap<TaskId, Arc<tokio::sync::Mutex<TransientTaskType>>>,
+    transient_tasks: DashMap<TaskId, Arc<TransientTask>>,
 
     persisted_storage_log: Mutex<ChunkedVec<CachedDataUpdate>>,
     storage: Storage<TaskId, CachedDataItem>,
@@ -447,6 +464,20 @@ impl Backend for TurboTasksBackend {
         task_id: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Option<TaskExecutionSpec<'_>> {
+        enum TaskType {
+            Cached(Arc<CachedTaskType>),
+            Transient(Arc<TransientTask>),
+        }
+        let (task_type, once_task) = if let Some(task_type) = self.lookup_task_type(task_id) {
+            (TaskType::Cached(task_type), false)
+        } else if let Some(task_type) = self.transient_tasks.get(&task_id) {
+            (
+                TaskType::Transient(task_type.clone()),
+                matches!(**task_type, TransientTask::Once(_)),
+            )
+        } else {
+            return None;
+        };
         {
             let ctx = self.execute_context(turbo_tasks);
             let mut task = ctx.task(task_id);
@@ -462,6 +493,7 @@ impl Backend for TurboTasksBackend {
             task.add(CachedDataItem::InProgress {
                 value: InProgressState::InProgress {
                     stale: false,
+                    once_task,
                     done_event,
                 },
             });
@@ -554,8 +586,8 @@ impl Backend for TurboTasksBackend {
             start_event.notify(usize::MAX);
         }
 
-        let (span, future) = if let Some(task_type) = self.lookup_task_type(task_id) {
-            match &*task_type {
+        let (span, future) = match task_type {
+            TaskType::Cached(task_type) => match &*task_type {
                 CachedTaskType::Native { fn_type, this, arg } => (
                     registry::get_function(*fn_type).span(),
                     registry::get_function(*fn_type).execute(*this, &**arg),
@@ -612,24 +644,24 @@ impl Backend for TurboTasksBackend {
                         }) as Pin<Box<dyn Future<Output = _> + Send + '_>>,
                     )
                 }
-            }
-        } else if let Some(task_type) = self.transient_tasks.get(&task_id) {
-            let task_type = task_type.clone();
-            let span = tracing::trace_span!("turbo_tasks::root_task");
-            let future = Box::pin(async move {
-                let mut task_type = task_type.lock().await;
-                match &mut *task_type {
-                    TransientTaskType::Root(f) => {
-                        let future = f();
-                        drop(task_type);
-                        future.await
+            },
+            TaskType::Transient(task_type) => {
+                let task_type = task_type.clone();
+                let span = tracing::trace_span!("turbo_tasks::root_task");
+                let future = Box::pin(async move {
+                    match &*task_type {
+                        TransientTask::Root(f) => {
+                            let future = f();
+                            future.await
+                        }
+                        TransientTask::Once(future) => {
+                            let mut mutex_guard = future.lock().await;
+                            (&mut *mutex_guard).await
+                        }
                     }
-                    TransientTaskType::Once(future) => future.await,
-                }
-            }) as Pin<Box<dyn Future<Output = _> + Send + '_>>;
-            (span, future)
-        } else {
-            return None;
+                }) as Pin<Box<dyn Future<Output = _> + Send + '_>>;
+                (span, future)
+            }
         };
         Some(TaskExecutionSpec { future, span })
     }
@@ -659,7 +691,12 @@ impl Backend for TurboTasksBackend {
         else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
-        let InProgressState::InProgress { done_event, stale } = in_progress else {
+        let InProgressState::InProgress {
+            done_event,
+            once_task,
+            stale,
+        } = in_progress
+        else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
 
@@ -670,6 +707,7 @@ impl Backend for TurboTasksBackend {
             task.add(CachedDataItem::InProgress {
                 value: InProgressState::InProgress {
                     stale: false,
+                    once_task,
                     done_event,
                 },
             });
@@ -878,8 +916,13 @@ impl Backend for TurboTasksBackend {
             TransientTaskType::Root(_) => RootType::RootTask,
             TransientTaskType::Once(_) => RootType::OnceTask,
         };
-        self.transient_tasks
-            .insert(task_id, Arc::new(tokio::sync::Mutex::new(task_type)));
+        self.transient_tasks.insert(
+            task_id,
+            Arc::new(match task_type {
+                TransientTaskType::Root(f) => TransientTask::Root(f),
+                TransientTaskType::Once(f) => TransientTask::Once(tokio::sync::Mutex::new(f)),
+            }),
+        );
         {
             let mut task = self.storage.access_mut(task_id);
             task.add(CachedDataItem::new_scheduled(task_id));
