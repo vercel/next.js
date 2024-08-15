@@ -6049,12 +6049,10 @@
         "Prerender should support prerendered catchall-explicit route (nested)",
         "Prerender should support prerendered catchall-explicit route (single)",
         "Prerender should use correct caching headers for a no-revalidate page",
-        "Prerender should use correct caching headers for a revalidate page"
+        "Prerender should use correct caching headers for a revalidate page",
+        "Prerender should handle fallback only page correctly HTML"
       ],
-      "failed": [
-        "Prerender should handle fallback only page correctly HTML",
-        "Prerender should output traces"
-      ],
+      "failed": ["Prerender should output traces"],
       "pending": [
         "Prerender should reload page on failed data request, and retry"
       ],
