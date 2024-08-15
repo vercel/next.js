@@ -825,42 +825,9 @@ catalogs:
     raw-body:
       specifier: 2.4.1
       version: 2.4.1
-    react-17:
-      specifier: npm:react@17.0.2
-      version: 17.0.2
-    react-builtin:
-      specifier: npm:react@19.0.0-rc-187dd6a7-20240806
-      version: 19.0.0-rc-187dd6a7-20240806
-    react-dom-17:
-      specifier: npm:react-dom@17.0.2
-      version: 17.0.2
-    react-dom-builtin:
-      specifier: npm:react-dom@19.0.0-rc-187dd6a7-20240806
-      version: 19.0.0-rc-187dd6a7-20240806
-    react-dom-experimental-builtin:
-      specifier: npm:react-dom@0.0.0-experimental-187dd6a7-20240806
-      version: 0.0.0-experimental-187dd6a7-20240806
-    react-experimental-builtin:
-      specifier: npm:react@0.0.0-experimental-187dd6a7-20240806
-      version: 0.0.0-experimental-187dd6a7-20240806
-    react-is-builtin:
-      specifier: npm:react-is@19.0.0-rc-187dd6a7-20240806
-      version: 19.0.0-rc-187dd6a7-20240806
     react-refresh:
       specifier: 0.12.0
       version: 0.12.0
-    react-server-dom-turbopack:
-      specifier: 19.0.0-rc-187dd6a7-20240806
-      version: 19.0.0-rc-187dd6a7-20240806
-    react-server-dom-turbopack-experimental:
-      specifier: npm:react-server-dom-turbopack@0.0.0-experimental-187dd6a7-20240806
-      version: 0.0.0-experimental-187dd6a7-20240806
-    react-server-dom-webpack:
-      specifier: 19.0.0-rc-187dd6a7-20240806
-      version: 19.0.0-rc-187dd6a7-20240806
-    react-server-dom-webpack-experimental:
-      specifier: npm:react-server-dom-webpack@0.0.0-experimental-187dd6a7-20240806
-      version: 0.0.0-experimental-187dd6a7-20240806
     react-ssr-prepass:
       specifier: 1.0.8
       version: 1.0.8
@@ -1512,40 +1479,40 @@ importers:
         specifier: 19.0.0-rc-187dd6a7-20240806
         version: 19.0.0-rc-187dd6a7-20240806
       react-17:
-        specifier: 'catalog:'
+        specifier: npm:react@17.0.2
         version: react@17.0.2
       react-builtin:
-        specifier: 'catalog:'
+        specifier: npm:react@19.0.0-rc-187dd6a7-20240806
         version: react@19.0.0-rc-187dd6a7-20240806
       react-dom:
         specifier: 19.0.0-rc-187dd6a7-20240806
         version: 19.0.0-rc-187dd6a7-20240806(react@19.0.0-rc-187dd6a7-20240806)
       react-dom-17:
-        specifier: 'catalog:'
+        specifier: npm:react-dom@17.0.2
         version: react-dom@17.0.2(react@19.0.0-rc-187dd6a7-20240806)
       react-dom-builtin:
-        specifier: 'catalog:'
+        specifier: npm:react-dom@19.0.0-rc-187dd6a7-20240806
         version: react-dom@19.0.0-rc-187dd6a7-20240806(react@19.0.0-rc-187dd6a7-20240806)
       react-dom-experimental-builtin:
-        specifier: 'catalog:'
+        specifier: npm:react-dom@0.0.0-experimental-187dd6a7-20240806
         version: react-dom@0.0.0-experimental-187dd6a7-20240806(react@19.0.0-rc-187dd6a7-20240806)
       react-experimental-builtin:
-        specifier: 'catalog:'
+        specifier: npm:react@0.0.0-experimental-187dd6a7-20240806
         version: react@0.0.0-experimental-187dd6a7-20240806
       react-is-builtin:
-        specifier: 'catalog:'
+        specifier: npm:react-is@19.0.0-rc-187dd6a7-20240806
         version: react-is@19.0.0-rc-187dd6a7-20240806
       react-server-dom-turbopack:
-        specifier: 'catalog:'
+        specifier: 19.0.0-rc-187dd6a7-20240806
         version: 19.0.0-rc-187dd6a7-20240806(react-dom@19.0.0-rc-187dd6a7-20240806(react@19.0.0-rc-187dd6a7-20240806))(react@19.0.0-rc-187dd6a7-20240806)
       react-server-dom-turbopack-experimental:
-        specifier: 'catalog:'
+        specifier: npm:react-server-dom-turbopack@0.0.0-experimental-187dd6a7-20240806
         version: react-server-dom-turbopack@0.0.0-experimental-187dd6a7-20240806(react-dom@19.0.0-rc-187dd6a7-20240806(react@19.0.0-rc-187dd6a7-20240806))(react@19.0.0-rc-187dd6a7-20240806)
       react-server-dom-webpack:
-        specifier: 'catalog:'
+        specifier: 19.0.0-rc-187dd6a7-20240806
         version: 19.0.0-rc-187dd6a7-20240806(react-dom@19.0.0-rc-187dd6a7-20240806(react@19.0.0-rc-187dd6a7-20240806))(react@19.0.0-rc-187dd6a7-20240806)(webpack@5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.12)))
       react-server-dom-webpack-experimental:
-        specifier: 'catalog:'
+        specifier: npm:react-server-dom-webpack@0.0.0-experimental-187dd6a7-20240806
         version: react-server-dom-webpack@0.0.0-experimental-187dd6a7-20240806(react-dom@19.0.0-rc-187dd6a7-20240806(react@19.0.0-rc-187dd6a7-20240806))(react@19.0.0-rc-187dd6a7-20240806)(webpack@5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.12)))
       react-ssr-prepass:
         specifier: 'catalog:'
@@ -1916,7 +1883,7 @@ importers:
         version: 0.5.12
       babel-plugin-react-compiler:
         specifier: '*'
-        version: 0.0.0-experimental-10b7b82-20240813
+        version: 0.0.0-experimental-1cd8995-20240814
       busboy:
         specifier: 'catalog:'
         version: 1.6.0
@@ -6525,8 +6492,8 @@ packages:
     peerDependencies:
       '@babel/core': 7.22.5
 
-  babel-plugin-react-compiler@0.0.0-experimental-10b7b82-20240813:
-    resolution: {integrity: sha512-fMrhayX599r/Sfmd4JbFvXu4MrahZTP2N0eYdTvUpGB22atkPiwjMGPlVVrRCEr30oYhmku7uww9mM4O2XBkGQ==}
+  babel-plugin-react-compiler@0.0.0-experimental-1cd8995-20240814:
+    resolution: {integrity: sha512-4DWAliKzk3ACtvOn0pbUStj8DRy//bA9Icze8u/8+hCYNR2xNWupnocP+FpoCC8tDNkFDSAzQyrQZS5uBeyH9A==}
 
   babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
     resolution: {integrity: sha512-0XN2gmpT55QtAz5n7d5g91y1AuO9tRhWBaLgCRyc4ExHrlr7+LfxW+YTb3mOwxngkkiggwM8HyYsaEK9MqhnlQ==}
@@ -20471,7 +20438,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  babel-plugin-react-compiler@0.0.0-experimental-10b7b82-20240813:
+  babel-plugin-react-compiler@0.0.0-experimental-1cd8995-20240814:
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
