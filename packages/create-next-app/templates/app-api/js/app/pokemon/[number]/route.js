@@ -3,7 +3,7 @@ import { withMiddleware } from "@/app/with-middleware";
 
 export const GET = withMiddleware(async (_request, context) => {
   const res = await fetch(
-    `https://api.vercel.app/pokemon/${context.params.id}`,
+    `https://api.vercel.app/pokemon/${context.params.number}`,
   );
   const pokemon = await res.json();
 
