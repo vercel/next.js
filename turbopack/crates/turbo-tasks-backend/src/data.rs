@@ -50,6 +50,7 @@ pub enum InProgressState {
     },
     InProgress {
         stale: bool,
+        once_task: bool,
         done_event: Event,
     },
 }
