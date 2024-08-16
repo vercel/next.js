@@ -232,8 +232,14 @@ impl TurboTasksBackend {
             match in_progress {
                 InProgressState::Scheduled { done_event, .. }
                 | InProgressState::InProgress { done_event, .. } => {
-                    let listener = done_event
-                        .listen_with_note(move || format!("try_read_task_output from {reader:?}"));
+                    let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
+                    let listener = done_event.listen_with_note(move || {
+                        if let Some(reader_desc) = reader_desc.as_ref() {
+                            format!("try_read_task_output from {}", reader_desc())
+                        } else {
+                            format!("try_read_task_output (untracked)")
+                        }
+                    });
                     return Ok(Err(listener));
                 }
             }
@@ -275,10 +281,18 @@ impl TurboTasksBackend {
             }
         }
 
+        let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
+        let note = move || {
+            if let Some(reader_desc) = reader_desc.as_ref() {
+                format!("try_read_task_cell (recompute) from {}", reader_desc())
+            } else {
+                format!("try_read_task_cell (recompute, untracked)")
+            }
+        };
+
         // Output doesn't exist. We need to schedule the task to compute it.
-        let (item, listener) = CachedDataItem::new_scheduled_with_listener(task_id, move || {
-            format!("try_read_task_output (recompute) from {reader:?}")
-        });
+        let (item, listener) =
+            CachedDataItem::new_scheduled_with_listener(self.get_task_desc_fn(task_id), note);
         task.add_new(item);
         turbo_tasks.schedule(task_id);
 
@@ -337,23 +351,35 @@ impl TurboTasksBackend {
         // Cell should exist, but data was dropped or is not serializable. We need to recompute the
         // task the get the cell content.
 
+        let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
+        let note = move || {
+            if let Some(reader_desc) = reader_desc.as_ref() {
+                format!("try_read_task_cell from {}", reader_desc())
+            } else {
+                format!("try_read_task_cell (untracked)")
+            }
+        };
+
         // Register event listener for cell computation
         if let Some(in_progress) = get!(task, InProgressCell { cell }) {
             // Someone else is already computing the cell
-            let listener = in_progress.event.listen();
+            let listener = in_progress.event.listen_with_note(note);
             return Ok(Err(listener));
         }
 
         // We create the event and potentially schedule the task
         let in_progress = InProgressCellState::new(task_id, cell);
-        let listener = in_progress.event.listen();
+
+        let listener = in_progress.event.listen_with_note(note);
         task.add_new(CachedDataItem::InProgressCell {
             cell,
             value: in_progress,
         });
 
         // Schedule the task, if not already scheduled
-        if task.add(CachedDataItem::new_scheduled(task_id)) {
+        if task.add(CachedDataItem::new_scheduled(
+            self.get_task_desc_fn(task_id),
+        )) {
             turbo_tasks.schedule(task_id);
         }
 
@@ -365,6 +391,17 @@ impl TurboTasksBackend {
             return Some(task_type);
         }
         None
+    }
+
+    // TODO feature flag that for hanging detection only
+    fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static {
+        let task_type = self.lookup_task_type(task_id);
+        move || {
+            task_type.as_ref().map_or_else(
+                || format!("{task_id:?} transient"),
+                |task_type| format!("{task_id:?} {task_type}"),
+            )
+        }
     }
 }
 
@@ -489,11 +526,7 @@ impl Backend for TurboTasksBackend {
             let ctx = self.execute_context(turbo_tasks);
             let mut task = ctx.task(task_id);
             let in_progress = remove!(task, InProgress)?;
-            let InProgressState::Scheduled {
-                done_event,
-                start_event,
-            } = in_progress
-            else {
+            let InProgressState::Scheduled { done_event } = in_progress else {
                 task.add_new(CachedDataItem::InProgress { value: in_progress });
                 return None;
             };
@@ -589,8 +622,6 @@ impl Backend for TurboTasksBackend {
             }
 
             // TODO: Make all collectibles outdated
-
-            start_event.notify(usize::MAX);
         }
 
         let (span, future) = match task_type {
@@ -932,9 +963,13 @@ impl Backend for TurboTasksBackend {
         );
         {
             let mut task = self.storage.access_mut(task_id);
-            let _ = task.add(CachedDataItem::new_scheduled(task_id));
-            let _ = task.add(CachedDataItem::AggregateRootType { value: root_type });
             let _ = task.add(CachedDataItem::AggregationNumber { value: u32::MAX });
+            let _ = task.add(CachedDataItem::AggregateRootType { value: root_type });
+            let _ = task.add(CachedDataItem::new_scheduled(move || match root_type {
+                RootType::RootTask => "Root Task".to_string(),
+                RootType::OnceTask => "Once Task".to_string(),
+                _ => unreachable!(),
+            }));
         }
         turbo_tasks.schedule(task_id);
         task_id
