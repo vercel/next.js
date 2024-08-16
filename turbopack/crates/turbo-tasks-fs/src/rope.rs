@@ -342,8 +342,8 @@ impl Serialize for Rope {
     /// possible owner of a individual "shared" data doesn't make sense).
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::Error;
-        let s = self.to_str().map_err(Error::custom)?;
-        serializer.serialize_str(&s)
+        let bytes = self.to_bytes().map_err(Error::custom)?;
+        bytes.serialize(serializer)
     }
 }
 
