@@ -28,14 +28,6 @@ pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
     fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap>;
 
-    /// In case the source map is generated from a transformed asset, this returns the original
-    /// source.
-    ///
-    /// This is called only if `generate_source_map` returns a value.
-    fn original_source(self: Vc<Self>) -> Vc<OptionSource> {
-        Vc::cell(None)
-    }
-
     /// Returns an individual section of the larger source map, if found.
     fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<OptionSourceMap> {
         Vc::cell(None)
