@@ -392,18 +392,18 @@ impl CachedTaskType {
                 fn_type: native_fn,
                 this: _,
                 arg: _,
-            }
-            | Self::ResolveNative {
+            } => Cow::Borrowed(&registry::get_function(*native_fn).name),
+            Self::ResolveNative {
                 fn_type: native_fn,
                 this: _,
                 arg: _,
-            } => Cow::Borrowed(&registry::get_function(*native_fn).name),
+            } => format!("*{}", registry::get_function(*native_fn).name).into(),
             Self::ResolveTrait {
                 trait_type: trait_id,
                 method_name: fn_name,
                 this: _,
                 arg: _,
-            } => format!("{}::{}", registry::get_trait(*trait_id).name, fn_name).into(),
+            } => format!("*{}::{}", registry::get_trait(*trait_id).name, fn_name).into(),
         }
     }
 
