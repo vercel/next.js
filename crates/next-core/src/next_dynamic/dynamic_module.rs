@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
-use turbo_tasks::Vc;
-use turbopack_binding::turbopack::core::{
+use turbo_tasks::{RcStr, Vc};
+use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext, ChunkingContextExt},
     ident::AssetIdent,
@@ -11,7 +11,7 @@ use turbopack_binding::turbopack::core::{
 
 /// A [`NextDynamicEntryModule`] is a marker asset used to indicate which
 /// dynamic assets should appear in the dynamic manifest.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value]
 pub struct NextDynamicEntryModule {
     pub client_entry_module: Vc<Box<dyn Module>>,
 }
@@ -46,8 +46,8 @@ impl NextDynamicEntryModule {
 }
 
 #[turbo_tasks::function]
-fn dynamic_modifier() -> Vc<String> {
-    Vc::cell("dynamic".to_string())
+fn dynamic_modifier() -> Vc<RcStr> {
+    Vc::cell("dynamic".into())
 }
 
 #[turbo_tasks::value_impl]

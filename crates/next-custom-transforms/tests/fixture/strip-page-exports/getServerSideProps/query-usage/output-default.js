@@ -1,10 +1,10 @@
-export var __N_SSP = true
+export var __N_SSP = true;
 export default function GspPage({ prop }) {
   return __jsx(
-    'div',
+    "div",
     {
-      id: 'prop',
+      id: "prop",
     },
     prop
-  )
+  );
 }

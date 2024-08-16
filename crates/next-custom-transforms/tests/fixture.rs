@@ -6,6 +6,7 @@ use std::{
 use next_custom_transforms::transforms::{
     amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
+    debug_fn_name::debug_fn_name,
     dynamic::{next_dynamic, NextDynamicMode},
     fonts::{next_font_loaders, Config as FontLoaderConfig},
     named_import_transform::named_import_transform,
@@ -22,25 +23,23 @@ use next_custom_transforms::transforms::{
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
 };
 use serde::de::DeserializeOwned;
-use swc_core::ecma::visit::as_folder;
-use turbopack_binding::swc::{
-    core::{
-        common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
-        ecma::{
-            parser::{EsConfig, Syntax},
-            transforms::{
-                base::resolver,
-                react::jsx,
-                testing::{test, test_fixture},
-            },
+use swc_core::{
+    common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
+    ecma::{
+        parser::{EsSyntax, Syntax},
+        transforms::{
+            base::resolver,
+            react::jsx,
+            testing::{test, test_fixture},
         },
+        visit::as_folder,
     },
-    custom_transform::relay::{relay, RelayLanguageConfig},
-    testing::fixture,
 };
+use swc_relay::{relay, RelayLanguageConfig};
+use testing::fixture;
 
 fn syntax() -> Syntax {
-    Syntax::Es(EsConfig {
+    Syntax::Es(EsSyntax {
         jsx: true,
         ..Default::default()
     })
@@ -206,7 +205,7 @@ fn next_ssg_fixture(input: PathBuf) {
             let jsx = jsx::<SingleThreadedComments>(
                 tr.cm.clone(),
                 None,
-                turbopack_binding::swc::core::ecma::transforms::react::Options {
+                swc_core::ecma::transforms::react::Options {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
@@ -247,16 +246,18 @@ fn page_config_fixture(input: PathBuf) {
 #[fixture("tests/fixture/relay/**/input.ts*")]
 fn relay_no_artifact_dir_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    let config = turbopack_binding::swc::custom_transform::relay::Config {
-        language: RelayLanguageConfig::TypeScript,
-        artifact_directory: Some(PathBuf::from("__generated__")),
-        ..Default::default()
-    };
+
     test_fixture(
         syntax(),
         &|_tr| {
+            let config = swc_relay::Config {
+                language: RelayLanguageConfig::TypeScript,
+                artifact_directory: Some(PathBuf::from("__generated__")),
+                ..Default::default()
+            };
+
             relay(
-                &config,
+                config.into(),
                 FileName::Real(PathBuf::from("input.tsx")),
                 current_dir().unwrap(),
                 Some(PathBuf::from("src/pages")),
@@ -301,6 +302,28 @@ fn shake_exports_fixture_default(input: PathBuf) {
             shake_exports(ShakeExportsConfig {
                 ignore: vec![String::from("default").into()],
             })
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/react-server-components/**/input.ts")]
+fn react_server_components_typescript(input: PathBuf) {
+    use next_custom_transforms::transforms::react_server_components::{Config, Options};
+    let output = input.parent().unwrap().join("output.ts");
+    test_fixture(
+        Syntax::Typescript(Default::default()),
+        &|tr| {
+            server_components(
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                Config::WithOptions(Options {
+                    is_react_server_layer: true,
+                }),
+                tr.comments.as_ref().clone(),
+                None,
+            )
         },
         &input,
         &output,
@@ -627,4 +650,25 @@ fn next_transform_strip_page_exports_fixture_default(output: PathBuf) {
     let input = output.parent().unwrap().join("input.js");
 
     run_stip_page_exports_test(&input, &output, ExportFilter::StripDataExports);
+}
+
+#[fixture("tests/fixture/debug-fn-name/**/input.js")]
+fn test_debug_name(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+
+    test_fixture(
+        syntax(),
+        &|_| {
+            let top_level_mark = Mark::fresh(Mark::root());
+            let unresolved_mark = Mark::fresh(Mark::root());
+
+            chain!(
+                swc_core::ecma::transforms::base::resolver(unresolved_mark, top_level_mark, true),
+                debug_fn_name()
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
 }

@@ -1,8 +1,8 @@
 export async function getStaticPaths() {
-  return []
+  return [];
 }
 export async function getStaticProps() {
   return {
     props: {},
-  }
+  };
 }

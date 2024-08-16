@@ -1,7 +1,7 @@
 import 'react'
 
 // prettier-ignore
-;'use client'
+'use client'
 
 export default function () {
   return null

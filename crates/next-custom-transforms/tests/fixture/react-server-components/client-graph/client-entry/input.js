@@ -17,14 +17,14 @@
 import 'fs'
 
 // prettier-ignore
-;'bar'
+'bar'
 
 // This is a comment.
 
 1 + 1
 
 // prettier-ignore
-;'baz'
+'baz'
 
 export default function () {
   return null

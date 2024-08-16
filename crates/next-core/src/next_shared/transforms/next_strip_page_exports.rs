@@ -3,21 +3,17 @@ use async_trait::async_trait;
 use next_custom_transforms::transforms::strip_page_exports::{
     next_transform_strip_page_exports, ExportFilter,
 };
-use turbo_tasks::Vc;
-use turbopack_binding::{
-    swc::core::{
-        common::util::take::Take,
-        ecma::{
-            ast::{Module, Program},
-            visit::FoldWith,
-        },
-    },
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::{
-        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
-        turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect},
+use swc_core::{
+    common::util::take::Take,
+    ecma::{
+        ast::{Module, Program},
+        visit::FoldWith,
     },
 };
+use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
+use turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect};
+use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
 use super::module_rule_match_js_no_url;
 
@@ -36,21 +32,21 @@ pub async fn get_next_pages_transforms_rule(
             ModuleRuleCondition::all(vec![
                 ModuleRuleCondition::ResourcePathInExactDirectory(pages_dir.await?),
                 ModuleRuleCondition::not(ModuleRuleCondition::ResourcePathInExactDirectory(
-                    pages_dir.join("api".to_string()).await?,
+                    pages_dir.join("api".into()).await?,
                 )),
                 ModuleRuleCondition::not(ModuleRuleCondition::any(vec![
                     // TODO(alexkirsz): Possibly ignore _app as well?
                     ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.js".to_string()).await?,
+                        pages_dir.join("_document.js".into()).await?,
                     ),
                     ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.jsx".to_string()).await?,
+                        pages_dir.join("_document.jsx".into()).await?,
                     ),
                     ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.ts".to_string()).await?,
+                        pages_dir.join("_document.ts".into()).await?,
                     ),
                     ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.tsx".to_string()).await?,
+                        pages_dir.join("_document.tsx".into()).await?,
                     ),
                 ])),
             ]),
@@ -70,6 +66,7 @@ struct NextJsStripPageExports {
 
 #[async_trait]
 impl CustomTransformer for NextJsStripPageExports {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_strip_page_exports", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         // TODO(alexkirsz) Connect the eliminated_packages to telemetry.
         let eliminated_packages = Default::default();

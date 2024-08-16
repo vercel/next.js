@@ -1,5 +1,5 @@
 use chrono::Utc;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{errors::HANDLER, Span, DUMMY_SP},
     ecma::{
         ast::*,
@@ -55,7 +55,7 @@ impl Fold for PageConfig {
                             type_ann: None,
                         }),
                         init: Some(Box::new(Expr::Lit(Lit::Str(Str {
-                            value: format!("{} {}", STRING_LITERAL_DROP_BUNDLE, timestamp).into(),
+                            value: format!("{STRING_LITERAL_DROP_BUNDLE} {timestamp}").into(),
                             span: DUMMY_SP,
                             raw: None,
                         })))),
@@ -171,8 +171,8 @@ impl Fold for PageConfig {
 impl PageConfig {
     fn handle_error(&mut self, details: &str, span: Span) {
         if self.is_page_file {
-            let message = format!("Invalid page config export found. {} \
-      See: https://nextjs.org/docs/messages/invalid-page-config", details);
+            let message = format!("Invalid page config export found. {details} \
+      See: https://nextjs.org/docs/messages/invalid-page-config");
             HANDLER.with(|handler| handler.struct_span_err(span, &message).emit());
         }
     }

@@ -1,9 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbopack_binding::turbopack::{
-    ecmascript_plugin::transform::styled_components::StyledComponentsTransformer,
-    turbopack::module_options::ModuleRule,
-};
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript_plugins::transform::styled_components::StyledComponentsTransformer;
 
 use crate::{
     next_config::{NextConfig, StyledComponentsTransformOptionsOrBoolean},
@@ -13,7 +11,7 @@ use crate::{
 pub async fn get_styled_components_transform_rule(
     next_config: Vc<NextConfig>,
 ) -> Result<Option<ModuleRule>> {
-    let enable_mdx_rs = *next_config.mdx_rs().await?;
+    let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
 
     let module_rule = next_config
         .await?

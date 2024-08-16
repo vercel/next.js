@@ -7,13 +7,12 @@ use std::{
 use hex::encode as hex_encode;
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
-use swc_core::common::Span;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         util::take::Take,
-        BytePos, FileName, DUMMY_SP,
+        BytePos, FileName, Span, DUMMY_SP,
     },
     ecma::{
         ast::*,
@@ -48,11 +47,11 @@ pub fn server_actions<C: Comments>(
         in_action_file: false,
         in_export_decl: false,
         in_default_export_decl: false,
+        in_callee: false,
         has_action: false,
 
-        action_cnt: 0,
+        reference_index: 0,
         in_module_level: true,
-        in_action_fn: false,
         should_track_names: false,
 
         names: Default::default(),
@@ -90,11 +89,11 @@ struct ServerActions<C: Comments> {
     in_action_file: bool,
     in_export_decl: bool,
     in_default_export_decl: bool,
+    in_callee: bool,
     has_action: bool,
 
-    action_cnt: u32,
+    reference_index: u32,
     in_module_level: bool,
-    in_action_fn: bool,
     should_track_names: bool,
 
     names: Vec<Name>,
@@ -159,7 +158,7 @@ impl<C: Comments> ServerActions<C> {
         function: Option<&mut Box<Function>>,
         arrow: Option<&mut ArrowExpr>,
     ) -> Option<Box<Expr>> {
-        let action_name: JsWord = gen_ident(&mut self.action_cnt);
+        let action_name: JsWord = gen_ident(&mut self.reference_index);
         let action_ident = private_ident!(action_name.clone());
         let export_name: JsWord = action_name;
 
@@ -202,7 +201,7 @@ impl<C: Comments> ServerActions<C> {
                 let mut pats = vec![];
                 for i in 0..ids_from_closure.len() {
                     pats.push(Some(Pat::Ident(
-                        Ident::new(format!("$$ACTION_ARG_{}", i).into(), DUMMY_SP).into(),
+                        Ident::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
                     )));
                 }
                 let decryption_decl = VarDecl {
@@ -326,7 +325,7 @@ impl<C: Comments> ServerActions<C> {
                 let mut pats = vec![];
                 for i in 0..ids_from_closure.len() {
                     pats.push(Some(Pat::Ident(
-                        Ident::new(format!("$$ACTION_ARG_{}", i).into(), DUMMY_SP).into(),
+                        Ident::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
                     )));
                 }
                 let decryption_decl = VarDecl {
@@ -430,26 +429,29 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         // Visit children
         {
-            let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
-            self.in_action_fn = is_action_fn;
             self.in_module_level = false;
-            self.should_track_names = true;
+            self.should_track_names = is_action_fn || self.should_track_names;
             self.in_export_decl = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
-            self.in_action_fn = old_in_action_fn;
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.in_export_decl = old_in_export_decl;
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
-        let mut child_names = self.names.clone();
-        self.names.extend(current_names);
+        let mut child_names = if self.should_track_names {
+            let names = take(&mut self.names);
+            self.names = current_names;
+            self.names.extend(names.iter().cloned());
+            names
+        } else {
+            take(&mut self.names)
+        };
 
         if !is_action_fn {
             return;
@@ -467,7 +469,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // It's an action function. If it doesn't have a name, give it one.
             match f.ident.as_mut() {
                 None => {
-                    let action_name = gen_ident(&mut self.action_cnt);
+                    let action_name = gen_ident(&mut self.reference_index);
                     let ident = Ident::new(action_name, DUMMY_SP);
                     f.ident.insert(ident)
                 }
@@ -510,31 +512,34 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
         let is_action_fn = self.get_action_info(f.function.body.as_mut(), true);
 
-        let current_declared_idents = self.declared_idents.clone();
+        let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
 
         {
             // Visit children
-            let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
-            self.in_action_fn = is_action_fn;
             self.in_module_level = false;
-            self.should_track_names = true;
+            self.should_track_names = is_action_fn || self.should_track_names;
             self.in_export_decl = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
-            self.in_action_fn = old_in_action_fn;
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.in_export_decl = old_in_export_decl;
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
-        let mut child_names = self.names.clone();
-        self.names.extend(current_names);
+        let mut child_names = if self.should_track_names {
+            let names = take(&mut self.names);
+            self.names = current_names;
+            self.names.extend(names.iter().cloned());
+            names
+        } else {
+            take(&mut self.names)
+        };
 
         if !is_action_fn {
             return;
@@ -551,7 +556,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if !(self.in_action_file && self.in_export_decl) {
             // Collect all the identifiers defined inside the closure and used
             // in the action function. With deduplication.
-            retain_names_from_declared_idents(&mut child_names, &current_declared_idents);
+            retain_names_from_declared_idents(
+                &mut child_names,
+                &self.declared_idents[..declared_idents_until],
+            );
 
             let maybe_new_expr =
                 self.maybe_hoist_and_create_proxy(child_names, Some(&mut f.function), None);
@@ -609,31 +617,34 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         {
             // Visit children
-            let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
-            self.in_action_fn = is_action_fn;
             self.in_module_level = false;
-            self.should_track_names = true;
+            self.should_track_names = is_action_fn || self.should_track_names;
             self.in_export_decl = false;
             self.in_default_export_decl = false;
             {
                 for n in &mut a.params {
-                    collect_pat_idents(n, &mut self.declared_idents);
+                    collect_idents_in_pat(n, &mut self.declared_idents);
                 }
             }
             a.visit_mut_children_with(self);
-            self.in_action_fn = old_in_action_fn;
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.in_export_decl = old_in_export_decl;
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
-        let mut child_names = self.names.clone();
-        self.names.extend(current_names);
+        let mut child_names = if self.should_track_names {
+            let names = take(&mut self.names);
+            self.names = current_names;
+            self.names.extend(names.iter().cloned());
+            names
+        } else {
+            take(&mut self.names)
+        };
 
         if !is_action_fn {
             return;
@@ -672,7 +683,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         // If it's a closure (not in the module level), we need to collect
         // identifiers defined in the closure.
-        self.declared_idents.extend(collect_decl_idents_in_stmt(n));
+        collect_decl_idents_in_stmt(n, &mut self.declared_idents);
     }
 
     fn visit_mut_param(&mut self, n: &mut Param) {
@@ -682,7 +693,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             return;
         }
 
-        collect_pat_idents(&n.pat, &mut self.declared_idents);
+        collect_idents_in_pat(&n.pat, &mut self.declared_idents);
     }
 
     fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
@@ -699,9 +710,24 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         n.visit_mut_children_with(self);
     }
 
+    fn visit_mut_callee(&mut self, n: &mut Callee) {
+        let old_in_callee = self.in_callee;
+        self.in_callee = true;
+        n.visit_mut_children_with(self);
+        self.in_callee = old_in_callee;
+    }
+
     fn visit_mut_expr(&mut self, n: &mut Expr) {
         if !self.in_module_level && self.should_track_names {
-            if let Ok(name) = Name::try_from(&*n) {
+            if let Ok(mut name) = Name::try_from(&*n) {
+                if self.in_callee {
+                    // This is a callee i.e. `foo.bar()`,
+                    // we need to track the actual value instead of the method name.
+                    if !name.1.is_empty() {
+                        name.1.pop();
+                    }
+                }
+
                 self.names.push(name);
                 self.should_track_names = false;
                 n.visit_mut_children_with(self);
@@ -735,7 +761,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             if self.in_action_file {
                 let mut disallowed_export_span = DUMMY_SP;
 
-                // Currrently only function exports are allowed.
+                // Currently only function exports are allowed.
                 match &mut stmt {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, span })) => {
                         match decl {
@@ -746,7 +772,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }
                             Decl::Var(var) => {
                                 // export const foo = 1
-                                let ids: Vec<Id> = collect_idents_in_var_decls(&var.decls);
+                                let mut ids: Vec<Id> = Vec::new();
+                                collect_idents_in_var_decls(&var.decls, &mut ids);
                                 self.exported_idents.extend(
                                     ids.into_iter().map(|id| (id.clone(), id.0.to_string())),
                                 );
@@ -811,7 +838,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             } else {
                                 // export default function() {}
                                 let new_ident =
-                                    Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
+                                    Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
                                 f.ident = Some(new_ident.clone());
                                 self.exported_idents
                                     .push((new_ident.to_id(), "default".into()));
@@ -830,7 +857,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 } else {
                                     // export default async () => {}
                                     let new_ident =
-                                        Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
+                                        Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
 
                                     self.exported_idents
                                         .push((new_ident.to_id(), "default".into()));
@@ -849,7 +876,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Expr::Call(call) => {
                                 // export default fn()
                                 let new_ident =
-                                    Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
+                                    Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
 
                                 self.exported_idents
                                     .push((new_ident.to_id(), "default".into()));
@@ -1157,23 +1184,50 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 }
 
 fn retain_names_from_declared_idents(child_names: &mut Vec<Name>, current_declared_idents: &[Id]) {
-    // Collect all the identifiers defined inside the closure and used
-    // in the action function. With deduplication.
-    let mut added_names = Vec::new();
-    child_names.retain(|name| {
-        if added_names.contains(name) {
-            false
-        } else if current_declared_idents.contains(&name.0) {
-            added_names.push(name.clone());
-            true
-        } else {
-            false
+    // Collect the names to retain in a separate vector
+    let mut retained_names = Vec::new();
+
+    for name in child_names.iter() {
+        let mut should_retain = true;
+
+        // Merge child_names. For example if both `foo.bar` and `foo.bar.baz` are used,
+        // we only need to keep `foo.bar` as it covers the other.
+
+        // Currently this is O(n^2) and we can potentially improve this to O(n log n)
+        // by sorting or using a hashset.
+        for another_name in child_names.iter() {
+            if name != another_name
+                && name.0 == another_name.0
+                && name.1.len() >= another_name.1.len()
+            {
+                let mut is_prefix = true;
+                for i in 0..another_name.1.len() {
+                    if name.1[i] != another_name.1[i] {
+                        is_prefix = false;
+                        break;
+                    }
+                }
+                if is_prefix {
+                    should_retain = false;
+                    break;
+                }
+            }
         }
-    });
+
+        if should_retain
+            && current_declared_idents.contains(&name.0)
+            && !retained_names.contains(name)
+        {
+            retained_names.push(name.clone());
+        }
+    }
+
+    // Replace the original child_names with the retained names
+    *child_names = retained_names;
 }
 
 fn gen_ident(cnt: &mut u32) -> JsWord {
-    let id: JsWord = format!("$$ACTION_{}", cnt).into();
+    let id: JsWord = format!("$$ACTION_{cnt}").into();
     *cnt += 1;
     id
 }
@@ -1205,26 +1259,6 @@ fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleIte
                 right: Box::new(expr),
             })),
         })
-    }
-}
-
-fn collect_pat_idents(pat: &Pat, closure_idents: &mut Vec<Id>) {
-    match &pat {
-        Pat::Ident(ident) => {
-            closure_idents.push(ident.id.to_id());
-        }
-        Pat::Array(array) => {
-            closure_idents.extend(collect_idents_in_array_pat(&array.elems));
-        }
-        Pat::Object(object) => {
-            closure_idents.extend(collect_idents_in_object_pat(&object.props));
-        }
-        Pat::Rest(rest) => {
-            if let Pat::Ident(ident) = &*rest.arg {
-                closure_idents.push(ident.id.to_id());
-            }
-        }
-        _ => {}
     }
 }
 
@@ -1311,14 +1345,63 @@ fn annotate_ident_as_action(
     }
 }
 
-const DIRECTIVE_TYPOS: &[&str] = &[
-    "use servers",
-    "use-server",
-    "use sevrer",
-    "use srever",
-    "use servre",
-    "user server",
-];
+// Detects if two strings are similar (but not the same).
+// This implementation is fast and simple as it allows only one
+// edit (add, remove, edit, swap), instead of using a N^2 Levenshtein algorithm.
+//
+// Example of similar strings of "use server":
+// "use servers",
+// "use-server",
+// "use sevrer",
+// "use srever",
+// "use servre",
+// "user server",
+//
+// This avoids accidental typos as there's currently no other static analysis
+// tool to help when these mistakes happen.
+fn detect_similar_strings(a: &str, b: &str) -> bool {
+    let mut a = a.chars().collect::<Vec<char>>();
+    let mut b = b.chars().collect::<Vec<char>>();
+
+    if a.len() < b.len() {
+        (a, b) = (b, a);
+    }
+
+    if a.len() == b.len() {
+        // Same length, get the number of character differences.
+        let mut diff = 0;
+        for i in 0..a.len() {
+            if a[i] != b[i] {
+                diff += 1;
+                if diff > 2 {
+                    return false;
+                }
+            }
+        }
+
+        // Should be 1 or 2, but not 0.
+        diff != 0
+    } else {
+        if a.len() - b.len() > 1 {
+            return false;
+        }
+
+        // A has one more character than B.
+        for i in 0..b.len() {
+            if a[i] != b[i] {
+                // This should be the only difference, a[i+1..] should be equal to b[i..].
+                // Otherwise, they're not considered similar.
+                // A: "use srerver"
+                // B: "use server"
+                //          ^
+                return a[i + 1..] == b[i..];
+            }
+        }
+
+        // This happens when the last character of A is an extra character.
+        true
+    }
+}
 
 fn remove_server_directive_index_in_module(
     stmts: &mut Vec<ModuleItem>,
@@ -1361,15 +1444,14 @@ fn remove_server_directive_index_in_module(
                     }
                 } else {
                     // Detect typo of "use server"
-                    if DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                    if detect_similar_strings(value, "use server") {
                         HANDLER.with(|handler| {
                             handler
                                 .struct_span_err(
                                     *span,
                                     format!(
-                                        "Did you mean \"use server\"? \"{}\" is not a supported \
-                                         directive name.",
-                                        value
+                                        "Did you mean \"use server\"? \"{value}\" is not a supported \
+                                         directive name."
                                     )
                                     .as_str(),
                                 )
@@ -1388,7 +1470,7 @@ fn remove_server_directive_index_in_module(
                 ..
             })) => {
                 // Match `("use server")`.
-                if value == "use server" || DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                if value == "use server" || detect_similar_strings(value, "use server") {
                     if is_directive {
                         HANDLER.with(|handler| {
                             handler
@@ -1466,15 +1548,14 @@ fn remove_server_directive_index_in_fn(
                 }
             } else {
                 // Detect typo of "use server"
-                if DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                if detect_similar_strings(value, "use server") {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(
                                 *span,
                                 format!(
-                                    "Did you mean \"use server\"? \"{}\" is not a supported \
-                                     directive name.",
-                                    value
+                                    "Did you mean \"use server\"? \"{value}\" is not a supported \
+                                     directive name."
                                 )
                                 .as_str(),
                             )
@@ -1489,35 +1570,32 @@ fn remove_server_directive_index_in_fn(
     });
 }
 
-fn collect_idents_in_array_pat(elems: &[Option<Pat>]) -> Vec<Id> {
-    let mut ids = Vec::new();
-
+fn collect_idents_in_array_pat(elems: &[Option<Pat>], ids: &mut Vec<Id>) {
     for elem in elems.iter().flatten() {
         match elem {
             Pat::Ident(ident) => {
                 ids.push(ident.id.to_id());
             }
             Pat::Array(array) => {
-                ids.extend(collect_idents_in_array_pat(&array.elems));
+                collect_idents_in_array_pat(&array.elems, ids);
             }
             Pat::Object(object) => {
-                ids.extend(collect_idents_in_object_pat(&object.props));
+                collect_idents_in_object_pat(&object.props, ids);
             }
             Pat::Rest(rest) => {
                 if let Pat::Ident(ident) = &*rest.arg {
                     ids.push(ident.id.to_id());
                 }
             }
-            _ => {}
+            Pat::Assign(AssignPat { left, .. }) => {
+                collect_idents_in_pat(left, ids);
+            }
+            Pat::Expr(..) | Pat::Invalid(..) => {}
         }
     }
-
-    ids
 }
 
-fn collect_idents_in_object_pat(props: &[ObjectPatProp]) -> Vec<Id> {
-    let mut ids = Vec::new();
-
+fn collect_idents_in_object_pat(props: &[ObjectPatProp], ids: &mut Vec<Id>) {
     for prop in props {
         match prop {
             ObjectPatProp::KeyValue(KeyValuePatProp { key, value }) => {
@@ -1530,10 +1608,10 @@ fn collect_idents_in_object_pat(props: &[ObjectPatProp]) -> Vec<Id> {
                         ids.push(ident.id.to_id());
                     }
                     Pat::Array(array) => {
-                        ids.extend(collect_idents_in_array_pat(&array.elems));
+                        collect_idents_in_array_pat(&array.elems, ids);
                     }
                     Pat::Object(object) => {
-                        ids.extend(collect_idents_in_object_pat(&object.props));
+                        collect_idents_in_object_pat(&object.props, ids);
                     }
                     _ => {}
                 }
@@ -1548,39 +1626,41 @@ fn collect_idents_in_object_pat(props: &[ObjectPatProp]) -> Vec<Id> {
             }
         }
     }
-
-    ids
 }
 
-fn collect_idents_in_var_decls(decls: &[VarDeclarator]) -> Vec<Id> {
-    let mut ids = Vec::new();
-
+fn collect_idents_in_var_decls(decls: &[VarDeclarator], ids: &mut Vec<Id>) {
     for decl in decls {
-        match &decl.name {
-            Pat::Ident(ident) => {
+        collect_idents_in_pat(&decl.name, ids);
+    }
+}
+
+fn collect_idents_in_pat(pat: &Pat, ids: &mut Vec<Id>) {
+    match pat {
+        Pat::Ident(ident) => {
+            ids.push(ident.id.to_id());
+        }
+        Pat::Array(array) => {
+            collect_idents_in_array_pat(&array.elems, ids);
+        }
+        Pat::Object(object) => {
+            collect_idents_in_object_pat(&object.props, ids);
+        }
+        Pat::Assign(AssignPat { left, .. }) => {
+            collect_idents_in_pat(left, ids);
+        }
+        Pat::Rest(RestPat { arg, .. }) => {
+            if let Pat::Ident(ident) = &**arg {
                 ids.push(ident.id.to_id());
             }
-            Pat::Array(array) => {
-                ids.extend(collect_idents_in_array_pat(&array.elems));
-            }
-            Pat::Object(object) => {
-                ids.extend(collect_idents_in_object_pat(&object.props));
-            }
-            _ => {}
         }
+        Pat::Expr(..) | Pat::Invalid(..) => {}
     }
-
-    ids
 }
 
-fn collect_decl_idents_in_stmt(stmt: &Stmt) -> Vec<Id> {
-    let mut ids = Vec::new();
-
+fn collect_decl_idents_in_stmt(stmt: &Stmt, ids: &mut Vec<Id>) {
     if let Stmt::Decl(Decl::Var(var)) = &stmt {
-        ids.extend(collect_idents_in_var_decls(&var.decls));
+        collect_idents_in_var_decls(&var.decls, ids);
     }
-
-    ids
 }
 
 pub(crate) struct ClosureReplacer<'a> {
@@ -1601,7 +1681,7 @@ impl VisitMut for ClosureReplacer<'_> {
         if let Some(index) = self.index(e) {
             *e = Expr::Ident(Ident::new(
                 // $$ACTION_ARG_0
-                format!("$$ACTION_ARG_{}", index).into(),
+                format!("$$ACTION_ARG_{index}").into(),
                 DUMMY_SP,
             ));
         }
@@ -1617,7 +1697,7 @@ impl VisitMut for ClosureReplacer<'_> {
                     key: PropName::Ident(i.clone()),
                     value: Box::new(Expr::Ident(Ident::new(
                         // $$ACTION_ARG_0
-                        format!("$$ACTION_ARG_{}", index).into(),
+                        format!("$$ACTION_ARG_{index}").into(),
                         DUMMY_SP,
                     ))),
                 })));

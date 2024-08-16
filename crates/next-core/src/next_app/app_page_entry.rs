@@ -1,28 +1,24 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
-    turbopack::{
-        core::{
-            asset::{Asset, AssetContent},
-            context::AssetContext,
-            module::Module,
-            reference_type::ReferenceType,
-            source::Source,
-            virtual_source::VirtualSource,
-        },
-        ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
-        turbopack::ModuleAssetContext,
-    },
+use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
+use turbopack::ModuleAssetContext;
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    context::AssetContext,
+    module::Module,
+    reference_type::ReferenceType,
+    source::Source,
+    virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::utils::StringifyJs;
 
 use super::app_entry::AppEntry;
 use crate::{
     app_structure::LoaderTree,
-    loader_tree::LoaderTreeModule,
+    loader_tree::{LoaderTreeModule, GLOBAL_ERROR},
     next_app::{AppPage, AppPath},
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
@@ -43,7 +39,7 @@ pub async fn get_app_page_entry(
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_loader_tree(loader_tree);
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
-    let context = if is_edge {
+    let module_asset_context = if is_edge {
         edge_context
     } else {
         nodejs_context
@@ -52,9 +48,13 @@ pub async fn get_app_page_entry(
     let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
 
     let base_path = next_config.await?.base_path.clone();
-    let loader_tree =
-        LoaderTreeModule::build(loader_tree, context, server_component_transition, base_path)
-            .await?;
+    let loader_tree = LoaderTreeModule::build(
+        loader_tree,
+        module_asset_context,
+        server_component_transition,
+        base_path,
+    )
+    .await?;
 
     let LoaderTreeModule {
         inner_assets,
@@ -71,25 +71,27 @@ pub async fn get_app_page_entry(
 
     let pages = pages.iter().map(|page| page.to_string()).try_join().await?;
 
-    let original_name = page.to_string();
-    let pathname = AppPath::from(page.clone()).to_string();
+    let original_name: RcStr = page.to_string().into();
+    let pathname: RcStr = AppPath::from(page.clone()).to_string().into();
 
     // Load the file from the next.js codebase.
     let source = load_next_js_template(
         "app-page.js",
         project_root,
         indexmap! {
-            "VAR_DEFINITION_PAGE" => page.to_string(),
+            "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
-            "VAR_ORIGINAL_PATHNAME" => original_name.clone(),
-            // TODO(alexkirsz) Support custom global error.
-            "VAR_MODULE_GLOBAL_ERROR" => "next/dist/client/components/error-boundary".to_string(),
+            "VAR_MODULE_GLOBAL_ERROR" => if inner_assets.contains_key(GLOBAL_ERROR) {
+                GLOBAL_ERROR.into()
+             } else {
+                "next/dist/client/components/error-boundary".into()
+            },
         },
         indexmap! {
             "tree" => loader_tree_code,
-            "pages" => StringifyJs(&pages).to_string(),
-            "__next_app_require__" => "__turbopack_require__".to_string(),
-            "__next_app_load_chunk__" => " __turbopack_load__".to_string(),
+            "pages" => StringifyJs(&pages).to_string().into(),
+            "__next_app_require__" => "__turbopack_require__".into(),
+            "__next_app_load_chunk__" => " __turbopack_load__".into(),
         },
         indexmap! {},
     )
@@ -103,11 +105,13 @@ pub async fn get_app_page_entry(
 
     let file = File::from(result.build());
     let source = VirtualSource::new_with_ident(
-        source.ident().with_query(Vc::cell(query.to_string())),
+        source
+            .ident()
+            .with_query(Vc::cell(query.to_string().into())),
         AssetContent::file(file.into()),
     );
 
-    let mut rsc_entry = context
+    let mut rsc_entry = module_asset_context
         .process(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
@@ -116,18 +120,12 @@ pub async fn get_app_page_entry(
 
     if is_edge {
         rsc_entry = wrap_edge_page(
-            Vc::upcast(context),
+            Vc::upcast(module_asset_context),
             project_root,
             rsc_entry,
             page,
             next_config,
         );
-    };
-
-    let Some(rsc_entry) =
-        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
-    else {
-        bail!("expected an ECMAScript chunk placeable module");
     };
 
     Ok(AppEntry {
@@ -141,7 +139,7 @@ pub async fn get_app_page_entry(
 
 #[turbo_tasks::function]
 async fn wrap_edge_page(
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
     page: AppPage,
@@ -152,7 +150,6 @@ async fn wrap_edge_page(
     let next_config = &*next_config.await?;
 
     // TODO(WEB-1824): add build support
-    let build_id = "development";
     let dev = true;
 
     // TODO(timneutkens): remove this
@@ -172,16 +169,15 @@ async fn wrap_edge_page(
         "edge-ssr-app.js",
         project_root,
         indexmap! {
-            "VAR_USERLAND" => INNER.to_string(),
-            "VAR_PAGE" => page.to_string(),
-            "VAR_BUILD_ID" => build_id.to_string(),
+            "VAR_USERLAND" => INNER.into(),
+            "VAR_PAGE" => page.to_string().into(),
         },
         indexmap! {
-            "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string(),
-            "nextConfig" => serde_json::to_string(next_config)?,
-            "isServerComponent" => serde_json::Value::Bool(is_server_component).to_string(),
-            "dev" => serde_json::Value::Bool(dev).to_string(),
-            "serverActions" => serde_json::to_string(&server_actions)?
+            "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string().into(),
+            "nextConfig" => serde_json::to_string(next_config)?.into(),
+            "isServerComponent" => serde_json::Value::Bool(is_server_component).to_string().into(),
+            "dev" => serde_json::Value::Bool(dev).to_string().into(),
+            "serverActions" => serde_json::to_string(&server_actions)?.into(),
         },
         indexmap! {
             "incrementalCacheHandler" => None,
@@ -190,10 +186,10 @@ async fn wrap_edge_page(
     .await?;
 
     let inner_assets = indexmap! {
-        INNER.to_string() => entry
+        INNER.into() => entry
     };
 
-    let wrapped = context
+    let wrapped = asset_context
         .process(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
@@ -201,9 +197,9 @@ async fn wrap_edge_page(
         .module();
 
     Ok(wrap_edge_entry(
-        context,
+        asset_context,
         project_root,
         wrapped,
-        AppPath::from(page).to_string(),
+        AppPath::from(page).to_string().into(),
     ))
 }

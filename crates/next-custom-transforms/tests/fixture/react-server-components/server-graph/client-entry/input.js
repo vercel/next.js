@@ -15,14 +15,14 @@
 import 'fs'
 
 // prettier-ignore
-;'qwerty'
+'qwerty'
 
 // This is a comment.
 
 1 + 1
 
 // prettier-ignore
-;'sasaya'
+'sasaya'
 
 export default function () {
   return null

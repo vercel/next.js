@@ -1,4 +1,4 @@
 const getStaticPaths = () => {
-  return []
-}
-export { getStaticPaths }
+  return [];
+};
+export { getStaticPaths };

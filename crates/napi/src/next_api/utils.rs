@@ -8,14 +8,13 @@ use napi::{
 };
 use serde::Serialize;
 use turbo_tasks::{ReadRef, TaskId, TryJoinIterExt, TurboTasks, Vc};
-use turbopack_binding::{
-    turbo::{tasks_fs::FileContent, tasks_memory::MemoryBackend},
-    turbopack::core::{
-        diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
-        error::PrettyPrintError,
-        issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource, StyledString},
-        source_pos::SourcePos,
-    },
+use turbo_tasks_fs::FileContent;
+use turbo_tasks_memory::MemoryBackend;
+use turbopack_core::{
+    diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
+    error::PrettyPrintError,
+    issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource, StyledString},
+    source_pos::SourcePos,
 };
 
 /// A helper type to hold both a Vc operation and the TurboTasks root process.
@@ -82,21 +81,22 @@ pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainI
     Ok(Arc::new(issues.get_plain_issues().await?))
 }
 
-/// Reads the [turbopack_binding::turbopack::core::diagnostics::Diagnostic] held
+/// Reads the [turbopack_core::diagnostics::Diagnostic] held
 /// by the given source and returns it as a
-/// [turbopack_binding::turbopack::core::diagnostics::PlainDiagnostic]. It does
+/// [turbopack_core::diagnostics::PlainDiagnostic]. It does
 /// not consume any Diagnostics held by the source.
 pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
     let captured_diags = source.peek_diagnostics().await?;
+    let mut diags = captured_diags
+        .diagnostics
+        .iter()
+        .map(|d| d.into_plain())
+        .try_join()
+        .await?;
 
-    Ok(Arc::new(
-        captured_diags
-            .diagnostics
-            .iter()
-            .map(|d| d.into_plain())
-            .try_join()
-            .await?,
-    ))
+    diags.sort();
+
+    Ok(Arc::new(diags))
 }
 
 #[napi(object)]
@@ -120,12 +120,12 @@ impl From<&PlainIssue> for NapiIssue {
                 .as_ref()
                 .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
             stage: issue.stage.to_string(),
-            file_path: issue.file_path.clone(),
+            file_path: issue.file_path.to_string(),
             detail: issue
                 .detail
                 .as_ref()
                 .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
-            documentation_link: issue.documentation_link.clone(),
+            documentation_link: issue.documentation_link.to_string(),
             severity: issue.severity.as_str().to_string(),
             source: issue.source.as_deref().map(|source| source.into()),
             title: serde_json::to_value(StyledStringSerialize::from(&issue.title)).unwrap(),
@@ -255,9 +255,13 @@ pub struct NapiDiagnostic {
 impl NapiDiagnostic {
     pub fn from(diagnostic: &PlainDiagnostic) -> Self {
         Self {
-            category: diagnostic.category.clone(),
-            name: diagnostic.name.clone(),
-            payload: diagnostic.payload.clone(),
+            category: diagnostic.category.to_string(),
+            name: diagnostic.name.to_string(),
+            payload: diagnostic
+                .payload
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect(),
         }
     }
 }

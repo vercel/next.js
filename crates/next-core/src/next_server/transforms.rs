@@ -1,7 +1,7 @@
 use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_tasks::Vc;
-use turbopack_binding::turbopack::turbopack::module_options::ModuleRule;
+use turbopack::module_options::ModuleRule;
 
 use crate::{
     mode::NextMode,
@@ -33,7 +33,7 @@ pub async fn get_next_server_transforms_rules(
     let mut rules = vec![];
 
     let modularize_imports_config = &next_config.await?.modularize_imports;
-    let mdx_rs = *next_config.mdx_rs().await?;
+    let mdx_rs = next_config.mdx_rs().await?.is_some();
     if let Some(modularize_imports_config) = modularize_imports_config {
         rules.push(get_next_modularize_imports_rule(
             modularize_imports_config,
@@ -49,6 +49,8 @@ pub async fn get_next_server_transforms_rules(
             None,
         ));
     }
+
+    let mut is_app_dir = false;
 
     let is_server_components = match context_ty {
         ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
@@ -84,6 +86,7 @@ pub async fn get_next_server_transforms_rules(
                 ActionsTransform::Client,
                 mdx_rs,
             ));
+            is_app_dir = true;
 
             false
         }
@@ -100,15 +103,22 @@ pub async fn get_next_server_transforms_rules(
                     client_transition,
                 ));
             }
+            is_app_dir = true;
+
             true
         }
-        ServerContextType::AppRoute { .. } => false,
+        ServerContextType::AppRoute { .. } => {
+            is_app_dir = true;
+            false
+        }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => false,
     };
 
     if !foreign_code {
-        rules
-            .push(get_next_dynamic_transform_rule(true, is_server_components, mode, mdx_rs).await?);
+        rules.push(
+            get_next_dynamic_transform_rule(true, is_server_components, is_app_dir, mode, mdx_rs)
+                .await?,
+        );
 
         rules.push(get_next_amp_attr_rule(mdx_rs));
         rules.push(get_next_cjs_optimizer_rule(mdx_rs));

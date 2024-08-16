@@ -1,17 +1,13 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::optimize_server_react::{optimize_server_react, Config};
-use turbo_tasks::Vc;
-use turbopack_binding::{
-    swc::core::{
-        common::util::take::Take,
-        ecma::{ast::*, visit::FoldWith},
-    },
-    turbopack::{
-        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
-        turbopack::module_options::{ModuleRule, ModuleRuleEffect},
-    },
+use swc_core::{
+    common::util::take::Take,
+    ecma::{ast::*, visit::FoldWith},
 };
+use turbo_tasks::Vc;
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
+use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
 use super::module_rule_match_js_no_url;
 
@@ -40,6 +36,7 @@ struct NextOptimizeServerReact {
 
 #[async_trait]
 impl CustomTransformer for NextOptimizeServerReact {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_optimize_server_react", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
 

@@ -1,6 +1,7 @@
 pub mod amp_attributes;
 pub mod cjs_finder;
 pub mod cjs_optimizer;
+pub mod debug_fn_name;
 pub mod disallow_re_export_all_in_page;
 pub mod dynamic;
 pub mod fonts;

@@ -3,5 +3,5 @@ export async function getServerSideProps({ query }) {
     props: {
       prop: query.prop,
     },
-  }
+  };
 }

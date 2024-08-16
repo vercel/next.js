@@ -2,15 +2,13 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use next_core::next_manifests::LoadableManifest;
-use turbo_tasks::{TryFlatJoinIterExt, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{File, FileContent, FileSystemPath},
-    turbopack::core::{
-        asset::AssetContent,
-        module::Module,
-        output::{OutputAsset, OutputAssets},
-        virtual_output::VirtualOutputAsset,
-    },
+use turbo_tasks::{RcStr, TryFlatJoinIterExt, Vc};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbopack_core::{
+    asset::AssetContent,
+    module::Module,
+    output::{OutputAsset, OutputAssets},
+    virtual_output::VirtualOutputAsset,
 };
 
 use crate::dynamic_imports::DynamicImportedChunks;
@@ -24,7 +22,7 @@ pub async fn create_react_loadable_manifest(
     let dynamic_import_entries = &*dynamic_import_entries.await?;
 
     let mut output = vec![];
-    let mut loadable_manifest: HashMap<String, LoadableManifest> = Default::default();
+    let mut loadable_manifest: HashMap<RcStr, LoadableManifest> = Default::default();
 
     for (origin, dynamic_imports) in dynamic_import_entries.into_iter() {
         let origin_path = &*origin.ident().path().await?;
@@ -33,7 +31,7 @@ pub async fn create_react_loadable_manifest(
             let chunk_output = chunk_output.await?;
             output.extend(chunk_output.iter().copied());
 
-            let id = format!("{} -> {}", origin_path, import);
+            let id: RcStr = format!("{} -> {}", origin_path, import).into();
 
             let client_relative_path_value = client_relative_path.await?;
             let files = chunk_output
@@ -43,7 +41,7 @@ pub async fn create_react_loadable_manifest(
                     async move {
                         Ok(client_relative_path_value
                             .get_path_to(&*file.ident().path().await?)
-                            .map(|path| path.to_string()))
+                            .map(|path| path.into()))
                     }
                 })
                 .try_flat_join()

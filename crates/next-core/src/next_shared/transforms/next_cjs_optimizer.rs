@@ -2,17 +2,13 @@ use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::cjs_optimizer::{cjs_optimizer, Config, PackageConfig};
 use rustc_hash::FxHashMap;
-use turbo_tasks::Vc;
-use turbopack_binding::{
-    swc::core::{
-        common::SyntaxContext,
-        ecma::{ast::*, visit::VisitMutWith},
-    },
-    turbopack::{
-        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
-        turbopack::module_options::{ModuleRule, ModuleRuleEffect},
-    },
+use swc_core::{
+    common::SyntaxContext,
+    ecma::{ast::*, visit::VisitMutWith},
 };
+use turbo_tasks::Vc;
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
+use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
 use super::module_rule_match_js_no_url;
 
@@ -45,6 +41,7 @@ pub fn get_next_cjs_optimizer_rule(enable_mdx_rs: bool) -> ModuleRule {
                         "userAgent".into(),
                         "next/dist/server/web/spec-extension/user-agent".into(),
                     ),
+                    ("unstable_after".into(), "next/dist/server/after".into()),
                 ]),
             },
         )]),
@@ -68,6 +65,7 @@ struct NextCjsOptimizer {
 
 #[async_trait]
 impl CustomTransformer for NextCjsOptimizer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_cjs_optimizer", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let mut visitor = cjs_optimizer(
             self.config.clone(),

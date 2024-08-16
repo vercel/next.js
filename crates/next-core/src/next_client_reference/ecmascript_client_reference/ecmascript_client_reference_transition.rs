@@ -1,18 +1,16 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{Value, Vc};
-use turbopack_binding::turbopack::{
-    core::{
-        context::ProcessResult,
-        file_source::FileSource,
-        reference_type::{EntryReferenceSubType, ReferenceType},
-        source::Source,
-    },
-    ecmascript::chunk::EcmascriptChunkPlaceable,
-    turbopack::{
-        transition::{ContextTransition, Transition},
-        ModuleAssetContext,
-    },
+use turbo_tasks::{RcStr, Value, Vc};
+use turbopack::{
+    transition::{ContextTransition, Transition},
+    ModuleAssetContext,
 };
+use turbopack_core::{
+    context::ProcessResult,
+    file_source::FileSource,
+    reference_type::{EntryReferenceSubType, ReferenceType},
+    source::Source,
+};
+use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use super::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule;
 
@@ -40,7 +38,7 @@ impl NextEcmascriptClientReferenceTransition {
 #[turbo_tasks::value_impl]
 impl Transition for NextEcmascriptClientReferenceTransition {
     #[turbo_tasks::function]
-    fn process_layer(self: Vc<Self>, layer: Vc<String>) -> Vc<String> {
+    fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<RcStr> {
         layer
     }
 
@@ -48,20 +46,22 @@ impl Transition for NextEcmascriptClientReferenceTransition {
     async fn process(
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
-        context: Vc<ModuleAssetContext>,
+        module_asset_context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
-        let context = self.process_context(context);
+        let module_asset_context = self.process_context(module_asset_context);
 
         let this = self.await?;
 
         let ident = source.ident().await?;
         let ident_path = ident.path.await?;
         let client_source = if ident_path.path.contains("next/dist/esm/") {
-            let path = ident
-                .path
-                .root()
-                .join(ident_path.path.replace("next/dist/esm/", "next/dist/"));
+            let path = ident.path.root().join(
+                ident_path
+                    .path
+                    .replace("next/dist/esm/", "next/dist/")
+                    .into(),
+            );
             Vc::upcast(FileSource::new_with_query(path, ident.query))
         } else {
             source
@@ -70,7 +70,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             .client_transition
             .process(
                 client_source,
-                context,
+                module_asset_context,
                 Value::new(ReferenceType::Entry(
                     EntryReferenceSubType::AppClientComponent,
                 )),
@@ -81,7 +81,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             .ssr_transition
             .process(
                 source,
-                context,
+                module_asset_context,
                 Value::new(ReferenceType::Entry(
                     EntryReferenceSubType::AppClientComponent,
                 )),
@@ -102,13 +102,13 @@ impl Transition for NextEcmascriptClientReferenceTransition {
 
         // TODO(alexkirsz) This is necessary to remove the transition currently set on
         // the context.
-        let context = context.await?;
+        let module_asset_context = module_asset_context.await?;
         let server_context = ModuleAssetContext::new(
-            context.transitions,
-            context.compile_time_info,
-            context.module_options_context,
-            context.resolve_options_context,
-            context.layer,
+            module_asset_context.transitions,
+            module_asset_context.compile_time_info,
+            module_asset_context.module_options_context,
+            module_asset_context.resolve_options_context,
+            module_asset_context.layer,
         );
 
         Ok(

@@ -40,26 +40,26 @@ pub mod util;
 pub use app_segment_config::{
     parse_segment_config_from_loader_tree, parse_segment_config_from_source,
 };
-pub use emit::{all_assets_from_entries, emit_all_assets, emit_assets, emit_client_assets};
+pub use emit::{all_assets_from_entries, emit_all_assets, emit_assets};
 pub use next_edge::context::{
     get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
     get_edge_compile_time_info, get_edge_resolve_options_context,
 };
+pub use next_import_map::get_next_package;
 pub use page_loader::{create_page_loader_entry_module, PageLoaderAsset};
-use turbopack_binding::{turbo, turbopack};
 pub use util::{get_asset_path_from_pathname, pathname_for_path, PathType};
 
 pub fn register() {
     turbo_tasks::register();
-    turbo::tasks_bytes::register();
-    turbo::tasks_fs::register();
-    turbo::tasks_fetch::register();
-    turbopack::browser::register();
-    turbopack::node::register();
-    turbopack::turbopack::register();
-    turbopack::image::register();
-    turbopack::ecmascript::register();
-    turbopack::ecmascript_plugin::register();
+    turbo_tasks_bytes::register();
+    turbo_tasks_fs::register();
+    turbo_tasks_fetch::register();
+    turbopack_browser::register();
+    turbopack_node::register();
+    turbopack::register();
+    turbopack_image::register();
+    turbopack_ecmascript::register();
+    turbopack_ecmascript_plugins::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 

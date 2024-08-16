@@ -1,6 +1,6 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{util::take::Take, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
@@ -131,7 +131,7 @@ impl VisitMut for CjsOptimizer {
                                         definite: false,
                                     };
 
-                                    if !self.data.extra_stmts.clone().into_iter().any(|s| {
+                                    if !self.data.extra_stmts.iter().any(|s| {
                                         if let Stmt::Decl(Decl::Var(v)) = &s {
                                             v.decls.iter().any(|d| d.name == var.name)
                                         } else {

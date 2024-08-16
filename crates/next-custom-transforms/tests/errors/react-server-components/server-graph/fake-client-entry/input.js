@@ -3,4 +3,4 @@ export default function () {
 }
 
 // prettier-ignore
-;'use client'
+'use client'

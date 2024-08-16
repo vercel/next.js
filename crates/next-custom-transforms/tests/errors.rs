@@ -11,22 +11,20 @@ use next_custom_transforms::transforms::{
     },
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
 };
-use turbopack_binding::swc::{
-    core::{
-        common::{chain, FileName, Mark},
-        ecma::{
-            parser::{EsConfig, Syntax},
-            transforms::{
-                base::resolver,
-                testing::{test_fixture, FixtureTestConfig},
-            },
+use swc_core::{
+    common::{chain, FileName, Mark},
+    ecma::{
+        parser::{EsSyntax, Syntax},
+        transforms::{
+            base::resolver,
+            testing::{test_fixture, FixtureTestConfig},
         },
     },
-    testing::fixture,
 };
+use testing::fixture;
 
 fn syntax() -> Syntax {
-    Syntax::Es(EsConfig {
+    Syntax::Es(EsSyntax {
         jsx: true,
         ..Default::default()
     })

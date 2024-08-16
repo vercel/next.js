@@ -1,8 +1,8 @@
 export const getStaticPaths = async () => {
-  return []
-}
+  return [];
+};
 export const getStaticProps = async function () {
   return {
     props: {},
-  }
-}
+  };
+};

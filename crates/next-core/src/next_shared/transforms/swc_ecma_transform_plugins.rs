@@ -1,7 +1,9 @@
 use anyhow::Result;
+#[allow(unused_imports)]
+use turbo_tasks::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::turbopack::module_options::ModuleRule;
+use turbopack::module_options::ModuleRule;
 
 use crate::next_config::NextConfig;
 
@@ -13,7 +15,7 @@ pub async fn get_swc_ecma_transform_plugin_rule(
         Some(plugin_configs) if !plugin_configs.is_empty() => {
             #[cfg(feature = "plugin")]
             {
-                let enable_mdx_rs = *next_config.mdx_rs().await?;
+                let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
                 get_swc_ecma_transform_rule_impl(project_path, plugin_configs, enable_mdx_rs).await
             }
 
@@ -30,23 +32,21 @@ pub async fn get_swc_ecma_transform_plugin_rule(
 #[cfg(feature = "plugin")]
 pub async fn get_swc_ecma_transform_rule_impl(
     project_path: Vc<FileSystemPath>,
-    plugin_configs: &[(String, serde_json::Value)],
+    plugin_configs: &[(RcStr, serde_json::Value)],
     enable_mdx_rs: bool,
 ) -> Result<Option<ModuleRule>> {
     use anyhow::{bail, Context};
     use turbo_tasks::Value;
     use turbo_tasks_fs::FileContent;
-    use turbopack_binding::turbopack::{
-        core::{
-            asset::Asset,
-            issue::IssueSeverity,
-            reference_type::{CommonJsReferenceSubType, ReferenceType},
-            resolve::{handle_resolve_error, parse::Request, pattern::Pattern, resolve},
-        },
-        ecmascript_plugin::transform::swc_ecma_transform_plugins::{
-            SwcEcmaTransformPluginsTransformer, SwcPluginModule,
-        },
-        turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
+    use turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext};
+    use turbopack_core::{
+        asset::Asset,
+        issue::IssueSeverity,
+        reference_type::{CommonJsReferenceSubType, ReferenceType},
+        resolve::{handle_resolve_error, parse::Request, pattern::Pattern, resolve},
+    };
+    use turbopack_ecmascript_plugins::transform::swc_ecma_transform_plugins::{
+        SwcEcmaTransformPluginsTransformer, SwcPluginModule,
     };
 
     use crate::next_shared::transforms::get_ecma_transform_rule;
@@ -58,7 +58,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
         // one for implicit package name resolves to node_modules,
         // and one for explicit path to a .wasm binary.
         // Current resolve will fail with latter.
-        let request = Request::parse(Value::new(Pattern::Constant(name.to_string())));
+        let request = Request::parse(Value::new(Pattern::Constant(name.as_str().into())));
         let resolve_options = resolve_options(
             project_path,
             ResolveOptionsContext {

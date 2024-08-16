@@ -1,8 +1,9 @@
-'use strict'
-const Response = require('next/server/response').Response
+'use strict';
+const Response = require("next/server/response").Response;
 Object.defineProperty(exports, '__esModule', {
-  value: true,
-})
-const createResponse = (...args) => {
-  return new Response(...args)
-}
+    value: true
+});
+;
+const createResponse = (...args)=>{
+    return new Response(...args);
+};

@@ -8,9 +8,9 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    ReadRef, TryJoinIterExt, ValueToString, Vc,
+    RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc,
 };
-use turbopack_binding::turbopack::core::{
+use turbopack_core::{
     module::{Module, Modules},
     reference::primary_referenced_modules,
 };
@@ -48,6 +48,7 @@ pub enum ClientReferenceType {
 }
 
 #[turbo_tasks::value]
+#[derive(Debug)]
 pub struct ClientReferenceGraphResult {
     pub client_references: Vec<ClientReference>,
     pub server_component_entries: Vec<Vc<NextServerComponentModule>>,
@@ -56,84 +57,54 @@ pub struct ClientReferenceGraphResult {
 #[turbo_tasks::value(transparent)]
 pub struct ClientReferenceTypes(IndexSet<ClientReferenceType>);
 
-#[turbo_tasks::value(transparent)]
-pub struct ClientReferenceGraph {
-    graph: AdjacencyMap<VisitClientReferenceNode>,
+#[turbo_tasks::value_impl]
+impl ClientReferenceGraphResult {
+    #[turbo_tasks::function]
+    pub fn types(&self) -> Vc<ClientReferenceTypes> {
+        Vc::cell(
+            self.client_references
+                .iter()
+                .map(|r| r.ty())
+                .collect::<IndexSet<_>>(),
+        )
+    }
 }
 
-#[turbo_tasks::value_impl]
-impl ClientReferenceGraph {
-    #[turbo_tasks::function]
-    pub async fn new(entries: Vc<Modules>) -> Result<Vc<Self>> {
-        async move {
-            let entries = entries.await?;
+#[turbo_tasks::function]
+pub async fn client_reference_graph(
+    entries: Vc<Modules>,
+) -> Result<Vc<ClientReferenceGraphResult>> {
+    async move {
+        let entries = entries.await?;
 
-            let graph = AdjacencyMap::new()
-                .skip_duplicates()
-                .visit(
-                    entries
-                        .iter()
-                        .copied()
-                        .map(|module| async move {
-                            Ok(VisitClientReferenceNode {
-                                server_component: None,
-                                ty: VisitClientReferenceNodeType::Internal(
-                                    module,
-                                    module.ident().to_string().await?,
-                                ),
-                            })
-                        })
-                        .try_join()
-                        .await?,
-                    VisitClientReference,
-                )
-                .await
-                .completed()?
-                .into_inner();
-
-            Ok(ClientReferenceGraph { graph }.cell())
-        }
-        .instrument(tracing::info_span!("find client references"))
-        .await
-    }
-
-    #[turbo_tasks::function]
-    pub async fn types(self: Vc<Self>) -> Result<Vc<ClientReferenceTypes>> {
-        let this = self.await?;
-        let mut client_reference_types = IndexSet::new();
-
-        for node in this.graph.reverse_topological() {
-            match &node.ty {
-                VisitClientReferenceNodeType::Internal(..)
-                | VisitClientReferenceNodeType::ServerComponentEntry(..) => {
-                    // No-op. These nodes are only useful during graph
-                    // traversal.
-                }
-                VisitClientReferenceNodeType::ClientReference(client_reference, _) => {
-                    client_reference_types.insert(client_reference.ty());
-                }
-            }
-        }
-
-        Ok(Vc::cell(client_reference_types))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn entry(
-        self: Vc<Self>,
-        entry: Vc<Box<dyn Module>>,
-    ) -> Result<Vc<ClientReferenceGraphResult>> {
-        let this = self.await?;
         let mut client_references = vec![];
         let mut server_component_entries = vec![];
 
-        for node in this
-            .graph
-            .reverse_topological_from_node(&VisitClientReferenceNode {
-                server_component: None,
-                ty: VisitClientReferenceNodeType::Internal(entry, entry.ident().to_string().await?),
-            })
-        {
+        let graph = AdjacencyMap::new()
+            .skip_duplicates()
+            .visit(
+                entries
+                    .iter()
+                    .copied()
+                    .map(|module| async move {
+                        Ok(VisitClientReferenceNode {
+                            server_component: None,
+                            ty: VisitClientReferenceNodeType::Internal(
+                                module,
+                                module.ident().to_string().await?,
+                            ),
+                        })
+                    })
+                    .try_join()
+                    .await?,
+                VisitClientReference,
+            )
+            .await
+            .completed()?
+            .into_inner()
+            .into_reverse_topological();
+
+        for node in graph {
             match &node.ty {
                 VisitClientReferenceNodeType::Internal(_asset, _) => {
                     // No-op. These nodes are only useful during graph
@@ -154,6 +125,8 @@ impl ClientReferenceGraph {
         }
         .cell())
     }
+    .instrument(tracing::info_span!("find client references"))
+    .await
 }
 
 struct VisitClientReference;
@@ -170,9 +143,9 @@ struct VisitClientReferenceNode {
     Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
 )]
 enum VisitClientReferenceNodeType {
-    ClientReference(ClientReference, ReadRef<String>),
-    ServerComponentEntry(Vc<NextServerComponentModule>, ReadRef<String>),
-    Internal(Vc<Box<dyn Module>>, ReadRef<String>),
+    ClientReference(ClientReference, ReadRef<RcStr>),
+    ServerComponentEntry(Vc<NextServerComponentModule>, ReadRef<RcStr>),
+    Internal(Vc<Box<dyn Module>>, ReadRef<RcStr>),
 }
 
 impl Visit<VisitClientReferenceNode> for VisitClientReference {
@@ -269,13 +242,13 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
     fn span(&mut self, node: &VisitClientReferenceNode) -> tracing::Span {
         match &node.ty {
             VisitClientReferenceNodeType::ClientReference(_, name) => {
-                tracing::info_span!("client reference", name = **name)
+                tracing::info_span!("client reference", name = name.to_string())
             }
             VisitClientReferenceNodeType::Internal(_, name) => {
-                tracing::info_span!("module", name = **name)
+                tracing::info_span!("module", name = name.to_string())
             }
             VisitClientReferenceNodeType::ServerComponentEntry(_, name) => {
-                tracing::info_span!("layout segment", name = **name)
+                tracing::info_span!("layout segment", name = name.to_string())
             }
         }
     }

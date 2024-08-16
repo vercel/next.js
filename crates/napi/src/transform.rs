@@ -38,7 +38,8 @@ use anyhow::{anyhow, bail, Context as _};
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
 use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
-use turbopack_binding::swc::core::{
+use once_cell::sync::Lazy;
+use swc_core::{
     base::{try_with_handler, Compiler, TransformOutput},
     common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, Mark, GLOBALS},
     ecma::transforms::base::pass::noop,
@@ -61,9 +62,22 @@ pub struct TransformTask {
     pub options: Buffer,
 }
 
-#[inline]
 fn skip_filename() -> bool {
-    cfg!(debug_assertions)
+    fn check(name: &str) -> bool {
+        let v = std::env::var(name);
+        let v = match v {
+            Ok(v) => v,
+            Err(_) => return false,
+        };
+
+        !v.is_empty() && v != "0"
+    }
+
+    static SKIP_FILENAME: Lazy<bool> = Lazy::new(|| {
+        check("NEXT_TEST_MODE") || check("__NEXT_TEST_MODE") || check("NEXT_TEST_JOB")
+    });
+
+    *SKIP_FILENAME
 }
 
 impl Task for TransformTask {
@@ -76,7 +90,7 @@ impl Task for TransformTask {
             let res = catch_unwind(AssertUnwindSafe(|| {
                 try_with_handler(
                     self.c.cm.clone(),
-                    turbopack_binding::swc::core::base::HandlerOpts {
+                    swc_core::base::HandlerOpts {
                         color: ColorConfig::Always,
                         skip_filename: skip_filename(),
                     },

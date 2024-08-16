@@ -1,7 +1,7 @@
-const { a } = Inter({
-  variant: '400',
-})
+const { a  } = Inter({
+    variant: '400'
+});
 const [b] = Inter({
-  variant: '400',
-})
-const { e } = {}
+    variant: '400'
+});
+const { e  } = {};

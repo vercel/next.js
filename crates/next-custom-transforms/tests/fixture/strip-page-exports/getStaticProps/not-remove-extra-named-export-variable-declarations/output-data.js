@@ -1,9 +1,9 @@
 export const getStaticPaths = () => {
-    return []
+    return [];
   },
-  foo = 2
+  foo = 2;
 export const getStaticProps = function () {
   return {
     props: {},
-  }
-}
+  };
+};

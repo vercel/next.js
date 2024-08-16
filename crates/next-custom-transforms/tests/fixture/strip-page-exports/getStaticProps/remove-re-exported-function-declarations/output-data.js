@@ -1,4 +1,4 @@
 function getStaticPaths() {
-  return []
+  return [];
 }
-export { getStaticPaths }
+export { getStaticPaths };

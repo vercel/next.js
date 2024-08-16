@@ -1,31 +1,30 @@
 use anyhow::{anyhow, Context, Result};
 use indexmap::{indexset, IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::Vc;
-use turbopack_binding::turbo::tasks::{trace::TraceRawVcs, Value};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, Value, Vc};
 
 use super::request::{NextFontRequest, OneOrManyStrings};
 
 const ALLOWED_DISPLAY_VALUES: &[&str] = &["auto", "block", "swap", "fallback", "optional"];
 
-pub(super) type FontData = IndexMap<String, FontDataEntry>;
+pub(super) type FontData = IndexMap<RcStr, FontDataEntry>;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Clone, Debug, PartialOrd, Ord, Hash)]
 pub(super) struct NextFontGoogleOptions {
     /// Name of the requested font from Google. Contains literal spaces.
-    pub font_family: String,
+    pub font_family: RcStr,
     pub weights: FontWeights,
-    pub styles: Vec<String>,
-    pub display: String,
+    pub styles: Vec<RcStr>,
+    pub display: RcStr,
     pub preload: bool,
-    pub selected_variable_axes: Option<Vec<String>>,
-    pub fallback: Option<Vec<String>>,
+    pub selected_variable_axes: Option<Vec<RcStr>>,
+    pub fallback: Option<Vec<RcStr>>,
     pub adjust_font_fallback: bool,
     /// An optional name for a css custom property (css variable) that applies
     /// the font family when used.
-    pub variable: Option<String>,
-    pub subsets: Option<Vec<String>>,
+    pub variable: Option<RcStr>,
+    pub subsets: Option<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -36,8 +35,8 @@ impl NextFontGoogleOptions {
     }
 
     #[turbo_tasks::function]
-    pub async fn font_family(self: Vc<Self>) -> Result<Vc<String>> {
-        Ok(Vc::cell((*self.await?.font_family).to_owned()))
+    pub async fn font_family(self: Vc<Self>) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell((*self.await?.font_family).into()))
     }
 }
 
@@ -51,15 +50,15 @@ pub(super) enum FontWeights {
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize, TraceRawVcs)]
 pub(super) struct FontDataEntry {
-    pub weights: Vec<String>,
-    pub styles: Vec<String>,
+    pub weights: Vec<RcStr>,
+    pub styles: Vec<RcStr>,
     pub axes: Option<Vec<Axis>>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Axis {
-    pub tag: String,
+    pub tag: RcStr,
     pub min: f64,
     pub max: f64,
 }
@@ -71,7 +70,7 @@ impl Eq for Axis {}
 // https://github.com/vercel/next.js/blob/28454c6ddbc310419467e5415aee26e48d079b46/packages/font/src/google/utils.ts#L22
 pub(super) fn options_from_request(
     request: &NextFontRequest,
-    data: &IndexMap<String, FontDataEntry>,
+    data: &IndexMap<RcStr, FontDataEntry>,
 ) -> Result<NextFontGoogleOptions> {
     if request.arguments.len() > 1 {
         return Err(anyhow!(
@@ -82,10 +81,10 @@ pub(super) fn options_from_request(
     let argument = request.arguments.last().cloned().unwrap_or_default();
 
     // `import` comes from the imported symbol in JS, which separates with _
-    let font_family = request.import.replace('_', " ");
+    let font_family: RcStr = request.import.replace('_', " ").into();
     let font_data = data.get(&font_family).context("Unknown font")?;
 
-    let requested_weights: IndexSet<String> = argument
+    let requested_weights: IndexSet<RcStr> = argument
         .weight
         .map(|w| match w {
             OneOrManyStrings::One(one) => indexset! {one},
@@ -102,7 +101,7 @@ pub(super) fn options_from_request(
         .unwrap_or_default();
 
     let weights = if requested_weights.is_empty() {
-        if !font_data.weights.contains(&"variable".to_owned()) {
+        if !font_data.weights.contains(&"variable".into()) {
             return Err(anyhow!(
                 "Missing weight for {}. Available weights: {}",
                 font_family,
@@ -145,7 +144,7 @@ pub(super) fn options_from_request(
         if font_data.styles.len() == 1 {
             styles.push(font_data.styles[0].clone());
         } else {
-            styles.push("normal".to_owned());
+            styles.push("normal".into());
         }
     }
 
@@ -160,9 +159,9 @@ pub(super) fn options_from_request(
         }
     }
 
-    let display = argument.display.unwrap_or_else(|| "swap".to_owned());
+    let display = argument.display.unwrap_or_else(|| "swap".into());
 
-    if !ALLOWED_DISPLAY_VALUES.contains(&display.as_ref()) {
+    if !ALLOWED_DISPLAY_VALUES.contains(&display.as_str()) {
         return Err(anyhow!(
             "Invalid display value {} for font {}.\nAvailable display values: {}",
             display,
@@ -195,14 +194,15 @@ pub(super) fn options_from_request(
 mod tests {
     use anyhow::Result;
     use indexmap::IndexMap;
-    use turbopack_binding::turbo::tasks_fs::json::parse_json_with_source_context;
+    use turbo_tasks::RcStr;
+    use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{options_from_request, FontDataEntry, NextFontGoogleOptions};
     use crate::next_font::google::{options::FontWeights, request::NextFontRequest};
 
     #[test]
     fn test_errors_on_unknown_font() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn test_default_values_when_no_arguments() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -260,10 +260,10 @@ mod tests {
         assert_eq!(
             options_from_request(&request, &data)?,
             NextFontGoogleOptions {
-                font_family: "ABeeZee".to_owned(),
+                font_family: "ABeeZee".into(),
                 weights: FontWeights::Variable,
-                styles: vec!["normal".to_owned()],
-                display: "swap".to_owned(),
+                styles: vec!["normal".into()],
+                display: "swap".into(),
                 preload: true,
                 selected_variable_axes: None,
                 fallback: None,
@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_errors_when_no_weights_chosen_no_variable() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -314,7 +314,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unnecessary_weights() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -353,7 +353,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unvavailable_weights() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -391,7 +391,7 @@ mod tests {
 
     #[test]
     fn test_defaults_to_only_style_when_one_available() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -416,14 +416,14 @@ mod tests {
         )?;
 
         let options = options_from_request(&request, &data)?;
-        assert_eq!(options.styles, vec!["italic".to_owned()]);
+        assert_eq!(options.styles, vec![RcStr::from("italic")]);
 
         Ok(())
     }
 
     #[test]
     fn test_defaults_to_normal_style_when_multiple() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -448,14 +448,14 @@ mod tests {
         )?;
 
         let options = options_from_request(&request, &data)?;
-        assert_eq!(options.styles, vec!["normal".to_owned()]);
+        assert_eq!(options.styles, vec![RcStr::from("normal")]);
 
         Ok(())
     }
 
     #[test]
     fn test_errors_on_unknown_styles() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -495,7 +495,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unknown_display() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -536,7 +536,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_axes_without_variable() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {

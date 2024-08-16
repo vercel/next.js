@@ -1,24 +1,20 @@
 use std::io::Write;
 
 use anyhow::{bail, Result};
-use turbo_tasks::Vc;
-use turbopack_binding::{
-    turbo::tasks_fs::{rope::RopeBuilder, FileContent},
-    turbopack::{
-        core::{
-            asset::{Asset, AssetContent},
-            ident::AssetIdent,
-            source::Source,
-        },
-        ecmascript::utils::StringifyJs,
-        image::process::{get_meta_data, BlurPlaceholderOptions},
-    },
+use turbo_tasks::{RcStr, Vc};
+use turbo_tasks_fs::{rope::RopeBuilder, FileContent};
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    ident::AssetIdent,
+    source::Source,
 };
+use turbopack_ecmascript::utils::StringifyJs;
+use turbopack_image::process::{get_meta_data, BlurPlaceholderOptions};
 
 use super::module::BlurPlaceholderMode;
 
-fn modifier() -> Vc<String> {
-    Vc::cell("structured image object".to_string())
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("structured image object".into())
 }
 
 #[turbo_tasks::function]
@@ -45,7 +41,7 @@ impl Source for StructuredImageFileSource {
         self.image
             .ident()
             .with_modifier(modifier())
-            .rename_as("*.mjs".to_string())
+            .rename_as("*.mjs".into())
     }
 }
 

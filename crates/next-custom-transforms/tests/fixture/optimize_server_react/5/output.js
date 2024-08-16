@@ -1,15 +1,12 @@
-import { ClientComponent } from './ClientComponent'
+import { ClientComponent } from './ClientComponent';
 export default async function Page() {
-  return (
-    <>
+    return <>
       <div>
         This fixture is to assert where the bootstrap scripts and other required
         scripts emit during SSR
       </div>
-
       <div>
-        <ClientComponent />
+        <ClientComponent/>
       </div>
-    </>
-  )
+    </>;
 }

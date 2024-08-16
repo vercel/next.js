@@ -2,22 +2,22 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
 use either::Either;
 use fxhash::FxHashSet;
+use modularize_imports;
 use preset_env_base::query::targets_to_versions;
 use serde::Deserialize;
-use swc_core::ecma::visit::as_folder;
-use turbopack_binding::swc::{
-    core::{
-        common::{
-            chain,
-            comments::{Comments, NoopComments},
-            pass::Optional,
-            FileName, Mark, SourceFile, SourceMap, SyntaxContext,
-        },
-        ecma::{
-            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
-        },
+use swc_core::{
+    common::{
+        chain,
+        comments::{Comments, NoopComments},
+        pass::Optional,
+        FileName, Mark, SourceFile, SourceMap, SyntaxContext,
     },
-    custom_transform::modularize_imports,
+    ecma::{
+        ast::EsVersion,
+        parser::parse_file_as_module,
+        transforms::base::pass::noop,
+        visit::{as_folder, Fold},
+    },
 };
 
 use crate::transforms::{
@@ -31,7 +31,7 @@ use crate::transforms::{
 #[serde(rename_all = "camelCase")]
 pub struct TransformOptions {
     #[serde(flatten)]
-    pub swc: turbopack_binding::swc::core::base::config::Options,
+    pub swc: swc_core::base::config::Options,
 
     #[serde(default)]
     pub disable_next_ssg: bool,
@@ -61,11 +61,10 @@ pub struct TransformOptions {
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
-    pub styled_jsx: BoolOr<turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config>,
+    pub styled_jsx: BoolOr<styled_jsx::visitor::Config>,
 
     #[serde(default)]
-    pub styled_components:
-        Option<turbopack_binding::swc::custom_transform::styled_components::Config>,
+    pub styled_components: Option<styled_components::Config>,
 
     #[serde(default)]
     pub remove_console: Option<remove_console::Config>,
@@ -75,7 +74,7 @@ pub struct TransformOptions {
 
     #[serde(default)]
     #[cfg(not(target_arch = "wasm32"))]
-    pub relay: Option<turbopack_binding::swc::custom_transform::relay::Config>,
+    pub relay: Option<swc_relay::Config>,
 
     #[allow(unused)]
     #[serde(default)]
@@ -87,7 +86,7 @@ pub struct TransformOptions {
     pub shake_exports: Option<crate::transforms::shake_exports::Config>,
 
     #[serde(default)]
-    pub emotion: Option<turbopack_binding::swc::custom_transform::emotion::EmotionOptions>,
+    pub emotion: Option<swc_emotion::EmotionOptions>,
 
     #[serde(default)]
     pub modularize_imports: Option<modularize_imports::Config>,
@@ -109,6 +108,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub optimize_server_react: Option<crate::transforms::optimize_server_react::Config>,
+
+    #[serde(default)]
+    pub debug_function_name: bool,
 }
 
 pub fn custom_before_pass<'a, C>(
@@ -128,8 +130,8 @@ where
     #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
         if let Some(config) = &opts.relay {
-            Either::Left(turbopack_binding::swc::custom_transform::relay::relay(
-                config,
+            Either::Left(swc_relay::relay(
+                Arc::new(config.clone()),
                 file.name.clone(),
                 std::env::current_dir().unwrap(),
                 opts.pages_dir.clone(),
@@ -156,25 +158,23 @@ where
         .unwrap_or_default();
 
     let styled_jsx = if let Some(config) = opts.styled_jsx.to_option() {
-        Either::Left(
-            turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
-                cm.clone(),
-                file.name.clone(),
-                turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config {
-                    use_lightningcss: config.use_lightningcss,
-                    browsers: target_browsers,
-                },
-                turbopack_binding::swc::custom_transform::styled_jsx::visitor::NativeConfig {
-                    process_css: None,
-                },
-            ),
-        )
+        Either::Left(styled_jsx::visitor::styled_jsx(
+            cm.clone(),
+            file.name.clone(),
+            styled_jsx::visitor::Config {
+                use_lightningcss: config.use_lightningcss,
+                browsers: target_browsers,
+            },
+            styled_jsx::visitor::NativeConfig { process_css: None },
+        ))
     } else {
         Either::Right(noop())
     };
 
     chain!(
-        crate::transforms::disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
+        crate::transforms::disallow_re_export_all_in_page::disallow_re_export_all_in_page(
+            opts.is_page_file
+        ),
         match &opts.server_components {
             Some(config) if config.truthy() =>
                 Either::Left(react_server_components::server_components(
@@ -187,14 +187,12 @@ where
         },
         styled_jsx,
         match &opts.styled_components {
-            Some(config) => Either::Left(
-                turbopack_binding::swc::custom_transform::styled_components::styled_components(
-                    file.name.clone(),
-                    file.src_hash,
-                    config.clone(),
-                    NoopComments
-                )
-            ),
+            Some(config) => Either::Left(styled_components::styled_components(
+                file.name.clone(),
+                file.src_hash,
+                config.clone(),
+                NoopComments
+            )),
             None => Either::Right(noop()),
         },
         Optional::new(
@@ -209,7 +207,8 @@ where
                 Some(config) if config.truthy() => match config {
                     // Always enable the Server Components mode for both
                     // server and client layers.
-                    react_server_components::Config::WithOptions(config) => config.is_react_server_layer,
+                    react_server_components::Config::WithOptions(config) =>
+                        config.is_react_server_layer,
                     _ => false,
                 },
                 _ => false,
@@ -225,32 +224,40 @@ where
         ),
         relay_plugin,
         match &opts.remove_console {
-            Some(config) if config.truthy() =>
-                Either::Left(remove_console::remove_console(
-                    config.clone(),
-                    SyntaxContext::empty().apply_mark(unresolved_mark)
-                )),
+            Some(config) if config.truthy() => Either::Left(remove_console::remove_console(
+                config.clone(),
+                SyntaxContext::empty().apply_mark(unresolved_mark)
+            )),
             _ => Either::Right(noop()),
         },
         match &opts.react_remove_properties {
-            Some(config) if config.truthy() =>
-                Either::Left(react_remove_properties::react_remove_properties(config.clone())),
+            Some(config) if config.truthy() => Either::Left(
+                react_remove_properties::react_remove_properties(config.clone())
+            ),
             _ => Either::Right(noop()),
         },
         match &opts.shake_exports {
-            Some(config) => Either::Left(crate::transforms::shake_exports::shake_exports(config.clone())),
+            Some(config) => Either::Left(crate::transforms::shake_exports::shake_exports(
+                config.clone()
+            )),
             None => Either::Right(noop()),
         },
         match &opts.auto_modularize_imports {
-            Some(config) => Either::Left(crate::transforms::named_import_transform::named_import_transform(config.clone())),
+            Some(config) => Either::Left(
+                crate::transforms::named_import_transform::named_import_transform(config.clone())
+            ),
             None => Either::Right(noop()),
         },
         match &opts.optimize_barrel_exports {
-            Some(config) => Either::Left(crate::transforms::optimize_barrel::optimize_barrel(config.clone())),
+            Some(config) => Either::Left(crate::transforms::optimize_barrel::optimize_barrel(
+                config.clone()
+            )),
             _ => Either::Right(noop()),
         },
         match &opts.optimize_server_react {
-            Some(config) => Either::Left(crate::transforms::optimize_server_react::optimize_server_react(config.clone())),
+            Some(config) => Either::Left(
+                crate::transforms::optimize_server_react::optimize_server_react(config.clone())
+            ),
             _ => Either::Right(noop()),
         },
         opts.emotion
@@ -261,24 +268,20 @@ where
                 }
                 if let FileName::Real(path) = &file.name {
                     path.to_str().map(|_| {
-                        Either::Left(
-                            turbopack_binding::swc::custom_transform::emotion::EmotionTransformer::new(
-                                config.clone(),
-                                path,
-                                file.src_hash as u32,
-                                cm,
-                                comments.clone(),
-                            ),
-                        )
+                        Either::Left(swc_emotion::EmotionTransformer::new(
+                            config.clone(),
+                            path,
+                            file.src_hash as u32,
+                            cm,
+                            comments.clone(),
+                        ))
                     })
                 } else {
                     None
                 }
             })
             .unwrap_or_else(|| Either::Right(noop())),
-        modularize_imports::modularize_imports(
-            modularize_imports_config
-        ),
+        modularize_imports::modularize_imports(modularize_imports_config),
         match &opts.font_loaders {
             Some(config) => Either::Left(next_font_loaders(config.clone())),
             None => Either::Right(noop()),
@@ -293,10 +296,17 @@ where
         },
         match &opts.cjs_require_optimizer {
             Some(config) => {
-                Either::Left(as_folder(crate::transforms::cjs_optimizer::cjs_optimizer(config.clone(), SyntaxContext::empty().apply_mark(unresolved_mark))))
-            },
+                Either::Left(as_folder(crate::transforms::cjs_optimizer::cjs_optimizer(
+                    config.clone(),
+                    SyntaxContext::empty().apply_mark(unresolved_mark),
+                )))
+            }
             None => Either::Right(noop()),
         },
+        Optional::new(
+            crate::transforms::debug_fn_name::debug_fn_name(),
+            opts.debug_function_name
+        ),
         as_folder(crate::transforms::pure::pure_magic(comments)),
     )
 }

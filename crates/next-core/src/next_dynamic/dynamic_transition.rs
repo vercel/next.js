@@ -1,9 +1,7 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
-use turbopack_binding::turbopack::{
-    core::{context::ProcessResult, reference_type::ReferenceType, source::Source},
-    turbopack::{transition::Transition, ModuleAssetContext},
-};
+use turbo_tasks::{RcStr, Value, Vc};
+use turbopack::{transition::Transition, ModuleAssetContext};
+use turbopack_core::{context::ProcessResult, reference_type::ReferenceType, source::Source};
 
 use super::NextDynamicEntryModule;
 
@@ -26,7 +24,7 @@ impl NextDynamicTransition {
 #[turbo_tasks::value_impl]
 impl Transition for NextDynamicTransition {
     #[turbo_tasks::function]
-    fn process_layer(self: Vc<Self>, layer: Vc<String>) -> Vc<String> {
+    fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<RcStr> {
         layer
     }
 
@@ -34,16 +32,20 @@ impl Transition for NextDynamicTransition {
     async fn process(
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
-        context: Vc<ModuleAssetContext>,
+        module_asset_context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
-        let context = self.process_context(context);
+        let module_asset_context = self.process_context(module_asset_context);
 
         let this = self.await?;
 
         Ok(match *this
             .client_transition
-            .process(source, context, Value::new(ReferenceType::Undefined))
+            .process(
+                source,
+                module_asset_context,
+                Value::new(ReferenceType::Undefined),
+            )
             .await?
         {
             ProcessResult::Module(client_module) => {

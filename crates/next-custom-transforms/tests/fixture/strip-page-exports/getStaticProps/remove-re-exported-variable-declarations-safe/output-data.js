@@ -1,5 +1,5 @@
 const getStaticPaths = () => {
-    return []
+    return [];
   },
-  a = 2
-export { getStaticPaths }
+  a = 2;
+export { getStaticPaths };

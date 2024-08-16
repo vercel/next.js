@@ -1,12 +1,12 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use regex::Regex;
 use serde::Deserialize;
-use swc_core::{common::util::take::Take, ecma::visit::VisitWith};
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
+        util::take::Take,
         FileName, Span, Spanned, DUMMY_SP,
     },
     ecma::{
@@ -15,6 +15,7 @@ use turbopack_binding::swc::core::{
         utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
         visit::{
             as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
+            VisitWith,
         },
     },
 };
@@ -52,7 +53,7 @@ struct ReactServerComponents<C: Comments> {
     filepath: String,
     app_dir: Option<PathBuf>,
     comments: C,
-    directive_import_collection: Option<(bool, bool, Vec<ModuleImports>, Vec<String>)>,
+    directive_import_collection: Option<(bool, bool, RcVec<ModuleImports>, RcVec<String>)>,
 }
 
 #[derive(Clone, Debug)]
@@ -239,7 +240,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                     "react-dom/server" => "You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials".to_string(),
                     // If importing "next/router", we should tell them to use "next/navigation".
                     "next/router" => r#"You have a Server Component that imports next/router. Use next/navigation instead.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/use-router"#.to_string(),
-                    _ => format!(r#"You're importing a component that imports {}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n"#, source)
+                    _ => format!(r#"You're importing a component that imports {source}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n"#)
                 };
 
                 (msg, span)
@@ -257,9 +258,9 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                     .unwrap_or_default();
 
                 let msg = if !is_app_dir {
-                    format!("You're importing a component that needs {}. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components\n\n", source)
+                    format!("You're importing a component that needs \"{source}\". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components\n\n")
                 } else {
-                    format!("You're importing a component that needs {}. That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n", source)
+                    format!("You're importing a component that needs \"{source}\". That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n")
                 };
                 (msg, span)
             }
@@ -267,19 +268,19 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                 let msg = if source == "Component" {
                     "You’re importing a class component. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n".to_string()
                 } else {
-                    format!("You're importing a component that needs {}. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n", source)
+                    format!("You're importing a component that needs `{source}`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `\"use client\"` directive.\n\n Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n")
                 };
 
                 (msg,span)
             },
             RSCErrorKind::NextRscErrErrorFileServerComponent(span) => {
                 (
-                    format!("{} must be a Client Component. Add the \"use client\" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n", filepath),
+                    format!("{filepath} must be a Client Component. Add the \"use client\" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n"),
                     span
                 )
             },
             RSCErrorKind::NextRscErrClientMetadataExport((source, span)) => {
-                (format!("You are attempting to export \"{}\" from a component marked with \"use client\", which is disallowed. Either remove the export, or the \"use client\" directive. Read more: https://nextjs.org/docs/getting-started/react-essentials#the-use-client-directive\n\n", source), span)
+                (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed. Either remove the export, or the \"use client\" directive. Read more: https://nextjs.org/docs/getting-started/react-essentials#the-use-client-directive\n\n"), span)
             },
             RSCErrorKind::NextRscErrConflictMetadataExport(span) => (
                 "\"metadata\" and \"generateMetadata\" cannot be exported at the same time, please keep one of them. Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata\n\n".to_string(),
@@ -287,7 +288,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             ),
             //NEXT_RSC_ERR_INVALID_API
             RSCErrorKind::NextRscErrInvalidApi((source, span)) => (
-                format!("\"{}\" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching\n\n", source), span
+                format!("\"{source}\" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching\n\n"), span
             ),
         };
 
@@ -376,11 +377,24 @@ fn collect_top_level_directives_and_imports(
                     }
                 }
             }
-            ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
+            ModuleItem::ModuleDecl(ModuleDecl::Import(
+                import @ ImportDecl {
+                    type_only: false, ..
+                },
+            )) => {
                 let source = import.src.value.clone();
                 let specifiers = import
                     .specifiers
                     .iter()
+                    .filter(|specifier| {
+                        !matches!(
+                            specifier,
+                            ImportSpecifier::Named(ImportNamedSpecifier {
+                                is_type_only: true,
+                                ..
+                            })
+                        )
+                    })
                     .map(|specifier| match specifier {
                         ImportSpecifier::Named(named) => match &named.imported {
                             Some(imported) => match &imported {
@@ -472,10 +486,14 @@ struct ReactServerComponentValidator {
     filepath: String,
     app_dir: Option<PathBuf>,
     invalid_server_imports: Vec<JsWord>,
-    invalid_client_imports: Vec<JsWord>,
     invalid_server_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
-    pub directive_import_collection: Option<(bool, bool, Vec<ModuleImports>, Vec<String>)>,
+    invalid_client_imports: Vec<JsWord>,
+    invalid_client_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
+    pub directive_import_collection: Option<(bool, bool, RcVec<ModuleImports>, RcVec<String>)>,
 }
+
+// A type to workaround a clippy warning.
+type RcVec<T> = Rc<Vec<T>>;
 
 impl ReactServerComponentValidator {
     pub fn new(is_react_server_layer: bool, filename: String, app_dir: Option<PathBuf>) -> Self {
@@ -506,12 +524,12 @@ impl ReactServerComponentValidator {
                         "useSyncExternalStore",
                         "useTransition",
                         "useOptimistic",
+                        "useActionState",
                     ],
                 ),
                 (
                     "react-dom",
                     vec![
-                        "findDOMNode",
                         "flushSync",
                         "unstable_batchedUpdates",
                         "useFormStatus",
@@ -540,7 +558,10 @@ impl ReactServerComponentValidator {
                 JsWord::from("react-dom/server"),
                 JsWord::from("next/router"),
             ],
+
             invalid_client_imports: vec![JsWord::from("server-only"), JsWord::from("next/headers")],
+
+            invalid_client_lib_apis_mapping: [("next/server", vec!["unstable_after"])].into(),
         }
     }
 
@@ -553,7 +574,6 @@ impl ReactServerComponentValidator {
     // assert_invalid_server_lib_apis("react", import)
     // assert_invalid_server_lib_apis("react-dom", import)
     fn assert_invalid_server_lib_apis(&self, import_source: String, import: &ModuleImports) {
-        // keys of invalid_server_lib_apis_mapping
         let invalid_apis = self
             .invalid_server_lib_apis_mapping
             .get(import_source.as_str());
@@ -627,13 +647,30 @@ impl ReactServerComponentValidator {
             return;
         }
         for import in imports {
-            let source = import.source.0.clone();
-            if self.invalid_client_imports.contains(&source) {
+            let source = &import.source.0;
+
+            if self.invalid_client_imports.contains(source) {
                 report_error(
                     &self.app_dir,
                     &self.filepath,
                     RSCErrorKind::NextRscErrClientImport((source.to_string(), import.source.1)),
                 );
+            }
+
+            let invalid_apis = self.invalid_client_lib_apis_mapping.get(source.as_str());
+            if let Some(invalid_apis) = invalid_apis {
+                for specifier in &import.specifiers {
+                    if invalid_apis.contains(&specifier.0.as_str()) {
+                        report_error(
+                            &self.app_dir,
+                            &self.filepath,
+                            RSCErrorKind::NextRscErrClientImport((
+                                specifier.0.to_string(),
+                                specifier.1,
+                            )),
+                        );
+                    }
+                }
             }
         }
     }
@@ -763,6 +800,8 @@ impl Visit for ReactServerComponentValidator {
     fn visit_module(&mut self, module: &Module) {
         let (is_client_entry, is_action_file, imports, export_names) =
             collect_top_level_directives_and_imports(&self.app_dir, &self.filepath, module);
+        let imports = Rc::new(imports);
+        let export_names = Rc::new(export_names);
 
         self.directive_import_collection = Some((
             is_client_entry,
@@ -812,7 +851,7 @@ pub fn server_components_assert(
     };
 
     let filename = match filename {
-        FileName::Custom(path) => format!("<{}>", path),
+        FileName::Custom(path) => format!("<{path}>"),
         _ => filename.to_string(),
     };
     ReactServerComponentValidator::new(is_react_server_layer, filename, app_dir)
@@ -834,7 +873,7 @@ pub fn server_components<C: Comments>(
         is_react_server_layer,
         comments,
         filepath: match filename {
-            FileName::Custom(path) => format!("<{}>", path),
+            FileName::Custom(path) => format!("<{path}>"),
             _ => filename.to_string(),
         },
         app_dir,

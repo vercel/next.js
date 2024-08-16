@@ -1,21 +1,19 @@
 use anyhow::{bail, Context, Result};
-use turbo_tasks::Vc;
-use turbopack_binding::turbopack::{
-    core::{
-        asset::{Asset, AssetContent},
-        chunk::ChunkingContext,
-        ident::AssetIdent,
-        module::Module,
-    },
-    turbopack::css::{
-        chunk::CssChunkPlaceable, CssWithPlaceholderResult, FinalCssResult, ParseCss,
-        ParseCssResult, ProcessCss,
-    },
+use turbo_tasks::{RcStr, Vc};
+use turbopack::css::{
+    chunk::CssChunkPlaceable, CssWithPlaceholderResult, FinalCssResult, ParseCss, ParseCssResult,
+    ProcessCss,
+};
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    chunk::ChunkingContext,
+    ident::AssetIdent,
+    module::Module,
 };
 
 /// A [`CssClientReferenceModule`] is a marker module used to indicate which
 /// client reference should appear in the client reference manifest.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value]
 pub struct CssClientReferenceModule {
     pub client_module: Vc<Box<dyn CssChunkPlaceable>>,
 }
@@ -31,8 +29,8 @@ impl CssClientReferenceModule {
 }
 
 #[turbo_tasks::function]
-fn css_client_reference_modifier() -> Vc<String> {
-    Vc::cell("css client reference".to_string())
+fn css_client_reference_modifier() -> Vc<RcStr> {
+    Vc::cell("css client reference".into())
 }
 
 #[turbo_tasks::value_impl]

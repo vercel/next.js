@@ -1,5 +1,5 @@
 function getStaticPaths() {
-  return []
+  return [];
 }
-export { getStaticPaths }
+export { getStaticPaths };
 export class MyClass {}

@@ -13,7 +13,9 @@ pub(crate) mod next_pure;
 pub(crate) mod next_react_server_components;
 pub(crate) mod next_shake_exports;
 pub(crate) mod next_strip_page_exports;
+pub(crate) mod react_remove_properties;
 pub(crate) mod relay;
+pub(crate) mod remove_console;
 pub(crate) mod server_actions;
 pub(crate) mod styled_components;
 pub(crate) mod styled_jsx;
@@ -26,11 +28,9 @@ pub use next_strip_page_exports::get_next_pages_transforms_rule;
 pub use server_actions::get_server_actions_transform_rule;
 use turbo_tasks::{ReadRef, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    core::reference_type::{ReferenceType, UrlReferenceSubType},
-    ecmascript::{CustomTransformer, EcmascriptInputTransform},
-    turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType},
-};
+use turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType};
+use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
+use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform};
 
 use crate::next_image::{module::BlurPlaceholderMode, StructuredImageModuleType};
 

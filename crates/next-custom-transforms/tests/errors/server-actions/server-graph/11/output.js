@@ -1,2 +1,3 @@
-import 'react'
-;('use sevrer') // ^Tools like Prettier sometimes do this.
+import 'react';
+'use sevrer' // ^Tools like Prettier sometimes do this.
+;

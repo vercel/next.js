@@ -35,16 +35,21 @@ extern crate napi_derive;
 
 use std::{
     env,
+    io::prelude::*,
     panic::set_hook,
-    sync::{Arc, Once},
+    path::PathBuf,
+    sync::{Arc, Mutex, Once},
+    time::Instant,
 };
 
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
-use turbopack_binding::swc::core::{
+use once_cell::sync::Lazy;
+use owo_colors::OwoColorize;
+use swc_core::{
     base::{Compiler, TransformOutput},
-    common::{sync::Lazy, FilePathMapping, SourceMap},
+    common::{FilePathMapping, SourceMap},
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -58,6 +63,8 @@ pub mod next_api;
 pub mod parse;
 pub mod transform;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod turbo_trace_server;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod turbopack;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod turbotrace;
@@ -66,42 +73,104 @@ pub mod util;
 // Declare build-time information variables generated in build.rs
 shadow_rs::shadow!(build);
 
-// don't use turbo malloc (`mimalloc`) on linux-musl-aarch64 because of the
-// compile error
-#[cfg(not(any(
-    all(target_os = "linux", target_env = "musl", target_arch = "aarch64"),
-    target_arch = "wasm32",
-    feature = "__internal_dhat-heap",
-    feature = "__internal_dhat-ad-hoc"
-)))]
+#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
 #[global_allocator]
-static ALLOC: turbopack_binding::turbo::malloc::TurboMalloc =
-    turbopack_binding::turbo::malloc::TurboMalloc;
+static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
+
+static LOG_THROTTLE: Mutex<Option<Instant>> = Mutex::new(None);
+static PANIC_LOG: Lazy<PathBuf> = Lazy::new(|| {
+    let mut path = env::temp_dir();
+    path.push(format!("next-panic-{:x}.log", rand::random::<u128>()));
+    path
+});
 
 #[cfg(feature = "__internal_dhat-heap")]
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
-static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
-    let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
-
-    Arc::new(Compiler::new(cm))
-});
-
 #[cfg(not(target_arch = "wasm32"))]
 #[napi::module_init]
+
 fn init() {
-    if cfg!(debug_assertions) || env::var("SWC_DEBUG").unwrap_or_default() == "1" {
-        set_hook(Box::new(|panic_info| {
-            let backtrace = Backtrace::new();
-            println!("Panic: {:?}\nBacktrace: {:?}", panic_info, backtrace);
-        }));
-    }
+    use std::{fs::OpenOptions, io};
+
+    set_hook(Box::new(|panic_info| {
+        // hold open this mutex guard to prevent concurrent writes to the file!
+        let mut last_error_time = LOG_THROTTLE.lock().unwrap();
+        if let Some(last_error_time) = last_error_time.as_ref() {
+            if last_error_time.elapsed().as_secs() < 1 {
+                // Throttle panic logging to once per second
+                return;
+            }
+        }
+        *last_error_time = Some(Instant::now());
+
+        let backtrace = Backtrace::new();
+        let info = format!("Panic: {}\nBacktrace: {:?}", panic_info, backtrace);
+        if cfg!(debug_assertions) || env::var("SWC_DEBUG") == Ok("1".to_string()) {
+            eprintln!("{}", info);
+        } else {
+            let size = std::fs::metadata(PANIC_LOG.as_path()).map(|m| m.len());
+            if let Ok(size) = size {
+                if size > 512 * 1024 {
+                    // Truncate the earliest error from log file if it's larger than 512KB
+                    let new_lines = {
+                        let log_read = OpenOptions::new()
+                            .read(true)
+                            .open(PANIC_LOG.as_path())
+                            .unwrap_or_else(|_| {
+                                panic!("Failed to open {}", PANIC_LOG.to_string_lossy())
+                            });
+
+                        io::BufReader::new(&log_read)
+                            .lines()
+                            .skip(1)
+                            .skip_while(|line| match line {
+                                Ok(line) => !line.starts_with("Panic:"),
+                                Err(_) => false,
+                            })
+                            .collect::<Vec<_>>()
+                    };
+
+                    let mut log_write = OpenOptions::new()
+                        .create(true)
+                        .truncate(true)
+                        .write(true)
+                        .open(PANIC_LOG.as_path())
+                        .unwrap_or_else(|_| {
+                            panic!("Failed to open {}", PANIC_LOG.to_string_lossy())
+                        });
+
+                    for line in new_lines {
+                        match line {
+                            Ok(line) => {
+                                writeln!(log_write, "{}", line).unwrap();
+                            }
+                            Err(_) => {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            let mut log_file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(PANIC_LOG.as_path())
+                .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
+
+            writeln!(log_file, "{}", info).unwrap();
+            eprintln!("{}: An unexpected Turbopack error occurred. Please report the content of {} to https://github.com/vercel/next.js/issues/new", "FATAL".red().bold(), PANIC_LOG.to_string_lossy());
+        }
+    }));
 }
 
 #[inline]
 fn get_compiler() -> Arc<Compiler> {
-    COMPILER.clone()
+    let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
+
+    Arc::new(Compiler::new(cm))
 }
 
 pub fn complete_output(

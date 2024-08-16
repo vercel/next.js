@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use napi::bindgen_prelude::*;
-use turbopack_binding::{
-    features::node_file_trace::{start, Args},
-    turbo::{tasks::TurboTasks, tasks_memory::MemoryBackend},
-    turbopack::turbopack::{
-        module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
-    },
+use node_file_trace::{start, Args};
+use turbo_tasks::TurboTasks;
+use turbo_tasks_memory::MemoryBackend;
+use turbopack::{
+    module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
+    resolve_options_context::ResolveOptionsContext,
 };
 
 #[napi]
@@ -31,7 +31,10 @@ pub async fn run_turbo_tracing(
         Arc::new(args),
         turbo_tasks.as_ref(),
         Some(ModuleOptionsContext {
-            enable_types: true,
+            ecmascript: EcmascriptOptionsContext {
+                enable_types: true,
+                ..Default::default()
+            },
             enable_mdx: true,
             ..Default::default()
         }),
@@ -40,5 +43,5 @@ pub async fn run_turbo_tracing(
         }),
     )
     .await?;
-    Ok(files)
+    Ok(files.into_iter().map(|f| f.to_string()).collect())
 }

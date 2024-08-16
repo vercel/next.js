@@ -1,9 +1,9 @@
-'use strict'
+"use strict";
 function loadSomethingWithDynamicImport(param) {
-  return import('something/'.concat(param)).then(function (r) {
-    return r.default
-  })
+    return import("something/".concat(param)).then(function(r) {
+        return r.default;
+    });
 }
 module.exports = {
-  loadSomethingWithDynamicImport: loadSomethingWithDynamicImport,
-}
+    loadSomethingWithDynamicImport: loadSomethingWithDynamicImport
+};

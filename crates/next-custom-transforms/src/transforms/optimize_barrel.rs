@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::DUMMY_SP,
     ecma::{ast::*, utils::private_ident, visit::Fold},
 };
@@ -264,8 +264,7 @@ impl Fold for OptimizeBarrel {
                     span: DUMMY_SP,
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: format!("__barrel_optimize__?names=__PLACEHOLDER__!=!{}", src)
-                            .into(),
+                        value: format!("__barrel_optimize__?names=__PLACEHOLDER__!=!{src}").into(),
                         raw: None,
                     }),
                     with: None,

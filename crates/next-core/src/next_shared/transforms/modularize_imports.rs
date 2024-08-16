@@ -3,24 +3,18 @@ use std::collections::HashMap;
 use anyhow::Result;
 use async_trait::async_trait;
 use indexmap::IndexMap;
+use modularize_imports::{modularize_imports, PackageConfig};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Vc};
-use turbopack_binding::{
-    swc::{
-        core::{
-            common::util::take::Take,
-            ecma::{
-                ast::{Module, Program},
-                visit::FoldWith,
-            },
-        },
-        custom_transform::modularize_imports::{self, modularize_imports, PackageConfig},
-    },
-    turbopack::{
-        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
-        turbopack::module_options::{ModuleRule, ModuleRuleEffect},
+use swc_core::{
+    common::util::take::Take,
+    ecma::{
+        ast::{Module, Program},
+        visit::FoldWith,
     },
 };
+use turbo_tasks::{trace::TraceRawVcs, Vc};
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
+use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
 use super::module_rule_match_js_no_url;
 
@@ -85,6 +79,8 @@ impl ModularizeImportsTransformer {
                             },
                             prevent_full_import: v.prevent_full_import,
                             skip_default_conversion: v.skip_default_conversion,
+                            handle_default_import: false,
+                            handle_namespace_import: false,
                         },
                     )
                 })
@@ -95,13 +91,12 @@ impl ModularizeImportsTransformer {
 
 #[async_trait]
 impl CustomTransformer for ModularizeImportsTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "modularize_imports", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
-        *program = p.fold_with(&mut modularize_imports(
-            turbopack_binding::swc::custom_transform::modularize_imports::Config {
-                packages: self.packages.clone(),
-            },
-        ));
+        *program = p.fold_with(&mut modularize_imports(modularize_imports::Config {
+            packages: self.packages.clone(),
+        }));
 
         Ok(())
     }

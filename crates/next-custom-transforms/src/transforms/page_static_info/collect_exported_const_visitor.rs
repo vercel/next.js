@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use serde_json::{Map, Number, Value};
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{Mark, SyntaxContext},
     ecma::{
         ast::{
@@ -101,8 +101,7 @@ fn extract_value(ctx: &ExprCtx, init: &Expr, id: String) -> Option<Const> {
                     Some(elem) => {
                         if elem.spread.is_some() {
                             return Some(Const::Unsupported(format!(
-                                "Unsupported spread operator in the Array Expression at \"{}\"",
-                                id
+                                "Unsupported spread operator in the Array Expression at \"{id}\""
                             )));
                         }
 
@@ -139,8 +138,7 @@ fn extract_value(ctx: &ExprCtx, init: &Expr, id: String) -> Option<Const> {
                             PropName::Str(s) => s.value.as_ref(),
                             _ => {
                                 return Some(Const::Unsupported(format!(
-                                    "Unsupported key type in the Object Expression at \"{}\"",
-                                    id
+                                    "Unsupported key type in the Object Expression at \"{id}\""
                                 )))
                             }
                         },
@@ -148,12 +146,11 @@ fn extract_value(ctx: &ExprCtx, init: &Expr, id: String) -> Option<Const> {
                     ),
                     _ => {
                         return Some(Const::Unsupported(format!(
-                            "Unsupported spread operator in the Object Expression at \"{}\"",
-                            id
+                            "Unsupported spread operator in the Object Expression at \"{id}\""
                         )))
                     }
                 };
-                let new_value = extract_value(ctx, value, format!("{}.{}", id, key));
+                let new_value = extract_value(ctx, value, format!("{id}.{key}"));
                 if let Some(Const::Unsupported(msg)) = new_value {
                     return Some(Const::Unsupported(msg));
                 }
@@ -169,8 +166,7 @@ fn extract_value(ctx: &ExprCtx, init: &Expr, id: String) -> Option<Const> {
             // [TODO] should we add support for `${'e'}d${'g'}'e'`?
             if !tpl.exprs.is_empty() {
                 Some(Const::Unsupported(format!(
-                    "Unsupported template literal with expressions at \"{}\".",
-                    id
+                    "Unsupported template literal with expressions at \"{id}\"."
                 )))
             } else {
                 Some(
@@ -196,15 +192,13 @@ fn extract_value(ctx: &ExprCtx, init: &Expr, id: String) -> Option<Const> {
                             ))
                         })
                         .unwrap_or(Const::Unsupported(format!(
-                            "Unsupported node type at \"{}\"",
-                            id
+                            "Unsupported node type at \"{id}\""
                         ))),
                 )
             }
         }
         _ => Some(Const::Unsupported(format!(
-            "Unsupported node type at \"{}\"",
-            id
+            "Unsupported node type at \"{id}\""
         ))),
     }
 }

@@ -1,3 +1,3 @@
-const foo = require('next/server')
+const foo = require('next/server');
 
-console.log(foo.bar)
+console.log(foo.bar);

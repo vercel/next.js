@@ -1,14 +1,14 @@
 // This is a comment.
-/* __next_internal_client_entry_do_not_use__ default auto */ 'use strict'
+/* __next_internal_client_entry_do_not_use__ default auto */ 'use strict';
 // This is a comment.
-'foo'
-import 'fs'
+'foo';
+import 'fs';
 // prettier-ignore
-;'bar';
+'bar';
 // This is a comment.
-1 + 1
+1 + 1;
 // prettier-ignore
-;'baz';
-export default function () {
-  return null
+'baz';
+export default function() {
+    return null;
 }

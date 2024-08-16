@@ -1,8 +1,8 @@
 export default function Page() {
-  return __jsx('div', null)
+    return __jsx("div", null);
 }
-const getInitialProps = (Page.getInitialProps = function getInitialProps() {
-  return {
-    prop: true,
-  }
-})
+const getInitialProps = Page.getInitialProps = function getInitialProps() {
+    return {
+        prop: true
+    };
+};

@@ -1,18 +1,14 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::page_config::page_config;
+use swc_core::{
+    common::util::take::Take,
+    ecma::{ast::*, visit::FoldWith},
+};
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::{
-    swc::core::{
-        common::util::take::Take,
-        ecma::{ast::*, visit::FoldWith},
-    },
-    turbopack::{
-        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
-        turbopack::module_options::{ModuleRule, ModuleRuleEffect},
-    },
-};
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
+use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
 use super::module_rule_match_pages_page_file;
 
@@ -40,6 +36,7 @@ struct NextPageConfig {
 
 #[async_trait]
 impl CustomTransformer for NextPageConfig {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_page_config", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
 

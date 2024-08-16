@@ -1,4 +1,4 @@
-export default 1
+export default 1;
 Object.defineProperty(exports, '__esModule', {
-  value: true,
-})
+    value: true
+});

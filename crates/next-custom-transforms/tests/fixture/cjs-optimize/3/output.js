@@ -1,3 +1,4 @@
-const Response = require('next/server/response').Response
-Response()
-Response.rewrite()
+const Response = require("next/server/response").Response;
+;
+Response();
+Response.rewrite();

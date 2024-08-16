@@ -1,8 +1,8 @@
 export const getStaticPaths = () => {
-  return []
-}
+  return [];
+};
 export const getStaticProps = function () {
   return {
     props: {},
-  }
-}
+  };
+};

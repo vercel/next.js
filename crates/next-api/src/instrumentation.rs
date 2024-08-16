@@ -6,24 +6,22 @@ use next_core::{
     next_server::{get_server_runtime_entries, ServerContextType},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, Value, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{File, FileContent},
-    turbopack::{
-        core::{
-            asset::AssetContent,
-            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
-            context::AssetContext,
-            module::Module,
-            output::{OutputAsset, OutputAssets},
-            reference_type::{EntryReferenceSubType, ReferenceType},
-            source::Source,
-            virtual_output::VirtualOutputAsset,
-        },
-        ecmascript::chunk::EcmascriptChunkPlaceable,
-        nodejs::EntryChunkGroupResult,
+use turbo_tasks::{Completion, RcStr, Value, Vc};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbopack_core::{
+    asset::AssetContent,
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult,
     },
+    context::AssetContext,
+    module::Module,
+    output::{OutputAsset, OutputAssets},
+    reference_type::{EntryReferenceSubType, ReferenceType},
+    source::Source,
+    virtual_output::VirtualOutputAsset,
 };
+use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
     paths::{
@@ -36,9 +34,12 @@ use crate::{
 #[turbo_tasks::value]
 pub struct InstrumentationEndpoint {
     project: Vc<Project>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
     is_edge: bool,
+
+    app_dir: Option<Vc<FileSystemPath>>,
+    ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -46,15 +47,19 @@ impl InstrumentationEndpoint {
     #[turbo_tasks::function]
     pub fn new(
         project: Vc<Project>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
         source: Vc<Box<dyn Source>>,
         is_edge: bool,
+        app_dir: Option<Vc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     ) -> Vc<Self> {
         Self {
             project,
-            context,
+            asset_context,
             source,
             is_edge,
+            app_dir,
+            ecmascript_client_reference_transition_name,
         }
         .cell()
     }
@@ -62,7 +67,7 @@ impl InstrumentationEndpoint {
     #[turbo_tasks::function]
     async fn edge_files(&self) -> Result<Vc<OutputAssets>> {
         let userland_module = self
-            .context
+            .asset_context
             .process(
                 self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
@@ -70,17 +75,21 @@ impl InstrumentationEndpoint {
             .module();
 
         let module = wrap_edge_entry(
-            self.context,
+            self.asset_context,
             self.project.project_path(),
             userland_module,
-            "instrumentation".to_string(),
+            "instrumentation".into(),
         );
 
         let mut evaluatable_assets = get_server_runtime_entries(
-            Value::new(ServerContextType::Middleware),
+            Value::new(ServerContextType::Instrumentation {
+                app_dir: self.app_dir,
+                ecmascript_client_reference_transition_name: self
+                    .ecmascript_client_reference_transition_name,
+            }),
             self.project.next_mode(),
         )
-        .resolve_entries(self.context)
+        .resolve_entries(self.asset_context)
         .await?
         .clone_value();
 
@@ -111,7 +120,7 @@ impl InstrumentationEndpoint {
         let chunking_context = self.project.server_chunking_context(false);
 
         let userland_module = self
-            .context
+            .asset_context
             .process(
                 self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
@@ -126,13 +135,17 @@ impl InstrumentationEndpoint {
             .entry_chunk_group(
                 self.project
                     .node_root()
-                    .join("server/instrumentation.js".to_string()),
+                    .join("server/instrumentation.js".into()),
                 module,
                 get_server_runtime_entries(
-                    Value::new(ServerContextType::Instrumentation),
+                    Value::new(ServerContextType::Instrumentation {
+                        app_dir: self.app_dir,
+                        ecmascript_client_reference_transition_name: self
+                            .ecmascript_client_reference_transition_name,
+                    }),
                     self.project.next_mode(),
                 )
-                .resolve_entries(self.context),
+                .resolve_entries(self.asset_context),
                 Value::new(AvailabilityInfo::Root),
             )
             .await?;
@@ -161,7 +174,7 @@ impl InstrumentationEndpoint {
             let instrumentation_definition = InstrumentationDefinition {
                 files: file_paths_from_root,
                 wasm: wasm_paths_to_bindings(wasm_paths_from_root),
-                name: "instrumentation".to_string(),
+                name: "instrumentation".into(),
                 ..Default::default()
             };
             let middleware_manifest_v2 = MiddlewaresManifestV2 {
@@ -169,7 +182,7 @@ impl InstrumentationEndpoint {
                 ..Default::default()
             };
             let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
-                node_root.join("server/instrumentation/middleware-manifest.json".to_string()),
+                node_root.join("server/instrumentation/middleware-manifest.json".into()),
                 AssetContent::file(
                     FileContent::Content(File::from(serde_json::to_string_pretty(
                         &middleware_manifest_v2,
@@ -194,6 +207,7 @@ impl Endpoint for InstrumentationEndpoint {
         async move {
             let this = self.await?;
             let output_assets = self.output_assets();
+            let _ = output_assets.resolve().await?;
             this.project
                 .emit_all_output_assets(Vc::cell(output_assets))
                 .await?;

@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use pathdiff::diff_paths;
-use swc_core::quote;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{errors::HANDLER, FileName, Span, DUMMY_SP},
     ecma::{
         ast::{
@@ -14,6 +13,7 @@ use turbopack_binding::swc::core::{
         utils::{private_ident, quote_ident, ExprFactory},
         visit::{Fold, FoldWith},
     },
+    quote,
 };
 
 /// Creates a SWC visitor to transform `next/dynamic` calls to have the
@@ -66,12 +66,11 @@ pub enum NextDynamicMode {
     /// the React Loadable Webpack plugin.
     Webpack,
     /// In Turbopack mode:
-    /// * in development, each `dynamic()` call will generate a key containing
-    ///   both the imported module id and the chunks it needs. This removes the
-    ///   need for a manifest entry
-    /// * during build, each `dynamic()` call will import the module through the
-    ///   given transition, which takes care of adding an entry to the manifest
-    ///   and returning an asset that exports the entry's key.
+    /// * in development, each `dynamic()` call will generate a key containing both the imported
+    ///   module id and the chunks it needs. This removes the need for a manifest entry
+    /// * during build, each `dynamic()` call will import the module through the given transition,
+    ///   which takes care of adding an entry to the manifest and returning an asset that exports
+    ///   the entry's key.
     Turbopack { dynamic_transition_name: String },
 }
 
@@ -488,7 +487,7 @@ impl NextDynamicPatcher {
             return;
         };
 
-        let mut new_items = Vec::with_capacity(imports.len() * 2);
+        let mut new_items = Vec::with_capacity(imports.len());
 
         for import in std::mem::take(imports) {
             match import {
@@ -497,14 +496,6 @@ impl NextDynamicPatcher {
                     chunks_ident,
                     specifier,
                 } => {
-                    // The transition should return both the target module's id
-                    // and the chunks it needs to run.
-                    new_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                        span: DUMMY_SP,
-                        expr: Box::new(Expr::Lit(Lit::Str(
-                            format!("TURBOPACK {{ transition: {dynamic_transition_name} }}").into(),
-                        ))),
-                    })));
                     new_items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                         span: DUMMY_SP,
                         specifiers: vec![
@@ -521,7 +512,9 @@ impl NextDynamicPatcher {
                         ],
                         src: Box::new(specifier.into()),
                         type_only: false,
-                        with: None,
+                        // The transition should return both the target module's id
+                        // and the chunks it needs to run.
+                        with: Some(with_transition(dynamic_transition_name)),
                         phase: Default::default(),
                     })));
                 }
@@ -529,11 +522,6 @@ impl NextDynamicPatcher {
                     id_ident,
                     specifier,
                 } => {
-                    // We don't want this import to cause the imported module to be considered for
-                    // chunking through this import; we only need the module id.
-                    new_items.push(quote!(
-                        "\"TURBOPACK { chunking-type: none }\";" as ModuleItem
-                    ));
                     // Turbopack will automatically transform the imported `__turbopack_module_id__`
                     // identifier into the imported module's id.
                     new_items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
@@ -548,7 +536,10 @@ impl NextDynamicPatcher {
                         })],
                         src: Box::new(specifier.into()),
                         type_only: false,
-                        with: None,
+                        // We don't want this import to cause the imported module to be considered
+                        // for chunking through this import; we only need
+                        // the module id.
+                        with: Some(with_chunking_type("none")),
                         phase: Default::default(),
                     })));
                 }
@@ -556,14 +547,6 @@ impl NextDynamicPatcher {
                     id_ident,
                     specifier,
                 } => {
-                    // The transition should make sure the imported module ends up in the dynamic
-                    // manifest.
-                    new_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                        span: DUMMY_SP,
-                        expr: Box::new(Expr::Lit(Lit::Str(
-                            format!("TURBOPACK {{ transition: {dynamic_transition_name} }}").into(),
-                        ))),
-                    })));
                     // Turbopack will automatically transform the imported `__turbopack_module_id__`
                     // identifier into the imported module's id.
                     new_items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
@@ -578,7 +561,9 @@ impl NextDynamicPatcher {
                         })],
                         src: Box::new(specifier.into()),
                         type_only: false,
-                        with: None,
+                        // The transition should make sure the imported module ends up in the
+                        // dynamic manifest.
+                        with: Some(with_transition(dynamic_transition_name)),
                         phase: Default::default(),
                     })));
                 }
@@ -586,11 +571,6 @@ impl NextDynamicPatcher {
                     id_ident,
                     specifier,
                 } => {
-                    // We don't want this import to cause the imported module to be considered for
-                    // chunking through this import; we only need the module id.
-                    new_items.push(quote!(
-                        "\"TURBOPACK { chunking-type: none }\";" as ModuleItem
-                    ));
                     // Turbopack will automatically transform the imported `__turbopack_module_id__`
                     // identifier into the imported module's id.
                     new_items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
@@ -605,7 +585,10 @@ impl NextDynamicPatcher {
                         })],
                         src: Box::new(specifier.into()),
                         type_only: false,
-                        with: None,
+                        // We don't want this import to cause the imported module to be considered
+                        // for chunking through this import; we only need
+                        // the module id.
+                        with: Some(with_chunking_type("none")),
                         phase: Default::default(),
                     })));
                 }
@@ -670,4 +653,26 @@ fn rel_filename(base: Option<&Path>, file: &FileName) -> String {
     };
 
     rel_path.display().to_string()
+}
+
+fn with_chunking_type(chunking_type: &str) -> Box<ObjectLit> {
+    with_clause(&[("chunking-type", chunking_type)])
+}
+
+fn with_transition(transition_name: &str) -> Box<ObjectLit> {
+    with_clause(&[("transition", transition_name)])
+}
+
+fn with_clause<'a>(entries: impl IntoIterator<Item = &'a (&'a str, &'a str)>) -> Box<ObjectLit> {
+    Box::new(ObjectLit {
+        span: DUMMY_SP,
+        props: entries.into_iter().map(|(k, v)| with_prop(k, v)).collect(),
+    })
+}
+
+fn with_prop(key: &str, value: &str) -> PropOrSpread {
+    PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+        key: PropName::Str(key.into()),
+        value: Box::new(Expr::Lit(value.into())),
+    })))
 }

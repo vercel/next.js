@@ -1,17 +1,12 @@
 use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks::{TaskInput, Vc};
-use turbopack_binding::{
-    turbo::tasks::Value,
-    turbopack::{
-        core::{
-            context::AssetContext, module::Module, reference_type::ReferenceType,
-            resolve::ModulePart, source::Source,
-        },
-        r#static::StaticModuleAsset,
-        turbopack::{module_options::CustomModuleType, ModuleAssetContext},
-    },
+use turbo_tasks::{TaskInput, Value, Vc};
+use turbopack::{module_options::CustomModuleType, ModuleAssetContext};
+use turbopack_core::{
+    context::AssetContext, module::Module, reference_type::ReferenceType, resolve::ModulePart,
+    source::Source,
 };
+use turbopack_static::StaticModuleAsset;
 
 use super::source_asset::StructuredImageFileSource;
 
@@ -44,10 +39,10 @@ impl StructuredImageModuleType {
     pub(crate) async fn create_module(
         source: Vc<Box<dyn Source>>,
         blur_placeholder_mode: BlurPlaceholderMode,
-        context: Vc<ModuleAssetContext>,
+        module_asset_context: Vc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let static_asset = StaticModuleAsset::new(source, Vc::upcast(context));
-        let module = context
+        let static_asset = StaticModuleAsset::new(source, Vc::upcast(module_asset_context));
+        let module = module_asset_context
             .process(
                 Vc::upcast(
                     StructuredImageFileSource {
@@ -57,7 +52,7 @@ impl StructuredImageModuleType {
                     .cell(),
                 ),
                 Value::new(ReferenceType::Internal(Vc::cell(indexmap!(
-                    "IMAGE".to_string() => Vc::upcast(static_asset)
+                    "IMAGE".into() => Vc::upcast(static_asset)
                 )))),
             )
             .module();
@@ -78,9 +73,13 @@ impl CustomModuleType for StructuredImageModuleType {
     fn create_module(
         &self,
         source: Vc<Box<dyn Source>>,
-        context: Vc<ModuleAssetContext>,
+        module_asset_context: Vc<ModuleAssetContext>,
         _part: Option<Vc<ModulePart>>,
     ) -> Vc<Box<dyn Module>> {
-        StructuredImageModuleType::create_module(source, self.blur_placeholder_mode, context)
+        StructuredImageModuleType::create_module(
+            source,
+            self.blur_placeholder_mode,
+            module_asset_context,
+        )
     }
 }
