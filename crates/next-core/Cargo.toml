@@ -32,8 +32,8 @@ lazy_static = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 rustc-hash = { workspace = true }
-react_remove_properties = "0.24.15"
-remove_console = "0.25.15"
+react_remove_properties = "0.24.17"
+remove_console = "0.25.17"
 
 auto-hash-map = { workspace = true }
 

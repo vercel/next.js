@@ -701,8 +701,7 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
       : "\n  " + str;
 }
 var ObjectPrototype = Object.prototype,
-  stringify = JSON.stringify,
-  AbortSigil = {};
+  stringify = JSON.stringify;
 function defaultErrorHandler(error) {
   console.error(error);
 }
@@ -769,6 +768,8 @@ function serializeThenable(request, task, thenable) {
       return (
         (task = logRecoverableError(request, thenable.reason, null)),
         emitErrorChunk(request, newTask.id, task),
+        (newTask.status = 4),
+        request.abortableTasks.delete(newTask),
         newTask.id
       );
     default:
@@ -800,9 +801,9 @@ function serializeThenable(request, task, thenable) {
       pingTask(request, newTask);
     },
     function (reason) {
-      newTask.status = 4;
       reason = logRecoverableError(request, reason, newTask);
       emitErrorChunk(request, newTask.id, reason);
+      newTask.status = 4;
       request.abortableTasks.delete(newTask);
       enqueueFlush(request);
     }
@@ -960,13 +961,22 @@ function createLazyWrapperAroundWakeable(wakeable) {
   }
   return { $$typeof: REACT_LAZY_TYPE, _payload: wakeable, _init: readThenable };
 }
+function voidHandler() {}
 function renderFunctionComponent(request, task, key, Component, props) {
   var prevThenableState = task.thenableState;
   task.thenableState = null;
   thenableIndexCounter = 0;
   thenableState = prevThenableState;
   Component = Component(props, void 0);
-  if (1 === request.status) throw AbortSigil;
+  if (1 === request.status)
+    throw (
+      ("object" === typeof Component &&
+        null !== Component &&
+        "function" === typeof Component.then &&
+        Component.$$typeof !== CLIENT_REFERENCE_TAG$1 &&
+        Component.then(voidHandler, voidHandler),
+      null)
+    );
   if (
     "object" === typeof Component &&
     null !== Component &&
@@ -1057,7 +1067,7 @@ function renderElement(request, task, type, key, ref, props) {
       case REACT_LAZY_TYPE:
         var init = type._init;
         type = init(type._payload);
-        if (1 === request.status) throw AbortSigil;
+        if (1 === request.status) throw null;
         return renderElement(request, task, type, key, ref, props);
       case REACT_FORWARD_REF_TYPE:
         return renderFunctionComponent(request, task, key, type.render, props);
@@ -1151,7 +1161,7 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
               : serializeByValueID(JSCompiler_inline_result.id);
           }
         else
-          thrownValue === AbortSigil
+          1 === request.status
             ? ((task.status = 3),
               (prevKeyPath = request.fatalError),
               (JSCompiler_inline_result = parentPropertyName
@@ -1329,7 +1339,7 @@ function renderModelDestructive(
         task.thenableState = null;
         parentPropertyName = value._init;
         value = parentPropertyName(value._payload);
-        if (1 === request.status) throw AbortSigil;
+        if (1 === request.status) throw null;
         return renderModelDestructive(request, task, emptyRoot, "", value);
       case REACT_LEGACY_ELEMENT_TYPE:
         throw Error(
@@ -1707,7 +1717,7 @@ function retryTask(request, task) {
           var ping = task.ping;
           x.then(ping, ping);
         }
-      else if (x === AbortSigil) {
+      else if (1 === request.status) {
         request.abortableTasks.delete(task);
         task.status = 3;
         var model$19 = stringify(serializeByValueID(request.fatalError));
@@ -1799,7 +1809,7 @@ function enqueueFlush(request) {
 }
 function abort(request, reason) {
   try {
-    request.status = 1;
+    0 === request.status && (request.status = 1);
     var abortableTasks = request.abortableTasks;
     if (0 < abortableTasks.size) {
       request.pendingChunks++;
