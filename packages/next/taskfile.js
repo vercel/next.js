@@ -1,3 +1,5 @@
+import { outdent } from 'outdent'
+
 const { relative, basename, resolve, join, dirname } = require('path')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const glob = require('glob')
@@ -1650,21 +1652,24 @@ export async function copy_vendor_react(task_) {
             filepath
           )
         ) {
-          // replace `setTimeout` with `setImmediate` if available
+          // FIXME: we need this hack until we can use the Node build of 'react-dom/server'
           //
-          // We expect all `setTimeout` calls to be of the form
+          // We're currently using the Edge build of 'react-dom/server' everywhere.
+          // But if we're in Node, we want to change the implementation of `scheduleWork` from the Edge one:
+          //   https://github.com/facebook/react/blob/19bd26beb689e554fceb0b929dc5199be8cba594/packages/react-server/src/ReactServerStreamConfigEdge.js#L31-L33
+          // to the Node one:
+          //   https://github.com/facebook/react/blob/19bd26beb689e554fceb0b929dc5199be8cba594/packages/react-server/src/ReactServerStreamConfigNode.js#L25-L27
+          // for performance and correctness reasons (e.g. in DynamicIO).
+          //
+          // Since `scheduleWork` is inlined, we have to convert `setTimeout` calls like this
           //   setTimeout(() => ..., 0)
-          // because that's how `scheduleWork` is defined:
-          // https://github.com/facebook/react/blob/19bd26beb689e554fceb0b929dc5199be8cba594/packages/react-server/src/ReactServerStreamConfigEdge.js#L31-L33
-          //
-          // This replacement means that instead we might call
+          // into this:
           //   setImmediate(() => ..., 0)
-          // so technically we'll pass 0 in as the first argument.
-          // but this is always safe, because the callbacks passed to `createWork`
-          // cannot take any arguments.
+          //
+          // This should be safe unless React starts using `setTimeout(() => ..., 0)` as "wait for the next macrotask" somewhere.
 
-          // note: we have to replace these before inserting `setTimeoutOrImmediate`,
-          // otherwise we'd break its definition!
+          // NOTE: we have to replace these before inserting the definition of `setTimeoutOrImmediate`,
+          // otherwise we'd break it!
           newSource = newSource.replaceAll(
             `setTimeout`,
             `setTimeoutOrImmediate`
@@ -1677,7 +1682,36 @@ export async function copy_vendor_react(task_) {
               `Cannot find insertion point for setTimeoutOrImmediate in ${filepath}`
             )
           }
-          const toInsert = `\n;const setTimeoutOrImmediate = typeof setImmediate === 'function' ? setImmediate : setTimeout;\n`
+
+          const toInsert =
+            '\n\n' +
+            outdent`
+/** This is a patch added by Next.js */
+const setTimeoutOrImmediate = (() => {
+  // edge runtime sandbox defines a stub for setImmediate
+  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+  // so we can't just do this:
+  //   typeof setImmediate === 'function'
+  // luckily it makes it non-enumerable, so we can use this instead
+  const _setImmediate = Object.keys(globalThis).includes("setImmediate")
+    ? globalThis["set" + "Immediate"]
+    : undefined;
+
+  if (typeof _setImmediate === "function") {
+    return function setTimeoutOrImmediateImpl(cb, dur = 0, ...args) {
+      if (dur === 0 && args.length === 0) {
+        // likely a scheduleWork call
+        return _setImmediate(cb);
+      }
+      return setTimeout(cb, dur, ...args);
+    };
+  }
+
+  return setTimeout;
+})();
+          ` +
+            '\n\n'
+
           newSource =
             newSource.slice(0, insertionPoint) +
             toInsert +

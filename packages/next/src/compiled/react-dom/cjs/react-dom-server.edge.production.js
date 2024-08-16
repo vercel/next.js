@@ -6043,5 +6043,29 @@ exports.renderToReadableStream = function (children, options) {
   });
 };
 
-;const setTimeoutOrImmediate = typeof setImmediate === 'function' ? setImmediate : setTimeout;
+
+/** This is a patch added by Next.js */
+const setTimeoutOrImmediate = (() => {
+  // edge runtime sandbox defines a stub for setImmediate
+  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+  // so we can't just do this:
+  //   typeof setImmediate === 'function'
+  // luckily it makes it non-enumerable, so we can use this instead
+  const _setImmediate = Object.keys(globalThis).includes("setImmediate")
+    ? globalThis["set" + "Immediate"]
+    : undefined;
+
+  if (typeof _setImmediate === "function") {
+    return function setTimeoutOrImmediateImpl(cb, dur = 0, ...args) {
+      if (dur === 0 && args.length === 0) {
+        // likely a scheduleWork call
+        return _setImmediate(cb);
+      }
+      return setTimeout(cb, dur, ...args);
+    };
+  }
+
+  return setTimeout;
+})();
+
 exports.version = "19.0.0-rc-49496d49-20240814";
