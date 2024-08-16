@@ -15019,12 +15019,11 @@
         "Telemetry CLI production mode detect static 404 correctly for `next build`",
         "Telemetry CLI production mode detects correct cli session defaults",
         "Telemetry CLI production mode detects tests correctly for `next build`",
-        "Telemetry CLI production mode emits event when swc fails to load"
-      ],
-      "failed": [
+        "Telemetry CLI production mode emits event when swc fails to load",
         "Telemetry CLI production mode detects isSrcDir dir correctly for `next build`",
         "Telemetry CLI production mode logs completed `next build` with warnings"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
