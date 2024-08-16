@@ -100,11 +100,13 @@ import {
 } from '../telemetry/events'
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
+import { hadUnsupportedValue } from './analysis/get-page-static-info'
 import {
-  getPageStaticInfo,
-  hadUnsupportedValue,
-} from './analysis/get-page-static-info'
-import { createPagesMapping, getPageFromPath, sortByPageExts } from './entries'
+  createPagesMapping,
+  getPageFromPath,
+  getStaticInfoIncludingLayouts,
+  sortByPageExts,
+} from './entries'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -2018,13 +2020,19 @@ export default async function build(
                       pagePath
                     )
 
+                const isInsideAppDir = pageType === 'app'
                 const staticInfo = pagePath
-                  ? await getPageStaticInfo({
+                  ? await getStaticInfoIncludingLayouts({
+                      isInsideAppDir,
                       pageFilePath,
-                      nextConfig: config,
-                      // TODO: fix type mismatch
-                      pageType:
-                        pageType === 'app' ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
+                      pageExtensions: config.pageExtensions,
+                      appDir,
+                      config,
+                      isDev: false,
+                      // If this route is an App Router page route, inherit the
+                      // route segment configs (e.g. `runtime`) from the layout by
+                      // passing the `originalAppPath`, which should end with `/page`.
+                      page: isInsideAppDir ? originalAppPath! : page,
                     })
                   : undefined
 

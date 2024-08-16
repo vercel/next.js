@@ -56,8 +56,8 @@ where
                 // [Note]: this seems to create duplicated chunks for the same module to the original import() call
                 // and the explicit chunk we ask in here. So there'll be at least 2
                 // chunks for the same module, relying on
-                // naive hash to have additonal
-                // chunks in case if there are same modules being imported in differnt
+                // naive hash to have additional
+                // chunks in case if there are same modules being imported in different
                 // origins.
                 let chunk_group = build_chunk(module).await?;
                 chunks_hash.insert(imported_raw_str.clone(), chunk_group);

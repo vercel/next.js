@@ -48,7 +48,7 @@
                 Ident,
             ),
         ],
-        span: 18..20#1,
+        span: 18..20,
         in_try: false,
     },
     Call {
@@ -92,7 +92,7 @@
                 Call,
             ),
         ],
-        span: 18..22#0,
+        span: 18..22,
         in_try: false,
     },
     Unreachable {
@@ -190,7 +190,7 @@
                 Ident,
             ),
         ],
-        span: 82..84#1,
+        span: 82..84,
         in_try: false,
     },
     Call {
@@ -248,7 +248,7 @@
                 Call,
             ),
         ],
-        span: 82..86#0,
+        span: 82..86,
         in_try: false,
     },
     Unreachable {
@@ -398,7 +398,7 @@
                 Ident,
             ),
         ],
-        span: 151..153#1,
+        span: 151..153,
         in_try: false,
     },
     Call {
@@ -456,7 +456,7 @@
                 Call,
             ),
         ],
-        span: 151..155#0,
+        span: 151..155,
         in_try: false,
     },
     Unreachable {
@@ -606,7 +606,7 @@
                 Ident,
             ),
         ],
-        span: 241..243#1,
+        span: 241..243,
         in_try: false,
     },
     Call {
@@ -664,7 +664,7 @@
                 Call,
             ),
         ],
-        span: 241..245#0,
+        span: 241..245,
         in_try: false,
     },
     Unreachable {
@@ -814,7 +814,7 @@
                 Ident,
             ),
         ],
-        span: 325..327#1,
+        span: 325..327,
         in_try: false,
     },
     Call {
@@ -872,7 +872,7 @@
                 Call,
             ),
         ],
-        span: 325..329#0,
+        span: 325..329,
         in_try: false,
     },
     Unreachable {
@@ -1022,7 +1022,7 @@
                 Ident,
             ),
         ],
-        span: 409..411#1,
+        span: 409..411,
         in_try: false,
     },
     Call {
@@ -1080,7 +1080,7 @@
                 Call,
             ),
         ],
-        span: 409..413#0,
+        span: 409..413,
         in_try: false,
     },
     Unreachable {
@@ -1227,7 +1227,7 @@
                 Ident,
             ),
         ],
-        span: 479..481#1,
+        span: 479..481,
         in_try: true,
     },
     Call {
@@ -1282,7 +1282,7 @@
                 Call,
             ),
         ],
-        span: 479..483#0,
+        span: 479..483,
         in_try: true,
     },
     Unreachable {
@@ -1391,7 +1391,7 @@
                 Ident,
             ),
         ],
-        span: 527..529#1,
+        span: 527..529,
         in_try: false,
     },
     Call {
@@ -1449,7 +1449,7 @@
                 Call,
             ),
         ],
-        span: 527..531#0,
+        span: 527..531,
         in_try: false,
     },
     FreeVar {
@@ -1529,7 +1529,7 @@
                 Ident,
             ),
         ],
-        span: 579..581#1,
+        span: 579..581,
         in_try: false,
     },
     Call {
@@ -1601,7 +1601,7 @@
                 Call,
             ),
         ],
-        span: 579..583#0,
+        span: 579..583,
         in_try: false,
     },
     Unreachable {
@@ -1713,7 +1713,7 @@
                 Ident,
             ),
         ],
-        span: 614..616#1,
+        span: 614..616,
         in_try: false,
     },
     Call {
@@ -1757,7 +1757,7 @@
                 Call,
             ),
         ],
-        span: 614..618#0,
+        span: 614..618,
         in_try: false,
     },
 ]

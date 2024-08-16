@@ -22,8 +22,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::mpsc::channel;
 use turbo_tasks::{
-    backend::Backend, util::FormatDuration, RcStr, TaskId, TransientInstance, TransientValue,
-    TurboTasks, UpdateInfo, Value, Vc,
+    backend::Backend, util::FormatDuration, RcStr, ReadConsistency, TaskId, TransientInstance,
+    TransientValue, TurboTasks, UpdateInfo, Value, Vc,
 };
 use turbo_tasks_fs::{
     glob::Glob, DirectoryEntry, DiskFileSystem, FileSystem, FileSystemPath, ReadGlobResult,
@@ -407,7 +407,10 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
     let start = Instant::now();
     let finish = |tt: Arc<TurboTasks<B>>, root_task: TaskId| async move {
         if watch {
-            if let Err(e) = tt.wait_task_completion(root_task, true).await {
+            if let Err(e) = tt
+                .wait_task_completion(root_task, ReadConsistency::Strong)
+                .await
+            {
                 println!("{}", e);
             }
             let UpdateInfo {
@@ -431,7 +434,9 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                 println!("updated {} tasks in {}", tasks, FormatDuration(duration));
             }
         } else {
-            let result = tt.wait_task_completion(root_task, true).await;
+            let result = tt
+                .wait_task_completion(root_task, ReadConsistency::Strong)
+                .await;
             let dur = start.elapsed();
             let UpdateInfo {
                 duration, tasks, ..
