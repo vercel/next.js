@@ -246,7 +246,6 @@ impl BackingStorage for LmdbBackingStorage {
                 .into_iter()
                 .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
                 .collect();
-            println!("Store {task_id}: {vec:?}");
             let value = match bincode::serialize(&vec) {
                 // Ok(value) => value,
                 Ok(_) | Err(_) => {
