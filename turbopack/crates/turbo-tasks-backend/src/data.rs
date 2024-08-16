@@ -46,7 +46,6 @@ pub enum RootType {
 pub enum InProgressState {
     Scheduled {
         done_event: Event,
-        start_event: Event,
     },
     InProgress {
         stale: bool,
@@ -244,27 +243,23 @@ impl CachedDataItem {
         }
     }
 
-    pub fn new_scheduled(task_id: TaskId) -> Self {
+    pub fn new_scheduled(description: impl Fn() -> String + Sync + Send + 'static) -> Self {
         CachedDataItem::InProgress {
             value: InProgressState::Scheduled {
-                done_event: Event::new(move || format!("{} done_event", task_id)),
-                start_event: Event::new(move || format!("{} start_event", task_id)),
+                done_event: Event::new(move || format!("{} done_event", description())),
             },
         }
     }
 
     pub fn new_scheduled_with_listener(
-        task_id: TaskId,
+        description: impl Fn() -> String + Sync + Send + 'static,
         note: impl Fn() -> String + Sync + Send + 'static,
     ) -> (Self, EventListener) {
-        let done_event = Event::new(move || format!("{} done_event", task_id));
+        let done_event = Event::new(move || format!("{} done_event", description()));
         let listener = done_event.listen_with_note(note);
         (
             CachedDataItem::InProgress {
-                value: InProgressState::Scheduled {
-                    done_event,
-                    start_event: Event::new(move || format!("{} start_event", task_id)),
-                },
+                value: InProgressState::Scheduled { done_event },
             },
             listener,
         )
