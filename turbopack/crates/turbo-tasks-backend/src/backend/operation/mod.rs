@@ -143,6 +143,7 @@ impl<'a> TaskGuard<'a> {
         self.task_id
     }
 
+    #[must_use]
     pub fn add(&mut self, item: CachedDataItem) -> bool {
         if self.task_id.is_transient() || !item.is_persistent() {
             self.task.add(item)
@@ -161,6 +162,11 @@ impl<'a> TaskGuard<'a> {
         } else {
             false
         }
+    }
+
+    pub fn add_new(&mut self, item: CachedDataItem) {
+        let added = self.add(item);
+        assert!(added, "Item already exists");
     }
 
     pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
