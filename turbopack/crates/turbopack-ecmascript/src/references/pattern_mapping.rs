@@ -112,7 +112,7 @@ impl SinglePatternMapping {
                     expr: Box::new(self.create_id(key_expr)),
                 }],
                 span: DUMMY_SP,
-                ..Default::default()
+                type_args: None,
             }),
             Self::External(request, ExternalType::CommonJs) => Expr::Call(CallExpr {
                 callee: Callee::Expr(quote_expr!("__turbopack_external_require__")),
@@ -121,7 +121,7 @@ impl SinglePatternMapping {
                     expr: request.as_str().into(),
                 }],
                 span: DUMMY_SP,
-                ..Default::default()
+                type_args: None,
             }),
             Self::External(request, ty) => throw_module_not_found_error_expr(
                 request,
@@ -144,7 +144,7 @@ impl SinglePatternMapping {
                         expr: error,
                     }],
                     span: DUMMY_SP,
-                    ..Default::default()
+                    type_args: None,
                 })
             }
             Self::Unresolveable(_) => self.create_id(key_expr),
@@ -157,7 +157,7 @@ impl SinglePatternMapping {
                             expr: Box::new(key_expr.into_owned()),
                         }],
                         span: DUMMY_SP,
-                        ..Default::default()
+                        type_args: None,
                     })
                 } else {
                     Expr::Call(CallExpr {
@@ -170,7 +170,7 @@ impl SinglePatternMapping {
                             ),
                         }],
                         span: DUMMY_SP,
-                        ..Default::default()
+                        type_args: None,
                     })
                 }
             }
@@ -184,7 +184,7 @@ impl SinglePatternMapping {
                     ),
                 }],
                 span: DUMMY_SP,
-                ..Default::default()
+                type_args: None,
             }),
             #[allow(unreachable_patterns)]
             Self::External(request, ty) => throw_module_not_found_error_expr(
@@ -204,7 +204,7 @@ impl SinglePatternMapping {
                     expr: quote_expr!("__turbopack_import__"),
                 }],
                 span: DUMMY_SP,
-                ..Default::default()
+                type_args: None,
             }),
             Self::Ignored => {
                 quote!("Promise.resolve({})" as Expr)
@@ -219,7 +219,7 @@ impl SinglePatternMapping {
                     ),
                 }],
                 span: DUMMY_SP,
-                ..Default::default()
+                type_args: None,
             }),
         }
     }

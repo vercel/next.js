@@ -40,7 +40,7 @@
                 Member,
             ),
         ],
-        span: 75..83,
+        span: 75..83#0,
         in_try: false,
     },
     Member {
@@ -84,7 +84,7 @@
                 Member,
             ),
         ],
-        span: 96..107,
+        span: 96..107#0,
         in_try: false,
     },
     Member {
@@ -128,7 +128,7 @@
                 Member,
             ),
         ],
-        span: 120..128,
+        span: 120..128#0,
         in_try: false,
     },
     Member {
@@ -172,7 +172,7 @@
                 Member,
             ),
         ],
-        span: 141..152,
+        span: 141..152#0,
         in_try: false,
     },
     Member {
@@ -216,7 +216,7 @@
                 Member,
             ),
         ],
-        span: 165..173,
+        span: 165..173#0,
         in_try: false,
     },
     Member {
@@ -260,7 +260,7 @@
                 Member,
             ),
         ],
-        span: 186..197,
+        span: 186..197#0,
         in_try: false,
     },
     Member {
@@ -304,7 +304,7 @@
                 Member,
             ),
         ],
-        span: 210..218,
+        span: 210..218#0,
         in_try: false,
     },
     Member {
@@ -348,7 +348,7 @@
                 Member,
             ),
         ],
-        span: 231..242,
+        span: 231..242#0,
         in_try: false,
     },
     Member {
@@ -392,7 +392,7 @@
                 Member,
             ),
         ],
-        span: 308..323,
+        span: 308..323#0,
         in_try: false,
     },
     Member {
@@ -436,7 +436,7 @@
                 Member,
             ),
         ],
-        span: 336..351,
+        span: 336..351#0,
         in_try: false,
     },
     Member {
@@ -480,7 +480,7 @@
                 Member,
             ),
         ],
-        span: 364..379,
+        span: 364..379#0,
         in_try: false,
     },
     Member {
@@ -524,7 +524,7 @@
                 Member,
             ),
         ],
-        span: 392..407,
+        span: 392..407#0,
         in_try: false,
     },
     FreeVar {
@@ -572,7 +572,7 @@
                 Ident,
             ),
         ],
-        span: 548..554,
+        span: 548..554#1,
         in_try: false,
     },
     Member {
@@ -616,7 +616,7 @@
                 Member,
             ),
         ],
-        span: 576..592,
+        span: 576..592#0,
         in_try: false,
     },
     Member {
@@ -660,7 +660,7 @@
                 Member,
             ),
         ],
-        span: 605..621,
+        span: 605..621#0,
         in_try: false,
     },
     Member {
@@ -704,7 +704,7 @@
                 Member,
             ),
         ],
-        span: 634..650,
+        span: 634..650#0,
         in_try: false,
     },
     FreeVar {
@@ -761,7 +761,7 @@
                 Ident,
             ),
         ],
-        span: 678..684,
+        span: 678..684#1,
         in_try: false,
     },
     FreeVar {
@@ -818,7 +818,7 @@
                 Ident,
             ),
         ],
-        span: 697..703,
+        span: 697..703#1,
         in_try: false,
     },
     Member {
@@ -862,7 +862,7 @@
                 Member,
             ),
         ],
-        span: 728..737,
+        span: 728..737#0,
         in_try: false,
     },
     Member {
@@ -906,7 +906,7 @@
                 Member,
             ),
         ],
-        span: 750..759,
+        span: 750..759#0,
         in_try: false,
     },
     Member {
@@ -950,7 +950,7 @@
                 Member,
             ),
         ],
-        span: 772..781,
+        span: 772..781#0,
         in_try: false,
     },
     Member {
@@ -994,7 +994,7 @@
                 Member,
             ),
         ],
-        span: 794..803,
+        span: 794..803#0,
         in_try: false,
     },
     Member {
@@ -1038,7 +1038,7 @@
                 Member,
             ),
         ],
-        span: 816..825,
+        span: 816..825#0,
         in_try: false,
     },
 ]

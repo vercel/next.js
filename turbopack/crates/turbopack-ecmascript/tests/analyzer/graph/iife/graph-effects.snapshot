@@ -30,7 +30,7 @@
                 Ident,
             ),
         ],
-        span: 9..16,
+        span: 9..16#1,
         in_try: false,
     },
     Conditional {
@@ -126,7 +126,7 @@
                                 Call,
                             ),
                         ],
-                        span: 153..162,
+                        span: 153..162#0,
                         in_try: false,
                     },
                 ],
@@ -236,7 +236,7 @@
                 Test,
             ),
         ],
-        span: 137..167,
+        span: 137..167#0,
         in_try: false,
     },
 ]

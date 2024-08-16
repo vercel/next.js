@@ -263,7 +263,7 @@ mod tests {
             };
 
             let fm = c.cm.new_source_file(
-                swc_core::common::FileName::Real(PathBuf::from(file_path.to_string())).into(),
+                swc_core::common::FileName::Real(PathBuf::from(file_path.to_string())),
                 contents.to_string(),
             );
 

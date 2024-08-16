@@ -429,7 +429,7 @@ impl CodeGenerateable for EsmExports {
 
             dynamic_exports.push(quote_expr!(
                 "__turbopack_dynamic__($arg)",
-                arg: Expr = Ident::new(ident.into(), DUMMY_SP, Default::default()).into()
+                arg: Expr = Ident::new(ident.into(), DUMMY_SP).into()
             ));
         }
 
@@ -443,17 +443,13 @@ impl CodeGenerateable for EsmExports {
                     if *mutable {
                         Some(quote!(
                             "([() => $local, ($new) => $local = $new])" as Expr,
-                            local = Ident::new((name as &str).into(), DUMMY_SP, Default::default()),
-                            new = Ident::new(
-                                format!("{name}_new_value").into(),
-                                DUMMY_SP,
-                                Default::default()
-                            ),
+                            local = Ident::new((name as &str).into(), DUMMY_SP),
+                            new = Ident::new(format!("{name}_new_value").into(), DUMMY_SP),
                         ))
                     } else {
                         Some(quote!(
                             "(() => $local)" as Expr,
-                            local = Ident::new((name as &str).into(), DUMMY_SP, Default::default())
+                            local = Ident::new((name as &str).into(), DUMMY_SP)
                         ))
                     }
                 }
@@ -463,7 +459,7 @@ impl CodeGenerateable for EsmExports {
                     referenced_asset.get_ident().await?.map(|ident| {
                         let expr = Expr::Member(MemberExpr {
                             span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(Ident::new(ident.into(), DUMMY_SP, Default::default()))),
+                            obj: Box::new(Expr::Ident(Ident::new(ident.into(), DUMMY_SP))),
                             prop: MemberProp::Computed(ComputedPropName {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Lit(Lit::Str(Str {
@@ -477,7 +473,7 @@ impl CodeGenerateable for EsmExports {
                             quote!(
                                 "([() => $expr, ($new) => $expr = $new])" as Expr,
                                 expr: Expr = expr,
-                                new = Ident::new(format!("{name}_new_value").into(), DUMMY_SP, Default::default()),
+                                new = Ident::new(format!("{name}_new_value").into(), DUMMY_SP),
                             )
                         } else {
                             quote!(
@@ -493,7 +489,7 @@ impl CodeGenerateable for EsmExports {
                     referenced_asset.get_ident().await?.map(|ident| {
                         quote!(
                             "(() => $imported)" as Expr,
-                            imported = Ident::new(ident.into(), DUMMY_SP, Default::default())
+                            imported = Ident::new(ident.into(), DUMMY_SP)
                         )
                     })
                 }

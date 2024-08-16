@@ -149,7 +149,7 @@ impl CodeGenerateable for EsmAsyncAssetReference {
                     expr: error,
                 }],
                 span: DUMMY_SP,
-               ..Default::default()
+                type_args: None,
             });
         });
 
