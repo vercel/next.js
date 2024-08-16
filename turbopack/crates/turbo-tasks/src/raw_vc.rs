@@ -79,6 +79,13 @@ impl RawVc {
         }
     }
 
+    pub fn is_transient(&self) -> bool {
+        match self {
+            RawVc::TaskOutput(task) | RawVc::TaskCell(task, _) => task.is_transient(),
+            RawVc::LocalCell(_, _) => true,
+        }
+    }
+
     pub(crate) fn into_read(self) -> ReadRawVcFuture {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture
