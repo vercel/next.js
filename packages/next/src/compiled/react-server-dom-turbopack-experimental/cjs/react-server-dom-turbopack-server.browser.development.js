@@ -11,6 +11,7 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
+    function voidHandler() {}
     function _defineProperty(obj, key, value) {
       key in obj
         ? Object.defineProperty(obj, key, {
@@ -69,6 +70,9 @@
       "function" === typeof destination.error
         ? destination.error(error)
         : destination.close();
+    }
+    function isClientReference(reference) {
+      return reference.$$typeof === CLIENT_REFERENCE_TAG$1;
     }
     function registerClientReferenceImpl(proxyImplementation, id, async) {
       return Object.defineProperties(proxyImplementation, {
@@ -731,6 +735,8 @@
             var digest = logRecoverableError(request, task, null);
             emitErrorChunk(request, newTask.id, digest, task);
           }
+          newTask.status = ERRORED$1;
+          request.abortableTasks.delete(newTask);
           return newTask.id;
         default:
           if (request.status === ABORTING)
@@ -769,10 +775,10 @@
             logPostpone(request, reason.message, newTask),
               emitPostponeChunk(request, newTask.id, reason);
           else {
-            newTask.status = ERRORED$1;
             var _digest = logRecoverableError(request, reason, newTask);
             emitErrorChunk(request, newTask.id, _digest, reason);
           }
+          newTask.status = ERRORED$1;
           request.abortableTasks.delete(newTask);
           enqueueFlush(request);
         }
@@ -997,7 +1003,7 @@
       else {
         var componentDebugID = debugID;
         componentDebugInfo = Component.displayName || Component.name || "";
-        var componentEnv = request.environmentName();
+        var componentEnv = (0, request.environmentName)();
         request.pendingChunks++;
         componentDebugInfo = {
           name: componentDebugInfo,
@@ -1013,13 +1019,8 @@
         outlineModel(request, componentDebugInfo);
         emitDebugChunk(request, componentDebugID, componentDebugInfo);
         task.environmentName = componentEnv;
-        warnForMissingKey(
-          request,
-          key,
-          validated,
-          componentDebugInfo,
-          task.debugTask
-        );
+        2 === validated &&
+          warnForMissingKey(request, key, componentDebugInfo, task.debugTask);
       }
       prepareToUseHooksForComponent(prevThenableState, componentDebugInfo);
       props = task.debugTask
@@ -1027,23 +1028,28 @@
             callComponentInDEV.bind(null, Component, props, componentDebugInfo)
           )
         : callComponentInDEV(Component, props, componentDebugInfo);
-      if (request.status === ABORTING) throw AbortSigil;
+      if (request.status === ABORTING)
+        throw (
+          ("object" !== typeof props ||
+            null === props ||
+            "function" !== typeof props.then ||
+            isClientReference(props) ||
+            props.then(voidHandler, voidHandler),
+          null)
+        );
       if (
         "object" === typeof props &&
         null !== props &&
-        props.$$typeof !== CLIENT_REFERENCE_TAG$1
+        !isClientReference(props)
       ) {
         if ("function" === typeof props.then) {
           validated = props;
-          validated.then(
-            function (resolvedValue) {
-              "object" === typeof resolvedValue &&
-                null !== resolvedValue &&
-                resolvedValue.$$typeof === REACT_ELEMENT_TYPE &&
-                (resolvedValue._store.validated = 1);
-            },
-            function () {}
-          );
+          validated.then(function (resolvedValue) {
+            "object" === typeof resolvedValue &&
+              null !== resolvedValue &&
+              resolvedValue.$$typeof === REACT_ELEMENT_TYPE &&
+              (resolvedValue._store.validated = 1);
+          }, voidHandler);
           if ("fulfilled" === validated.status) return validated.value;
           props = createLazyWrapperAroundWakeable(props);
         }
@@ -1100,34 +1106,26 @@
       task.implicitSlot = prevThenableState;
       return key;
     }
-    function warnForMissingKey(
-      request,
-      key,
-      validated,
-      componentDebugInfo,
-      debugTask
-    ) {
-      if (2 === validated) {
-        key = request.didWarnForKey;
-        null == key && (key = request.didWarnForKey = new WeakSet());
-        request = componentDebugInfo.owner;
-        if (null != request) {
-          if (key.has(request)) return;
-          key.add(request);
-        }
-        request = function () {
-          console.error(
-            'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
-            "",
-            ""
-          );
-        };
-        debugTask
-          ? debugTask.run(
-              callComponentInDEV.bind(null, request, null, componentDebugInfo)
-            )
-          : callComponentInDEV(request, null, componentDebugInfo);
+    function warnForMissingKey(request, key, componentDebugInfo, debugTask) {
+      function logKeyError() {
+        console.error(
+          'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
+          "",
+          ""
+        );
       }
+      key = request.didWarnForKey;
+      null == key && (key = request.didWarnForKey = new WeakSet());
+      request = componentDebugInfo.owner;
+      if (null != request) {
+        if (key.has(request)) return;
+        key.add(request);
+      }
+      debugTask
+        ? debugTask.run(
+            callComponentInDEV.bind(null, logKeyError, null, componentDebugInfo)
+          )
+        : callComponentInDEV(logKeyError, null, componentDebugInfo);
     }
     function renderFragment(request, task, children) {
       for (var i = 0; i < children.length; i++) {
@@ -1202,10 +1200,78 @@
         null !== props.children &&
         jsxChildrenParents.set(props.children, type);
       if (
-        "function" === typeof type &&
-        type.$$typeof !== CLIENT_REFERENCE_TAG$1 &&
-        type.$$typeof !== TEMPORARY_REFERENCE_TAG
-      )
+        "function" !== typeof type ||
+        isClientReference(type) ||
+        type.$$typeof === TEMPORARY_REFERENCE_TAG
+      ) {
+        if (type === REACT_FRAGMENT_TYPE && null === key)
+          return (
+            2 === validated &&
+              ((validated = {
+                name: "Fragment",
+                env: (0, request.environmentName)(),
+                owner: task.debugOwner,
+                stack:
+                  null === task.debugStack
+                    ? null
+                    : filterStackTrace(request, task.debugStack, 1),
+                debugStack: task.debugStack,
+                debugTask: task.debugTask
+              }),
+              warnForMissingKey(request, key, validated, task.debugTask)),
+            (validated = task.implicitSlot),
+            null === task.keyPath && (task.implicitSlot = !0),
+            (request = renderModelDestructive(
+              request,
+              task,
+              emptyRoot,
+              "",
+              props.children
+            )),
+            (task.implicitSlot = validated),
+            request
+          );
+        if (
+          null != type &&
+          "object" === typeof type &&
+          !isClientReference(type)
+        )
+          switch (type.$$typeof) {
+            case REACT_LAZY_TYPE:
+              type = callLazyInitInDEV(type);
+              if (request.status === ABORTING) throw null;
+              return renderElement(
+                request,
+                task,
+                type,
+                key,
+                ref,
+                props,
+                validated
+              );
+            case REACT_FORWARD_REF_TYPE:
+              return renderFunctionComponent(
+                request,
+                task,
+                key,
+                type.render,
+                props,
+                validated
+              );
+            case REACT_MEMO_TYPE:
+              return renderElement(
+                request,
+                task,
+                type.type,
+                key,
+                ref,
+                props,
+                validated
+              );
+            case REACT_ELEMENT_TYPE:
+              type._store.validated = 1;
+          }
+      } else
         return renderFunctionComponent(
           request,
           task,
@@ -1214,60 +1280,6 @@
           props,
           validated
         );
-      if (type === REACT_FRAGMENT_TYPE && null === key)
-        return (
-          (validated = task.implicitSlot),
-          null === task.keyPath && (task.implicitSlot = !0),
-          (request = renderModelDestructive(
-            request,
-            task,
-            emptyRoot,
-            "",
-            props.children
-          )),
-          (task.implicitSlot = validated),
-          request
-        );
-      if (
-        null != type &&
-        "object" === typeof type &&
-        type.$$typeof !== CLIENT_REFERENCE_TAG$1
-      )
-        switch (type.$$typeof) {
-          case REACT_LAZY_TYPE:
-            type = callLazyInitInDEV(type);
-            if (request.status === ABORTING) throw AbortSigil;
-            return renderElement(
-              request,
-              task,
-              type,
-              key,
-              ref,
-              props,
-              validated
-            );
-          case REACT_FORWARD_REF_TYPE:
-            return renderFunctionComponent(
-              request,
-              task,
-              key,
-              type.render,
-              props,
-              validated
-            );
-          case REACT_MEMO_TYPE:
-            return renderElement(
-              request,
-              task,
-              type.type,
-              key,
-              ref,
-              props,
-              validated
-            );
-          case REACT_ELEMENT_TYPE:
-            type._store.validated = 1;
-        }
       ref = task.keyPath;
       null === key ? (key = ref) : null !== ref && (key = ref + "," + key);
       request = [
@@ -1593,7 +1605,7 @@
               parent ? serializeLazyID(value) : serializeByValueID(value)
             );
         }
-        if (thrownValue === AbortSigil)
+        if (request.status === ABORTING)
           return (
             (task.status = ABORTED),
             (task = request.fatalError),
@@ -1665,7 +1677,7 @@
           case REACT_LAZY_TYPE:
             task.thenableState = null;
             elementReference = callLazyInitInDEV(value);
-            if (request.status === ABORTING) throw AbortSigil;
+            if (request.status === ABORTING) throw null;
             if ((_writtenObjects = value._debugInfo)) {
               if (null === debugID) return outlineTask(request, task);
               forwardDebugInfo(request, debugID, _writtenObjects);
@@ -1682,7 +1694,7 @@
               'A React Element from an older version of React was rendered. This is not supported. It can happen if:\n- Multiple copies of the "react" package is used.\n- A library pre-bundled an old copy of "react" or "react/jsx-runtime".\n- A compiler tries to "inline" JSX instead of using the runtime.'
             );
         }
-        if (value.$$typeof === CLIENT_REFERENCE_TAG$1)
+        if (isClientReference(value))
           return serializeClientReference(
             request,
             parent,
@@ -1851,7 +1863,7 @@
       if ("number" === typeof value) return serializeNumber(value);
       if ("undefined" === typeof value) return "$undefined";
       if ("function" === typeof value) {
-        if (value.$$typeof === CLIENT_REFERENCE_TAG$1)
+        if (isClientReference(value))
           return serializeClientReference(
             request,
             parent,
@@ -1985,7 +1997,7 @@
       request.completedErrorChunks.push(id);
     }
     function emitErrorChunk(request, id, digest, error) {
-      var env = request.environmentName();
+      var env = (0, request.environmentName)();
       try {
         if (error instanceof Error) {
           var message = String(error.message);
@@ -2080,7 +2092,7 @@
       var originalValue = parent[parentPropertyName];
       if (null === value) return null;
       if ("object" === typeof value) {
-        if (value.$$typeof === CLIENT_REFERENCE_TAG$1)
+        if (isClientReference(value))
           return serializeClientReference(
             request,
             parent,
@@ -2198,7 +2210,7 @@
       if ("number" === typeof value) return serializeNumber(value);
       if ("undefined" === typeof value) return "$undefined";
       if ("function" === typeof value)
-        return value.$$typeof === CLIENT_REFERENCE_TAG$1
+        return isClientReference(value)
           ? serializeClientReference(request, parent, parentPropertyName, value)
           : void 0 !== request.temporaryReferences &&
               ((request = request.temporaryReferences.get(value)),
@@ -2248,7 +2260,7 @@
       args
     ) {
       var counter = { objectCount: 0 },
-        env = request.environmentName();
+        env = (0, request.environmentName)();
       methodName = [methodName, stackTrace, owner, env];
       methodName.push.apply(methodName, args);
       args = stringify(methodName, function (parentPropertyName, value) {
@@ -2333,13 +2345,13 @@
               resolvedModel,
               serializeByValueID(task.id)
             );
-            var currentEnv = request.environmentName();
+            var currentEnv = (0, request.environmentName)();
             currentEnv !== task.environmentName &&
               emitDebugChunk(request, task.id, { env: currentEnv });
             emitChunk(request, task, resolvedModel);
           } else {
             var json = stringify(resolvedModel),
-              _currentEnv = request.environmentName();
+              _currentEnv = (0, request.environmentName)();
             _currentEnv !== task.environmentName &&
               emitDebugChunk(request, task.id, { env: _currentEnv });
             emitModelChunk(request, task.id, json);
@@ -2374,7 +2386,7 @@
               return;
             }
           }
-          if (x === AbortSigil) {
+          if (request.status === ABORTING) {
             request.abortableTasks.delete(task);
             task.status = ABORTED;
             var _model = stringify(serializeByValueID(request.fatalError));
@@ -2502,7 +2514,7 @@
     }
     function abort(request, reason) {
       try {
-        request.status = ABORTING;
+        0 === request.status && (request.status = ABORTING);
         var abortableTasks = request.abortableTasks;
         if (0 < abortableTasks.size) {
           request.pendingChunks++;
@@ -3631,7 +3643,7 @@
             }
             usable.$$typeof === REACT_CONTEXT_TYPE && unsupportedContext();
           }
-          if (usable.$$typeof === CLIENT_REFERENCE_TAG$1) {
+          if (isClientReference(usable)) {
             if (
               null != usable.value &&
               usable.value.$$typeof === REACT_CONTEXT_TYPE
@@ -3725,7 +3737,6 @@
       ABORTED = 3,
       ERRORED$1 = 4,
       RENDERING = 5,
-      AbortSigil = {},
       TaintRegistryObjects = ReactSharedInternalsServer.TaintRegistryObjects,
       TaintRegistryValues = ReactSharedInternalsServer.TaintRegistryValues,
       TaintRegistryByteLengths =

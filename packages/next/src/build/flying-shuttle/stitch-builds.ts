@@ -114,6 +114,17 @@ export async function stitchBuilds(
       path.join(shuttleDir, entryFile),
       path.join(distDir, entryFile)
     )
+    // copy map file as well if it exists
+    await fs.promises
+      .copyFile(
+        path.join(shuttleDir, `${entryFile}.map`),
+        path.join(distDir, `${entryFile}.map`)
+      )
+      .catch((err) => {
+        if (err.code !== 'ENOENT') {
+          throw err
+        }
+      })
   }
   const copySema = new Sema(8)
 

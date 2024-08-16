@@ -106,7 +106,7 @@
                 Member,
             ),
         ],
-        span: 212..227#0,
+        span: 212..227,
         in_try: false,
     },
     FreeVar {
@@ -215,7 +215,7 @@
                 Ident,
             ),
         ],
-        span: 212..223#1,
+        span: 212..223,
         in_try: false,
     },
     MemberCall {
@@ -317,7 +317,7 @@
                 Call,
             ),
         ],
-        span: 212..229#0,
+        span: 212..229,
         in_try: false,
     },
     Member {
@@ -443,7 +443,7 @@
                 Member,
             ),
         ],
-        span: 257..292#0,
+        span: 257..292,
         in_try: true,
     },
     Member {
@@ -565,7 +565,7 @@
                 Member,
             ),
         ],
-        span: 257..282#0,
+        span: 257..282,
         in_try: true,
     },
     MemberCall {
@@ -685,7 +685,7 @@
                 Call,
             ),
         ],
-        span: 257..301#0,
+        span: 257..301,
         in_try: true,
     },
     Unreachable {
@@ -896,7 +896,7 @@
                 Member,
             ),
         ],
-        span: 356..371#0,
+        span: 356..371,
         in_try: false,
     },
     FreeVar {
@@ -1020,7 +1020,7 @@
                 Ident,
             ),
         ],
-        span: 356..367#1,
+        span: 356..367,
         in_try: false,
     },
     MemberCall {
@@ -1137,7 +1137,7 @@
                 Call,
             ),
         ],
-        span: 356..373#0,
+        span: 356..373,
         in_try: false,
     },
     Unreachable {
@@ -1259,7 +1259,7 @@
                                 Ident,
                             ),
                         ],
-                        span: 535..544#1,
+                        span: 535..544,
                         in_try: false,
                     },
                 ],
@@ -1431,7 +1431,7 @@
                 Test,
             ),
         ],
-        span: 496..600#0,
+        span: 496..600,
         in_try: false,
     },
     Member {
@@ -1490,7 +1490,7 @@
                 Member,
             ),
         ],
-        span: 608..621#0,
+        span: 608..621,
         in_try: false,
     },
     Unreachable {

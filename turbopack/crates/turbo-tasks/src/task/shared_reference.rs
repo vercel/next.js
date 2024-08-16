@@ -149,7 +149,8 @@ impl<'de> Deserialize<'de> for TypedSharedReference {
                         if let Some(seed) = registry::get_value_type(ty).get_any_deserialize_seed()
                         {
                             if let Some(value) = seq.next_element_seed(seed)? {
-                                Ok(TypedSharedReference(ty, SharedReference::new(value.into())))
+                                let arc = triomphe::Arc::<dyn Any + Send + Sync>::from(value);
+                                Ok(TypedSharedReference(ty, SharedReference(arc)))
                             } else {
                                 Err(serde::de::Error::invalid_length(
                                     1,

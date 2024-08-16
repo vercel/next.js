@@ -56,8 +56,8 @@ swc_emotion = { workspace = true }
 swc_relay = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, optional = true }
 
-react_remove_properties = "0.24.15"
-remove_console = "0.25.15"
+react_remove_properties = "0.24.17"
+remove_console = "0.25.17"
 preset_env_base = "0.5.1"
 
 [dev-dependencies]

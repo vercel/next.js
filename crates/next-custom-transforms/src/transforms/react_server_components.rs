@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf, rc::Rc};
+use std::{collections::HashMap, path::PathBuf, rc::Rc, sync::Arc};
 
 use regex::Regex;
 use serde::Deserialize;
@@ -161,11 +161,11 @@ impl<C: Comments> ReactServerComponents<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("require").as_callee(),
                             args: vec![quote_str!("private-next-rsc-mod-ref-proxy").as_arg()],
-                            type_args: Default::default(),
+                            ..Default::default()
                         }))),
                         definite: false,
                     }],
-                    declare: false,
+                    ..Default::default()
                 })))),
                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
@@ -173,7 +173,7 @@ impl<C: Comments> ReactServerComponents<C> {
                         span: DUMMY_SP,
                         left: MemberExpr {
                             span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(quote_ident!("module"))),
+                            obj: Box::new(Expr::Ident(quote_ident!("module").into())),
                             prop: MemberProp::Ident(quote_ident!("exports")),
                         }
                         .into(),
@@ -182,7 +182,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("createProxy").as_callee(),
                             args: vec![filepath.as_arg()],
-                            type_args: Default::default(),
+                            ..Default::default()
                         })),
                     })),
                 })),
@@ -377,11 +377,24 @@ fn collect_top_level_directives_and_imports(
                     }
                 }
             }
-            ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
+            ModuleItem::ModuleDecl(ModuleDecl::Import(
+                import @ ImportDecl {
+                    type_only: false, ..
+                },
+            )) => {
                 let source = import.src.value.clone();
                 let specifiers = import
                     .specifiers
                     .iter()
+                    .filter(|specifier| {
+                        !matches!(
+                            specifier,
+                            ImportSpecifier::Named(ImportNamedSpecifier {
+                                is_type_only: true,
+                                ..
+                            })
+                        )
+                    })
                     .map(|specifier| match specifier {
                         ImportSpecifier::Named(named) => match &named.imported {
                             Some(imported) => match &imported {
@@ -561,7 +574,6 @@ impl ReactServerComponentValidator {
     // assert_invalid_server_lib_apis("react", import)
     // assert_invalid_server_lib_apis("react-dom", import)
     fn assert_invalid_server_lib_apis(&self, import_source: String, import: &ModuleImports) {
-        // keys of invalid_server_lib_apis_mapping
         let invalid_apis = self
             .invalid_server_lib_apis_mapping
             .get(import_source.as_str());
@@ -848,7 +860,7 @@ pub fn server_components_assert(
 /// Runs react server component transform for the module proxy, as well as
 /// running assertion.
 pub fn server_components<C: Comments>(
-    filename: FileName,
+    filename: Arc<FileName>,
     config: Config,
     comments: C,
     app_dir: Option<PathBuf>,
@@ -860,7 +872,7 @@ pub fn server_components<C: Comments>(
     as_folder(ReactServerComponents {
         is_react_server_layer,
         comments,
-        filepath: match filename {
+        filepath: match &*filename {
             FileName::Custom(path) => format!("<{path}>"),
             _ => filename.to_string(),
         },

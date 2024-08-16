@@ -1,10 +1,11 @@
 import type { CacheFs } from '../../../shared/lib/utils'
 import type { PrerenderManifest } from '../../../build'
-import type {
-  IncrementalCacheValue,
-  IncrementalCacheEntry,
-  IncrementalCache as IncrementalCacheType,
-  IncrementalCacheKindHint,
+import {
+  type IncrementalCacheValue,
+  type IncrementalCacheEntry,
+  type IncrementalCache as IncrementalCacheType,
+  IncrementalCacheKind,
+  CachedRouteKind,
 } from '../../response-cache'
 import type { Revalidate } from '../revalidate'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
@@ -31,8 +32,6 @@ export interface CacheHandlerContext {
   fetchCacheKeyPrefix?: string
   prerenderManifest?: PrerenderManifest
   revalidatedTags: string[]
-  _appDir: boolean
-  _pagesDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
 }
 
@@ -90,8 +89,6 @@ export class IncrementalCache implements IncrementalCacheType {
   constructor({
     fs,
     dev,
-    appDir,
-    pagesDir,
     flushToDisk,
     fetchCache,
     minimalMode,
@@ -106,8 +103,6 @@ export class IncrementalCache implements IncrementalCacheType {
   }: {
     fs?: CacheFs
     dev: boolean
-    appDir?: boolean
-    pagesDir?: boolean
     fetchCache?: boolean
     minimalMode?: boolean
     serverDistDir?: string
@@ -186,8 +181,6 @@ export class IncrementalCache implements IncrementalCacheType {
         serverDistDir,
         revalidatedTags,
         maxMemoryCacheSize,
-        _pagesDir: !!pagesDir,
-        _appDir: !!appDir,
         _requestHeaders: requestHeaders,
         fetchCacheKeyPrefix,
       })
@@ -384,33 +377,36 @@ export class IncrementalCache implements IncrementalCacheType {
   async get(
     cacheKey: string,
     ctx: {
-      kindHint?: IncrementalCacheKindHint
+      kind: IncrementalCacheKind
       revalidate?: Revalidate
       fetchUrl?: string
       fetchIdx?: number
       tags?: string[]
       softTags?: string[]
       isRoutePPREnabled?: boolean
-    } = {}
+    }
   ): Promise<IncrementalCacheEntry | null> {
     // we don't leverage the prerender cache in dev mode
     // so that getStaticProps is always called for easier debugging
     if (
       this.disableForTestmode ||
       (this.dev &&
-        (ctx.kindHint !== 'fetch' ||
+        (ctx.kind !== IncrementalCacheKind.FETCH ||
           this.requestHeaders['cache-control'] === 'no-cache'))
     ) {
       return null
     }
 
-    cacheKey = this._getPathname(cacheKey, ctx.kindHint === 'fetch')
+    cacheKey = this._getPathname(
+      cacheKey,
+      ctx.kind === IncrementalCacheKind.FETCH
+    )
     let entry: IncrementalCacheEntry | null = null
     let revalidate = ctx.revalidate
 
     const cacheData = await this.cacheHandler?.get(cacheKey, ctx)
 
-    if (cacheData?.value?.kind === 'FETCH') {
+    if (cacheData?.value?.kind === CachedRouteKind.FETCH) {
       const combinedTags = [...(ctx.tags || []), ...(ctx.softTags || [])]
       // if a tag was revalidated we don't return stale data
       if (
@@ -430,7 +426,7 @@ export class IncrementalCache implements IncrementalCacheType {
       return {
         isStale: isStale,
         value: {
-          kind: 'FETCH',
+          kind: CachedRouteKind.FETCH,
           data,
           revalidate: revalidate,
         },
@@ -450,7 +446,7 @@ export class IncrementalCache implements IncrementalCacheType {
       revalidateAfter = this.calculateRevalidate(
         cacheKey,
         cacheData?.lastModified || Date.now(),
-        this.dev && ctx.kindHint !== 'fetch'
+        this.dev && ctx.kind !== IncrementalCacheKind.FETCH
       )
       isStale =
         revalidateAfter !== false && revalidateAfter < Date.now()

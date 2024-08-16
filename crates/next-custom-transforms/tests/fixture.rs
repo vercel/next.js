@@ -71,7 +71,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -88,7 +88,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -105,7 +105,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -133,7 +133,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -150,7 +150,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -167,7 +167,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -184,7 +184,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -309,6 +309,28 @@ fn shake_exports_fixture_default(input: PathBuf) {
     );
 }
 
+#[fixture("tests/fixture/react-server-components/**/input.ts")]
+fn react_server_components_typescript(input: PathBuf) {
+    use next_custom_transforms::transforms::react_server_components::{Config, Options};
+    let output = input.parent().unwrap().join("output.ts");
+    test_fixture(
+        Syntax::Typescript(Default::default()),
+        &|tr| {
+            server_components(
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
+                Config::WithOptions(Options {
+                    is_react_server_layer: true,
+                }),
+                tr.comments.as_ref().clone(),
+                None,
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
 #[fixture("tests/fixture/react-server-components/server-graph/**/input.js")]
 fn react_server_components_server_graph_fixture(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
@@ -317,7 +339,7 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
                 }),
@@ -339,7 +361,7 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: false,
                 }),
