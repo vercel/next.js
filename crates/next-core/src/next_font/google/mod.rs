@@ -21,8 +21,9 @@ use turbopack_core::{
     issue::{IssueExt, IssueSeverity},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
-        options::{ImportMapResult, ImportMapping, ImportMappingReplacement},
+        options::{ImportMapResult, ImportMappingReplacement, ReplacedImportMapping},
         parse::Request,
+        pattern::Pattern,
         ResolveResult,
     },
     virtual_source::VirtualSource,
@@ -137,8 +138,8 @@ impl NextFontGoogleReplacer {
 #[turbo_tasks::value_impl]
 impl ImportMappingReplacement for NextFontGoogleReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: RcStr) -> Vc<ImportMapping> {
-        ImportMapping::Ignore.into()
+    fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
+        ReplacedImportMapping::Ignore.into()
     }
 
     /// Intercepts requests for `next/font/google/target.css` and returns a
@@ -266,8 +267,8 @@ impl NextFontGoogleCssModuleReplacer {
 #[turbo_tasks::value_impl]
 impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: RcStr) -> Vc<ImportMapping> {
-        ImportMapping::Ignore.into()
+    fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
+        ReplacedImportMapping::Ignore.into()
     }
 
     /// Intercepts requests for the css module made by the virtual JavaScript
@@ -318,8 +319,8 @@ impl NextFontGoogleFontFileReplacer {
 #[turbo_tasks::value_impl]
 impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: RcStr) -> Vc<ImportMapping> {
-        ImportMapping::Ignore.into()
+    fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
+        ReplacedImportMapping::Ignore.into()
     }
 
     /// Intercepts requests for the font made by the CSS
