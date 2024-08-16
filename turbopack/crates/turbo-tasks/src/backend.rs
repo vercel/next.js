@@ -441,15 +441,28 @@ pub trait Backend: Sync + Send {
 
     fn get_task_description(&self, task: TaskId) -> String;
 
-    type ExecutionScopeFuture<T: Future<Output = Result<()>> + Send + 'static>: Future<Output = Result<()>>
-        + Send
-        + 'static;
+    /// Task-local state that stored inside of [`TurboTasksBackendApi`]. Constructed with
+    /// [`Self::new_task_state`].
+    ///
+    /// This value that can later be written to or read from using
+    /// [`crate::TurboTasksBackendApiExt::write_task_state`] or
+    /// [`crate::TurboTasksBackendApiExt::read_task_state`]
+    ///
+    /// This data may be shared across multiple threads (must be `Sync`) in order to support
+    /// detached futures ([`crate::TurboTasksApi::detached_for_testing`]) and [pseudo-tasks using
+    /// `local_cells`][crate::function]. A [`RwLock`][std::sync::RwLock] is used to provide
+    /// concurrent access.
+    type TaskState: Send + Sync + 'static;
 
-    fn execution_scope<T: Future<Output = Result<()>> + Send + 'static>(
-        &self,
-        task: TaskId,
-        future: T,
-    ) -> Self::ExecutionScopeFuture<T>;
+    /// Constructs a new task-local [`Self::TaskState`] for the given `task_id`.
+    ///
+    /// If a task is re-executed (e.g. because it is invalidated), this function will be called
+    /// again with the same [`TaskId`].
+    ///
+    /// This value can be written to or read from using
+    /// [`crate::TurboTasksBackendApiExt::write_task_state`] and
+    /// [`crate::TurboTasksBackendApiExt::read_task_state`]
+    fn new_task_state(&self, task: TaskId) -> Self::TaskState;
 
     fn try_start_task_execution<'a>(
         &'a self,
