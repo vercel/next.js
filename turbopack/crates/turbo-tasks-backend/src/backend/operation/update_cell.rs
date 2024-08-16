@@ -1,7 +1,10 @@
 use turbo_tasks::{backend::CellContent, CellId, TaskId};
 
 use super::{ExecuteContext, InvalidateOperation};
-use crate::data::{CachedDataItem, CachedDataItemKey};
+use crate::{
+    data::{CachedDataItem, CachedDataItemKey},
+    remove,
+};
 
 pub struct UpdateCellOperation;
 
@@ -16,6 +19,10 @@ impl UpdateCellOperation {
         } else {
             task.remove(&CachedDataItemKey::CellData { cell })
         };
+
+        if let Some(in_progress) = remove!(task, InProgressCell { cell }) {
+            in_progress.event.notify(usize::MAX);
+        }
 
         let dependent = task
             .iter()
