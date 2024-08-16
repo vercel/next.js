@@ -11,7 +11,6 @@ use std::{
 };
 
 use anyhow::{anyhow, Context, Result};
-use bincode::Options;
 use lmdb::{
     Cursor, Database, DatabaseFlags, Environment, EnvironmentFlags, Transaction, WriteFlags,
 };
@@ -94,9 +93,10 @@ impl LmdbBackingStorage {
         let mut result = String::new();
         let tx = self.env.begin_ro_txn()?;
         let mut cursor = tx.open_ro_cursor(self.data_db)?;
-        for (key, value) in cursor.iter() {
+        for item in cursor.iter() {
+            let (key, value) = item?;
             let task_id = u32::from_be_bytes(key.try_into()?);
-            let data: Vec<CachedDataItem> = bincode::deserialize(value)?;
+            let data: Vec<CachedDataItem> = pot::from_slice(value)?;
             write!(result, "### Task {task_id}\n{data:#?}\n\n")?;
         }
         Ok(result)
@@ -105,10 +105,10 @@ impl LmdbBackingStorage {
 
 impl BackingStorage for LmdbBackingStorage {
     fn startup(&self) {
-        println!(
-            "Database content:\n{}",
-            self.display_db().unwrap_or_default()
-        );
+        // println!(
+        //     "Database content:\n{}",
+        //     self.display_db().unwrap_or_default()
+        // );
     }
 
     fn next_free_task_id(&self) -> TaskId {
@@ -125,7 +125,7 @@ impl BackingStorage for LmdbBackingStorage {
         fn get(this: &LmdbBackingStorage) -> Result<Vec<AnyOperation>> {
             let tx = this.env.begin_ro_txn()?;
             let operations = tx.get(this.meta_db, &IntKey::new(META_KEY_OPERATIONS))?;
-            let operations = bincode::deserialize(operations)?;
+            let operations = pot::from_slice(operations)?;
             Ok(operations)
         }
         get(self).unwrap_or_default()
@@ -167,17 +167,13 @@ impl BackingStorage for LmdbBackingStorage {
             as_u32(tx.get(self.meta_db, &IntKey::new(META_KEY_NEXT_FREE_TASK_ID))).unwrap_or(1);
         for (task_type, task_id) in task_cache_updates.iter() {
             let task_id = **task_id;
-            let task_type_bytes = bincode::serialize(&**task_type)
+            let task_type_bytes = pot::to_vec(&**task_type)
                 .with_context(|| anyhow!("Unable to serialize task cache key {task_type:?}"))?;
             #[cfg(feature = "verify_serialization")]
             {
-                let deserialize: Result<CachedTaskType, _> =
-                    serde_path_to_error::deserialize(&mut bincode::Deserializer::from_slice(
-                        &task_type_bytes,
-                        bincode::DefaultOptions::new()
-                            .with_fixint_encoding()
-                            .allow_trailing_bytes(),
-                    ));
+                let deserialize: Result<CachedTaskType, _> = serde_path_to_error::deserialize(
+                    &mut pot::de::SymbolList::new().deserializer_for_slice(&task_type_bytes)?,
+                );
                 if let Err(err) = deserialize {
                     println!(
                         "Task type would not be deserializable {task_id}: {err:?}\n{task_type:#?}"
@@ -210,8 +206,8 @@ impl BackingStorage for LmdbBackingStorage {
             WriteFlags::empty(),
         )
         .with_context(|| anyhow!("Unable to write next free task id"))?;
-        let operations = bincode::serialize(&operations)
-            .with_context(|| anyhow!("Unable to serialize operations"))?;
+        let operations =
+            pot::to_vec(&operations).with_context(|| anyhow!("Unable to serialize operations"))?;
         tx.put(
             self.meta_db,
             &IntKey::new(META_KEY_OPERATIONS),
@@ -229,15 +225,10 @@ impl BackingStorage for LmdbBackingStorage {
                 Entry::Vacant(entry) => {
                     let mut map = HashMap::new();
                     if let Ok(old_data) = tx.get(self.data_db, &IntKey::new(*task)) {
-                        let old_data: Vec<CachedDataItem> = match bincode::deserialize(old_data) {
+                        let old_data: Vec<CachedDataItem> = match pot::from_slice(old_data) {
                             Ok(d) => d,
                             Err(_) => serde_path_to_error::deserialize(
-                                &mut bincode::Deserializer::from_slice(
-                                    old_data,
-                                    bincode::DefaultOptions::new()
-                                        .with_fixint_encoding()
-                                        .allow_trailing_bytes(),
-                                ),
+                                &mut pot::de::SymbolList::new().deserializer_for_slice(old_data)?,
                             )
                             .with_context(|| {
                                 anyhow!("Unable to deserialize old value of {task}: {old_data:?}")
@@ -262,19 +253,15 @@ impl BackingStorage for LmdbBackingStorage {
                 .into_iter()
                 .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
                 .collect();
-            let value = match bincode::serialize(&vec) {
+            let value = match pot::to_vec(&vec) {
                 #[cfg(not(feature = "verify_serialization"))]
                 Ok(value) => value,
                 _ => {
                     let mut error = Ok(());
                     vec.retain(|item| {
                         let mut buf = Vec::<u8>::new();
-                        let mut serializer = bincode::Serializer::new(
-                            &mut buf,
-                            bincode::DefaultOptions::new()
-                                .with_fixint_encoding()
-                                .allow_trailing_bytes(),
-                        );
+                        let mut symbol_map = pot::ser::SymbolMap::new();
+                        let mut serializer = symbol_map.serializer_for(&mut buf).unwrap();
                         if let Err(err) = serde_path_to_error::serialize(item, &mut serializer) {
                             if item.is_optional() {
                                 println!("Skipping non-serializable optional item: {item:?}");
@@ -291,12 +278,9 @@ impl BackingStorage for LmdbBackingStorage {
                             {
                                 let deserialize: Result<CachedDataItem, _> =
                                     serde_path_to_error::deserialize(
-                                        &mut bincode::Deserializer::from_slice(
-                                            &buf,
-                                            bincode::DefaultOptions::new()
-                                                .with_fixint_encoding()
-                                                .allow_trailing_bytes(),
-                                        ),
+                                        &mut pot::de::SymbolList::new()
+                                            .deserializer_for_slice(&buf)
+                                            .unwrap(),
                                     );
                                 if let Err(err) = deserialize {
                                     println!(
@@ -311,7 +295,7 @@ impl BackingStorage for LmdbBackingStorage {
                     });
                     error?;
 
-                    bincode::serialize(&vec).with_context(|| {
+                    pot::to_vec(&vec).with_context(|| {
                         anyhow!("Unable to serialize data items for {task_id}: {vec:#?}")
                     })?
                 }
@@ -336,7 +320,7 @@ impl BackingStorage for LmdbBackingStorage {
 
     fn forward_lookup_task_cache(&self, task_type: &CachedTaskType) -> Option<TaskId> {
         let tx = self.env.begin_ro_txn().ok()?;
-        let task_type = bincode::serialize(task_type).ok()?;
+        let task_type = pot::to_vec(task_type).ok()?;
         let result = extended_key::get(&tx, self.forward_task_cache_db, &task_type)
             .ok()
             .and_then(|v| v.try_into().ok())
@@ -365,7 +349,7 @@ impl BackingStorage for LmdbBackingStorage {
                     }
                 }
             };
-            let result = bincode::deserialize(bytes)?;
+            let result = pot::from_slice(bytes)?;
             tx.commit()?;
             Ok(Some(result))
         }
@@ -398,7 +382,7 @@ impl BackingStorage for LmdbBackingStorage {
                 }
             };
             span.record("bytes", bytes.len());
-            let result: Vec<CachedDataItem> = bincode::deserialize(bytes)?;
+            let result: Vec<CachedDataItem> = pot::from_slice(bytes)?;
             span.record("items", result.len());
             tx.commit()?;
             Ok(result)
