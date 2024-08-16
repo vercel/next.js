@@ -126,6 +126,13 @@ export async function createHotReloaderTurbopack(
   hotReloaderSpan.stop()
 
   const encryptionKey = await generateEncryptionKeyBase64(true)
+
+  // TODO: Implement
+  let clientRouterFilters: any
+  if (nextConfig.experimental.clientRouterFilter) {
+    // TODO this need to be set correctly for persistent caching to work
+  }
+
   const project = await bindings.turbo.createProject(
     {
       projectPath: dir,
@@ -138,8 +145,7 @@ export async function createHotReloaderTurbopack(
       env: process.env as Record<string, string>,
       defineEnv: createDefineEnv({
         isTurbopack: true,
-        // TODO: Implement
-        clientRouterFilters: undefined,
+        clientRouterFilters,
         config: nextConfig,
         dev: true,
         distDir,
