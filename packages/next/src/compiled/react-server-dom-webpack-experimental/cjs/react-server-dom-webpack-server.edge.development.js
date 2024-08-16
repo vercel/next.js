@@ -3969,16 +3969,14 @@
     };
 
 // This is a patch added by Next.js
-const setTimeoutOrImmediate = (
+const setTimeoutOrImmediate =
+  typeof globalThis['set' + 'Immediate'] === 'function' &&
   // edge runtime sandbox defines a stub for setImmediate
   // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-  // so we can't just do this:
-  //   typeof setImmediate === 'function'
-  // luckily the stub is non-enumerable, so we can check Object.keys instead
-  Object.keys(globalThis).includes("setImmediate")
-    ? globalThis["set" + "Immediate"]
-    : setTimeout
-);
+  // but it's made non-enumerable, so we can detect it
+  globalThis.propertyIsEnumerable('setImmediate')
+    ? globalThis['set' + 'Immediate']
+    : setTimeout;
 
     exports.renderToReadableStream = function (model, webpackMap, options) {
       var request = new RequestInstance(
