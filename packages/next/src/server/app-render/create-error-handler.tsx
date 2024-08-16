@@ -139,21 +139,19 @@ export function createHTMLErrorHandler(
   dev: boolean,
   isNextExport: boolean,
   reactServerErrors: Map<string, DigestedError>,
-  allCapturedErrors: Array<unknown>,
+  allCapturedError: Array<unknown>,
   silenceLogger: boolean,
-  onHTMLRenderSSRError: (err: any) => void
+  onHTMLRenderError: (err: any) => void
 ): ErrorHandler {
   return (err: any, errorInfo: any) => {
-    let isSSRError = true
-
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
+
     if (err.digest) {
       if (reactServerErrors.has(err.digest)) {
         // This error is likely an obfuscated error from react-server.
         // We recover the original error here.
         err = reactServerErrors.get(err.digest)
-        isSSRError = false
       } else {
         // The error is not from react-server but has a digest
         // from other means so we don't need to produce a new one
@@ -164,7 +162,7 @@ export function createHTMLErrorHandler(
       ).toString()
     }
 
-    allCapturedErrors.push(err)
+    allCapturedError.push(err)
 
     // If the response was closed, we don't need to log the error.
     if (isAbortError(err)) return
@@ -205,21 +203,11 @@ export function createHTMLErrorHandler(
         })
       }
 
-      if (
-        !silenceLogger &&
-        // HTML errors contain RSC errors as well, filter them out before reporting
-        isSSRError
-      ) {
-        onHTMLRenderSSRError(err)
+      if (!silenceLogger) {
+        onHTMLRenderError(err)
       }
     }
 
     return err.digest
   }
-}
-
-export function isUserLandError(err: any): boolean {
-  return (
-    !isAbortError(err) && !isBailoutToCSRError(err) && !isNextRouterError(err)
-  )
 }
