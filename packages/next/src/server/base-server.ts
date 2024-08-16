@@ -2399,6 +2399,7 @@ export default abstract class Server<
         locale,
         locales,
         defaultLocale,
+        multiZoneDraftMode: this.nextConfig.experimental.multiZoneDraftMode,
         // For getServerSideProps and getInitialProps we need to ensure we use the original URL
         // and not the resolved URL to prevent a hydration mismatch on
         // asPath
