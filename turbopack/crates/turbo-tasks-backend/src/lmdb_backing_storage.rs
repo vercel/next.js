@@ -15,6 +15,7 @@ use bincode::Options;
 use lmdb::{
     Cursor, Database, DatabaseFlags, Environment, EnvironmentFlags, Transaction, WriteFlags,
 };
+use tracing::Span;
 use turbo_tasks::{backend::CachedTaskType, KeyValuePair, TaskId};
 
 use crate::{
@@ -342,7 +343,12 @@ impl BackingStorage for LmdbBackingStorage {
     }
 
     fn lookup_data(&self, task_id: TaskId) -> Vec<CachedDataItem> {
-        fn lookup(this: &LmdbBackingStorage, task_id: TaskId) -> Result<Vec<CachedDataItem>> {
+        let span = tracing::trace_span!("restore data", bytes = 0usize, items = 0usize);
+        fn lookup(
+            this: &LmdbBackingStorage,
+            task_id: TaskId,
+            span: &Span,
+        ) -> Result<Vec<CachedDataItem>> {
             let tx = this.env.begin_ro_txn()?;
             let bytes = match tx.get(this.data_db, &IntKey::new(*task_id)) {
                 Ok(bytes) => bytes,
@@ -354,11 +360,13 @@ impl BackingStorage for LmdbBackingStorage {
                     }
                 }
             };
-            let result = bincode::deserialize(bytes)?;
+            span.record("bytes", bytes.len());
+            let result: Vec<CachedDataItem> = bincode::deserialize(bytes)?;
+            span.record("items", result.len());
             tx.commit()?;
             Ok(result)
         }
-        let result = lookup(self, task_id)
+        let result = lookup(self, task_id, &span)
             .inspect_err(|err| println!("Looking up data for {task_id} failed: {err:?}"))
             .unwrap_or_default();
         if !result.is_empty() {
