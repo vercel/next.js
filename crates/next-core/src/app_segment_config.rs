@@ -473,22 +473,22 @@ pub async fn parse_segment_config_from_loader_tree(
 ) -> Result<Vc<NextSegmentConfig>> {
     let loader_tree = &*loader_tree.await?;
 
-    parse_segment_config_from_loader_tree_internal(loader_tree).await
+    Ok(parse_segment_config_from_loader_tree_internal(loader_tree)
+        .await?
+        .cell())
 }
 
 #[async_recursion]
 pub async fn parse_segment_config_from_loader_tree_internal(
     loader_tree: &LoaderTree,
-) -> Result<Vc<NextSegmentConfig>> {
+) -> Result<NextSegmentConfig> {
     let mut config = NextSegmentConfig::default();
 
     let parallel_configs = loader_tree
         .parallel_routes
         .values()
         .map(|loader_tree| async move {
-            parse_segment_config_from_loader_tree_internal(loader_tree)
-                .await?
-                .await
+            parse_segment_config_from_loader_tree_internal(loader_tree).await
         })
         .try_join()
         .await?;
@@ -506,5 +506,5 @@ pub async fn parse_segment_config_from_loader_tree_internal(
         config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
 
-    Ok(config.cell())
+    Ok(config)
 }
