@@ -24,7 +24,7 @@
       return obj;
     }
     function handleErrorInNextTick(error) {
-      setTimeout(function () {
+      setTimeoutOrImmediate(function () {
         throw error;
       });
     }
@@ -2577,10 +2577,10 @@
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
       supportsRequestStorage
-        ? setTimeout(function () {
+        ? setTimeoutOrImmediate(function () {
             return requestStorage.run(request, performWork, request);
           }, 0)
-        : setTimeout(function () {
+        : setTimeoutOrImmediate(function () {
             return performWork(request);
           }, 0);
     }
@@ -2589,7 +2589,7 @@
         0 === request.pingedTasks.length &&
         null !== request.destination &&
         ((request.flushScheduled = !0),
-        setTimeout(function () {
+        setTimeoutOrImmediate(function () {
           request.flushScheduled = !1;
           var destination = request.destination;
           destination && flushCompletedChunks(request, destination);
@@ -3962,6 +3962,17 @@
         bind: { value: bind, configurable: !0 }
       });
     };
+
+// This is a patch added by Next.js
+const setTimeoutOrImmediate =
+  typeof globalThis['set' + 'Immediate'] === 'function' &&
+  // edge runtime sandbox defines a stub for setImmediate
+  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+  // but it's made non-enumerable, so we can detect it
+  globalThis.propertyIsEnumerable('setImmediate')
+    ? globalThis['set' + 'Immediate']
+    : setTimeout;
+
     exports.renderToReadableStream = function (model, turbopackMap, options) {
       var request = new RequestInstance(
         model,
