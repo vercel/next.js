@@ -244,23 +244,27 @@ mod ser {
         {
             match self {
                 CachedTaskType::Native { fn_type, this, arg } => {
-                    let mut s = serializer.serialize_seq(Some(3))?;
+                    let mut s = serializer.serialize_tuple(5)?;
                     s.serialize_element::<u8>(&0)?;
                     s.serialize_element(&FunctionAndArg::Borrowed {
                         fn_type: *fn_type,
                         arg: &**arg,
                     })?;
                     s.serialize_element(this)?;
+                    s.serialize_element(&())?;
+                    s.serialize_element(&())?;
                     s.end()
                 }
                 CachedTaskType::ResolveNative { fn_type, this, arg } => {
-                    let mut s = serializer.serialize_seq(Some(3))?;
+                    let mut s = serializer.serialize_tuple(5)?;
                     s.serialize_element::<u8>(&1)?;
                     s.serialize_element(&FunctionAndArg::Borrowed {
                         fn_type: *fn_type,
                         arg: &**arg,
                     })?;
                     s.serialize_element(this)?;
+                    s.serialize_element(&())?;
+                    s.serialize_element(&())?;
                     s.end()
                 }
                 CachedTaskType::ResolveTrait {
@@ -316,6 +320,12 @@ mod ser {
                             let this = seq
                                 .next_element()?
                                 .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
                             Ok(CachedTaskType::Native { fn_type, this, arg })
                         }
                         1 => {
@@ -328,18 +338,24 @@ mod ser {
                             let this = seq
                                 .next_element()?
                                 .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
                             Ok(CachedTaskType::ResolveNative { fn_type, this, arg })
                         }
                         2 => {
                             let trait_type = seq
                                 .next_element()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
                             let method_name = seq
                                 .next_element()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
                             let this = seq
                                 .next_element()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
                             let Some(method) =
                                 registry::get_trait(trait_type).methods.get(&method_name)
                             else {
@@ -347,7 +363,7 @@ mod ser {
                             };
                             let arg = seq
                                 .next_element_seed(method.arg_deserializer)?
-                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
                             Ok(CachedTaskType::ResolveTrait {
                                 trait_type,
                                 method_name,
@@ -359,7 +375,7 @@ mod ser {
                     }
                 }
             }
-            deserializer.deserialize_seq(Visitor)
+            deserializer.deserialize_tuple(5, Visitor)
         }
     }
 }
