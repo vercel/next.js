@@ -144,6 +144,13 @@ impl AggregatedDataUpdate {
             dirty_tasks_update: HashMap::from([(task_id, 1)]),
         }
     }
+
+    pub fn no_longer_dirty_task(task_id: TaskId) -> Self {
+        Self {
+            unfinished: -1,
+            dirty_tasks_update: HashMap::from([(task_id, -1)]),
+        }
+    }
 }
 
 impl Add for AggregatedDataUpdate {
