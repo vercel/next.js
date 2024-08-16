@@ -1959,7 +1959,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (process.env.NEXT_RUNTIME !== 'edge') {
         const { tryGetPreviewData } =
           require('./api-utils/node/try-get-preview-data') as typeof import('./api-utils/node/try-get-preview-data')
-        previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
+        previewData = tryGetPreviewData(
+          req,
+          res,
+          this.renderOpts.previewProps,
+          !!this.nextConfig.experimental.multiZoneDraftMode
+        )
         isPreviewMode = previewData !== false
       }
     }
@@ -2181,6 +2186,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         locale,
         locales,
         defaultLocale,
+        multiZoneDraftMode: this.nextConfig.experimental.multiZoneDraftMode,
         // For getServerSideProps and getInitialProps we need to ensure we use the original URL
         // and not the resolved URL to prevent a hydration mismatch on
         // asPath

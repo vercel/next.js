@@ -41,6 +41,7 @@ type ApiContext = __ApiPreviewProps & {
   allowedRevalidateHeaderKeys?: string[]
   hostname?: string
   revalidate?: RevalidateFn
+  multiZoneDraftMode?: boolean
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -346,7 +347,7 @@ export async function apiResolver(
     apiReq.query = query
     // Parsing preview data
     setLazyProp({ req: apiReq }, 'previewData', () =>
-      tryGetPreviewData(req, res, apiContext)
+      tryGetPreviewData(req, res, apiContext, !!apiContext.multiZoneDraftMode)
     )
     // Checking if preview mode is enabled
     setLazyProp({ req: apiReq }, 'preview', () =>
