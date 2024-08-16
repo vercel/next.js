@@ -370,7 +370,6 @@ impl BackingStorage for LmdbBackingStorage {
             .inspect_err(|err| println!("Looking up data for {task_id} failed: {err:?}"))
             .unwrap_or_default();
         if !result.is_empty() {
-            println!("restored {task_id}");
             self.restored_tasks
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
