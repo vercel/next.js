@@ -43,6 +43,7 @@ use turbopack_core::{
     diagnostics::DiagnosticExt,
     file_source::FileSource,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    module::Modules,
     output::{OutputAsset, OutputAssets},
     resolve::{find_context_file, FindContextFileResult},
     source::Source,
@@ -447,7 +448,7 @@ impl Issue for ConflictIssue {
 #[turbo_tasks::value_impl]
 impl Project {
     #[turbo_tasks::function]
-    async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
+    pub async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
         let app_dir = find_app_dir(self.project_path()).await?;
 
         Ok(Vc::cell(
@@ -456,7 +457,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn pages_project(self: Vc<Self>) -> Result<Vc<PagesProject>> {
+    pub async fn pages_project(self: Vc<Self>) -> Result<Vc<PagesProject>> {
         Ok(PagesProject::new(self))
     }
 
@@ -1169,6 +1170,18 @@ impl Project {
     pub fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
         let path = self.client_root();
         any_output_changed(roots, path, false)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let pages_project = self.pages_project();
+        let mut modules = vec![pages_project.client_main_module()];
+
+        if let Some(app_project) = *self.app_project().await? {
+            modules.push(app_project.client_main_module());
+        }
+
+        Ok(Vc::cell(modules))
     }
 
     /// Get the module id strategy for the project.

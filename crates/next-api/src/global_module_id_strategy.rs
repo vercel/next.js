@@ -24,6 +24,8 @@ impl GlobalModuleIdStrategyBuilder {
     pub async fn build(project: Vc<Project>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
         let mut preprocessed_module_ids = Vec::new();
 
+        preprocessed_module_ids.push(children_modules_idents(project.client_main_modules()));
+
         let entrypoints = project.entrypoints().await?;
 
         preprocessed_module_ids.push(preprocess_module_ids(entrypoints.pages_error_endpoint));

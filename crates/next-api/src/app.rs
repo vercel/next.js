@@ -53,12 +53,15 @@ use turbopack_core::{
     },
     file_source::FileSource,
     ident::AssetIdent,
+    issue::IssueSeverity,
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
+    resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     virtual_output::VirtualOutputAsset,
 };
+use turbopack_ecmascript::resolve::cjs_resolve;
 
 use crate::{
     dynamic_imports::{
@@ -553,6 +556,30 @@ impl AppProject {
                 .into_iter()
                 .collect(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn client_main_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        let client_module_context = Vc::upcast(self.client_module_context());
+
+        let client_main_module = cjs_resolve(
+            Vc::upcast(PlainResolveOrigin::new(
+                client_module_context,
+                self.project().project_path().join("_".into()),
+            )),
+            Request::parse(Value::new(Pattern::Constant(
+                "next/dist/client/app-next-turbopack.js".into(),
+            ))),
+            None,
+            IssueSeverity::Error.cell(),
+        )
+        .resolve()
+        .await?
+        .first_module()
+        .await?
+        .context("expected Next.js client runtime to resolve to a module")?;
+
+        Ok(client_main_module)
     }
 }
 
@@ -1344,8 +1371,8 @@ impl Endpoint for AppEndpoint {
 
     #[turbo_tasks::function]
     async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        let ssr_chunk_module = self.app_endpoint_entry().await?;
-        Ok(Vc::cell(vec![ssr_chunk_module.rsc_entry]))
+        let rsc_entry = self.app_endpoint_entry().await?.rsc_entry;
+        Ok(Vc::cell(vec![rsc_entry]))
     }
 }
 

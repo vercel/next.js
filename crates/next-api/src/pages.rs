@@ -555,6 +555,33 @@ impl PagesProject {
         let ssr_data_runtime_entries = self.data_runtime_entries();
         ssr_data_runtime_entries.resolve_entries(Vc::upcast(self.edge_ssr_module_context()))
     }
+
+    #[turbo_tasks::function]
+    pub async fn client_main_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        let client_module_context = self.client_module_context();
+
+        let client_main_module = esm_resolve(
+            Vc::upcast(PlainResolveOrigin::new(
+                client_module_context,
+                self.project().project_path().join("_".into()),
+            )),
+            Request::parse(Value::new(Pattern::Constant(
+                match *self.project().next_mode().await? {
+                    NextMode::Development => "next/dist/client/next-dev-turbopack.js",
+                    NextMode::Build => "next/dist/client/next-turbopack.js",
+                }
+                .into(),
+            ))),
+            Value::new(EcmaScriptModulesReferenceSubType::Undefined),
+            IssueSeverity::Error.cell(),
+            None,
+        )
+        .first_module()
+        .await?
+        .context("expected Next.js client runtime to resolve to a module")?;
+
+        Ok(client_main_module)
+    }
 }
 
 #[turbo_tasks::value]
@@ -615,38 +642,13 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn client_chunks_modules(self: Vc<Self>) -> Result<Vc<ClientChunksModules>> {
+    async fn client_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let this = self.await?;
-
-        let client_module_context = this.pages_project.client_module_context();
-        let client_module =
-            create_page_loader_entry_module(client_module_context, self.source(), this.pathname);
-
-        let client_main_module = esm_resolve(
-            Vc::upcast(PlainResolveOrigin::new(
-                client_module_context,
-                this.pages_project.project().project_path().join("_".into()),
-            )),
-            Request::parse(Value::new(Pattern::Constant(
-                match *this.pages_project.project().next_mode().await? {
-                    NextMode::Development => "next/dist/client/next-dev-turbopack.js",
-                    NextMode::Build => "next/dist/client/next-turbopack.js",
-                }
-                .into(),
-            ))),
-            Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-            IssueSeverity::Error.cell(),
-            None,
-        )
-        .first_module()
-        .await?
-        .context("expected Next.js client runtime to resolve to a module")?;
-
-        Ok(ClientChunksModules {
-            client_module,
-            client_main_module,
-        }
-        .cell())
+        Ok(create_page_loader_entry_module(
+            this.pages_project.client_module_context(),
+            self.source(),
+            this.pathname,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -654,10 +656,8 @@ impl PageEndpoint {
         async move {
             let this = self.await?;
 
-            let ClientChunksModules {
-                client_module,
-                client_main_module,
-            } = *self.client_chunks_modules().await?;
+            let client_module = self.client_module();
+            let client_main_module = this.pages_project.client_main_module();
 
             let Some(client_module) =
                 Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
@@ -1267,16 +1267,14 @@ impl Endpoint for PageEndpoint {
 
     #[turbo_tasks::function]
     async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        let mut modules = vec![];
-
         let this = self.await?;
+        let mut modules = vec![];
 
         let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
         modules.push(ssr_chunk_module.ssr_module);
+
         if let PageEndpointType::Html = this.ty {
-            let client_modules = self.client_chunks_modules().await?;
-            modules.push(client_modules.client_module);
-            modules.push(client_modules.client_main_module);
+            modules.push(self.client_module());
         }
 
         Ok(Vc::cell(modules))
