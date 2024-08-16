@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     borrow::Cow,
     future::Future,
     hash::{BuildHasherDefault, Hash},
@@ -236,8 +237,53 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
 
     /// Returns the duration from the start of the program to the given instant.
     fn program_duration_until(&self, instant: Instant) -> Duration;
+
+    /// An untyped object-safe version of [`TurboTasksBackendApiExt::read_task_state`]. Callers
+    /// should prefer the extension trait's version of this method.
+    #[allow(clippy::type_complexity)] // Moving this to a typedef would make the docs confusing
+    fn read_task_state_boxed(&self, func: Box<dyn FnOnce(&B::TaskState) + '_>);
+
+    /// An untyped object-safe version of [`TurboTasksBackendApiExt::write_task_state`]. Callers
+    /// should prefer the extension trait's version of this method.
+    #[allow(clippy::type_complexity)]
+    fn write_task_state_boxed(&self, func: Box<dyn FnOnce(&mut B::TaskState) + '_>);
+
     /// Returns a reference to the backend.
     fn backend(&self) -> &B;
+}
+
+/// An extension trait for methods of `TurboTasksBackendApi` that are not object-safe. This is
+/// automatically implemented for all `TurboTasksBackendApi`s using a blanket impl.
+pub trait TurboTasksBackendApiExt<B: Backend + 'static>: TurboTasksBackendApi<B> {
+    /// Allows modification of the [`Backend::TaskState`].
+    ///
+    /// This function holds open a non-exclusive read lock that blocks writes, so `func` is expected
+    /// to execute quickly in order to release the lock.
+    fn read_task_state<T>(&self, func: impl FnOnce(&B::TaskState) -> T) -> T;
+
+    /// Allows modification of the [`Backend::TaskState`].
+    ///
+    /// This function holds open a write lock, so `func` is expected to execute quickly in order to
+    /// release the lock.
+    fn write_task_state<T>(&self, func: impl FnOnce(&mut B::TaskState) -> T) -> T;
+}
+
+impl<TT, B> TurboTasksBackendApiExt<B> for TT
+where
+    TT: TurboTasksBackendApi<B> + ?Sized,
+    B: Backend + 'static,
+{
+    fn read_task_state<T>(&self, func: impl FnOnce(&B::TaskState) -> T) -> T {
+        let mut out = None;
+        self.read_task_state_boxed(Box::new(|ts| out = Some(func(ts))));
+        out.expect("write_task_state_boxed must call `func`")
+    }
+
+    fn write_task_state<T>(&self, func: impl FnOnce(&mut B::TaskState) -> T) -> T {
+        let mut out = None;
+        self.write_task_state_boxed(Box::new(|ts| out = Some(func(ts))));
+        out.expect("write_task_state_boxed must call `func`")
+    }
 }
 
 #[allow(clippy::manual_non_exhaustive)]
@@ -341,10 +387,12 @@ struct CurrentGlobalTaskState {
     /// Tracks currently running local tasks, and defers cleanup of the global task until those
     /// complete.
     local_task_tracker: TaskTracker,
+
+    backend_state: Box<dyn Any + Send + Sync>,
 }
 
 impl CurrentGlobalTaskState {
-    fn new(task_id: TaskId) -> Self {
+    fn new(task_id: TaskId, backend_state: Box<dyn Any + Send + Sync>) -> Self {
         Self {
             task_id,
             tasks_to_notify: Vec::new(),
@@ -352,6 +400,7 @@ impl CurrentGlobalTaskState {
             cell_counters: Some(AutoMap::default()),
             local_cells: Vec::new(),
             local_task_tracker: TaskTracker::new(),
+            backend_state,
         }
     }
 }
@@ -689,7 +738,11 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let future = async move {
             let mut schedule_again = true;
             while schedule_again {
-                let global_task_state = Arc::new(RwLock::new(CurrentGlobalTaskState::new(task_id)));
+                let backend_state = this.backend.new_task_state(task_id);
+                let global_task_state = Arc::new(RwLock::new(CurrentGlobalTaskState::new(
+                    task_id,
+                    Box::new(backend_state),
+                )));
                 let local_task_state = CurrentLocalTaskState::new(
                     this.execution_id_factory.get(),
                     this.backend
@@ -754,9 +807,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             anyhow::Ok(())
         };
 
-        let future = TURBO_TASKS
-            .scope(self.pin(), self.backend.execution_scope(task_id, future))
-            .in_current_span();
+        let future = TURBO_TASKS.scope(self.pin(), future).in_current_span();
 
         #[cfg(feature = "tokio_tracing")]
         tokio::task::Builder::new()
@@ -1316,22 +1367,15 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         // state as well.
         let global_task_state = CURRENT_GLOBAL_TASK_STATE.with(|ts| ts.clone());
         let local_task_state = CURRENT_LOCAL_TASK_STATE.with(|ts| ts.clone());
-        let (task_id, fut) = {
+        let tracked_fut = {
             let ts = global_task_state.read().unwrap();
-            (ts.task_id, ts.local_task_tracker.track_future(fut))
+            ts.local_task_tracker.track_future(fut)
         };
         Box::pin(TURBO_TASKS.scope(
             turbo_tasks(),
             CURRENT_GLOBAL_TASK_STATE.scope(
                 global_task_state,
-                CURRENT_LOCAL_TASK_STATE.scope(
-                    local_task_state,
-                    // TODO(bgw): This will create a new task-local in the backend, which is not
-                    // what we want. Instead we should replace `execution_scope` with a more
-                    // limited API that allows storing thread-local state in a way the manager can
-                    // control.
-                    self.backend.execution_scope(task_id, fut),
-                ),
+                CURRENT_LOCAL_TASK_STATE.scope(local_task_state, tracked_fut),
             ),
         ))
     }
@@ -1449,6 +1493,16 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
 
     unsafe fn reuse_transient_task_id(&self, id: Unused<TaskId>) {
         unsafe { self.transient_task_id_factory.reuse(id.into()) }
+    }
+
+    fn read_task_state_boxed(&self, func: Box<dyn FnOnce(&B::TaskState) + '_>) {
+        CURRENT_GLOBAL_TASK_STATE
+            .with(move |ts| func(ts.read().unwrap().backend_state.downcast_ref().unwrap()))
+    }
+
+    fn write_task_state_boxed(&self, func: Box<dyn FnOnce(&mut B::TaskState) + '_>) {
+        CURRENT_GLOBAL_TASK_STATE
+            .with(move |ts| func(ts.write().unwrap().backend_state.downcast_mut().unwrap()))
     }
 }
 
@@ -1666,7 +1720,10 @@ pub fn with_turbo_tasks_for_testing<T>(
     TURBO_TASKS.scope(
         tt,
         CURRENT_GLOBAL_TASK_STATE.scope(
-            Arc::new(RwLock::new(CurrentGlobalTaskState::new(current_task))),
+            Arc::new(RwLock::new(CurrentGlobalTaskState::new(
+                current_task,
+                Box::new(()),
+            ))),
             CURRENT_LOCAL_TASK_STATE.scope(CurrentLocalTaskState::new(execution_id, None), f),
         ),
     )
