@@ -134,7 +134,6 @@ export type IncrementalCacheEntry = {
   revalidateAfter: Revalidate
   // -1 here dictates a blocking revalidate should be used
   isStale?: boolean | -1
-  isFallback: boolean | undefined
   value: IncrementalCacheValue | null
 }
 
@@ -158,7 +157,6 @@ export type ResponseCacheEntry = {
   value: ResponseCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
-  isFallback: boolean | undefined
 }
 
 /**
@@ -178,7 +176,6 @@ export type IncrementalCacheItem = {
   value: IncrementalCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
-  isFallback?: boolean
 } | null
 
 export const enum IncrementalCacheKind {

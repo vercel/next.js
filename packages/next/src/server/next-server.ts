@@ -872,7 +872,6 @@ export default class NextNodeServer extends BaseServer<
                 etag,
                 extension: getExtension(contentType) as string,
               },
-              isFallback: false,
               revalidate: maxAge,
             }
           },

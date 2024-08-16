@@ -101,11 +101,6 @@ export default class ResponseCache implements ResponseCacheBase {
               })
             : null
 
-          // Ensure that cached responses that are fallbacks are marked as such.
-          if (cachedResponse) {
-            cachedResponse.isFallback = isFallback
-          }
-
           if (cachedResponse && !isOnDemandRevalidate) {
             if (cachedResponse.value?.kind === CachedRouteKind.FETCH) {
               throw new Error(
@@ -158,13 +153,8 @@ export default class ResponseCache implements ResponseCacheBase {
           }
 
           // We want to persist the result only if it has a revalidate value
-          // defined and it's not the fallback result. The fallback result has
-          // it's own wrapping cache.
-          if (
-            typeof resolveValue.revalidate !== 'undefined' &&
-            (!resolveValue.isFallback ||
-              (resolveValue.isFallback && isFallback))
-          ) {
+          // defined.
+          if (typeof resolveValue.revalidate !== 'undefined') {
             if (this.minimalMode) {
               this.previousCacheItem = {
                 key: cacheKey,

@@ -427,7 +427,6 @@ export class IncrementalCache implements IncrementalCacheType {
 
       return {
         isStale: isStale,
-        isFallback: false,
         value: {
           kind: CachedRouteKind.FETCH,
           data,
@@ -464,7 +463,6 @@ export class IncrementalCache implements IncrementalCacheType {
         curRevalidate,
         revalidateAfter,
         value: cacheData.value,
-        isFallback: ctx.isFallback,
       }
     }
 
@@ -482,7 +480,6 @@ export class IncrementalCache implements IncrementalCacheType {
         value: null,
         curRevalidate,
         revalidateAfter,
-        isFallback: ctx.isFallback,
       }
       this.set(cacheKey, entry.value, ctx)
     }
