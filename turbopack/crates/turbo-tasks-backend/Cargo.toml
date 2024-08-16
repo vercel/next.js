@@ -12,6 +12,10 @@ bench = false
 [lints]
 workspace = true
 
+[features]
+default = ["verify_serialization"]
+verify_serialization = []
+
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
