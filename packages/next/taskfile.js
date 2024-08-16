@@ -1687,29 +1687,29 @@ export async function copy_vendor_react(task_) {
           const toInsert =
             '\n\n' +
             outdent`
-/** This is a patch added by Next.js */
-const setTimeoutOrImmediate = (() => {
-  // edge runtime sandbox defines a stub for setImmediate
-  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-  // so we can't just do this:
-  //   typeof setImmediate === 'function'
-  // luckily it makes it non-enumerable, so we can use this instead
-  const _setImmediate = Object.keys(globalThis).includes("setImmediate")
-    ? globalThis["set" + "Immediate"]
-    : undefined;
+            /** This is a patch added by Next.js */
+            const setTimeoutOrImmediate = (() => {
+              // edge runtime sandbox defines a stub for setImmediate
+              // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+              // so we can't just do this:
+              //   typeof setImmediate === 'function'
+              // luckily it makes it non-enumerable, so we can use this instead
+              const _setImmediate = Object.keys(globalThis).includes("setImmediate")
+                ? globalThis["set" + "Immediate"]
+                : undefined;
 
-  if (typeof _setImmediate === "function") {
-    return function setTimeoutOrImmediateImpl(cb, dur = 0, ...args) {
-      if (dur === 0 && args.length === 0) {
-        // likely a scheduleWork call
-        return _setImmediate(cb);
-      }
-      return setTimeout(cb, dur, ...args);
-    };
-  }
+              if (typeof _setImmediate === "function") {
+                return function setTimeoutOrImmediateImpl(cb, dur = 0, ...args) {
+                  if (dur === 0 && args.length === 0) {
+                    // likely a scheduleWork call
+                    return _setImmediate(cb);
+                  }
+                  return setTimeout(cb, dur, ...args);
+                };
+              }
 
-  return setTimeout;
-})();
+              return setTimeout;
+            })();
           ` +
             '\n'
 
