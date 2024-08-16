@@ -1,11 +1,7 @@
 use indexmap::IndexSet;
 use turbo_tasks::Vc;
 
-use crate::{
-    asset::Asset,
-    ident::AssetIdent,
-    reference::{primary_referenced_modules, ModuleReferences},
-};
+use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
 
 /// A module. This usually represents parsed source code, which has references
 /// to other modules.
@@ -21,8 +17,8 @@ pub trait Module: Asset {
         ModuleReferences::empty()
     }
 
-    fn children_modules(self: Vc<Self>) -> Vc<Modules> {
-        primary_referenced_modules(self)
+    fn additional_layers_modules(self: Vc<Self>) -> Vc<Modules> {
+        Vc::cell(vec![])
     }
 }
 

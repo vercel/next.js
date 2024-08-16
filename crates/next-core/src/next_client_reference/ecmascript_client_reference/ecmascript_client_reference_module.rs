@@ -57,10 +57,9 @@ impl Module for EcmascriptClientReferenceModule {
     }
 
     #[turbo_tasks::function]
-    async fn children_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        let this = self.await?;
-        let client_module = Vc::upcast(this.client_module);
-        let ssr_module = Vc::upcast(this.ssr_module);
+    async fn additional_layers_modules(&self) -> Result<Vc<Modules>> {
+        let client_module = Vc::upcast(self.client_module);
+        let ssr_module = Vc::upcast(self.ssr_module);
         Ok(Vc::cell(vec![client_module, ssr_module]))
     }
 }
