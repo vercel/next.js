@@ -77,6 +77,11 @@ const pluginState = getProxiedPluginState({
   serverActions: {} as ActionManifest['node'],
   edgeServerActions: {} as ActionManifest['edge'],
 
+  usedActions: {
+    node: {} as Record<string, Set<string>>,
+    edge: {} as Record<string, Set<string>>,
+  },
+
   actionModServerId: {} as Record<
     string,
     {
@@ -165,7 +170,10 @@ export class FlightClientEntryPlugin {
   encryptionKey: string
   isEdgeServer: boolean
   assetPrefix: string
-  usedActions: Record<string, Set<string>>
+  usedActions: {
+    node: Record<string, Set<string>>
+    edge: Record<string, Set<string>>
+  }
 
   constructor(options: Options) {
     this.dev = options.dev
@@ -174,7 +182,14 @@ export class FlightClientEntryPlugin {
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
     this.encryptionKey = options.encryptionKey
 
-    this.usedActions = {}
+    this.usedActions = {
+      node: {},
+      edge: {},
+    }
+  }
+
+  get usedActionsMapping() {
+    return this.usedActions[this.isEdgeServer ? 'edge' : 'node']
   }
 
   apply(compiler: webpack.Compiler) {
@@ -405,11 +420,7 @@ export class FlightClientEntryPlugin {
     for (const [name, actionEntryImports] of Object.entries(
       actionMapsPerEntry
     )) {
-      for (const [dep, actionNames] of actionEntryImports) {
-        for (const actionName of actionNames) {
-          createdActions.add(name + '@' + dep + '@' + actionName)
-        }
-      }
+      
       addActionEntryList.push(
         this.injectActionEntry({
           compiler,
@@ -417,6 +428,7 @@ export class FlightClientEntryPlugin {
           actions: actionEntryImports,
           entryName: name,
           bundlePath: name,
+          createdActions,
         })
       )
     }
@@ -447,6 +459,9 @@ export class FlightClientEntryPlugin {
     const addedClientActionEntryList: Promise<any>[] = []
     const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
 
+
+    // Loop to mark actions first
+
     // We need to create extra action entries that are created from the
     // client layer.
     // Start from each entry's created SSR dependency from our previous step.
@@ -457,10 +472,10 @@ export class FlightClientEntryPlugin {
       // add aggregate them.
       const {
         collectedActions: actionEntryImports,
-        // usedExportedActions,
       } = this.collectClientActionsFromDependencies({
         compilation,
         dependencies: ssrEntryDependencies,
+        collectUsedExportedActions: true,
       })
 
       if (actionEntryImports.size > 0) {
@@ -474,7 +489,7 @@ export class FlightClientEntryPlugin {
       }
     }
 
-    console.log('this.usedActions', this.usedActions)
+    console.log('this.usedActionsMapping', this.usedActionsMapping, 'runtime', this.isEdgeServer ? 'edge' : 'node')
 
     for (const [name, actionEntryImports] of Object.entries(
       actionMapsPerClientEntry
@@ -508,6 +523,7 @@ export class FlightClientEntryPlugin {
             entryName: name,
             bundlePath: name,
             fromClient: true,
+            createdActions,
           })
         )
       }
@@ -519,9 +535,11 @@ export class FlightClientEntryPlugin {
   collectClientActionsFromDependencies({
     compilation,
     dependencies,
+    collectUsedExportedActions,
   }: {
     compilation: webpack.Compilation
     dependencies: ReturnType<typeof webpack.EntryPlugin.createDependency>[]
+    collectUsedExportedActions: boolean
   }) {
     // action file path -> action names
     const collectedActions = new Map<string, string[]>()
@@ -559,53 +577,53 @@ export class FlightClientEntryPlugin {
           modRequest = mod.matchResource + ':' + modRequest
         }
 
-        // if (ids.includes('pageAction')) {
-        //   console.log('isActionModule', isActionLayerEntryModule(mod), getActionsFromBuildInfo(mod), visitedModule.has(modRequest))
-        // }
         if (!modRequest) return
 
         const actions = getActionsFromBuildInfo(mod)
-        if (visitedModule.has(modRequest) && actions) {
-          // if (ids)
-            // console.log('visited ssr:collect action', ids, modRequest)
-          if (!this.usedActions[modRequest]) {
-            this.usedActions[modRequest] = new Set(ids)
-          } else {
-            ids.forEach((id) => this.usedActions[modRequest].add(id))
+        
+        if (collectUsedExportedActions) {
+          if (visitedModule.has(modRequest) && actions) {
+            // if (ids)
+              // console.log('visited ssr:collect action', ids, modRequest)
+            if (!this.usedActionsMapping[modRequest]) {
+              this.usedActionsMapping[modRequest] = new Set(ids)
+            } else {
+              ids.forEach((id) => this.usedActionsMapping[modRequest].add(id))
+            }
           }
         }
+
 
         if (visitedModule.has(modRequest)) return
 
         visitedModule.add(modRequest)
         
         if (actions) {
-          // console.log('ssr:collect action', ids, modRequest)
           collectedActions.set(modRequest, actions)
         }
 
-        getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
-          (connection: any) => {
-            // const ids: string[] = connection.dependency ? (connection.dependency as any).ids ?? [] : []
-
-            let dependencyIds: string[] = []
-            const depModule = connection.resolvedModule
-            if (connection.dependency?.ids) {
-              if (connection.dependency?.ids?.includes('pageAction')) {
-                console.log('connection.dependency?.ids', connection.dependency?.ids, 'from', depModule.resource)
+        if (collectUsedExportedActions) {
+          getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
+            (connection: any) => {
+              // const ids: string[] = connection.dependency ? (connection.dependency as any).ids ?? [] : []
+  
+              let dependencyIds: string[] = []
+              const depModule = connection.resolvedModule
+              if (connection.dependency?.ids) {
+  
+                dependencyIds.push(...connection.dependency.ids)
+              } else {
+                // TODO: verify cjs module
+                dependencyIds = []
               }
-              dependencyIds.push(...connection.dependency.ids)
-            } else {
-              dependencyIds = []
-              // console.log('cannot tell', connection.dependency.resource || connection.dependency.request)
+  
+              collectActionsInDep(
+                connection.resolvedModule as webpack.NormalModule,
+                dependencyIds,
+              )
             }
-
-            collectActionsInDep(
-              connection.resolvedModule as webpack.NormalModule,
-              dependencyIds,
-            )
-          }
-        )
+          )
+        }
       }
 
       // Don't traverse the module graph anymore once hitting the action layer.
@@ -789,9 +807,9 @@ export class FlightClientEntryPlugin {
 
       if (!modRequest) return
       if (visitedOfActionTraverse.has(modRequest)) {
-        if (this.usedActions[modRequest]) {
+        if (this.usedActionsMapping[modRequest]) {
           importedIdentifiers.forEach((id) =>
-            this.usedActions[modRequest].add(id)
+            this.usedActionsMapping[modRequest].add(id)
           )
         }
         return
@@ -801,10 +819,10 @@ export class FlightClientEntryPlugin {
       if (isActionLayerEntryModule(mod)) {
         // `ids` are the identifiers that are imported from the dependency,
         // if it's present, it's an array of strings.
-        if (!this.usedActions[modRequest]) {
-          this.usedActions[modRequest] = new Set(importedIdentifiers)
+        if (!this.usedActionsMapping[modRequest]) {
+          this.usedActionsMapping[modRequest] = new Set(importedIdentifiers)
         } else {
-          importedIdentifiers.forEach((id) => this.usedActions[modRequest].add(id))
+          importedIdentifiers.forEach((id) => this.usedActionsMapping[modRequest].add(id))
         }
         return 
       }
@@ -833,9 +851,6 @@ export class FlightClientEntryPlugin {
 
     // Traverse the module graph to find all used actions.
     filterUsedActions(resolvedModule, [])
-
-    // console.log('this.usedActions', this.usedActions)
-    // console.log('actionImports', actionImports)
 
     return {
       clientComponentImports,
@@ -979,16 +994,41 @@ export class FlightClientEntryPlugin {
     entryName,
     bundlePath,
     fromClient,
+    createdActions,
   }: {
     compiler: webpack.Compiler
     compilation: webpack.Compilation
     actions: Map<string, string[]>
     entryName: string
     bundlePath: string
+    createdActions: Set<string>
     fromClient?: boolean
   }) {
-    console.log('injectActionEntry')
+    for (const [filePath, names] of actions.entries()) {
+      const usedActionNames = this.usedActionsMapping[filePath]
+      if (usedActionNames) {
+        const filteredNames = names.filter((name) => usedActionNames.has(name))
+        actions.set(filePath, filteredNames)
+      } else {
+        // If we didn't collect the used, we erase them from the collected actions
+        // to avoid creating the action entry.
+        // actions.delete(filePath)
+      }
+    }
+
+    console.log('injectActionEntry', actions, 'this.usedActionsMapping', this.usedActionsMapping)
+
     const actionsArray = Array.from(actions.entries())
+
+    for (const [dep, actionNames] of actions) {
+      for (const actionName of actionNames) {
+        createdActions.add(entryName + '@' + dep + '@' + actionName)
+      }
+    }
+
+    if (actionsArray.length === 0) {
+      return Promise.resolve()
+    }
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),
