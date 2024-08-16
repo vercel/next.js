@@ -10,20 +10,20 @@ use crate::{
     NativeFunction, TraitType, ValueType,
 };
 
-static FUNCTION_ID_FACTORY: IdFactory<FunctionId> = IdFactory::new();
+static FUNCTION_ID_FACTORY: IdFactory<FunctionId> = IdFactory::new(1, u32::MAX as u64);
 static FUNCTIONS_BY_NAME: Lazy<DashMap<&'static str, FunctionId>> = Lazy::new(DashMap::new);
 static FUNCTIONS_BY_VALUE: Lazy<DashMap<&'static NativeFunction, FunctionId>> =
     Lazy::new(DashMap::new);
 static FUNCTIONS: Lazy<NoMoveVec<(&'static NativeFunction, &'static str)>> =
     Lazy::new(NoMoveVec::new);
 
-static VALUE_TYPE_ID_FACTORY: IdFactory<ValueTypeId> = IdFactory::new();
+static VALUE_TYPE_ID_FACTORY: IdFactory<ValueTypeId> = IdFactory::new(1, u32::MAX as u64);
 static VALUE_TYPES_BY_NAME: Lazy<DashMap<&'static str, ValueTypeId>> = Lazy::new(DashMap::new);
 static VALUE_TYPES_BY_VALUE: Lazy<DashMap<&'static ValueType, ValueTypeId>> =
     Lazy::new(DashMap::new);
 static VALUE_TYPES: Lazy<NoMoveVec<(&'static ValueType, &'static str)>> = Lazy::new(NoMoveVec::new);
 
-static TRAIT_TYPE_ID_FACTORY: IdFactory<TraitTypeId> = IdFactory::new();
+static TRAIT_TYPE_ID_FACTORY: IdFactory<TraitTypeId> = IdFactory::new(1, u32::MAX as u64);
 static TRAIT_TYPES_BY_NAME: Lazy<DashMap<&'static str, TraitTypeId>> = Lazy::new(DashMap::new);
 static TRAIT_TYPES_BY_VALUE: Lazy<DashMap<&'static TraitType, TraitTypeId>> =
     Lazy::new(DashMap::new);

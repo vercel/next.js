@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, quote_spanned};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
@@ -24,6 +24,8 @@ pub struct TurboFn {
     inputs: Vec<Input>,
     /// Should we check that the return type contains a `ResolvedValue`?
     resolved: Option<Span>,
+    /// Should this function use `TaskPersistence::LocalCells`?
+    local_cells: bool,
 }
 
 #[derive(Debug)]
@@ -257,6 +259,7 @@ impl TurboFn {
             this,
             inputs,
             resolved: args.resolved,
+            local_cells: args.local_cells.is_some(),
         })
     }
 
@@ -301,15 +304,24 @@ impl TurboFn {
         }
     }
 
-    fn inputs(&self) -> Vec<&Ident> {
-        self.inputs
-            .iter()
-            .map(|Input { ident, .. }| ident)
-            .collect()
+    fn input_idents(&self) -> impl Iterator<Item = &Ident> {
+        self.inputs.iter().map(|Input { ident, .. }| ident)
     }
 
     pub fn input_types(&self) -> Vec<&Type> {
         self.inputs.iter().map(|Input { ty, .. }| ty).collect()
+    }
+
+    pub fn persistence(&self) -> impl ToTokens {
+        if self.local_cells {
+            quote! {
+                turbo_tasks::TaskPersistence::LocalCells
+            }
+        } else {
+            quote! {
+                turbo_tasks::macro_helpers::get_non_local_persistence_from_inputs(&*inputs)
+            }
+        }
     }
 
     fn converted_this(&self) -> Option<Expr> {
@@ -326,14 +338,7 @@ impl TurboFn {
             quote_spanned! {
                 span =>
                 {
-                    fn assert_returns_resolved_value<
-                        ReturnType,
-                        Rv,
-                    >() where
-                        ReturnType: turbo_tasks::task::TaskOutput<Return = Vc<Rv>>,
-                        Rv: turbo_tasks::ResolvedValue + Send,
-                    {}
-                    assert_returns_resolved_value::<#return_type, _>()
+                    turbo_tasks::macro_helpers::assert_returns_resolved_value::<#return_type, _>()
                 }
             }
         } else {
@@ -344,29 +349,33 @@ impl TurboFn {
     /// The block of the exposed function for a dynamic dispatch call to the
     /// given trait.
     pub fn dynamic_block(&self, trait_type_id_ident: &Ident) -> Block {
-        let ident = &self.ident;
-        let output = &self.output;
-        let assertions = self.get_assertions();
-        if let Some(converted_this) = self.converted_this() {
-            let inputs = self.inputs();
-            parse_quote! {
-                {
-                    #assertions
-                    <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
-                        turbo_tasks::trait_call(
-                            *#trait_type_id_ident,
-                            std::borrow::Cow::Borrowed(stringify!(#ident)),
-                            #converted_this,
-                            Box::new((#(#inputs,)*)) as Box<dyn turbo_tasks::MagicAny>,
-                        )
-                    )
-                }
-            }
-        } else {
-            parse_quote! {
+        let Some(converted_this) = self.converted_this() else {
+            return parse_quote! {
                 {
                     unimplemented!("trait methods without self are not yet supported")
                 }
+            };
+        };
+
+        let ident = &self.ident;
+        let output = &self.output;
+        let assertions = self.get_assertions();
+        let inputs = self.input_idents();
+        let persistence = self.persistence();
+        parse_quote! {
+            {
+                #assertions
+                let inputs = std::boxed::Box::new((#(#inputs,)*));
+                let persistence = #persistence;
+                <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
+                    turbo_tasks::trait_call(
+                        *#trait_type_id_ident,
+                        std::borrow::Cow::Borrowed(stringify!(#ident)),
+                        #converted_this,
+                        inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
+                        persistence,
+                    )
+                )
             }
         }
     }
@@ -375,17 +384,21 @@ impl TurboFn {
     /// given native function.
     pub fn static_block(&self, native_function_id_ident: &Ident) -> Block {
         let output = &self.output;
-        let inputs = self.inputs();
+        let inputs = self.input_idents();
+        let persistence = self.persistence();
         let assertions = self.get_assertions();
         if let Some(converted_this) = self.converted_this() {
             parse_quote! {
                 {
                     #assertions
+                    let inputs = std::boxed::Box::new((#(#inputs,)*));
+                    let persistence = #persistence;
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_this_call(
                             *#native_function_id_ident,
                             #converted_this,
-                            Box::new((#(#inputs,)*)) as Box<dyn turbo_tasks::MagicAny>,
+                            inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
+                            persistence,
                         )
                     )
                 }
@@ -394,10 +407,13 @@ impl TurboFn {
             parse_quote! {
                 {
                     #assertions
+                    let inputs = std::boxed::Box::new((#(#inputs,)*));
+                    let persistence = #persistence;
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
                             *#native_function_id_ident,
-                            Box::new((#(#inputs,)*)) as Box<dyn turbo_tasks::MagicAny>,
+                            inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
+                            persistence,
                         )
                     )
                 }
@@ -460,17 +476,26 @@ impl<T: Parse> Parse for MaybeParenthesized<T> {
 /// Arguments to the `#[turbo_tasks::function]` macro.
 #[derive(Default)]
 pub struct FunctionArguments {
-    /// Manually annotated metadata about what kind of IO this function does.
-    /// Currently only used by some static analysis tools. May be exposed via
-    /// `tracing` or used as part of an optimization heuristic in the
-    /// future.
+    /// Manually annotated metadata about what kind of IO this function does. Currently only used
+    /// by some static analysis tools. May be exposed via `tracing` or used as part of an
+    /// optimization heuristic in the future.
     ///
-    /// This should only be used by the task that directly performs the IO.
-    /// Tasks that transitively perform IO should not be manually annotated.
+    /// This should only be used by the task that directly performs the IO. Tasks that transitively
+    /// perform IO should not be manually annotated.
     io_markers: HashSet<IoMarker>,
-    /// Should we check that the return type contains a `ResolvedValue`? This is
-    /// a span for error reporting reasons.
+    /// Should we check that the return type contains a `ResolvedValue`?
+    ///
+    /// If there is an error due to this option being set, it should be reported to this span.
+    ///
+    /// If [`Self::local_cells`] is set, this will also be set to the same span.
     resolved: Option<Span>,
+    /// Changes the behavior of `Vc::cell` to create local cells that are not cached across task
+    /// executions. Cells can be converted to their non-local versions by calling `Vc::resolve`.
+    ///
+    /// If there is an error due to this option being set, it should be reported to this span.
+    ///
+    /// Setting this option will also set [`Self::resolved`] to the same span.
+    pub local_cells: Option<Span>,
 }
 
 impl Parse for FunctionArguments {
@@ -495,10 +520,16 @@ impl Parse for FunctionArguments {
                 ("resolved", Meta::Path(_)) => {
                     parsed_args.resolved = Some(meta.span());
                 }
+                ("local_cells", Meta::Path(_)) => {
+                    let span = Some(meta.span());
+                    parsed_args.local_cells = span;
+                    parsed_args.resolved = span;
+                }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
-                        "unexpected token, expected one of: \"fs\", \"network\", \"resolved\"",
+                        "unexpected token, expected one of: \"fs\", \"network\", \"resolved\", \
+                         \"local_cells\"",
                     ))
                 }
             }
@@ -637,14 +668,21 @@ pub struct NativeFn {
     function_path_string: String,
     function_path: ExprPath,
     is_method: bool,
+    local_cells: bool,
 }
 
 impl NativeFn {
-    pub fn new(function_path_string: &str, function_path: &ExprPath, is_method: bool) -> NativeFn {
+    pub fn new(
+        function_path_string: &str,
+        function_path: &ExprPath,
+        is_method: bool,
+        local_cells: bool,
+    ) -> NativeFn {
         NativeFn {
             function_path_string: function_path_string.to_owned(),
             function_path: function_path.clone(),
             is_method,
+            local_cells,
         }
     }
 
@@ -657,22 +695,26 @@ impl NativeFn {
             function_path_string,
             function_path,
             is_method,
+            local_cells,
         } = self;
 
-        if *is_method {
-            parse_quote! {
-                turbo_tasks::macro_helpers::Lazy::new(|| {
-                    #[allow(deprecated)]
-                    turbo_tasks::NativeFunction::new_method(#function_path_string.to_owned(), #function_path)
-                })
-            }
+        let constructor = if *is_method {
+            quote! { new_method }
         } else {
-            parse_quote! {
-                turbo_tasks::macro_helpers::Lazy::new(|| {
-                    #[allow(deprecated)]
-                    turbo_tasks::NativeFunction::new_function(#function_path_string.to_owned(), #function_path)
-                })
-            }
+            quote! { new_function }
+        };
+
+        parse_quote! {
+            turbo_tasks::macro_helpers::Lazy::new(|| {
+                #[allow(deprecated)]
+                turbo_tasks::NativeFunction::#constructor(
+                    #function_path_string.to_owned(),
+                    turbo_tasks::FunctionMeta {
+                        local_cells: #local_cells,
+                    },
+                    #function_path,
+                )
+            })
         }
     }
 

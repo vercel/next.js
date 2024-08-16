@@ -84,43 +84,65 @@ impl ArgMeta {
     }
 }
 
+#[derive(Debug)]
+pub struct FunctionMeta {
+    /// Changes the behavior of `Vc::cell` to create local cells that are not
+    /// cached across task executions. Cells can be converted to their non-local
+    /// versions by calling `Vc::resolve`.
+    pub local_cells: bool,
+}
+
 /// A native (rust) turbo-tasks function. It's used internally by
 /// `#[turbo_tasks::function]`.
 #[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual")]
 pub struct NativeFunction {
     /// A readable name of the function that is used to reporting purposes.
     pub name: String,
+
+    #[turbo_tasks(trace_ignore)]
+    pub function_meta: FunctionMeta,
+
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    pub arg_meta: ArgMeta,
+
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     pub implementation: Box<dyn TaskFn + Send + Sync + 'static>,
-
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    pub arg_meta: ArgMeta,
 }
 
 impl Debug for NativeFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NativeFunction")
             .field("name", &self.name)
+            .field("function_meta", &self.function_meta)
             .finish_non_exhaustive()
     }
 }
 
 impl NativeFunction {
-    pub fn new_function<Mode, Inputs, I>(name: String, implementation: I) -> Self
+    pub fn new_function<Mode, Inputs, I>(
+        name: String,
+        function_meta: FunctionMeta,
+        implementation: I,
+    ) -> Self
     where
         Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
         I: IntoTaskFn<Mode, Inputs>,
     {
         Self {
             name,
-            implementation: Box::new(implementation.into_task_fn()),
+            function_meta,
             arg_meta: ArgMeta::new::<Inputs>(),
+            implementation: Box::new(implementation.into_task_fn()),
         }
     }
 
-    pub fn new_method<Mode, This, Inputs, I>(name: String, implementation: I) -> Self
+    pub fn new_method<Mode, This, Inputs, I>(
+        name: String,
+        function_meta: FunctionMeta,
+        implementation: I,
+    ) -> Self
     where
         This: Sync + Send + 'static,
         Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
@@ -128,8 +150,9 @@ impl NativeFunction {
     {
         Self {
             name,
-            implementation: Box::new(implementation.into_task_fn_with_this()),
+            function_meta,
             arg_meta: ArgMeta::new::<Inputs>(),
+            implementation: Box::new(implementation.into_task_fn_with_this()),
         }
     }
 
