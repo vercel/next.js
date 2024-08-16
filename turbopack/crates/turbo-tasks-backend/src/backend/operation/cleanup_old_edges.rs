@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
 use super::{
-    aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
+    aggregation_update::{AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue},
     invalidate::make_task_dirty,
     ExecuteContext, Operation,
 };
@@ -38,10 +38,15 @@ pub enum OutdatedEdge {
 
 impl CleanupOldEdgesOperation {
     pub fn run(task_id: TaskId, outdated: Vec<OutdatedEdge>, ctx: ExecuteContext<'_>) {
+        let mut queue = AggregationUpdateQueue::new();
+        queue.push(AggregationUpdateJob::DataUpdate {
+            task_id,
+            update: AggregatedDataUpdate::no_longer_dirty_task(task_id),
+        });
         CleanupOldEdgesOperation::RemoveEdges {
             task_id,
             outdated,
-            queue: AggregationUpdateQueue::new(),
+            queue,
         }
         .execute(&ctx);
     }
