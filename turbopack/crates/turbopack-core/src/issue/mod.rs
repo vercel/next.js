@@ -15,15 +15,17 @@ use turbo_tasks::{
     emit, CollectiblesSource, RawVc, RcStr, ReadRef, TransientInstance, TransientValue,
     TryJoinIterExt, Upcast, ValueToString, Vc,
 };
-use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
+use turbo_tasks_fs::{
+    DiskFileSystem, FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath,
+};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::{
     asset::{Asset, AssetContent},
-    file_source::FileSource,
     source::Source,
-    source_map::GenerateSourceMap,
+    source_map::{convert_to_turbopack_source_map, GenerateSourceMap},
     source_pos::SourcePos,
+    virtual_source::VirtualSource,
 };
 
 #[turbo_tasks::value(shared)]
@@ -162,15 +164,11 @@ pub trait Issue {
             None => None,
         };
         let (original_file_path, source) = if let Some(s) = *self.source().await? {
-            let s = s.resolve_source_map();
+            let s = s.resolve_source_map(self.file_path());
 
-            let file_path = match Vc::try_resolve_downcast_type::<FileSource>(s.await?.source).await
-            {
-                Ok(Some(file_source)) => Some(file_source.await?.path),
-                _ => None,
-            };
+            let file_path = s.await?.source.ident().path();
 
-            (file_path, Some(s.into_plain().await?))
+            (Some(file_path), Some(s.into_plain().await?))
         } else {
             (None, None)
         };
@@ -475,13 +473,13 @@ impl IssueSource {
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_source_map(self: Vc<Self>) -> Result<Vc<Self>> {
+    async fn resolve_source_map(self: Vc<Self>, origin: Vc<FileSystemPath>) -> Result<Vc<Self>> {
         let this = self.await?;
 
         if let Some(range) = this.range {
             if let SourceRange::LineColumn(start, end) = &*range.await? {
                 // If we have a source map, map the line/column to the original source.
-                let mapped = source_pos(this.source, *start, *end).await?;
+                let mapped = source_pos(this.source, origin, *start, *end).await?;
 
                 if let Some((source, start, end)) = mapped {
                     return Ok(Self::cell(IssueSource {
@@ -552,6 +550,7 @@ impl IssueSource {
 
 async fn source_pos(
     source: Vc<Box<dyn Source>>,
+    origin: Vc<FileSystemPath>,
     start: SourcePos,
     end: SourcePos,
 ) -> Result<Option<(Vc<Box<dyn Source>>, SourcePos, SourcePos)>> {
@@ -560,7 +559,9 @@ async fn source_pos(
         return Ok(None);
     };
 
-    let Some(srcmap) = &*generator.generate_source_map().await? else {
+    let srcmap = generator.generate_source_map();
+
+    let Some(srcmap) = *convert_to_turbopack_source_map(srcmap, origin).await? else {
         return Ok(None);
     };
 
@@ -568,22 +569,40 @@ async fn source_pos(
         let token = srcmap.lookup_token(line, col).await?;
 
         match &*token {
-            crate::source_map::Token::Synthetic(t) => Ok::<_, anyhow::Error>(SourcePos {
-                line: t.generated_line as _,
-                column: t.generated_column as _,
-            }),
-            crate::source_map::Token::Original(t) => Ok(SourcePos {
-                line: t.original_line as _,
-                column: t.original_column as _,
-            }),
+            crate::source_map::Token::Synthetic(t) => Ok::<_, anyhow::Error>((
+                t.guessed_original_file.clone(),
+                SourcePos {
+                    line: t.generated_line as _,
+                    column: t.generated_column as _,
+                },
+            )),
+            crate::source_map::Token::Original(t) => Ok((
+                Some(t.original_file.clone()),
+                SourcePos {
+                    line: t.original_line as _,
+                    column: t.original_column as _,
+                },
+            )),
         }
     };
 
-    let start = find(start.line, start.column).await?;
-    let end = find(end.line, end.column).await?;
+    let (f1, start) = find(start.line, start.column).await?;
+    let (f2, end) = find(end.line, end.column).await?;
 
-    let new_source = *generator.original_source().await?;
-    let source = new_source.unwrap_or(source);
+    let file_name = f1.or(f2);
+
+    let source = match file_name {
+        Some(file_name) => {
+            let fs = DiskFileSystem::new("[turbopack]".into(), "/".into(), vec![]);
+            let new_path = fs.root().join(file_name.into());
+            //
+
+            let content = AssetContent::file(new_path.read());
+
+            Vc::upcast(VirtualSource::new(new_path, content))
+        }
+        None => source,
+    };
 
     Ok(Some((source, start, end)))
 }

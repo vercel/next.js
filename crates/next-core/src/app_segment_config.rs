@@ -219,7 +219,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source.resolve_source_map()))
+        Vc::cell(Some(self.source))
     }
 }
 
