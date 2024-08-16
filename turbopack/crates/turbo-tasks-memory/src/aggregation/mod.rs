@@ -23,7 +23,7 @@ mod root_query;
 mod tests;
 mod uppers;
 
-pub use aggregation_data::{aggregation_data, prepare_aggregation_data, AggregationDataGuard};
+pub use aggregation_data::{aggregation_data, AggregationDataGuard};
 use balance_edge::balance_edge;
 use increase::increase_aggregation_number_internal;
 pub use new_edge::handle_new_edge;

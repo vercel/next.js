@@ -792,7 +792,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn env(self: Vc<Self>) -> Result<Vc<EnvMap>> {
         // The value expected for env is Record<String, String>, but config itself
-        // allows arbitary object (https://github.com/vercel/next.js/blob/25ba8a74b7544dfb6b30d1b67c47b9cb5360cb4e/packages/next/src/server/config-schema.ts#L203)
+        // allows arbitrary object (https://github.com/vercel/next.js/blob/25ba8a74b7544dfb6b30d1b67c47b9cb5360cb4e/packages/next/src/server/config-schema.ts#L203)
         // then stringifies it. We do the interop here as well.
         let env = self
             .await?

@@ -12,7 +12,9 @@ use anyhow::{bail, Context, Result};
 use dunce::canonicalize;
 use serde::Deserialize;
 use serde_json::json;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc};
+use turbo_tasks::{
+    RcStr, ReadConsistency, ReadRef, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc,
+};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileSystem,
@@ -170,7 +172,8 @@ async fn run(resource: PathBuf) -> Result<()> {
             .context("Unable to handle issues")?;
         Ok(Vc::<()>::default())
     });
-    tt.wait_task_completion(task, true).await?;
+    tt.wait_task_completion(task, ReadConsistency::Strong)
+        .await?;
 
     Ok(())
 }
