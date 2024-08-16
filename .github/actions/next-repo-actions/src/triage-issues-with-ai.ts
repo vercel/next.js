@@ -71,7 +71,7 @@ async function main() {
     if (result.roundtrips.length > 1) {
       const blocks = BlockCollection([
         Section({
-          text: `:github2: <${html_url}|#${number}>: ${title}\n_Note: This issue was evalulated and reported on Slack with *${model}*._`,
+          text: `:github2: <${html_url}|#${number}>: ${title}\n_Note: This issue was evaluated and reported on Slack with *${model}*._`,
         }),
         Divider(),
         Section({
