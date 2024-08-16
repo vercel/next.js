@@ -505,6 +505,7 @@ impl TurboTasksBackendInner {
         if task.add(CachedDataItem::new_scheduled(
             self.get_task_desc_fn(task_id),
         )) {
+            let _span = tracing::trace_span!("recompute from reading cell").entered();
             turbo_tasks.schedule(task_id);
         }
 
