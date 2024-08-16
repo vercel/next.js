@@ -285,9 +285,9 @@ impl TurboTasksBackend {
         let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
         let note = move || {
             if let Some(reader_desc) = reader_desc.as_ref() {
-                format!("try_read_task_cell (recompute) from {}", reader_desc())
+                format!("try_read_task_output (recompute) from {}", reader_desc())
             } else {
-                format!("try_read_task_cell (recompute, untracked)")
+                format!("try_read_task_output (recompute, untracked)")
             }
         };
 
