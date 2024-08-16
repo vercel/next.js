@@ -167,7 +167,7 @@ impl BackingStorage for LmdbBackingStorage {
             as_u32(tx.get(self.meta_db, &IntKey::new(META_KEY_NEXT_FREE_TASK_ID))).unwrap_or(1);
         for (task_type, task_id) in task_cache_updates.iter() {
             let task_id = **task_id;
-            let task_type_bytes = bincode::serialize(&task_type)
+            let task_type_bytes = bincode::serialize(&**task_type)
                 .with_context(|| anyhow!("Unable to serialize task cache key {task_type:?}"))?;
             #[cfg(feature = "verify_serialization")]
             {
@@ -367,7 +367,7 @@ impl BackingStorage for LmdbBackingStorage {
             };
             let result = bincode::deserialize(bytes)?;
             tx.commit()?;
-            Ok(result)
+            Ok(Some(result))
         }
         let result = lookup(self, task_id)
             .inspect_err(|err| println!("Looking up task type for {task_id} failed: {err:?}"))
