@@ -41,3 +41,7 @@ test/development/basic/hmr/components/parse-error.js
 packages/next-swc/docs/assets/**/*
 test/lib/amp-validator-wasm.js
 test/production/pages-dir/production/fixture/amp-validator-wasm.js
+
+# turbopack crates
+turbopack/crates/*/tests/**
+turbopack/crates/*/js/src/compiled
