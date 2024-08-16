@@ -21,7 +21,9 @@ use turbo_tasks_fs::{
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    ecmascript::TreeShakingMode, module_options::ModuleOptionsContext, ModuleAssetContext,
+    ecmascript::TreeShakingMode,
+    module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
+    ModuleAssetContext,
 };
 use turbopack_core::{
     compile_time_defines,
@@ -278,10 +280,13 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
         Vc::cell(HashMap::new()),
         compile_time_info,
         ModuleOptionsContext {
-            enable_typescript_transform: Some(Default::default()),
+            ecmascript: EcmascriptOptionsContext {
+                enable_typescript_transform: Some(Default::default()),
+                import_externals: true,
+                ..Default::default()
+            },
             preset_env_versions: Some(env),
             tree_shaking_mode: options.tree_shaking_mode,
-            import_externals: true,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {

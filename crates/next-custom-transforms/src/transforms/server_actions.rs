@@ -7,13 +7,12 @@ use std::{
 use hex::encode as hex_encode;
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
-use swc_core::common::Span;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         util::take::Take,
-        BytePos, FileName, DUMMY_SP,
+        BytePos, FileName, Span, DUMMY_SP,
     },
     ecma::{
         ast::*,
@@ -762,7 +761,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             if self.in_action_file {
                 let mut disallowed_export_span = DUMMY_SP;
 
-                // Currrently only function exports are allowed.
+                // Currently only function exports are allowed.
                 match &mut stmt {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, span })) => {
                         match decl {
@@ -1346,14 +1345,63 @@ fn annotate_ident_as_action(
     }
 }
 
-const DIRECTIVE_TYPOS: &[&str] = &[
-    "use servers",
-    "use-server",
-    "use sevrer",
-    "use srever",
-    "use servre",
-    "user server",
-];
+// Detects if two strings are similar (but not the same).
+// This implementation is fast and simple as it allows only one
+// edit (add, remove, edit, swap), instead of using a N^2 Levenshtein algorithm.
+//
+// Example of similar strings of "use server":
+// "use servers",
+// "use-server",
+// "use sevrer",
+// "use srever",
+// "use servre",
+// "user server",
+//
+// This avoids accidental typos as there's currently no other static analysis
+// tool to help when these mistakes happen.
+fn detect_similar_strings(a: &str, b: &str) -> bool {
+    let mut a = a.chars().collect::<Vec<char>>();
+    let mut b = b.chars().collect::<Vec<char>>();
+
+    if a.len() < b.len() {
+        (a, b) = (b, a);
+    }
+
+    if a.len() == b.len() {
+        // Same length, get the number of character differences.
+        let mut diff = 0;
+        for i in 0..a.len() {
+            if a[i] != b[i] {
+                diff += 1;
+                if diff > 2 {
+                    return false;
+                }
+            }
+        }
+
+        // Should be 1 or 2, but not 0.
+        diff != 0
+    } else {
+        if a.len() - b.len() > 1 {
+            return false;
+        }
+
+        // A has one more character than B.
+        for i in 0..b.len() {
+            if a[i] != b[i] {
+                // This should be the only difference, a[i+1..] should be equal to b[i..].
+                // Otherwise, they're not considered similar.
+                // A: "use srerver"
+                // B: "use server"
+                //          ^
+                return a[i + 1..] == b[i..];
+            }
+        }
+
+        // This happens when the last character of A is an extra character.
+        true
+    }
+}
 
 fn remove_server_directive_index_in_module(
     stmts: &mut Vec<ModuleItem>,
@@ -1396,7 +1444,7 @@ fn remove_server_directive_index_in_module(
                     }
                 } else {
                     // Detect typo of "use server"
-                    if DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                    if detect_similar_strings(value, "use server") {
                         HANDLER.with(|handler| {
                             handler
                                 .struct_span_err(
@@ -1422,7 +1470,7 @@ fn remove_server_directive_index_in_module(
                 ..
             })) => {
                 // Match `("use server")`.
-                if value == "use server" || DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                if value == "use server" || detect_similar_strings(value, "use server") {
                     if is_directive {
                         HANDLER.with(|handler| {
                             handler
@@ -1500,7 +1548,7 @@ fn remove_server_directive_index_in_fn(
                 }
             } else {
                 // Detect typo of "use server"
-                if DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                if detect_similar_strings(value, "use server") {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(

@@ -1,22 +1,20 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, RcStr, Value, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath},
-    turbopack::core::{
-        issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-        reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-        resolve::{
-            find_context_file,
-            node::{node_cjs_resolve_options, node_esm_resolve_options},
-            package_json,
-            parse::Request,
-            plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
-            resolve, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
-            ResolveResultOption,
-        },
-        source::Source,
+use turbo_tasks_fs::{self, glob::Glob, FileJsonContent, FileSystemPath};
+use turbopack_core::{
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    resolve::{
+        find_context_file,
+        node::{node_cjs_resolve_options, node_esm_resolve_options},
+        package_json,
+        parse::Request,
+        plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
+        resolve, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
+        ResolveResultOption,
     },
+    source::Source,
 };
 
 /// The predicated based on which the [ExternalCjsModulesResolvePlugin] decides
@@ -310,21 +308,25 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 );
             };
             let (Some(name), Some(version)) = (
-                package_json_file.get("name"),
-                package_json_file.get("version"),
+                package_json_file.get("name").and_then(|v| v.as_str()),
+                package_json_file.get("version").and_then(|v| v.as_str()),
             ) else {
                 return unable_to_externalize(
                     request_str.into(),
-                    "The package.json of the package has not name or version.",
+                    "The package.json of the package has no name or version.",
                 );
             };
             let (Some(name2), Some(version2)) = (
-                package_json_from_original_location.get("name"),
-                package_json_from_original_location.get("version"),
+                package_json_from_original_location
+                    .get("name")
+                    .and_then(|v| v.as_str()),
+                package_json_from_original_location
+                    .get("version")
+                    .and_then(|v| v.as_str()),
             ) else {
                 return unable_to_externalize(
                     request_str.into(),
-                    "The package.json of the package resolved from project directory has not name \
+                    "The package.json of the package resolved from project directory has no name \
                      or version.",
                 );
             };
@@ -332,9 +334,12 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // this can't resolve with node.js from the original location, so bundle it
                 return unable_to_externalize(
                     request_str.into(),
-                    "The package resolves to a different version when requested from the project \
-                     directory compared to the package requested from the importing module.\nMake \
-                     sure to install the same version of the package in both locations.",
+                    &format!(
+                        "The package resolves to a different version when requested from the \
+                         project directory ({version}) compared to the package requested from the \
+                         importing module ({version2}).\nMake sure to install the same version of \
+                         the package in both locations."
+                    ),
                 );
             }
         }

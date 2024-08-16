@@ -40,7 +40,6 @@ import {
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
 import { PAGE_TYPES } from '../../../lib/page-types'
-import { isWebpackServerOnlyLayer } from '../../utils'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
 
@@ -95,12 +94,6 @@ const pluginState = getProxiedPluginState({
   // Mapping of resource path to module id for server/edge server.
   serverModuleIds: {} as Record<string, string | number>,
   edgeServerModuleIds: {} as Record<string, string | number>,
-
-  // Collect modules from server/edge compiler in client layer,
-  // and detect if it's been used, and mark it as `async: true` for react.
-  // So that react could unwrap the async module from promise and render module itself.
-  // Use an object to simulate Set lookup
-  ASYNC_CLIENT_MODULES: {} as Record<string, boolean>,
 
   injectedClientEntries: {} as Record<string, string>,
 })
@@ -240,14 +233,6 @@ export class FlightClientEntryPlugin {
       }
 
       traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
-        if (mod && mod.resource && !isWebpackServerOnlyLayer(mod.layer)) {
-          if (compilation.moduleGraph.isAsync(mod)) {
-            // The module must has resolved resource path so it's not a new entry created with loader.
-            // Checking the module layer to make sure it's from client layers (SSR or browser, not RSC).
-            pluginState.ASYNC_CLIENT_MODULES[mod.resource] = true
-          }
-        }
-
         if (modId) recordModule(modId, mod)
       })
     })
@@ -641,11 +626,11 @@ export class FlightClientEntryPlugin {
       const isCSS = isCSSMod(mod)
 
       const modPath: string = mod.resourceResolveData?.path || ''
+      const modQuery = mod.resourceResolveData?.query || ''
       // We have to always use the resolved request here to make sure the
       // server and client are using the same module path (required by RSC), as
       // the server compiler and client compiler have different resolve configs.
-      let modRequest: string | undefined =
-        modPath + mod.resourceResolveData?.query
+      let modRequest: string = modPath + modQuery
 
       // Context modules don't have a resource path, we use the identifier instead.
       if (mod.constructor.name === 'ContextModule') {

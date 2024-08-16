@@ -3,29 +3,25 @@ use std::ops::Deref;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use swc_core::{
+    common::{source_map::Pos, Span, Spanned, GLOBALS},
+    ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
+};
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::{
-    swc::core::{
-        common::{source_map::Pos, Span, Spanned, GLOBALS},
-        ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
+use turbopack_core::{
+    file_source::FileSource,
+    ident::AssetIdent,
+    issue::{
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+        OptionStyledString, StyledString,
     },
-    turbopack::{
-        core::{
-            file_source::FileSource,
-            ident::AssetIdent,
-            issue::{
-                Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-                OptionStyledString, StyledString,
-            },
-            source::Source,
-        },
-        ecmascript::{
-            analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
-            parse::{parse, ParseResult},
-            EcmascriptInputTransforms, EcmascriptModuleAssetType,
-        },
-    },
+    source::Source,
+};
+use turbopack_ecmascript::{
+    analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
+    parse::{parse, ParseResult},
+    EcmascriptInputTransforms, EcmascriptModuleAssetType,
 };
 
 use crate::{app_structure::LoaderTree, util::NextRuntime};

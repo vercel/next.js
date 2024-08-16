@@ -1,0 +1,5 @@
+# Ignore these files in tools like grep, rg, ast-grep, etc. These files should
+# *not* be ignored by git.
+
+# Not valid text
+turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/error/input/broken.js

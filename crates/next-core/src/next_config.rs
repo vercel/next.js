@@ -5,50 +5,30 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
-use turbopack_binding::{
-    turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
-    turbopack::{
-        core::{
-            issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-            resolve::ResolveAliasMap,
-        },
-        ecmascript::{OptionTreeShaking, TreeShakingMode},
-        ecmascript_plugin::transform::{
-            emotion::EmotionTransformConfig, relay::RelayConfig,
-            styled_components::StyledComponentsTransformConfig,
-        },
-        node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems},
-        turbopack::module_options::{
-            module_options_context::MdxTransformOptions, LoaderRuleItem, OptionWebpackRules,
-        },
-    },
+use turbo_tasks_env::EnvMap;
+use turbo_tasks_fs::FileSystemPath;
+use turbopack::module_options::{
+    module_options_context::MdxTransformOptions, LoaderRuleItem, OptionWebpackRules,
 };
+use turbopack_core::{
+    issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    resolve::ResolveAliasMap,
+};
+use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};
+use turbopack_ecmascript_plugins::transform::{
+    emotion::EmotionTransformConfig, relay::RelayConfig,
+    styled_components::StyledComponentsTransformConfig,
+};
+use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems};
 
 use crate::{
     next_import_map::mdx_import_source_file, next_shared::transforms::ModularizeImportPackageConfig,
 };
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct NextConfigAndCustomRoutesRaw {
-    config: NextConfig,
-    custom_routes: CustomRoutesRaw,
-}
-
 #[turbo_tasks::value]
 struct NextConfigAndCustomRoutes {
     config: Vc<NextConfig>,
     custom_routes: Vc<CustomRoutes>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CustomRoutesRaw {
-    rewrites: Rewrites,
-
-    // unsupported
-    headers: Vec<Header>,
-    redirects: Vec<Redirect>,
 }
 
 #[turbo_tasks::value]
@@ -812,7 +792,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn env(self: Vc<Self>) -> Result<Vc<EnvMap>> {
         // The value expected for env is Record<String, String>, but config itself
-        // allows arbitary object (https://github.com/vercel/next.js/blob/25ba8a74b7544dfb6b30d1b67c47b9cb5360cb4e/packages/next/src/server/config-schema.ts#L203)
+        // allows arbitrary object (https://github.com/vercel/next.js/blob/25ba8a74b7544dfb6b30d1b67c47b9cb5360cb4e/packages/next/src/server/config-schema.ts#L203)
         // then stringifies it. We do the interop here as well.
         let env = self
             .await?

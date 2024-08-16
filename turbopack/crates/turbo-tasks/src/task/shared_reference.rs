@@ -2,6 +2,7 @@ use std::{
     any::Any,
     fmt::{Debug, Display},
     hash::Hash,
+    ops::Deref,
 };
 
 use anyhow::Result;
@@ -36,14 +37,26 @@ impl SharedReference {
         }
     }
 
-    pub(crate) fn typed(&self, type_id: ValueTypeId) -> TypedSharedReference {
-        TypedSharedReference(type_id, self.clone())
+    pub fn downcast_ref<T: Any>(&self) -> Option<&T> {
+        self.0.downcast_ref()
+    }
+
+    pub fn into_typed(self, type_id: ValueTypeId) -> TypedSharedReference {
+        TypedSharedReference(type_id, self)
     }
 }
 
 impl TypedSharedReference {
-    pub(crate) fn untyped(&self) -> (ValueTypeId, SharedReference) {
-        (self.0, self.1.clone())
+    pub fn into_untyped(self) -> SharedReference {
+        self.1
+    }
+}
+
+impl Deref for TypedSharedReference {
+    type Target = SharedReference;
+
+    fn deref(&self) -> &Self::Target {
+        &self.1
     }
 }
 
@@ -136,7 +149,8 @@ impl<'de> Deserialize<'de> for TypedSharedReference {
                         if let Some(seed) = registry::get_value_type(ty).get_any_deserialize_seed()
                         {
                             if let Some(value) = seq.next_element_seed(seed)? {
-                                Ok(TypedSharedReference(ty, SharedReference::new(value.into())))
+                                let arc = triomphe::Arc::<dyn Any + Send + Sync>::from(value);
+                                Ok(TypedSharedReference(ty, SharedReference(arc)))
                             } else {
                                 Err(serde::de::Error::invalid_length(
                                     1,

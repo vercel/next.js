@@ -68,7 +68,6 @@ turbopack-env = { workspace = true }
 turbopack-node = { workspace = true }
 turbopack-nodejs = { workspace = true }
 turbopack-resolve = { workspace = true }
-turbopack-trace-server = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 webbrowser = { workspace = true }
 
@@ -79,6 +78,3 @@ turbopack-bench = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-tracing-signpost = { workspace = true }

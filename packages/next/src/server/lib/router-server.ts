@@ -54,9 +54,7 @@ const isNextFont = (pathname: string | null) =>
 export type RenderServer = Pick<
   typeof import('./render-server'),
   | 'initialize'
-  | 'deleteCache'
   | 'clearModuleContext'
-  | 'deleteAppClientCache'
   | 'propagateServerField'
   | 'getServerField'
 >
@@ -668,7 +666,15 @@ export async function initialize(opts: {
         // assetPrefix overrides basePath for HMR path
         if (assetPrefix) {
           hmrPrefix = normalizedAssetPrefix(assetPrefix)
+
+          if (URL.canParse(hmrPrefix)) {
+            // remove trailing slash from pathname
+            // return empty string if pathname is '/'
+            // to avoid conflicts with '/_next' below
+            hmrPrefix = new URL(hmrPrefix).pathname.replace(/\/$/, '')
+          }
         }
+
         const isHMRRequest = req.url.startsWith(
           ensureLeadingSlash(`${hmrPrefix}/_next/webpack-hmr`)
         )
