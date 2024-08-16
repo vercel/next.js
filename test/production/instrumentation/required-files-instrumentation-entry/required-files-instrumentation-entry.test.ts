@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import path from 'path'
 
 async function readRequiredFilesManifest(next: any) {
   const manifest = JSON.parse(
@@ -9,16 +8,12 @@ async function readRequiredFilesManifest(next: any) {
 }
 
 describe('instrumentation - required-files-instrumentation-entry', () => {
-  describe('node-app', () => {
-    const { next } = nextTestSetup({
-      files: path.join(__dirname, 'node-app'),
-    })
+  const { next } = nextTestSetup({
+    files: __dirname,
+  })
 
-    it('should not contain edge entry in required files manifest', async () => {
-      const requiredFiles = await readRequiredFilesManifest(next)
-      expect(requiredFiles).not.toContain(
-        '.next/server/edge-instrumentation.js'
-      )
-    })
+  it('should not contain edge entry in required files manifest', async () => {
+    const requiredFiles = await readRequiredFilesManifest(next)
+    expect(requiredFiles).not.toContain('.next/server/edge-instrumentation.js')
   })
 })
