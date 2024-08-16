@@ -324,6 +324,18 @@ impl TurboFn {
         }
     }
 
+    pub fn persistence_with_this(&self) -> impl ToTokens {
+        if self.local_cells {
+            quote! {
+                turbo_tasks::TaskPersistence::LocalCells
+            }
+        } else {
+            quote! {
+                turbo_tasks::macro_helpers::get_non_local_persistence_from_inputs_and_this(this, &*inputs)
+            }
+        }
+    }
+
     fn converted_this(&self) -> Option<Expr> {
         self.this.as_ref().map(|Input { ty: _, ident }| {
             parse_quote! {
@@ -361,17 +373,18 @@ impl TurboFn {
         let output = &self.output;
         let assertions = self.get_assertions();
         let inputs = self.input_idents();
-        let persistence = self.persistence();
+        let persistence = self.persistence_with_this();
         parse_quote! {
             {
                 #assertions
                 let inputs = std::boxed::Box::new((#(#inputs,)*));
+                let this = #converted_this;
                 let persistence = #persistence;
                 <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                     turbo_tasks::trait_call(
                         *#trait_type_id_ident,
                         std::borrow::Cow::Borrowed(stringify!(#ident)),
-                        #converted_this,
+                        this,
                         inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                         persistence,
                     )
@@ -385,18 +398,19 @@ impl TurboFn {
     pub fn static_block(&self, native_function_id_ident: &Ident) -> Block {
         let output = &self.output;
         let inputs = self.input_idents();
-        let persistence = self.persistence();
         let assertions = self.get_assertions();
         if let Some(converted_this) = self.converted_this() {
+            let persistence = self.persistence_with_this();
             parse_quote! {
                 {
                     #assertions
                     let inputs = std::boxed::Box::new((#(#inputs,)*));
+                    let this = #converted_this;
                     let persistence = #persistence;
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_this_call(
                             *#native_function_id_ident,
-                            #converted_this,
+                            this,
                             inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                             persistence,
                         )
@@ -404,6 +418,7 @@ impl TurboFn {
                 }
             }
         } else {
+            let persistence = self.persistence();
             parse_quote! {
                 {
                     #assertions
