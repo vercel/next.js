@@ -85,12 +85,12 @@ async function main() {
         icon_emoji: ':github:',
         username: 'GitHub Notifier',
       })
-
-      info(`${result.text}`)
-    } else {
-      // the ai will also provide a reason why the issue was not severe enough to report on slack
-      info(`${result.text}`)
     }
+
+    // the ai will also provide a reason why the issue was not severe enough to report on slack
+    info(
+      `result.text: ${result.text}\nhtml_url: ${html_url}\nnumber: ${number}\ntitle: ${title}`
+    )
   } catch (error) {
     setFailed(error)
   }
