@@ -233,7 +233,8 @@ impl TurboTasksBackend {
             match in_progress {
                 InProgressState::Scheduled { done_event, .. }
                 | InProgressState::InProgress { done_event, .. } => {
-                    let listener = done_event.listen();
+                    let listener = done_event
+                        .listen_with_note(move || format!("try_read_task_output from {reader:?}"));
                     return Ok(Err(listener));
                 }
             }
@@ -253,17 +254,22 @@ impl TurboTasksBackend {
             };
             if let Some(result) = result {
                 if let Some(reader) = reader {
-                    task.add(CachedDataItem::OutputDependent {
+                    let _ = task.add(CachedDataItem::OutputDependent {
                         task: reader,
                         value: (),
                     });
                     drop(task);
 
                     let mut reader_task = ctx.task(reader);
-                    reader_task.add(CachedDataItem::OutputDependency {
-                        target: task_id,
-                        value: (),
-                    });
+                    if reader_task
+                        .remove(&CachedDataItemKey::OutdatedOutputDependency { target: task_id })
+                        .is_none()
+                    {
+                        let _ = reader_task.add(CachedDataItem::OutputDependency {
+                            target: task_id,
+                            value: (),
+                        });
+                    }
                 }
 
                 return result;
@@ -271,10 +277,11 @@ impl TurboTasksBackend {
         }
 
         // Output doesn't exist. We need to schedule the task to compute it.
-        let (item, listener) = CachedDataItem::new_scheduled_with_listener(task_id);
-        if task.add(item) {
-            turbo_tasks.schedule(task_id);
-        }
+        let (item, listener) = CachedDataItem::new_scheduled_with_listener(task_id, move || {
+            format!("try_read_task_output (recompute) from {reader:?}")
+        });
+        task.add_new(item);
+        turbo_tasks.schedule(task_id);
 
         Ok(Err(listener))
     }
@@ -291,12 +298,13 @@ impl TurboTasksBackend {
         if let Some(content) = get!(task, CellData { cell }) {
             let content = content.clone();
             if let Some(reader) = reader {
-                task.add(CachedDataItem::CellDependent {
+                let _ = task.add(CachedDataItem::CellDependent {
                     cell,
                     task: reader,
                     value: (),
                 });
                 drop(task);
+
                 let mut reader_task = ctx.task(reader);
                 let target = CellRef {
                     task: task_id,
@@ -306,7 +314,7 @@ impl TurboTasksBackend {
                     .remove(&CachedDataItemKey::OutdatedCellDependency { target })
                     .is_none()
                 {
-                    reader_task.add(CachedDataItem::CellDependency { target, value: () });
+                    let _ = reader_task.add(CachedDataItem::CellDependency { target, value: () });
                 }
             }
             return Ok(Ok(CellContent(Some(content)).into_typed(cell.type_id)));
@@ -340,12 +348,12 @@ impl TurboTasksBackend {
         // We create the event and potentially schedule the task
         let in_progress = InProgressCellState::new(task_id, cell);
         let listener = in_progress.event.listen();
-        task.add(CachedDataItem::InProgressCell {
+        task.add_new(CachedDataItem::InProgressCell {
             cell,
             value: in_progress,
         });
 
-        // Schedule the task
+        // Schedule the task, if not already scheduled
         if task.add(CachedDataItem::new_scheduled(task_id)) {
             turbo_tasks.schedule(task_id);
         }
@@ -487,10 +495,10 @@ impl Backend for TurboTasksBackend {
                 start_event,
             } = in_progress
             else {
-                task.add(CachedDataItem::InProgress { value: in_progress });
+                task.add_new(CachedDataItem::InProgress { value: in_progress });
                 return None;
             };
-            task.add(CachedDataItem::InProgress {
+            task.add_new(CachedDataItem::InProgress {
                 value: InProgressState::InProgress {
                     stale: false,
                     once_task,
@@ -514,7 +522,7 @@ impl Backend for TurboTasksBackend {
             for child in children {
                 match child {
                     Child::Current(child) => {
-                        task.add(CachedDataItem::OutdatedChild {
+                        let _ = task.add(CachedDataItem::OutdatedChild {
                             task: child,
                             value: (),
                         });
@@ -553,13 +561,13 @@ impl Backend for TurboTasksBackend {
             for dep in dependencies {
                 match dep {
                     Dep::CurrentCell(cell) => {
-                        task.add(CachedDataItem::OutdatedCellDependency {
+                        let _ = task.add(CachedDataItem::OutdatedCellDependency {
                             target: cell,
                             value: (),
                         });
                     }
                     Dep::CurrentOutput(output) => {
-                        task.add(CachedDataItem::OutdatedOutputDependency {
+                        let _ = task.add(CachedDataItem::OutdatedOutputDependency {
                             target: output,
                             value: (),
                         });
@@ -704,7 +712,7 @@ impl Backend for TurboTasksBackend {
         let _ = stateful;
 
         if stale {
-            task.add(CachedDataItem::InProgress {
+            task.add_new(CachedDataItem::InProgress {
                 value: InProgressState::InProgress {
                     stale: false,
                     once_task,
@@ -730,7 +738,7 @@ impl Backend for TurboTasksBackend {
                         }
                     }
                 } else {
-                    task.add(CachedDataItem::CellTypeMaxIndex {
+                    task.add_new(CachedDataItem::CellTypeMaxIndex {
                         cell_type,
                         value: max_index,
                     });
@@ -925,9 +933,9 @@ impl Backend for TurboTasksBackend {
         );
         {
             let mut task = self.storage.access_mut(task_id);
-            task.add(CachedDataItem::new_scheduled(task_id));
-            task.add(CachedDataItem::AggregateRootType { value: root_type });
-            task.add(CachedDataItem::AggregationNumber { value: u32::MAX });
+            let _ = task.add(CachedDataItem::new_scheduled(task_id));
+            let _ = task.add(CachedDataItem::AggregateRootType { value: root_type });
+            let _ = task.add(CachedDataItem::AggregationNumber { value: u32::MAX });
         }
         turbo_tasks.schedule(task_id);
         task_id

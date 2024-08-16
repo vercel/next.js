@@ -253,9 +253,12 @@ impl CachedDataItem {
         }
     }
 
-    pub fn new_scheduled_with_listener(task_id: TaskId) -> (Self, EventListener) {
+    pub fn new_scheduled_with_listener(
+        task_id: TaskId,
+        note: impl Fn() -> String + Sync + Send + 'static,
+    ) -> (Self, EventListener) {
         let done_event = Event::new(move || format!("{} done_event", task_id));
-        let listener = done_event.listen();
+        let listener = done_event.listen_with_note(note);
         (
             CachedDataItem::InProgress {
                 value: InProgressState::Scheduled {
