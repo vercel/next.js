@@ -422,15 +422,6 @@ impl GenerateSourceMap for PostCssTransformedAsset {
             None => Ok(Vc::cell(None)),
         }
     }
-
-    #[turbo_tasks::function]
-    async fn original_source(&self) -> Result<Vc<OptionSource>> {
-        let source = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(self.source).await?;
-        match source {
-            Some(source) => Ok(source.original_source()),
-            None => Ok(Vc::cell(Some(self.source))),
-        }
-    }
 }
 
 #[turbo_tasks::value_impl]
