@@ -21,7 +21,7 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use crate::{
     asset::{Asset, AssetContent},
     source::Source,
-    source_map::{convert_to_turbopack_source_map, GenerateSourceMap},
+    source_map::GenerateSourceMap,
     source_pos::SourcePos,
     virtual_source::VirtualSource,
 };
@@ -558,10 +558,13 @@ async fn source_pos(
     };
 
     let srcmap = generator.generate_source_map();
-
-    let Some(srcmap) = *convert_to_turbopack_source_map(srcmap, origin).await? else {
+    let Some(srcmap) = *srcmap.await? else {
         return Ok(None);
     };
+
+    // let Some(srcmap) = *convert_to_turbopack_source_map(srcmap, origin).await? else {
+    //     return Ok(None);
+    // };
 
     let find = |line: usize, col: usize| async move {
         let token = srcmap.lookup_token(line, col).await?;
@@ -591,8 +594,11 @@ async fn source_pos(
 
     let source = match file_name {
         Some(file_name) => {
+            let file_name = file_name
+                .strip_prefix(&*origin.fs().root().await?.path)
+                .unwrap_or(&file_name);
+
             let new_path = origin.fs().root().join(file_name.into());
-            //
 
             let content = AssetContent::file(new_path.read());
 
