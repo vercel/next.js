@@ -121,13 +121,7 @@ impl MiddlewareEndpoint {
     async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
 
-        let userland_module = this
-            .asset_context
-            .process(
-                this.source,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
-            )
-            .module();
+        let userland_module = self.userland_module();
 
         let config = parse_config_from_source(userland_module);
 
@@ -192,6 +186,19 @@ impl MiddlewareEndpoint {
 
         Ok(Vc::cell(output_assets))
     }
+
+    #[turbo_tasks::function]
+    async fn userland_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        let this = self.await?;
+
+        Ok(this
+            .asset_context
+            .process(
+                this.source,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
+            )
+            .module())
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -240,6 +247,6 @@ impl Endpoint for MiddlewareEndpoint {
 
     #[turbo_tasks::function]
     fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        Err(anyhow::anyhow!("Not implemented."))
+        Ok(Vc::cell(vec![self.userland_module()]))
     }
 }
