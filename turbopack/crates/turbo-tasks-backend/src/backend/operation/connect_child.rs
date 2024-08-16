@@ -70,11 +70,19 @@ impl Operation for ConnectChildOperation {
                     }
                 }
                 ConnectChildOperation::ScheduleTask { task_id } => {
+                    let mut should_schedule;
                     {
                         let mut task = ctx.task(task_id);
-                        task.add(CachedDataItem::new_scheduled(task_id));
+                        should_schedule = !task.has_key(&CachedDataItemKey::Output {});
+                        if should_schedule {
+                            should_schedule = task.add(CachedDataItem::new_scheduled(
+                                task.backend.get_task_desc_fn(task_id),
+                            ));
+                        }
                     }
-                    ctx.schedule(task_id);
+                    if should_schedule {
+                        ctx.schedule(task_id);
+                    }
 
                     self = ConnectChildOperation::Done;
                 }
