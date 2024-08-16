@@ -801,11 +801,14 @@ async function renderToHTMLOrFlightImpl(
     req.originalRequest.on('end', () => {
       const staticGenStore =
         ComponentMod.staticGenerationAsyncStorage.getStore()
+      const prerenderStore = prerenderAsyncStorage.getStore()
+      const isPPR = !!prerenderStore?.dynamicTracking?.dynamicAccesses?.length
 
       if (
         process.env.NODE_ENV === 'development' &&
         staticGenStore &&
-        renderOpts.setAppIsrStatus
+        renderOpts.setAppIsrStatus &&
+        !isPPR
       ) {
         // only node can be ISR so we only need to update the status here
         const { pathname } = new URL(req.url || '/', 'http://n')
