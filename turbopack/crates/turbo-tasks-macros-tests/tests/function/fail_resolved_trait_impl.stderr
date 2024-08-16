@@ -15,7 +15,10 @@ error[E0277]: the trait bound `IntegersVec: ResolvedValue` is not satisfied
              (E, D, C, B, A, Z, Y, X, W, V, U, T)
            and $N others
 note: required by a bound in `assert_returns_resolved_value`
-  --> tests/function/fail_resolved_trait_impl.rs:19:29
+  --> $WORKSPACE/turbopack/crates/turbo-tasks/src/macro_helpers.rs
    |
-19 |     #[turbo_tasks::function(resolved)]
-   |                             ^^^^^^^^ required by this bound in `assert_returns_resolved_value`
+   | pub fn assert_returns_resolved_value<ReturnType, Rv>()
+   |        ----------------------------- required by a bound in this function
+...
+   |     Rv: ResolvedValue + Send,
+   |         ^^^^^^^^^^^^^ required by this bound in `assert_returns_resolved_value`

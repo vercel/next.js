@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, fmt::Display};
 use indexmap::{IndexMap, IndexSet};
 use once_cell::sync::Lazy;
 use swc_core::{
-    common::{source_map::Pos, Span},
+    common::{source_map::SmallPos, Span},
     ecma::{
         ast::*,
         atoms::{js_word, JsWord},

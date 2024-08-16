@@ -17,14 +17,14 @@ pub use crate::id::{BackendJobId, ExecutionId};
 use crate::{
     event::EventListener,
     magic_any::MagicAny,
-    manager::TurboTasksBackendApi,
+    manager::{ReadConsistency, TurboTasksBackendApi},
     raw_vc::CellId,
     registry,
     task::shared_reference::TypedSharedReference,
     trait_helpers::{get_trait_method, has_trait, traits},
     triomphe_utils::unchecked_sidecast_triomphe_arc,
-    FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef, TraitTypeId,
-    ValueTypeId, VcRead, VcValueTrait, VcValueType,
+    FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdSet, TaskPersistence, TraitRef,
+    TraitTypeId, ValueTypeId, VcRead, VcValueTrait, VcValueType,
 };
 
 type TransientTaskRoot =
@@ -484,7 +484,7 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         reader: TaskId,
-        strongly_consistent: bool,
+        consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>>;
 
@@ -493,7 +493,7 @@ pub trait Backend: Sync + Send {
     fn try_read_task_output_untracked(
         &self,
         task: TaskId,
-        strongly_consistent: bool,
+        consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>>;
 
@@ -608,7 +608,7 @@ impl CachedTaskType {
         fn_id: FunctionId,
         mut this: Option<RawVc>,
         arg: &dyn MagicAny,
-        is_transient: bool,
+        persistence: TaskPersistence,
         turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
     ) -> Result<RawVc> {
         if let Some(this) = this.as_mut() {
@@ -616,9 +616,9 @@ impl CachedTaskType {
         }
         let arg = registry::get_function(fn_id).arg_meta.resolve(arg).await?;
         Ok(if let Some(this) = this {
-            turbo_tasks.this_call(fn_id, this, arg, is_transient)
+            turbo_tasks.this_call(fn_id, this, arg, persistence)
         } else {
-            turbo_tasks.native_call(fn_id, arg, is_transient)
+            turbo_tasks.native_call(fn_id, arg, persistence)
         })
     }
 
@@ -636,7 +636,7 @@ impl CachedTaskType {
         name: Cow<'static, str>,
         this: RawVc,
         arg: &dyn MagicAny,
-        is_transient: bool,
+        persistence: TaskPersistence,
         turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
     ) -> Result<RawVc> {
         let this = this.resolve().await?;
@@ -647,7 +647,7 @@ impl CachedTaskType {
             .arg_meta
             .resolve(arg)
             .await?;
-        Ok(turbo_tasks.dynamic_this_call(native_fn, this, arg, is_transient))
+        Ok(turbo_tasks.dynamic_this_call(native_fn, this, arg, persistence))
     }
 
     /// Shared helper used by [`Self::resolve_trait_method`] and
