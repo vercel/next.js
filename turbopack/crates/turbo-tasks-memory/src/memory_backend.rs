@@ -26,8 +26,8 @@ use turbo_tasks::{
     },
     event::EventListener,
     util::{IdFactoryWithReuse, NoMoveVec},
-    CellId, FunctionId, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused,
-    ValueTypeId, TRANSIENT_TASK_BIT,
+    CellId, FunctionId, RawVc, ReadConsistency, TaskId, TaskIdSet, TraitTypeId,
+    TurboTasksBackendApi, Unused, ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
 use crate::{
@@ -115,13 +115,13 @@ impl MemoryBackend {
     fn try_get_output<T, F: FnOnce(&mut Output) -> Result<T>>(
         &self,
         id: TaskId,
-        strongly_consistent: bool,
+        consistency: ReadConsistency,
         note: impl Fn() -> String + Sync + Send + 'static,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
         func: F,
     ) -> Result<Result<T, EventListener>> {
         self.with_task(id, |task| {
-            task.get_or_wait_output(strongly_consistent, func, note, self, turbo_tasks)
+            task.get_or_wait_output(consistency, func, note, self, turbo_tasks)
         })
     }
 
@@ -517,7 +517,7 @@ impl Backend for MemoryBackend {
         &self,
         task: TaskId,
         reader: TaskId,
-        strongly_consistent: bool,
+        consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<RawVc, EventListener>> {
         if task == reader {
@@ -525,7 +525,7 @@ impl Backend for MemoryBackend {
         }
         self.try_get_output(
             task,
-            strongly_consistent,
+            consistency,
             move || format!("reading task output from {reader}"),
             turbo_tasks,
             |output| {
@@ -538,12 +538,12 @@ impl Backend for MemoryBackend {
     fn try_read_task_output_untracked(
         &self,
         task: TaskId,
-        strongly_consistent: bool,
+        consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<RawVc, EventListener>> {
         self.try_get_output(
             task,
-            strongly_consistent,
+            consistency,
             || "reading task output untracked".to_string(),
             turbo_tasks,
             |output| output.read_untracked(),

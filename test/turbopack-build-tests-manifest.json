@@ -7952,12 +7952,13 @@
         "CSS Support production mode CSS Import from node_modules useLightnincsss(true) should fail the build"
       ],
       "failed": [
-        "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
-        "CSS Support CSS Cleanup on Render Failure useLightnincsss(true) production mode not have intermediary page styles on error rendering",
         "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
         "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS"
       ],
-      "pending": [],
+      "pending": [
+        "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
+        "CSS Support CSS Cleanup on Render Failure useLightnincsss(true) production mode not have intermediary page styles on error rendering"
+      ],
       "flakey": [],
       "runtimeError": false
     },
