@@ -13,7 +13,7 @@ use turbo_tasks_fs::{
     FileContent, FileSystemPath,
 };
 
-use crate::{source::OptionSource, source_pos::SourcePos, SOURCE_MAP_PREFIX};
+use crate::{source_pos::SourcePos, SOURCE_MAP_PREFIX};
 
 pub(crate) mod source_map_asset;
 
@@ -681,4 +681,15 @@ impl SourceMapSection {
             map,
         })
     }
+}
+
+#[turbo_tasks::function]
+pub async fn convert_to_turbopack_source_map(
+    source_map: Vc<OptionSourceMap>,
+    origin: Vc<FileSystemPath>,
+) -> Result<Vc<OptionSourceMap>> {
+    let Some(source_map) = *source_map.await? else {
+        return Ok(Vc::cell(None));
+    };
+    Ok(Vc::cell(Some(source_map.with_resolved_sources(origin))))
 }
