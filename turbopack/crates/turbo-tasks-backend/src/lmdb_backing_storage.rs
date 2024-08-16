@@ -284,14 +284,28 @@ impl BackingStorage for LmdbBackingStorage {
     }
 
     fn reverse_lookup_task_cache(&self, task_id: TaskId) -> Option<Arc<CachedTaskType>> {
-        let tx = self.env.begin_ro_txn().ok()?;
-        let result = tx
-            .get(self.reverse_task_cache_db, &(*task_id).to_be_bytes())
-            .ok()
-            .and_then(|v| v.try_into().ok())
-            .and_then(|v: [u8; 4]| bincode::deserialize(&v).ok());
-        tx.commit().ok()?;
-        result
+        fn lookup(
+            this: &LmdbBackingStorage,
+            task_id: TaskId,
+        ) -> Result<Option<Arc<CachedTaskType>>> {
+            let tx = this.env.begin_ro_txn()?;
+            let bytes = match tx.get(this.reverse_task_cache_db, &IntKey::new(*task_id)) {
+                Ok(bytes) => bytes,
+                Err(err) => {
+                    if err == lmdb::Error::NotFound {
+                        return Ok(None);
+                    } else {
+                        return Err(err.into());
+                    }
+                }
+            };
+            let result = bincode::deserialize(bytes)?;
+            tx.commit()?;
+            Ok(result)
+        }
+        lookup(self, task_id)
+            .inspect_err(|err| println!("Looking up task type for {task_id} failed: {err:?}"))
+            .ok()?
     }
 
     fn lookup_data(&self, task_id: TaskId) -> Vec<CachedDataItem> {
