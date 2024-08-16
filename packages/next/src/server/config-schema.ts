@@ -438,6 +438,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             })
             .optional(),
         ]),
+        reactMarkup: z.boolean().optional(),
         staticGenerationRetryCount: z.number().int().optional(),
         staticGenerationMaxConcurrency: z.number().int().optional(),
         staticGenerationMinPagesPerWorker: z.number().int().optional(),

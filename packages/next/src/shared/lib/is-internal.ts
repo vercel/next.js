@@ -1,10 +1,12 @@
 /** React that's compiled with `next`. Used by App Router. */
 export const reactVendoredRe =
-  /[\\/]next[\\/]dist[\\/]compiled[\\/](react|react-dom|react-server-dom-(webpack|turbopack)|scheduler)[\\/]/
+  // TODO: Why no react-is?
+  /[\\/]next[\\/]dist[\\/]compiled[\\/](react|react-dom|react-markup|react-server-dom-(webpack|turbopack)|scheduler)[\\/]/
 
 /** React the user installed. Used by Pages Router, or user imports in App Router. */
 export const reactNodeModulesRe =
-  /node_modules[\\/](react|react-dom|scheduler)[\\/]/
+  // TODO: Why no react-is?
+  /node_modules[\\/](react|react-dom|react-markup|scheduler)[\\/]/
 
 export const nextInternalsRe =
   /(node_modules[\\/]next[\\/]|[\\/].next[\\/]static[\\/]chunks[\\/]webpack\.js$|(edge-runtime-webpack|webpack-runtime)\.js$)/

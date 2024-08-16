@@ -272,6 +272,7 @@ export function createRSCAliases(
     // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
     'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
     'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
+    'react-markup$': `next/dist/compiled/react-markup${bundledReactChannel}`,
     // react-server-dom-webpack alias
     ...createRSCRendererAliases(bundledReactChannel),
   }
@@ -284,6 +285,7 @@ export function createRSCAliases(
         'react/compiler-runtime$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-compiler-runtime`,
         react$: `next/dist/server/route-modules/app-page/vendored/${layer}/react`,
         'react-dom$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-dom`,
+        'react-markup$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-markup`,
         'react-server-dom-webpack/client.edge$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-client-edge`,
       })
     } else if (layer === WEBPACK_LAYERS.reactServerComponents) {
@@ -293,6 +295,7 @@ export function createRSCAliases(
         'react/compiler-runtime$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-compiler-runtime`,
         react$: `next/dist/server/route-modules/app-page/vendored/${layer}/react`,
         'react-dom$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-dom`,
+        'react-markup$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-markup`,
         'react-server-dom-webpack/server.edge$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-edge`,
         'react-server-dom-webpack/server.node$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-node`,
       })
@@ -315,6 +318,9 @@ export function createRSCAliases(
         'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
         'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
         'next/dist/compiled/react-dom-experimental$': `next/dist/compiled/react-dom-experimental/react-dom.react-server`,
+        'react-markup$': `next/dist/compiled/react-markup${bundledReactChannel}/react-markup.react-server`,
+        'next/dist/compiled/react-markup$': `next/dist/compiled/react-markup${bundledReactChannel}/react-markup.react-server`,
+        'next/dist/compiled/react-markup-experimental$': `next/dist/compiled/react-markup-experimental/react-markup.react-server`,
       })
     }
   }

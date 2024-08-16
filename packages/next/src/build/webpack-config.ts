@@ -126,7 +126,7 @@ const browserNonTranspileModules = [
   /[\\/]node_modules[\\/]process[\\/]browser/,
   // Exclude precompiled react packages from browser compilation due to SWC helper insertion (#61791),
   // We fixed the issue but it's safer to exclude them from compilation since they don't need to be re-compiled.
-  /[\\/]next[\\/]dist[\\/]compiled[\\/](react|react-dom|react-server-dom-webpack)(-experimental)?($|[\\/])/,
+  /[\\/]next[\\/]dist[\\/]compiled[\\/](react|react-dom|react-markup|react-server-dom-webpack)(-experimental)?($|[\\/])/,
 ]
 const precompileRegex = /[\\/]next[\\/]dist[\\/]compiled[\\/]/
 
@@ -777,10 +777,12 @@ export default async function getBaseWebpackConfig(
   for (const packageName of [
     'react',
     'react-dom',
+    'react-markup',
     ...(hasAppDir
       ? [
           `next/dist/compiled/react${bundledReactChannel}`,
           `next/dist/compiled/react-dom${bundledReactChannel}`,
+          `next/dist/compiled/react-markup${bundledReactChannel}`,
         ]
       : []),
   ]) {

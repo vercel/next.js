@@ -1,0 +1,14 @@
+{
+  "name": "react-markup-experimental-builtin",
+  "main": "index.js",
+  "exports": {
+    ".": {
+      "react-server": "./react-markup.react-server.js",
+      "default": "./index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "peerDependencies": {
+    "react": "0.0.0-experimental-1eaccd82-20240816"
+  }
+}

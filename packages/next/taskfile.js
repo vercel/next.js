@@ -1742,6 +1742,41 @@ export async function copy_vendor_react(task_) {
       yield rmrf(join(reactDomCompiledDir, item))
     }
 
+    // react-markup
+    if (opts.experimental) {
+      const reactMarkupDir = dirname(
+        relative(
+          __dirname,
+          require.resolve(`react-markup-${channel}/package.json`)
+        )
+      )
+
+      yield task
+        .source(join(reactMarkupDir, '*.{json,js}'))
+        // eslint-disable-next-line require-yield
+        .run({ every: true }, function* (file) {
+          if (file.base === 'package.json') {
+            file.data = overridePackageName(file.data.toString())
+          }
+        })
+        .target(`src/compiled/react-markup${packageSuffix}`)
+      yield task
+        .source(join(reactMarkupDir, 'LICENSE'))
+        .target(`src/compiled/react-markup${packageSuffix}`)
+      yield task
+        .source(join(reactMarkupDir, 'cjs/**/*.{js,map}'))
+        // eslint-disable-next-line require-yield
+        .run({ every: true }, function* (file) {
+          const source = file.data.toString()
+          // We replace the module/chunk loading code with our own implementation in Next.js.
+          file.data = source.replace(
+            /require\(["']react["']\)/g,
+            `require("next/dist/compiled/react${packageSuffix}")`
+          )
+        })
+        .target(`src/compiled/react-markup${packageSuffix}/cjs`)
+    }
+
     // react-server-dom-webpack
     // Currently, this `next` and `experimental` channels are always in sync so
     // we can use the same version for both.

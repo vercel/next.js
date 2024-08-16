@@ -497,6 +497,11 @@ export interface ExperimentalConfig {
   reactCompiler?: boolean | ReactCompilerOptions
 
   /**
+   * Enable support for experimental `react-markup` package in the app directory.
+   */
+  reactMarkup?: boolean
+
+  /**
    * Enables `unstable_after`
    */
   after?: boolean

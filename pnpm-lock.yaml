@@ -476,6 +476,9 @@ importers:
       react-is-builtin:
         specifier: npm:react-is@19.0.0-rc-1eaccd82-20240816
         version: react-is@19.0.0-rc-1eaccd82-20240816
+      react-markup-experimental-builtin:
+        specifier: npm:react-markup@0.0.0-experimental-1eaccd82-20240816
+        version: react-markup@0.0.0-experimental-1eaccd82-20240816(react@19.0.0-rc-1eaccd82-20240816)
       react-server-dom-turbopack:
         specifier: 19.0.0-rc-1eaccd82-20240816
         version: 19.0.0-rc-1eaccd82-20240816(react-dom@19.0.0-rc-1eaccd82-20240816(react@19.0.0-rc-1eaccd82-20240816))(react@19.0.0-rc-1eaccd82-20240816)
@@ -12702,6 +12705,11 @@ packages:
 
   react-lifecycles-compat@3.0.4:
     resolution: {integrity: sha512-fBASbA6LnOU9dOU2eW7aQ8xmYBSXUIWr+UmF9b1efZBazGNO+rcXT/icdKnYm2pTwcRylVUYwW7H1PHfLekVzA==}
+
+  react-markup@0.0.0-experimental-1eaccd82-20240816:
+    resolution: {integrity: sha512-h3QiqBW4n6Zby0CwegfNNPKj86IMQS6AArJJQcKUkiW5X/+WcD8w3Vdo4cIqHmJJ/LCZu1S4/hq1mc+oWhcSoA==}
+    peerDependencies:
+      react: 19.0.0-rc-1eaccd82-20240816
 
   react-number-format@5.4.0:
     resolution: {integrity: sha512-NWdICrqLhI7rAS8yUeLVd6Wr4cN7UjJ9IBTS0f/a9i7UB4x4Ti70kGnksBtZ7o4Z7YRbvCMMR/jQmkoOBa/4fg==}
@@ -29128,6 +29136,10 @@ snapshots:
   react-is@19.0.0-rc-6230622a1a-20240610: {}
 
   react-lifecycles-compat@3.0.4: {}
+
+  react-markup@0.0.0-experimental-1eaccd82-20240816(react@19.0.0-rc-1eaccd82-20240816):
+    dependencies:
+      react: 19.0.0-rc-1eaccd82-20240816
 
   react-number-format@5.4.0(react-dom@19.0.0-rc-6230622a1a-20240610(react@19.0.0-rc-6230622a1a-20240610))(react@19.0.0-rc-6230622a1a-20240610):
     dependencies:

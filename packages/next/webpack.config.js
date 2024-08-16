@@ -15,6 +15,7 @@ const pagesExternals = [
   'react-dom/server',
   'react-dom/server.browser',
   'react-dom/server.edge',
+  'react-markup',
   'react-server-dom-webpack/client',
   'react-server-dom-webpack/client.edge',
   'react-server-dom-webpack/server.edge',
@@ -47,6 +48,8 @@ function makeAppAliases(reactChannel = '') {
     'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${reactChannel}.js`,
     // In Next.js runtime only use react-dom/server.edge
     'react-dom/server.browser$': 'react-dom/server.edge',
+    // TODO: Alias to designated reactChannel once react-markup is available in Canary
+    'react-markup$': `next/dist/compiled/react-markup-experimental`,
     // react-server-dom-webpack alias
     'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client`,
     'react-server-dom-turbopack/client.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.edge`,
@@ -253,6 +256,9 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
               [`next/dist/compiled/react${bundledReactChannel}/compiler-runtime$`]: `next/dist/compiled/react${bundledReactChannel}/compiler-runtime`,
               'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
               [`next/dist/compiled/react-dom${bundledReactChannel}$`]: `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
+              // TODO: Alias to designated bundledReactChannel once react-markup is available in Canary
+              'react-markup$': `next/dist/compiled/react-markup-experimental/react-markup.react-server`,
+              [`next/dist/compiled/react-markup${bundledReactChannel}$`]: `next/dist/compiled/react-markup-experimental/react-markup.react-server`,
             },
           },
           layer: 'react-server',

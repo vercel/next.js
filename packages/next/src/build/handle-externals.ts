@@ -12,7 +12,8 @@ import {
 } from './webpack-config'
 import { isWebpackBundledLayer, isWebpackServerOnlyLayer } from './utils'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
-const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
+const reactPackagesRegex =
+  /^(react|react-dom|react-markup|react-server-dom-webpack)($|\/)/
 
 const pathSeparators = '[/\\\\]'
 const optionalEsmPart = `((${pathSeparators}esm)?${pathSeparators})`

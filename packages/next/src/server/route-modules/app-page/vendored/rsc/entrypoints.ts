@@ -1,5 +1,7 @@
 import * as React from 'react'
 import * as ReactDOM from 'react-dom'
+// @ts-expect-error TODO: Add types to react-markup
+import * as ReactMarkup from 'react-markup'
 import * as ReactJsxDevRuntime from 'react/jsx-dev-runtime'
 import * as ReactJsxRuntime from 'react/jsx-runtime'
 //@ts-expect-error TODO: current @types/react does not have exported types for this import
@@ -75,6 +77,7 @@ export {
   ReactJsxRuntime,
   ReactCompilerRuntime,
   ReactDOM,
+  ReactMarkup,
   ReactServerDOMWebpackServerEdge,
   ReactServerDOMTurbopackServerEdge,
   ReactServerDOMWebpackServerNode,
