@@ -15,9 +15,7 @@ use turbo_tasks::{
     emit, CollectiblesSource, RawVc, RcStr, ReadRef, TransientInstance, TransientValue,
     TryJoinIterExt, Upcast, ValueToString, Vc,
 };
-use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath,
-};
+use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::{
@@ -593,8 +591,7 @@ async fn source_pos(
 
     let source = match file_name {
         Some(file_name) => {
-            let fs = DiskFileSystem::new("[turbopack]".into(), "/".into(), vec![]);
-            let new_path = fs.root().join(file_name.into());
+            let new_path = origin.fs().root().join(file_name.into());
             //
 
             let content = AssetContent::file(new_path.read());
