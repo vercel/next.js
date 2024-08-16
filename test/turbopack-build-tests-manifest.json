@@ -834,7 +834,6 @@
         "app-dir static/dynamic handling should handle partial-gen-params with layout dynamicParams = false correctly",
         "app-dir static/dynamic handling should handle partial-gen-params with page dynamicParams = false correctly",
         "app-dir static/dynamic handling should have correct prerender-manifest entries",
-        "app-dir static/dynamic handling should have deterministic etag across revalidates",
         "app-dir static/dynamic handling should have logs from cache-handler",
         "app-dir static/dynamic handling should honor fetch cache correctly",
         "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
@@ -935,7 +934,6 @@
         "app-dir static/dynamic handling should handle partial-gen-params with layout dynamicParams = false correctly",
         "app-dir static/dynamic handling should handle partial-gen-params with page dynamicParams = false correctly",
         "app-dir static/dynamic handling should have correct prerender-manifest entries",
-        "app-dir static/dynamic handling should have deterministic etag across revalidates",
         "app-dir static/dynamic handling should honor dynamic = \"force-static\" correctly",
         "app-dir static/dynamic handling should honor dynamic = \"force-static\" correctly (lazy)",
         "app-dir static/dynamic handling should honor fetch cache correctly",
@@ -1299,6 +1297,8 @@
     "test/e2e/app-dir/asset-prefix-with-basepath/asset-prefix-with-basepath.test.ts": {
       "passed": [
         "app-dir assetPrefix with basePath handling bundles should return 200 on served assetPrefix",
+        "app-dir assetPrefix with basePath handling rewrites rewrites that do not start with assetPrefix should still work",
+        "app-dir assetPrefix with basePath handling rewrites should respect rewrites that start with assetPrefix",
         "app-dir assetPrefix with basePath handling should redirect route when clicking link",
         "app-dir assetPrefix with basePath handling should redirect route when requesting it directly",
         "app-dir assetPrefix with basePath handling should redirect route when requesting it directly by browser",
@@ -1312,6 +1312,8 @@
     "test/e2e/app-dir/asset-prefix/asset-prefix.test.ts": {
       "passed": [
         "app-dir assetPrefix handling bundles should return 200 on served assetPrefix",
+        "app-dir assetPrefix handling rewrites rewrites that do not start with assetPrefix should still work",
+        "app-dir assetPrefix handling rewrites should respect rewrites that start with assetPrefix",
         "app-dir assetPrefix handling should redirect route when clicking link",
         "app-dir assetPrefix handling should redirect route when requesting it directly",
         "app-dir assetPrefix handling should redirect route when requesting it directly by browser",
@@ -5004,6 +5006,16 @@
         "i18n-ignore-rewrite-source-locale get _next/static/ files by skipping locale in rewrite, locale: /nl",
         "i18n-ignore-rewrite-source-locale get _next/static/ files by skipping locale in rewrite, locale: /sv"
       ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/i18n-navigations-middleware/i18n-navigations-middleware.test.ts": {
+      "passed": [
+        "i18n-navigations-middleware should respect selected locale when navigating to a dynamic route",
+        "i18n-navigations-middleware should respect selected locale when navigating to a static route"
+      ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
