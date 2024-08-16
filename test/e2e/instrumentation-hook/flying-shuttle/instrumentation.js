@@ -1,3 +1,3 @@
 export function register() {
-  console.log('register:' + process.env.NEXT_RUNTIME)
+  console.trace('register:' + process.env.NEXT_RUNTIME)
 }
