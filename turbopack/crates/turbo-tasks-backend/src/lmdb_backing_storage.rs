@@ -59,7 +59,11 @@ impl LmdbBackingStorage {
         create_dir_all(path)?;
         println!("opening lmdb {:?}", path);
         let env = Environment::new()
-            .set_flags(EnvironmentFlags::WRITE_MAP | EnvironmentFlags::NO_META_SYNC)
+            .set_flags(
+                EnvironmentFlags::WRITE_MAP
+                    | EnvironmentFlags::NO_META_SYNC
+                    | EnvironmentFlags::NO_TLS,
+            )
             .set_max_readers((available_parallelism().map_or(16, |v| v.get()) * 8) as u32)
             .set_max_dbs(4)
             .set_map_size(20 * 1024 * 1024 * 1024)
