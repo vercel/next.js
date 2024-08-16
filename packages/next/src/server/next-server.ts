@@ -535,6 +535,7 @@ export default class NextNodeServer extends BaseServer {
         query,
         params: match.params,
         page: match.definition.pathname,
+        multiZoneDraftMode: this.nextConfig.experimental.multiZoneDraftMode,
       }
     )
 
