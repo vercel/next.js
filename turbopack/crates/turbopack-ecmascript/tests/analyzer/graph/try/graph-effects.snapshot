@@ -48,7 +48,7 @@
                 Ident,
             ),
         ],
-        span: 25..32,
+        span: 25..32#1,
         in_try: true,
     },
     Call {
@@ -102,7 +102,7 @@
                 Call,
             ),
         ],
-        span: 25..54,
+        span: 25..54#0,
         in_try: true,
     },
     FreeVar {
@@ -157,7 +157,7 @@
                 Ident,
             ),
         ],
-        span: 78..85,
+        span: 78..85#1,
         in_try: false,
     },
     Call {
@@ -214,7 +214,7 @@
                 Call,
             ),
         ],
-        span: 78..103,
+        span: 78..103#0,
         in_try: false,
     },
     Member {
@@ -259,7 +259,7 @@
                 Member,
             ),
         ],
-        span: 108..114,
+        span: 108..114#0,
         in_try: false,
     },
     MemberCall {
@@ -296,7 +296,7 @@
                 Call,
             ),
         ],
-        span: 108..116,
+        span: 108..116#0,
         in_try: false,
     },
 ]

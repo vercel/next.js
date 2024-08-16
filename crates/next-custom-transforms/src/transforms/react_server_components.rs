@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf, rc::Rc, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use regex::Regex;
 use serde::Deserialize;
@@ -161,11 +161,11 @@ impl<C: Comments> ReactServerComponents<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("require").as_callee(),
                             args: vec![quote_str!("private-next-rsc-mod-ref-proxy").as_arg()],
-                            ..Default::default()
+                            type_args: Default::default(),
                         }))),
                         definite: false,
                     }],
-                    ..Default::default()
+                    declare: false,
                 })))),
                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
@@ -173,7 +173,7 @@ impl<C: Comments> ReactServerComponents<C> {
                         span: DUMMY_SP,
                         left: MemberExpr {
                             span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(quote_ident!("module").into())),
+                            obj: Box::new(Expr::Ident(quote_ident!("module"))),
                             prop: MemberProp::Ident(quote_ident!("exports")),
                         }
                         .into(),
@@ -182,7 +182,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("createProxy").as_callee(),
                             args: vec![filepath.as_arg()],
-                            ..Default::default()
+                            type_args: Default::default(),
                         })),
                     })),
                 })),
@@ -860,7 +860,7 @@ pub fn server_components_assert(
 /// Runs react server component transform for the module proxy, as well as
 /// running assertion.
 pub fn server_components<C: Comments>(
-    filename: Arc<FileName>,
+    filename: FileName,
     config: Config,
     comments: C,
     app_dir: Option<PathBuf>,
@@ -872,7 +872,7 @@ pub fn server_components<C: Comments>(
     as_folder(ReactServerComponents {
         is_react_server_layer,
         comments,
-        filepath: match &*filename {
+        filepath: match filename {
             FileName::Custom(path) => format!("<{path}>"),
             _ => filename.to_string(),
         },

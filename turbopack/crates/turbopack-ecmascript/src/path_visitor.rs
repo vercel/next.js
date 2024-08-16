@@ -4,7 +4,7 @@ use swc_core::{
     common::pass::AstKindPath,
     ecma::{
         ast::*,
-        visit::{AstParentKind, VisitMut, VisitMutAstPath, VisitMutWith, VisitMutWithAstPath},
+        visit::{AstParentKind, VisitMut, VisitMutAstPath, VisitMutWith, VisitMutWithPath},
     },
 };
 
@@ -80,7 +80,7 @@ impl<'a, 'b> ApplyVisitors<'a, 'b> {
     fn visit_if_required<N>(&mut self, n: &mut N, ast_path: &mut AstKindPath<AstParentKind>)
     where
         N: for<'aa> VisitMutWith<dyn VisitMut + Send + Sync + 'aa>
-            + for<'aa, 'bb> VisitMutWithAstPath<ApplyVisitors<'aa, 'bb>>,
+            + for<'aa, 'bb> VisitMutWithPath<ApplyVisitors<'aa, 'bb>>,
     {
         let mut index = self.index;
         let mut current_visitors = self.visitors.as_ref();
@@ -99,7 +99,7 @@ impl<'a, 'b> ApplyVisitors<'a, 'b> {
                 if current {
                     // Potentially skip visiting this sub tree
                     if nested_visitors_start < visitors.len() {
-                        n.visit_mut_children_with_ast_path(
+                        n.visit_mut_children_with_path(
                             &mut ApplyVisitors {
                                 // We only select visitors starting from `nested_visitors_start`
                                 // which maintains the invariant.
@@ -128,7 +128,7 @@ impl<'a, 'b> ApplyVisitors<'a, 'b> {
             }
         }
         // Ast path is unchanged, just keep visiting
-        n.visit_mut_children_with_ast_path(self, ast_path);
+        n.visit_mut_children_with_path(self, ast_path);
     }
 }
 
@@ -168,7 +168,7 @@ mod tests {
             codegen::{text_writer::JsWriter, Emitter},
             parser::parse_file_as_module,
             transforms::base::resolver,
-            visit::{fields::*, AstParentKind, VisitMut, VisitMutWith, VisitMutWithAstPath},
+            visit::{fields::*, AstParentKind, VisitMut, VisitMutWith, VisitMutWithPath},
         },
         testing::run_test,
     };
@@ -232,7 +232,7 @@ mod tests {
     #[test]
     fn path_visitor() {
         run_test(false, |cm, _handler| {
-            let fm = cm.new_source_file(FileName::Anon.into(), "('foo', 'bar', ['baz']);".into());
+            let fm = cm.new_source_file(FileName::Anon, "('foo', 'bar', ['baz']);".into());
 
             let m = parse(&fm);
 
@@ -263,7 +263,7 @@ mod tests {
                 let bar_replacer = replacer("bar", "bar-success");
 
                 let mut m = m.clone();
-                m.visit_mut_with_ast_path(
+                m.visit_mut_with_path(
                     &mut ApplyVisitors::new(vec![(&path, &bar_replacer)]),
                     &mut Default::default(),
                 );
@@ -288,7 +288,7 @@ mod tests {
                 let bar_replacer = replacer("bar", "bar-success");
 
                 let mut m = m.clone();
-                m.visit_mut_with_ast_path(
+                m.visit_mut_with_path(
                     &mut ApplyVisitors::new(vec![(&wrong_path, &bar_replacer)]),
                     &mut Default::default(),
                 );

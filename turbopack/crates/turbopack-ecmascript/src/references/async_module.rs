@@ -214,7 +214,7 @@ impl AsyncModule {
 fn add_async_dependency_handler(program: &mut Program, idents: &IndexSet<String>) {
     let idents = idents
         .iter()
-        .map(|ident| Ident::new(ident.clone().into(), DUMMY_SP, Default::default()))
+        .map(|ident| Ident::new(ident.clone().into(), DUMMY_SP))
         .collect::<Vec<_>>();
 
     let stmt = quote!(

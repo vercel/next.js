@@ -15,10 +15,10 @@ use swc_core::{
     ecma::{
         ast::{
             op, ClassDecl, Decl, DefaultDecl, ExportAll, ExportDecl, ExportNamedSpecifier,
-            ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName, ImportDecl,
-            ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp, Lit,
-            Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
-            PropName, PropOrSpread, Stmt, VarDecl, VarDeclKind, VarDeclarator,
+            ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, ImportDecl, ImportNamedSpecifier,
+            ImportSpecifier, ImportStarAsSpecifier, KeyValueProp, Lit, Module, ModuleDecl,
+            ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop, PropName, PropOrSpread,
+            Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
         utils::{find_pat_ids, private_ident, quote_ident},
@@ -318,11 +318,7 @@ impl DepGraph {
 
                             let s = ExportSpecifier::Named(ExportNamedSpecifier {
                                 span: DUMMY_SP,
-                                orig: ModuleExportName::Ident(Ident::new(
-                                    export.clone(),
-                                    DUMMY_SP,
-                                    Default::default(),
-                                )),
+                                orig: ModuleExportName::Ident(Ident::new(export.clone(), DUMMY_SP)),
                                 exported: None,
                                 is_type_only: false,
                             });
@@ -570,7 +566,7 @@ impl DepGraph {
                                     Some(s.orig.clone()),
                                     match &s.orig {
                                         ModuleExportName::Ident(i) => i.clone(),
-                                        ModuleExportName::Str(..) => quote_ident!("_tmp").into(),
+                                        ModuleExportName::Str(..) => quote_ident!("_tmp"),
                                     },
                                     Some(s.exported.clone().unwrap_or_else(|| s.orig.clone())),
                                 ),
@@ -578,16 +574,15 @@ impl DepGraph {
                                     Some(ModuleExportName::Ident(Ident::new(
                                         "default".into(),
                                         DUMMY_SP,
-                                        Default::default(),
                                     ))),
-                                    quote_ident!("default").into(),
+                                    quote_ident!("default"),
                                     Some(ModuleExportName::Ident(s.exported.clone())),
                                 ),
                                 ExportSpecifier::Namespace(s) => (
                                     None,
                                     match &s.name {
                                         ModuleExportName::Ident(i) => i.clone(),
-                                        ModuleExportName::Str(..) => quote_ident!("_tmp").into(),
+                                        ModuleExportName::Str(..) => quote_ident!("_tmp"),
                                     },
                                     Some(s.name.clone()),
                                 ),
@@ -707,7 +702,7 @@ impl DepGraph {
 
                         exports.push((
                             default_var.to_id(),
-                            Some(ModuleExportName::Ident(quote_ident!("default").into())),
+                            Some(ModuleExportName::Ident(quote_ident!("default"))),
                         ));
                     }
                     ModuleDecl::ExportDefaultExpr(export) => {
@@ -744,13 +739,13 @@ impl DepGraph {
                                     VarDecl {
                                         span: DUMMY_SP,
                                         kind: VarDeclKind::Const,
+                                        declare: false,
                                         decls: vec![VarDeclarator {
                                             span: DUMMY_SP,
                                             name: default_var.clone().into(),
                                             init: Some(export.expr.clone()),
                                             definite: false,
                                         }],
-                                        ..Default::default()
                                     },
                                 )))),
                                 ..Default::default()
@@ -769,7 +764,7 @@ impl DepGraph {
 
                             exports.push((
                                 default_var.to_id(),
-                                Some(ModuleExportName::Ident(quote_ident!("default").into())),
+                                Some(ModuleExportName::Ident(quote_ident!("default"))),
                             ));
                         }
                     }
@@ -1160,7 +1155,7 @@ pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {
     ObjectLit {
         span: DUMMY_SP,
         props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-            key: PropName::Ident(IdentName::new(ASSERT_CHUNK_KEY.into(), DUMMY_SP)),
+            key: PropName::Ident(Ident::new(ASSERT_CHUNK_KEY.into(), DUMMY_SP)),
             value: match dep {
                 PartId::ModuleEvaluation => "module evaluation".into(),
                 PartId::Exports => "exports".into(),

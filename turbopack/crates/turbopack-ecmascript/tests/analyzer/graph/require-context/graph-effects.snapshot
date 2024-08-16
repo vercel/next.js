@@ -46,7 +46,7 @@
                 Member,
             ),
         ],
-        span: 70..85,
+        span: 70..85#0,
         in_try: false,
     },
     FreeVar {
@@ -95,7 +95,7 @@
                 Ident,
             ),
         ],
-        span: 70..77,
+        span: 70..77#1,
         in_try: false,
     },
     MemberCall {
@@ -160,7 +160,7 @@
                 Call,
             ),
         ],
-        span: 70..117,
+        span: 70..117#0,
         in_try: false,
     },
     Call {
@@ -207,7 +207,7 @@
                 Call,
             ),
         ],
-        span: 133..151,
+        span: 133..151#0,
         in_try: false,
     },
     Member {
@@ -260,7 +260,7 @@
                 Member,
             ),
         ],
-        span: 164..179,
+        span: 164..179#0,
         in_try: false,
     },
     MemberCall {
@@ -315,7 +315,7 @@
                 Call,
             ),
         ],
-        span: 164..186,
+        span: 164..186#0,
         in_try: false,
     },
     Member {
@@ -388,7 +388,7 @@
                 Member,
             ),
         ],
-        span: 34..46,
+        span: 34..46#0,
         in_try: false,
     },
     Member {
@@ -465,7 +465,7 @@
                 Member,
             ),
         ],
-        span: 34..40,
+        span: 34..40#0,
         in_try: false,
     },
     MemberCall {
@@ -534,7 +534,7 @@
                 Call,
             ),
         ],
-        span: 34..42,
+        span: 34..42#0,
         in_try: false,
     },
     MemberCall {
@@ -608,7 +608,7 @@
                 Call,
             ),
         ],
-        span: 34..49,
+        span: 34..49#0,
         in_try: false,
     },
     Unreachable {

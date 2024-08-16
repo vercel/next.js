@@ -213,7 +213,7 @@ function createPromise() {
 const turbopackQueues = Symbol("turbopack queues");
 const turbopackExports = Symbol("turbopack exports");
 const turbopackError = Symbol("turbopack error");
-var QueueStatus;
+let QueueStatus;
 function resolveQueue(queue) {
     if (queue && queue.status !== 1) {
         queue.status = 1;
@@ -353,7 +353,7 @@ relativeURL.prototype = URL.prototype;
 // This file must not use `import` and `export` statements. Otherwise, it
 // becomes impossible to augment interfaces declared in `<reference>`d files
 // (e.g. `Module`). Hence, the need for `import()` here.
-var SourceType;
+let SourceType;
 (function(SourceType) {
     /**
    * The module was instantiated because it was included in an evaluated chunk's

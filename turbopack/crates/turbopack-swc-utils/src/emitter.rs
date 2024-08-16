@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use swc_core::common::{
     errors::{DiagnosticBuilder, DiagnosticId, Emitter, Level},
-    source_map::SmallPos,
+    source_map::Pos,
     SourceMap,
 };
 use turbo_tasks::{RcStr, Vc};

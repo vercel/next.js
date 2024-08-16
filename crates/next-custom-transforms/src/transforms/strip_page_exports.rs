@@ -600,15 +600,13 @@ impl NextSsg {
                         decl: Decl::Var(Box::new(VarDecl {
                             span: DUMMY_SP,
                             kind: VarDeclKind::Var,
+                            declare: Default::default(),
                             decls: vec![VarDeclarator {
                                 span: DUMMY_SP,
-                                name: Pat::Ident(
-                                    IdentName::new(data_marker.into(), DUMMY_SP).into(),
-                                ),
+                                name: Pat::Ident(Ident::new(data_marker.into(), DUMMY_SP).into()),
                                 init: Some(true.into()),
                                 definite: Default::default(),
                             }],
-                            ..Default::default()
                         })),
                     })),
                 );
@@ -738,7 +736,7 @@ impl Fold for NextSsg {
                     tracing::trace!(
                         "Dropping import `{}{:?}` because it should be removed",
                         local.sym,
-                        local.ctxt
+                        local.span.ctxt
                     );
 
                     self.state.should_run_again = true;
@@ -927,7 +925,7 @@ impl Fold for NextSsg {
                         tracing::trace!(
                             "Dropping var `{}{:?}` because it should be removed",
                             name.id.sym,
-                            name.id.ctxt
+                            name.id.span.ctxt
                         );
 
                         return Pat::Invalid(Invalid { span: DUMMY_SP });
@@ -981,7 +979,7 @@ impl Fold for NextSsg {
                 tracing::trace!(
                     "Dropping var `{}{:?}` because it should be removed",
                     name.id.sym,
-                    name.id.ctxt
+                    name.id.span.ctxt
                 );
 
                 return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });
