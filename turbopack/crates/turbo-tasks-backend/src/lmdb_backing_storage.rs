@@ -126,6 +126,22 @@ impl BackingStorage for LmdbBackingStorage {
             let task_id = **task_id;
             let task_type_bytes = bincode::serialize(&task_type)
                 .with_context(|| anyhow!("Unable to serialize task cache key {task_type:?}"))?;
+            #[cfg(feature = "verify_serialization")]
+            {
+                let deserialize: Result<CachedTaskType, _> =
+                    serde_path_to_error::deserialize(&mut bincode::Deserializer::from_slice(
+                        &task_type_bytes,
+                        bincode::DefaultOptions::new()
+                            .with_fixint_encoding()
+                            .allow_trailing_bytes(),
+                    ));
+                if let Err(err) = deserialize {
+                    println!(
+                        "Task type would not be deserializable {task_id}: {err:?}\n{task_type:#?}"
+                    );
+                    panic!("Task type would not be deserializable {task_id}: {err:?}");
+                }
+            }
             extended_key::put(
                 &mut tx,
                 self.forward_task_cache_db,
@@ -204,8 +220,9 @@ impl BackingStorage for LmdbBackingStorage {
                 .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
                 .collect();
             let value = match bincode::serialize(&vec) {
-                // Ok(value) => value,
-                Ok(_) | Err(_) => {
+                #[cfg(not(feature = "verify_serialization"))]
+                Ok(value) => value,
+                _ => {
                     let mut error = Ok(());
                     vec.retain(|item| {
                         let mut buf = Vec::<u8>::new();
@@ -227,24 +244,26 @@ impl BackingStorage for LmdbBackingStorage {
                             }
                             false
                         } else {
-                            let deserialize: Result<CachedDataItem, _> =
-                                serde_path_to_error::deserialize(
-                                    &mut bincode::Deserializer::from_slice(
-                                        &buf,
-                                        bincode::DefaultOptions::new()
-                                            .with_fixint_encoding()
-                                            .allow_trailing_bytes(),
-                                    ),
-                                );
-                            if let Err(err) = deserialize {
-                                println!(
-                                    "Data item would not be deserializable {task_id}: \
-                                     {err:?}\n{item:#?}"
-                                );
-                                false
-                            } else {
-                                true
+                            #[cfg(feature = "verify_serialization")]
+                            {
+                                let deserialize: Result<CachedDataItem, _> =
+                                    serde_path_to_error::deserialize(
+                                        &mut bincode::Deserializer::from_slice(
+                                            &buf,
+                                            bincode::DefaultOptions::new()
+                                                .with_fixint_encoding()
+                                                .allow_trailing_bytes(),
+                                        ),
+                                    );
+                                if let Err(err) = deserialize {
+                                    println!(
+                                        "Data item would not be deserializable {task_id}: \
+                                         {err:?}\n{item:#?}"
+                                    );
+                                    return false;
+                                }
                             }
+                            true
                         }
                     });
                     error?;
