@@ -1572,41 +1572,44 @@ async fn resolve_internal_inline(
         )
     };
     async move {
-        // This explicit deref of `options` is necessary
-        #[allow(clippy::explicit_auto_deref)]
         let options_value: &ResolveOptions = &*options.await?;
-
-        let mut has_alias = false;
+        let request_value = request.await?;
 
         // Apply import mappings if provided
+        let mut has_alias = false;
         if let Some(import_map) = &options_value.import_map {
-            let result = import_map.await?.lookup(lookup_path, request).await?;
-            if !matches!(result, ImportMapResult::NoEntry) {
-                has_alias = true;
-                let resolved_result = resolve_import_map_result(
-                    &result,
-                    lookup_path,
-                    lookup_path,
-                    request,
-                    options,
-                    request.query(),
-                )
-                .await?;
-                // We might have matched an alias in the import map, but there is no guarantee
-                // the alias actually resolves to something. For instance, a tsconfig.json
-                // `compilerOptions.paths` option might alias "@*" to "./*", which
-                // would also match a request to "@emotion/core". Here, we follow what the
-                // Typescript resolution algorithm does in case an alias match
-                // doesn't resolve to anything: fall back to resolving the request normally.
-                if let Some(result) = resolved_result {
-                    if !*result.is_unresolveable().await? {
-                        return Ok(result);
+            let request_parts = match &*request_value {
+                Request::Alternatives { requests } => requests.as_slice(),
+                _ => &[request],
+            };
+            for request in request_parts {
+                let result = import_map.await?.lookup(lookup_path, *request).await?;
+                if !matches!(result, ImportMapResult::NoEntry) {
+                    has_alias = true;
+                    let resolved_result = resolve_import_map_result(
+                        &result,
+                        lookup_path,
+                        lookup_path,
+                        *request,
+                        options,
+                        request.query(),
+                    )
+                    .await?;
+                    // We might have matched an alias in the import map, but there is no guarantee
+                    // the alias actually resolves to something. For instance, a tsconfig.json
+                    // `compilerOptions.paths` option might alias "@*" to "./*", which
+                    // would also match a request to "@emotion/core". Here, we follow what the
+                    // Typescript resolution algorithm does in case an alias match
+                    // doesn't resolve to anything: fall back to resolving the request normally.
+                    if let Some(result) = resolved_result {
+                        if !*result.is_unresolveable().await? {
+                            return Ok(result);
+                        }
                     }
                 }
             }
         }
 
-        let request_value = request.await?;
         let result = match &*request_value {
             Request::Dynamic => ResolveResult::unresolveable().into(),
             Request::Alternatives { requests } => {
