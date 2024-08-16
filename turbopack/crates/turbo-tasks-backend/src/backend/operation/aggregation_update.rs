@@ -302,9 +302,10 @@ impl AggregationUpdateQueue {
                 }
                 AggregationUpdateJob::ScheduleWhenDirty { task_ids } => {
                     for task_id in task_ids {
+                        let description = ctx.backend.get_task_desc_fn(task_id);
                         let mut task = ctx.task(task_id);
                         if task.has_key(&CachedDataItemKey::Dirty {}) {
-                            if task.add(CachedDataItem::new_scheduled(task_id)) {
+                            if task.add(CachedDataItem::new_scheduled(description)) {
                                 ctx.turbo_tasks.schedule(task_id);
                             }
                         }

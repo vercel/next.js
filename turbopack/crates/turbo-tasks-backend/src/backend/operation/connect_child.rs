@@ -75,7 +75,9 @@ impl Operation for ConnectChildOperation {
                         let mut task = ctx.task(task_id);
                         should_schedule = !task.has_key(&CachedDataItemKey::Output {});
                         if should_schedule {
-                            should_schedule = task.add(CachedDataItem::new_scheduled(task_id));
+                            should_schedule = task.add(CachedDataItem::new_scheduled(
+                                task.backend.get_task_desc_fn(task_id),
+                            ));
                         }
                     }
                     if should_schedule {

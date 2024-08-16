@@ -91,7 +91,11 @@ pub fn make_task_dirty(task_id: TaskId, queue: &mut AggregationUpdateQueue, ctx:
             Some(_) => true,
             None => false,
         };
-        if !in_progress && task.add(CachedDataItem::new_scheduled(task_id)) {
+        if !in_progress
+            && task.add(CachedDataItem::new_scheduled(
+                task.backend.get_task_desc_fn(task_id),
+            ))
+        {
             ctx.turbo_tasks.schedule(task_id)
         }
         queue.push(AggregationUpdateJob::DataUpdate {
