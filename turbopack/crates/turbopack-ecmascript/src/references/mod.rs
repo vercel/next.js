@@ -371,7 +371,15 @@ impl<'a> AnalysisState<'a> {
             self.var_graph,
             value,
             &early_value_visitor,
-            &|value| value_visitor(self.origin, value, self.compile_time_info, in_try),
+            &|value| {
+                value_visitor(
+                    self.origin,
+                    value,
+                    self.compile_time_info,
+                    self.var_graph,
+                    in_try,
+                )
+            },
             fun_args_values,
         )
         .await
@@ -1999,37 +2007,12 @@ async fn handle_typeof(
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    if let Some(def_name_len) = arg.get_defineable_name_len() {
-        let compile_time_info = state.compile_time_info.await?;
-        let free_var_references = compile_time_info.free_var_references.await?;
-        for (name, value) in free_var_references.iter() {
-            if name.len() != def_name_len + 1 {
-                continue;
-            }
-            let mut it = name.iter().map(Cow::Borrowed).rev();
-            if it.next().unwrap().as_ref() != &DefineableNameSegment::TypeOf {
-                continue;
-            }
-
-            if let DefineableNameSegment::Name(first_str) = name.first().unwrap() {
-                let first_str: &str = first_str;
-                if state
-                    .var_graph
-                    .free_var_ids
-                    .get(&first_str.into())
-                    .map_or(false, |id| state.var_graph.values.contains_key(id))
-                {
-                    // `typeof foo...` but `foo` was reassigned
-                    return Ok(());
-                }
-            }
-
-            if it.eq(arg.iter_defineable_name_rev())
-                && handle_free_var_reference(ast_path, value, span, state, analysis).await?
-            {
-                return Ok(());
-            }
-        }
+    if let Some(value) = arg.match_free_var_reference(
+        Some(state.var_graph),
+        &*state.compile_time_info.await?.free_var_references.await?,
+        &Some(DefineableNameSegment::TypeOf),
+    ) {
+        handle_free_var_reference(ast_path, value, span, state, analysis).await?;
     }
 
     Ok(())
@@ -2053,8 +2036,8 @@ async fn handle_free_var(
             if var
                 .iter_defineable_name_rev()
                 .eq(name.iter().map(Cow::Borrowed).rev())
-                && handle_free_var_reference(ast_path, value, span, state, analysis).await?
             {
+                handle_free_var_reference(ast_path, value, span, state, analysis).await?;
                 return Ok(());
             }
         }
@@ -2347,9 +2330,11 @@ async fn value_visitor(
     origin: Vc<Box<dyn ResolveOrigin>>,
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
+    var_graph: &VarGraph,
     in_try: bool,
 ) -> Result<(JsValue, bool)> {
-    let (mut v, modified) = value_visitor_inner(origin, v, compile_time_info, in_try).await?;
+    let (mut v, modified) =
+        value_visitor_inner(origin, v, compile_time_info, var_graph, in_try).await?;
     v.normalize_shallow();
     Ok((v, modified))
 }
@@ -2358,20 +2343,24 @@ async fn value_visitor_inner(
     origin: Vc<Box<dyn ResolveOrigin>>,
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
+    var_graph: &VarGraph,
     in_try: bool,
 ) -> Result<(JsValue, bool)> {
-    if let Some(def_name_len) = v.get_defineable_name_len() {
+    // This check is just an optimization
+    if v.get_defineable_name_len().is_some() {
         let compile_time_info = compile_time_info.await?;
-        let defines = compile_time_info.defines.await?;
-        for (name, value) in defines.iter() {
-            if name.len() != def_name_len {
-                continue;
-            }
-            if v.iter_defineable_name_rev()
-                .eq(name.iter().map(Cow::Borrowed).rev())
-            {
+        if let JsValue::TypeOf(..) = v {
+            if let Some(value) = v.match_free_var_reference(
+                Some(var_graph),
+                &*compile_time_info.free_var_references.await?,
+                &None,
+            ) {
                 return Ok((value.into(), true));
             }
+        }
+
+        if let Some(value) = v.match_define(&*compile_time_info.defines.await?) {
+            return Ok((value.into(), true));
         }
     }
     let value = match v {

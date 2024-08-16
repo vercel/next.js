@@ -12,6 +12,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
+use graph::VarGraph;
 use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
@@ -25,7 +26,9 @@ use swc_core::{
     },
 };
 use turbo_tasks::{RcStr, Vc};
-use turbopack_core::compile_time_info::{CompileTimeDefineValue, DefineableNameSegment};
+use turbopack_core::compile_time_info::{
+    CompileTimeDefineValue, DefineableNameSegment, FreeVarReference,
+};
 use url::Url;
 
 use self::imports::ImportAnnotations;
@@ -543,6 +546,20 @@ impl From<&CompileTimeDefineValue> for JsValue {
             CompileTimeDefineValue::Bool(b) => JsValue::Constant((*b).into()),
             CompileTimeDefineValue::JSON(_) => {
                 JsValue::unknown_empty(false, "compile time injected JSON")
+            }
+        }
+    }
+}
+
+impl From<&FreeVarReference> for JsValue {
+    fn from(v: &FreeVarReference) -> Self {
+        match v {
+            FreeVarReference::Value(v) => v.into(),
+            FreeVarReference::EcmaScriptModule { .. } => {
+                JsValue::unknown_empty(false, "compile time injected free var module")
+            }
+            FreeVarReference::Error(_) => {
+                JsValue::unknown_empty(false, "compile time injected free var error")
             }
         }
     }
@@ -1806,6 +1823,79 @@ impl JsValue {
             next: Some(self),
             index: 0,
         }
+    }
+
+    /// Returns any matching defined replacement that matches this value.
+    ///
+    /// Optionally when passed a VarGraph, verifies that the first segment was not reassigned.
+    ///
+    /// Optionally also prefixes `self` with `prefix`, e.g. to be able to match `typeof foo` if
+    /// `self` is just `foo`.
+    pub fn match_free_var_reference<'a>(
+        &self,
+        var_graph: Option<&VarGraph>,
+        free_var_references: &'a IndexMap<Vec<DefineableNameSegment>, FreeVarReference>,
+        prefix_self: &Option<DefineableNameSegment>,
+    ) -> Option<&'a FreeVarReference> {
+        if let Some(def_name_len) = self.get_defineable_name_len() {
+            for (name, value) in free_var_references.iter() {
+                if name.len() != def_name_len + (prefix_self.is_some() as usize) {
+                    continue;
+                }
+                let mut it = name.iter().map(Cow::Borrowed).rev();
+                if let Some(prefix_self) = prefix_self {
+                    if it.next().unwrap().as_ref() != prefix_self {
+                        continue;
+                    }
+                }
+
+                if let Some(var_graph) = var_graph {
+                    if let DefineableNameSegment::Name(first_str) = name.first().unwrap() {
+                        let first_str: &str = first_str;
+                        if var_graph
+                            .free_var_ids
+                            .get(&first_str.into())
+                            .map_or(false, |id| var_graph.values.contains_key(id))
+                        {
+                            // `typeof foo...` but `foo` was reassigned
+                            return None;
+                        }
+                    }
+                }
+
+                if it.eq(self.iter_defineable_name_rev()) {
+                    return Some(value);
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Returns any matching defined replacement that matches this value. Optionally also prefixes
+    /// `self` with `prefix`, e.g. to be able to match `typeof foo` if `self` is just `foo`.
+    pub fn match_define<'a>(
+        &self,
+        defines: &'a IndexMap<Vec<DefineableNameSegment>, CompileTimeDefineValue>,
+    ) -> Option<&'a CompileTimeDefineValue> {
+        if let Some(def_name_len) = self.get_defineable_name_len() {
+            for (name, value) in defines.iter() {
+                if name.len() != def_name_len {
+                    continue;
+                }
+
+                if name
+                    .iter()
+                    .map(Cow::Borrowed)
+                    .rev()
+                    .eq(self.iter_defineable_name_rev())
+                {
+                    return Some(value);
+                }
+            }
+        }
+
+        None
     }
 }
 
