@@ -60,7 +60,7 @@ async function main() {
       },
       system:
         `Your job is to determine the severity of a GitHub issue using the triage guidelines and the latest versions of Next.js.` +
-        `Succintly explain why you chose the severity, without paraphrasing the triage guidelines.` +
+        `Succinctly explain why you chose the severity, without paraphrasing the triage guidelines.` +
         `Here are the triage guidelines: ${guidelines}` +
         `Here is the latest version of Next.js: ${latestVersion}` +
         `Here is the latest canary version of Next.js: ${latestCanaryVersion}`,
