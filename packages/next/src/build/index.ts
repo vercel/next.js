@@ -1238,6 +1238,16 @@ export default async function build(
 
       const { cacheHandler } = config
 
+      const instrumentationHookEntryFiles = hasInstrumentationHook
+        ? [
+            path.join(SERVER_DIRECTORY, `${INSTRUMENTATION_HOOK_FILENAME}.js`),
+            path.join(
+              SERVER_DIRECTORY,
+              `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
+            ),
+          ].filter((filePath) => existsSync(path.join(distDir, filePath)))
+        : []
+
       const requiredServerFilesManifest = nextBuildSpan
         .traceChild('generate-required-server-files')
         .traceFn(() => {
@@ -1312,18 +1322,7 @@ export default async function build(
               BUILD_ID_FILE,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
-              ...(hasInstrumentationHook
-                ? [
-                    path.join(
-                      SERVER_DIRECTORY,
-                      `${INSTRUMENTATION_HOOK_FILENAME}.js`
-                    ),
-                    path.join(
-                      SERVER_DIRECTORY,
-                      `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
-                    ),
-                  ]
-                : []),
+              ...instrumentationHookEntryFiles,
             ]
               .filter(nonNullable)
               .map((file) => path.join(config.distDir, file)),
