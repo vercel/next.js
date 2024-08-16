@@ -1663,9 +1663,12 @@ export async function copy_vendor_react(task_) {
           // Since `scheduleWork` is inlined, we have to convert `setTimeout` calls like this
           //   setTimeout(() => ..., 0)
           // into this:
-          //   setImmediate(() => ..., 0)
+          //   setImmediate(() => ...)
           //
-          // This should be safe unless React starts using `setTimeout(() => ..., 0)` as "wait for the next macrotask" somewhere.
+          // ReactDOM only ever calls `setTimeout` with `0` (and no further arguments),
+          // so we can just naively replace `setTimeout` with `setImmediate`.
+          // Technically the `0` will then be passed to the callback as an argument,
+          // but the callbacks will always ignore it anyway.
 
           // NOTE: we have to replace these before inserting the definition of `setTimeoutOrImmediate`,
           // otherwise we'd break it!
@@ -1686,29 +1689,17 @@ export async function copy_vendor_react(task_) {
           const toInsert =
             '\n\n' +
             outdent`
-            /** This is a patch added by Next.js */
-            const setTimeoutOrImmediate = (() => {
+            // This is a patch added by Next.js
+            const setTimeoutOrImmediate = (
               // edge runtime sandbox defines a stub for setImmediate
               // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
               // so we can't just do this:
               //   typeof setImmediate === 'function'
-              // luckily it makes it non-enumerable, so we can use this instead
-              const _setImmediate = Object.keys(globalThis).includes("setImmediate")
+              // luckily the stub is non-enumerable, so we can check Object.keys instead
+              Object.keys(globalThis).includes("setImmediate")
                 ? globalThis["set" + "Immediate"]
-                : undefined;
-
-              if (typeof _setImmediate === "function") {
-                return function setTimeoutOrImmediateImpl(cb, dur = 0, ...args) {
-                  if (dur === 0 && args.length === 0) {
-                    // likely a scheduleWork call
-                    return _setImmediate(cb);
-                  }
-                  return setTimeout(cb, dur, ...args);
-                };
-              }
-
-              return setTimeout;
-            })();
+                : setTimeout
+            );
           ` +
             '\n'
 
