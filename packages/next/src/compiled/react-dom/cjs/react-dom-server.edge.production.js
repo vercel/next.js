@@ -6043,7 +6043,6 @@ exports.renderToReadableStream = function (children, options) {
   });
 };
 
-
 /** This is a patch added by Next.js */
 const setTimeoutOrImmediate = (() => {
   // edge runtime sandbox defines a stub for setImmediate

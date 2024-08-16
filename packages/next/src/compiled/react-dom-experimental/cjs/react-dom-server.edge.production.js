@@ -6781,7 +6781,6 @@ exports.resume = function (children, postponedState, options) {
   });
 };
 
-
 /** This is a patch added by Next.js */
 const setTimeoutOrImmediate = (() => {
   // edge runtime sandbox defines a stub for setImmediate

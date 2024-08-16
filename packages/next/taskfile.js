@@ -1675,8 +1675,9 @@ export async function copy_vendor_react(task_) {
             `setTimeoutOrImmediate`
           )
 
-          const anchor = 'exports.version ='
-          const insertionPoint = newSource.indexOf(anchor)
+          const anchorPattern = /\n\s*exports\.version =/
+
+          const insertionPoint = newSource.search(anchorPattern)
           if (insertionPoint === -1) {
             throw new Error(
               `Cannot find insertion point for setTimeoutOrImmediate in ${filepath}`
@@ -1710,7 +1711,7 @@ const setTimeoutOrImmediate = (() => {
   return setTimeout;
 })();
           ` +
-            '\n\n'
+            '\n'
 
           newSource =
             newSource.slice(0, insertionPoint) +

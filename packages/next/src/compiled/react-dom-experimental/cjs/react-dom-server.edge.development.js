@@ -9791,7 +9791,6 @@
         startWork(request);
       });
     };
-    
 
 /** This is a patch added by Next.js */
 const setTimeoutOrImmediate = (() => {
@@ -9817,5 +9816,5 @@ const setTimeoutOrImmediate = (() => {
   return setTimeout;
 })();
 
-exports.version = "19.0.0-experimental-49496d49-20240814";
+    exports.version = "19.0.0-experimental-49496d49-20240814";
   })();
