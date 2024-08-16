@@ -11,6 +11,7 @@ use crate::{
     chunk::ModuleId,
     ident::AssetIdent,
     module::{Module, Modules},
+    reference::primary_referenced_modules,
 };
 
 #[turbo_tasks::value]
@@ -24,7 +25,9 @@ pub struct PreprocessedChildrenIdents {
 pub async fn get_children_modules(
     parent: Vc<Box<dyn Module>>,
 ) -> Result<impl Iterator<Item = Vc<Box<dyn Module>>> + Send> {
-    Ok(parent.children_modules().await?.clone_value().into_iter())
+    let mut primary_modules = primary_referenced_modules(parent).await?.clone_value();
+    primary_modules.extend(parent.additional_layers_modules().await?.clone_value());
+    Ok(primary_modules.into_iter())
 }
 
 // NOTE(LichuAcu) Called on endpoint.root_modules(). It would probably be better if this was called
