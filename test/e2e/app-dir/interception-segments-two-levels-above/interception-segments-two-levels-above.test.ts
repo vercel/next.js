@@ -6,7 +6,7 @@ describe('interception-segments-two-levels-above', () => {
     files: __dirname,
   })
 
-  it('should work when interception route is segments two levels above', async () => {
+  it('should work when interception route is paired with segments two levels above', async () => {
     const browser = await next.browser('/foo/bar')
 
     await browser.elementByCss('[href="/hoge"]').click()
