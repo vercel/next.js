@@ -8651,6 +8651,7 @@ dependencies = [
  "parking_lot",
  "rstest",
  "serde",
+ "serde_bytes",
  "serde_json",
  "serde_path_to_error",
  "sha2",
