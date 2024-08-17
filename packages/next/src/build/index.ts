@@ -1297,16 +1297,16 @@ export default async function build(
         await fs.mkdir(path.join(distDir, 'static', buildId), {
           recursive: true,
         })
-        await fs.writeFile(
-          path.join(distDir, 'package.json'),
-          JSON.stringify(
-            {
-              type: 'commonjs',
-            },
-            null,
-            2
-          )
-        )
+        // await fs.writeFile(
+        //   path.join(distDir, 'package.json'),
+        //   JSON.stringify(
+        //     {
+        //       type: 'commonjs',
+        //     },
+        //     null,
+        //     2
+        //   )
+        // )
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const entrypointsSubscription = project.entrypointsSubscribe()
