@@ -275,20 +275,42 @@ impl BackingStorage for LmdbBackingStorage {
     }
 
     fn forward_lookup_task_cache(&self, task_type: &CachedTaskType) -> Option<TaskId> {
-        let tx = self.env.begin_ro_txn().ok()?;
-        let task_type = pot::to_vec(task_type).ok()?;
-        let result = extended_key::get(&tx, self.forward_task_cache_db, &task_type)
-            .ok()
-            .and_then(|v| v.try_into().ok())
-            .map(|v| TaskId::from(u32::from_be_bytes(v)));
-        tx.commit().ok()?;
-        result
+        let span = tracing::trace_span!("forward lookup task cache", key_bytes = 0usize).entered();
+        fn lookup(
+            this: &LmdbBackingStorage,
+            task_type: &CachedTaskType,
+            span: &Span,
+        ) -> Result<Option<TaskId>> {
+            let tx = this.env.begin_ro_txn()?;
+            let task_type = pot::to_vec(task_type)?;
+            span.record("key_bytes", task_type.len());
+            let bytes = match extended_key::get(&tx, this.forward_task_cache_db, &task_type) {
+                Ok(result) => result,
+                Err(err) => {
+                    if err == lmdb::Error::NotFound {
+                        return Ok(None);
+                    } else {
+                        return Err(err.into());
+                    }
+                }
+            };
+            let bytes = bytes.try_into()?;
+            let id = TaskId::from(u32::from_be_bytes(bytes));
+            tx.commit()?;
+            Ok(Some(id))
+        }
+        let id = lookup(self, task_type, &span)
+            .inspect_err(|err| println!("Looking up task id for {task_type:?} failed: {err:?}"))
+            .ok()??;
+        Some(id)
     }
 
     fn reverse_lookup_task_cache(&self, task_id: TaskId) -> Option<Arc<CachedTaskType>> {
+        let span = tracing::trace_span!("reverse lookup task cache", bytes = 0usize).entered();
         fn lookup(
             this: &LmdbBackingStorage,
             task_id: TaskId,
+            span: &Span,
         ) -> Result<Option<Arc<CachedTaskType>>> {
             let tx = this.env.begin_ro_txn()?;
             let bytes = match tx.get(this.reverse_task_cache_db, &IntKey::new(*task_id)) {
@@ -301,13 +323,15 @@ impl BackingStorage for LmdbBackingStorage {
                     }
                 }
             };
+            span.record("bytes", bytes.len());
             let result = pot::from_slice(bytes)?;
             tx.commit()?;
             Ok(Some(result))
         }
-        lookup(self, task_id)
+        let result = lookup(self, task_id, &span)
             .inspect_err(|err| println!("Looking up task type for {task_id} failed: {err:?}"))
-            .ok()?
+            .ok()??;
+        Some(result)
     }
 
     fn lookup_data(&self, task_id: TaskId) -> Vec<CachedDataItem> {
