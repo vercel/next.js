@@ -335,7 +335,7 @@ pub async fn project_new(
         .run_once(async move {
             let project = ProjectContainer::new("next.js".into(), options.dev);
             let project = project.resolve().await?;
-            project.await?.initialize(options);
+            project.initialize(options).await?;
             Ok(project)
         })
         .await
@@ -423,7 +423,7 @@ pub async fn project_update(
     let container = project.container;
     turbo_tasks
         .run_once(async move {
-            container.await?.update(options)?;
+            container.update(options).await?;
             Ok(())
         })
         .await
