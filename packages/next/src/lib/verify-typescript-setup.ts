@@ -69,11 +69,18 @@ export async function verifyTypeScriptSetup({
         ])
       ).resolved.has('react')
     ) {
-      requiredPackages.push({
-        file: '@types/react/index.d.ts',
-        pkg: '@types/react',
-        exportsRestrict: true,
-      })
+      requiredPackages.push(
+        {
+          file: '@types/react/index.d.ts',
+          pkg: '@types/react',
+          exportsRestrict: true,
+        },
+        {
+          file: '@types/react-dom/index.d.ts',
+          pkg: '@types/react-dom',
+          exportsRestrict: true,
+        }
+      )
     }
 
     // Ensure TypeScript and necessary `@types/*` are installed:
