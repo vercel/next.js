@@ -43,7 +43,7 @@ import type {
   RouteHas,
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
-// import { recursiveDelete } from '../lib/recursive-delete'
+import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
 import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import {
@@ -1221,9 +1221,9 @@ export default async function build(
         )
       }
 
-      // if (config.cleanDistDir && !isGenerateMode) {
-      //   await recursiveDelete(distDir, /^cache/)
-      // }
+      if (config.cleanDistDir && !isGenerateMode) {
+        await recursiveDelete(distDir, /^cache/)
+      }
 
       // Ensure commonjs handling is used for files in the distDir (generally .next)
       // Files outside of the distDir can be "type": "module"
