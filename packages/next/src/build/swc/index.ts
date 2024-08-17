@@ -684,6 +684,8 @@ export interface Project {
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
 
+  shutdown(): Promise<void>
+
   onExit(): Promise<void>
 }
 
@@ -1103,6 +1105,10 @@ function bindingToApi(
           )
       )
       return subscription
+    }
+
+    shutdown(): Promise<void> {
+      return binding.projectShutdown(this._nativeProject)
     }
 
     onExit(): Promise<void> {

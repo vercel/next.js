@@ -431,6 +431,13 @@ pub async fn project_update(
     Ok(())
 }
 
+#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+pub async fn project_shutdown(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) {
+    project.turbo_tasks.stop_and_wait().await;
+}
+
 #[napi(object)]
 #[derive(Default)]
 struct AppPageNapiRoute {
