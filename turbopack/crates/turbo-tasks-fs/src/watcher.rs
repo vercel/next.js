@@ -155,15 +155,22 @@ impl DiskWatcher {
         // Best is to start_watching before starting to read
         {
             let _span = tracing::info_span!("invalidate filesystem").entered();
-            for invalidator in take(&mut *invalidator_map.lock().unwrap())
+            for (path, invalidators) in take(&mut *invalidator_map.lock().unwrap())
                 .into_iter()
                 .chain(take(&mut *dir_invalidator_map.lock().unwrap()).into_iter())
-                .flat_map(|(_, invalidators)| invalidators.into_iter())
             {
                 if report_invalidation_reason.is_some() {
-                    invalidator.invalidate_with_reason(WatchStart { name: name.clone() })
+                    let path: RcStr = path.into();
+                    for invalidator in invalidators {
+                        invalidator.invalidate_with_reason(WatchStart {
+                            name: name.clone(),
+                            path: path.clone(),
+                        })
+                    }
                 } else {
-                    invalidator.invalidate();
+                    for invalidator in invalidators {
+                        invalidator.invalidate();
+                    }
                 }
             }
         }
