@@ -43,6 +43,7 @@ use auto_hash_map::AutoMap;
 use bitflags::bitflags;
 use dunce::simplified;
 use glob::Glob;
+use invalidation::InvalidateFilesystem;
 use invalidator_map::InvalidatorMap;
 use jsonc_parser::{parse_to_serde_value, ParseOptions};
 use mime::Mime;
@@ -57,8 +58,7 @@ use tokio::{
 };
 use tracing::Instrument;
 use turbo_tasks::{
-    mark_stateful, trace::TraceRawVcs, Completion, InvalidationReason, Invalidator, RcStr, ReadRef,
-    ValueToString, Vc,
+    mark_stateful, trace::TraceRawVcs, Completion, Invalidator, RcStr, ReadRef, ValueToString, Vc,
 };
 use turbo_tasks_hash::{hash_xxh3_hash64, DeterministicHash, DeterministicHasher};
 use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
@@ -174,14 +174,17 @@ impl DiskFileSystem {
         }
     }
 
-    pub fn invalidate_with_reason<T: InvalidationReason + Clone>(&self, reason: T) {
+    pub fn invalidate_with_reason(&self) {
         let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
-        for (_, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
+        for (path, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
+            let reason = InvalidateFilesystem { path: path.into() };
             invalidators
                 .into_iter()
                 .for_each(|i| i.invalidate_with_reason(reason.clone()));
         }
-        for (_, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter() {
+        for (path, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter()
+        {
+            let reason = InvalidateFilesystem { path: path.into() };
             invalidators
                 .into_iter()
                 .for_each(|i| i.invalidate_with_reason(reason.clone()));
