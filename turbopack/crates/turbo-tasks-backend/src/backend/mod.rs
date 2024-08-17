@@ -862,11 +862,7 @@ impl Backend for TurboTasksBackend {
 
         if stale {
             task.add_new(CachedDataItem::InProgress {
-                value: InProgressState::InProgress {
-                    stale: false,
-                    once_task,
-                    done_event,
-                },
+                value: InProgressState::Scheduled { done_event },
             });
             drop(task);
             drop(ctx);
@@ -936,8 +932,9 @@ impl Backend for TurboTasksBackend {
 
             task.remove(&CachedDataItemKey::Dirty {});
 
-            done_event.notify(usize::MAX);
             drop(task);
+
+            done_event.notify(usize::MAX);
 
             CleanupOldEdgesOperation::run(task_id, old_edges, ctx);
 
