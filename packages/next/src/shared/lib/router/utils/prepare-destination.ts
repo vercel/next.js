@@ -248,11 +248,11 @@ export function prepareDestination(args: {
         segment.startsWith(m)
       )
       if (marker) {
-        if (marker === "(..)(..)") {
-          args.params["0"] = "(..)"
-          args.params["1"] = "(..)"
+        if (marker === '(..)(..)') {
+          args.params['0'] = '(..)'
+          args.params['1'] = '(..)'
         } else {
-          args.params["0"] = marker
+          args.params['0'] = marker
         }
         break
       }
