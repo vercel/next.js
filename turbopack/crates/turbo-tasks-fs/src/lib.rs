@@ -165,6 +165,7 @@ impl DiskFileSystem {
     }
 
     pub fn invalidate(&self) {
+        let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
         for (_, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
             invalidators.into_iter().for_each(|i| i.invalidate());
         }
@@ -174,6 +175,7 @@ impl DiskFileSystem {
     }
 
     pub fn invalidate_with_reason<T: InvalidationReason + Clone>(&self, reason: T) {
+        let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
         for (_, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
             invalidators
                 .into_iter()
@@ -195,6 +197,7 @@ impl DiskFileSystem {
     }
 
     fn start_watching_internal(&self, report_invalidation_reason: bool) -> Result<()> {
+        let _span = tracing::info_span!("start filesystem watching", path = &*self.root).entered();
         let invalidator_map = self.invalidator_map.clone();
         let dir_invalidator_map = self.dir_invalidator_map.clone();
         let root_path = self.root_path().to_path_buf();
