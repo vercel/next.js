@@ -567,6 +567,9 @@ impl Backend for TurboTasksBackend {
             unsafe {
                 self.persisted_task_id_factory.reuse(task_id);
             }
+            self.persisted_task_cache_log
+                .lock()
+                .push((task_type, existing_task_id));
             self.connect_child(parent_task, existing_task_id, turbo_tasks);
             return existing_task_id;
         }
