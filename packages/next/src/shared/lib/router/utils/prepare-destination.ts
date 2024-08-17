@@ -248,7 +248,12 @@ export function prepareDestination(args: {
         segment.startsWith(m)
       )
       if (marker) {
-        args.params['0'] = marker
+        if (marker === "(..)(..)") {
+          args.params["0"] = "(..)"
+          args.params["1"] = "(..)"
+        } else {
+          args.params["0"] = marker
+        }
         break
       }
     }
