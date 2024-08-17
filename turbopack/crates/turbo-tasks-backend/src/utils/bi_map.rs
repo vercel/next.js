@@ -41,8 +41,8 @@ where
             Entry::Vacant(e) => {
                 let e = e.insert_entry(value.clone());
                 let key = e.key().clone();
-                drop(e);
                 self.reverse.insert(value, key);
+                drop(e);
                 Ok(())
             }
         }
