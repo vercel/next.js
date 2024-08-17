@@ -311,7 +311,7 @@ impl BackingStorage for LmdbBackingStorage {
     }
 
     fn lookup_data(&self, task_id: TaskId) -> Vec<CachedDataItem> {
-        let span = tracing::trace_span!("restore data", bytes = 0usize, items = 0usize);
+        let span = tracing::trace_span!("restore data", bytes = 0usize, items = 0usize).entered();
         fn lookup(
             this: &LmdbBackingStorage,
             task_id: TaskId,
