@@ -27,6 +27,9 @@ pub enum ConnectChildOperation {
 impl ConnectChildOperation {
     pub fn run(parent_task_id: TaskId, child_task_id: TaskId, ctx: ExecuteContext<'_>) {
         let mut parent_task = ctx.task(parent_task_id);
+        parent_task.remove(&CachedDataItemKey::OutdatedChild {
+            task: child_task_id,
+        });
         if parent_task.add(CachedDataItem::Child {
             task: child_task_id,
             value: (),
