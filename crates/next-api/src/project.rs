@@ -201,12 +201,12 @@ impl ProjectContainer {
             .project_fs()
             .strongly_consistent()
             .await?
-            .start_watching()?;
+            .start_watching_with_invalidation_reason()?;
         project
             .output_fs()
             .strongly_consistent()
             .await?
-            .invalidate();
+            .invalidate_with_reason();
         Ok(())
     }
 
@@ -279,10 +279,10 @@ impl ProjectContainer {
 
         if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
             // TODO stop watching: prev_project_fs.stop_watching()?;
-            project_fs.start_watching()?;
+            project_fs.start_watching_with_invalidation_reason()?;
         }
         if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
-            prev_output_fs.invalidate();
+            prev_output_fs.invalidate_with_reason();
         }
 
         Ok(())
