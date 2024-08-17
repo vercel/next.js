@@ -1109,7 +1109,6 @@ impl Backend for TurboTasksBackend {
                 _ => unreachable!(),
             }));
         }
-        turbo_tasks.schedule(task_id);
         task_id
     }
 
