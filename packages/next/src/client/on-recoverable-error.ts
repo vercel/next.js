@@ -24,7 +24,7 @@ export default function onRecoverableError(err: any, errorInfo?: ErrorInfo) {
       ? // In modern browsers, reportError will dispatch an error event,
         // emulating an uncaught JavaScript error.
         reportError
-      : (error: any, errorInfo: ErrorInfo) => {
+      : (error: any, errorInfo?: ErrorInfo) => {
           window.console.error(error, errorInfo)
         }
 
