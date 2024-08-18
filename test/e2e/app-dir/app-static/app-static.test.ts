@@ -642,37 +642,6 @@ describe('app-dir static/dynamic handling', () => {
   })
 
   if (isNextStart) {
-    it.failing(
-      'should have deterministic etag across revalidates',
-      async () => {
-        const initialRes = await next.fetch(
-          '/variable-revalidate-stable/revalidate-3'
-        )
-        expect(initialRes.status).toBe(200)
-
-        // check 2 revalidate passes to ensure it's consistent
-        for (let i = 0; i < 2; i++) {
-          let startIdx = next.cliOutput.length
-
-          await retry(
-            async () => {
-              const res = await next.fetch(
-                '/variable-revalidate-stable/revalidate-3'
-              )
-              expect(next.cliOutput.substring(startIdx)).toContain(
-                'rendering /variable-revalidate-stable'
-              )
-              expect(initialRes.headers.get('etag')).toBe(
-                res.headers.get('etag')
-              )
-            },
-            12_000,
-            3_000
-          )
-        }
-      }
-    )
-
     it('should output HTML/RSC files for static paths', async () => {
       const files = (
         await glob('**/*', {
@@ -2036,6 +2005,41 @@ describe('app-dir static/dynamic handling', () => {
       )
     })
 
+    it('should log fetch metrics to the diagnostics directory', async () => {
+      const fetchMetrics = JSON.parse(
+        await next.readFile('.next/diagnostics/fetch-metrics.json')
+      )
+
+      const indexFetchMetrics = fetchMetrics['/']
+
+      expect(indexFetchMetrics).toHaveLength(1)
+      expect(indexFetchMetrics[0]).toMatchObject({
+        url: 'https://next-data-api-endpoint.vercel.app/api/random?page',
+        status: 200,
+        cacheStatus: expect.any(String),
+        start: expect.any(Number),
+        end: expect.any(Number),
+        cacheReason: expect.any(String),
+      })
+
+      const otherPageMetrics =
+        fetchMetrics['/variable-revalidate/headers-instance']
+
+      expect(otherPageMetrics).toHaveLength(4)
+      expect(otherPageMetrics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            url: 'https://next-data-api-endpoint.vercel.app/api/random?layout',
+            status: 200,
+            cacheStatus: expect.any(String),
+            start: expect.any(Number),
+            end: expect.any(Number),
+            cacheReason: expect.any(String),
+          }),
+        ])
+      )
+    })
+
     // build cache not leveraged for custom cache handler so not seeded
     if (!process.env.CUSTOM_CACHE_HANDLER) {
       it('should correctly error and not update cache for ISR', async () => {
@@ -2182,8 +2186,9 @@ describe('app-dir static/dynamic handling', () => {
 
     let prevHtml = await res.text()
     let prev$ = cheerio.load(prevHtml)
+    const cliOutputLength = next.cliOutput.length
 
-    await check(async () => {
+    await retry(async () => {
       const curRes = await next.fetch('/force-cache')
       expect(curRes.status).toBe(200)
 
@@ -2203,14 +2208,18 @@ describe('app-dir static/dynamic handling', () => {
       expect(cur$('#data-auto-cache').text()).toBe(
         prev$('#data-auto-cache').text()
       )
+    })
 
-      return 'success'
-    }, 'success')
+    if (isNextDev) {
+      await retry(() => {
+        const cliOutput = next.cliOutput
+          .slice(cliOutputLength)
+          .replace(/in \d+ms/g, 'in 0ms') // stub request durations
 
-    if (!isNextDeploy) {
-      expect(next.cliOutput).toContain(
-        'fetch for https://next-data-api-endpoint.vercel.app/api/random?d4 on /force-cache specified "cache: force-cache" and "revalidate: 3", only one should be specified.'
-      )
+        expect(stripAnsi(cliOutput)).toContain(`
+ │ GET https://next-data-api-en../api/random?d4 200 in 0ms (cache hit)
+ │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
+      })
     }
   })
 

@@ -1,16 +1,20 @@
-import type {
-  IncrementalCache,
-  ResponseCacheEntry,
-  ResponseGenerator,
-  IncrementalCacheItem,
-  ResponseCacheBase,
-  IncrementalCacheKindHint,
+import {
+  type IncrementalCache,
+  type ResponseCacheEntry,
+  type ResponseGenerator,
+  type IncrementalCacheItem,
+  type ResponseCacheBase,
+  CachedRouteKind,
 } from './types'
-import { RouteKind } from '../route-kind'
 
 import { Batcher } from '../../lib/batcher'
 import { scheduleOnNextTick } from '../../lib/scheduler'
-import { fromResponseCacheEntry, toResponseCacheEntry } from './utils'
+import {
+  fromResponseCacheEntry,
+  routeKindToIncrementalCacheKind,
+  toResponseCacheEntry,
+} from './utils'
+import type { RouteKind } from '../route-kind'
 
 export * from './types'
 
@@ -49,7 +53,7 @@ export default class ResponseCache implements ResponseCacheBase {
     key: string | null,
     responseGenerator: ResponseGenerator,
     context: {
-      routeKind?: RouteKind
+      routeKind: RouteKind
       isOnDemandRevalidate?: boolean
       isPrefetch?: boolean
       incrementalCache: IncrementalCache
@@ -76,28 +80,20 @@ export default class ResponseCache implements ResponseCacheBase {
         }
 
         // Coerce the kindHint into a given kind for the incremental cache.
-        let kindHint: IncrementalCacheKindHint | undefined
-        if (
-          context.routeKind === RouteKind.APP_PAGE ||
-          context.routeKind === RouteKind.APP_ROUTE
-        ) {
-          kindHint = 'app'
-        } else if (context.routeKind === RouteKind.PAGES) {
-          kindHint = 'pages'
-        }
+        const kind = routeKindToIncrementalCacheKind(context.routeKind)
 
         let resolved = false
         let cachedResponse: IncrementalCacheItem = null
         try {
           cachedResponse = !this.minimalMode
             ? await incrementalCache.get(key, {
-                kindHint,
+                kind,
                 isRoutePPREnabled: context.isRoutePPREnabled,
               })
             : null
 
           if (cachedResponse && !isOnDemandRevalidate) {
-            if (cachedResponse.value?.kind === 'FETCH') {
+            if (cachedResponse.value?.kind === CachedRouteKind.FETCH) {
               throw new Error(
                 `invariant: unexpected cachedResponse of kind fetch in response cache`
               )

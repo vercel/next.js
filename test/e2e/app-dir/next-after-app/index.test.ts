@@ -104,7 +104,8 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
         source: '[action] /[id]/with-action',
         value: '123',
         assertions: {
-          'cache() works in after()': true,
+          // cache() does not currently work in actions, and after() shouldn't affect that
+          'cache() works in after()': false,
           'headers() works in after()': true,
         },
       })
@@ -131,11 +132,14 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   describe('interrupted RSC renders', () => {
     it('runs callbacks if redirect() was called', async () => {
       await next.browser('/interrupted/calls-redirect')
-      expect(getLogs()).toContainEqual({
-        source: '[page] /interrupted/calls-redirect',
-      })
-      expect(getLogs()).toContainEqual({
-        source: '[page] /interrupted/redirect-target',
+
+      await retry(() => {
+        expect(getLogs()).toContainEqual({
+          source: '[page] /interrupted/calls-redirect',
+        })
+        expect(getLogs()).toContainEqual({
+          source: '[page] /interrupted/redirect-target',
+        })
       })
     })
 

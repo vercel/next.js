@@ -1,13 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { getOutputLogJson } from '../_testing/utils'
 
 describe('on-request-error - basic', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
-    env: {
-      __NEXT_EXPERIMENTAL_INSTRUMENTATION: '1',
-    },
   })
 
   if (skipped) {
@@ -16,47 +14,32 @@ describe('on-request-error - basic', () => {
 
   const outputLogPath = 'output-log.json'
 
-  async function getOutputLogJson() {
-    if (!(await next.hasFile(outputLogPath))) {
-      return {}
-    }
-    const content = await next.readFile(outputLogPath)
-    return JSON.parse(content)
-  }
-
   async function validateErrorRecord({
     errorMessage,
     url,
     renderSource,
-    isMiddleware = false,
   }: {
     errorMessage: string
     url: string
     renderSource: string | undefined
-    isMiddleware?: boolean
   }) {
     // Assert the instrumentation is called
     await retry(async () => {
-      const recordLogs = next.cliOutput
+      const recordLogLines = next.cliOutput
         .split('\n')
         .filter((log) => log.includes('[instrumentation] write-log'))
-      const expectedLog = recordLogs.find((log) => log.includes(errorMessage))
-      expect(expectedLog).toBeDefined()
+      expect(recordLogLines).toEqual(
+        expect.arrayContaining([expect.stringContaining(errorMessage)])
+      )
     }, 5000)
 
-    const json = await getOutputLogJson()
+    const json = await getOutputLogJson(next, outputLogPath)
     const record = json[errorMessage]
 
     const { payload } = record
     const { request } = payload
-    if (isMiddleware) {
-      // For middleware, the URL is absolute url with host
-      expect(request.url).toMatch(/^http:\/\//)
-      expect(request.url).toMatch(url)
-    } else {
-      expect(request.url).toBe(url)
-    }
 
+    expect(request.path).toBe(url)
     expect(record).toMatchObject({
       count: 1,
       payload: {
@@ -173,7 +156,6 @@ describe('on-request-error - basic', () => {
       await validateErrorRecord({
         errorMessage: 'middleware-error',
         url: '/middleware-error',
-        isMiddleware: true,
         renderSource: undefined,
       })
     })
