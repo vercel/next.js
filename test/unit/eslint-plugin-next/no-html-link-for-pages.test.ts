@@ -227,7 +227,7 @@ export class Blah extends Head {
 `
 
 describe('no-html-link-for-pages', function () {
-  it('does not prints warning when there are "pages" or "app" directories with context settings', function () {
+  it('does not print warning when there are "pages" or "app" directories with rootDir in context settings', function () {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
     withNestedPagesLinter.verify(
       validCode,
@@ -236,7 +236,7 @@ describe('no-html-link-for-pages', function () {
         filename: 'foo.js',
       }
     )
-    expect(consoleSpy).toHaveBeenCalledTimes(0)
+    expect(consoleSpy).not.toHaveBeenCalled()
 
     consoleSpy.mockRestore()
   })
@@ -256,6 +256,15 @@ describe('no-html-link-for-pages', function () {
         'pages'
       )}. If using a custom path, please configure with the \`no-html-link-for-pages\` rule in your eslint config file.`
     )
+
+    consoleSpy.mockRestore()
+  })
+  it('does not print warning when there is "app" directory and no "pages" directory', function () {
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+    withAppLinter.verify(validCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    expect(consoleSpy).not.toHaveBeenCalled()
 
     consoleSpy.mockRestore()
   })
