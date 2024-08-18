@@ -211,8 +211,9 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
-  flyingShuttle?: boolean
+  flyingShuttle?: { mode?: 'full' | 'store-only' }
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
@@ -278,10 +279,6 @@ export interface ExperimentalConfig {
   esmExternals?: boolean | 'loose'
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
-  outputFileTracingRoot?: string
-  outputFileTracingExcludes?: Record<string, string[]>
-  outputFileTracingIgnores?: string[]
-  outputFileTracingIncludes?: Record<string, string[]>
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
 
@@ -508,6 +505,16 @@ export interface ExperimentalConfig {
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
+
+  /**
+   * The amount of pages to export per worker during static generation.
+   */
+  staticGenerationMaxConcurrency?: number
+
+  /**
+   * The minimum number of pages to be chunked into each export worker.
+   */
+  staticGenerationMinPagesPerWorker?: number
 
   /**
    * Allows previously fetched data to be re-used when editing server components.
@@ -766,6 +773,14 @@ export interface NextConfig extends Record<string, any> {
   reactStrictMode?: boolean | null
 
   /**
+   * The maximum length of the headers that are emitted by React and added to
+   * the response.
+   *
+   * @see [React Max Headers Length](https://nextjs.org/docs/api-reference/next.config.js/react-max-headers-length)
+   */
+  reactMaxHeadersLength?: number
+
+  /**
    * Add public (in browser) runtime configuration to your app
    *
    * @see [Runtime configuration](https://nextjs.org/docs/api-reference/next.config.js/runtime-configuration)
@@ -887,6 +902,24 @@ export interface NextConfig extends Record<string, any> {
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages
    */
   serverExternalPackages?: string[]
+
+  /**
+   * This is the repo root usually and only files above this
+   * directory are traced and included.
+   */
+  outputFileTracingRoot?: string
+
+  /**
+   * This allows manually excluding traced files if too many
+   * are included incorrectly on a per-page basis.
+   */
+  outputFileTracingExcludes?: Record<string, string[]>
+
+  /**
+   * This allows manually including traced files if some
+   * were not detected on a per-page basis.
+   */
+  outputFileTracingIncludes?: Record<string, string[]>
 }
 
 export const defaultConfig: NextConfig = {
@@ -936,6 +969,7 @@ export const defaultConfig: NextConfig = {
   publicRuntimeConfig: {},
   reactProductionProfiling: false,
   reactStrictMode: null,
+  reactMaxHeadersLength: 6000,
   httpAgentOptions: {
     keepAlive: true,
   },
@@ -944,9 +978,15 @@ export const defaultConfig: NextConfig = {
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
+  outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   experimental: {
+    multiZoneDraftMode: false,
     appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
-    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
+    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE)
+      ? {
+          mode: 'full',
+        }
+      : undefined,
     prerenderEarlyExit: true,
     serverMinification: true,
     serverSourceMaps: false,
@@ -978,7 +1018,6 @@ export const defaultConfig: NextConfig = {
     craCompat: false,
     esmExternals: true,
     fullySpecified: false,
-    outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     swcTraceProfiling: false,
     forceSwcTransforms: false,
     swcPlugins: undefined,
@@ -1018,6 +1057,8 @@ export const defaultConfig: NextConfig = {
     after: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
+    staticGenerationMaxConcurrency: 8,
+    staticGenerationMinPagesPerWorker: 25,
   },
   bundlePagesRouterDependencies: false,
 }

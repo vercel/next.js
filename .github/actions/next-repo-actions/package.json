@@ -2,7 +2,7 @@
   "private": true,
   "description": "Notify Next.js team about pending PRs and popular issues",
   "scripts": {
-    "build": "pnpm build-issues && pnpm build-prs && pnpm build-feature-requests && pnpm build-bankrupt-issues",
+    "build": "pnpm build-issues && pnpm build-prs && pnpm build-feature-requests && pnpm build-bankrupt-issues && pnpm build-triage-issues-with-ai",
     "build-issues": "ncc build src/popular-issues.mjs -m -o dist/issues --license licenses.txt",
     "build-prs": "ncc build src/popular-prs.mjs -m -o dist/prs --license licenses.txt",
     "build-feature-requests": "ncc build src/popular-feature-requests.mjs -m -o dist/feature-requests --license licenses.txt",
@@ -12,10 +12,11 @@
   },
   "dependencies": {
     "@actions/core": "^1.10.1",
+    "@actions/exec": "^1.1.1",
     "@actions/github": "6.0.0",
-    "@ai-sdk/openai": "^0.0.40",
-    "@slack/web-api": "^7.0.4",
-    "ai": "^3.2.38",
+    "@ai-sdk/openai": "^0.0.45",
+    "@slack/web-api": "^7.3.2",
+    "ai": "^3.3.6",
     "slack-block-builder": "^2.8.0",
     "zod": "^3.23.8"
   },

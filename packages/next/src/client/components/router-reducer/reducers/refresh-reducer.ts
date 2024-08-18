@@ -49,7 +49,7 @@ export function refreshReducer(
   })
 
   return cache.lazyData.then(
-    async ({ f: flightData, c: canonicalUrlOverride }) => {
+    async ({ flightData, canonicalUrl: canonicalUrlOverride }) => {
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
         return handleExternalUrl(
@@ -107,7 +107,7 @@ export function refreshReducer(
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (cacheNodeSeedData !== null) {
-          const rsc = cacheNodeSeedData[2]
+          const rsc = cacheNodeSeedData[1]
           const loading = cacheNodeSeedData[3]
           cache.rsc = rsc
           cache.prefetchRsc = null

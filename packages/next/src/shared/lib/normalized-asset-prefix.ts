@@ -1,16 +1,19 @@
 export function normalizedAssetPrefix(assetPrefix: string | undefined): string {
-  const escapedAssetPrefix = assetPrefix?.replace(/^\/+/, '') || false
+  // remove all leading slashes and trailing slashes
+  const escapedAssetPrefix = assetPrefix?.replace(/^\/+|\/+$/g, '') || false
 
-  // assetPrefix as a url
-  if (escapedAssetPrefix && escapedAssetPrefix.startsWith('://')) {
-    return escapedAssetPrefix.split('://', 2)[1]
-  }
-
-  // assetPrefix is set to `undefined` or '/'
+  // if an assetPrefix was '/', we return empty string
+  // because it could be an unnecessary trailing slash
   if (!escapedAssetPrefix) {
     return ''
   }
 
-  // assetPrefix is a common path but escaped so let's add one leading slash
+  if (URL.canParse(escapedAssetPrefix)) {
+    const url = new URL(escapedAssetPrefix).toString()
+    return url.endsWith('/') ? url.slice(0, -1) : url
+  }
+
+  // assuming assetPrefix here is a pathname-style,
+  // restore the leading slash
   return `/${escapedAssetPrefix}`
 }

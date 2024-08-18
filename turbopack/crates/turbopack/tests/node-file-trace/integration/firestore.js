@@ -1,0 +1,1 @@
+require("@google-cloud/firestore");

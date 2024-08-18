@@ -3,7 +3,7 @@
 // - Refactors `useState` calls (under the `optimize_use_state` flag)
 
 use serde::Deserialize;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::*,
