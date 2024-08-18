@@ -31,7 +31,7 @@ You can also pass command line arguments to set up a new project
 non-interactively. See `create-next-app --help`:
 
 ```bash
-Usage: create-next-app [project-directory] [options]
+Usage: create-next-app <project-directory> [options]
 
 Options:
   -V, --version                        output the version number
@@ -49,7 +49,7 @@ Options:
 
   --eslint
 
-    Initialize with ESLint config.
+    Initialize with eslint config.
 
   --app
 
@@ -59,17 +59,9 @@ Options:
 
     Initialize inside a `src/` directory.
 
-  --turbo
-
-    Enable Turbopack by default for development.
-
   --import-alias <alias-to-configure>
 
     Specify import alias to use (default "@/*").
-
-  --empty
-
-    Initialize an empty project.
 
   --use-npm
 
@@ -104,20 +96,7 @@ Options:
 
     Explicitly tell the CLI to reset any stored preferences
 
-  --skip-install
-
-    Explicitly tell the CLI to skip installing packages
-
-  --disable-git
-
-    Explicitly tell the CLI to skip initializing a git repository.
-
-  --yes
-
-    Use previous preferences or defaults for all options that were not
-    explicitly specified, without prompting.
-
-  -h, --help                           display help for command
+  -h, --help                           output usage information
 ```
 
 ### Why use Create Next App?
