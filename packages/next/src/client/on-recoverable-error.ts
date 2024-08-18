@@ -7,13 +7,13 @@ interface ErrorInfo {
   componentStack?: string
 }
 
-export default function onRecoverableError(err: any, errorInfo: ErrorInfo) {
+export default function onRecoverableError(err: any, errorInfo?: ErrorInfo) {
   // Attach any component stack to the error, so it's accessible when passed thru `reportError` below,
   // such as from custom `window.onerror` or `window` `error` event listeners in an app.
   // Similar is done in `@next/react-dev-overlay`, but this supports production use cases as well.
   // This is technically a mutation of an argument, which is generally inadvisable, but probably not problematic in this case.
   // The alternative of constructing a new error could be more complicated.
-  if (errorInfo.componentStack) {
+  if (errorInfo?.componentStack) {
     err._componentStack = errorInfo.componentStack
   }
 
