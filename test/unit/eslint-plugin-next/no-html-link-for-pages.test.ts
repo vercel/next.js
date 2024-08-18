@@ -69,6 +69,9 @@ withoutPagesLinter.defineRules({
 withAppLinter.defineRules({
   'no-html-link-for-pages': rule,
 })
+withNestedPagesLinter.defineRules({
+  'no-html-link-for-pages': rule,
+})
 withCustomPagesLinter.defineRules({
   'no-html-link-for-pages': rule,
 })
@@ -224,6 +227,19 @@ export class Blah extends Head {
 `
 
 describe('no-html-link-for-pages', function () {
+  it('does not prints warning when there are "pages" or "app" directories with context settings', function () {
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+    withNestedPagesLinter.verify(
+      validCode,
+      linterConfigWithNestedContentRootDirDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
+    expect(consoleSpy).toHaveBeenCalledTimes(0)
+
+    consoleSpy.mockRestore()
+  })
   it('prints warning when there are no "pages" or "app" directories', function () {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
     withoutPagesLinter.verify(validCode, linterConfig, {
@@ -240,19 +256,6 @@ describe('no-html-link-for-pages', function () {
         'pages'
       )}. If using a custom path, please configure with the \`no-html-link-for-pages\` rule in your eslint config file.`
     )
-
-    consoleSpy.mockRestore()
-  })
-  it('prints warning when there are no "pages" or "app" directories with context settings', function () {
-    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
-    withNestedPagesLinter.verify(
-      validCode,
-      linterConfigWithNestedContentRootDirDirectory,
-      {
-        filename: 'foo.js',
-      }
-    )
-    expect(consoleSpy).toHaveBeenCalledTimes(0)
 
     consoleSpy.mockRestore()
   })
