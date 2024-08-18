@@ -12,7 +12,7 @@ export default function onRecoverableError(err: any, errorInfo: ErrorInfo) {
   // such as from custom `window.onerror` or `window` `error` event listeners in an app.
   // Similar is done in `@next/react-dev-overlay`, but this supports production use cases as well.
   // This is technically a mutation of an argument, which is generally inadvisable, but probably not problematic in this case.
-  // The alternative of constucting a new error could be more complicated.
+  // The alternative of constructing a new error could be more complicated.
   if (errorInfo.componentStack) {
     err._componentStack = errorInfo.componentStack
   }
