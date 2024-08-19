@@ -22,7 +22,7 @@
                 Unary,
             ),
         ],
-        span: 1..9,
+        span: 1..9#0,
     },
     FreeVar {
         var: FreeVar(
@@ -53,7 +53,7 @@
                 Ident,
             ),
         ],
-        span: 8..9,
+        span: 8..9#1,
         in_try: false,
     },
 ]

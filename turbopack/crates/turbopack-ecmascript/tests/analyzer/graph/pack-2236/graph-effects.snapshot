@@ -45,7 +45,7 @@
                 Unary,
             ),
         ],
-        span: 95..113,
+        span: 95..113#0,
     },
     FreeVar {
         var: FreeVar(

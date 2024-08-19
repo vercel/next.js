@@ -2009,7 +2009,7 @@ impl VisitAstPath for Analyzer<'_> {
             });
         }
 
-        n.visit_children_with_ast_path(self, ast_path);
+        n.visit_children_with_path(self, ast_path);
     }
 }
 
