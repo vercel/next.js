@@ -104,6 +104,7 @@ impl BackingStorage for LmdbBackingStorage {
         get(self).unwrap_or_default()
     }
 
+    #[tracing::instrument(level = "trace", skip_all, fields(operations = operations.len(), task_cache_updates = task_cache_updates.len(), data_updates = data_updates.len()))]
     fn save_snapshot(
         &self,
         operations: Vec<Arc<AnyOperation>>,
