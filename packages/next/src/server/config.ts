@@ -474,7 +474,7 @@ function assignDefaults(
   warnOptionHasBeenDeprecated(
     result,
     'experimental.instrumentationHook',
-    'instrumentation.js is stabilized and no longer needs to be enabled via experimental flag',
+    '`experimental.instrumentationHook` is no longer needed to be configured in Next.js',
     silent
   )
 
