@@ -170,6 +170,7 @@ export class FlightClientEntryPlugin {
   encryptionKey: string
   isEdgeServer: boolean
   assetPrefix: string
+  webpackRuntime: string
   usedActions: {
     node: Record<string, Set<string>>
     edge: Record<string, Set<string>>
@@ -181,6 +182,9 @@ export class FlightClientEntryPlugin {
     this.isEdgeServer = options.isEdgeServer
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
     this.encryptionKey = options.encryptionKey
+    this.webpackRuntime = this.isEdgeServer
+      ? EDGE_RUNTIME_WEBPACK
+      : DEFAULT_RUNTIME_WEBPACK
 
     this.usedActions = {
       node: {},
@@ -575,8 +579,6 @@ export class FlightClientEntryPlugin {
 
         if (collectUsedExportedActions) {
           if (visitedModule.has(modRequest) && actions) {
-            // if (ids)
-            // console.log('visited ssr:collect action', ids, modRequest)
             if (!this.usedActionsMapping[modRequest]) {
               this.usedActionsMapping[modRequest] = new Set(ids)
             } else {
@@ -597,11 +599,11 @@ export class FlightClientEntryPlugin {
           getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
             (connection: any) => {
               let dependencyIds: string[] = []
-              if (connection.dependency?.ids) {
-                dependencyIds.push(...connection.dependency.ids)
+              const depModule = connection.dependency
+              if (depModule?.ids) {
+                dependencyIds.push(...depModule.ids)
               } else {
-                // TODO: verify cjs module
-                dependencyIds = []
+                dependencyIds = depModule.category === 'esm' ? [] : ['*']
               }
 
               collectActionsInDep(
@@ -719,10 +721,6 @@ export class FlightClientEntryPlugin {
         actionImports.push([modRequest, actions])
       }
 
-      const webpackRuntime = this.isEdgeServer
-        ? EDGE_RUNTIME_WEBPACK
-        : DEFAULT_RUNTIME_WEBPACK
-
       if (isCSSMod(mod)) {
         const sideEffectFree =
           mod.factoryMeta && (mod.factoryMeta as any).sideEffectFree
@@ -730,7 +728,7 @@ export class FlightClientEntryPlugin {
         if (sideEffectFree) {
           const unused = !compilation.moduleGraph
             .getExportsInfo(mod)
-            .isModuleUsed(webpackRuntime)
+            .isModuleUsed(this.webpackRuntime)
 
           if (unused) return
         }
@@ -751,7 +749,6 @@ export class FlightClientEntryPlugin {
       getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
         (connection: any) => {
           let dependencyIds: string[] = []
-          const depModule = connection.resolvedModule
 
           // `ids` are the identifiers that are imported from the dependency,
           // if it's present, it's an array of strings.
@@ -761,7 +758,7 @@ export class FlightClientEntryPlugin {
             dependencyIds = ['*']
           }
 
-          filterClientComponents(depModule, dependencyIds)
+          filterClientComponents(connection.resolvedModule, dependencyIds)
         }
       )
     }
@@ -819,10 +816,11 @@ export class FlightClientEntryPlugin {
       getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
         (connection: any) => {
           let dependencyIds: string[] = []
-          if (connection.dependency?.ids) {
-            dependencyIds.push(...connection.dependency.ids)
+          const depModule = connection.dependency
+          if (depModule?.ids) {
+            dependencyIds.push(...depModule.ids)
           } else {
-            dependencyIds = []
+            dependencyIds = depModule.category === 'esm' ? [] : ['*']
           }
 
           filterUsedActions(connection.resolvedModule, dependencyIds)
@@ -990,13 +988,14 @@ export class FlightClientEntryPlugin {
   }) {
     for (const [filePath, names] of actions.entries()) {
       const usedActionNames = this.usedActionsMapping[filePath]
-      if (usedActionNames) {
+      const containsAll = usedActionNames.has('*')
+      if (usedActionNames && !containsAll) {
         const filteredNames = names.filter((name) => usedActionNames.has(name))
         actions.set(filePath, filteredNames)
-      } else {
+      } else if (!containsAll) {
         // If we didn't collect the used, we erase them from the collected actions
         // to avoid creating the action entry.
-        // actions.delete(filePath)
+        actions.delete(filePath)
       }
     }
 
