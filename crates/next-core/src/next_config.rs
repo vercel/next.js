@@ -399,6 +399,7 @@ pub struct ExperimentalTurboConfig {
     pub resolve_alias: Option<IndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub use_swc_css: Option<bool>,
+    pub tree_shaking: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -561,8 +562,6 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
-
-    tree_shaking: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
