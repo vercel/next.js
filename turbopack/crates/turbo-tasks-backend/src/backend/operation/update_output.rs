@@ -82,6 +82,12 @@ impl UpdateOutputOperation {
         drop(old_content);
         drop(old_error);
 
+        let _span = tracing::trace_span!(
+            "output changed",
+            task = ctx.backend.get_task_desc_fn(task_id)(),
+        )
+        .entered();
+
         InvalidateOperation::run(dependent, ctx);
     }
 }

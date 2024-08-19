@@ -302,6 +302,7 @@ impl TurboTasksBackend {
         let (item, listener) =
             CachedDataItem::new_scheduled_with_listener(self.get_task_desc_fn(task_id), note);
         task.add_new(item);
+        let _span = tracing::trace_span!("recompute from reading output").entered();
         turbo_tasks.schedule(task_id);
 
         Ok(Err(listener))
@@ -391,6 +392,7 @@ impl TurboTasksBackend {
         if task.add(CachedDataItem::new_scheduled(
             self.get_task_desc_fn(task_id),
         )) {
+            let _span = tracing::trace_span!("recompute from reading cell").entered();
             turbo_tasks.schedule(task_id);
         }
 

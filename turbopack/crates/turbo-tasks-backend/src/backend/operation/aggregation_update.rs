@@ -313,6 +313,7 @@ impl AggregationUpdateQueue {
                         let mut task = ctx.task(task_id);
                         if task.has_key(&CachedDataItemKey::Dirty {}) {
                             if task.add(CachedDataItem::new_scheduled(description)) {
+                                let _span = tracing::trace_span!("dirty task in root").entered();
                                 ctx.turbo_tasks.schedule(task_id);
                             }
                         }
