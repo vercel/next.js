@@ -11,9 +11,11 @@ use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, Transfor
 
 use super::module_rule_match_js_no_url;
 
-pub fn next_edge_node_api_assert(enable_mdx_rs: bool) -> ModuleRule {
+pub fn next_edge_node_api_assert(enable_mdx_rs: bool, should_error: bool) -> ModuleRule {
     let transformer =
-        EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextEdgeNodeApiAssert {}) as _));
+        EcmascriptInputTransform::Plugin(Vc::cell(
+            Box::new(NextEdgeNodeApiAssert { should_error }) as _,
+        ));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
@@ -24,7 +26,9 @@ pub fn next_edge_node_api_assert(enable_mdx_rs: bool) -> ModuleRule {
 }
 
 #[derive(Debug)]
-struct NextEdgeNodeApiAssert {}
+struct NextEdgeNodeApiAssert {
+    should_error: bool,
+}
 
 #[async_trait]
 impl CustomTransformer for NextEdgeNodeApiAssert {
@@ -36,6 +40,7 @@ impl CustomTransformer for NextEdgeNodeApiAssert {
                 is_unresolved_ref_safe: false,
                 unresolved_ctxt: SyntaxContext::empty().apply_mark(ctx.unresolved_mark),
             },
+            self.should_error,
         );
         program.visit_with(&mut visitor);
         Ok(())

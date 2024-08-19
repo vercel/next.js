@@ -9,13 +9,18 @@ use swc_core::{
     },
 };
 
-pub fn warn_for_edge_runtime(cm: Arc<SourceMap>, ctx: ExprCtx) -> impl Visit {
-    WarnForEdgeRuntime { cm, ctx }
+pub fn warn_for_edge_runtime(cm: Arc<SourceMap>, ctx: ExprCtx, should_error: bool) -> impl Visit {
+    WarnForEdgeRuntime {
+        cm,
+        ctx,
+        should_error,
+    }
 }
 
 struct WarnForEdgeRuntime {
     cm: Arc<SourceMap>,
     ctx: ExprCtx,
+    should_error: bool,
 }
 
 const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
@@ -45,7 +50,11 @@ impl WarnForEdgeRuntime {
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime",loc.line+1);
 
         HANDLER.with(|h| {
-            h.struct_span_err(span, &msg).emit();
+            if self.should_error {
+                h.struct_span_err(span, &msg).emit();
+            } else {
+                h.struct_span_warn(span, &msg).emit();
+            }
         });
 
         None

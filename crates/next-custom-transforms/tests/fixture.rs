@@ -691,7 +691,8 @@ fn test_edge_assert(input: PathBuf) {
                     ExprCtx {
                         is_unresolved_ref_safe: false,
                         unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
-                    }
+                    },
+                    true
                 ))
             )
         },
