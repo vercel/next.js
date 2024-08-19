@@ -470,7 +470,7 @@ impl TurboTasksBackend {
         }
     }
 
-    fn snapshot(&self) -> Option<Instant> {
+    fn snapshot(&self) -> Option<(Instant, bool)> {
         let mut snapshot_request = self.snapshot_request.lock();
         snapshot_request.snapshot_requested = true;
         let active_operations = self
@@ -505,7 +505,10 @@ impl TurboTasksBackend {
             *counts.entry(*task).or_default() += 1;
         }
 
+        let mut new_items = false;
+
         if !persisted_task_cache_log.is_empty() || !persisted_storage_log.is_empty() {
+            new_items = true;
             if let Err(err) = self.backing_storage.save_snapshot(
                 suspended_operations,
                 persisted_task_cache_log,
@@ -524,7 +527,7 @@ impl TurboTasksBackend {
                 .finish_persisting_items(count);
         }
 
-        Some(snapshot_time)
+        Some((snapshot_time, new_items))
     }
 }
 
@@ -1050,21 +1053,28 @@ impl Backend for TurboTasksBackend {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
             if *id == 1 {
-                const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(1);
-
                 let last_snapshot = self.last_snapshot.load(Ordering::Relaxed);
-                let last_snapshot = self.start_time + Duration::from_millis(last_snapshot);
-                let elapsed = last_snapshot.elapsed();
-                if elapsed < SNAPSHOT_INTERVAL {
-                    tokio::time::sleep(SNAPSHOT_INTERVAL - elapsed).await;
-                }
+                let mut last_snapshot = self.start_time + Duration::from_millis(last_snapshot);
+                loop {
+                    const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(1);
 
-                if let Some(last_snapshot) = self.snapshot() {
-                    let last_snapshot = last_snapshot.duration_since(self.start_time);
-                    self.last_snapshot
-                        .store(last_snapshot.as_millis() as u64, Ordering::Relaxed);
+                    let elapsed = last_snapshot.elapsed();
+                    if elapsed < SNAPSHOT_INTERVAL {
+                        tokio::time::sleep(SNAPSHOT_INTERVAL - elapsed).await;
+                    }
 
-                    turbo_tasks.schedule_backend_background_job(id);
+                    if let Some((snapshot_start, new_data)) = self.snapshot() {
+                        last_snapshot = snapshot_start;
+                        if new_data {
+                            continue;
+                        }
+                        let last_snapshot = last_snapshot.duration_since(self.start_time);
+                        self.last_snapshot
+                            .store(last_snapshot.as_millis() as u64, Ordering::Relaxed);
+
+                        turbo_tasks.schedule_backend_background_job(id);
+                        return;
+                    }
                 }
             }
         })
