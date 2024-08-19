@@ -42,17 +42,17 @@ impl WarnForEdgeRuntime {
         let loc = self.cm.lookup_line(span.lo).ok()?;
 
         let msg=format!("A Node.js API is used ({api_name} at line: {}) which is not supported in the Edge Runtime.
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime",loc.line);
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime",loc.line+1);
 
         HANDLER.with(|h| {
-            h.struct_span_warn(span, &msg).emit();
+            h.struct_span_err(span, &msg).emit();
         });
 
         None
     }
 
     fn is_in_middleware_layer(&self) -> bool {
-        false
+        true
     }
 
     fn warn_for_unsupported_process_api(&self, span: Span, prop: &Ident) {
@@ -60,7 +60,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",loc.line);
             return;
         }
 
-        self.build_unsupported_api_error(span, &format!("process.{}", prop));
+        self.build_unsupported_api_error(span, &format!("process.{}", prop.sym));
     }
 }
 
