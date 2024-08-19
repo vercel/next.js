@@ -96,7 +96,6 @@ pub fn make_task_dirty(task_id: TaskId, queue: &mut AggregationUpdateQueue, ctx:
                 task.backend.get_task_desc_fn(task_id),
             ))
         {
-            let _span = tracing::trace_span!("schedule from invalidation").entered();
             ctx.turbo_tasks.schedule(task_id)
         }
         queue.push(AggregationUpdateJob::DataUpdate {

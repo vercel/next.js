@@ -53,12 +53,6 @@ impl UpdateCellOperation {
         drop(task);
         drop(old_content);
 
-        let _span = tracing::trace_span!(
-            "cell changed",
-            task = ctx.backend.get_task_desc_fn(task_id)(),
-            cell = ?cell
-        )
-        .entered();
         InvalidateOperation::run(dependent, ctx);
     }
 }
