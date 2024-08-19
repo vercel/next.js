@@ -532,6 +532,7 @@ export default class NextNodeServer extends BaseServer<
       params: match.params,
       page: match.definition.pathname,
       onError: this.instrumentationOnRequestError.bind(this),
+      multiZoneDraftMode: this.nextConfig.experimental.multiZoneDraftMode,
     })
 
     return true

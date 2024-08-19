@@ -24,7 +24,7 @@
       return obj;
     }
     function handleErrorInNextTick(error) {
-      setTimeout(function () {
+      setTimeoutOrImmediate(function () {
         throw error;
       });
     }
@@ -202,12 +202,13 @@
         maybeIterable["@@iterator"];
       return "function" === typeof maybeIterable ? maybeIterable : null;
     }
-    function noop() {}
+    function noop$1() {}
     function trackUsedThenable(thenableState, thenable, index) {
       index = thenableState[index];
       void 0 === index
         ? thenableState.push(thenable)
-        : index !== thenable && (thenable.then(noop, noop), (thenable = index));
+        : index !== thenable &&
+          (thenable.then(noop$1, noop$1), (thenable = index));
       switch (thenable.status) {
         case "fulfilled":
           return thenable.value;
@@ -215,7 +216,7 @@
           throw thenable.reason;
         default:
           "string" === typeof thenable.status
-            ? thenable.then(noop, noop)
+            ? thenable.then(noop$1, noop$1)
             : ((thenableState = thenable),
               (thenableState.status = "pending"),
               thenableState.then(
@@ -490,7 +491,9 @@
       onPostpone,
       temporaryReferences,
       environmentName,
-      filterStackFrame
+      filterStackFrame,
+      onAllReady,
+      onFatalError
     ) {
       if (
         null !== ReactSharedInternalsServer.A &&
@@ -529,6 +532,8 @@
       this.onError = void 0 === onError ? defaultErrorHandler : onError;
       this.onPostpone =
         void 0 === onPostpone ? defaultPostponeHandler : onPostpone;
+      this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
+      this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
       this.environmentName =
         void 0 === environmentName
           ? function () {
@@ -547,6 +552,7 @@
       model = createTask(this, model, null, !1, abortSet, null);
       pingedTasks.push(model);
     }
+    function noop() {}
     function resolveRequest() {
       if (currentRequest) return currentRequest;
       if (supportsRequestStorage) {
@@ -784,6 +790,7 @@
       currentOwner = {
         name: "",
         env: task.environmentName,
+        key: null,
         owner: task.debugOwner
       };
       try {
@@ -806,6 +813,7 @@
         componentDebugInfo = {
           name: componentDebugInfo,
           env: componentEnv,
+          key: key,
           owner: task.debugOwner
         };
         outlineModel(request, componentDebugInfo);
@@ -1507,7 +1515,12 @@
               describeObjectForErrorMessage(parent, parentPropertyName)
           );
         if (isReactComponentInfo(value))
-          return { name: value.name, env: value.env, owner: value.owner };
+          return {
+            name: value.name,
+            env: value.env,
+            key: value.key,
+            owner: value.owner
+          };
         if ("Object" !== objectName(value))
           callWithDebugContextInDEV(request, task, function () {
             console.error(
@@ -1652,6 +1665,8 @@
       return errorDigest || "";
     }
     function fatalError(request, error) {
+      var onFatalError = request.onFatalError;
+      onFatalError(error);
       null !== request.destination
         ? ((request.status = CLOSED),
           closeWithError(request.destination, error))
@@ -1892,6 +1907,7 @@
                                                   ? {
                                                       name: value.name,
                                                       env: value.env,
+                                                      key: value.key,
                                                       owner: value.owner
                                                     }
                                                   : value;
@@ -2083,6 +2099,10 @@
           retryTask(request, pingedTasks[i]);
         null !== request.destination &&
           flushCompletedChunks(request, request.destination);
+        if (0 === request.abortableTasks.size) {
+          var onAllReady = request.onAllReady;
+          onAllReady();
+        }
       } catch (error) {
         logRecoverableError(request, error, null), fatalError(request, error);
       } finally {
@@ -2157,10 +2177,10 @@
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
       supportsRequestStorage
-        ? setTimeout(function () {
+        ? setTimeoutOrImmediate(function () {
             return requestStorage.run(request, performWork, request);
           }, 0)
-        : setTimeout(function () {
+        : setTimeoutOrImmediate(function () {
             return performWork(request);
           }, 0);
     }
@@ -2169,7 +2189,7 @@
         0 === request.pingedTasks.length &&
         null !== request.destination &&
         ((request.flushScheduled = !0),
-        setTimeout(function () {
+        setTimeoutOrImmediate(function () {
           request.flushScheduled = !1;
           var destination = request.destination;
           destination && flushCompletedChunks(request, destination);
@@ -3492,6 +3512,17 @@
         bind: { value: bind, configurable: !0 }
       });
     };
+
+// This is a patch added by Next.js
+const setTimeoutOrImmediate =
+  typeof globalThis['set' + 'Immediate'] === 'function' &&
+  // edge runtime sandbox defines a stub for setImmediate
+  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+  // but it's made non-enumerable, so we can detect it
+  globalThis.propertyIsEnumerable('setImmediate')
+    ? globalThis['set' + 'Immediate']
+    : setTimeout;
+
     exports.renderToReadableStream = function (model, turbopackMap, options) {
       var request = new RequestInstance(
         model,
@@ -3501,7 +3532,9 @@
         options ? options.onPostpone : void 0,
         options ? options.temporaryReferences : void 0,
         options ? options.environmentName : void 0,
-        options ? options.filterStackFrame : void 0
+        options ? options.filterStackFrame : void 0,
+        void 0,
+        void 0
       );
       if (options && options.signal) {
         var signal = options.signal;

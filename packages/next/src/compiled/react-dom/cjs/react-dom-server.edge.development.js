@@ -4419,7 +4419,7 @@
       request.pingedTasks.push(task);
       1 === request.pingedTasks.length &&
         ((request.flushScheduled = null !== request.destination),
-        setTimeout(function () {
+        setTimeoutOrImmediate(function () {
           return performWork(request);
         }, 0));
     }
@@ -7153,22 +7153,22 @@
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
       supportsRequestStorage
-        ? setTimeout(function () {
+        ? setTimeoutOrImmediate(function () {
             return requestStorage.run(request, performWork, request);
           }, 0)
-        : setTimeout(function () {
+        : setTimeoutOrImmediate(function () {
             return performWork(request);
           }, 0);
       null === request.trackedPostpones &&
         (supportsRequestStorage
-          ? setTimeout(function () {
+          ? setTimeoutOrImmediate(function () {
               return requestStorage.run(
                 request,
                 enqueueEarlyPreloadsAfterInitialWork,
                 request
               );
             }, 0)
-          : setTimeout(function () {
+          : setTimeoutOrImmediate(function () {
               return enqueueEarlyPreloadsAfterInitialWork(request);
             }, 0));
     }
@@ -7180,7 +7180,7 @@
         0 === request.pingedTasks.length &&
         null !== request.destination &&
         ((request.flushScheduled = !0),
-        setTimeout(function () {
+        setTimeoutOrImmediate(function () {
           var destination = request.destination;
           destination
             ? flushCompletedQueues(request, destination)
@@ -8708,11 +8708,11 @@
       didWarnAboutMaps = !1;
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-rc-49496d49-20240814" !== isomorphicReactPackageVersion)
+      if ("19.0.0-rc-1eaccd82-20240816" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-rc-49496d49-20240814\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-rc-1eaccd82-20240816\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     exports.renderToReadableStream = function (children, options) {
@@ -8805,5 +8805,16 @@
         startWork(request$jscomp$0);
       });
     };
-    exports.version = "19.0.0-rc-49496d49-20240814";
+
+// This is a patch added by Next.js
+const setTimeoutOrImmediate =
+  typeof globalThis['set' + 'Immediate'] === 'function' &&
+  // edge runtime sandbox defines a stub for setImmediate
+  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+  // but it's made non-enumerable, so we can detect it
+  globalThis.propertyIsEnumerable('setImmediate')
+    ? globalThis['set' + 'Immediate']
+    : setTimeout;
+
+    exports.version = "19.0.0-rc-1eaccd82-20240816";
   })();

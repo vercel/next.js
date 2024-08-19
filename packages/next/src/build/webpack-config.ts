@@ -1155,9 +1155,10 @@ export default async function getBaseWebpackConfig(
               return `static/chunks/[name]-[contenthash].js`
             },
 
-            path: isNodeServer
-              ? path.join(outputPath, `chunks-${buildId}`)
-              : outputPath,
+            path:
+              !dev && isNodeServer
+                ? path.join(outputPath, `chunks-${buildId}`)
+                : outputPath,
 
             chunkFilename: isNodeOrEdgeCompilation
               ? `[name].js`
