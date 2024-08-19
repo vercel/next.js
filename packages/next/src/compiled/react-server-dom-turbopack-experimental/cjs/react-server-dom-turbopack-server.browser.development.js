@@ -206,12 +206,13 @@
         maybeIterable["@@iterator"];
       return "function" === typeof maybeIterable ? maybeIterable : null;
     }
-    function noop() {}
+    function noop$1() {}
     function trackUsedThenable(thenableState, thenable, index) {
       index = thenableState[index];
       void 0 === index
         ? thenableState.push(thenable)
-        : index !== thenable && (thenable.then(noop, noop), (thenable = index));
+        : index !== thenable &&
+          (thenable.then(noop$1, noop$1), (thenable = index));
       switch (thenable.status) {
         case "fulfilled":
           return thenable.value;
@@ -219,7 +220,7 @@
           throw thenable.reason;
         default:
           "string" === typeof thenable.status
-            ? thenable.then(noop, noop)
+            ? thenable.then(noop$1, noop$1)
             : ((thenableState = thenable),
               (thenableState.status = "pending"),
               thenableState.then(
@@ -643,7 +644,9 @@
       onPostpone,
       temporaryReferences,
       environmentName,
-      filterStackFrame
+      filterStackFrame,
+      onAllReady,
+      onFatalError
     ) {
       if (
         null !== ReactSharedInternalsServer.A &&
@@ -684,6 +687,8 @@
       this.onError = void 0 === onError ? defaultErrorHandler : onError;
       this.onPostpone =
         void 0 === onPostpone ? defaultPostponeHandler : onPostpone;
+      this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
+      this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
       this.environmentName =
         void 0 === environmentName
           ? function () {
@@ -702,6 +707,7 @@
       model = createTask(this, model, null, !1, abortSet, null, null, null);
       pingedTasks.push(model);
     }
+    function noop() {}
     function serializeThenable(request, task, thenable) {
       var newTask = createTask(
         request,
@@ -972,6 +978,7 @@
       var componentDebugInfo = {
         name: "",
         env: task.environmentName,
+        key: null,
         owner: task.debugOwner
       };
       componentDebugInfo.stack =
@@ -1008,6 +1015,7 @@
         componentDebugInfo = {
           name: componentDebugInfo,
           env: componentEnv,
+          key: key,
           owner: task.debugOwner
         };
         componentDebugInfo.stack =
@@ -1210,6 +1218,7 @@
               ((validated = {
                 name: "Fragment",
                 env: (0, request.environmentName)(),
+                key: key,
                 owner: task.debugOwner,
                 stack:
                   null === task.debugStack
@@ -1813,6 +1822,7 @@
             (request = {
               name: value.name,
               env: value.env,
+              key: value.key,
               owner: value.owner
             }),
             (request.stack = value.stack),
@@ -1974,6 +1984,8 @@
       return errorDigest || "";
     }
     function fatalError(request, error) {
+      var onFatalError = request.onFatalError;
+      onFatalError(error);
       cleanupTaintQueue(request);
       null !== request.destination
         ? ((request.status = CLOSED),
@@ -2191,6 +2203,7 @@
                                                   ? ((request = {
                                                       name: value.name,
                                                       env: value.env,
+                                                      key: value.key,
                                                       owner: value.owner
                                                     }),
                                                     (request.stack =
@@ -2423,6 +2436,10 @@
           retryTask(request, pingedTasks[i]);
         null !== request.destination &&
           flushCompletedChunks(request, request.destination);
+        if (0 === request.abortableTasks.size) {
+          var onAllReady = request.onAllReady;
+          onAllReady();
+        }
       } catch (error) {
         logRecoverableError(request, error, null), fatalError(request, error);
       } finally {
@@ -2511,6 +2528,19 @@
           var destination = request.destination;
           destination && flushCompletedChunks(request, destination);
         }));
+    }
+    function startFlowing(request, destination) {
+      if (request.status === CLOSING)
+        (request.status = CLOSED),
+          closeWithError(destination, request.fatalError);
+      else if (request.status !== CLOSED && null === request.destination) {
+        request.destination = destination;
+        try {
+          flushCompletedChunks(request, destination);
+        } catch (error) {
+          logRecoverableError(request, error, null), fatalError(request, error);
+        }
+      }
     }
     function abort(request, reason) {
       try {
@@ -3842,6 +3872,52 @@
       close(body);
       return turbopackMap;
     };
+    exports.prerender = function (model, turbopackMap, options) {
+      return new Promise(function (resolve, reject) {
+        var request = new RequestInstance(
+          model,
+          turbopackMap,
+          options ? options.onError : void 0,
+          options ? options.identifierPrefix : void 0,
+          options ? options.onPostpone : void 0,
+          options ? options.temporaryReferences : void 0,
+          options ? options.environmentName : void 0,
+          options ? options.filterStackFrame : void 0,
+          function () {
+            var stream = new ReadableStream(
+              {
+                type: "bytes",
+                start: function () {
+                  startWork(request);
+                },
+                pull: function (controller) {
+                  startFlowing(request, controller);
+                },
+                cancel: function (reason) {
+                  request.destination = null;
+                  abort(request, reason);
+                }
+              },
+              { highWaterMark: 0 }
+            );
+            resolve({ prelude: stream });
+          },
+          reject
+        );
+        if (options && options.signal) {
+          var signal = options.signal;
+          if (signal.aborted) abort(request, signal.reason);
+          else {
+            var listener = function () {
+              abort(request, signal.reason);
+              signal.removeEventListener("abort", listener);
+            };
+            signal.addEventListener("abort", listener);
+          }
+        }
+        startWork(request);
+      });
+    };
     exports.registerClientReference = function (
       proxyImplementation,
       id,
@@ -3873,7 +3949,9 @@
         options ? options.onPostpone : void 0,
         options ? options.temporaryReferences : void 0,
         options ? options.environmentName : void 0,
-        options ? options.filterStackFrame : void 0
+        options ? options.filterStackFrame : void 0,
+        void 0,
+        void 0
       );
       if (options && options.signal) {
         var signal = options.signal;
@@ -3893,21 +3971,7 @@
             startWork(request);
           },
           pull: function (controller) {
-            if (request.status === CLOSING)
-              (request.status = CLOSED),
-                closeWithError(controller, request.fatalError);
-            else if (
-              request.status !== CLOSED &&
-              null === request.destination
-            ) {
-              request.destination = controller;
-              try {
-                flushCompletedChunks(request, controller);
-              } catch (error) {
-                logRecoverableError(request, error, null),
-                  fatalError(request, error);
-              }
-            }
+            startFlowing(request, controller);
           },
           cancel: function (reason) {
             request.destination = null;
