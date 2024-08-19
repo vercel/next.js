@@ -82,6 +82,10 @@ fn split_off_query_fragment(raw: RcStr) -> (Pattern, Vc<RcStr>, Vc<RcStr>) {
 }
 
 impl Request {
+    /// Turns the request into a string.
+    ///
+    /// Note that this is only returns something for the most basic and
+    /// fully constant patterns.
     pub fn request(&self) -> Option<RcStr> {
         Some(match self {
             Request::Raw {
@@ -611,6 +615,43 @@ impl Request {
             // TODO: is this correct, should we return the first one instead?
             Request::Alternatives { .. } => Vc::<RcStr>::default(),
         }
+    }
+
+    /// Turns the request into a pattern, similar to [Request::request()] but
+    /// more complete.
+    #[turbo_tasks::function]
+    pub async fn request_pattern(self: Vc<Self>) -> Result<Vc<Pattern>> {
+        Ok(match &*self.await? {
+            Request::Raw { path, .. } => path.clone(),
+            Request::Relative { path, .. } => path.clone(),
+            Request::Module { module, path, .. } => {
+                let mut path = path.clone();
+                path.push_front(Pattern::Constant(module.clone()));
+                path.normalize();
+                path
+            }
+            Request::ServerRelative { path, .. } => path.clone(),
+            Request::Windows { path, .. } => path.clone(),
+            Request::Empty => Pattern::Constant("".into()),
+            Request::PackageInternal { path } => path.clone(),
+            Request::Uri {
+                protocol,
+                remainder,
+                ..
+            } => Pattern::Constant(format!("{protocol}{remainder}").into()),
+            Request::Unknown { path } => path.clone(),
+            Request::Dynamic => Pattern::Dynamic,
+            Request::Alternatives { requests } => Pattern::Alternatives(
+                requests
+                    .iter()
+                    .map(async |r: &Vc<Request>| -> Result<Pattern> {
+                        Ok(r.request_pattern().await?.clone_value())
+                    })
+                    .try_join()
+                    .await?,
+            ),
+        }
+        .cell())
     }
 }
 

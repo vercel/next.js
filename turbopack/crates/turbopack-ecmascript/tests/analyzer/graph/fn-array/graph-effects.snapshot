@@ -53,7 +53,7 @@
                 Call,
             ),
         ],
-        span: 59..70,
+        span: 59..70#0,
         in_try: false,
     },
     Unreachable {

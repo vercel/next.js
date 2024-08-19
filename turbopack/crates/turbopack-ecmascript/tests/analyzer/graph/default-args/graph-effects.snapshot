@@ -56,7 +56,7 @@
                 Ident,
             ),
         ],
-        span: 117..122,
+        span: 117..122#2,
         in_try: false,
     },
     Unreachable {
@@ -157,7 +157,7 @@
                 Ident,
             ),
         ],
-        span: 62..67,
+        span: 62..67#2,
         in_try: false,
     },
     Unreachable {

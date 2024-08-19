@@ -9,6 +9,7 @@ use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
 use super::{
     alias_map::{AliasMap, AliasTemplate},
+    pattern::Pattern,
     plugin::BeforeResolvePlugin,
     AliasPattern, ExternalType, ResolveResult, ResolveResultItem,
 };
@@ -101,6 +102,20 @@ pub enum ImportMapping {
     Dynamic(Vc<Box<dyn ImportMappingReplacement>>),
 }
 
+/// An `ImportMapping` that was applied to a pattern. See `ImportMapping` for
+/// more details on the variants.
+#[turbo_tasks::value(shared)]
+#[derive(Clone)]
+pub enum ReplacedImportMapping {
+    External(Option<RcStr>, ExternalType),
+    Direct(Vc<ResolveResult>),
+    PrimaryAlternative(Pattern, Option<Vc<FileSystemPath>>),
+    Ignore,
+    Empty,
+    Alternatives(Vec<Vc<ReplacedImportMapping>>),
+    Dynamic(Vc<Box<dyn ImportMappingReplacement>>),
+}
+
 impl ImportMapping {
     pub fn primary_alternatives(
         list: Vec<RcStr>,
@@ -121,40 +136,67 @@ impl ImportMapping {
 }
 
 impl AliasTemplate for Vc<ImportMapping> {
-    type Output<'a> = Pin<Box<dyn Future<Output = Result<Vc<ImportMapping>>> + Send + 'a>>;
+    type Output<'a> = Pin<Box<dyn Future<Output = Result<Vc<ReplacedImportMapping>>> + Send + 'a>>;
 
-    fn replace<'a>(&'a self, capture: &'a str) -> Self::Output<'a> {
+    fn convert(&self) -> Self::Output<'_> {
+        Box::pin(async move {
+            let this = &*self.await?;
+            Ok(match this {
+                ImportMapping::External(name, ty) => {
+                    ReplacedImportMapping::External(name.clone(), *ty)
+                }
+                ImportMapping::PrimaryAlternative(name, context) => {
+                    ReplacedImportMapping::PrimaryAlternative((*name).clone().into(), *context)
+                }
+                ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
+                ImportMapping::Ignore => ReplacedImportMapping::Ignore,
+                ImportMapping::Empty => ReplacedImportMapping::Empty,
+                ImportMapping::Alternatives(alternatives) => ReplacedImportMapping::Alternatives(
+                    alternatives
+                        .iter()
+                        .map(|mapping| mapping.convert())
+                        .try_join()
+                        .await?,
+                ),
+                ImportMapping::Dynamic(replacement) => ReplacedImportMapping::Dynamic(*replacement),
+            }
+            .cell())
+        })
+    }
+
+    fn replace<'a>(&'a self, capture: &Pattern) -> Self::Output<'a> {
+        let capture = capture.clone();
         Box::pin(async move {
             let this = &*self.await?;
             Ok(match this {
                 ImportMapping::External(name, ty) => {
                     if let Some(name) = name {
-                        ImportMapping::External(
-                            Some(name.clone().replace('*', capture).into()),
+                        ReplacedImportMapping::External(
+                            capture.spread_into_star(name).as_string().map(|s| s.into()),
                             *ty,
                         )
                     } else {
-                        ImportMapping::External(None, *ty)
+                        ReplacedImportMapping::External(None, *ty)
                     }
                 }
                 ImportMapping::PrimaryAlternative(name, context) => {
-                    ImportMapping::PrimaryAlternative(
-                        name.clone().replace('*', capture).into(),
+                    ReplacedImportMapping::PrimaryAlternative(
+                        capture.spread_into_star(name),
                         *context,
                     )
                 }
-                ImportMapping::Direct(_) | ImportMapping::Ignore | ImportMapping::Empty => {
-                    this.clone()
-                }
-                ImportMapping::Alternatives(alternatives) => ImportMapping::Alternatives(
+                ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
+                ImportMapping::Ignore => ReplacedImportMapping::Ignore,
+                ImportMapping::Empty => ReplacedImportMapping::Empty,
+                ImportMapping::Alternatives(alternatives) => ReplacedImportMapping::Alternatives(
                     alternatives
                         .iter()
-                        .map(|mapping| mapping.replace(capture))
+                        .map(|mapping| mapping.replace(&capture))
                         .try_join()
                         .await?,
                 ),
                 ImportMapping::Dynamic(replacement) => {
-                    (*replacement.replace(capture.into()).await?).clone()
+                    (*replacement.replace(capture.clone().cell()).await?).clone()
                 }
             }
             .cell())
@@ -267,13 +309,13 @@ pub enum ImportMapResult {
 }
 
 async fn import_mapping_to_result(
-    mapping: Vc<ImportMapping>,
+    mapping: Vc<ReplacedImportMapping>,
     lookup_path: Vc<FileSystemPath>,
     request: Vc<Request>,
 ) -> Result<ImportMapResult> {
     Ok(match &*mapping.await? {
-        ImportMapping::Direct(result) => ImportMapResult::Result(*result),
-        ImportMapping::External(name, ty) => ImportMapResult::Result(
+        ReplacedImportMapping::Direct(result) => ImportMapResult::Result(*result),
+        ReplacedImportMapping::External(name, ty) => ImportMapResult::Result(
             ResolveResult::primary(if let Some(name) = name {
                 ResolveResultItem::External(name.clone(), *ty)
             } else if let Some(request) = request.await?.request() {
@@ -283,24 +325,24 @@ async fn import_mapping_to_result(
             })
             .cell(),
         ),
-        ImportMapping::Ignore => {
+        ReplacedImportMapping::Ignore => {
             ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Ignore).into())
         }
-        ImportMapping::Empty => {
+        ReplacedImportMapping::Empty => {
             ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Empty).into())
         }
-        ImportMapping::PrimaryAlternative(name, context) => {
-            let request = Request::parse(Value::new(name.clone().into()));
+        ReplacedImportMapping::PrimaryAlternative(name, context) => {
+            let request = Request::parse(Value::new(name.clone()));
 
             ImportMapResult::Alias(request, *context)
         }
-        ImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
+        ReplacedImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
             list.iter()
                 .map(|mapping| import_mapping_to_result_boxed(*mapping, lookup_path, request))
                 .try_join()
                 .await?,
         ),
-        ImportMapping::Dynamic(replacement) => {
+        ReplacedImportMapping::Dynamic(replacement) => {
             (*replacement.result(lookup_path, request).await?).clone()
         }
     })
@@ -347,7 +389,7 @@ impl ValueToString for ImportMapResult {
 //     cycle detected when computing type of
 //     `resolve::options::import_mapping_to_result::{opaque#0}`
 fn import_mapping_to_result_boxed(
-    mapping: Vc<ImportMapping>,
+    mapping: Vc<ReplacedImportMapping>,
     lookup_path: Vc<FileSystemPath>,
     request: Vc<Request>,
 ) -> Pin<Box<dyn Future<Output = Result<ImportMapResult>> + Send>> {
@@ -362,32 +404,43 @@ impl ImportMap {
         lookup_path: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Result<ImportMapResult> {
-        // TODO lookup pattern
         // relative requests must not match global wildcard aliases.
-        if let Some(request_string) = request.await?.request() {
-            let mut lookup = if request_string.starts_with("./") {
-                self.map
-                    .lookup_with_prefix_predicate(&request_string, |prefix| {
-                        prefix.starts_with("./")
-                    })
-            } else if request_string.starts_with("../") {
-                self.map
-                    .lookup_with_prefix_predicate(&request_string, |prefix| {
-                        prefix.starts_with("../")
-                    })
-            } else {
-                self.map.lookup(&request_string)
-            };
-            if let Some(result) = lookup.next() {
-                return import_mapping_to_result(
-                    result.try_join_into_self().await?.into_owned(),
-                    lookup_path,
-                    request,
-                )
-                .await;
-            }
-        }
-        Ok(ImportMapResult::NoEntry)
+
+        let request_pattern = request.request_pattern().await?;
+        let (req_rel, rest) = request_pattern.split_could_match("./");
+        let (req_rel_parent, req_rest) =
+            rest.map(|r| r.split_could_match("../")).unwrap_or_default();
+
+        let lookup_rel = req_rel.as_ref().and_then(|req| {
+            self.map
+                .lookup_with_prefix_predicate(req, |prefix| prefix.starts_with("./"))
+                .next()
+        });
+        let lookup_rel_parent = req_rel_parent.as_ref().and_then(|req| {
+            self.map
+                .lookup_with_prefix_predicate(req, |prefix| prefix.starts_with("../"))
+                .next()
+        });
+        let lookup = req_rest
+            .as_ref()
+            .and_then(|req| self.map.lookup(req).next());
+
+        let results = lookup_rel
+            .into_iter()
+            .chain(lookup_rel_parent.into_iter())
+            .chain(lookup.into_iter())
+            .map(async |result: super::AliasMatch<Vc<ImportMapping>>| {
+                import_mapping_to_result(result.try_join_into_self().await?, lookup_path, request)
+                    .await
+            })
+            .try_join()
+            .await?;
+
+        Ok(match results.len() {
+            0 => ImportMapResult::NoEntry,
+            1 => results.into_iter().next().unwrap(),
+            2.. => ImportMapResult::Alternatives(results),
+        })
     }
 }
 
@@ -406,9 +459,13 @@ impl ResolvedMap {
             let root = root.await?;
             if let Some(path) = root.get_path_to(&resolved) {
                 if glob.await?.execute(path) {
-                    return Ok(import_mapping_to_result(*mapping, lookup_path, request)
-                        .await?
-                        .into());
+                    return Ok(import_mapping_to_result(
+                        mapping.convert().await?,
+                        lookup_path,
+                        request,
+                    )
+                    .await?
+                    .into());
                 }
             }
         }
@@ -526,7 +583,7 @@ pub async fn resolve_modules_options(
 
 #[turbo_tasks::value_trait]
 pub trait ImportMappingReplacement {
-    fn replace(self: Vc<Self>, capture: RcStr) -> Vc<ImportMapping>;
+    fn replace(self: Vc<Self>, capture: Vc<Pattern>) -> Vc<ReplacedImportMapping>;
     fn result(
         self: Vc<Self>,
         lookup_path: Vc<FileSystemPath>,

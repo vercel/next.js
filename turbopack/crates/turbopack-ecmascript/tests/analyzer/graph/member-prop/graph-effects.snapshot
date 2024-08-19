@@ -29,7 +29,7 @@
                 Member,
             ),
         ],
-        span: 1..4,
+        span: 1..4#0,
         in_try: false,
     },
     FreeVar {
@@ -61,7 +61,7 @@
                 Ident,
             ),
         ],
-        span: 1..2,
+        span: 1..2#1,
         in_try: false,
     },
 ]

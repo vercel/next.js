@@ -1,10 +1,11 @@
 use std::ops::Deref;
 
 use anyhow::{bail, Result};
+use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
-    common::{source_map::SmallPos, Span, Spanned, GLOBALS},
+    common::{source_map::Pos, Span, Spanned, GLOBALS},
     ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
 };
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TryJoinIterExt, ValueDefault, Vc};
@@ -470,20 +471,33 @@ fn parse_config_value(
 pub async fn parse_segment_config_from_loader_tree(
     loader_tree: Vc<LoaderTree>,
 ) -> Result<Vc<NextSegmentConfig>> {
-    let loader_tree = loader_tree.await?;
-    let components = loader_tree.components.await?;
+    let loader_tree = &*loader_tree.await?;
+
+    Ok(parse_segment_config_from_loader_tree_internal(loader_tree)
+        .await?
+        .cell())
+}
+
+#[async_recursion]
+pub async fn parse_segment_config_from_loader_tree_internal(
+    loader_tree: &LoaderTree,
+) -> Result<NextSegmentConfig> {
     let mut config = NextSegmentConfig::default();
+
     let parallel_configs = loader_tree
         .parallel_routes
         .values()
-        .copied()
-        .map(parse_segment_config_from_loader_tree)
+        .map(|loader_tree| async move {
+            parse_segment_config_from_loader_tree_internal(loader_tree).await
+        })
         .try_join()
         .await?;
+
     for tree in parallel_configs {
         config.apply_parallel_config(&tree)?;
     }
 
+    let components = &loader_tree.components;
     for component in [components.page, components.default, components.layout]
         .into_iter()
         .flatten()
@@ -492,5 +506,5 @@ pub async fn parse_segment_config_from_loader_tree(
         config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
 
-    Ok(config.cell())
+    Ok(config)
 }

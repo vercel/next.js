@@ -44,7 +44,7 @@
                 Call,
             ),
         ],
-        span: 295..305,
+        span: 295..305#0,
         in_try: false,
     },
     Unreachable {
@@ -185,7 +185,7 @@
                 Call,
             ),
         ],
-        span: 77..81,
+        span: 77..81#0,
         in_try: false,
     },
     Call {
@@ -245,7 +245,7 @@
                 Call,
             ),
         ],
-        span: 77..84,
+        span: 77..84#0,
         in_try: false,
     },
     Conditional {
@@ -438,7 +438,7 @@
                                 Call,
                             ),
                         ],
-                        span: 159..167,
+                        span: 159..167#0,
                         in_try: false,
                     },
                     Unreachable {
@@ -558,7 +558,7 @@
                 Test,
             ),
         ],
-        span: 105..176,
+        span: 105..176#0,
         in_try: false,
     },
     Unreachable {
@@ -638,7 +638,7 @@
                 Call,
             ),
         ],
-        span: 190..194,
+        span: 190..194#0,
         in_try: false,
     },
     Call {
@@ -695,7 +695,7 @@
                 Call,
             ),
         ],
-        span: 271..281,
+        span: 271..281#0,
         in_try: false,
     },
     Unreachable {

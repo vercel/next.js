@@ -30,7 +30,7 @@
                 Ident,
             ),
         ],
-        span: 166..167,
+        span: 166..167#1,
         in_try: false,
     },
 ]

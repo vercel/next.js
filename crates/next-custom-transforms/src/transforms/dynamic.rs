@@ -1,7 +1,4 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::path::{Path, PathBuf};
 
 use pathdiff::diff_paths;
 use swc_core::{
@@ -9,7 +6,7 @@ use swc_core::{
     ecma::{
         ast::{
             op, ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee,
-            Expr, ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportDefaultSpecifier,
+            Expr, ExprOrSpread, ExprStmt, Id, Ident, ImportDecl, ImportDefaultSpecifier,
             ImportNamedSpecifier, ImportSpecifier, KeyValueProp, Lit, ModuleDecl, ModuleItem,
             ObjectLit, Prop, PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp,
         },
@@ -30,7 +27,7 @@ pub fn next_dynamic(
     is_react_server_layer: bool,
     prefer_esm: bool,
     mode: NextDynamicMode,
-    filename: Arc<FileName>,
+    filename: FileName,
     pages_or_app_dir: Option<PathBuf>,
 ) -> impl Fold {
     NextDynamicPatcher {
@@ -84,7 +81,7 @@ struct NextDynamicPatcher {
     is_react_server_layer: bool,
     prefer_esm: bool,
     pages_or_app_dir: Option<PathBuf>,
-    filename: Arc<FileName>,
+    filename: FileName,
     dynamic_bindings: Vec<Id>,
     is_next_dynamic_first_arg: bool,
     dynamically_imported_specifier: Option<(String, Span)>,
@@ -328,10 +325,7 @@ impl Fold for NextDynamicPatcher {
 
                     let mut props =
                         vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                            key: PropName::Ident(IdentName::new(
-                                "loadableGenerated".into(),
-                                DUMMY_SP,
-                            )),
+                            key: PropName::Ident(Ident::new("loadableGenerated".into(), DUMMY_SP)),
                             value: generated,
                         })))];
 
@@ -351,7 +345,11 @@ impl Fold for NextDynamicPatcher {
                                     },
                                     _ => None,
                                 } {
-                                    if let Some(IdentName { sym, span: _ }) = match key {
+                                    if let Some(Ident {
+                                        sym,
+                                        span: _,
+                                        optional: _,
+                                    }) = match key {
                                         PropName::Ident(ident) => Some(ident),
                                         _ => None,
                                     } {
@@ -401,7 +399,7 @@ impl Fold for NextDynamicPatcher {
                                     raw: None,
                                 }))),
                             }],
-                            ..Default::default()
+                            type_args: Default::default(),
                         });
 
                         let side_effect_free_loader_arg = Expr::Arrow(ArrowExpr {
@@ -415,11 +413,11 @@ impl Fold for NextDynamicPatcher {
                                         &require_resolve_weak_expr,
                                     )),
                                 })],
-                                ..Default::default()
                             })),
                             is_async: true,
                             is_generator: false,
-                            ..Default::default()
+                            type_params: None,
+                            return_type: None,
                         });
 
                         expr.args[0] = side_effect_free_loader_arg.as_arg();
@@ -447,7 +445,7 @@ impl Fold for NextDynamicPatcher {
 
 fn module_id_options(module_id: Expr) -> Vec<PropOrSpread> {
     vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-        key: PropName::Ident(IdentName::new("modules".into(), DUMMY_SP)),
+        key: PropName::Ident(Ident::new("modules".into(), DUMMY_SP)),
         value: Box::new(Expr::Array(ArrayLit {
             elems: vec![Some(ExprOrSpread {
                 expr: Box::new(module_id),
@@ -460,7 +458,7 @@ fn module_id_options(module_id: Expr) -> Vec<PropOrSpread> {
 
 fn webpack_options(module_id: Expr) -> Vec<PropOrSpread> {
     vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-        key: PropName::Ident(IdentName::new("webpack".into(), DUMMY_SP)),
+        key: PropName::Ident(Ident::new("webpack".into(), DUMMY_SP)),
         value: Box::new(Expr::Arrow(ArrowExpr {
             params: vec![],
             body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Array(ArrayLit {
@@ -473,7 +471,8 @@ fn webpack_options(module_id: Expr) -> Vec<PropOrSpread> {
             is_async: false,
             is_generator: false,
             span: DUMMY_SP,
-            ..Default::default()
+            return_type: None,
+            type_params: None,
         })),
     })))]
 }
@@ -507,10 +506,7 @@ impl NextDynamicPatcher {
                             ImportSpecifier::Named(ImportNamedSpecifier {
                                 span: DUMMY_SP,
                                 local: chunks_ident,
-                                imported: Some(
-                                    Ident::new("chunks".into(), DUMMY_SP, Default::default())
-                                        .into(),
-                                ),
+                                imported: Some(Ident::new("chunks".into(), DUMMY_SP).into()),
                                 is_type_only: false,
                             }),
                         ],
@@ -534,12 +530,7 @@ impl NextDynamicPatcher {
                             span: DUMMY_SP,
                             local: id_ident,
                             imported: Some(
-                                Ident::new(
-                                    "__turbopack_module_id__".into(),
-                                    DUMMY_SP,
-                                    Default::default(),
-                                )
-                                .into(),
+                                Ident::new("__turbopack_module_id__".into(), DUMMY_SP).into(),
                             ),
                             is_type_only: false,
                         })],
@@ -564,12 +555,7 @@ impl NextDynamicPatcher {
                             span: DUMMY_SP,
                             local: id_ident,
                             imported: Some(
-                                Ident::new(
-                                    "__turbopack_module_id__".into(),
-                                    DUMMY_SP,
-                                    Default::default(),
-                                )
-                                .into(),
+                                Ident::new("__turbopack_module_id__".into(), DUMMY_SP).into(),
                             ),
                             is_type_only: false,
                         })],
@@ -593,12 +579,7 @@ impl NextDynamicPatcher {
                             span: DUMMY_SP,
                             local: id_ident,
                             imported: Some(
-                                Ident::new(
-                                    "__turbopack_module_id__".into(),
-                                    DUMMY_SP,
-                                    Default::default(),
-                                )
-                                .into(),
+                                Ident::new("__turbopack_module_id__".into(), DUMMY_SP).into(),
                             ),
                             is_type_only: false,
                         })],
@@ -631,8 +612,9 @@ fn exec_expr_when_resolve_weak_available(expr: &Expr) -> Expr {
         span: DUMMY_SP,
         op: UnaryOp::TypeOf, // 'typeof' operator
         arg: Box::new(Expr::Ident(Ident {
+            span: DUMMY_SP,
             sym: quote_ident!("require.resolveWeak").sym,
-            ..Default::default()
+            optional: false,
         })),
     });
 

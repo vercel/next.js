@@ -74,7 +74,7 @@
                 Ident,
             ),
         ],
-        span: 30..37,
+        span: 30..37#1,
         in_try: false,
     },
     Call {
@@ -154,7 +154,7 @@
                 Call,
             ),
         ],
-        span: 30..46,
+        span: 30..46#0,
         in_try: false,
     },
     Member {
@@ -242,7 +242,7 @@
                 Member,
             ),
         ],
-        span: 59..82,
+        span: 59..82#0,
         in_try: false,
     },
     FreeVar {
@@ -326,7 +326,7 @@
                 Ident,
             ),
         ],
-        span: 59..66,
+        span: 59..66#1,
         in_try: false,
     },
     Call {
@@ -412,7 +412,7 @@
                 Call,
             ),
         ],
-        span: 59..77,
+        span: 59..77#0,
         in_try: false,
     },
     FreeVar {
@@ -490,7 +490,7 @@
                 Ident,
             ),
         ],
-        span: 99..106,
+        span: 99..106#1,
         in_try: false,
     },
     Call {
@@ -570,7 +570,7 @@
                 Call,
             ),
         ],
-        span: 99..119,
+        span: 99..119#0,
         in_try: false,
     },
     Member {
@@ -658,7 +658,7 @@
                 Member,
             ),
         ],
-        span: 131..153,
+        span: 131..153#0,
         in_try: false,
     },
     FreeVar {
@@ -742,7 +742,7 @@
                 Ident,
             ),
         ],
-        span: 131..138,
+        span: 131..138#1,
         in_try: false,
     },
     Call {
@@ -828,7 +828,7 @@
                 Call,
             ),
         ],
-        span: 131..149,
+        span: 131..149#0,
         in_try: false,
     },
     Member {
@@ -933,7 +933,7 @@
                 Member,
             ),
         ],
-        span: 252..271,
+        span: 252..271#0,
         in_try: false,
     },
     FreeVar {
@@ -1028,7 +1028,7 @@
                 Ident,
             ),
         ],
-        span: 275..281,
+        span: 275..281#1,
         in_try: false,
     },
     Conditional {
@@ -1172,7 +1172,7 @@
                                 Member,
                             ),
                         ],
-                        span: 306..322,
+                        span: 306..322#0,
                         in_try: false,
                     },
                     Conditional {
@@ -1341,7 +1341,7 @@
                                                 Member,
                                             ),
                                         ],
-                                        span: 357..374,
+                                        span: 357..374#0,
                                         in_try: false,
                                     },
                                     MemberCall {
@@ -1468,7 +1468,7 @@
                                                 Call,
                                             ),
                                         ],
-                                        span: 357..383,
+                                        span: 357..383#0,
                                         in_try: false,
                                     },
                                 ],
@@ -1685,7 +1685,7 @@
                                                 Member,
                                             ),
                                         ],
-                                        span: 408..426,
+                                        span: 408..426#0,
                                         in_try: false,
                                     },
                                     MemberCall {
@@ -1812,7 +1812,7 @@
                                                 Call,
                                             ),
                                         ],
-                                        span: 408..435,
+                                        span: 408..435#0,
                                         in_try: false,
                                     },
                                 ],
@@ -1990,7 +1990,7 @@
                                 Test,
                             ),
                         ],
-                        span: 291..436,
+                        span: 291..436#0,
                         in_try: false,
                     },
                 ],
@@ -2183,7 +2183,7 @@
                                 Call,
                             ),
                         ],
-                        span: 452..469,
+                        span: 452..469#0,
                         in_try: false,
                     },
                     Conditional {
@@ -2347,7 +2347,7 @@
                                                 Member,
                                             ),
                                         ],
-                                        span: 489..515,
+                                        span: 489..515#0,
                                         in_try: false,
                                     },
                                     Member {
@@ -2486,7 +2486,7 @@
                                                 Member,
                                             ),
                                         ],
-                                        span: 489..510,
+                                        span: 489..510#0,
                                         in_try: false,
                                     },
                                     Member {
@@ -2621,7 +2621,7 @@
                                                 Member,
                                             ),
                                         ],
-                                        span: 489..504,
+                                        span: 489..504#0,
                                         in_try: false,
                                     },
                                     FreeVar {
@@ -2755,7 +2755,7 @@
                                                 Ident,
                                             ),
                                         ],
-                                        span: 489..494,
+                                        span: 489..494#1,
                                         in_try: false,
                                     },
                                     MemberCall {
@@ -2908,7 +2908,7 @@
                                                 Call,
                                             ),
                                         ],
-                                        span: 489..527,
+                                        span: 489..527#0,
                                         in_try: false,
                                     },
                                 ],
@@ -3122,7 +3122,7 @@
                                                 Member,
                                             ),
                                         ],
-                                        span: 545..558,
+                                        span: 545..558#0,
                                         in_try: false,
                                     },
                                     FreeVar {
@@ -3244,7 +3244,7 @@
                                                 Ident,
                                             ),
                                         ],
-                                        span: 545..550,
+                                        span: 545..550#1,
                                         in_try: false,
                                     },
                                     MemberCall {
@@ -3368,7 +3368,7 @@
                                                 Call,
                                             ),
                                         ],
-                                        span: 545..567,
+                                        span: 545..567#0,
                                         in_try: false,
                                     },
                                     Conditional {
@@ -3528,7 +3528,7 @@
                                                                 Member,
                                                             ),
                                                         ],
-                                                        span: 579..595,
+                                                        span: 579..595#0,
                                                         in_try: false,
                                                     },
                                                     MemberCall {
@@ -3652,7 +3652,7 @@
                                                                 Call,
                                                             ),
                                                         ],
-                                                        span: 579..597,
+                                                        span: 579..597#0,
                                                         in_try: false,
                                                     },
                                                 ],
@@ -3842,7 +3842,7 @@
                                                 Test,
                                             ),
                                         ],
-                                        span: 540..598,
+                                        span: 540..598#0,
                                         in_try: false,
                                     },
                                 ],
@@ -4020,7 +4020,7 @@
                                 Test,
                             ),
                         ],
-                        span: 448..598,
+                        span: 448..598#0,
                         in_try: false,
                     },
                 ],
@@ -4186,7 +4186,7 @@
                 Test,
             ),
         ],
-        span: 248..598,
+        span: 248..598#0,
         in_try: false,
     },
     Member {
@@ -4302,7 +4302,7 @@
                 Member,
             ),
         ],
-        span: 655..673,
+        span: 655..673#0,
         in_try: false,
     },
     MemberCall {
@@ -4419,7 +4419,7 @@
                 Call,
             ),
         ],
-        span: 655..682,
+        span: 655..682#0,
         in_try: false,
     },
     Member {
@@ -4532,7 +4532,7 @@
                 Member,
             ),
         ],
-        span: 696..710,
+        span: 696..710#0,
         in_try: false,
     },
     Member {
@@ -4637,7 +4637,7 @@
                 Member,
             ),
         ],
-        span: 860..868,
+        span: 860..868#0,
         in_try: false,
     },
     Member {
@@ -4758,7 +4758,7 @@
                 Member,
             ),
         ],
-        span: 885..889,
+        span: 885..889#0,
         in_try: false,
     },
     Member {
@@ -4918,7 +4918,7 @@
                 Member,
             ),
         ],
-        span: 905..909,
+        span: 905..909#0,
         in_try: false,
     },
     Member {
@@ -5078,7 +5078,7 @@
                 Member,
             ),
         ],
-        span: 919..923,
+        span: 919..923#0,
         in_try: false,
     },
     Member {
@@ -5238,7 +5238,7 @@
                 Member,
             ),
         ],
-        span: 962..966,
+        span: 962..966#0,
         in_try: false,
     },
     Member {
@@ -5398,7 +5398,7 @@
                 Member,
             ),
         ],
-        span: 977..981,
+        span: 977..981#0,
         in_try: false,
     },
     Member {
@@ -5504,7 +5504,7 @@
                 Member,
             ),
         ],
-        span: 1037..1047,
+        span: 1037..1047#0,
         in_try: false,
     },
     Member {
@@ -5622,7 +5622,7 @@
                 Member,
             ),
         ],
-        span: 1073..1104,
+        span: 1073..1104#0,
         in_try: false,
     },
     Member {
@@ -5729,7 +5729,7 @@
                 Member,
             ),
         ],
-        span: 1152..1159,
+        span: 1152..1159#0,
         in_try: false,
     },
     Member {
@@ -5836,7 +5836,7 @@
                 Member,
             ),
         ],
-        span: 1174..1181,
+        span: 1174..1181#0,
         in_try: false,
     },
     Member {
@@ -5943,7 +5943,7 @@
                 Member,
             ),
         ],
-        span: 1196..1203,
+        span: 1196..1203#0,
         in_try: false,
     },
     Member {
@@ -6050,7 +6050,7 @@
                 Member,
             ),
         ],
-        span: 1218..1225,
+        span: 1218..1225#0,
         in_try: false,
     },
     Member {
@@ -6155,7 +6155,7 @@
                 Member,
             ),
         ],
-        span: 1254..1262,
+        span: 1254..1262#0,
         in_try: false,
     },
     Member {
@@ -6296,7 +6296,7 @@
                 Member,
             ),
         ],
-        span: 1377..1385,
+        span: 1377..1385#0,
         in_try: false,
     },
     Call {
@@ -6487,7 +6487,7 @@
                 Call,
             ),
         ],
-        span: 1362..1401,
+        span: 1362..1401#0,
         in_try: false,
     },
     Member {
@@ -6628,7 +6628,7 @@
                 Member,
             ),
         ],
-        span: 1430..1438,
+        span: 1430..1438#0,
         in_try: false,
     },
     Call {
@@ -6819,7 +6819,7 @@
                 Call,
             ),
         ],
-        span: 1415..1455,
+        span: 1415..1455#0,
         in_try: false,
     },
     Member {
@@ -6960,7 +6960,7 @@
                 Member,
             ),
         ],
-        span: 1484..1492,
+        span: 1484..1492#0,
         in_try: false,
     },
     Call {
@@ -7153,7 +7153,7 @@
                 Call,
             ),
         ],
-        span: 1469..1508,
+        span: 1469..1508#0,
         in_try: false,
     },
     Member {
@@ -7294,7 +7294,7 @@
                 Member,
             ),
         ],
-        span: 1537..1545,
+        span: 1537..1545#0,
         in_try: false,
     },
     Call {
@@ -7485,7 +7485,7 @@
                 Call,
             ),
         ],
-        span: 1522..1563,
+        span: 1522..1563#0,
         in_try: false,
     },
     Member {
@@ -7626,7 +7626,7 @@
                 Member,
             ),
         ],
-        span: 1592..1600,
+        span: 1592..1600#0,
         in_try: false,
     },
     Call {
@@ -7817,7 +7817,7 @@
                 Call,
             ),
         ],
-        span: 1577..1616,
+        span: 1577..1616#0,
         in_try: false,
     },
     Member {
@@ -7958,7 +7958,7 @@
                 Member,
             ),
         ],
-        span: 1645..1653,
+        span: 1645..1653#0,
         in_try: false,
     },
     Call {
@@ -8151,7 +8151,7 @@
                 Call,
             ),
         ],
-        span: 1630..1670,
+        span: 1630..1670#0,
         in_try: false,
     },
     Member {
@@ -8292,7 +8292,7 @@
                 Member,
             ),
         ],
-        span: 1699..1707,
+        span: 1699..1707#0,
         in_try: false,
     },
     Call {
@@ -8483,7 +8483,7 @@
                 Call,
             ),
         ],
-        span: 1684..1725,
+        span: 1684..1725#0,
         in_try: false,
     },
     Member {
@@ -8624,7 +8624,7 @@
                 Member,
             ),
         ],
-        span: 1754..1762,
+        span: 1754..1762#0,
         in_try: false,
     },
     Call {
@@ -8815,7 +8815,7 @@
                 Call,
             ),
         ],
-        span: 1739..1778,
+        span: 1739..1778#0,
         in_try: false,
     },
     Member {
@@ -8956,7 +8956,7 @@
                 Member,
             ),
         ],
-        span: 1807..1815,
+        span: 1807..1815#0,
         in_try: false,
     },
     Call {
@@ -9149,7 +9149,7 @@
                 Call,
             ),
         ],
-        span: 1792..1831,
+        span: 1792..1831#0,
         in_try: false,
     },
     Member {
@@ -9290,7 +9290,7 @@
                 Member,
             ),
         ],
-        span: 1860..1868,
+        span: 1860..1868#0,
         in_try: false,
     },
     Call {
@@ -9481,7 +9481,7 @@
                 Call,
             ),
         ],
-        span: 1845..1886,
+        span: 1845..1886#0,
         in_try: false,
     },
     Member {
@@ -9622,7 +9622,7 @@
                 Member,
             ),
         ],
-        span: 1915..1924,
+        span: 1915..1924#0,
         in_try: false,
     },
     Call {
@@ -9813,7 +9813,7 @@
                 Call,
             ),
         ],
-        span: 1900..1937,
+        span: 1900..1937#0,
         in_try: false,
     },
     Member {
@@ -9954,7 +9954,7 @@
                 Member,
             ),
         ],
-        span: 1966..1975,
+        span: 1966..1975#0,
         in_try: false,
     },
     Call {
@@ -10145,7 +10145,7 @@
                 Call,
             ),
         ],
-        span: 1951..1993,
+        span: 1951..1993#0,
         in_try: false,
     },
     Member {
@@ -10286,7 +10286,7 @@
                 Member,
             ),
         ],
-        span: 2022..2031,
+        span: 2022..2031#0,
         in_try: false,
     },
     Call {
@@ -10479,7 +10479,7 @@
                 Call,
             ),
         ],
-        span: 2007..2047,
+        span: 2007..2047#0,
         in_try: false,
     },
     Member {
@@ -10620,7 +10620,7 @@
                 Member,
             ),
         ],
-        span: 2076..2085,
+        span: 2076..2085#0,
         in_try: false,
     },
     Call {
@@ -10811,7 +10811,7 @@
                 Call,
             ),
         ],
-        span: 2061..2101,
+        span: 2061..2101#0,
         in_try: false,
     },
     Member {
@@ -10952,7 +10952,7 @@
                 Member,
             ),
         ],
-        span: 2130..2139,
+        span: 2130..2139#0,
         in_try: false,
     },
     Call {
@@ -11143,7 +11143,7 @@
                 Call,
             ),
         ],
-        span: 2115..2157,
+        span: 2115..2157#0,
         in_try: false,
     },
     Member {
@@ -11284,7 +11284,7 @@
                 Member,
             ),
         ],
-        span: 2186..2195,
+        span: 2186..2195#0,
         in_try: false,
     },
     Call {
@@ -11477,7 +11477,7 @@
                 Call,
             ),
         ],
-        span: 2171..2212,
+        span: 2171..2212#0,
         in_try: false,
     },
     Member {
@@ -11618,7 +11618,7 @@
                 Member,
             ),
         ],
-        span: 2242..2250,
+        span: 2242..2250#0,
         in_try: false,
     },
     Call {
@@ -11809,7 +11809,7 @@
                 Call,
             ),
         ],
-        span: 2227..2266,
+        span: 2227..2266#0,
         in_try: false,
     },
     Member {
@@ -11950,7 +11950,7 @@
                 Member,
             ),
         ],
-        span: 2295..2303,
+        span: 2295..2303#0,
         in_try: false,
     },
     Call {
@@ -12141,7 +12141,7 @@
                 Call,
             ),
         ],
-        span: 2280..2320,
+        span: 2280..2320#0,
         in_try: false,
     },
     Member {
@@ -12282,7 +12282,7 @@
                 Member,
             ),
         ],
-        span: 2349..2358,
+        span: 2349..2358#0,
         in_try: false,
     },
     Call {
@@ -12475,7 +12475,7 @@
                 Call,
             ),
         ],
-        span: 2334..2374,
+        span: 2334..2374#0,
         in_try: false,
     },
     Member {
@@ -12616,7 +12616,7 @@
                 Member,
             ),
         ],
-        span: 2403..2411,
+        span: 2403..2411#0,
         in_try: false,
     },
     Call {
@@ -12807,7 +12807,7 @@
                 Call,
             ),
         ],
-        span: 2388..2428,
+        span: 2388..2428#0,
         in_try: false,
     },
     Member {
@@ -12948,7 +12948,7 @@
                 Member,
             ),
         ],
-        span: 2457..2465,
+        span: 2457..2465#0,
         in_try: false,
     },
     Call {
@@ -13139,7 +13139,7 @@
                 Call,
             ),
         ],
-        span: 2442..2481,
+        span: 2442..2481#0,
         in_try: false,
     },
     Member {
@@ -13280,7 +13280,7 @@
                 Member,
             ),
         ],
-        span: 2510..2519,
+        span: 2510..2519#0,
         in_try: false,
     },
     Call {
@@ -13473,7 +13473,7 @@
                 Call,
             ),
         ],
-        span: 2495..2533,
+        span: 2495..2533#0,
         in_try: false,
     },
     Member {
@@ -13614,7 +13614,7 @@
                 Member,
             ),
         ],
-        span: 2562..2571,
+        span: 2562..2571#0,
         in_try: false,
     },
     Call {
@@ -13805,7 +13805,7 @@
                 Call,
             ),
         ],
-        span: 2547..2588,
+        span: 2547..2588#0,
         in_try: false,
     },
     Member {
@@ -13946,7 +13946,7 @@
                 Member,
             ),
         ],
-        span: 2617..2625,
+        span: 2617..2625#0,
         in_try: false,
     },
     Call {
@@ -14137,7 +14137,7 @@
                 Call,
             ),
         ],
-        span: 2602..2642,
+        span: 2602..2642#0,
         in_try: false,
     },
     Member {
@@ -14278,7 +14278,7 @@
                 Member,
             ),
         ],
-        span: 2671..2679,
+        span: 2671..2679#0,
         in_try: false,
     },
     Call {
@@ -14471,7 +14471,7 @@
                 Call,
             ),
         ],
-        span: 2656..2694,
+        span: 2656..2694#0,
         in_try: false,
     },
     Member {
@@ -14612,7 +14612,7 @@
                 Member,
             ),
         ],
-        span: 2723..2732,
+        span: 2723..2732#0,
         in_try: false,
     },
     Call {
@@ -14803,7 +14803,7 @@
                 Call,
             ),
         ],
-        span: 2708..2749,
+        span: 2708..2749#0,
         in_try: false,
     },
     Member {
@@ -14944,7 +14944,7 @@
                 Member,
             ),
         ],
-        span: 2778..2786,
+        span: 2778..2786#0,
         in_try: false,
     },
     Call {
@@ -15135,7 +15135,7 @@
                 Call,
             ),
         ],
-        span: 2763..2803,
+        span: 2763..2803#0,
         in_try: false,
     },
     Member {
@@ -15276,7 +15276,7 @@
                 Member,
             ),
         ],
-        span: 2832..2840,
+        span: 2832..2840#0,
         in_try: false,
     },
     Call {
@@ -15469,7 +15469,7 @@
                 Call,
             ),
         ],
-        span: 2817..2857,
+        span: 2817..2857#0,
         in_try: false,
     },
     Member {
@@ -15610,7 +15610,7 @@
                 Member,
             ),
         ],
-        span: 2886..2895,
+        span: 2886..2895#0,
         in_try: false,
     },
     Call {
@@ -15801,7 +15801,7 @@
                 Call,
             ),
         ],
-        span: 2871..2912,
+        span: 2871..2912#0,
         in_try: false,
     },
     Member {
@@ -15942,7 +15942,7 @@
                 Member,
             ),
         ],
-        span: 2941..2949,
+        span: 2941..2949#0,
         in_try: false,
     },
     Call {
@@ -16133,7 +16133,7 @@
                 Call,
             ),
         ],
-        span: 2926..2964,
+        span: 2926..2964#0,
         in_try: false,
     },
     Member {
@@ -16274,7 +16274,7 @@
                 Member,
             ),
         ],
-        span: 2993..3001,
+        span: 2993..3001#0,
         in_try: false,
     },
     Call {
@@ -16467,7 +16467,7 @@
                 Call,
             ),
         ],
-        span: 2978..3018,
+        span: 2978..3018#0,
         in_try: false,
     },
     Member {
@@ -16608,7 +16608,7 @@
                 Member,
             ),
         ],
-        span: 3047..3056,
+        span: 3047..3056#0,
         in_try: false,
     },
     Call {
@@ -16799,7 +16799,7 @@
                 Call,
             ),
         ],
-        span: 3032..3074,
+        span: 3032..3074#0,
         in_try: false,
     },
     Member {
@@ -16940,7 +16940,7 @@
                 Member,
             ),
         ],
-        span: 3104..3112,
+        span: 3104..3112#0,
         in_try: false,
     },
     Call {
@@ -17131,7 +17131,7 @@
                 Call,
             ),
         ],
-        span: 3089..3125,
+        span: 3089..3125#0,
         in_try: false,
     },
     Member {
@@ -17272,7 +17272,7 @@
                 Member,
             ),
         ],
-        span: 3154..3162,
+        span: 3154..3162#0,
         in_try: false,
     },
     Call {
@@ -17463,7 +17463,7 @@
                 Call,
             ),
         ],
-        span: 3139..3180,
+        span: 3139..3180#0,
         in_try: false,
     },
     Member {
@@ -17604,7 +17604,7 @@
                 Member,
             ),
         ],
-        span: 3209..3218,
+        span: 3209..3218#0,
         in_try: false,
     },
     Call {
@@ -17797,7 +17797,7 @@
                 Call,
             ),
         ],
-        span: 3194..3235,
+        span: 3194..3235#0,
         in_try: false,
     },
     Member {
@@ -17938,7 +17938,7 @@
                 Member,
             ),
         ],
-        span: 3264..3273,
+        span: 3264..3273#0,
         in_try: false,
     },
     Call {
@@ -18129,7 +18129,7 @@
                 Call,
             ),
         ],
-        span: 3249..3289,
+        span: 3249..3289#0,
         in_try: false,
     },
     Member {
@@ -18270,7 +18270,7 @@
                 Member,
             ),
         ],
-        span: 3318..3326,
+        span: 3318..3326#0,
         in_try: false,
     },
     Call {
@@ -18461,7 +18461,7 @@
                 Call,
             ),
         ],
-        span: 3303..3343,
+        span: 3303..3343#0,
         in_try: false,
     },
     Member {
@@ -18602,7 +18602,7 @@
                 Member,
             ),
         ],
-        span: 3372..3380,
+        span: 3372..3380#0,
         in_try: false,
     },
     Call {
@@ -18795,7 +18795,7 @@
                 Call,
             ),
         ],
-        span: 3357..3397,
+        span: 3357..3397#0,
         in_try: false,
     },
     Member {
@@ -18936,7 +18936,7 @@
                 Member,
             ),
         ],
-        span: 3426..3434,
+        span: 3426..3434#0,
         in_try: false,
     },
     Call {
@@ -19127,7 +19127,7 @@
                 Call,
             ),
         ],
-        span: 3411..3451,
+        span: 3411..3451#0,
         in_try: false,
     },
     Member {
@@ -19268,7 +19268,7 @@
                 Member,
             ),
         ],
-        span: 3480..3489,
+        span: 3480..3489#0,
         in_try: false,
     },
     Call {
@@ -19459,7 +19459,7 @@
                 Call,
             ),
         ],
-        span: 3465..3507,
+        span: 3465..3507#0,
         in_try: false,
     },
     Member {
@@ -19600,7 +19600,7 @@
                 Member,
             ),
         ],
-        span: 3536..3545,
+        span: 3536..3545#0,
         in_try: false,
     },
     Call {
@@ -19793,7 +19793,7 @@
                 Call,
             ),
         ],
-        span: 3521..3560,
+        span: 3521..3560#0,
         in_try: false,
     },
     Member {
@@ -19934,7 +19934,7 @@
                 Member,
             ),
         ],
-        span: 3589..3597,
+        span: 3589..3597#0,
         in_try: false,
     },
     Call {
@@ -20125,7 +20125,7 @@
                 Call,
             ),
         ],
-        span: 3574..3614,
+        span: 3574..3614#0,
         in_try: false,
     },
     Member {
@@ -20266,7 +20266,7 @@
                 Member,
             ),
         ],
-        span: 3643..3651,
+        span: 3643..3651#0,
         in_try: false,
     },
     Call {
@@ -20457,7 +20457,7 @@
                 Call,
             ),
         ],
-        span: 3628..3668,
+        span: 3628..3668#0,
         in_try: false,
     },
     Member {
@@ -20598,7 +20598,7 @@
                 Member,
             ),
         ],
-        span: 3697..3705,
+        span: 3697..3705#0,
         in_try: false,
     },
     Call {
@@ -20791,7 +20791,7 @@
                 Call,
             ),
         ],
-        span: 3682..3720,
+        span: 3682..3720#0,
         in_try: false,
     },
     Member {
@@ -20932,7 +20932,7 @@
                 Member,
             ),
         ],
-        span: 3749..3757,
+        span: 3749..3757#0,
         in_try: false,
     },
     Call {
@@ -21123,7 +21123,7 @@
                 Call,
             ),
         ],
-        span: 3734..3773,
+        span: 3734..3773#0,
         in_try: false,
     },
     Member {
@@ -21264,7 +21264,7 @@
                 Member,
             ),
         ],
-        span: 3802..3811,
+        span: 3802..3811#0,
         in_try: false,
     },
     Call {
@@ -21455,7 +21455,7 @@
                 Call,
             ),
         ],
-        span: 3787..3828,
+        span: 3787..3828#0,
         in_try: false,
     },
     Member {
@@ -21596,7 +21596,7 @@
                 Member,
             ),
         ],
-        span: 3857..3866,
+        span: 3857..3866#0,
         in_try: false,
     },
     Call {
@@ -21789,7 +21789,7 @@
                 Call,
             ),
         ],
-        span: 3842..3882,
+        span: 3842..3882#0,
         in_try: false,
     },
     Member {
@@ -21930,7 +21930,7 @@
                 Member,
             ),
         ],
-        span: 3911..3919,
+        span: 3911..3919#0,
         in_try: false,
     },
     Call {
@@ -22121,7 +22121,7 @@
                 Call,
             ),
         ],
-        span: 3896..3936,
+        span: 3896..3936#0,
         in_try: false,
     },
     Member {
@@ -22262,7 +22262,7 @@
                 Member,
             ),
         ],
-        span: 3966..3974,
+        span: 3966..3974#0,
         in_try: false,
     },
     Call {
@@ -22453,7 +22453,7 @@
                 Call,
             ),
         ],
-        span: 3951..3990,
+        span: 3951..3990#0,
         in_try: false,
     },
     Member {
@@ -22594,7 +22594,7 @@
                 Member,
             ),
         ],
-        span: 4019..4027,
+        span: 4019..4027#0,
         in_try: false,
     },
     Call {
@@ -22787,7 +22787,7 @@
                 Call,
             ),
         ],
-        span: 4004..4044,
+        span: 4004..4044#0,
         in_try: false,
     },
     Member {
@@ -22928,7 +22928,7 @@
                 Member,
             ),
         ],
-        span: 4073..4082,
+        span: 4073..4082#0,
         in_try: false,
     },
     Call {
@@ -23119,7 +23119,7 @@
                 Call,
             ),
         ],
-        span: 4058..4100,
+        span: 4058..4100#0,
         in_try: false,
     },
     Member {
@@ -23260,7 +23260,7 @@
                 Member,
             ),
         ],
-        span: 4129..4137,
+        span: 4129..4137#0,
         in_try: false,
     },
     Call {
@@ -23451,7 +23451,7 @@
                 Call,
             ),
         ],
-        span: 4114..4153,
+        span: 4114..4153#0,
         in_try: false,
     },
     Member {
@@ -23592,7 +23592,7 @@
                 Member,
             ),
         ],
-        span: 4182..4191,
+        span: 4182..4191#0,
         in_try: false,
     },
     Call {
@@ -23785,7 +23785,7 @@
                 Call,
             ),
         ],
-        span: 4167..4207,
+        span: 4167..4207#0,
         in_try: false,
     },
     Member {
@@ -23926,7 +23926,7 @@
                 Member,
             ),
         ],
-        span: 4236..4244,
+        span: 4236..4244#0,
         in_try: false,
     },
     Call {
@@ -24117,7 +24117,7 @@
                 Call,
             ),
         ],
-        span: 4221..4262,
+        span: 4221..4262#0,
         in_try: false,
     },
     Member {
@@ -24258,7 +24258,7 @@
                 Member,
             ),
         ],
-        span: 4291..4300,
+        span: 4291..4300#0,
         in_try: false,
     },
     Call {
@@ -24449,7 +24449,7 @@
                 Call,
             ),
         ],
-        span: 4276..4315,
+        span: 4276..4315#0,
         in_try: false,
     },
     Member {
@@ -24590,7 +24590,7 @@
                 Member,
             ),
         ],
-        span: 4344..4352,
+        span: 4344..4352#0,
         in_try: false,
     },
     Call {
@@ -24781,7 +24781,7 @@
                 Call,
             ),
         ],
-        span: 4329..4370,
+        span: 4329..4370#0,
         in_try: false,
     },
     Member {
@@ -24922,7 +24922,7 @@
                 Member,
             ),
         ],
-        span: 4399..4407,
+        span: 4399..4407#0,
         in_try: false,
     },
     Call {
@@ -25115,7 +25115,7 @@
                 Call,
             ),
         ],
-        span: 4384..4423,
+        span: 4384..4423#0,
         in_try: false,
     },
     Member {
@@ -25256,7 +25256,7 @@
                 Member,
             ),
         ],
-        span: 4452..4461,
+        span: 4452..4461#0,
         in_try: false,
     },
     Call {
@@ -25447,7 +25447,7 @@
                 Call,
             ),
         ],
-        span: 4437..4477,
+        span: 4437..4477#0,
         in_try: false,
     },
     Member {
@@ -25588,7 +25588,7 @@
                 Member,
             ),
         ],
-        span: 4506..4514,
+        span: 4506..4514#0,
         in_try: false,
     },
     Call {
@@ -25779,7 +25779,7 @@
                 Call,
             ),
         ],
-        span: 4491..4532,
+        span: 4491..4532#0,
         in_try: false,
     },
     Member {
@@ -25920,7 +25920,7 @@
                 Member,
             ),
         ],
-        span: 4561..4570,
+        span: 4561..4570#0,
         in_try: false,
     },
     Call {
@@ -26113,7 +26113,7 @@
                 Call,
             ),
         ],
-        span: 4546..4587,
+        span: 4546..4587#0,
         in_try: false,
     },
     Member {
@@ -26254,7 +26254,7 @@
                 Member,
             ),
         ],
-        span: 4616..4624,
+        span: 4616..4624#0,
         in_try: false,
     },
     Call {
@@ -26445,7 +26445,7 @@
                 Call,
             ),
         ],
-        span: 4601..4640,
+        span: 4601..4640#0,
         in_try: false,
     },
     Member {
@@ -26586,7 +26586,7 @@
                 Member,
             ),
         ],
-        span: 4669..4678,
+        span: 4669..4678#0,
         in_try: false,
     },
     Call {
@@ -26777,7 +26777,7 @@
                 Call,
             ),
         ],
-        span: 4654..4696,
+        span: 4654..4696#0,
         in_try: false,
     },
     Member {
@@ -26918,7 +26918,7 @@
                 Member,
             ),
         ],
-        span: 4725..4733,
+        span: 4725..4733#0,
         in_try: false,
     },
     Call {
@@ -27111,7 +27111,7 @@
                 Call,
             ),
         ],
-        span: 4710..4749,
+        span: 4710..4749#0,
         in_try: false,
     },
     Member {
@@ -27252,7 +27252,7 @@
                 Member,
             ),
         ],
-        span: 4778..4786,
+        span: 4778..4786#0,
         in_try: false,
     },
     Call {
@@ -27443,7 +27443,7 @@
                 Call,
             ),
         ],
-        span: 4763..4803,
+        span: 4763..4803#0,
         in_try: false,
     },
     Member {
@@ -27551,7 +27551,7 @@
                 Member,
             ),
         ],
-        span: 4940..4952,
+        span: 4940..4952#0,
         in_try: false,
     },
     MemberCall {
@@ -27684,7 +27684,7 @@
                 Call,
             ),
         ],
-        span: 4940..4966,
+        span: 4940..4966#0,
         in_try: false,
     },
     Unreachable {
@@ -27842,7 +27842,7 @@
                 Member,
             ),
         ],
-        span: 5003..5010,
+        span: 5003..5010#0,
         in_try: false,
     },
     Unreachable {
@@ -27998,7 +27998,7 @@
                 Member,
             ),
         ],
-        span: 5153..5160,
+        span: 5153..5160#0,
         in_try: false,
     },
     Unreachable {
@@ -28154,7 +28154,7 @@
                 Member,
             ),
         ],
-        span: 5303..5310,
+        span: 5303..5310#0,
         in_try: false,
     },
     Unreachable {
@@ -28310,7 +28310,7 @@
                 Member,
             ),
         ],
-        span: 5444..5451,
+        span: 5444..5451#0,
         in_try: false,
     },
     Unreachable {
@@ -28466,7 +28466,7 @@
                 Member,
             ),
         ],
-        span: 5620..5634,
+        span: 5620..5634#0,
         in_try: false,
     },
     Member {
@@ -28546,7 +28546,7 @@
                 Member,
             ),
         ],
-        span: 5643..5658,
+        span: 5643..5658#0,
         in_try: false,
     },
     Member {
@@ -28623,7 +28623,7 @@
                 Member,
             ),
         ],
-        span: 5668..5682,
+        span: 5668..5682#0,
         in_try: false,
     },
     FreeVar {
@@ -28699,7 +28699,7 @@
                 Ident,
             ),
         ],
-        span: 5668..5674,
+        span: 5668..5674#1,
         in_try: false,
     },
     FreeVar {
@@ -28798,7 +28798,7 @@
                 Ident,
             ),
         ],
-        span: 5735..5744,
+        span: 5735..5744#1,
         in_try: false,
     },
     Conditional {
@@ -28933,7 +28933,7 @@
                                 Ident,
                             ),
                         ],
-                        span: 5782..5787,
+                        span: 5782..5787#1,
                         in_try: false,
                     },
                 ],
@@ -29095,7 +29095,7 @@
                 Test,
             ),
         ],
-        span: 5719..5819,
+        span: 5719..5819#0,
         in_try: false,
     },
     Member {
@@ -29209,7 +29209,7 @@
                 Member,
             ),
         ],
-        span: 5843..5861,
+        span: 5843..5861#0,
         in_try: false,
     },
     Call {
@@ -29336,7 +29336,7 @@
                 Call,
             ),
         ],
-        span: 5862..5883,
+        span: 5862..5883#0,
         in_try: false,
     },
     MemberCall {
@@ -29468,7 +29468,7 @@
                 Call,
             ),
         ],
-        span: 5843..5884,
+        span: 5843..5884#0,
         in_try: false,
     },
     Member {
@@ -29577,7 +29577,7 @@
                 Member,
             ),
         ],
-        span: 5908..5923,
+        span: 5908..5923#0,
         in_try: false,
     },
     Conditional {
@@ -29812,7 +29812,7 @@
                                 Member,
                             ),
                         ],
-                        span: 5963..5979,
+                        span: 5963..5979#0,
                         in_try: false,
                     },
                     Conditional {
@@ -29962,7 +29962,7 @@
                                                 Member,
                                             ),
                                         ],
-                                        span: 5988..6005,
+                                        span: 5988..6005#0,
                                         in_try: false,
                                     },
                                     MemberCall {
@@ -30081,7 +30081,7 @@
                                                 Call,
                                             ),
                                         ],
-                                        span: 5988..6018,
+                                        span: 5988..6018#0,
                                         in_try: false,
                                     },
                                 ],
@@ -30294,7 +30294,7 @@
                                                 Member,
                                             ),
                                         ],
-                                        span: 6027..6043,
+                                        span: 6027..6043#0,
                                         in_try: false,
                                     },
                                     MemberCall {
@@ -30413,7 +30413,7 @@
                                                 Call,
                                             ),
                                         ],
-                                        span: 6027..6056,
+                                        span: 6027..6056#0,
                                         in_try: false,
                                     },
                                 ],
@@ -30599,7 +30599,7 @@
                                 Test,
                             ),
                         ],
-                        span: 5952..6056,
+                        span: 5952..6056#0,
                         in_try: false,
                     },
                 ],
@@ -30773,7 +30773,7 @@
                 Test,
             ),
         ],
-        span: 5897..6056,
+        span: 5897..6056#0,
         in_try: false,
     },
     Unreachable {

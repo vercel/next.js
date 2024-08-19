@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    common::Span,
+    common::{Span, SyntaxContext},
     ecma::{
         ast::{
             ComputedPropName, Expr, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Number, Prop,
@@ -79,7 +79,7 @@ impl EsmBinding {
                             // TODO: Merge with the above condition when https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands.
                             if let Some(imported_ident) = imported_module.as_deref() {
                                 *prop = Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Ident(ident.clone().into()),
+                                    key: PropName::Ident(ident.clone()),
                                     value: Box::new(make_expr(imported_ident, item.export.as_deref(), ident.span, false))
                                 });
                             }
@@ -167,14 +167,11 @@ impl CodeGenerateable for EsmBindings {
 }
 
 fn make_expr(imported_module: &str, export: Option<&str>, span: Span, in_call: bool) -> Expr {
+    let span = span.with_ctxt(SyntaxContext::empty());
     if let Some(export) = export {
         let mut expr = Expr::Member(MemberExpr {
             span,
-            obj: Box::new(Expr::Ident(Ident::new(
-                imported_module.into(),
-                span,
-                Default::default(),
-            ))),
+            obj: Box::new(Expr::Ident(Ident::new(imported_module.into(), span))),
             prop: MemberProp::Computed(ComputedPropName {
                 span,
                 expr: Box::new(Expr::Lit(Lit::Str(Str {
@@ -199,6 +196,6 @@ fn make_expr(imported_module: &str, export: Option<&str>, span: Span, in_call: b
         }
         expr
     } else {
-        Expr::Ident(Ident::new(imported_module.into(), span, Default::default()))
+        Expr::Ident(Ident::new(imported_module.into(), span))
     }
 }

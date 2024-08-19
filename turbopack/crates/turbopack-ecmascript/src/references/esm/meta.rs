@@ -146,11 +146,7 @@ fn encode_path(path: &'_ str) -> Cow<'_, str> {
 }
 
 fn meta_ident() -> Ident {
-    Ident::new(
-        magic_identifier::mangle("import.meta").into(),
-        DUMMY_SP,
-        Default::default(),
-    )
+    Ident::new(magic_identifier::mangle("import.meta").into(), DUMMY_SP)
 }
 
 #[cfg(test)]

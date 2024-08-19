@@ -54,7 +54,7 @@
                 Ident,
             ),
         ],
-        span: 54..61,
+        span: 54..61#1,
         in_try: false,
     },
     Call {
@@ -113,7 +113,7 @@
                 Call,
             ),
         ],
-        span: 54..64,
+        span: 54..64#0,
         in_try: false,
     },
 ]

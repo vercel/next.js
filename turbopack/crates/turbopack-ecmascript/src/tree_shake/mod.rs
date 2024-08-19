@@ -597,7 +597,6 @@ pub(super) async fn part_of_module(
                                 orig: ModuleExportName::Ident(Ident::new(
                                     export_name.as_str().into(),
                                     DUMMY_SP,
-                                    Default::default(),
                                 )),
                                 exported: None,
                                 is_type_only: false,
@@ -678,7 +677,6 @@ pub(super) async fn part_of_module(
                                 orig: ModuleExportName::Ident(Ident::new(
                                     export_name.as_str().into(),
                                     DUMMY_SP,
-                                    Default::default(),
                                 )),
                                 exported: None,
                                 is_type_only: false,

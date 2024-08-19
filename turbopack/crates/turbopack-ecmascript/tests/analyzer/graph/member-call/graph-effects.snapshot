@@ -40,7 +40,7 @@
                 Member,
             ),
         ],
-        span: 35..43,
+        span: 35..43#0,
         in_try: false,
     },
     Member {
@@ -93,7 +93,7 @@
                 Member,
             ),
         ],
-        span: 70..82,
+        span: 70..82#0,
         in_try: false,
     },
     MemberCall {
@@ -215,7 +215,7 @@
                 Call,
             ),
         ],
-        span: 70..119,
+        span: 70..119#0,
         in_try: false,
     },
     Member {
@@ -305,7 +305,7 @@
                 Member,
             ),
         ],
-        span: 139..160,
+        span: 139..160#0,
         in_try: false,
     },
     Member {
@@ -391,7 +391,7 @@
                 Member,
             ),
         ],
-        span: 139..153,
+        span: 139..153#0,
         in_try: false,
     },
     FreeVar {
@@ -447,7 +447,7 @@
                 Ident,
             ),
         ],
-        span: 171..178,
+        span: 171..178#1,
         in_try: false,
     },
     MemberCall {
@@ -562,7 +562,7 @@
                 Call,
             ),
         ],
-        span: 139..180,
+        span: 139..180#0,
         in_try: false,
     },
     Member {
@@ -652,7 +652,7 @@
                 Member,
             ),
         ],
-        span: 200..221,
+        span: 200..221#0,
         in_try: false,
     },
     Member {
@@ -738,7 +738,7 @@
                 Member,
             ),
         ],
-        span: 200..214,
+        span: 200..214#0,
         in_try: false,
     },
     FreeVar {
@@ -783,7 +783,7 @@
                 Ident,
             ),
         ],
-        span: 231..238,
+        span: 231..238#1,
         in_try: false,
     },
     MemberCall {
@@ -898,7 +898,7 @@
                 Call,
             ),
         ],
-        span: 200..239,
+        span: 200..239#0,
         in_try: false,
     },
     Member {
@@ -942,7 +942,7 @@
                 Member,
             ),
         ],
-        span: 304..313,
+        span: 304..313#0,
         in_try: false,
     },
     Member {
@@ -995,7 +995,7 @@
                 Member,
             ),
         ],
-        span: 348..360,
+        span: 348..360#0,
         in_try: false,
     },
     MemberCall {
@@ -1070,7 +1070,7 @@
                 Call,
             ),
         ],
-        span: 348..371,
+        span: 348..371#0,
         in_try: false,
     },
 ]
