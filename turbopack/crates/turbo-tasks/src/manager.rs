@@ -259,13 +259,21 @@ pub trait TurboTasksBackendApiExt<B: Backend + 'static>: TurboTasksBackendApi<B>
     ///
     /// This function holds open a non-exclusive read lock that blocks writes, so `func` is expected
     /// to execute quickly in order to release the lock.
-    fn read_task_state<T>(&self, func: impl FnOnce(&B::TaskState) -> T) -> T;
+    fn read_task_state<T>(&self, func: impl FnOnce(&B::TaskState) -> T) -> T {
+        let mut out = None;
+        self.read_task_state_boxed(Box::new(|ts| out = Some(func(ts))));
+        out.expect("write_task_state_boxed must call `func`")
+    }
 
     /// Allows modification of the [`Backend::TaskState`].
     ///
     /// This function holds open a write lock, so `func` is expected to execute quickly in order to
     /// release the lock.
-    fn write_task_state<T>(&self, func: impl FnOnce(&mut B::TaskState) -> T) -> T;
+    fn write_task_state<T>(&self, func: impl FnOnce(&mut B::TaskState) -> T) -> T {
+        let mut out = None;
+        self.write_task_state_boxed(Box::new(|ts| out = Some(func(ts))));
+        out.expect("write_task_state_boxed must call `func`")
+    }
 }
 
 impl<TT, B> TurboTasksBackendApiExt<B> for TT
@@ -273,17 +281,6 @@ where
     TT: TurboTasksBackendApi<B> + ?Sized,
     B: Backend + 'static,
 {
-    fn read_task_state<T>(&self, func: impl FnOnce(&B::TaskState) -> T) -> T {
-        let mut out = None;
-        self.read_task_state_boxed(Box::new(|ts| out = Some(func(ts))));
-        out.expect("write_task_state_boxed must call `func`")
-    }
-
-    fn write_task_state<T>(&self, func: impl FnOnce(&mut B::TaskState) -> T) -> T {
-        let mut out = None;
-        self.write_task_state_boxed(Box::new(|ts| out = Some(func(ts))));
-        out.expect("write_task_state_boxed must call `func`")
-    }
 }
 
 #[allow(clippy::manual_non_exhaustive)]
