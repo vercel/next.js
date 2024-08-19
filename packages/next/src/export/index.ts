@@ -310,7 +310,7 @@ async function exportAppImpl(
         Object.keys(serverActionsManifest.edge).length > 0
       ) {
         throw new ExportError(
-          `Server Actions are not supported with static export.`
+          `ERROR: Server Actions are not supported with static export.`
         )
       }
     }
