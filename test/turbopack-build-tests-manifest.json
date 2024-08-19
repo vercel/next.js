@@ -9022,8 +9022,7 @@
       "runtimeError": false
     },
     "test/integration/edge-runtime-with-node.js-apis/test/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Edge route using Node.js API production mode does not warn on using process.arch",
         "Edge route using Node.js API production mode does not warn on using process.version",
         "Edge route using Node.js API production mode warns for BroadcastChannel during build",
@@ -9067,6 +9066,7 @@
         "Middleware using Node.js API production mode warns for process.getuid during build",
         "Middleware using Node.js API production mode warns for setImmediate during build"
       ],
+      "failed": [],
       "pending": [
         "Edge route using Node.js API development mode does not throw on using process.arch",
         "Edge route using Node.js API development mode does not throw on using process.version",
