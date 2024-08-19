@@ -13,7 +13,7 @@ bench = false
 workspace = true
 
 [features]
-default = ["verify_serialization"]
+default = []
 verify_serialization = []
 
 [dependencies]
