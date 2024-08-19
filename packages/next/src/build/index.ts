@@ -1236,102 +1236,6 @@ export default async function build(
         PAGES_MANIFEST
       )
 
-      const { cacheHandler } = config
-
-      const instrumentationHookEntryFiles = hasInstrumentationHook
-        ? [
-            path.join(SERVER_DIRECTORY, `${INSTRUMENTATION_HOOK_FILENAME}.js`),
-            path.join(
-              SERVER_DIRECTORY,
-              `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
-            ),
-          ].filter((filePath) => existsSync(path.join(distDir, filePath)))
-        : []
-
-      const requiredServerFilesManifest = nextBuildSpan
-        .traceChild('generate-required-server-files')
-        .traceFn(() => {
-          const serverFilesManifest: RequiredServerFilesManifest = {
-            version: 1,
-            config: {
-              ...config,
-              configFile: undefined,
-              ...(ciEnvironment.hasNextSupport
-                ? {
-                    compress: false,
-                  }
-                : {}),
-              cacheHandler: cacheHandler
-                ? path.relative(distDir, cacheHandler)
-                : config.cacheHandler,
-              experimental: {
-                ...config.experimental,
-                trustHostHeader: ciEnvironment.hasNextSupport,
-
-                // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
-                isExperimentalCompile: isCompileMode,
-              },
-            },
-            appDir: dir,
-            relativeAppDir: path.relative(outputFileTracingRoot, dir),
-            files: [
-              ROUTES_MANIFEST,
-              path.relative(distDir, pagesManifestPath),
-              BUILD_MANIFEST,
-              PRERENDER_MANIFEST,
-              path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-              path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
-              path.join(
-                SERVER_DIRECTORY,
-                MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
-              ),
-              ...(appDir
-                ? [
-                    ...(config.experimental.sri
-                      ? [
-                          path.join(
-                            SERVER_DIRECTORY,
-                            SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
-                          ),
-                          path.join(
-                            SERVER_DIRECTORY,
-                            SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
-                          ),
-                        ]
-                      : []),
-                    path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
-                    path.join(APP_PATH_ROUTES_MANIFEST),
-                    APP_BUILD_MANIFEST,
-                    path.join(
-                      SERVER_DIRECTORY,
-                      SERVER_REFERENCE_MANIFEST + '.js'
-                    ),
-                    path.join(
-                      SERVER_DIRECTORY,
-                      SERVER_REFERENCE_MANIFEST + '.json'
-                    ),
-                  ]
-                : []),
-              REACT_LOADABLE_MANIFEST,
-              config.optimizeFonts
-                ? path.join(
-                    SERVER_DIRECTORY,
-                    AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
-                  )
-                : null,
-              BUILD_ID_FILE,
-              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
-              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
-              ...instrumentationHookEntryFiles,
-            ]
-              .filter(nonNullable)
-              .map((file) => path.join(config.distDir, file)),
-            ignore: [] as string[],
-          }
-
-          return serverFilesManifest
-        })
-
       async function turbopackBuild(): Promise<{
         duration: number
         buildTraceContext: undefined
@@ -2351,6 +2255,113 @@ export default async function build(
         )
       }
 
+      const { cacheHandler } = config
+      const collectEdgeRuntimeRoutes = collectRoutesUsingEdgeRuntime(pageInfos)
+
+      const instrumentationHookEntryFiles: string[] = []
+      if (hasInstrumentationHook) {
+        instrumentationHookEntryFiles.push(
+          path.join(SERVER_DIRECTORY, `${INSTRUMENTATION_HOOK_FILENAME}.js`)
+        )
+        // If there's edge routes, append the edge instrumentation hook
+        if (
+          // Object.keys(collectEdgeRuntimeRoutes).length > 0
+          edgeRuntimeAppCount ||
+          edgeRuntimePagesCount
+        ) {
+          instrumentationHookEntryFiles.push(
+            path.join(
+              SERVER_DIRECTORY,
+              `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
+            )
+          )
+        }
+      }
+
+      const requiredServerFilesManifest = nextBuildSpan
+        .traceChild('generate-required-server-files')
+        .traceFn(() => {
+          const serverFilesManifest: RequiredServerFilesManifest = {
+            version: 1,
+            config: {
+              ...config,
+              configFile: undefined,
+              ...(ciEnvironment.hasNextSupport
+                ? {
+                    compress: false,
+                  }
+                : {}),
+              cacheHandler: cacheHandler
+                ? path.relative(distDir, cacheHandler)
+                : config.cacheHandler,
+              experimental: {
+                ...config.experimental,
+                trustHostHeader: ciEnvironment.hasNextSupport,
+
+                // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
+                isExperimentalCompile: isCompileMode,
+              },
+            },
+            appDir: dir,
+            relativeAppDir: path.relative(outputFileTracingRoot, dir),
+            files: [
+              ROUTES_MANIFEST,
+              path.relative(distDir, pagesManifestPath),
+              BUILD_MANIFEST,
+              PRERENDER_MANIFEST,
+              path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+              path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
+              path.join(
+                SERVER_DIRECTORY,
+                MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
+              ),
+              ...(appDir
+                ? [
+                    ...(config.experimental.sri
+                      ? [
+                          path.join(
+                            SERVER_DIRECTORY,
+                            SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
+                          ),
+                          path.join(
+                            SERVER_DIRECTORY,
+                            SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
+                          ),
+                        ]
+                      : []),
+                    path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
+                    path.join(APP_PATH_ROUTES_MANIFEST),
+                    APP_BUILD_MANIFEST,
+                    path.join(
+                      SERVER_DIRECTORY,
+                      SERVER_REFERENCE_MANIFEST + '.js'
+                    ),
+                    path.join(
+                      SERVER_DIRECTORY,
+                      SERVER_REFERENCE_MANIFEST + '.json'
+                    ),
+                  ]
+                : []),
+              REACT_LOADABLE_MANIFEST,
+              config.optimizeFonts
+                ? path.join(
+                    SERVER_DIRECTORY,
+                    AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
+                  )
+                : null,
+              BUILD_ID_FILE,
+              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
+              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
+              ...instrumentationHookEntryFiles,
+            ]
+              .filter(nonNullable)
+              .map((file) => path.join(config.distDir, file)),
+            ignore: [] as string[],
+          }
+
+          return serverFilesManifest
+        })
+
       if (!hasSsrAmpPages) {
         requiredServerFilesManifest.ignore.push(
           path.relative(
@@ -2374,7 +2385,7 @@ export default async function build(
           dir,
           config,
           distDir,
-          edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(pageInfos),
+          edgeRuntimeRoutes: collectEdgeRuntimeRoutes,
           staticPages: [...staticPages],
           nextBuildSpan,
           hasSsrAmpPages,
