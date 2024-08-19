@@ -1104,7 +1104,12 @@ impl NextConfig {
         self: Vc<Self>,
         is_development: bool,
     ) -> Result<Vc<OptionTreeShaking>> {
-        let tree_shaking = self.await?.experimental.tree_shaking;
+        let tree_shaking = self
+            .await?
+            .experimental
+            .turbo
+            .as_ref()
+            .and_then(|v| v.tree_shaking);
 
         Ok(OptionTreeShaking(match tree_shaking {
             Some(false) => Some(TreeShakingMode::ReexportsOnly),
