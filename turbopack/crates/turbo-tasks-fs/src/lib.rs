@@ -236,12 +236,9 @@ impl DiskFileSystem {
     }
 
     pub async fn to_sys_path(&self, fs_path: Vc<FileSystemPath>) -> Result<PathBuf> {
-        self.to_sys_path_from_ref(&*fs_path.await?).await
-    }
-
-    pub async fn to_sys_path_from_ref(&self, fs_path: &FileSystemPath) -> Result<PathBuf> {
         // just in case there's a windows unc path prefix we remove it with `dunce`
         let path = self.root_path();
+        let fs_path = fs_path.await?;
         Ok(if fs_path.path.is_empty() {
             path.to_path_buf()
         } else {
@@ -386,33 +383,6 @@ impl DiskFileSystem {
 
         Ok(InternalDirectoryContent::new(entries))
     }
-}
-
-#[turbo_tasks::value_impl]
-impl DiskFileSystem {
-    #[turbo_tasks::function]
-    async fn prepare_write(
-        self: Vc<Self>,
-        fs_path: Vc<FileSystemPath>,
-        content: Vc<FileContent>,
-    ) -> Result<Vc<PreparedWrite>> {
-        let this = self.await?;
-        Ok(PreparedWrite {
-            this,
-            path: fs_path.await?,
-            content: content.await?,
-            completion: Completion::new(),
-        }
-        .cell())
-    }
-}
-
-#[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
-struct PreparedWrite {
-    this: ReadRef<DiskFileSystem>,
-    path: ReadRef<FileSystemPath>,
-    content: ReadRef<FileContent>,
-    completion: Vc<Completion>,
 }
 
 impl Debug for DiskFileSystem {
@@ -572,22 +542,17 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write(
-        self: Vc<Self>,
+        &self,
         fs_path: Vc<FileSystemPath>,
         content: Vc<FileContent>,
     ) -> Result<Vc<Completion>> {
-        let PreparedWrite {
-            this,
-            path,
-            content,
-            completion,
-        } = &*self.prepare_write(fs_path, content).await?;
-        let full_path = this.to_sys_path_from_ref(path).await?;
+        let full_path = self.to_sys_path(fs_path).await?;
+        let content = content.await?;
 
-        let _lock = this.lock_path(&full_path).await;
+        let _lock = self.lock_path(&full_path).await;
 
         // Track the file, so that we will rewrite it if it ever changes.
-        let old_invalidators = this.register_sole_invalidator(&full_path)?;
+        let old_invalidators = self.register_sole_invalidator(&full_path)?;
 
         // We perform an untracked comparison here, so that this write is not dependent
         // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
@@ -605,16 +570,16 @@ impl FileSystem for DiskFileSystem {
             if !old_invalidators.is_empty() {
                 let key = path_to_key(&full_path);
                 for i in old_invalidators {
-                    this.invalidator_map.insert(key.clone(), i);
+                    self.invalidator_map.insert(key.clone(), i);
                 }
-                this.serialization_invalidator.invalidate();
+                self.serialization_invalidator.invalidate();
             }
-            return Ok(*completion);
+            return Ok(Completion::unchanged());
         }
 
         let create_directory = compare == FileComparison::Create;
 
-        match &**content {
+        match &*content {
             FileContent::Content(file) => {
                 if create_directory {
                     if let Some(parent) = full_path.parent() {
@@ -685,9 +650,9 @@ impl FileSystem for DiskFileSystem {
             }
         }
 
-        this.invalidate_from_write(&full_path, old_invalidators);
+        self.invalidate_from_write(&full_path, old_invalidators);
 
-        Ok(*completion)
+        Ok(Completion::new())
     }
 
     #[turbo_tasks::function(fs)]
