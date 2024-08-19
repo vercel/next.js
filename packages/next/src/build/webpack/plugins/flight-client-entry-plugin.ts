@@ -415,12 +415,9 @@ export class FlightClientEntryPlugin {
       }
     })
 
-    
-
     for (const [name, actionEntryImports] of Object.entries(
       actionMapsPerEntry
     )) {
-      
       addActionEntryList.push(
         this.injectActionEntry({
           compiler,
@@ -459,7 +456,6 @@ export class FlightClientEntryPlugin {
     const addedClientActionEntryList: Promise<any>[] = []
     const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
 
-
     // Loop to mark actions first
 
     // We need to create extra action entries that are created from the
@@ -470,13 +466,12 @@ export class FlightClientEntryPlugin {
     )) {
       // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
       // add aggregate them.
-      const {
-        collectedActions: actionEntryImports,
-      } = this.collectClientActionsFromDependencies({
-        compilation,
-        dependencies: ssrEntryDependencies,
-        collectUsedExportedActions: true,
-      })
+      const { collectedActions: actionEntryImports } =
+        this.collectClientActionsFromDependencies({
+          compilation,
+          dependencies: ssrEntryDependencies,
+          collectUsedExportedActions: true,
+        })
 
       if (actionEntryImports.size > 0) {
         if (!actionMapsPerClientEntry[name]) {
@@ -488,8 +483,6 @@ export class FlightClientEntryPlugin {
         ])
       }
     }
-
-    console.log('this.usedActionsMapping', this.usedActionsMapping, 'runtime', this.isEdgeServer ? 'edge' : 'node')
 
     for (const [name, actionEntryImports] of Object.entries(
       actionMapsPerClientEntry
@@ -547,7 +540,6 @@ export class FlightClientEntryPlugin {
     // Keep track of checked modules to avoid infinite loops with recursive imports.
     const visitedModule = new Set<string>()
     const visitedEntry = new Set<string>()
-    const usedExportedActions = new Map<string, Set<string>>()
 
     const collectActions = ({
       entryRequest,
@@ -580,11 +572,11 @@ export class FlightClientEntryPlugin {
         if (!modRequest) return
 
         const actions = getActionsFromBuildInfo(mod)
-        
+
         if (collectUsedExportedActions) {
           if (visitedModule.has(modRequest) && actions) {
             // if (ids)
-              // console.log('visited ssr:collect action', ids, modRequest)
+            // console.log('visited ssr:collect action', ids, modRequest)
             if (!this.usedActionsMapping[modRequest]) {
               this.usedActionsMapping[modRequest] = new Set(ids)
             } else {
@@ -593,11 +585,10 @@ export class FlightClientEntryPlugin {
           }
         }
 
-
         if (visitedModule.has(modRequest)) return
 
         visitedModule.add(modRequest)
-        
+
         if (actions) {
           collectedActions.set(modRequest, actions)
         }
@@ -605,21 +596,17 @@ export class FlightClientEntryPlugin {
         if (collectUsedExportedActions) {
           getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
             (connection: any) => {
-              // const ids: string[] = connection.dependency ? (connection.dependency as any).ids ?? [] : []
-  
               let dependencyIds: string[] = []
-              const depModule = connection.resolvedModule
               if (connection.dependency?.ids) {
-  
                 dependencyIds.push(...connection.dependency.ids)
               } else {
                 // TODO: verify cjs module
                 dependencyIds = []
               }
-  
+
               collectActionsInDep(
                 connection.resolvedModule as webpack.NormalModule,
-                dependencyIds,
+                dependencyIds
               )
             }
           )
@@ -643,7 +630,7 @@ export class FlightClientEntryPlugin {
         ssrEntryModule,
         compilation.moduleGraph
       )) {
-        const dependency = connection.dependency 
+        const dependency = connection.dependency
         const request = (dependency as unknown as webpack.NormalModule).request
 
         // It is possible that the same entry is added multiple times in the
@@ -765,7 +752,7 @@ export class FlightClientEntryPlugin {
         (connection: any) => {
           let dependencyIds: string[] = []
           const depModule = connection.resolvedModule
-          
+
           // `ids` are the identifiers that are imported from the dependency,
           // if it's present, it's an array of strings.
           if (connection.dependency?.ids) {
@@ -781,7 +768,7 @@ export class FlightClientEntryPlugin {
 
     const filterUsedActions = (
       mod: webpack.NormalModule,
-      importedIdentifiers: string[],
+      importedIdentifiers: string[]
     ): void => {
       if (!mod) return
 
@@ -822,23 +809,20 @@ export class FlightClientEntryPlugin {
         if (!this.usedActionsMapping[modRequest]) {
           this.usedActionsMapping[modRequest] = new Set(importedIdentifiers)
         } else {
-          importedIdentifiers.forEach((id) => this.usedActionsMapping[modRequest].add(id))
+          importedIdentifiers.forEach((id) =>
+            this.usedActionsMapping[modRequest].add(id)
+          )
         }
-        return 
+        return
       }
 
       getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
         (connection: any) => {
           let dependencyIds: string[] = []
-          const depModule = connection.resolvedModule
           if (connection.dependency?.ids) {
-            if (connection.dependency?.ids?.includes('layoutAction')) {
-              // console.log('connection.dependency?.ids', connection.dependency?.ids, 'from', depModule.resource)
-            }
             dependencyIds.push(...connection.dependency.ids)
           } else {
             dependencyIds = []
-            // console.log('cannot tell', connection.dependency.resource || connection.dependency.request)
           }
 
           filterUsedActions(connection.resolvedModule, dependencyIds)
@@ -1015,8 +999,6 @@ export class FlightClientEntryPlugin {
         // actions.delete(filePath)
       }
     }
-
-    console.log('injectActionEntry', actions, 'this.usedActionsMapping', this.usedActionsMapping)
 
     const actionsArray = Array.from(actions.entries())
 
