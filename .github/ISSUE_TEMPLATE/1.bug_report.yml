@@ -22,7 +22,7 @@ body:
       description: |
         A link to a **public** [GitHub repository](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) or a [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template) minimal reproduction. Minimal reproductions should be created from our [bug report template with `npx create-next-app -e reproduction-template`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) and should include only changes that contribute to the issue. To report a Pages Router related issue, you can use these templates: [`npx create-next-app -e reproduction-template-pages`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template-pages) or [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template-pages)
 
-        **Skipping this/providing an invalid link will result in the issue being closed**
+        **Skipping this/providing an invalid link will result in the issue being closed.**
       placeholder: 'https://github.com/user/my-minimal-nextjs-issue-reproduction'
     validations:
       required: true
@@ -39,8 +39,11 @@ body:
   - type: textarea
     attributes:
       label: Current vs. Expected behavior
-      description: A clear and concise description of what the bug is, and what you expected to happen.
-      placeholder: 'Following the steps from the previous section, I expected A to happen, but I observed B instead'
+      description: |
+        A clear and concise description of what the bug is (e.g., screenshots, logs, etc.), and what you expected to happen.
+
+        **Skipping this/failure to provide complete information of the bug will result in the issue being closed.**
+      placeholder: 'Following the steps from the previous section, I expected A to happen, but I observed B instead.'
     validations:
       required: true
   - type: textarea
