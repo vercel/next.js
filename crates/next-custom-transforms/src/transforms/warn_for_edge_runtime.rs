@@ -1,36 +1,66 @@
+use std::sync::Arc;
+
 use swc_core::{
-    common::{errors::HANDLER, Span},
+    common::{errors::HANDLER, SourceMap, Span},
     ecma::{
-        ast::{Ident, MemberExpr, MemberProp},
+        ast::{Expr, Ident, MemberExpr, MemberProp},
         utils::{ExprCtx, ExprExt},
         visit::{Visit, VisitWith},
     },
 };
 
-pub fn warn_for_edge_runtime(ctx: ExprCtx) -> impl Visit {
-    WarnForEdgeRuntime { ctx }
+pub fn warn_for_edge_runtime(cm: Arc<SourceMap>, ctx: ExprCtx) -> impl Visit {
+    WarnForEdgeRuntime { cm, ctx }
 }
 
 struct WarnForEdgeRuntime {
+    cm: Arc<SourceMap>,
     ctx: ExprCtx,
 }
 
+const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
+    "clearImmediate",
+    "setImmediate",
+    "BroadcastChannel",
+    "ByteLengthQueuingStrategy",
+    "CompressionStream",
+    "CountQueuingStrategy",
+    "DecompressionStream",
+    "DomException",
+    "MessageChannel",
+    "MessageEvent",
+    "MessagePort",
+    "ReadableByteStreamController",
+    "ReadableStreamBYOBRequest",
+    "ReadableStreamDefaultController",
+    "TransformStreamDefaultController",
+    "WritableStreamDefaultController",
+];
+
 impl WarnForEdgeRuntime {
-    fn build_unsupported_api_error(&self, span: Span, api_name: &str, line: u32) {
+    fn build_unsupported_api_error(&self, span: Span, api_name: &str) -> Option<()> {
+        let loc = self.cm.lookup_line(span.lo).ok()?;
+
         let msg=format!("A Node.js API is used ({api_name} at line: {}) which is not supported in the Edge Runtime.
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime",line);
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime",loc.line);
 
         HANDLER.with(|h| {
             h.struct_span_warn(span, &msg).emit();
-        })
+        });
+
+        None
+    }
+
+    fn is_in_middleware_layer(&self) -> bool {
+        false
     }
 
     fn warn_for_unsupported_process_api(&self, span: Span, prop: &Ident) {
-        if !is_in_middleware_layer() || prop.sym == "env" {
+        if !self.is_in_middleware_layer() || prop.sym == "env" {
             return;
         }
 
-        self.build_unsupported_api_error(span, &format!("process.{}", prop), span.start.line);
+        self.build_unsupported_api_error(span, &format!("process.{}", prop));
     }
 }
 
@@ -40,6 +70,19 @@ impl Visit for WarnForEdgeRuntime {
             if let MemberProp::Ident(prop) = &n.prop {
                 self.warn_for_unsupported_process_api(n.span, prop);
                 return;
+            }
+        }
+
+        n.visit_children_with(self);
+    }
+
+    fn visit_expr(&mut self, n: &Expr) {
+        if let Expr::Ident(ident) = n {
+            for api in EDGE_UNSUPPORTED_NODE_APIS {
+                if self.is_in_middleware_layer() && ident.sym == *api {
+                    self.build_unsupported_api_error(ident.span, api);
+                    return;
+                }
             }
         }
 
