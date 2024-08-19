@@ -375,6 +375,8 @@ pub async fn project_new(
             .await
             .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
     });
+    // TODO remove this: Workaround for missing active tracking
+    turbo_tasks.wait_primary_jobs_done().await;
     Ok(External::new_with_size_hint(
         ProjectInstance {
             turbo_tasks,
