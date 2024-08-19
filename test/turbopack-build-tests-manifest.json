@@ -834,7 +834,6 @@
         "app-dir static/dynamic handling should handle partial-gen-params with layout dynamicParams = false correctly",
         "app-dir static/dynamic handling should handle partial-gen-params with page dynamicParams = false correctly",
         "app-dir static/dynamic handling should have correct prerender-manifest entries",
-        "app-dir static/dynamic handling should have deterministic etag across revalidates",
         "app-dir static/dynamic handling should have logs from cache-handler",
         "app-dir static/dynamic handling should honor fetch cache correctly",
         "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
@@ -900,7 +899,8 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/app-static/app-static.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "app-dir static/dynamic handling Incremental cache limits should load data only at build time even if response data size is greater than 2MB and FetchCache is possible",
         "app-dir static/dynamic handling fetch `cache` should supercede dynamic config when force-dynamic is used",
         "app-dir static/dynamic handling fetchCache config should supercede dynamic config when force-dynamic is used",
@@ -935,7 +935,6 @@
         "app-dir static/dynamic handling should handle partial-gen-params with layout dynamicParams = false correctly",
         "app-dir static/dynamic handling should handle partial-gen-params with page dynamicParams = false correctly",
         "app-dir static/dynamic handling should have correct prerender-manifest entries",
-        "app-dir static/dynamic handling should have deterministic etag across revalidates",
         "app-dir static/dynamic handling should honor dynamic = \"force-static\" correctly",
         "app-dir static/dynamic handling should honor dynamic = \"force-static\" correctly (lazy)",
         "app-dir static/dynamic handling should honor fetch cache correctly",
@@ -955,6 +954,7 @@
         "app-dir static/dynamic handling should not have cache tags header for non-minimal mode",
         "app-dir static/dynamic handling should not revalidate / when revalidate is not used",
         "app-dir static/dynamic handling should not throw Dynamic Server Usage error when using generateStaticParams with draftMode",
+        "app-dir static/dynamic handling should output HTML/RSC files for static paths",
         "app-dir static/dynamic handling should output debug info for static bailouts",
         "app-dir static/dynamic handling should produce response with url from fetch",
         "app-dir static/dynamic handling should propagate unstable_cache tags correctly",
@@ -994,9 +994,6 @@
         "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
         "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite",
         "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - with suspense boundary"
-      ],
-      "failed": [
-        "app-dir static/dynamic handling should output HTML/RSC files for static paths"
       ],
       "pending": [
         "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-edge",
@@ -1299,6 +1296,8 @@
     "test/e2e/app-dir/asset-prefix-with-basepath/asset-prefix-with-basepath.test.ts": {
       "passed": [
         "app-dir assetPrefix with basePath handling bundles should return 200 on served assetPrefix",
+        "app-dir assetPrefix with basePath handling rewrites rewrites that do not start with assetPrefix should still work",
+        "app-dir assetPrefix with basePath handling rewrites should respect rewrites that start with assetPrefix",
         "app-dir assetPrefix with basePath handling should redirect route when clicking link",
         "app-dir assetPrefix with basePath handling should redirect route when requesting it directly",
         "app-dir assetPrefix with basePath handling should redirect route when requesting it directly by browser",
@@ -1312,6 +1311,8 @@
     "test/e2e/app-dir/asset-prefix/asset-prefix.test.ts": {
       "passed": [
         "app-dir assetPrefix handling bundles should return 200 on served assetPrefix",
+        "app-dir assetPrefix handling rewrites rewrites that do not start with assetPrefix should still work",
+        "app-dir assetPrefix handling rewrites should respect rewrites that start with assetPrefix",
         "app-dir assetPrefix handling should redirect route when clicking link",
         "app-dir assetPrefix handling should redirect route when requesting it directly",
         "app-dir assetPrefix handling should redirect route when requesting it directly by browser",
@@ -4262,6 +4263,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/webpack-loader-ts-transform/webpack-loader-ts-transform.test.ts": {
+      "passed": [
+        "webpack-loader-ts-transform should accept Typescript returned from Webpack loaders"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/with-babel/with-babel.test.ts": {
       "passed": [],
       "failed": [],
@@ -5007,6 +5017,16 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/i18n-navigations-middleware/i18n-navigations-middleware.test.ts": {
+      "passed": [
+        "i18n-navigations-middleware should respect selected locale when navigating to a dynamic route",
+        "i18n-navigations-middleware should respect selected locale when navigating to a static route"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/i18n-preferred-locale-detection/i18n-preferred-locale-detection.test.ts": {
       "passed": [
         "i18-preferred-locale-redirect should not request a path prefixed with my preferred detected locale when clicking link to index from a non-locale-prefixed path",
@@ -5072,6 +5092,15 @@
         "instrumentation-hook-rsc instrumentation should not overlap with a instrumentation page",
         "instrumentation-hook-rsc instrumentation should run the edge instrumentation compiled version with the edge runtime",
         "instrumentation-hook-rsc instrumentation should run the instrumentation hook"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/instrumentation-hook/flying-shuttle/flying-shuttle.test.ts": {
+      "passed": [
+        "instrumentation-hook - flying-shuttle should only register without errors"
       ],
       "failed": [],
       "pending": [],
@@ -16185,7 +16214,8 @@
       "runtimeError": false
     },
     "test/production/pages-dir/production/test/index.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "Production Usage API routes does not work with pages/api/readfile-dirname.js",
         "Production Usage API routes should work with dynamic params and search string",
         "Production Usage API routes should work with pages/api/hello.js",
@@ -16262,6 +16292,8 @@
         "Production Usage With navigation should navigate via client side",
         "Production Usage With navigation should reload page successfully (on bad data fetch)",
         "Production Usage With navigation should reload page successfully (on bad link)",
+        "Production Usage process.browser should eliminate client only code on the server",
+        "Production Usage process.browser should eliminate server only code on the client",
         "Production Usage process.env should set process.env.NODE_ENV in production",
         "Production Usage should change query correctly",
         "Production Usage should clear all core performance marks",
@@ -16291,16 +16323,12 @@
         "Production Usage should not replace non-static pages with HTML files",
         "Production Usage should not show target deprecation warning",
         "Production Usage should only have one DOCTYPE",
+        "Production Usage should output traces",
         "Production Usage should preserve query when hard navigating from page 404",
         "Production Usage should remove placeholder for next/image correctly",
         "Production Usage should replace static pages with HTML files",
         "Production Usage should respond with 405 for POST to static page",
         "Production Usage should warn when prefetch is true"
-      ],
-      "failed": [
-        "Production Usage process.browser should eliminate client only code on the server",
-        "Production Usage process.browser should eliminate server only code on the client",
-        "Production Usage should output traces"
       ],
       "pending": [
         "Production Usage With Security Related Issues should handle invalid URL properly",
