@@ -2256,7 +2256,6 @@ export default async function build(
       }
 
       const { cacheHandler } = config
-      const collectEdgeRuntimeRoutes = collectRoutesUsingEdgeRuntime(pageInfos)
 
       const instrumentationHookEntryFiles: string[] = []
       if (hasInstrumentationHook) {
@@ -2264,11 +2263,7 @@ export default async function build(
           path.join(SERVER_DIRECTORY, `${INSTRUMENTATION_HOOK_FILENAME}.js`)
         )
         // If there's edge routes, append the edge instrumentation hook
-        if (
-          // Object.keys(collectEdgeRuntimeRoutes).length > 0
-          edgeRuntimeAppCount ||
-          edgeRuntimePagesCount
-        ) {
+        if (edgeRuntimeAppCount || edgeRuntimePagesCount) {
           instrumentationHookEntryFiles.push(
             path.join(
               SERVER_DIRECTORY,
@@ -2385,7 +2380,7 @@ export default async function build(
           dir,
           config,
           distDir,
-          edgeRuntimeRoutes: collectEdgeRuntimeRoutes,
+          edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(pageInfos),
           staticPages: [...staticPages],
           nextBuildSpan,
           hasSsrAmpPages,
