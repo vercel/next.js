@@ -16,23 +16,24 @@ use next_custom_transforms::transforms::{
     page_config::page_config_test,
     pure::pure_magic,
     react_server_components::server_components,
-    server_actions::{
-        server_actions, {self},
-    },
+    server_actions::{self, server_actions},
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
+    warn_for_edge_runtime::warn_for_edge_runtime,
 };
 use serde::de::DeserializeOwned;
 use swc_core::{
     common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
     ecma::{
+        ast::{Module, Script},
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
             react::jsx,
             testing::{test, test_fixture},
         },
-        visit::as_folder,
+        utils::ExprCtx,
+        visit::{as_folder, noop_fold_type, Fold, Visit},
     },
 };
 use swc_relay::{relay, RelayLanguageConfig};
@@ -671,4 +672,63 @@ fn test_debug_name(input: PathBuf) {
         &output,
         Default::default(),
     );
+}
+
+#[fixture("tests/fixture/edge-assert/**/input.js")]
+fn test_edge_assert(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+
+    test_fixture(
+        syntax(),
+        &|t| {
+            let top_level_mark = Mark::fresh(Mark::root());
+            let unresolved_mark = Mark::fresh(Mark::root());
+
+            chain!(
+                swc_core::ecma::transforms::base::resolver(unresolved_mark, top_level_mark, true),
+                lint_to_fold(warn_for_edge_runtime(
+                    t.cm.clone(),
+                    ExprCtx {
+                        is_unresolved_ref_safe: false,
+                        unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
+                    }
+                ))
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+fn lint_to_fold<R>(r: R) -> impl Fold
+where
+    R: Visit,
+{
+    LintFolder(r)
+}
+
+struct LintFolder<R>(R)
+where
+    R: Visit;
+
+impl<R> Fold for LintFolder<R>
+where
+    R: Visit,
+{
+    noop_fold_type!();
+
+    #[inline(always)]
+    fn fold_module(&mut self, program: Module) -> Module {
+        self.0.visit_module(&program);
+
+        program
+    }
+
+    #[inline(always)]
+    fn fold_script(&mut self, program: Script) -> Script {
+        self.0.visit_script(&program);
+
+        program
+    }
 }
