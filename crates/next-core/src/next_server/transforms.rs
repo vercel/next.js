@@ -134,7 +134,9 @@ pub async fn get_next_server_transforms_rules(
 
         if let NextRuntime::Edge = next_runtime {
             rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
-            rules.push(next_edge_node_api_assert(mdx_rs));
+            if matches!(context_ty, ServerContextType::Middleware { .. }) {
+                rules.push(next_edge_node_api_assert(mdx_rs));
+            }
         }
     }
 
