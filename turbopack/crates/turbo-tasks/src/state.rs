@@ -254,15 +254,6 @@ impl<T> PartialEq for TransientState<T> {
 }
 impl<T> Eq for TransientState<T> {}
 
-impl<T> Drop for TransientState<T> {
-    fn drop(&mut self) {
-        let mut inner = self.inner.lock();
-        for invalidator in take(&mut inner.invalidators) {
-            invalidator.invalidate();
-        }
-    }
-}
-
 impl<T> TransientState<T> {
     pub fn new() -> Self {
         mark_stateful();
