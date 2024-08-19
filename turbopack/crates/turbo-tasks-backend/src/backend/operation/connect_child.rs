@@ -67,10 +67,10 @@ impl Operation for ConnectChildOperation {
                     task_id,
                     ref mut aggregation_update,
                 } => {
-                    if aggregation_update.process(ctx) {
-                        // TODO check for active
-                        self = ConnectChildOperation::ScheduleTask { task_id }
-                    }
+                    // if aggregation_update.process(ctx) {
+                    // TODO check for active
+                    self = ConnectChildOperation::ScheduleTask { task_id }
+                    // }
                 }
                 ConnectChildOperation::ScheduleTask { task_id } => {
                     let mut should_schedule;
