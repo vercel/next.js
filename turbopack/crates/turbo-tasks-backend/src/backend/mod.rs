@@ -591,6 +591,14 @@ impl Backend for TurboTasksBackend {
         parent_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
+        if !parent_task.is_transient() {
+            let parent_task_type = self.lookup_task_type(parent_task);
+            panic!(
+                "Calling transient function {} from persistent function function {} is not allowed",
+                task_type.get_name(),
+                parent_task_type.map_or_else(|| "unknown".into(), |t| t.get_name())
+            );
+        }
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
             self.connect_child(parent_task, task_id, turbo_tasks);
             return task_id;
