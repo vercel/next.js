@@ -30,7 +30,7 @@ use swc_core::{
         transforms::{
             base::resolver,
             react::jsx,
-            testing::{test, test_fixture},
+            testing::{test, test_fixture, FixtureTestConfig},
         },
         utils::ExprCtx,
         visit::{as_folder, noop_fold_type, Fold, Visit},
@@ -697,7 +697,10 @@ fn test_edge_assert(input: PathBuf) {
         },
         &input,
         &output,
-        Default::default(),
+        FixtureTestConfig {
+            allow_error: true,
+            ..Default::default()
+        },
     );
 }
 
