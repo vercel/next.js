@@ -87,13 +87,12 @@ impl Visit for WarnForEdgeRuntime {
 
     fn visit_expr(&mut self, n: &Expr) {
         if let Expr::Ident(ident) = n {
-            for api in EDGE_UNSUPPORTED_NODE_APIS {
-                if self.is_in_middleware_layer()
-                    && ident.sym == *api
-                    && ident.span.ctxt == self.ctx.unresolved_ctxt
-                {
-                    self.build_unsupported_api_error(ident.span, api);
-                    return;
+            if ident.span.ctxt == self.ctx.unresolved_ctxt {
+                for api in EDGE_UNSUPPORTED_NODE_APIS {
+                    if self.is_in_middleware_layer() && ident.sym == *api {
+                        self.build_unsupported_api_error(ident.span, api);
+                        return;
+                    }
                 }
             }
         }
