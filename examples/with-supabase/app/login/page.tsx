@@ -6,11 +6,7 @@ import { Label } from "@/components/forms/label";
 import { Input } from "@/components/forms/input";
 import { FormMessage } from "@/components/forms/form-message";
 
-export default function Login({
-  searchParams,
-}: {
-  searchParams: FormMessage
-}) {
+export default function Login({ searchParams }: { searchParams: FormMessage }) {
   const signIn = async (formData: FormData) => {
     "use server";
 
@@ -56,33 +52,25 @@ export default function Login({
       <form className="flex-1 flex flex-col w-full justify-center gap-2 text-foreground [&>input]:mb-6 max-w-md p-4">
         <h1 className="text-2xl font-medium">Log in</h1>
         <p className="text-sm text-foreground/60">
-          Don't have an account? <Link className="text-blue-600 font-medium underline" href="/signup">Sign up</Link>
+          Don't have an account?{" "}
+          <Link className="text-blue-600 font-medium underline" href="/signup">
+            Sign up
+          </Link>
         </p>
         <div className="flex flex-col gap-2 [&>input]:mb-3 mt-8">
-        <Label htmlFor="email">
-          Email
-        </Label>
-        <Input
-          name="email"
-          placeholder="you@example.com"
-          required
-        />
-        <Label htmlFor="password">
-          Password
-        </Label>
-        <Input
-          type="password"
-          name="password"
-          placeholder="••••••••"
-          required
-        />
-        <SubmitButton
-          formAction={signIn}
-          pendingText="Signing In..."
-        >
-          Log in
-        </SubmitButton>
-        <FormMessage message={searchParams} />
+          <Label htmlFor="email">Email</Label>
+          <Input name="email" placeholder="you@example.com" required />
+          <Label htmlFor="password">Password</Label>
+          <Input
+            type="password"
+            name="password"
+            placeholder="••••••••"
+            required
+          />
+          <SubmitButton formAction={signIn} pendingText="Signing In...">
+            Log in
+          </SubmitButton>
+          <FormMessage message={searchParams} />
         </div>
       </form>
     </div>

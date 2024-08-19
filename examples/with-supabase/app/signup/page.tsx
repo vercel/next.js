@@ -8,45 +8,49 @@ import { Label } from "@/components/forms/label";
 import { FormMessage } from "@/components/forms/form-message";
 
 export default function Signup({
-    searchParams,
-  }: {
-    searchParams: FormMessage
-  }) {
+  searchParams,
+}: {
+  searchParams: FormMessage;
+}) {
+  const signUp = async (formData: FormData) => {
+    "use server";
+    const email = formData.get("email")?.toString();
+    const password = formData.get("password")?.toString();
+    const supabase = createClient();
+    const origin = headers().get("origin");
 
-    const signUp = async (formData: FormData) => {
-        "use server";
-        const email = formData.get("email")?.toString();
-        const password = formData.get("password")?.toString();
-        const supabase = createClient();
-        const origin = headers().get("origin");
-
-        if (!email || !password) {
-            return { error: "Email and password are required" };
-        }
-
-        const { error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                emailRedirectTo: `${origin}/auth/callback`,
-            },
-        });
-        
-        if (error) {
-            console.error(error.code + ' ' +error.message)
-            return redirect("/signup?error=Error trying to sign up");
-        } else {
-            return redirect("/signup?success=Thanks for signing up! Please check your email for a verification link.");
-        }
+    if (!email || !password) {
+      return { error: "Email and password are required" };
     }
 
-    if ('message' in searchParams) {
-        return <div className="w-full flex-1 flex items-center h-screen sm:max-w-md justify-center gap-2 p-4">
-            <FormMessage message={searchParams} />
-        </div>
-    }
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${origin}/auth/callback`,
+      },
+    });
 
-  return <div className="w-full flex-1 flex items-center h-screen sm:max-w-md justify-center gap-2 p-4">
+    if (error) {
+      console.error(error.code + " " + error.message);
+      return redirect("/signup?error=Error trying to sign up");
+    } else {
+      return redirect(
+        "/signup?success=Thanks for signing up! Please check your email for a verification link.",
+      );
+    }
+  };
+
+  if ("message" in searchParams) {
+    return (
+      <div className="w-full flex-1 flex items-center h-screen sm:max-w-md justify-center gap-2 p-4">
+        <FormMessage message={searchParams} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full flex-1 flex items-center h-screen sm:max-w-md justify-center gap-2 p-4">
       <Link
         href="/"
         className="absolute left-8 top-8 py-2 px-4 rounded-md no-underline text-foreground bg-btn-background hover:bg-btn-background-hover flex items-center group text-sm"
@@ -68,40 +72,34 @@ export default function Signup({
         Back
       </Link>
 
-
       <form className="flex flex-col w-full justify-center gap-2 text-foreground [&>input]:mb-6 max-w-md">
-      <h1 className="text-2xl font-medium">Sign up</h1>
-      <p className="text-sm text text-foreground/60">
-        Already have an account? <Link className="text-blue-600 font-medium underline" href="/login">Log in</Link>
-      </p>
-      <div className="mt-8 flex flex-col gap-2 [&>input]:mb-3">
-        <Label htmlFor="email">
-          Email
-        </Label>
-        <Input
-          name="email"
-          placeholder="you@example.com"
-          required
-        />
-        <Label htmlFor="password">
-          Password
-        </Label>
-        <Input
-          type="password"
-          name="password"
-          placeholder="••••••••"
-          required
-        />
-        <SubmitButton
-          formAction={signUp}
-          className="bg-green-700 rounded-md px-4 py-2 text-foreground mb-2"
-          pendingText="Signing In..."
-        >
-          Sign up
-        </SubmitButton>
+        <h1 className="text-2xl font-medium">Sign up</h1>
+        <p className="text-sm text text-foreground/60">
+          Already have an account?{" "}
+          <Link className="text-blue-600 font-medium underline" href="/login">
+            Log in
+          </Link>
+        </p>
+        <div className="mt-8 flex flex-col gap-2 [&>input]:mb-3">
+          <Label htmlFor="email">Email</Label>
+          <Input name="email" placeholder="you@example.com" required />
+          <Label htmlFor="password">Password</Label>
+          <Input
+            type="password"
+            name="password"
+            placeholder="••••••••"
+            required
+          />
+          <SubmitButton
+            formAction={signUp}
+            className="bg-green-700 rounded-md px-4 py-2 text-foreground mb-2"
+            pendingText="Signing In..."
+          >
+            Sign up
+          </SubmitButton>
         </div>
         <FormMessage message={searchParams} />
       </form>
     </div>
-
+  );
 }
