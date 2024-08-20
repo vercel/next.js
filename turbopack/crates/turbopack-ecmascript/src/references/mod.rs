@@ -17,7 +17,7 @@ pub mod util;
 
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     future::Future,
     mem::take,
     pin::Pin,
@@ -393,16 +393,23 @@ where
     HANDLER.set(handler, || GLOBALS.set(globals, f))
 }
 
+/// Analyse a provided [EcmascriptModuleAsset] and return a
+/// [AnalyzeEcmascriptModuleResult].
+///
+/// # Arguments
+/// * ignored_spans - A set of spans to ignore when analysing the module. This is useful for example
+///   to respect turbopackIgnore directives on ignores.
 #[turbo_tasks::function]
 pub(crate) async fn analyse_ecmascript_module(
     module: Vc<EcmascriptModuleAsset>,
     part: Option<Vc<ModulePart>>,
+    ignored_spans: Option<Vc<HashSet<Span>>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let span = {
         let module = module.ident().to_string().await?.to_string();
         tracing::info_span!("analyse ecmascript module", module = module)
     };
-    let result = analyse_ecmascript_module_internal(module, part)
+    let result = analyse_ecmascript_module_internal(module, part, ignored_spans)
         .instrument(span)
         .await;
 
@@ -418,6 +425,7 @@ pub(crate) async fn analyse_ecmascript_module(
 pub(crate) async fn analyse_ecmascript_module_internal(
     module: Vc<EcmascriptModuleAsset>,
     part: Option<Vc<ModulePart>>,
+    _webpack_ignored_effects: Option<Vc<HashSet<Span>>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let raw_module = module.await?;
 
