@@ -3685,8 +3685,9 @@ pub mod test_utils {
         builtin::early_replace_builtin, well_known::replace_well_known, JsValue, ModuleValue,
         WellKnownFunctionKind, WellKnownObjectKind,
     };
-    use crate::analyzer::{
-        builtin::replace_builtin, imports::ImportAnnotations, parse_require_context,
+    use crate::{
+        analyzer::{builtin::replace_builtin, imports::ImportAnnotations, parse_require_context},
+        utils::module_value_to_well_known_object,
     };
 
     pub async fn early_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
@@ -3694,6 +3695,8 @@ pub mod test_utils {
         Ok((v, m))
     }
 
+    /// Visitor that replaces well known functions and objects with their
+    /// corresponding values. Returns the new value and whether it was modified.
     pub async fn visitor(
         v: JsValue,
         compile_time_info: Vc<CompileTimeInfo>,
@@ -3745,16 +3748,13 @@ pub mod test_utils {
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
                 _ => v.into_unknown(true, "unknown global"),
             },
-            JsValue::Module(ModuleValue {
-                module: ref name, ..
-            }) => match name.as_ref() {
-                "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
-                "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
-                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
-                "@mapbox/node-pre-gyp" => JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
-                "node-pre-gyp" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild),
-                _ => return Ok((v, false)),
-            },
+            JsValue::Module(ref mv) => {
+                if let Some(wko) = module_value_to_well_known_object(mv) {
+                    wko
+                } else {
+                    return Ok((v, false));
+                }
+            }
             _ => {
                 let (mut v, m1) = replace_well_known(v, compile_time_info).await?;
                 let m2 = replace_builtin(&mut v);

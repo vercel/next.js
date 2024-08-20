@@ -121,7 +121,7 @@ use crate::{
         imports::{ImportAnnotations, ImportedSymbol, Reexport},
         parse_require_context,
         top_level_await::has_top_level_await,
-        ConstantNumber, ConstantString, ModuleValue, RequireContextValue,
+        ConstantNumber, ConstantString, RequireContextValue,
     },
     chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
@@ -136,7 +136,7 @@ use crate::{
         type_issue::SpecifiedModuleTypeIssue,
     },
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
-    utils::AstPathRange,
+    utils::{module_value_to_well_known_object, AstPathRange},
     EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptParsable, SpecifiedModuleType,
     TreeShakingMode,
 };
@@ -2402,51 +2402,14 @@ async fn value_visitor_inner(
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
             _ => return Ok((v, false)),
         },
-        JsValue::Module(ModuleValue {
-            module: ref name, ..
-        }) => {
-            if *compile_time_info.environment().node_externals().await? {
-                // TODO check externals
-                match &**name {
-                    "node:path" | "path" => {
-                        JsValue::WellKnownObject(WellKnownObjectKind::PathModule)
-                    }
-                    "node:fs/promises" | "fs/promises" => {
-                        JsValue::WellKnownObject(WellKnownObjectKind::FsModule)
-                    }
-                    "node:fs" | "fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
-                    "node:child_process" | "child_process" => {
-                        JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess)
-                    }
-                    "node:os" | "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
-                    "node:process" | "process" => {
-                        JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess)
-                    }
-                    "@mapbox/node-pre-gyp" => {
-                        JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp)
-                    }
-                    "node-gyp-build" => {
-                        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild)
-                    }
-                    "node:bindings" | "bindings" => {
-                        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings)
-                    }
-                    "express" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpress),
-                    "strong-globalize" => {
-                        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalize)
-                    }
-                    "resolve-from" => {
-                        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
-                    }
-                    "@grpc/proto-loader" => {
-                        JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader)
-                    }
-                    _ => v.into_unknown(true, "cross module analyzing is not yet supported"),
-                }
-            } else {
-                v.into_unknown(true, "cross module analyzing is not yet supported")
-            }
-        }
+        JsValue::Module(ref mv) => compile_time_info
+            .environment()
+            .node_externals()
+            .await?
+            // TODO check externals
+            .then(|| module_value_to_well_known_object(mv))
+            .flatten()
+            .unwrap_or_else(|| v.into_unknown(true, "cross module analyzing is not yet supported")),
         JsValue::Argument(..) => {
             v.into_unknown(true, "cross function analyzing is not yet supported")
         }
