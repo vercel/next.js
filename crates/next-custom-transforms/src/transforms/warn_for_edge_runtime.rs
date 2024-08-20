@@ -3,7 +3,7 @@ use std::sync::Arc;
 use swc_core::{
     common::{errors::HANDLER, SourceMap, Span},
     ecma::{
-        ast::{Expr, Ident, MemberExpr, MemberProp},
+        ast::{Expr, IdentName, MemberExpr, MemberProp},
         utils::{ExprCtx, ExprExt},
         visit::{Visit, VisitWith},
     },
@@ -64,7 +64,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",loc.line+1);
         true
     }
 
-    fn warn_for_unsupported_process_api(&self, span: Span, prop: &Ident) {
+    fn warn_for_unsupported_process_api(&self, span: Span, prop: &IdentName) {
         if !self.is_in_middleware_layer() || prop.sym == "env" {
             return;
         }
@@ -87,7 +87,7 @@ impl Visit for WarnForEdgeRuntime {
 
     fn visit_expr(&mut self, n: &Expr) {
         if let Expr::Ident(ident) = n {
-            if ident.span.ctxt == self.ctx.unresolved_ctxt {
+            if ident.ctxt == self.ctx.unresolved_ctxt {
                 for api in EDGE_UNSUPPORTED_NODE_APIS {
                     if self.is_in_middleware_layer() && ident.sym == *api {
                         self.build_unsupported_api_error(ident.span, api);

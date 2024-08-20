@@ -5,7 +5,7 @@ use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
-    common::{source_map::Pos, Span, Spanned, GLOBALS},
+    common::{source_map::SmallPos, Span, Spanned, GLOBALS},
     ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
 };
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TryJoinIterExt, ValueDefault, Vc};
