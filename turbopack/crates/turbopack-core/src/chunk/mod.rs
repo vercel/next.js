@@ -693,6 +693,10 @@ pub trait ChunkItem {
 
 #[turbo_tasks::value_trait]
 pub trait ChunkType: ValueToString {
+    /// Whether to perform vendor splitting for this chunk type.
+    /// TODO rethink this once we add a chunking strategy for prod (split chunks, etc.)
+    fn should_vendor_split(self: Vc<Self>) -> Vc<bool>;
+
     /// Create a new chunk for the given chunk items
     fn chunk(
         &self,

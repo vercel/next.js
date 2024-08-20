@@ -92,12 +92,21 @@ pub async fn make_chunks(
             empty_referenced_output_assets: OutputAssets::empty().resolve().await?,
         };
 
-        app_vendors_split(
-            chunk_items,
-            format!("{key_prefix}{ty_name}"),
-            &mut split_context,
-        )
-        .await?;
+        if *ty.should_vendor_split().await? {
+            app_vendors_split(
+                chunk_items,
+                format!("{key_prefix}{ty_name}"),
+                &mut split_context,
+            )
+            .await?;
+        } else {
+            make_chunk(
+                chunk_items,
+                &mut format!("{key_prefix}{ty_name}"),
+                &mut split_context,
+            )
+            .await?;
+        }
     }
 
     Ok(Vc::cell(chunks))

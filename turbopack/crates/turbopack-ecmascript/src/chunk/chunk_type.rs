@@ -24,6 +24,11 @@ impl ValueToString for EcmascriptChunkType {
 #[turbo_tasks::value_impl]
 impl ChunkType for EcmascriptChunkType {
     #[turbo_tasks::function]
+    fn should_vendor_split(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(true)
+    }
+
+    #[turbo_tasks::function]
     async fn chunk(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
