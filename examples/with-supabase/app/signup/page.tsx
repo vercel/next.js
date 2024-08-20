@@ -5,12 +5,12 @@ import Link from "next/link";
 import { SubmitButton } from "../../components/forms/submit-button";
 import { Input } from "@/components/forms/input";
 import { Label } from "@/components/forms/label";
-import { FormMessage } from "@/components/forms/form-message";
+import { FormMessage, Message } from "@/components/forms/form-message";
 
 export default function Signup({
   searchParams,
 }: {
-  searchParams: FormMessage;
+  searchParams: Message;
 }) {
   const signUp = async (formData: FormData) => {
     "use server";

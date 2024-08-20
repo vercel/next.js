@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import { SubmitButton } from "../../components/forms/submit-button";
 import { Label } from "@/components/forms/label";
 import { Input } from "@/components/forms/input";
-import { FormMessage } from "@/components/forms/form-message";
+import { FormMessage, Message } from "@/components/forms/form-message";
 
-export default function Login({ searchParams }: { searchParams: FormMessage }) {
+export default function Login({ searchParams }: { searchParams: Message }) {
   const signIn = async (formData: FormData) => {
     "use server";
 
