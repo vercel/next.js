@@ -1,6 +1,6 @@
 /**
  * @type {import('next').NextConfig}
  */
-const nextConfig = {}
+const nextConfig = { experimental: { searchParamsReuseLoading: true } }
 
 module.exports = nextConfig

@@ -56,13 +56,60 @@ function createPrefetchCacheKeyImpl(
 
 function createPrefetchCacheKey(
   url: URL,
-  kind: PrefetchKind | undefined,
+  kind: PrefetchKind,
   nextUrl?: string | null
 ) {
-  return createPrefetchCacheKeyImpl(url, kind === PrefetchKind.FULL, nextUrl)
+  return createPrefetchCacheKeyImpl(
+    url,
+    process.env.__NEXT_SEARCHPARAMS_LOADING ? kind === PrefetchKind.FULL : true,
+    nextUrl
+  )
 }
 
 function getExistingCacheEntry(
+  ...args: Parameters<typeof getExistingCacheEntryImpl>
+) {
+  if (process.env.__NEXT_SEARCHPARAMS_LOADING) {
+    return getExistingCacheEntryReuseSearchParams(...args)
+  }
+  return getExistingCacheEntryImpl(...args)
+}
+
+/**
+ * Attempts to find an existing cache entry for the given URL.
+ */
+function getExistingCacheEntryImpl(
+  url: URL,
+  kind: PrefetchKind = PrefetchKind.TEMPORARY,
+  nextUrl: string | null,
+  prefetchCache: Map<string, PrefetchCacheEntry>
+) {
+  let existingCacheEntry: PrefetchCacheEntry | undefined = undefined
+  // We first check if there's a more specific interception route prefetch entry
+  // This is because when we detect a prefetch that corresponds with an interception route, we prefix it with nextUrl (see `createPrefetchCacheKey`)
+  // to avoid conflicts with other pages that may have the same URL but render different things depending on the `Next-URL` header.
+  const interceptionCacheKey = createPrefetchCacheKey(url, kind, nextUrl)
+  const interceptionData = prefetchCache.get(interceptionCacheKey)
+
+  if (interceptionData) {
+    existingCacheEntry = interceptionData
+  } else {
+    // If we dont find a more specific interception route prefetch entry, we check for a regular prefetch entry
+    const prefetchCacheKey = createPrefetchCacheKey(url, kind)
+    const prefetchData = prefetchCache.get(prefetchCacheKey)
+    if (prefetchData) {
+      existingCacheEntry = prefetchData
+    }
+  }
+
+  return existingCacheEntry
+}
+
+/**
+ * This function attempts to re-use a prefetch entry across differing search params
+ * by "aliasing" an existing prefetch entry that wouldn't have normally matched.
+ */
+function getExistingCacheEntryReuseSearchParams(
   url: URL,
   kind: PrefetchKind = PrefetchKind.TEMPORARY,
   nextUrl: string | null,

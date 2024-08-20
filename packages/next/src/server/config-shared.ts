@@ -525,6 +525,11 @@ export interface ExperimentalConfig {
    * Allows previously fetched data to be re-used when editing server components.
    */
   serverComponentsHmrCache?: boolean
+
+  /**
+   * Will enable behavior to re-use the loading state of a page across different searchParams.
+   */
+  searchParamsReuseLoading?: boolean
 }
 
 export type ExportPathMap = {
@@ -1064,6 +1069,7 @@ export const defaultConfig: NextConfig = {
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
+    searchParamsReuseLoading: false,
   },
   bundlePagesRouterDependencies: false,
 }
