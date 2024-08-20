@@ -486,9 +486,8 @@ struct ReactServerComponentValidator {
     filepath: String,
     app_dir: Option<PathBuf>,
     invalid_server_imports: Vec<JsWord>,
-    invalid_server_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
     invalid_client_imports: Vec<JsWord>,
-    invalid_client_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
+    invalid_server_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
     pub directive_import_collection: Option<(bool, bool, RcVec<ModuleImports>, RcVec<String>)>,
 }
 
@@ -560,8 +559,6 @@ impl ReactServerComponentValidator {
             ],
 
             invalid_client_imports: vec![JsWord::from("server-only"), JsWord::from("next/headers")],
-
-            invalid_client_lib_apis_mapping: [("next/server", vec!["unstable_after"])].into(),
         }
     }
 
@@ -655,22 +652,6 @@ impl ReactServerComponentValidator {
                     &self.filepath,
                     RSCErrorKind::NextRscErrClientImport((source.to_string(), import.source.1)),
                 );
-            }
-
-            let invalid_apis = self.invalid_client_lib_apis_mapping.get(source.as_str());
-            if let Some(invalid_apis) = invalid_apis {
-                for specifier in &import.specifiers {
-                    if invalid_apis.contains(&specifier.0.as_str()) {
-                        report_error(
-                            &self.app_dir,
-                            &self.filepath,
-                            RSCErrorKind::NextRscErrClientImport((
-                                specifier.0.to_string(),
-                                specifier.1,
-                            )),
-                        );
-                    }
-                }
             }
         }
     }

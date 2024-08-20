@@ -707,6 +707,7 @@ impl Project {
         // need to confirm what we'll do with turbopack.
         let config = self.next_config();
 
+        emit_event("swcMinify", *config.swc_minify().await?);
         emit_event(
             "skipMiddlewareUrlNormalize",
             *config.skip_middleware_url_normalize().await?,
