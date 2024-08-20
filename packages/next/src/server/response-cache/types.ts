@@ -18,6 +18,14 @@ export interface ResponseCacheBase {
        */
       routeKind: RouteKind
 
+      /**
+       * True if this is a fallback request.
+       */
+      isFallback: boolean
+
+      /**
+       * True if the route is enabled for PPR.
+       */
       isRoutePPREnabled?: boolean
     }
   ): Promise<ResponseCacheEntry | null>
@@ -155,11 +163,11 @@ export type ResponseCacheEntry = {
  * @param hasResolved whether the responseGenerator has resolved it's promise
  * @param previousCacheEntry the previous cache entry if it exists or the current
  */
-export type ResponseGenerator = (
-  hasResolved: boolean,
-  previousCacheEntry?: IncrementalCacheItem,
+export type ResponseGenerator = (state: {
+  hasResolved: boolean
+  previousCacheEntry?: IncrementalCacheItem
   isRevalidating?: boolean
-) => Promise<ResponseCacheEntry | null>
+}) => Promise<ResponseCacheEntry | null>
 
 export type IncrementalCacheItem = {
   revalidateAfter?: number | false
@@ -184,7 +192,15 @@ export interface IncrementalCache {
     ctx: {
       kind: IncrementalCacheKind
 
+      /**
+       * True if the route is enabled for PPR.
+       */
       isRoutePPREnabled?: boolean
+
+      /**
+       * True if this is a fallback request.
+       */
+      isFallback: boolean
     }
   ) => Promise<IncrementalCacheItem>
   set: (
@@ -192,7 +208,16 @@ export interface IncrementalCache {
     data: IncrementalCacheValue | null,
     ctx: {
       revalidate: Revalidate
+
+      /**
+       * True if the route is enabled for PPR.
+       */
       isRoutePPREnabled?: boolean
+
+      /**
+       * True if this is a fallback request.
+       */
+      isFallback: boolean
     }
   ) => Promise<void>
 }

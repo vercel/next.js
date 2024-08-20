@@ -165,6 +165,7 @@ import { getRevalidateReason } from './instrumentation/utils'
 import { RouteKind } from './route-kind'
 import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
+import { toResponseCacheEntry } from './response-cache/utils'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -378,7 +379,6 @@ export default abstract class Server<
     req: ServerRequest,
     parsedUrl: NextUrlWithParsedQuery
   ): void
-  protected abstract getFallback(page: string): Promise<string>
   protected abstract hasPage(pathname: string): Promise<boolean>
 
   protected abstract sendRenderResult(
@@ -2318,7 +2318,7 @@ export default abstract class Server<
     } catch {}
 
     // use existing incrementalCache instance if available
-    const incrementalCache =
+    const incrementalCache: import('./lib/incremental-cache').IncrementalCache =
       (globalThis as any).__incrementalCache ||
       (await this.getIncrementalCache({
         requestHeaders: Object.assign({}, req.headers),
@@ -2709,11 +2709,11 @@ export default abstract class Server<
       }
     }
 
-    const responseGenerator: ResponseGenerator = async (
+    const responseGenerator: ResponseGenerator = async ({
       hasResolved,
       previousCacheEntry,
-      isRevalidating
-    ): Promise<ResponseCacheEntry | null> => {
+      isRevalidating,
+    }): Promise<ResponseCacheEntry | null> => {
       const isProduction = !this.renderOpts.dev
       const didRespond = hasResolved || res.sent
 
@@ -2823,37 +2823,51 @@ export default abstract class Server<
           throw new NoFallbackError()
         }
 
-        if (!isNextDataRequest) {
-          // Production already emitted the fallback as static HTML.
-          if (isProduction) {
-            const html = await this.getFallback(
-              locale ? `/${locale}${pathname}` : pathname
-            )
+        if (!isNextDataRequest && !isRSCRequest) {
+          const key = isProduction
+            ? isAppPath
+              ? pathname
+              : locale
+                ? `/${locale}${pathname}`
+                : pathname
+            : null
 
-            return {
-              value: {
-                kind: CachedRouteKind.PAGES,
-                html: RenderResult.fromStatic(html),
-                pageData: {},
-                status: undefined,
-                headers: undefined,
-              },
-            }
-          }
-          // We need to generate the fallback on-demand for development.
-          else {
-            query.__nextFallback = 'true'
+          const fallbackResponse = await this.responseCache.get(
+            key,
+            async ({ previousCacheEntry: previousFallbackCacheEntry }) => {
+              // For the pages router, fallbacks cannot be revalidated or
+              // generated in production. In the case of a missing fallback,
+              // we return null, but if it's being revalidated, we just return
+              // the previous fallback cache entry. This preserves the previous
+              // behavior.
+              if (isProduction) {
+                if (!previousFallbackCacheEntry) {
+                  return null
+                }
 
-            // We pass `undefined` as there cannot be a postponed state in
-            // development.
-            const result = await doRender({ postponed: undefined })
-            if (!result) {
-              return null
+                return toResponseCacheEntry(previousFallbackCacheEntry)
+              }
+
+              query.__nextFallback = 'true'
+
+              // We pass `undefined` as rendering a fallback isn't resumed here.
+              return doRender({ postponed: undefined })
+            },
+            {
+              routeKind: isAppPath ? RouteKind.APP_PAGE : RouteKind.PAGES,
+              incrementalCache,
+              isRoutePPREnabled,
+              isFallback: true,
             }
-            // Prevent caching this result
-            delete result.revalidate
-            return result
-          }
+          )
+
+          if (!fallbackResponse) return null
+
+          // Remove the revalidate from the response to prevent it from being
+          // used in the surrounding cache.
+          delete fallbackResponse.revalidate
+
+          return fallbackResponse
         }
       }
 
@@ -2910,6 +2924,7 @@ export default abstract class Server<
         isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
         isRoutePPREnabled,
+        isFallback: false,
       }
     )
 
