@@ -46,7 +46,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   COMPILER_NAMES,
   DEV_CLIENT_PAGES_MANIFEST,
-  DEV_MIDDLEWARE_MANIFEST,
+  DEV_CLIENT_MIDDLEWARE_MANIFEST,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../../shared/lib/constants'
 
@@ -76,6 +76,10 @@ import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
+import {
+  ModuleBuildError,
+  TurbopackInternalError,
+} from '../../dev/turbopack-utils'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -90,6 +94,7 @@ export type SetupOpts = {
   >
   nextConfig: NextConfigComplete
   port: number
+  onCleanup: (listener: () => Promise<void>) => void
 }
 
 export type ServerFields = {
@@ -127,8 +132,6 @@ async function verifyTypeScript(opts: SetupOpts) {
   }
   return usingTypeScript
 }
-
-class ModuleBuildError extends Error {}
 
 export async function propagateServerField(
   opts: SetupOpts,
@@ -840,7 +843,7 @@ async function startWatcher(opts: SetupOpts) {
   const clientPagesManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_PAGES_MANIFEST}`
   opts.fsChecker.devVirtualFsItems.add(clientPagesManifestPath)
 
-  const devMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_MIDDLEWARE_MANIFEST}`
+  const devMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_MIDDLEWARE_MANIFEST}`
   opts.fsChecker.devVirtualFsItems.add(devMiddlewareManifestPath)
 
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
@@ -972,15 +975,7 @@ async function startWatcher(opts: SetupOpts) {
               errorToLog = err
             }
 
-            if (type === 'warning') {
-              Log.warn(errorToLog)
-            } else if (type === 'app-dir') {
-              logAppDirError(errorToLog)
-            } else if (type) {
-              Log.error(`${type}:`, errorToLog)
-            } else {
-              Log.error(errorToLog)
-            }
+            logError(errorToLog, type)
             console[type === 'warning' ? 'warn' : 'error'](originalCodeFrame)
             usedOriginalStack = true
           }
@@ -993,17 +988,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     if (!usedOriginalStack) {
-      if (err instanceof ModuleBuildError) {
-        Log.error(err.message)
-      } else if (type === 'warning') {
-        Log.warn(err)
-      } else if (type === 'app-dir') {
-        logAppDirError(err)
-      } else if (type) {
-        Log.error(`${type}:`, err)
-      } else {
-        Log.error(err)
-      }
+      logError(err, type)
     }
   }
 
@@ -1022,6 +1007,27 @@ async function startWatcher(opts: SetupOpts) {
         url: requestUrl,
       })
     },
+  }
+}
+
+function logError(
+  err: unknown,
+  type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
+) {
+  if (err instanceof ModuleBuildError) {
+    // Errors that may come from issues from the user's code
+    Log.error(err.message)
+  } else if (err instanceof TurbopackInternalError) {
+    // An internal Turbopack error that has been handled by next-swc, written
+    // to disk and a simplified message shown to user on the Rust side.
+  } else if (type === 'warning') {
+    Log.warn(err)
+  } else if (type === 'app-dir') {
+    logAppDirError(err)
+  } else if (type) {
+    Log.error(`${type}:`, err)
+  } else {
+    Log.error(err)
   }
 }
 

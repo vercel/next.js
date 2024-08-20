@@ -1189,11 +1189,16 @@ export default async function build(
         }
       }
 
+      let clientRouterFilters:
+        | undefined
+        | ReturnType<typeof createClientRouterFilter>
+
       if (config.experimental.clientRouterFilter) {
         const nonInternalRedirects = (config._originalRedirects || []).filter(
           (r: any) => !r.internal
         )
-        const clientRouterFilters = createClientRouterFilter(
+
+        clientRouterFilters = createClientRouterFilter(
           appPaths,
           config.experimental.clientRouterFilterRedirects
             ? nonInternalRedirects
@@ -1365,26 +1370,34 @@ export default async function build(
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const dev = false
-        const project = await bindings.turbo.createProject({
-          projectPath: dir,
-          rootPath: config.experimental.outputFileTracingRoot || dir,
-          nextConfig: config,
-          jsConfig: await getTurbopackJsConfig(dir, config),
-          watch: false,
-          dev,
-          env: process.env as Record<string, string>,
-          defineEnv: createDefineEnv({
-            isTurbopack: true,
-            clientRouterFilters: NextBuildContext.clientRouterFilters,
-            config,
+        const project = await bindings.turbo.createProject(
+          {
+            projectPath: dir,
+            rootPath: config.outputFileTracingRoot || dir,
+            nextConfig: config,
+            jsConfig: await getTurbopackJsConfig(dir, config),
+            watch: false,
             dev,
-            distDir,
-            fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-            hasRewrites,
-            // TODO: Implement
-            middlewareMatchers: undefined,
-          }),
-        })
+            env: process.env as Record<string, string>,
+            defineEnv: createDefineEnv({
+              isTurbopack: true,
+              clientRouterFilters,
+              config,
+              dev,
+              distDir,
+              fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
+              hasRewrites,
+              // Implemented separately in Turbopack, doesn't have to be passed here.
+              middlewareMatchers: undefined,
+            }),
+            buildId: NextBuildContext.buildId!,
+            encryptionKey: NextBuildContext.encryptionKey!,
+            previewProps: NextBuildContext.previewProps!,
+          },
+          {
+            memoryLimit: config.experimental.turbo?.memoryLimit,
+          }
+        )
 
         await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
         await fs.mkdir(path.join(distDir, 'static', buildId), {
@@ -1425,13 +1438,6 @@ export default async function build(
           encryptionKey,
         })
 
-        // TODO: implement this
-        const emptyRewritesObjToBeImplemented = {
-          beforeFiles: [],
-          afterFiles: [],
-          fallback: [],
-        }
-
         const entrypointsResult = await entrypointsSubscription.next()
         if (entrypointsResult.done) {
           throw new Error('Turbopack did not return any entrypoints')
@@ -1463,7 +1469,8 @@ export default async function build(
           currentEntryIssues,
           manifestLoader,
           nextConfig: config,
-          rewrites: emptyRewritesObjToBeImplemented,
+          devRewrites: undefined,
+          productionRewrites: customRoutes.rewrites,
           logErrors: false,
         })
 
@@ -1498,7 +1505,8 @@ export default async function build(
               currentEntryIssues,
               entrypoints: currentEntrypoints,
               manifestLoader,
-              rewrites: emptyRewritesObjToBeImplemented,
+              devRewrites: undefined,
+              productionRewrites: customRoutes.rewrites,
               logErrors: false,
             })
           )
@@ -1514,7 +1522,8 @@ export default async function build(
               currentEntryIssues,
               entrypoints: currentEntrypoints,
               manifestLoader,
-              rewrites: emptyRewritesObjToBeImplemented,
+              devRewrites: undefined,
+              productionRewrites: customRoutes.rewrites,
               logErrors: false,
             })
           )
@@ -1525,15 +1534,17 @@ export default async function build(
             currentEntryIssues,
             entrypoints: currentEntrypoints,
             manifestLoader,
-            rewrites: emptyRewritesObjToBeImplemented,
+            devRewrites: undefined,
+            productionRewrites: customRoutes.rewrites,
             logErrors: false,
           })
         )
         await Promise.all(promises)
 
         await manifestLoader.writeManifests({
-          rewrites: emptyRewritesObjToBeImplemented,
-          pageEntrypoints: currentEntrypoints.page,
+          devRewrites: undefined,
+          productionRewrites: customRoutes.rewrites,
+          entrypoints: currentEntrypoints,
         })
 
         const errors: {
