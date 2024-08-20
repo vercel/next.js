@@ -460,8 +460,6 @@ export class FlightClientEntryPlugin {
     const addedClientActionEntryList: Promise<any>[] = []
     const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
 
-    // Loop to mark actions first
-
     // We need to create extra action entries that are created from the
     // client layer.
     // Start from each entry's created SSR dependency from our previous step.
@@ -470,12 +468,10 @@ export class FlightClientEntryPlugin {
     )) {
       // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
       // add aggregate them.
-      const { collectedActions: actionEntryImports } =
-        this.collectClientActionsFromDependencies({
-          compilation,
-          dependencies: ssrEntryDependencies,
-          collectUsedExportedActions: true,
-        })
+      const actionEntryImports = this.collectClientActionsFromDependencies({
+        compilation,
+        dependencies: ssrEntryDependencies,
+      })
 
       if (actionEntryImports.size > 0) {
         if (!actionMapsPerClientEntry[name]) {
@@ -532,11 +528,9 @@ export class FlightClientEntryPlugin {
   collectClientActionsFromDependencies({
     compilation,
     dependencies,
-    collectUsedExportedActions,
   }: {
     compilation: webpack.Compilation
     dependencies: ReturnType<typeof webpack.EntryPlugin.createDependency>[]
-    collectUsedExportedActions: boolean
   }) {
     // action file path -> action names
     const collectedActions = new Map<string, string[]>()
@@ -558,61 +552,46 @@ export class FlightClientEntryPlugin {
       ): void => {
         if (!mod) return
 
-        const modPath: string = mod.resourceResolveData?.path || ''
-        // We have to always use the resolved request here to make sure the
-        // server and client are using the same module path (required by RSC), as
-        // the server compiler and client compiler have different resolve configs.
-        let modRequest: string =
-          modPath + (mod.resourceResolveData?.query || '')
+        const modResource = getModuleResource(mod)
 
-        // For the barrel optimization, we need to use the match resource instead
-        // because there will be 2 modules for the same file (same resource path)
-        // but they're different modules and can't be deduped via `visitedModule`.
-        // The first module is a virtual re-export module created by the loader.
-        if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
-          modRequest = mod.matchResource + ':' + modRequest
-        }
-
-        if (!modRequest) return
+        if (!modResource) return
 
         const actions = getActionsFromBuildInfo(mod)
 
-        if (collectUsedExportedActions) {
-          if (visitedModule.has(modRequest) && actions) {
-            if (!this.usedActionsMapping[modRequest]) {
-              this.usedActionsMapping[modRequest] = new Set(ids)
-            } else {
-              ids.forEach((id) => this.usedActionsMapping[modRequest].add(id))
-            }
+        // Collect used exported actions.
+        if (visitedModule.has(modResource) && actions) {
+          if (!this.usedActionsMapping[modResource]) {
+            this.usedActionsMapping[modResource] = new Set(ids)
+          } else {
+            ids.forEach((id) => this.usedActionsMapping[modResource].add(id))
           }
         }
 
-        if (visitedModule.has(modRequest)) return
+        if (visitedModule.has(modResource)) return
 
-        visitedModule.add(modRequest)
+        visitedModule.add(modResource)
 
         if (actions) {
-          collectedActions.set(modRequest, actions)
+          collectedActions.set(modResource, actions)
         }
 
-        if (collectUsedExportedActions) {
-          getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
-            (connection: any) => {
-              let dependencyIds: string[] = []
-              const depModule = connection.dependency
-              if (depModule?.ids) {
-                dependencyIds.push(...depModule.ids)
-              } else {
-                dependencyIds = depModule.category === 'esm' ? [] : ['*']
-              }
-
-              collectActionsInDep(
-                connection.resolvedModule as webpack.NormalModule,
-                dependencyIds
-              )
+        // Collect used exported actions transversely.
+        getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
+          (connection: any) => {
+            let dependencyIds: string[] = []
+            const depModule = connection.dependency
+            if (depModule?.ids) {
+              dependencyIds.push(...depModule.ids)
+            } else {
+              dependencyIds = depModule.category === 'esm' ? [] : ['*']
             }
-          )
-        }
+
+            collectActionsInDep(
+              connection.resolvedModule as webpack.NormalModule,
+              dependencyIds
+            )
+          }
+        )
       }
 
       // Don't traverse the module graph anymore once hitting the action layer.
@@ -647,10 +626,7 @@ export class FlightClientEntryPlugin {
       }
     }
 
-    return {
-      collectedActions,
-      usedExportedActions: [],
-    }
+    return collectedActions
   }
 
   collectComponentInfoFromServerEntryDependency({
@@ -681,44 +657,24 @@ export class FlightClientEntryPlugin {
     ): void => {
       if (!mod) return
 
-      const modPath: string = mod.resourceResolveData?.path || ''
-      const modQuery = mod.resourceResolveData?.query || ''
-      // We have to always use the resolved request here to make sure the
-      // server and client are using the same module path (required by RSC), as
-      // the server compiler and client compiler have different resolve configs.
-      let modRequest: string = modPath + modQuery
+      const modResource = getModuleResource(mod)
 
-      // Context modules don't have a resource path, we use the identifier instead.
-      if (mod.constructor.name === 'ContextModule') {
-        modRequest = (mod as any)._identifier
-      }
-
-      // For the barrel optimization, we need to use the match resource instead
-      // because there will be 2 modules for the same file (same resource path)
-      // but they're different modules and can't be deduped via `visitedModule`.
-      // The first module is a virtual re-export module created by the loader.
-      if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
-        modRequest = mod.matchResource + ':' + modRequest
-      }
-
-      if (!modRequest) return
-      if (visitedOfClientComponentsTraverse.has(modRequest)) {
-        if (clientComponentImports[modRequest]) {
-          addClientImport(
-            mod,
-            modRequest,
-            clientComponentImports,
-            importedIdentifiers,
-            false
-          )
-        }
+      if (!modResource) return
+      if (visitedOfClientComponentsTraverse.has(modResource)) {
+        addClientImport(
+          mod,
+          modResource,
+          clientComponentImports,
+          importedIdentifiers,
+          false
+        )
         return
       }
-      visitedOfClientComponentsTraverse.add(modRequest)
+      visitedOfClientComponentsTraverse.add(modResource)
 
       const actions = getActionsFromBuildInfo(mod)
       if (actions) {
-        actionImports.push([modRequest, actions])
+        actionImports.push([modResource, actions])
       }
 
       if (isCSSMod(mod)) {
@@ -733,11 +689,11 @@ export class FlightClientEntryPlugin {
           if (unused) return
         }
 
-        CSSImports.add(modRequest)
+        CSSImports.add(modResource)
       } else if (isClientOrActionEntryModule(mod)) {
         addClientImport(
           mod,
-          modRequest,
+          modResource,
           clientComponentImports,
           importedIdentifiers,
           true
@@ -769,45 +725,27 @@ export class FlightClientEntryPlugin {
     ): void => {
       if (!mod) return
 
-      const modPath: string = mod.resourceResolveData?.path || ''
-      const modQuery = mod.resourceResolveData?.query || ''
-      // We have to always use the resolved request here to make sure the
-      // server and client are using the same module path (required by RSC), as
-      // the server compiler and client compiler have different resolve configs.
-      let modRequest: string = modPath + modQuery
+      const modResource = getModuleResource(mod)
 
-      // Context modules don't have a resource path, we use the identifier instead.
-      if (mod.constructor.name === 'ContextModule') {
-        modRequest = (mod as any)._identifier
-      }
-
-      // For the barrel optimization, we need to use the match resource instead
-      // because there will be 2 modules for the same file (same resource path)
-      // but they're different modules and can't be deduped via `visitedModule`.
-      // The first module is a virtual re-export module created by the loader.
-      if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
-        modRequest = mod.matchResource + ':' + modRequest
-      }
-
-      if (!modRequest) return
-      if (visitedOfActionTraverse.has(modRequest)) {
-        if (this.usedActionsMapping[modRequest]) {
+      if (!modResource) return
+      if (visitedOfActionTraverse.has(modResource)) {
+        if (this.usedActionsMapping[modResource]) {
           importedIdentifiers.forEach((id) =>
-            this.usedActionsMapping[modRequest].add(id)
+            this.usedActionsMapping[modResource].add(id)
           )
         }
         return
       }
-      visitedOfActionTraverse.add(modRequest)
+      visitedOfActionTraverse.add(modResource)
 
       if (isActionLayerEntryModule(mod)) {
         // `ids` are the identifiers that are imported from the dependency,
         // if it's present, it's an array of strings.
-        if (!this.usedActionsMapping[modRequest]) {
-          this.usedActionsMapping[modRequest] = new Set(importedIdentifiers)
+        if (!this.usedActionsMapping[modResource]) {
+          this.usedActionsMapping[modResource] = new Set(importedIdentifiers)
         } else {
           importedIdentifiers.forEach((id) =>
-            this.usedActionsMapping[modRequest].add(id)
+            this.usedActionsMapping[modResource].add(id)
           )
         }
         return
@@ -1170,11 +1108,18 @@ function addClientImport(
   modRequest: string,
   clientComponentImports: ClientComponentImports,
   importedIdentifiers: string[],
-  isFirstImport: boolean
+  isFirstVisitModule: boolean
 ) {
-  if (isFirstImport) {
+  if (isFirstVisitModule) {
+    // If it's the first time visiting the module, we should create a new set.
     if (!clientComponentImports[modRequest]) {
       clientComponentImports[modRequest] = new Set()
+    }
+  } else {
+    // If has already visited that module, and the module is not in the clientComponentImports,
+    // we should skip it.
+    if (!clientComponentImports[modRequest]) {
+      return
     }
   }
 
@@ -1191,7 +1136,7 @@ function addClientImport(
     // If there's collected import path with named import identifiers,
     // or there's nothing in collected imports are empty.
     // we should include the whole module.
-    if (!isFirstImport && [...clientImportsSet][0] !== '*') {
+    if (!isFirstVisitModule && [...clientImportsSet][0] !== '*') {
       clientComponentImports[modRequest] = new Set(['*'])
     }
   } else {
@@ -1215,4 +1160,27 @@ function addClientImport(
       }
     }
   }
+}
+
+function getModuleResource(mod: webpack.NormalModule): string {
+  const modPath: string = mod.resourceResolveData?.path || ''
+  const modQuery = mod.resourceResolveData?.query || ''
+  // We have to always use the resolved request here to make sure the
+  // server and client are using the same module path (required by RSC), as
+  // the server compiler and client compiler have different resolve configs.
+  let modResource: string = modPath + modQuery
+
+  // Context modules don't have a resource path, we use the identifier instead.
+  if (mod.constructor.name === 'ContextModule') {
+    modResource = (mod as any)._identifier
+  }
+
+  // For the barrel optimization, we need to use the match resource instead
+  // because there will be 2 modules for the same file (same resource path)
+  // but they're different modules and can't be deduped via `visitedModule`.
+  // The first module is a virtual re-export module created by the loader.
+  if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
+    modResource = mod.matchResource + ':' + modResource
+  }
+  return modResource
 }
