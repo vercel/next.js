@@ -69,6 +69,7 @@ pub struct NextConfig {
     pub cross_origin: Option<CrossOriginConfig>,
     pub dev_indicators: Option<DevIndicatorsConfig>,
     pub output: Option<OutputType>,
+    pub analytics_id: Option<String>,
 
     /// Enables the bundling of node_modules packages (externals) for pages
     /// server-side bundles.
