@@ -37,6 +37,7 @@ where
 
 /// Converted the given node to a fully aggregated node. To make the next call
 /// to `aggregation_data` instant.
+#[cfg(test)]
 pub fn prepare_aggregation_data<C: AggregationContext>(ctx: &C, node_id: &C::NodeRef) {
     let mut balance_queue = BalanceQueue::new();
     increase_aggregation_number_internal(

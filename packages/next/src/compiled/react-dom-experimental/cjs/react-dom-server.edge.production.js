@@ -4240,7 +4240,7 @@ function pingTask(request, task) {
   request.pingedTasks.push(task);
   1 === request.pingedTasks.length &&
     ((request.flushScheduled = null !== request.destination),
-    setTimeout(function () {
+    setTimeoutOrImmediate(function () {
       return performWork(request);
     }, 0));
 }
@@ -6448,22 +6448,22 @@ function flushCompletedQueues(request, destination) {
 function startWork(request) {
   request.flushScheduled = null !== request.destination;
   supportsRequestStorage
-    ? setTimeout(function () {
+    ? setTimeoutOrImmediate(function () {
         return requestStorage.run(request, performWork, request);
       }, 0)
-    : setTimeout(function () {
+    : setTimeoutOrImmediate(function () {
         return performWork(request);
       }, 0);
   null === request.trackedPostpones &&
     (supportsRequestStorage
-      ? setTimeout(function () {
+      ? setTimeoutOrImmediate(function () {
           return requestStorage.run(
             request,
             enqueueEarlyPreloadsAfterInitialWork,
             request
           );
         }, 0)
-      : setTimeout(function () {
+      : setTimeoutOrImmediate(function () {
           return enqueueEarlyPreloadsAfterInitialWork(request);
         }, 0));
 }
@@ -6475,7 +6475,7 @@ function enqueueFlush(request) {
     0 === request.pingedTasks.length &&
     null !== request.destination &&
     ((request.flushScheduled = !0),
-    setTimeout(function () {
+    setTimeoutOrImmediate(function () {
       var destination = request.destination;
       destination
         ? flushCompletedQueues(request, destination)
@@ -6572,11 +6572,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.0.0-experimental-187dd6a7-20240806" !== isomorphicReactPackageVersion)
+  if ("19.0.0-experimental-1eaccd82-20240816" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.0.0-experimental-187dd6a7-20240806\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.0.0-experimental-1eaccd82-20240816\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6780,4 +6780,15 @@ exports.resume = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.0.0-experimental-187dd6a7-20240806";
+
+// This is a patch added by Next.js
+const setTimeoutOrImmediate =
+  typeof globalThis['set' + 'Immediate'] === 'function' &&
+  // edge runtime sandbox defines a stub for setImmediate
+  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+  // but it's made non-enumerable, so we can detect it
+  globalThis.propertyIsEnumerable('setImmediate')
+    ? globalThis['set' + 'Immediate']
+    : setTimeout;
+
+exports.version = "19.0.0-experimental-1eaccd82-20240816";

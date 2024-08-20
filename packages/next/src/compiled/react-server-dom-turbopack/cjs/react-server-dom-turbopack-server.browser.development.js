@@ -11,6 +11,7 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
+    function voidHandler() {}
     function _defineProperty(obj, key, value) {
       key in obj
         ? Object.defineProperty(obj, key, {
@@ -69,6 +70,9 @@
       "function" === typeof destination.error
         ? destination.error(error)
         : destination.close();
+    }
+    function isClientReference(reference) {
+      return reference.$$typeof === CLIENT_REFERENCE_TAG$1;
     }
     function registerClientReferenceImpl(proxyImplementation, id, async) {
       return Object.defineProperties(proxyImplementation, {
@@ -202,12 +206,13 @@
         maybeIterable["@@iterator"];
       return "function" === typeof maybeIterable ? maybeIterable : null;
     }
-    function noop() {}
+    function noop$1() {}
     function trackUsedThenable(thenableState, thenable, index) {
       index = thenableState[index];
       void 0 === index
         ? thenableState.push(thenable)
-        : index !== thenable && (thenable.then(noop, noop), (thenable = index));
+        : index !== thenable &&
+          (thenable.then(noop$1, noop$1), (thenable = index));
       switch (thenable.status) {
         case "fulfilled":
           return thenable.value;
@@ -215,7 +220,7 @@
           throw thenable.reason;
         default:
           "string" === typeof thenable.status
-            ? thenable.then(noop, noop)
+            ? thenable.then(noop$1, noop$1)
             : ((thenableState = thenable),
               (thenableState.status = "pending"),
               thenableState.then(
@@ -490,7 +495,9 @@
       onPostpone,
       temporaryReferences,
       environmentName,
-      filterStackFrame
+      filterStackFrame,
+      onAllReady,
+      onFatalError
     ) {
       if (
         null !== ReactSharedInternalsServer.A &&
@@ -529,6 +536,8 @@
       this.onError = void 0 === onError ? defaultErrorHandler : onError;
       this.onPostpone =
         void 0 === onPostpone ? defaultPostponeHandler : onPostpone;
+      this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
+      this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
       this.environmentName =
         void 0 === environmentName
           ? function () {
@@ -547,6 +556,7 @@
       model = createTask(this, model, null, !1, abortSet, null);
       pingedTasks.push(model);
     }
+    function noop() {}
     function serializeThenable(request, task, thenable) {
       var newTask = createTask(
         request,
@@ -569,6 +579,8 @@
           task = thenable.reason;
           var digest = logRecoverableError(request, task, null);
           emitErrorChunk(request, newTask.id, digest, task);
+          newTask.status = 4;
+          request.abortableTasks.delete(newTask);
           return newTask.id;
         default:
           if (1 === request.status)
@@ -599,9 +611,9 @@
           pingTask(request, newTask);
         },
         function (reason) {
-          newTask.status = 4;
           var _digest = logRecoverableError(request, reason, newTask);
           emitErrorChunk(request, newTask.id, _digest, reason);
+          newTask.status = 4;
           request.abortableTasks.delete(newTask);
           enqueueFlush(request);
         }
@@ -774,6 +786,7 @@
       currentOwner = {
         name: "",
         env: task.environmentName,
+        key: null,
         owner: task.debugOwner
       };
       try {
@@ -796,6 +809,7 @@
         componentDebugInfo = {
           name: componentDebugInfo,
           env: componentEnv,
+          key: key,
           owner: task.debugOwner
         };
         outlineModel(request, componentDebugInfo);
@@ -804,23 +818,28 @@
       }
       prepareToUseHooksForComponent(prevThenableState, componentDebugInfo);
       props = callComponentInDEV(Component, props, componentDebugInfo);
-      if (1 === request.status) throw AbortSigil;
+      if (1 === request.status)
+        throw (
+          ("object" !== typeof props ||
+            null === props ||
+            "function" !== typeof props.then ||
+            isClientReference(props) ||
+            props.then(voidHandler, voidHandler),
+          null)
+        );
       if (
         "object" === typeof props &&
         null !== props &&
-        props.$$typeof !== CLIENT_REFERENCE_TAG$1
+        !isClientReference(props)
       ) {
         if ("function" === typeof props.then) {
           prevThenableState = props;
-          prevThenableState.then(
-            function (resolvedValue) {
-              "object" === typeof resolvedValue &&
-                null !== resolvedValue &&
-                resolvedValue.$$typeof === REACT_ELEMENT_TYPE &&
-                (resolvedValue._store.validated = 1);
-            },
-            function () {}
-          );
+          prevThenableState.then(function (resolvedValue) {
+            "object" === typeof resolvedValue &&
+              null !== resolvedValue &&
+              resolvedValue.$$typeof === REACT_ELEMENT_TYPE &&
+              (resolvedValue._store.validated = 1);
+          }, voidHandler);
           if ("fulfilled" === prevThenableState.status)
             return prevThenableState.value;
           props = createLazyWrapperAroundWakeable(props);
@@ -946,48 +965,48 @@
         null !== props.children &&
         jsxChildrenParents.set(props.children, type);
       if (
-        "function" === typeof type &&
-        type.$$typeof !== CLIENT_REFERENCE_TAG$1 &&
-        type.$$typeof !== TEMPORARY_REFERENCE_TAG
-      )
-        return renderFunctionComponent(request, task, key, type, props);
-      if (type === REACT_FRAGMENT_TYPE && null === key)
-        return (
-          (type = task.implicitSlot),
-          null === task.keyPath && (task.implicitSlot = !0),
-          (props = renderModelDestructive(
-            request,
-            task,
-            emptyRoot,
-            "",
-            props.children
-          )),
-          (task.implicitSlot = type),
-          props
-        );
-      if (
-        null != type &&
-        "object" === typeof type &&
-        type.$$typeof !== CLIENT_REFERENCE_TAG$1
-      )
-        switch (type.$$typeof) {
-          case REACT_LAZY_TYPE:
-            type = callLazyInitInDEV(type);
-            if (1 === request.status) throw AbortSigil;
-            return renderElement(request, task, type, key, ref, props);
-          case REACT_FORWARD_REF_TYPE:
-            return renderFunctionComponent(
+        "function" !== typeof type ||
+        isClientReference(type) ||
+        type.$$typeof === TEMPORARY_REFERENCE_TAG
+      ) {
+        if (type === REACT_FRAGMENT_TYPE && null === key)
+          return (
+            (type = task.implicitSlot),
+            null === task.keyPath && (task.implicitSlot = !0),
+            (props = renderModelDestructive(
               request,
               task,
-              key,
-              type.render,
-              props
-            );
-          case REACT_MEMO_TYPE:
-            return renderElement(request, task, type.type, key, ref, props);
-          case REACT_ELEMENT_TYPE:
-            type._store.validated = 1;
-        }
+              emptyRoot,
+              "",
+              props.children
+            )),
+            (task.implicitSlot = type),
+            props
+          );
+        if (
+          null != type &&
+          "object" === typeof type &&
+          !isClientReference(type)
+        )
+          switch (type.$$typeof) {
+            case REACT_LAZY_TYPE:
+              type = callLazyInitInDEV(type);
+              if (1 === request.status) throw null;
+              return renderElement(request, task, type, key, ref, props);
+            case REACT_FORWARD_REF_TYPE:
+              return renderFunctionComponent(
+                request,
+                task,
+                key,
+                type.render,
+                props
+              );
+            case REACT_MEMO_TYPE:
+              return renderElement(request, task, type.type, key, ref, props);
+            case REACT_ELEMENT_TYPE:
+              type._store.validated = 1;
+          }
+      } else return renderFunctionComponent(request, task, key, type, props);
       request = key;
       key = task.keyPath;
       null === request
@@ -1285,7 +1304,7 @@
             ? serializeLazyID(request.id)
             : serializeByValueID(request.id);
         }
-        if (thrownValue === AbortSigil)
+        if (1 === request.status)
           return (
             (task.status = 3),
             (task = request.fatalError),
@@ -1354,7 +1373,7 @@
           case REACT_LAZY_TYPE:
             task.thenableState = null;
             elementReference = callLazyInitInDEV(value);
-            if (1 === request.status) throw AbortSigil;
+            if (1 === request.status) throw null;
             if ((_writtenObjects = value._debugInfo)) {
               if (null === debugID) return outlineTask(request, task);
               forwardDebugInfo(request, debugID, _writtenObjects);
@@ -1371,7 +1390,7 @@
               'A React Element from an older version of React was rendered. This is not supported. It can happen if:\n- Multiple copies of the "react" package is used.\n- A library pre-bundled an old copy of "react" or "react/jsx-runtime".\n- A compiler tries to "inline" JSX instead of using the runtime.'
             );
         }
-        if (value.$$typeof === CLIENT_REFERENCE_TAG$1)
+        if (isClientReference(value))
           return serializeClientReference(
             request,
             parent,
@@ -1484,7 +1503,12 @@
               describeObjectForErrorMessage(parent, parentPropertyName)
           );
         if (isReactComponentInfo(value))
-          return { name: value.name, env: value.env, owner: value.owner };
+          return {
+            name: value.name,
+            env: value.env,
+            key: value.key,
+            owner: value.owner
+          };
         if ("Object" !== objectName(value))
           callWithDebugContextInDEV(request, task, function () {
             console.error(
@@ -1526,7 +1550,7 @@
       if ("number" === typeof value) return serializeNumber(value);
       if ("undefined" === typeof value) return "$undefined";
       if ("function" === typeof value) {
-        if (value.$$typeof === CLIENT_REFERENCE_TAG$1)
+        if (isClientReference(value))
           return serializeClientReference(
             request,
             parent,
@@ -1618,6 +1642,8 @@
       return errorDigest || "";
     }
     function fatalError(request, error) {
+      var onFatalError = request.onFatalError;
+      onFatalError(error);
       null !== request.destination
         ? ((request.status = CLOSED),
           closeWithError(request.destination, error))
@@ -1763,7 +1789,7 @@
       var originalValue = parent[parentPropertyName];
       if (null === value) return null;
       if ("object" === typeof value) {
-        if (value.$$typeof === CLIENT_REFERENCE_TAG$1)
+        if (isClientReference(value))
           return serializeClientReference(
             request,
             parent,
@@ -1858,6 +1884,7 @@
                                                   ? {
                                                       name: value.name,
                                                       env: value.env,
+                                                      key: value.key,
                                                       owner: value.owner
                                                     }
                                                   : value;
@@ -1874,7 +1901,7 @@
       if ("number" === typeof value) return serializeNumber(value);
       if ("undefined" === typeof value) return "$undefined";
       if ("function" === typeof value)
-        return value.$$typeof === CLIENT_REFERENCE_TAG$1
+        return isClientReference(value)
           ? serializeClientReference(request, parent, parentPropertyName, value)
           : void 0 !== request.temporaryReferences &&
               ((request = request.temporaryReferences.get(value)),
@@ -2012,7 +2039,7 @@
               var ping = task.ping;
               x.then(ping, ping);
             }
-          else if (x === AbortSigil) {
+          else if (1 === request.status) {
             request.abortableTasks.delete(task);
             task.status = 3;
             var _model = stringify(serializeByValueID(request.fatalError));
@@ -2049,6 +2076,10 @@
           retryTask(request, pingedTasks[i]);
         null !== request.destination &&
           flushCompletedChunks(request, request.destination);
+        if (0 === request.abortableTasks.size) {
+          var onAllReady = request.onAllReady;
+          onAllReady();
+        }
       } catch (error) {
         logRecoverableError(request, error, null), fatalError(request, error);
       } finally {
@@ -2139,7 +2170,7 @@
     }
     function abort(request, reason) {
       try {
-        request.status = 1;
+        0 === request.status && (request.status = 1);
         var abortableTasks = request.abortableTasks;
         if (0 < abortableTasks.size) {
           request.pendingChunks++;
@@ -3251,7 +3282,7 @@
             }
             usable.$$typeof === REACT_CONTEXT_TYPE && unsupportedContext();
           }
-          if (usable.$$typeof === CLIENT_REFERENCE_TAG$1) {
+          if (isClientReference(usable)) {
             if (
               null != usable.value &&
               usable.value.$$typeof === REACT_CONTEXT_TYPE
@@ -3326,7 +3357,6 @@
       CLIENT_REFERENCE_TAG = Symbol.for("react.client.reference"),
       ObjectPrototype = Object.prototype,
       stringify = JSON.stringify,
-      AbortSigil = {},
       CLOSED = 3,
       currentRequest = null,
       debugID = null,
@@ -3455,7 +3485,9 @@
         options ? options.onPostpone : void 0,
         options ? options.temporaryReferences : void 0,
         options ? options.environmentName : void 0,
-        options ? options.filterStackFrame : void 0
+        options ? options.filterStackFrame : void 0,
+        void 0,
+        void 0
       );
       if (options && options.signal) {
         var signal = options.signal;
