@@ -1618,46 +1618,6 @@ importers:
         specifier: ^5.1.2
         version: 5.1.6(@babel/core@7.22.5)(react@18.2.0)
 
-  turbopack/packages/devlow-bench:
-    dependencies:
-      '@datadog/datadog-api-client':
-        specifier: ^1.13.0
-        version: 1.27.0
-      inquirer:
-        specifier: ^9.2.7
-        version: 9.3.6
-      minimist:
-        specifier: ^1.2.8
-        version: 1.2.8
-      picocolors:
-        specifier: 1.0.1
-        version: 1.0.1
-      pidusage-tree:
-        specifier: ^2.0.5
-        version: 2.0.5
-      playwright-chromium:
-        specifier: ^1.39.0
-        version: 1.41.2
-      split2:
-        specifier: ^4.2.0
-        version: 4.2.0
-      tree-kill:
-        specifier: ^1.2.2
-        version: 1.2.2
-    devDependencies:
-      '@types/inquirer':
-        specifier: ^9.0.3
-        version: 9.0.7
-      '@types/minimist':
-        specifier: ^1.2.2
-        version: 1.2.5
-      '@types/node':
-        specifier: 20.2.5
-        version: 20.2.5
-      '@types/split2':
-        specifier: ^4.2.0
-        version: 4.2.3
-
   turbopack/packages/node-module-trace: {}
 
   turbopack/packages/turbo-tracing-next-plugin:
