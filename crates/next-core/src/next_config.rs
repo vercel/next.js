@@ -504,7 +504,7 @@ pub struct ExperimentalConfig {
     output_file_tracing_root: Option<RcStr>,
     /// Using this feature will enable the `react@experimental` for the `app`
     /// directory.
-    ppr: Option<ExperimentalPartialPrerendering>,
+    ppr: Option<bool>,
     taint: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
@@ -526,49 +526,6 @@ pub struct ExperimentalConfig {
     worker_threads: Option<bool>,
 
     tree_shaking: Option<bool>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
-#[serde(rename_all = "lowercase")]
-pub enum ExperimentalPartialPrerenderingIncrementalValue {
-    Incremental,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
-#[serde(untagged)]
-pub enum ExperimentalPartialPrerendering {
-    Incremental(ExperimentalPartialPrerenderingIncrementalValue),
-    Boolean(bool),
-}
-
-#[test]
-fn test_parse_experimental_partial_prerendering() {
-    let json = serde_json::json!({
-        "ppr": "incremental"
-    });
-    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
-    assert_eq!(
-        config.ppr,
-        Some(ExperimentalPartialPrerendering::Incremental(
-            ExperimentalPartialPrerenderingIncrementalValue::Incremental
-        ))
-    );
-
-    let json = serde_json::json!({
-        "ppr": true
-    });
-    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
-    assert_eq!(
-        config.ppr,
-        Some(ExperimentalPartialPrerendering::Boolean(true))
-    );
-
-    // Expect if we provide a random string, it will fail.
-    let json = serde_json::json!({
-        "ppr": "random"
-    });
-    let config = serde_json::from_value::<ExperimentalConfig>(json);
-    assert!(config.is_err());
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -1003,19 +960,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub async fn enable_ppr(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?
-                .experimental
-                .ppr
-                .as_ref()
-                .map(|ppr| match ppr {
-                    ExperimentalPartialPrerendering::Incremental(
-                        ExperimentalPartialPrerenderingIncrementalValue::Incremental,
-                    ) => true,
-                    ExperimentalPartialPrerendering::Boolean(b) => *b,
-                })
-                .unwrap_or(false),
-        ))
+        Ok(Vc::cell(self.await?.experimental.ppr.unwrap_or(false)))
     }
 
     #[turbo_tasks::function]

@@ -69,7 +69,6 @@ pub struct NextSegmentConfig {
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<Vec<RcStr>>,
-    pub experimental_ppr: Option<bool>,
     /// Wether these metadata exports are defined in the source file.
     pub generate_image_metadata: bool,
     pub generate_sitemaps: bool,
@@ -94,7 +93,6 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
-            experimental_ppr,
             ..
         } = self;
         *dynamic = dynamic.or(parent.dynamic);
@@ -103,7 +101,6 @@ impl NextSegmentConfig {
         *fetch_cache = fetch_cache.or(parent.fetch_cache);
         *runtime = runtime.or(parent.runtime);
         *preferred_region = preferred_region.take().or(parent.preferred_region.clone());
-        *experimental_ppr = experimental_ppr.or(parent.experimental_ppr);
     }
 
     /// Applies a config from a paralllel route to this config, returning an
@@ -137,7 +134,6 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
-            experimental_ppr,
             ..
         } = self;
         merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
@@ -153,11 +149,6 @@ impl NextSegmentConfig {
             preferred_region,
             &parallel_config.preferred_region,
             "referredRegion",
-        )?;
-        merge_parallel(
-            experimental_ppr,
-            &parallel_config.experimental_ppr,
-            "experimental_ppr",
         )?;
         Ok(())
     }
@@ -453,15 +444,6 @@ fn parse_config_value(
         }
         "generateSitemaps" => {
             config.generate_sitemaps = true;
-        }
-        "experimental_ppr" => {
-            let value = eval_context.eval(init);
-            let Some(val) = value.as_bool() else {
-                invalid_config("`experimental_ppr` needs to be a static boolean", &value);
-                return;
-            };
-
-            config.experimental_ppr = Some(val);
         }
         _ => {}
     }
