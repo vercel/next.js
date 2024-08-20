@@ -17,7 +17,7 @@ pub mod util;
 
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap},
     mem::take,
     sync::Arc,
 };
@@ -363,13 +363,26 @@ struct AnalysisState<'a> {
 }
 
 impl<'a> AnalysisState<'a> {
-    async fn link_value(&self, value: JsValue) -> Result<JsValue> {
+    /// Links a value to the graph, returning the linked value.
+    ///
+    /// * `in_try` is true if the value is in a try block.
+    /// * `ignore` is true if the value is ignored. This is perhaps the case when the webpackIgnore
+    ///   or turbopackIgnore directives are present.
+    async fn link_value(&self, value: JsValue, ignore: bool) -> Result<JsValue> {
         let fun_args_values = self.fun_args_values.lock().clone();
         link(
             self.var_graph,
             value.clone(),
             &early_value_visitor,
-            &|value| value_visitor(self.origin, value, self.compile_time_info, self.var_graph),
+            &|value| {
+                value_visitor(
+                    self.origin,
+                    value,
+                    self.compile_time_info,
+                    self.var_graph,
+                    ignore,
+                )
+            },
             fun_args_values,
         )
         .await
@@ -393,13 +406,12 @@ where
 pub(crate) async fn analyse_ecmascript_module(
     module: Vc<EcmascriptModuleAsset>,
     part: Option<Vc<ModulePart>>,
-    ignored_spans: Option<Vc<HashSet<Span>>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let span = {
         let module = module.ident().to_string().await?.to_string();
         tracing::info_span!("analyse ecmascript module", module = module)
     };
-    let result = analyse_ecmascript_module_internal(module, part, ignored_spans)
+    let result = analyse_ecmascript_module_internal(module, part)
         .instrument(span)
         .await;
 
@@ -415,7 +427,6 @@ pub(crate) async fn analyse_ecmascript_module(
 pub(crate) async fn analyse_ecmascript_module_internal(
     module: Vc<EcmascriptModuleAsset>,
     part: Option<Vc<ModulePart>>,
-    _webpack_ignored_effects: Option<Vc<HashSet<Span>>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let raw_module = module.await?;
 
@@ -643,6 +654,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
             },
             import_externals,
+            false,
         );
 
         import_references.push(r);
@@ -912,7 +924,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span: _,
                 in_try: _,
             } => {
-                let condition = analysis_state.link_value(condition).await?;
+                let condition = analysis_state.link_value(condition, false).await?;
 
                 macro_rules! inactive {
                     ($block:ident) => {
@@ -1059,7 +1071,13 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         continue;
                     }
                 }
-                let func = analysis_state.link_value(func).await?;
+
+                let func = analysis_state
+                    .link_value(
+                        func,
+                        eval_context.imports.get_ignore(span).unwrap_or_default(),
+                    )
+                    .await?;
 
                 handle_call(
                     &ast_path,
@@ -1087,8 +1105,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         continue;
                     }
                 }
-                let mut obj = analysis_state.link_value(obj).await?;
-                let prop = analysis_state.link_value(prop).await?;
+                let mut obj = analysis_state.link_value(obj, false).await?;
+                let prop = analysis_state.link_value(prop, false).await?;
 
                 if let JsValue::Array {
                     items: ref mut values,
@@ -1098,7 +1116,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 {
                     if matches!(prop.as_str(), Some("map" | "forEach" | "filter")) {
                         if let [EffectArg::Closure(value, block)] = &mut args[..] {
-                            *value = analysis_state.link_value(take(value)).await?;
+                            *value = analysis_state.link_value(take(value), false).await?;
                             if let JsValue::Function(_, func_ident, _) = value {
                                 let mut closure_arg = JsValue::alternatives(take(values));
                                 if mutable {
@@ -1122,7 +1140,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
 
                 let func = analysis_state
-                    .link_value(JsValue::member(Box::new(obj.clone()), Box::new(prop)))
+                    .link_value(
+                        JsValue::member(Box::new(obj.clone()), Box::new(prop)),
+                        false,
+                    )
                     .await?;
 
                 handle_call(
@@ -1153,8 +1174,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span,
                 in_try: _,
             } => {
-                let obj = analysis_state.link_value(obj).await?;
-                let prop = analysis_state.link_value(prop).await?;
+                let obj = analysis_state.link_value(obj, false).await?;
+                let prop = analysis_state.link_value(prop, false).await?;
 
                 handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis).await?;
             }
@@ -1181,7 +1202,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 ast_path,
                 span,
             } => {
-                let arg = analysis_state.link_value(arg).await?;
+                let arg = analysis_state.link_value(arg, false).await?;
                 handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
             }
             Effect::ImportMeta {
@@ -1278,7 +1299,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             JsValue::unknown_empty(true, "spread is not supported yet")
                         }
                     };
-                    state.link_value(value).await
+                    state.link_value(value, false).await
                 }
             })
             .try_join()
@@ -1305,7 +1326,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 .await?;
             }
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::Import) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::Import { ignore }) => {
             let args = linked_args(args).await?;
             if args.len() == 1 {
                 let pat = js_value_to_pattern(&args[0]);
@@ -1332,6 +1353,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     issue_source(source, span),
                     in_try,
                     state.import_externals,
+                    ignore,
                 ));
                 return Ok(());
             }
@@ -1344,7 +1366,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::Require) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::Require { ignore }) => {
             let args = linked_args(args).await?;
             if args.len() == 1 {
                 let pat = js_value_to_pattern(&args[0]);
@@ -1368,6 +1390,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     Vc::cell(ast_path.to_vec()),
                     issue_source(source, span),
                     in_try,
+                    ignore,
                 ));
                 return Ok(());
             }
@@ -1415,6 +1438,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     Vc::cell(ast_path.to_vec()),
                     issue_source(source, span),
                     in_try,
+                    false,
                 ));
                 return Ok(());
             }
@@ -1493,14 +1517,17 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let args = linked_args(args).await?;
 
             let linked_func_call = state
-                .link_value(JsValue::call(
-                    Box::new(JsValue::WellKnownFunction(
-                        WellKnownFunctionKind::PathResolve(Box::new(
-                            parent_path.path.as_str().into(),
+                .link_value(
+                    JsValue::call(
+                        Box::new(JsValue::WellKnownFunction(
+                            WellKnownFunctionKind::PathResolve(Box::new(
+                                parent_path.path.as_str().into(),
+                            )),
                         )),
-                    )),
-                    args.clone(),
-                ))
+                        args.clone(),
+                    ),
+                    false,
+                )
                 .await?;
 
             let pat = js_value_to_pattern(&linked_func_call);
@@ -1529,10 +1556,13 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             }
             let args = linked_args(args).await?;
             let linked_func_call = state
-                .link_value(JsValue::call(
-                    Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)),
-                    args.clone(),
-                ))
+                .link_value(
+                    JsValue::call(
+                        Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)),
+                        args.clone(),
+                    ),
+                    false,
+                )
                 .await?;
             let pat = js_value_to_pattern(&linked_func_call);
             if !pat.has_constant_parts() {
@@ -1565,7 +1595,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 if pat.is_match_ignore_dynamic("node") && args.len() >= 2 {
                     let first_arg =
                         JsValue::member(Box::new(args[1].clone()), Box::new(0_f64.into()));
-                    let first_arg = state.link_value(first_arg).await?;
+                    let first_arg = state.link_value(first_arg, false).await?;
                     let pat = js_value_to_pattern(&first_arg);
                     let dynamic = !pat.has_constant_parts();
                     if dynamic {
@@ -1686,7 +1716,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
 
             let args = linked_args(args).await?;
             if args.len() == 1 {
-                let first_arg = state.link_value(args[0].clone()).await?;
+                let first_arg = state.link_value(args[0].clone(), false).await?;
                 if let Some(s) = first_arg.as_str() {
                     // TODO this resolving should happen within Vc<NodeGypBuildReference>
                     let current_context = origin
@@ -1716,7 +1746,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
 
             let args = linked_args(args).await?;
             if args.len() == 1 {
-                let first_arg = state.link_value(args[0].clone()).await?;
+                let first_arg = state.link_value(args[0].clone(), false).await?;
                 if let Some(s) = first_arg.as_str() {
                     analysis
                         .add_reference(NodeBindingsReference::new(origin.origin_path(), s.into()));
@@ -1757,15 +1787,18 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                     pat
                                 } else {
                                     let linked_func_call = state
-                                        .link_value(JsValue::call(
-                                            Box::new(JsValue::WellKnownFunction(
-                                                WellKnownFunctionKind::PathJoin,
-                                            )),
-                                            vec![
-                                                JsValue::FreeVar("__dirname".into()),
-                                                pkg_or_dir.clone(),
-                                            ],
-                                        ))
+                                        .link_value(
+                                            JsValue::call(
+                                                Box::new(JsValue::WellKnownFunction(
+                                                    WellKnownFunctionKind::PathJoin,
+                                                )),
+                                                vec![
+                                                    JsValue::FreeVar("__dirname".into()),
+                                                    pkg_or_dir.clone(),
+                                                ],
+                                            ),
+                                            false,
+                                        )
                                         .await?;
                                     js_value_to_pattern(&linked_func_call)
                                 };
@@ -1810,14 +1843,19 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     Pattern::Constant(format!("{p}/intl").into())
                 } else {
                     let linked_func_call = state
-                        .link_value(JsValue::call(
-                            Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)),
-                            vec![
-                                JsValue::FreeVar("__dirname".into()),
-                                p.into(),
-                                "intl".into(),
-                            ],
-                        ))
+                        .link_value(
+                            JsValue::call(
+                                Box::new(JsValue::WellKnownFunction(
+                                    WellKnownFunctionKind::PathJoin,
+                                )),
+                                vec![
+                                    JsValue::FreeVar("__dirname".into()),
+                                    p.into(),
+                                    "intl".into(),
+                                ],
+                            ),
+                            false,
+                        )
                         .await?;
                     js_value_to_pattern(&linked_func_call)
                 };
@@ -1940,9 +1978,10 @@ async fn handle_member(
         }
     }
     match (obj, prop) {
-        (JsValue::WellKnownFunction(WellKnownFunctionKind::Require), JsValue::Constant(s))
-            if s.as_str() == Some("cache") =>
-        {
+        (
+            JsValue::WellKnownFunction(WellKnownFunctionKind::Require { .. }),
+            JsValue::Constant(s),
+        ) if s.as_str() == Some("cache") => {
             analysis.add_code_gen(
                 CjsRequireCacheAccess {
                     path: Vc::cell(ast_path.to_vec()),
@@ -2064,6 +2103,7 @@ async fn handle_free_var_reference(
                     None => None,
                 },
                 state.import_externals,
+                true,
             )
             .resolve()
             .await?;
@@ -2287,8 +2327,10 @@ async fn value_visitor(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     var_graph: &VarGraph,
+    ignore: bool,
 ) -> Result<(JsValue, bool)> {
-    let (mut v, modified) = value_visitor_inner(origin, v, compile_time_info, var_graph).await?;
+    let (mut v, modified) =
+        value_visitor_inner(origin, v, compile_time_info, var_graph, ignore).await?;
     v.normalize_shallow();
     Ok((v, modified))
 }
@@ -2298,6 +2340,7 @@ async fn value_visitor_inner(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     var_graph: &VarGraph,
+    ignore: bool,
 ) -> Result<(JsValue, bool)> {
     // This check is just an optimization
     if v.get_defineable_name_len().is_some() {
@@ -2347,9 +2390,9 @@ async fn value_visitor_inner(
             "__dirname" => as_abs_path(origin.origin_path().parent()).await?,
             "__filename" => as_abs_path(origin.origin_path()).await?,
 
-            "require" => JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
+            "require" => JsValue::WellKnownFunction(WellKnownFunctionKind::Require { ignore }),
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
-            "import" => JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
+            "import" => JsValue::WellKnownFunction(WellKnownFunctionKind::Import { ignore }),
             "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
@@ -2518,6 +2561,8 @@ impl StaticAnalyser {
     }
 }
 
+/// A visitor that walks the AST and collects information about the various
+/// references a module makes to other parts of the code.
 struct ModuleReferencesVisitor<'a> {
     eval_context: &'a EvalContext,
     old_analyser: StaticAnalyser,

@@ -182,7 +182,13 @@ impl CompilerReference {
 impl ModuleReference for CompilerReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(self.origin, self.request, None, IssueSeverity::Error.cell())
+        cjs_resolve(
+            self.origin,
+            self.request,
+            None,
+            IssueSeverity::Error.cell(),
+            false,
+        )
     }
 }
 
@@ -251,7 +257,13 @@ impl TsNodeRequireReference {
 impl ModuleReference for TsNodeRequireReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(self.origin, self.request, None, IssueSeverity::Error.cell())
+        cjs_resolve(
+            self.origin,
+            self.request,
+            None,
+            IssueSeverity::Error.cell(),
+            false,
+        )
     }
 }
 

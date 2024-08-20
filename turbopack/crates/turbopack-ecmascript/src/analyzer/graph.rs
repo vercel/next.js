@@ -1242,7 +1242,13 @@ impl VisitAstPath for Analyzer<'_> {
                 if let Some(require_var_id) = extract_var_from_umd_factory(callee, &n.args) {
                     self.add_value(
                         require_var_id,
-                        JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
+                        JsValue::WellKnownFunction(WellKnownFunctionKind::Require {
+                            ignore: self
+                                .eval_context
+                                .imports
+                                .get_ignore(n.callee.span())
+                                .unwrap_or_default(),
+                        }),
                     );
                 }
             }
