@@ -162,7 +162,6 @@ export default class DevServer extends Server {
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
-    this.storeGlobals()
     this.renderOpts.dev = true
     this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache({
@@ -293,9 +292,6 @@ export default class DevServer extends Server {
 
     await super.prepareImpl()
     await this.matchers.reload()
-
-    // Store globals again to preserve changes made by the instrumentation hook.
-    this.storeGlobals()
 
     this.ready?.resolve()
     this.ready = undefined
@@ -825,14 +821,6 @@ export default class DevServer extends Server {
     return nextInvoke as NonNullable<typeof result>
   }
 
-  private storeGlobals(): void {
-    this.originalFetch = global.fetch
-  }
-
-  private restorePatchedGlobals(): void {
-    global.fetch = this.originalFetch ?? global.fetch
-  }
-
   protected async ensurePage(opts: {
     page: string
     clientOnly: boolean
@@ -880,11 +868,6 @@ export default class DevServer extends Server {
       }
 
       this.nextFontManifest = super.getNextFontManifest()
-      // before we re-evaluate a route module, we want to restore globals that might
-      // have been patched previously to their original state so that we don't
-      // patch on top of the previous patch, which would keep the context of the previous
-      // patched global in memory, creating a memory leak.
-      this.restorePatchedGlobals()
 
       return await super.findPageComponents({
         page,
