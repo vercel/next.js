@@ -397,6 +397,7 @@ pub struct ExperimentalTurboConfig {
     pub loaders: Option<JsonValue>,
     pub rules: Option<IndexMap<RcStr, RuleConfigItemOrShortcut>>,
     pub resolve_alias: Option<IndexMap<RcStr, JsonValue>>,
+    pub resolve_extensions: Option<Vec<RcStr>>,
     pub use_swc_css: Option<bool>,
     pub tree_shaking: Option<bool>,
 }
@@ -940,10 +941,20 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn resolve_extension(self: Vc<Self>) -> Result<Vc<ResolveExtensions>> {
         let this = self.await?;
-        let Some(resolve_extensions) = this.experimental.resolve_extensions.as_ref() else {
-            return Ok(Vc::cell(None));
-        };
-        Ok(Vc::cell(Some(resolve_extensions.clone())))
+
+        if let Some(resolve_extensions) = this.experimental.resolve_extensions.as_ref() {
+            return Ok(Vc::cell(Some(resolve_extensions.clone())));
+        } else if let Some(turbo_resolve_extensions) = this
+            .experimental
+            .turbo
+            .as_ref()
+            .and_then(|t| t.resolve_extensions.as_ref())
+        {
+            println!("Warning: 'experimental.turbo.resolveExtensions' is deprecated. Please use 'experimental.resolveExtensions' instead. See https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions");
+            return Ok(Vc::cell(Some(turbo_resolve_extensions.clone())));
+        }
+
+        Ok(Vc::cell(None))
     }
 
     #[turbo_tasks::function]
