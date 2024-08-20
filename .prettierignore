@@ -4,7 +4,6 @@
 _next/
 __tmp__/
 dist/
-node_modules/
 target/
 compiled/
 
