@@ -153,6 +153,11 @@ export interface ExperimentalTurboOptions {
    * A target memory limit for turbo, in bytes.
    */
   memoryLimit?: number
+
+  /**
+   * Enable tree shaking for the turbopack dev server and build.
+   */
+  treeShaking?: boolean
 }
 
 export interface WebpackConfigContext {
