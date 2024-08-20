@@ -25,8 +25,8 @@ impl EcmascriptClientReferenceModule {
     ///
     /// # Arguments
     ///
-    /// * `server_ident` - The identifier of the server module, used to identify
-    ///   the client reference.
+    /// * `server_ident` - The identifier of the server module, used to identify the client
+    ///   reference.
     /// * `client_module` - The client module.
     /// * `ssr_module` - The SSR module.
     #[turbo_tasks::function]

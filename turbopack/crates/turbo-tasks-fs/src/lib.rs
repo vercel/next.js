@@ -282,10 +282,9 @@ impl DiskFileSystem {
     ///
     /// * `name` - Name of the filesystem.
     /// * `root` - Path to the given filesystem's root.
-    /// * `ignored_subpaths` - A list of subpaths that should not trigger
-    ///   invalidation. This should be a full path, since it is possible that
-    ///   root & project dir is different and requires to ignore specific
-    ///   subpaths from each.
+    /// * `ignored_subpaths` - A list of subpaths that should not trigger invalidation. This should
+    ///   be a full path, since it is possible that root & project dir is different and requires to
+    ///   ignore specific subpaths from each.
     #[turbo_tasks::function]
     pub async fn new(name: RcStr, root: RcStr, ignored_subpaths: Vec<RcStr>) -> Result<Vc<Self>> {
         mark_stateful();
@@ -1043,8 +1042,7 @@ impl FileSystemPath {
     ///
     /// * [`None`], if there is no file name;
     /// * The entire file name if there is no embedded `.`;
-    /// * The entire file name if the file name begins with `.` and has no other
-    ///   `.`s within;
+    /// * The entire file name if the file name begins with `.` and has no other `.`s within;
     /// * Otherwise, the portion of the file name before the final `.`
     #[turbo_tasks::function]
     pub async fn file_stem(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
