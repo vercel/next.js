@@ -71,18 +71,6 @@ pub struct NextConfig {
     pub output: Option<OutputType>,
     pub analytics_id: Option<String>,
 
-    /// Enables the bundling of node_modules packages (externals) for pages
-    /// server-side bundles.
-    ///
-    /// [API Reference](https://nextjs.org/docs/pages/api-reference/next-config-js/bundlePagesRouterDependencies)
-    pub bundle_pages_router_dependencies: Option<bool>,
-
-    /// A list of packages that should be treated as external on the server
-    /// build.
-    ///
-    /// [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages)
-    pub server_external_packages: Option<Vec<RcStr>>,
-
     #[serde(rename = "_originalRedirects")]
     pub original_redirects: Option<Vec<Redirect>>,
 
@@ -455,6 +443,10 @@ pub struct ExperimentalConfig {
     /// For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
     /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs)
     mdx_rs: Option<MdxRsOptions>,
+    /// A list of packages that should be treated as external in the RSC server
+    /// build. @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/server_components_external_packages)
+    pub server_components_external_packages: Option<Vec<RcStr>>,
+    pub bundle_pages_externals: Option<bool>,
     pub strict_next_head: Option<bool>,
     pub swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
     pub turbo: Option<ExperimentalTurboConfig>,
@@ -740,8 +732,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn bundle_pages_router_dependencies(&self) -> Vc<bool> {
-        Vc::cell(self.bundle_pages_router_dependencies.unwrap_or_default())
+    pub fn bundle_pages_externals(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.bundle_pages_externals.unwrap_or_default())
     }
 
     #[turbo_tasks::function]
@@ -750,10 +742,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn server_external_packages(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
+    pub async fn server_component_externals(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         Ok(Vc::cell(
             self.await?
-                .server_external_packages
+                .experimental
+                .server_components_external_packages
                 .as_ref()
                 .cloned()
                 .unwrap_or_default(),

@@ -153,11 +153,11 @@ pub async fn get_server_resolve_options_context(
             .cloned(),
     );
 
-    let server_external_packages = &*next_config.server_external_packages().await?;
+    let server_component_externals = &*next_config.server_component_externals().await?;
 
     let conflicting_packages = transpiled_packages
         .iter()
-        .filter(|package| server_external_packages.contains(package))
+        .filter(|package| server_component_externals.contains(package))
         .collect::<Vec<_>>();
 
     if !conflicting_packages.is_empty() {
@@ -169,13 +169,13 @@ pub async fn get_server_resolve_options_context(
     }
 
     // Add the config's own list of external packages.
-    external_packages.extend(server_external_packages.iter().cloned());
+    external_packages.extend(server_component_externals.iter().cloned());
 
     external_packages.retain(|item| !transpiled_packages.contains(item));
 
     let ty = ty.into_value();
 
-    let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
+    let server_component_externals_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
@@ -196,8 +196,8 @@ pub async fn get_server_resolve_options_context(
         custom_conditions.push("react-server".into());
     };
 
-    let external_cjs_modules_plugin = if *next_config.bundle_pages_router_dependencies().await? {
-        server_external_packages_plugin
+    let external_cjs_modules_plugin = if *next_config.bundle_pages_externals().await? {
+        server_component_externals_plugin
     } else {
         ExternalCjsModulesResolvePlugin::new(
             project_path,
@@ -244,7 +244,7 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRoute { .. } => {
             vec![
                 Vc::upcast(next_node_shared_runtime_plugin),
-                Vc::upcast(server_external_packages_plugin),
+                Vc::upcast(server_component_externals_plugin),
                 Vc::upcast(next_external_plugin),
             ]
         }
@@ -254,7 +254,7 @@ pub async fn get_server_resolve_options_context(
         ServerContextType::Instrumentation { .. } => {
             vec![
                 Vc::upcast(next_node_shared_runtime_plugin),
-                Vc::upcast(server_external_packages_plugin),
+                Vc::upcast(server_component_externals_plugin),
                 Vc::upcast(next_external_plugin),
             ]
         }
