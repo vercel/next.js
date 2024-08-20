@@ -15,9 +15,9 @@ describe('next/swc', () => {
     it('should leave alone array destructuring of hooks', async () => {
       const output = await swc(
         trim`
-        import { useState } from 'react';
-        const [count, setCount] = useState(0);
-      `
+          import { useState } from "react";
+          const [count, setCount] = useState(0);
+        `
       )
 
       expect(output).toMatchInlineSnapshot(`
@@ -76,9 +76,9 @@ describe('next/swc', () => {
     it('should leave alone array spread of hooks', async () => {
       const output = await swc(
         trim`
-        import { useState } from 'react';
-        const [...copy] = useState(0);
-      `
+          import { useState } from "react";
+          const [...copy] = useState(0);
+        `
       )
 
       expect(output).toMatchInlineSnapshot(`

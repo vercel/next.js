@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/app/index.js"],"sourcesContent":["import MyApp from \"component\";\nimport ThirdPartyComponent from \"third_party_component\";\n\nconsole.log(MyApp, ThirdPartyComponent);\n"],"names":[],"mappings":";;;;;;AAGA,QAAQ,GAAG,CAAC,4OAAA,CAAA,UAAK,EAAE,wPAAA,CAAA,UAAmB"}},
+    {"offset": {"line": 12, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/node_modules/component/index.js"],"sourcesContent":["export default function MyApp() {\n  return <div>App</div>;\n}\n"],"names":[],"mappings":";;;AAAe,SAAS;IACtB,QAAQ,IAAI,GAAG,EAAE;AACnB"}},
+    {"offset": {"line": 23, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 28, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/node_modules/third_party_component/index.js"],"sourcesContent":["export default function ThirdPartyComponent() {\n  return <div>Should not be transformed</div>;\n}\n"],"names":[],"mappings":";;;AAAe,SAAS;IACtB,QAAQ,IAAI,yBAAyB,EAAE;AACzC"}},
+    {"offset": {"line": 34, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
