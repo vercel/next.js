@@ -1030,28 +1030,29 @@ export async function handlePagesErrorRoute({
   })
 }
 
+export function removeRouteSuffix(route: string): string {
+  return route.replace(/\/route$/, '')
+}
+
+export function addRouteSuffix(route: string): string {
+  return route + '/route'
+}
+
+export function addMetadataIdToRoute(route: string): string {
+  return route + '/[__metadata_id__]'
+}
+
 // Since turbopack will create app pages/route entries based on the structure,
 // which means the entry keys are based on file names.
 // But for special metadata conventions we'll change the page/pathname to a different path.
 // So we need this helper to map the new path back to original turbopack entry key.
-export function normalizedPageToTurbopackStructureRoute(
-  route: string,
-  ext: string | false
-): string {
+export function normalizedPageToTurbopackStructureRoute(route: string): string {
   let entrypointKey = route
   if (isMetadataRoute(entrypointKey)) {
-    entrypointKey = entrypointKey.endsWith('/route')
-      ? entrypointKey.slice(0, -'/route'.length)
-      : entrypointKey
+    entrypointKey = removeRouteSuffix(entrypointKey)
 
-    if (ext) {
-      if (entrypointKey.endsWith('/[__metadata_id__]')) {
-        entrypointKey = entrypointKey.slice(0, -'/[__metadata_id__]'.length)
-      }
-      if (entrypointKey.endsWith('/sitemap.xml') && ext !== '.xml') {
-        // For dynamic sitemap route, remove the extension
-        entrypointKey = entrypointKey.slice(0, -'.xml'.length)
-      }
+    if (entrypointKey.endsWith('/[__metadata_id__]')) {
+      entrypointKey = entrypointKey.slice(0, -'/[__metadata_id__]'.length)
     }
     entrypointKey = entrypointKey + '/route'
   }
