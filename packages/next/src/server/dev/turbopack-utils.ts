@@ -1030,6 +1030,18 @@ export async function handlePagesErrorRoute({
   })
 }
 
+export function removeRouteSuffix(route: string): string {
+  return route.replace(/\/route$/, '')
+}
+
+export function addRouteSuffix(route: string): string {
+  return route + '/route'
+}
+
+export function addMetadataIdToRoute(route: string): string {
+  return route + '/[__metadata_id__]'
+}
+
 // Since turbopack will create app pages/route entries based on the structure,
 // which means the entry keys are based on file names.
 // But for special metadata conventions we'll change the page/pathname to a different path.
