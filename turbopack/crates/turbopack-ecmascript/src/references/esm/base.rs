@@ -94,6 +94,10 @@ pub struct EsmAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
     pub request: Vc<Request>,
     pub annotations: ImportAnnotations,
+    /// True if the import should be ignored
+    /// This can happen for example when the webpackIgnore or turbopackIgnore
+    /// directives are present
+    pub ignore: bool,
     pub issue_source: Option<Vc<IssueSource>>,
     pub export_name: Option<Vc<ModulePart>>,
     pub import_externals: bool,
@@ -123,12 +127,14 @@ impl EsmAssetReference {
         annotations: Value<ImportAnnotations>,
         export_name: Option<Vc<ModulePart>>,
         import_externals: bool,
+        ignore: bool,
     ) -> Vc<Self> {
         Self::cell(EsmAssetReference {
             origin,
             request,
             issue_source,
             annotations: annotations.into_value(),
+            ignore,
             export_name,
             import_externals,
         })
@@ -144,6 +150,9 @@ impl EsmAssetReference {
 impl ModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        if self.ignore {
+            return Ok(ModuleResolveResult::ignored().cell());
+        }
         let ty = if matches!(self.annotations.module_type(), Some("json")) {
             EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Json)
         } else if let Some(part) = &self.export_name {
@@ -176,6 +185,7 @@ impl ModuleReference for EsmAssetReference {
             Value::new(ty),
             IssueSeverity::Error.cell(),
             self.issue_source,
+            self.ignore,
         ))
     }
 }

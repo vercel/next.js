@@ -6,7 +6,7 @@ use std::{
 use indexmap::{IndexMap, IndexSet};
 use once_cell::sync::Lazy;
 use swc_core::{
-    common::{comments::Comments, source_map::SmallPos, Span, Spanned},
+    common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
     ecma::{
         ast::*,
         atoms::{js_word, JsWord},
@@ -149,7 +149,7 @@ pub(crate) struct ImportMap {
     /// const a = import(/* webpackIgnore: true */ "a");
     /// const b = import(/* turbopackIgnore: true */ "b");
     /// ```
-    turbopack_ignores: HashMap<Span, bool>,
+    pub turbopack_ignores: HashMap<BytePos, bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -192,6 +192,10 @@ impl ImportMap {
             }));
         }
         None
+    }
+
+    pub fn get_ignore(&self, span: Span) -> Option<bool> {
+        self.turbopack_ignores.get(&span.lo).copied()
     }
 
     // TODO this could return &str instead of String to avoid cloning
@@ -481,7 +485,7 @@ impl Visit for Analyzer<'_> {
             if let Some((callee_span, ignore_statement)) = callee_span.zip(ignore_statement) {
                 self.data
                     .turbopack_ignores
-                    .insert(*callee_span, ignore_statement);
+                    .insert(callee_span.lo, ignore_statement);
             };
         }
 

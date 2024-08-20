@@ -65,6 +65,7 @@ impl ModuleReference for AmdDefineAssetReference {
             self.request,
             Some(self.issue_source),
             try_to_severity(self.in_try),
+            /* ignore */ false,
         )
     }
 }
@@ -160,6 +161,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                                 *request,
                                 Some(self.issue_source),
                                 try_to_severity(self.in_try),
+                                false,
                             ),
                             Value::new(ChunkItem),
                         )

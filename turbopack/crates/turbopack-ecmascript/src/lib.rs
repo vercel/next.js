@@ -366,7 +366,7 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
 impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyse_ecmascript_module(self, None, None)
+        analyse_ecmascript_module(self, None)
     }
 
     /// Generates module contents without an analysis pass. This is useful for
@@ -419,6 +419,7 @@ impl EcmascriptModuleAsset {
     pub fn new(
         source: Vc<Box<dyn Source>>,
         asset_context: Vc<Box<dyn AssetContext>>,
+
         ty: Value<EcmascriptModuleAssetType>,
         transforms: Vc<EcmascriptInputTransforms>,
         options: Vc<EcmascriptOptions>,
@@ -430,6 +431,7 @@ impl EcmascriptModuleAsset {
             ty: ty.into_value(),
             transforms,
             options,
+
             compile_time_info,
             inner_assets: None,
             last_successful_parse: Default::default(),
@@ -442,6 +444,7 @@ impl EcmascriptModuleAsset {
         asset_context: Vc<Box<dyn AssetContext>>,
         ty: Value<EcmascriptModuleAssetType>,
         transforms: Vc<EcmascriptInputTransforms>,
+
         options: Vc<EcmascriptOptions>,
         compile_time_info: Vc<CompileTimeInfo>,
         inner_assets: Vc<InnerAssets>,
@@ -461,6 +464,11 @@ impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
     pub async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
         Ok(self.await?.source)
+    }
+
+    #[turbo_tasks::function]
+    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
+        analyse_ecmascript_module(self, None)
     }
 
     #[turbo_tasks::function]

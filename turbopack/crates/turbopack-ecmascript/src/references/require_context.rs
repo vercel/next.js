@@ -176,7 +176,7 @@ impl RequireContextMap {
         for (context_relative, path) in list {
             if let Some(origin_relative) = origin_path.get_relative_path_to(&*path.await?) {
                 let request = Request::parse(Value::new(origin_relative.clone().into()));
-                let result = cjs_resolve(origin, request, issue_source, issue_severity);
+                let result = cjs_resolve(origin, request, issue_source, issue_severity, false);
 
                 map.insert(
                     context_relative.clone(),

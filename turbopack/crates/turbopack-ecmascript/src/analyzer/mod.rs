@@ -1627,11 +1627,11 @@ impl JsValue {
                         format!("path.resolve({cwd})"),
                         "The Node.js path.resolve method: https://nodejs.org/api/path.html#pathresolvepaths",
                     ),
-                    WellKnownFunctionKind::Import => (
+                    WellKnownFunctionKind::Import { .. } => (
                         "import".to_string(),
                         "The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports"
                     ),
-                    WellKnownFunctionKind::Require => ("require".to_string(), "The require method from CommonJS"),
+                    WellKnownFunctionKind::Require { .. } => ("require".to_string(), "The require method from CommonJS"),
                     WellKnownFunctionKind::RequireResolve => ("require.resolve".to_string(), "The require.resolve method from CommonJS"),
                     WellKnownFunctionKind::RequireContext => ("require.context".to_string(), "The require.context method from webpack"),
                     WellKnownFunctionKind::RequireContextRequire(..) => ("require.context(...)".to_string(), "The require.context(...) method from webpack: https://webpack.js.org/api/module-methods/#requirecontext"),
@@ -3626,8 +3626,14 @@ pub enum WellKnownFunctionKind {
     PathDirname,
     /// `0` is the current working directory.
     PathResolve(Box<JsValue>),
-    Import,
-    Require,
+    /// Import and Require can be ignored at compile time using the `turbopackIgnore` directive.
+    /// This is functionality that was introduced in webpack, so we also support `webpackIgnore`.
+    Import {
+        ignore: bool,
+    },
+    Require {
+        ignore: bool,
+    },
     RequireResolve,
     RequireContext,
     RequireContextRequire(Vc<RequireContextValue>),
@@ -3656,8 +3662,8 @@ pub enum WellKnownFunctionKind {
 impl WellKnownFunctionKind {
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
-            Self::Import => Some(&["import"]),
-            Self::Require => Some(&["require"]),
+            Self::Import { .. } => Some(&["import"]),
+            Self::Require { .. } => Some(&["require"]),
             Self::RequireResolve => Some(&["require", "resolve"]),
             Self::RequireContext => Some(&["require", "context"]),
             Self::Define => Some(&["define"]),
@@ -3704,7 +3710,7 @@ pub mod test_utils {
         let mut new_value = match v {
             JsValue::Call(
                 _,
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::Import { .. }),
                 ref args,
             ) => match &args[0] {
                 JsValue::Constant(v) => JsValue::Module(ModuleValue {
@@ -3740,8 +3746,12 @@ pub mod test_utils {
                 Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string()),
             },
             JsValue::FreeVar(ref var) => match &**var {
-                "import" => JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
-                "require" => JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
+                "import" => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Import { ignore: false })
+                }
+                "require" => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Require { ignore: false })
+                }
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
                 "__dirname" => "__dirname".into(),
                 "__filename" => "__filename".into(),
@@ -3772,7 +3782,7 @@ mod tests {
     use std::{mem::take, path::PathBuf, time::Instant};
 
     use swc_core::{
-        common::Mark,
+        common::{comments::SingleThreadedComments, Mark},
         ecma::{
             ast::EsVersion, parser::parse_file_as_program, transforms::base::resolver,
             visit::VisitMutWith,
@@ -3809,11 +3819,12 @@ mod tests {
             r.block_on(async move {
                 let fm = cm.load_file(&input).unwrap();
 
+                let comments = SingleThreadedComments::default();
                 let mut m = parse_file_as_program(
                     &fm,
                     Default::default(),
                     EsVersion::latest(),
-                    None,
+                    Some(&comments),
                     &mut vec![],
                 )
                 .map_err(|err| err.into_diagnostic(handler).emit())?;
@@ -3823,7 +3834,7 @@ mod tests {
                 m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
                 let eval_context =
-                    EvalContext::new(&m, unresolved_mark, top_level_mark, None, None);
+                    EvalContext::new(&m, unresolved_mark, top_level_mark, Some(&comments), None);
 
                 let mut var_graph = create_graph(&m, &eval_context);
 
