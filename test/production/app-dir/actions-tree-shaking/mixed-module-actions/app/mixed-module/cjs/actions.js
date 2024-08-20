@@ -11,7 +11,3 @@ export async function cjsModuleTypeAction() {
 export async function unusedModuleTypeAction1() {
   return 'unused-module-type-action-1'
 }
-
-export async function unusedModuleTypeAction2() {
-  return 'unused-module-type-action-2'
-}

@@ -1,4 +1,4 @@
-const { cjsModuleTypeAction } = require('../actions')
+const { cjsModuleTypeAction } = require('./actions')
 
 export default function Page() {
   return (

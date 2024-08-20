@@ -1,4 +1,4 @@
-import { esmModuleTypeAction } from '../actions'
+import { esmModuleTypeAction } from './actions'
 
 export default function Page() {
   return (
