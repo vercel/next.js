@@ -34,14 +34,14 @@ import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import type { PagesModule } from './future/route-modules/pages/module'
+import type { PagesModule } from './route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { Revalidate, SwrDelta } from './lib/revalidate'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
-import React from 'react'
-import ReactDOMServer from 'react-dom/server.browser'
+import React, { type JSX } from 'react'
+import ReactDOMServerEdge from 'react-dom/server.edge'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -128,7 +128,7 @@ function noRouter() {
 }
 
 async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  const renderStream = await ReactDOMServerEdge.renderToReadableStream(element)
   await renderStream.allReady
   return streamToString(renderStream)
 }
@@ -246,7 +246,7 @@ export type RenderOptsPartial = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
-  isDataReq?: boolean
+  isNextDataRequest?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps | undefined
   basePath: string
@@ -268,7 +268,7 @@ export type RenderOptsPartial = {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
-  supportsDynamicHTML: boolean
+  supportsDynamicResponse: boolean
   isBot?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
@@ -449,7 +449,7 @@ export async function renderToHTMLImpl(
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
-    isDataReq,
+    isNextDataRequest,
     params,
     previewProps,
     basePath,
@@ -640,7 +640,12 @@ export async function renderToHTMLImpl(
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
     // invoke.
-    previewData = tryGetPreviewData(req, res, previewProps)
+    previewData = tryGetPreviewData(
+      req,
+      res,
+      previewProps,
+      !!renderOpts.multiZoneDraftMode
+    )
     isPreview = previewData !== false
   }
 
@@ -851,8 +856,8 @@ export async function renderToHTMLImpl(
             revalidateReason: renderOpts.isOnDemandRevalidate
               ? 'on-demand'
               : isBuildTimeSSG
-              ? 'build'
-              : 'stale',
+                ? 'build'
+                : 'stale',
           })
       )
     } catch (staticPropsError: any) {
@@ -1170,7 +1175,7 @@ export async function renderToHTMLImpl(
 
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
-  if ((isDataReq && !isSSG) || metadata.isRedirect) {
+  if ((isNextDataRequest && !isSSG) || metadata.isRedirect) {
     return new RenderResult(JSON.stringify(props), {
       metadata,
     })
@@ -1320,7 +1325,7 @@ export async function renderToHTMLImpl(
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
       return await renderToInitialFizzStream({
-        ReactDOMServer,
+        ReactDOMServer: ReactDOMServerEdge,
         element: content,
       })
     }

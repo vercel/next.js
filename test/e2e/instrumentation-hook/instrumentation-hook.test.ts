@@ -1,19 +1,20 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import path from 'path'
 
 const describeCase = (
   caseName: string,
-  callback: Parameters<typeof createNextDescribe>[2]
+  callback: (context: ReturnType<typeof nextTestSetup>) => void
 ) => {
-  createNextDescribe(
-    caseName,
-    {
+  describe(caseName, () => {
+    const context = nextTestSetup({
       files: path.join(__dirname, caseName),
       skipDeployment: true,
-    },
-    callback
-  )
+    })
+    if (context.skipped) return
+
+    callback(context)
+  })
 }
 describe('Instrumentation Hook', () => {
   // TODO: investigate the failure with esm import

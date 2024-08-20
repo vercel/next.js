@@ -80,7 +80,7 @@ Image Optimization can be used with a [static export](/docs/app/building-your-ap
 
 > **Good to know:**
 >
-> - When self-hosting, consider installing `sharp` for more performant [Image Optimization](/docs/pages/building-your-application/optimizing/images) in your production environment by running `npm install sharp` in your project directory. On Linux platforms, `sharp` may require [additional configuration](https://sharp.pixelplumbing.com/install#linux-memory-allocator) to prevent excessive memory usage.
+> - On glibc-based Linux systems, Image Optimization may require [additional configuration](https://sharp.pixelplumbing.com/install#linux-memory-allocator) to prevent excessive memory usage.
 > - Learn more about the [caching behavior of optimized images](/docs/app/api-reference/components/image#caching-behavior) and how to configure the TTL.
 > - You can also [disable Image Optimization](/docs/app/api-reference/components/image#unoptimized) and still retain other benefits of using `next/image` if you prefer. For example, if you are optimizing images yourself separately.
 
@@ -90,7 +90,7 @@ Image Optimization can be used with a [static export](/docs/app/building-your-ap
 
 Middleware uses a [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) that is a subset of all available Node.js APIs to help ensure low latency, since it may run in front of every route or asset in your application. This runtime does not require running “at the edge” and works in a single-region server. Additional configuration and infrastructure are required to run Middleware in multiple regions.
 
-If you are looking to add logic (or use an external package) that requires all Node.js APIs, you might be able to move this logic to a [layout](/docs/app/building-your-application/routing/pages-and-layouts#layouts) as a [Server Component](/docs/app/building-your-application/rendering/server-components). For example, checking [headers](/docs/app/api-reference/functions/headers) and [redirecting](/docs/app/api-reference/functions/redirect). You can also use headers, cookies, or query parameters to [redirect](/docs/app/api-reference/next-config-js/redirects#header-cookie-and-query-matching) or [rewrite](/docs/app/api-reference/next-config-js/rewrites#header-cookie-and-query-matching) through `next.config.js`. If that does not work, you can also use a [custom server](/docs/pages/building-your-application/configuring/custom-server).
+If you are looking to add logic (or use an external package) that requires all Node.js APIs, you might be able to move this logic to a [layout](/docs/app/building-your-application/routing/layouts-and-templates#layouts) as a [Server Component](/docs/app/building-your-application/rendering/server-components). For example, checking [headers](/docs/app/api-reference/functions/headers) and [redirecting](/docs/app/api-reference/functions/redirect). You can also use headers, cookies, or query parameters to [redirect](/docs/app/api-reference/next-config-js/redirects#header-cookie-and-query-matching) or [rewrite](/docs/app/api-reference/next-config-js/rewrites#header-cookie-and-query-matching) through `next.config.js`. If that does not work, you can also use a [custom server](/docs/pages/building-your-application/configuring/custom-server).
 
 ### Environment Variables
 
@@ -243,6 +243,16 @@ module.exports = {
   },
 }
 ```
+
+### Partial Prerendering
+
+[Partial Prendering (experimental)](/docs/app/building-your-application/rendering/partial-prerendering) works by default with Next.js and is not a CDN feature. This includes deployment as a Node.js server (through `next start`) and when used with a Docker container.
+
+### Usage with CDNs
+
+When using a CDN in front on your Next.js application, the page will include `Cache-Control: private` response header when dynamic APIs are accessed. This ensures that the resulting HTML page is marked as non-cachable. If the page is fully prerendered to static, it will include `Cache-Control: public` to allow the page to be cached on the CDN.
+
+If you don't need a mix of both static and dynamic components, you can make your entire route static and cache the output HTML on a CDN. This Automatic Static Optimization is the default behavior when running `next build` if dynamic APIs are not used.
 
 </AppOnly>
 

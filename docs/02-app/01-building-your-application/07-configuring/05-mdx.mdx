@@ -60,9 +60,9 @@ export default withMDX(nextConfig)
 
 This allows `.md` and `.mdx` files to act as pages, routes, or imports in your application.
 
-## Add a `mdx-components.tsx` file
+## Add an `mdx-components.tsx` file
 
-Create a `mdx-components.tsx` (or `.js`) file in the root of your project to define global MDX Components. For example, at the same level as `pages` or `app`, or inside `src` if applicable.
+Create an `mdx-components.tsx` (or `.js`) file in the root of your project to define global MDX Components. For example, at the same level as `pages` or `app`, or inside `src` if applicable.
 
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
@@ -415,7 +415,7 @@ export default function Page() {
 
 <AppOnly>
 
-To share a layout across MDX pages, you can use the [built-in layouts support](/docs/app/building-your-application/routing/pages-and-layouts#layouts) with the App Router.
+To share a layout across MDX pages, you can use the [built-in layouts support](/docs/app/building-your-application/routing/layouts-and-templates#layouts) with the App Router.
 
 ```tsx filename="app/mdx-page/layout.tsx" switcher
 export default function MdxLayout({ children }: { children: React.ReactNode }) {
@@ -579,7 +579,7 @@ import BlogPost, { metadata } from '@/content/blog-post.mdx'
 export default function Page() {
   console.log('metadata': metadata)
   //=> { author: 'John Doe' }
-  return <Welcome />
+  return <BlogPost />
 }
 ```
 
@@ -603,7 +603,7 @@ import BlogPost, { metadata } from '@/content/blog-post.mdx'
 export default function Page() {
   console.log('metadata': metadata)
   //=> { author: 'John Doe' }
-  return <Welcome />
+  return <BlogPost />
 }
 ```
 
@@ -756,7 +756,7 @@ The `remark` and `rehype` ecosystem contains plugins for [syntax highlighting](h
 
 When using `@next/mdx` as shown above, you **do not** need to use `remark` or `rehype` directly, as it is handled for you. We're describing it here for a deeper understanding of what the `@next/mdx` package is doing underneath.
 
-## Using the Rust-based MDX compiler (Experimental)
+## Using the Rust-based MDX compiler (experimental)
 
 Next.js supports a new MDX compiler written in Rust. This compiler is still experimental and is not recommended for production use. To use the new compiler, you need to configure `next.config.js` when you pass it to `withMDX`:
 
@@ -767,6 +767,24 @@ module.exports = withMDX({
   },
 })
 ```
+
+`mdxRs` also accepts an object to configure how to transform mdx files.
+
+```js filename="next.config.js"
+module.exports = withMDX({
+  experimental: {
+    mdxRs: {
+      jsxRuntime?: string            // Custom jsx runtime
+      jsxImportSource?: string       // Custom jsx import source,
+      mdxType?: 'gfm' | 'commonmark' // Configure what kind of mdx syntax will be used to parse & transform
+    },
+  },
+})
+```
+
+> **Good to know**:
+>
+> This option is required when processing markdown and MDX while using [Turbopack](/docs/architecture/turbopack) (`next dev --turbo`).
 
 ## Helpful Links
 

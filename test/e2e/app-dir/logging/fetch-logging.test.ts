@@ -126,12 +126,30 @@ describe('app-dir - logging', () => {
           const outputIndex = next.cliOutput.length
           await next.fetch('/default-cache')
 
+          const expectedUrl = withFullUrlFetches
+            ? 'https://next-data-api-endpoint.vercel.app/api/random'
+            : 'https://next-data-api-en../api/random'
+
           await retry(() => {
             const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-            expect(logs).toContain(' GET /default-cache')
-            expect(logs).toContain(' │ GET ')
-            expect(logs).toContain(' │ │ Cache skipped reason')
-            expect(logs).toContain(' │ │ GET ')
+            expect(logs).toIncludeRepeated(' GET /default-cache', 1)
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
+            expect(logs).toIncludeRepeated(' │ │ Cache skipped reason', 3)
+          })
+        })
+
+        it('should not limit the number of requests that are logged', async () => {
+          const outputIndex = next.cliOutput.length
+          await next.fetch('/many-requests')
+
+          const expectedUrl = withFullUrlFetches
+            ? 'https://next-data-api-endpoint.vercel.app/api/random'
+            : 'https://next-data-api-en../api/random'
+
+          await retry(() => {
+            const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 6)
+            expect(logs).toIncludeRepeated(` │ POST ${expectedUrl}`, 6)
           })
         })
 
@@ -167,15 +185,110 @@ describe('app-dir - logging', () => {
           })
         })
 
-        it('should exlucde Middleware invoked and _rsc requests', async () => {
+        it('should exclude Middleware invoked and _rsc requests', async () => {
           const outputIndex = next.cliOutput.length
 
           const browser = await next.browser('/link')
-          await browser.elementByCss('a').click()
+          await browser.elementByCss('a#foo').click()
           await browser.waitForElementByCss('h2')
           const logs = stripAnsi(next.cliOutput.slice(outputIndex))
           expect(logs).not.toContain('/_next/static')
           expect(logs).not.toContain('?_rsc')
+        })
+
+        it('should not log _rsc query for client navigation RSC request', async () => {
+          const outputIndex = next.cliOutput.length
+
+          const browser = await next.browser('/')
+          await browser.elementByCss('a#nav-headers').click()
+          await browser.waitForElementByCss('p')
+          const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+
+          expect(logs).toContain('GET /')
+          expect(logs).toContain('GET /headers')
+          expect(logs).not.toContain('/_next/static')
+          expect(logs).not.toContain('?_rsc')
+        })
+
+        it('should log requests for client-side navigations', async () => {
+          const outputIndex = next.cliOutput.length
+          const browser = await next.browser('/')
+          await browser.elementById('nav-default-cache').click()
+          await browser.waitForElementByCss('h1')
+
+          const expectedUrl = withFullUrlFetches
+            ? 'https://next-data-api-endpoint.vercel.app/api/random'
+            : 'https://next-data-api-en../api/random'
+
+          await retry(() => {
+            const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
+          })
+        })
+
+        it('should not log requests for HMR refreshes', async () => {
+          const browser = await next.browser('/fetch-no-store')
+          let headline = await browser.waitForElementByCss('h1').text()
+          expect(headline).toBe('Hello World!')
+          const outputIndex = next.cliOutput.length
+
+          await next.patchFile(
+            'app/fetch-no-store/page.js',
+            (content) => content.replace('Hello World!', 'Hello Test!'),
+            async () =>
+              retry(async () => {
+                headline = await browser.waitForElementByCss('h1').text()
+                expect(headline).toBe('Hello Test!')
+                const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+                expect(logs).toInclude(' GET /fetch-no-store')
+                expect(logs).not.toInclude(` │ GET `)
+              })
+          )
+        })
+
+        describe('when logging.fetches.hmrRefreshes is true', () => {
+          beforeAll(async () => {
+            await next.patchFile('next.config.js', (content) =>
+              content.replace('// hmrRefreshes: true', 'hmrRefreshes: true')
+            )
+          })
+
+          afterAll(async () => {
+            await next.patchFile('next.config.js', (content) =>
+              content.replace('hmrRefreshes: true', '// hmrRefreshes: true')
+            )
+          })
+
+          it('should log requests for HMR refreshes', async () => {
+            const browser = await next.browser('/fetch-no-store')
+            let headline = await browser.waitForElementByCss('h1').text()
+            expect(headline).toBe('Hello World!')
+            const outputIndex = next.cliOutput.length
+
+            await next.patchFile(
+              'app/fetch-no-store/page.js',
+              (content) => content.replace('Hello World!', 'Hello Test!'),
+              async () => {
+                const expectedUrl = withFullUrlFetches
+                  ? 'https://next-data-api-endpoint.vercel.app/api/random'
+                  : 'https://next-data-api-en../api/random'
+
+                return retry(async () => {
+                  headline = await browser.waitForElementByCss('h1').text()
+                  expect(headline).toBe('Hello Test!')
+
+                  const logs = stripAnsi(
+                    next.cliOutput.slice(outputIndex)
+                  ).replace(/\d+ms/g, '1ms')
+
+                  expect(logs).toInclude(' GET /fetch-no-store')
+                  expect(logs).toInclude(
+                    ` │ GET ${expectedUrl}?request-input 200 in 1ms (HMR cache)`
+                  )
+                })
+              }
+            )
+          })
         })
       }
     } else {
@@ -211,7 +324,7 @@ describe('app-dir - logging', () => {
           const output = stripAnsi(next.cliOutput.slice(logLength))
           expect(output).toContain('/dynamic/[slug]/icon')
           expect(output).not.toContain('/(group)')
-          expect(output).not.toContain('[[...__metadata_id__]]')
+          expect(output).not.toContain('[__metadata_id__]')
           expect(output).not.toContain('/route')
         })
       })
@@ -253,7 +366,7 @@ describe('app-dir - logging', () => {
       await next.start()
     })
 
-    runTests({ withFetchesLogging: false })
+    runTests({ withFetchesLogging: true, withFullUrlFetches: true })
   })
 
   describe('with default logging', () => {

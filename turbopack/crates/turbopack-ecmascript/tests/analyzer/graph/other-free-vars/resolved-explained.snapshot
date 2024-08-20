@@ -1,0 +1,20 @@
+O = ???*0*
+- *0* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+a = ???*0*
+- *0* ???*1*["keys"](O)
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *1* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+b = ???*0*
+- *0* ???*1*["keys"](FreeVar(Object))
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *1* FreeVar(Object)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects

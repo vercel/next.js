@@ -1,5 +1,6 @@
 [env]
 CARGO_WORKSPACE_DIR = { value = "", relative = true }
+TURBO_PNPM_WORKSPACE_DIR = { value = "", relative = true }
 
 [build]
 rustflags = [
@@ -18,11 +19,23 @@ rustflags = ["-C", "target-feature=+crt-static"]
 [target.i686-pc-windows-msvc]
 rustflags = ["-C", "target-feature=+crt-static"]
 
-[target.aarch64-apple-darwin]
+[target.aarch64-pc-windows-msvc]
 linker = "rust-lld"
 
-[target.aarch64-unknown-linux-gnu]
-linker = "aarch64-linux-gnu-gcc"
+[target.'cfg(target_os = "macos")']
+linker = "rust-lld"
+
+[target.'cfg(all(target_os = "linux", target_env = "gnu"))']
+rustflags = [
+  "--cfg",
+  "tokio_unstable",
+  "-Zshare-generics=y",
+  "-Zthreads=8",
+  "-Zunstable-options",
+  "-Csymbol-mangling-version=v0",
+  "-Clinker-flavor=gnu-lld-cc",
+  "-Clink-self-contained=+linker",
+]
 
 [target.aarch64-unknown-linux-musl]
 linker = "aarch64-linux-musl-gcc"

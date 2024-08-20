@@ -4,11 +4,13 @@ import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import {
   RESTART_EXIT_CODE,
-  checkNodeDebugType,
-  getDebugPort,
+  getNodeDebugType,
+  getParsedDebugAddress,
   getMaxOldSpaceSize,
-  getNodeOptionsWithoutInspect,
+  getParsedNodeOptionsWithoutInspect,
   printAndExit,
+  formatNodeOptions,
+  formatDebugAddress,
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -33,8 +35,9 @@ import {
 } from '../lib/helpers/get-reserved-port'
 import os from 'os'
 import { once } from 'node:events'
+import { clearTimeout } from 'timers'
 
-type NextDevOptions = {
+export type NextDevOptions = {
   turbo?: boolean
   port: number
   hostname?: string
@@ -55,13 +58,29 @@ let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
+// How long should we wait for the child to cleanly exit after sending
+// SIGINT/SIGTERM to the child process before sending SIGKILL?
+const CHILD_EXIT_TIMEOUT_MS = parseInt(
+  process.env.NEXT_EXIT_TIMEOUT_MS ?? '100',
+  10
+)
+
 const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
-  if (child?.pid) child.kill(signal ?? 0)
+  if (signal != null && child?.pid) child.kill(signal)
   if (sessionStopHandled) return
   sessionStopHandled = true
 
-  if (child?.pid && child.exitCode === null && child.signalCode === null) {
+  if (
+    signal != null &&
+    child?.pid &&
+    child.exitCode === null &&
+    child.signalCode === null
+  ) {
+    let exitTimeout = setTimeout(() => {
+      child?.kill('SIGKILL')
+    }, CHILD_EXIT_TIMEOUT_MS)
     await once(child, 'exit').catch(() => {})
+    clearTimeout(exitTimeout)
   }
 
   try {
@@ -122,8 +141,8 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   process.exit(0)
 }
 
-process.on('SIGINT', () => handleSessionStop('SIGKILL'))
-process.on('SIGTERM', () => handleSessionStop('SIGKILL'))
+process.on('SIGINT', () => handleSessionStop('SIGINT'))
+process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
 
 // exit event must be synchronous
 process.on('exit', () => child?.kill('SIGKILL'))
@@ -225,23 +244,25 @@ const nextDev = async (
       let resolved = false
       const defaultEnv = (initialEnv || process.env) as typeof process.env
 
-      let NODE_OPTIONS = getNodeOptionsWithoutInspect()
-      let nodeDebugType = checkNodeDebugType()
+      const nodeOptions = getParsedNodeOptionsWithoutInspect()
+      const nodeDebugType = getNodeDebugType()
 
-      const maxOldSpaceSize = getMaxOldSpaceSize()
-
+      let maxOldSpaceSize: string | number | undefined = getMaxOldSpaceSize()
       if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
         const totalMem = os.totalmem()
         const totalMemInMB = Math.floor(totalMem / 1024 / 1024)
-        NODE_OPTIONS = `${NODE_OPTIONS} --max-old-space-size=${Math.floor(
-          totalMemInMB * 0.5
-        )}`
+        maxOldSpaceSize = Math.floor(totalMemInMB * 0.5).toString()
+
+        nodeOptions['max-old-space-size'] = maxOldSpaceSize
+
+        // Ensure the max_old_space_size is not also set.
+        delete nodeOptions['max_old_space_size']
       }
 
       if (nodeDebugType) {
-        NODE_OPTIONS = `${NODE_OPTIONS} --${nodeDebugType}=${
-          getDebugPort() + 1
-        }`
+        const address = getParsedDebugAddress()
+        address.port = address.port + 1
+        nodeOptions[nodeDebugType] = formatDebugAddress(address)
       }
 
       child = fork(startServerPath, {
@@ -253,7 +274,7 @@ const nextDev = async (
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
-          NODE_OPTIONS,
+          NODE_OPTIONS: formatNodeOptions(nodeOptions),
         },
       })
 
@@ -287,7 +308,9 @@ const nextDev = async (
           }
           return startServer(startServerOptions)
         }
-        await handleSessionStop(signal)
+        // Call handler (e.g. upload telemetry). Don't try to send a signal to
+        // the child, as it has already exited.
+        await handleSessionStop(/* signal */ null)
       })
     })
   }

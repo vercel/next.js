@@ -9,7 +9,7 @@ import type {
   MetadataContext,
 } from '../types/resolvers'
 import type { ResolvedTwitterMetadata, Twitter } from '../types/twitter-types'
-import { resolveAsArrayOrUndefined } from '../generate/utils'
+import { resolveArray, resolveAsArrayOrUndefined } from '../generate/utils'
 import {
   getSocialImageFallbackMetadataBase,
   isStringOrURL,
@@ -42,14 +42,20 @@ const OgTypeFields = {
 function resolveAndValidateImage(
   item: FlattenArray<OpenGraph['images'] | Twitter['images']>,
   metadataBase: NonNullable<ResolvedMetadataBase>,
-  isMetadataBaseMissing: boolean
+  isMetadataBaseMissing: boolean,
+  isStandaloneMode: boolean
 ) {
   if (!item) return undefined
   const isItemUrl = isStringOrURL(item)
   const inputUrl = isItemUrl ? item : item.url
   if (!inputUrl) return undefined
 
-  validateResolvedImageUrl(inputUrl, metadataBase, isMetadataBaseMissing)
+  const isNonVercelDeployment =
+    !process.env.VERCEL && process.env.NODE_ENV === 'production'
+  // Validate url in self-host standalone mode or non-Vercel deployment
+  if (isStandaloneMode || isNonVercelDeployment) {
+    validateResolvedImageUrl(inputUrl, metadataBase, isMetadataBaseMissing)
+  }
 
   return isItemUrl
     ? {
@@ -64,15 +70,18 @@ function resolveAndValidateImage(
 
 export function resolveImages(
   images: Twitter['images'],
-  metadataBase: ResolvedMetadataBase
+  metadataBase: ResolvedMetadataBase,
+  isStandaloneMode: boolean
 ): NonNullable<ResolvedMetadata['twitter']>['images']
 export function resolveImages(
   images: OpenGraph['images'],
-  metadataBase: ResolvedMetadataBase
+  metadataBase: ResolvedMetadataBase,
+  isStandaloneMode: boolean
 ): NonNullable<ResolvedMetadata['openGraph']>['images']
 export function resolveImages(
   images: OpenGraph['images'] | Twitter['images'],
-  metadataBase: ResolvedMetadataBase
+  metadataBase: ResolvedMetadataBase,
+  isStandaloneMode: boolean
 ):
   | NonNullable<ResolvedMetadata['twitter']>['images']
   | NonNullable<ResolvedMetadata['openGraph']>['images'] {
@@ -86,7 +95,8 @@ export function resolveImages(
     const resolvedItem = resolveAndValidateImage(
       item,
       fallbackMetadataBase,
-      isMetadataBaseMissing
+      isMetadataBaseMissing,
+      isStandaloneMode
     )
     if (!resolvedItem) continue
 
@@ -142,14 +152,15 @@ export const resolveOpenGraph: FieldResolverExtraArgs<
       const key = k as keyof ResolvedOpenGraph
       if (key in og && key !== 'url') {
         const value = og[key]
-        if (value) {
-          const arrayValue = resolveAsArrayOrUndefined(value)
-          /// TODO: improve typing inferring
-          ;(target as any)[key] = arrayValue
-        }
+        // TODO: improve typing inferring
+        ;(target as any)[key] = value ? resolveArray(value) : null
       }
     }
-    target.images = resolveImages(og.images, metadataBase)
+    target.images = resolveImages(
+      og.images,
+      metadataBase,
+      metadataContext.isStandaloneMode
+    )
   }
 
   const resolved = {
@@ -179,8 +190,8 @@ const TwitterBasicInfoKeys = [
 
 export const resolveTwitter: FieldResolverExtraArgs<
   'twitter',
-  [ResolvedMetadataBase, string | null]
-> = (twitter, metadataBase, titleTemplate) => {
+  [ResolvedMetadataBase, MetadataContext, string | null]
+> = (twitter, metadataBase, metadataContext, titleTemplate) => {
   if (!twitter) return null
   let card = 'card' in twitter ? twitter.card : undefined
   const resolved = {
@@ -191,7 +202,11 @@ export const resolveTwitter: FieldResolverExtraArgs<
     resolved[infoKey] = twitter[infoKey] || null
   }
 
-  resolved.images = resolveImages(twitter.images, metadataBase)
+  resolved.images = resolveImages(
+    twitter.images,
+    metadataBase,
+    metadataContext.isStandaloneMode
+  )
 
   card = card || (resolved.images?.length ? 'summary_large_image' : 'summary')
   resolved.card = card

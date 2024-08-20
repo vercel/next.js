@@ -2,7 +2,7 @@ import dynamic from 'next/dynamic'
 
 const Button = dynamic(() =>
   import('./client').then((mod) => {
-    return mod.Button
+    return { default: mod.Button }
   })
 )
 

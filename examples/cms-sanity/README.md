@@ -70,7 +70,7 @@ If you started with [deploying your own](#deploy-your-own) then you can run this
 
 ```bash
 npx vercel link
-npx vercel pull
+npx vercel env pull
 ```
 
 ### Using the Sanity CLI

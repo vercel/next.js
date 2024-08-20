@@ -1,40 +1,38 @@
-import { createNextDescribe } from 'e2e-utils'
-import { hasRedbox } from 'next-test-utils'
+import { nextTestSetup } from 'e2e-utils'
+import { assertHasRedbox, assertNoRedbox } from 'next-test-utils'
 
-createNextDescribe(
-  'develop - app-dir - edge errros hmr',
-  {
+describe('develop - app-dir - edge errros hmr', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-  },
-  ({ next }) => {
-    it('should recover from build errors when server component error', async () => {
-      const browser = await next.browser('/')
-      const clientComponentSource = await next.readFile('app/comp.server.js')
+  })
 
-      await next.patchFile('app/comp.server.js', (content) => {
-        return content.replace('{/* < */}', '<') // uncomment
-      })
+  it('should recover from build errors when server component error', async () => {
+    const browser = await next.browser('/')
+    const clientComponentSource = await next.readFile('app/comp.server.js')
 
-      expect(await hasRedbox(browser)).toBe(true)
-
-      await next.patchFile('app/comp.server.js', clientComponentSource)
-
-      expect(await hasRedbox(browser)).toBe(false)
+    await next.patchFile('app/comp.server.js', (content) => {
+      return content.replace('{/* < */}', '<') // uncomment
     })
 
-    it('should recover from build errors when client component error', async () => {
-      const browser = await next.browser('/')
-      const clientComponentSource = await next.readFile('app/comp.client.js')
+    await assertHasRedbox(browser)
 
-      await next.patchFile('app/comp.client.js', (content) => {
-        return content.replace('{/* < */}', '<') // uncomment
-      })
+    await next.patchFile('app/comp.server.js', clientComponentSource)
 
-      expect(await hasRedbox(browser)).toBe(true)
+    await assertNoRedbox(browser)
+  })
 
-      await next.patchFile('app/comp.client.js', clientComponentSource)
+  it('should recover from build errors when client component error', async () => {
+    const browser = await next.browser('/')
+    const clientComponentSource = await next.readFile('app/comp.client.js')
 
-      expect(await hasRedbox(browser)).toBe(false)
+    await next.patchFile('app/comp.client.js', (content) => {
+      return content.replace('{/* < */}', '<') // uncomment
     })
-  }
-)
+
+    await assertHasRedbox(browser)
+
+    await next.patchFile('app/comp.client.js', clientComponentSource)
+
+    await assertNoRedbox(browser)
+  })
+})

@@ -1,10 +1,10 @@
 # Dynamic Routing example
 
-This example shows how to do [dynamic routing](https://nextjs.org/docs/routing/dynamic-routes) in Next.js. It contains two dynamic routes:
+This example shows how to do [dynamic routing](https://nextjs.org/docs/app/building-your-application/routing/dynamic-routes) in Next.js. It contains two dynamic routes:
 
-1. `pages/post/[id]/index.js`
+1. `app/post/[id]/page.tsx`
    - e.g. matches `/post/my-example` (`/post/:id`)
-1. `pages/post/[id]/[comment].js`
+1. `app/post/[id]/[comment]/page.tsx`
    - e.g. matches `/post/my-example/a-comment` (`/post/:id/:comment`)
 
 These routes are automatically matched by the server.

@@ -5,7 +5,7 @@ description: Use the new App Router with Next.js' and React's latest features, i
 
 The Next.js App Router introduces a new model for building applications using React's latest features such as [Server Components](/docs/app/building-your-application/rendering/server-components), [Streaming with Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
 
-Get started with the App Router by [creating your first page](/docs/app/building-your-application/routing/pages-and-layouts).
+Get started with the App Router by [creating your first page](/docs/app/building-your-application/routing/layouts-and-templates).
 
 ## Frequently Asked Questions
 
@@ -13,7 +13,7 @@ Get started with the App Router by [creating your first page](/docs/app/building
 
 You intentionally cannot access the raw request object. However, you can access [`headers`](/docs/app/api-reference/functions/headers) and [`cookies`](/docs/app/api-reference/functions/cookies) through server-only functions. You can also [set cookies](#how-can-i-set-cookies).
 
-[Layouts](/docs/app/building-your-application/routing/pages-and-layouts#layouts) do not rerender. They can be cached and reused to avoid unnecessary computation when navigating between pages. By restricting layouts from accessing the raw request, Next.js can prevent the execution of potentially slow or expensive user code within the layout, which could negatively impact performance.
+[Layouts](/docs/app/building-your-application/routing/layouts-and-templates#layouts) do not rerender. They can be cached and reused to avoid unnecessary computation when navigating between pages. By restricting layouts from accessing the raw request, Next.js can prevent the execution of potentially slow or expensive user code within the layout, which could negatively impact performance.
 
 This design also enforces consistent and predictable behavior for layouts across different pages, which simplifies development and debugging.
 
@@ -37,6 +37,7 @@ Here are some common authentication solutions that support the App Router:
 
 - [NextAuth.js](https://next-auth.js.org/configuration/nextjs#in-app-router)
 - [Clerk](https://clerk.com/docs/quickstarts/nextjs)
+- [Stack Auth](https://docs.stack-auth.com/getting-started/setup)
 - [Lucia](https://lucia-auth.com/getting-started/nextjs-app)
 - [Auth0](https://github.com/auth0/nextjs-auth0#app-router)
 - [Stytch](https://stytch.com/docs/example-apps/frontend/nextjs)
@@ -65,7 +66,7 @@ Yes. You can view [Next.js Commerce](https://vercel.com/templates/next.js/nextjs
 ## Learn More
 
 - [Routing Fundamentals](/docs/app/building-your-application/routing)
-- [Data Fetching, Caching, and Revalidating](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating)
+- [Data Fetching, Caching, and Revalidating](/docs/app/building-your-application/data-fetching/caching-and-revalidating)
 - [Forms and Mutations](/docs/app/building-your-application/data-fetching/server-actions-and-mutations)
 - [Caching](/docs/app/building-your-application/caching)
 - [Rendering Fundamentals](/docs/app/building-your-application/rendering)
