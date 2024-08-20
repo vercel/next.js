@@ -164,6 +164,7 @@ import { NextRequestHint } from './web/adapter'
 import { getRevalidateReason } from './instrumentation/utils'
 import { RouteKind } from './route-kind'
 import type { RouteModule } from './route-modules/route-module'
+import { FallbackMode, parseFallbackField } from '../lib/fallback'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -292,8 +293,6 @@ export type RequestContext<
   query: NextParsedUrlQuery
   renderOpts: RenderOpts
 }
-
-export type FallbackMode = false | undefined | 'blocking' | 'static'
 
 export class NoFallbackError extends Error {}
 
@@ -1831,7 +1830,7 @@ export default abstract class Server<
     isAppPath: boolean
   }): Promise<{
     staticPaths?: string[]
-    fallbackMode?: 'static' | 'blocking' | false
+    fallbackMode?: FallbackMode
   }> {
     // Read whether or not fallback should exist from the manifest.
     const fallbackField =
@@ -1841,12 +1840,7 @@ export default abstract class Server<
       // `staticPaths` is intentionally set to `undefined` as it should've
       // been caught when checking disk data.
       staticPaths: undefined,
-      fallbackMode:
-        typeof fallbackField === 'string'
-          ? 'static'
-          : fallbackField === null
-            ? 'blocking'
-            : fallbackField,
+      fallbackMode: parseFallbackField(fallbackField),
     }
   }
 
@@ -1920,7 +1914,7 @@ export default abstract class Server<
     const isAppPath = components.isAppPath === true
 
     const hasServerProps = !!components.getServerSideProps
-    let hasStaticPaths = !!components.getStaticPaths
+    let hasGetStaticPaths = !!components.getStaticPaths
     const isServerAction = getIsServerAction(req)
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
@@ -1936,7 +1930,7 @@ export default abstract class Server<
 
     let staticPaths: string[] | undefined
 
-    let fallbackMode: FallbackMode
+    let fallbackMode: FallbackMode | undefined
     let hasFallback = false
     const isDynamic = isDynamicRoute(components.page)
 
@@ -1956,14 +1950,14 @@ export default abstract class Server<
 
       if (this.nextConfig.output === 'export') {
         const page = components.page
-
-        if (fallbackMode !== 'static') {
+        if (!staticPaths) {
           throw new Error(
             `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
           )
         }
+
         const resolvedWithoutSlash = removeTrailingSlash(resolvedUrlPathname)
-        if (!staticPaths?.includes(resolvedWithoutSlash)) {
+        if (!staticPaths.includes(resolvedWithoutSlash)) {
           throw new Error(
             `Page "${page}" is missing param "${resolvedWithoutSlash}" in "generateStaticParams()", which is required with "output: export" config.`
           )
@@ -1971,7 +1965,7 @@ export default abstract class Server<
       }
 
       if (hasFallback) {
-        hasStaticPaths = true
+        hasGetStaticPaths = true
       }
     }
 
@@ -2355,7 +2349,7 @@ export default abstract class Server<
         (!isNextDataRequest && opts.dev === true) ||
         // If this is not SSG or does not have static paths, then it supports
         // dynamic HTML.
-        (!isSSG && !hasStaticPaths) ||
+        (!isSSG && !hasGetStaticPaths) ||
         // If this request has provided postponed data, it supports dynamic
         // HTML.
         typeof postponed === 'string' ||
@@ -2723,19 +2717,32 @@ export default abstract class Server<
       const isProduction = !this.renderOpts.dev
       const didRespond = hasResolved || res.sent
 
+      // If we haven't found the static paths for the route, then do it now.
       if (!staticPaths) {
-        ;({ staticPaths, fallbackMode } = hasStaticPaths
-          ? await this.getStaticPaths({
-              pathname,
-              requestHeaders: req.headers,
-              isAppPath,
-              page: components.page,
-            })
-          : { staticPaths: undefined, fallbackMode: false })
+        if (hasGetStaticPaths) {
+          const pathsResult = await this.getStaticPaths({
+            pathname,
+            requestHeaders: req.headers,
+            isAppPath,
+            page: components.page,
+          })
+
+          staticPaths = pathsResult.staticPaths
+          fallbackMode = pathsResult.fallbackMode
+        } else {
+          staticPaths = undefined
+          fallbackMode = FallbackMode.NOT_FOUND
+        }
       }
 
-      if (fallbackMode === 'static' && isBot(req.headers['user-agent'] || '')) {
-        fallbackMode = 'blocking'
+      // When serving a bot request, we want to serve a blocking render and not
+      // the prerendered page. This ensures that the correct content is served
+      // to the bot in the head.
+      if (
+        fallbackMode === FallbackMode.STATIC_PRERENDER &&
+        isBot(req.headers['user-agent'] || '')
+      ) {
+        fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
       }
 
       // skip on-demand revalidate if cache is not present and
@@ -2758,9 +2765,9 @@ export default abstract class Server<
       // or for prerendered fallback: false paths
       if (
         isOnDemandRevalidate &&
-        (fallbackMode !== false || previousCacheEntry)
+        (fallbackMode !== FallbackMode.NOT_FOUND || previousCacheEntry)
       ) {
-        fallbackMode = 'blocking'
+        fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
       }
 
       // We use `ssgCacheKey` here as it is normalized to match the encoding
@@ -2777,8 +2784,12 @@ export default abstract class Server<
       const isPageIncludedInStaticPaths =
         staticPathKey && staticPaths?.includes(staticPathKey)
 
-      if ((this.nextConfig.experimental as any).isExperimentalCompile) {
-        fallbackMode = 'blocking'
+      // When experimental compile is used, no pages have been prerendered,
+      // so they should all be blocking.
+
+      // @ts-expect-error internal field
+      if (this.nextConfig.experimental.isExperimentalCompile) {
+        fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
       }
 
       // When we did not respond from cache, we need to choose to block on
@@ -2795,7 +2806,7 @@ export default abstract class Server<
       if (
         process.env.NEXT_RUNTIME !== 'edge' &&
         !this.minimalMode &&
-        fallbackMode !== 'blocking' &&
+        fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER &&
         staticPathKey &&
         !didRespond &&
         !isPreviewMode &&
@@ -2807,7 +2818,7 @@ export default abstract class Server<
           // getStaticPaths.
           (isProduction || (staticPaths && staticPaths?.length > 0)) &&
           // When fallback isn't present, abort this render so we 404
-          fallbackMode !== 'static'
+          fallbackMode === FallbackMode.NOT_FOUND
         ) {
           throw new NoFallbackError()
         }
