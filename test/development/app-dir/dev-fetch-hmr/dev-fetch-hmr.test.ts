@@ -17,7 +17,10 @@ describe('dev-fetch-hmr', () => {
     const html2 = await next.render('/')
     expect(html2).toContain('monkey patching is fun')
     const magicNumber2 = cheerio.load(html2)('#magic-number').text()
-    expect(magicNumber).toBe(magicNumber2)
+    // Module was not re-evaluated
+    expect(magicNumber2).toBe(magicNumber)
+    const update = cheerio.load(html2)('#update').text()
+    expect(update).toBe('touch to trigger HMR')
 
     // trigger HMR
     await next.patchFile('app/page.tsx', (content) =>
@@ -26,9 +29,12 @@ describe('dev-fetch-hmr', () => {
 
     await retry(async () => {
       const html3 = await next.render('/')
+      const update2 = cheerio.load(html3)('#update').text()
+      expect(update2).toBe('touch to trigger HMR 2')
       const magicNumber3 = cheerio.load(html3)('#magic-number').text()
       expect(html3).toContain('monkey patching is fun')
-      expect(magicNumber).not.toEqual(magicNumber3)
+      // Module was re-evaluated
+      expect(magicNumber3).not.toEqual(magicNumber)
     })
   })
 })

@@ -1,5 +1,4 @@
 export default async function Page() {
-  // touch to trigger HMR
   const secret = (await fetch('http://fake.url/secret').then((res) =>
     res.text()
   )) as any
@@ -9,6 +8,7 @@ export default async function Page() {
 
   return (
     <>
+      <div id="update">touch to trigger HMR</div>
       <div id="secret">{secret}</div>
       <div id="magic-number">{magicNumber}</div>
     </>
