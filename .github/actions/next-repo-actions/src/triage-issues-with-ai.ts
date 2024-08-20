@@ -59,7 +59,7 @@ async function main() {
         }),
       },
       system:
-        'Your job is to determine the severity of a GitHub issue using the triage guidelines and the latest versions of Next.js. Succinctly explain why you chose the severity, without paraphrasing the triage guidelines. Report this epxlanation to slack only if the severity is considered severe.',
+        'Your job is to determine the severity of a GitHub issue using the triage guidelines and the latest versions of Next.js. Succinctly explain why you chose the severity, without paraphrasing the triage guidelines. Report this explanation to slack only if the severity is considered severe.',
       prompt:
         `Here are the triage guidelines: ${guidelines}` +
         `Here is the latest version of Next.js: ${latestVersion}` +
