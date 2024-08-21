@@ -254,8 +254,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         appIsrStatus: z.boolean().optional(),
         appNavFailHandling: z.boolean().optional(),
         preloadEntriesOnStart: z.boolean().optional(),
-        adjustFontFallbacks: z.boolean().optional(),
-        adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
         allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
         amp: z
           .object({
