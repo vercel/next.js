@@ -425,7 +425,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let ty = Value::new(raw_module.ty);
     let transforms = raw_module.transforms;
     let options = raw_module.options;
-    let compile_time_info = raw_module.compile_time_info;
     let options = options.await?;
     let import_externals = options.import_externals;
 
@@ -454,40 +453,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         referenced_package_json,
     } = *module.determine_module_type().await?;
 
-    let compile_time_info = match specified_type {
-        SpecifiedModuleType::Automatic | SpecifiedModuleType::CommonJs => {
-            let compile_time_info = compile_time_info.await?;
-            let mut free_var_references =
-                compile_time_info.free_var_references.await?.clone_value();
-            free_var_references
-                .entry(vec![
-                    DefineableNameSegment::Name("exports".into()),
-                    DefineableNameSegment::TypeOf,
-                ])
-                .or_insert("object".into());
-            free_var_references
-                .entry(vec![
-                    DefineableNameSegment::Name("module".into()),
-                    DefineableNameSegment::TypeOf,
-                ])
-                .or_insert("object".into());
-            free_var_references
-                .entry(vec![
-                    DefineableNameSegment::Name("require".into()),
-                    DefineableNameSegment::TypeOf,
-                ])
-                .or_insert("function".into());
-
-            CompileTimeInfo {
-                environment: compile_time_info.environment,
-                defines: compile_time_info.defines,
-                free_var_references: FreeVarReferences(free_var_references).cell(),
-            }
-            .cell()
-        }
-        SpecifiedModuleType::EcmaScript => compile_time_info,
-    };
-
     if let Some(package_json) = referenced_package_json {
         analysis.add_reference(PackageJsonReference::new(package_json));
     }
@@ -515,6 +480,40 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     } = &*parsed
     else {
         return analysis.build(false).await;
+    };
+
+    let compile_time_info = if (specified_type == SpecifiedModuleType::CommonJs)
+        || (specified_type == SpecifiedModuleType::Automatic && !eval_context.is_esm())
+    {
+        let compile_time_info = raw_module.compile_time_info.await?;
+        let mut free_var_references = compile_time_info.free_var_references.await?.clone_value();
+        free_var_references
+            .entry(vec![
+                DefineableNameSegment::Name("exports".into()),
+                DefineableNameSegment::TypeOf,
+            ])
+            .or_insert("object".into());
+        free_var_references
+            .entry(vec![
+                DefineableNameSegment::Name("module".into()),
+                DefineableNameSegment::TypeOf,
+            ])
+            .or_insert("object".into());
+        free_var_references
+            .entry(vec![
+                DefineableNameSegment::Name("require".into()),
+                DefineableNameSegment::TypeOf,
+            ])
+            .or_insert("function".into());
+
+        CompileTimeInfo {
+            environment: compile_time_info.environment,
+            defines: compile_time_info.defines,
+            free_var_references: FreeVarReferences(free_var_references).cell(),
+        }
+        .cell()
+    } else {
+        raw_module.compile_time_info
     };
 
     let mut import_references = Vec::new();
