@@ -445,12 +445,13 @@ export function Signup() {
 
 ### Pending states
 
-The [`useActionState`](https://react.dev/reference/react/useActionState) hook exposes a `pending` state that can be used to show a loading indicator while the action is being executed.
+The [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook exposes a `pending` state that can be used to show a loading indicator while the action is being executed.
 
 ```tsx filename="app/submit-button.tsx" highlight={11,21-23} switcher
 'use client'
 
 import { useActionState } from 'react'
+import { useFormStatus } from "react-dom";
 import { createUser } from '@/app/actions'
 
 const initialState = {
@@ -458,7 +459,8 @@ const initialState = {
 }
 
 export function Signup() {
-  const [state, formAction, pending] = useActionState(createUser, initialState)
+  const { pending } = useFormStatus()
+  const [state, formAction] = useActionState(createUser, initialState)
 
   return (
     <form action={formAction}>
@@ -480,6 +482,7 @@ export function Signup() {
 'use client'
 
 import { useActionState } from 'react'
+import { useFormStatus } from "react-dom";
 import { createUser } from '@/app/actions'
 
 const initialState = {
@@ -487,7 +490,8 @@ const initialState = {
 }
 
 export function Signup() {
-  const [state, formAction, pending] = useActionState(createUser, initialState)
+  const { pending } = useFormStatus();
+  const [state, formAction] = useActionState(createUser, initialState)
 
   return (
     <form action={formAction}>
@@ -504,8 +508,6 @@ export function Signup() {
   )
 }
 ```
-
-> **Good to know:** Alternatively, you can also use the [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a pending state for a specific form.
 
 ### Optimistic updates
 
