@@ -16612,10 +16612,19 @@
       "flakey": [],
       "runtimeError": false
     },
-    "est/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions.test.ts": {
+    "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions.test.ts": {
       "passed": [],
       "failed": [
         "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - reexport should not have the unused action in the manifest"
       ],
       "pending": [],
       "flakey": [],
@@ -16630,10 +16639,37 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts": {
+    "test/production/app-dir/actions-tree-shaking/basic/basic-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - basic should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/reexport/reexport-edge.test.ts": {
       "passed": [],
       "failed": [
         "actions-tree-shaking - reexport should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/shared-actions-module/shared-module-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
       ],
       "pending": [],
       "flakey": [],

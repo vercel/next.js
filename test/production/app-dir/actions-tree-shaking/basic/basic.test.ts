@@ -1,16 +1,20 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getActionsRoutesStateByRuntime } from '../_testing/utils'
+import {
+  getActionsRoutesStateByRuntime,
+  markLayoutAsEdge,
+} from '../_testing/utils'
 
 describe('actions-tree-shaking - basic', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
 
+  if (process.env.TEST_EDGE) {
+    markLayoutAsEdge(next)
+  }
+
   it('should not have the unused action in the manifest', async () => {
-    const actionsRoutesState = await getActionsRoutesStateByRuntime(
-      next,
-      'node'
-    )
+    const actionsRoutesState = await getActionsRoutesStateByRuntime(next)
 
     expect(actionsRoutesState).toMatchObject({
       // only one server layer action

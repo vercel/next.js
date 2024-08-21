@@ -1,16 +1,20 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getActionsRoutesStateByRuntime } from '../_testing/utils'
+import {
+  getActionsRoutesStateByRuntime,
+  markLayoutAsEdge,
+} from '../_testing/utils'
 
 describe('actions-tree-shaking - mixed-module-actions', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
 
+  if (process.env.TEST_EDGE) {
+    markLayoutAsEdge(next)
+  }
+
   it('should not do tree shake for cjs module when import server actions', async () => {
-    const actionsRoutesState = await getActionsRoutesStateByRuntime(
-      next,
-      'node'
-    )
+    const actionsRoutesState = await getActionsRoutesStateByRuntime(next)
 
     expect(actionsRoutesState).toMatchObject({
       'app/mixed-module/esm/page': {

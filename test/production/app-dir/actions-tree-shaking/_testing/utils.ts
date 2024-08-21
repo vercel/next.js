@@ -1,9 +1,26 @@
-async function getActionsMappingByRuntime(next: any, runtime: 'node' | 'edge') {
+import { type NextInstance } from 'e2e-utils'
+
+async function getActionsMappingByRuntime(
+  next: NextInstance,
+  runtime: 'node' | 'edge'
+) {
   const manifest = JSON.parse(
     await next.readFile('.next/server/server-reference-manifest.json')
   )
 
   return manifest[runtime]
+}
+
+export function markLayoutAsEdge(next: NextInstance) {
+  beforeAll(async () => {
+    await next.stop()
+    const layoutContent = await next.readFile('app/layout.js')
+    await next.patchFile(
+      'app/layout.js',
+      layoutContent + `\nexport const runtime = 'edge'`
+    )
+    await next.start()
+  })
 }
 
 /* 
@@ -52,13 +69,10 @@ function getActionsRoutesState(
   return state
 }
 
-export async function getActionsRoutesStateByRuntime(
-  next: any,
-  runtime: 'node' | 'edge'
-) {
+export async function getActionsRoutesStateByRuntime(next: NextInstance) {
   const actionsMappingOfRuntime = await getActionsMappingByRuntime(
     next,
-    runtime
+    process.env.TEST_EDGE ? 'edge' : 'node'
   )
   return getActionsRoutesState(actionsMappingOfRuntime)
 }
