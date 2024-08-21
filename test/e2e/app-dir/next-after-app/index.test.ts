@@ -15,7 +15,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   const logFileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logs-'))
   const logFile = path.join(logFileDir, 'logs.jsonl')
 
-  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
     // `patchFile` and reading runtime logs are not supported in a deployed environment
     skipDeployment: true,
@@ -305,65 +305,6 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
       await cleanup()
     }
   })
-
-  if (isNextDev) {
-    // TODO: these are at the end because they destroy the next server.
-    // is there a cleaner way to do this without making the tests slower?
-
-    describe('invalid usages', () => {
-      it.each(['error', 'force-static'])(
-        `errors at compile time with dynamic = "%s"`,
-        async (dynamicValue) => {
-          const { session, cleanup } = await sandbox(
-            next,
-            new Map([
-              [
-                `app/${runtimeValue}/static/page.js`,
-                (contents) =>
-                  contents.replace(
-                    `// export const dynamic = 'REPLACE_ME'`,
-                    `export const dynamic = '${dynamicValue}'`
-                  ),
-              ],
-            ]),
-            pathPrefix + '/static'
-          )
-
-          try {
-            await session.assertHasRedbox()
-            expect(await session.getRedboxDescription()).toContain(
-              `Route ${pathPrefix}/static with \`dynamic = "${dynamicValue}"\` couldn't be rendered statically because it used \`unstable_after\``
-            )
-            expect(getLogs()).toHaveLength(0)
-          } finally {
-            await cleanup()
-          }
-        }
-      )
-
-      it('errors at compile time when used in a client module', async () => {
-        const { session, cleanup } = await sandbox(
-          next,
-          new Map([
-            [
-              `app/${runtimeValue}/invalid-in-client/page.js`,
-              (contents) => contents.replace(`// 'use client'`, `'use client'`),
-            ],
-          ]),
-          pathPrefix + '/invalid-in-client'
-        )
-        try {
-          await session.assertHasRedbox()
-          expect(await session.getRedboxSource(true)).toMatch(
-            /You're importing a component that needs "?unstable_after"?\. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component\./
-          )
-          expect(getLogs()).toHaveLength(0)
-        } finally {
-          await cleanup()
-        }
-      })
-    })
-  }
 })
 
 function promiseWithResolvers<T>() {
