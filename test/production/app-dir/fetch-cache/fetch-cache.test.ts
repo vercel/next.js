@@ -237,4 +237,34 @@ describe('fetch-cache', () => {
       fetchGetShouldError = false
     }
   })
+
+  it('should update cache TTL even if cache data does not change', async () => {
+    const fetchCacheRequestsIndex = fetchCacheRequests.length
+
+    for (let i = 0; i < 3; i++) {
+      const res = await fetchViaHTTP(appPort, '/not-changed')
+      expect(res.status).toBe(200)
+      // give time for revalidate period to pass
+      await new Promise((resolve) => setTimeout(resolve, 3_000))
+    }
+
+    const newCacheGets = []
+    const newCacheSets = []
+
+    for (
+      let i = fetchCacheRequestsIndex - 1;
+      i < fetchCacheRequests.length;
+      i++
+    ) {
+      const requestItem = fetchCacheRequests[i]
+      if (requestItem.method === 'get') {
+        newCacheGets.push(requestItem)
+      }
+      if (requestItem.method === 'post') {
+        newCacheSets.push(requestItem)
+      }
+    }
+    expect(newCacheGets.length).toBeGreaterThanOrEqual(2)
+    expect(newCacheSets.length).toBeGreaterThanOrEqual(2)
+  })
 })
