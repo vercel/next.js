@@ -3,7 +3,6 @@ import { ReflectAdapter } from '../../server/web/spec-extension/adapters/reflect
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
-import crypto from 'crypto'
 
 export type DynamicRouteParams = ReadonlyMap<string, string>
 
@@ -31,8 +30,18 @@ export function getDynamicRouteParams(
 
   const params = new Map<string, string>()
 
+  // As we're creating unique keys for each of the dynamic route params, we only
+  // need to generate a unique ID once per request because each of the keys will
+  // be also be unique.
+  let uniqueID: string
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    uniqueID = crypto.randomUUID()
+  } else {
+    uniqueID = require('next/dist/compiled/nanoid').nanoid()
+  }
+
   for (const key of keys) {
-    params.set(key, `${key}:${crypto.randomUUID()}`)
+    params.set(key, `drp:${key}:${uniqueID}`)
   }
 
   return params
