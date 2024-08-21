@@ -301,13 +301,13 @@ export class FlightClientEntryPlugin {
         compilation.moduleGraph
       )) {
         // Entry can be any user defined entry files such as layout, page, error, loading, etc.
-        const serverEntryRequest = (
+        const entryRequest = (
           connection.dependency as unknown as webpack.NormalModule
         ).request
 
         const { clientComponentImports, actionImports, cssImports } =
           this.collectComponentInfoFromServerEntryDependency({
-            serverEntryRequest,
+            entryRequest,
             compilation,
             resolvedModule: connection.resolvedModule,
           })
@@ -316,7 +316,7 @@ export class FlightClientEntryPlugin {
           actionEntryImports.set(dep, names)
         )
 
-        const isAbsoluteRequest = path.isAbsolute(serverEntryRequest)
+        const isAbsoluteRequest = path.isAbsolute(entryRequest)
 
         // Next.js internals are put into a separate entry.
         if (!isAbsoluteRequest) {
@@ -333,8 +333,8 @@ export class FlightClientEntryPlugin {
         // }
 
         const relativeRequest = isAbsoluteRequest
-          ? path.relative(compilation.options.context!, serverEntryRequest)
-          : serverEntryRequest
+          ? path.relative(compilation.options.context!, entryRequest)
+          : entryRequest
 
         // Replace file suffix as `.js` will be added.
         const bundlePath = normalizePathSep(
@@ -348,7 +348,7 @@ export class FlightClientEntryPlugin {
           entryName: name,
           clientComponentImports,
           bundlePath,
-          absolutePagePath: serverEntryRequest,
+          absolutePagePath: entryRequest,
         })
 
         // The webpack implementation of writing the client reference manifest relies on all entrypoints writing a page.js even when there is no client components in the page.
@@ -364,7 +364,7 @@ export class FlightClientEntryPlugin {
             entryName: name,
             clientComponentImports: {},
             bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
-            absolutePagePath: serverEntryRequest,
+            absolutePagePath: entryRequest,
           })
         }
       }
@@ -630,11 +630,11 @@ export class FlightClientEntryPlugin {
   }
 
   collectComponentInfoFromServerEntryDependency({
-    serverEntryRequest,
+    entryRequest,
     compilation,
     resolvedModule,
   }: {
-    serverEntryRequest: string
+    entryRequest: string
     compilation: webpack.Compilation
     resolvedModule: any /* Dependency */
   }): {
@@ -661,13 +661,15 @@ export class FlightClientEntryPlugin {
 
       if (!modResource) return
       if (visitedOfClientComponentsTraverse.has(modResource)) {
-        addClientImport(
-          mod,
-          modResource,
-          clientComponentImports,
-          importedIdentifiers,
-          false
-        )
+        if (clientComponentImports[modResource]) {
+          addClientImport(
+            mod,
+            modResource,
+            clientComponentImports,
+            importedIdentifiers,
+            false
+          )
+        }
         return
       }
       visitedOfClientComponentsTraverse.add(modResource)
@@ -691,6 +693,9 @@ export class FlightClientEntryPlugin {
 
         CSSImports.add(modResource)
       } else if (isClientOrActionEntryModule(mod)) {
+        if (!clientComponentImports[modResource]) {
+          clientComponentImports[modResource] = new Set()
+        }
         addClientImport(
           mod,
           modResource,
@@ -776,7 +781,7 @@ export class FlightClientEntryPlugin {
       clientComponentImports,
       cssImports: CSSImports.size
         ? {
-            [serverEntryRequest]: Array.from(CSSImports),
+            [entryRequest]: Array.from(CSSImports),
           }
         : {},
       actionImports,
@@ -924,8 +929,10 @@ export class FlightClientEntryPlugin {
     createdActions: Set<string>
     fromClient?: boolean
   }) {
+    // Filter out the unused actions before create action entry.
     for (const [filePath, names] of actions.entries()) {
       const usedActionNames = this.usedActionsMapping[filePath]
+      if (!usedActionNames) continue
       const containsAll = usedActionNames.has('*')
       if (usedActionNames && !containsAll) {
         const filteredNames = names.filter((name) => usedActionNames.has(name))
@@ -1110,19 +1117,6 @@ function addClientImport(
   importedIdentifiers: string[],
   isFirstVisitModule: boolean
 ) {
-  if (isFirstVisitModule) {
-    // If it's the first time visiting the module, we should create a new set.
-    if (!clientComponentImports[modRequest]) {
-      clientComponentImports[modRequest] = new Set()
-    }
-  } else {
-    // If has already visited that module, and the module is not in the clientComponentImports,
-    // we should skip it.
-    if (!clientComponentImports[modRequest]) {
-      return
-    }
-  }
-
   const clientEntryType = getModuleBuildInfo(mod).rsc?.clientEntryType
   const isCjsModule = clientEntryType === 'cjs'
   const assumedSourceType = getAssumedSourceType(
@@ -1172,7 +1166,7 @@ function getModuleResource(mod: webpack.NormalModule): string {
 
   // Context modules don't have a resource path, we use the identifier instead.
   if (mod.constructor.name === 'ContextModule') {
-    modResource = (mod as any)._identifier
+    modResource = (mod as any)._identifier || ''
   }
 
   // For the barrel optimization, we need to use the match resource instead

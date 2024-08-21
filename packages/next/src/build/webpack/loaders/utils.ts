@@ -10,7 +10,7 @@ export function isActionLayerEntryModule(mod: {
   buildInfo?: any
 }) {
   const rscInfo = mod.buildInfo.rsc
-  return rscInfo?.actions && rscInfo?.type === RSC_MODULE_TYPES.server
+  return !!(rscInfo?.actions && rscInfo?.type === RSC_MODULE_TYPES.server)
 }
 
 export function isClientOrActionEntryModule(mod: {
