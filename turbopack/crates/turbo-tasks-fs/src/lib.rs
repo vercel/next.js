@@ -72,6 +72,80 @@ use crate::{
     rope::{Rope, RopeReader},
 };
 
+pub const MAX_FILE_NAME_LENGTH_UNIX: usize = 255;
+
+/// Validate the path, returning either the valid path, or a modified-but-now-valid path,
+/// or bailing with an error.
+///
+/// The behaviour of the file system changes depending on the OS, and indeed sometimes the FS
+/// implementation of the OS itself.
+///
+/// - On windows the limit for normal file paths is 260 characters, a holdover from the DOS days,
+///   but rust will opportunistically rewrite paths to 'UNC' paths for supported path operations
+///   which can be up to 32767 characters long.
+/// - On macOS, the limit is traditionally 255 characters for the file name and a second limit of
+///   1024 for the entire path (verified by running `getconf PATH_MAX /`).
+/// - On linux, the limit differs between kernel (and by extension, distro) and filesystem. Individual files can be up to 255 bytes, while
+///   paths can be up to 4096 _on EXT4_. However, despite advertising these in `limits.h`, some filesystems actually support larger lengths.
+///   Fedora for example explicitly says not to program against the limit on linux (https://docs.fedoraproject.org/en-US/defensive-coding/tasks/Tasks-File_System/#sect-Defensive_Coding-Tasks-File_System-Limits)
+///
+/// Realistically, the output path lengths will be the same across all platforms, so we need to set
+/// a conservative limit and be particular about when we decide to bump it. Here we have opted for
+/// 255 characters, because it is the shortest of the three options.
+fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
+    /// Here we check if the path is too long for windows, and if so, attempt to canonicalize it
+    /// to a UNC path.
+    #[cfg(target_family = "windows")]
+    fn validate_path_length_inner(path: &Path) -> Result<Cow<'_, Path>> {
+        const MAX_PATH_LENGTH_WINDOWS: usize = 260;
+        const UNC_PREFIX: &str = "\\\\?\\";
+
+        if path.as_os_str().starts_with(UNC_PREFIX) {
+            return path.into();
+        }
+
+        if path.as_os_str().len() > MAX_PATH_LENGTH_WINDOWS {
+            let new_path = normalize_path(&unix_to_sys(&path.to_string_lossy()))
+                .ok_or_else(|| anyhow!("file is too long, and could not be normalized"))?;
+            return new_path.into();
+        }
+
+        Ok(path.into())
+    }
+
+    /// Here we are only going to check if the total length exceeds, or the last segment exceeds.
+    /// This heuristic is primarily to avoid long file names, and it makes the operation much
+    /// cheaper.
+    #[cfg(not(target_family = "windows"))]
+    fn validate_path_length_inner(path: &Path) -> Result<Cow<'_, Path>> {
+        // macOS reports a limit of 1024, but I (@arlyon) have had issues with paths above 1016
+        // so we subtract a bit to be safe. on most linux distros this is likely a lot larger than
+        // 1024, but macOS is *special*
+        const MAX_PATH_LENGTH: usize = 1024 - 8;
+
+        // check the last segment (file name)
+        if path
+            .file_name()
+            .map(|n| n.as_encoded_bytes().len())
+            .unwrap_or(0)
+            > MAX_FILE_NAME_LENGTH_UNIX
+        {
+            anyhow::bail!(
+                "file name is too long (exceeds {} bytes)",
+                MAX_FILE_NAME_LENGTH_UNIX
+            );
+        }
+
+        if path.as_os_str().len() > MAX_PATH_LENGTH {
+            anyhow::bail!("path is too long (exceeds {} bytes)", MAX_PATH_LENGTH);
+        }
+
+        Ok(path.into())
+    }
+
+    validate_path_length_inner(path)
+}
+
 #[turbo_tasks::value_trait]
 pub trait FileSystem: ValueToString {
     /// Returns the path to the root of the file system.
@@ -496,6 +570,14 @@ impl FileSystem for DiskFileSystem {
         content: Vc<FileContent>,
     ) -> Result<Vc<Completion>> {
         let full_path = self.to_sys_path(fs_path).await?;
+
+        let full_path = validate_path_length(&full_path).with_context(|| {
+            format!(
+                "path length for file {} exceeds max length of filesystem",
+                full_path.to_string_lossy()
+            )
+        })?;
+
         let content = content.await?;
 
         let _lock = self.lock_path(&full_path).await;
@@ -509,7 +591,7 @@ impl FileSystem for DiskFileSystem {
         // code will need to read the file from disk into a Vc<FileContent>, so we're
         // not wasting cycles.
         let compare = content
-            .streaming_compare(full_path.clone())
+            .streaming_compare(&full_path)
             .instrument(tracing::info_span!(
                 "read file before write",
                 path = display(full_path.display())
@@ -1343,8 +1425,8 @@ enum FileComparison {
 impl FileContent {
     /// Performs a comparison of self's data against a disk file's streamed
     /// read.
-    async fn streaming_compare(&self, path: PathBuf) -> Result<FileComparison> {
-        let old_file = extract_disk_access(retry_future(|| fs::File::open(&path)).await, &path)?;
+    async fn streaming_compare(&self, path: &Path) -> Result<FileComparison> {
+        let old_file = extract_disk_access(retry_future(|| fs::File::open(path)).await, path)?;
         let Some(mut old_file) = old_file else {
             return Ok(match self {
                 FileContent::NotFound => FileComparison::Equal,
@@ -1356,7 +1438,7 @@ impl FileContent {
             return Ok(FileComparison::NotEqual);
         };
 
-        let old_meta = extract_disk_access(retry_future(|| old_file.metadata()).await, &path)?;
+        let old_meta = extract_disk_access(retry_future(|| old_file.metadata()).await, path)?;
         let Some(old_meta) = old_meta else {
             // If we failed to get meta, then the old file has been deleted between the
             // handle open. In which case, we just pretend the file never
