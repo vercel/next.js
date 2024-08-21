@@ -57,7 +57,7 @@ impl CustomTransformer for NextJsDynamic {
             self.is_react_server_layer,
             self.is_app_dir,
             NextDynamicMode::Webpack,
-            FileName::Real(ctx.file_path_str.into()),
+            FileName::Real(ctx.file_path_str.into()).into(),
             None,
         ));
 

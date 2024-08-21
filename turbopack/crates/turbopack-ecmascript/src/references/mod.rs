@@ -40,14 +40,14 @@ use swc_core::{
         comments::{CommentKind, Comments},
         errors::{DiagnosticId, Handler, HANDLER},
         pass::AstNodePath,
-        source_map::Pos,
+        source_map::SmallPos,
         Globals, Span, Spanned, GLOBALS,
     },
     ecma::{
         ast::*,
         visit::{
             fields::{AssignExprField, AssignTargetField, SimpleAssignTargetField},
-            AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithPath,
+            AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithAstPath,
         },
     },
 };
@@ -55,7 +55,9 @@ use tracing::Instrument;
 use turbo_tasks::{RcStr, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    compile_time_info::{CompileTimeInfo, FreeVarReference},
+    compile_time_info::{
+        CompileTimeInfo, DefineableNameSegment, FreeVarReference, FreeVarReferences,
+    },
     error::PrettyPrintError,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     module::Module,
@@ -369,7 +371,15 @@ impl<'a> AnalysisState<'a> {
             self.var_graph,
             value,
             &early_value_visitor,
-            &|value| value_visitor(self.origin, value, self.compile_time_info, in_try),
+            &|value| {
+                value_visitor(
+                    self.origin,
+                    value,
+                    self.compile_time_info,
+                    self.var_graph,
+                    in_try,
+                )
+            },
             fun_args_values,
         )
         .await
@@ -443,6 +453,40 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         module_type: specified_type,
         referenced_package_json,
     } = *module.determine_module_type().await?;
+
+    let compile_time_info = match specified_type {
+        SpecifiedModuleType::Automatic | SpecifiedModuleType::CommonJs => {
+            let compile_time_info = compile_time_info.await?;
+            let mut free_var_references =
+                compile_time_info.free_var_references.await?.clone_value();
+            free_var_references
+                .entry(vec![
+                    DefineableNameSegment::Name("exports".into()),
+                    DefineableNameSegment::TypeOf,
+                ])
+                .or_insert("object".into());
+            free_var_references
+                .entry(vec![
+                    DefineableNameSegment::Name("module".into()),
+                    DefineableNameSegment::TypeOf,
+                ])
+                .or_insert("object".into());
+            free_var_references
+                .entry(vec![
+                    DefineableNameSegment::Name("require".into()),
+                    DefineableNameSegment::TypeOf,
+                ])
+                .or_insert("function".into());
+
+            CompileTimeInfo {
+                environment: compile_time_info.environment,
+                defines: compile_time_info.defines,
+                free_var_references: FreeVarReferences(free_var_references).cell(),
+            }
+            .cell()
+        }
+        SpecifiedModuleType::EcmaScript => compile_time_info,
+    };
 
     if let Some(package_json) = referenced_package_json {
         analysis.add_reference(PackageJsonReference::new(package_json));
@@ -653,7 +697,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
             }
 
-            program.visit_with_path(&mut visitor, &mut Default::default());
+            program.visit_with_ast_path(&mut visitor, &mut Default::default());
 
             (
                 visitor.webpack_runtime,
@@ -1137,6 +1181,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         analysis.add_binding(EsmBinding::new(*r, export, Vc::cell(ast_path)));
                     }
                 }
+            }
+            Effect::TypeOf {
+                arg,
+                ast_path,
+                span,
+            } => {
+                let arg = analysis_state.link_value(arg, false).await?;
+                handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
             }
             Effect::ImportMeta {
                 ast_path,
@@ -1911,6 +1963,7 @@ async fn handle_member(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
     if let Some(prop) = prop.as_str() {
+        let prop = DefineableNameSegment::Name(prop.into());
         if let Some(def_name_len) = obj.get_defineable_name_len() {
             let compile_time_info = state.compile_time_info.await?;
             let free_var_references = compile_time_info.free_var_references.await?;
@@ -1918,8 +1971,8 @@ async fn handle_member(
                 if name.len() != def_name_len + 1 {
                     continue;
                 }
-                let mut it = name.iter().map(|v| Cow::Borrowed(&**v)).rev();
-                if it.next().unwrap() != Cow::Borrowed(prop) {
+                let mut it = name.iter().map(Cow::Borrowed).rev();
+                if it.next().unwrap().as_ref() != &prop {
                     continue;
                 }
                 if it.eq(obj.iter_defineable_name_rev())
@@ -1947,6 +2000,24 @@ async fn handle_member(
     Ok(())
 }
 
+async fn handle_typeof(
+    ast_path: &[AstParentKind],
+    arg: JsValue,
+    span: Span,
+    state: &AnalysisState<'_>,
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+) -> Result<()> {
+    if let Some(value) = arg.match_free_var_reference(
+        Some(state.var_graph),
+        &*state.compile_time_info.await?.free_var_references.await?,
+        &Some(DefineableNameSegment::TypeOf),
+    ) {
+        handle_free_var_reference(ast_path, value, span, state, analysis).await?;
+    }
+
+    Ok(())
+}
+
 async fn handle_free_var(
     ast_path: &[AstParentKind],
     var: JsValue,
@@ -1964,9 +2035,9 @@ async fn handle_free_var(
 
             if var
                 .iter_defineable_name_rev()
-                .eq(name.iter().map(|v| Cow::Borrowed(&**v)).rev())
-                && handle_free_var_reference(ast_path, value, span, state, analysis).await?
+                .eq(name.iter().map(Cow::Borrowed).rev())
             {
+                handle_free_var_reference(ast_path, value, span, state, analysis).await?;
                 return Ok(());
             }
         }
@@ -2259,9 +2330,11 @@ async fn value_visitor(
     origin: Vc<Box<dyn ResolveOrigin>>,
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
+    var_graph: &VarGraph,
     in_try: bool,
 ) -> Result<(JsValue, bool)> {
-    let (mut v, modified) = value_visitor_inner(origin, v, compile_time_info, in_try).await?;
+    let (mut v, modified) =
+        value_visitor_inner(origin, v, compile_time_info, var_graph, in_try).await?;
     v.normalize_shallow();
     Ok((v, modified))
 }
@@ -2270,20 +2343,24 @@ async fn value_visitor_inner(
     origin: Vc<Box<dyn ResolveOrigin>>,
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
+    var_graph: &VarGraph,
     in_try: bool,
 ) -> Result<(JsValue, bool)> {
-    if let Some(def_name_len) = v.get_defineable_name_len() {
+    // This check is just an optimization
+    if v.get_defineable_name_len().is_some() {
         let compile_time_info = compile_time_info.await?;
-        let defines = compile_time_info.defines.await?;
-        for (name, value) in defines.iter() {
-            if name.len() != def_name_len {
-                continue;
-            }
-            if v.iter_defineable_name_rev()
-                .eq(name.iter().map(|v| Cow::Borrowed(&**v)).rev())
-            {
+        if let JsValue::TypeOf(..) = v {
+            if let Some(value) = v.match_free_var_reference(
+                Some(var_graph),
+                &*compile_time_info.free_var_references.await?,
+                &None,
+            ) {
                 return Ok((value.into(), true));
             }
+        }
+
+        if let Some(value) = v.match_define(&*compile_time_info.defines.await?) {
+            return Ok((value.into(), true));
         }
     }
     let value = match v {
@@ -2628,7 +2705,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
     ) {
         let path = Vc::cell(as_parent_path(ast_path));
         self.analysis.add_code_gen(EsmModuleItem::new(path));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_named_export<'ast: 'r, 'r>(
@@ -2693,7 +2770,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         }
 
         self.analysis.add_code_gen(EsmModuleItem::new(path));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_export_decl<'ast: 'r, 'r>(
@@ -2707,7 +2784,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         });
         self.analysis
             .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_export_default_expr<'ast: 'r, 'r>(
@@ -2721,7 +2798,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         );
         self.analysis
             .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_export_default_decl<'ast: 'r, 'r>(
@@ -2748,7 +2825,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         }
         self.analysis
             .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_import_decl<'ast: 'r, 'r>(
@@ -2758,7 +2835,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
     ) {
         let path = Vc::cell(as_parent_path(ast_path));
         let src = import.src.value.to_string();
-        import.visit_children_with_path(self, ast_path);
+        import.visit_children_with_ast_path(self, ast_path);
         if import.type_only {
             return;
         }
@@ -2821,7 +2898,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
                 }
             }
         }
-        decl.visit_children_with_path(self, ast_path);
+        decl.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_call_expr<'ast: 'r, 'r>(
@@ -2860,7 +2937,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
                 }
             }
         }
-        call.visit_children_with_path(self, ast_path);
+        call.visit_children_with_ast_path(self, ast_path);
     }
 }
 

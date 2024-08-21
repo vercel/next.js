@@ -153,6 +153,11 @@ export interface ExperimentalTurboOptions {
    * A target memory limit for turbo, in bytes.
    */
   memoryLimit?: number
+
+  /**
+   * Enable tree shaking for the turbopack dev server and build.
+   */
+  treeShaking?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -211,6 +216,7 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
   flyingShuttle?: { mode?: 'full' | 'store-only' }
   prerenderEarlyExit?: boolean
@@ -979,6 +985,7 @@ export const defaultConfig: NextConfig = {
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   experimental: {
+    multiZoneDraftMode: false,
     appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
     flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE)
       ? {

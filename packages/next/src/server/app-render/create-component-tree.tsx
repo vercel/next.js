@@ -33,7 +33,6 @@ export function createComponentTree(props: {
   injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
-  asNotFound?: boolean
   getMetadataReady: () => Promise<void>
   ctx: AppRenderContext
   missingSlots?: Set<string>
@@ -65,7 +64,6 @@ async function createComponentTreeInternal({
   injectedCSS,
   injectedJS,
   injectedFontPreloadTags,
-  asNotFound,
   getMetadataReady,
   ctx,
   missingSlots,
@@ -79,7 +77,6 @@ async function createComponentTreeInternal({
   injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
-  asNotFound?: boolean
   getMetadataReady: () => Promise<void>
   ctx: AppRenderContext
   missingSlots?: Set<string>
@@ -437,7 +434,6 @@ async function createComponentTreeInternal({
             injectedCSS: injectedCSSWithCurrentLayout,
             injectedJS: injectedJSWithCurrentLayout,
             injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-            asNotFound,
             // getMetadataReady is used to conditionally throw. In the case of parallel routes we will have more than one page
             // but we only want to throw on the first one.
             getMetadataReady: isChildrenRouteKey
@@ -544,27 +540,6 @@ async function createComponentTreeInternal({
 
   // We avoid cloning this object because it gets consumed here exclusively.
   const props: { [prop: string]: any } = parallelRouteProps
-
-  // If it's a not found route, and we don't have any matched parallel
-  // routes, we try to render the not found component if it exists.
-  if (
-    NotFound &&
-    asNotFound &&
-    // In development, it could hit the parallel-route-default not found, so we only need to check the segment.
-    // Or if there's no parallel routes means it reaches the end.
-    !parallelRouteMap.length
-  ) {
-    props.children = (
-      <>
-        <meta name="robots" content="noindex" />
-        {process.env.NODE_ENV === 'development' && (
-          <meta name="next-error" content="not-found" />
-        )}
-        {notFoundStyles}
-        <NotFound />
-      </>
-    )
-  }
 
   // Assign params to props
   if (

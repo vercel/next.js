@@ -532,6 +532,7 @@ export default class NextNodeServer extends BaseServer<
       params: match.params,
       page: match.definition.pathname,
       onError: this.instrumentationOnRequestError.bind(this),
+      multiZoneDraftMode: this.nextConfig.experimental.multiZoneDraftMode,
     })
 
     return true
@@ -796,15 +797,6 @@ export default class NextNodeServer extends BaseServer<
     ) as NextFontManifest
   }
 
-  protected getFallback(page: string): Promise<string> {
-    page = normalizePagePath(page)
-    const cacheFs = this.getCacheFilesystem()
-    return cacheFs.readFile(
-      join(this.serverDistDir, 'pages', `${page}.html`),
-      'utf8'
-    )
-  }
-
   protected handleNextImageRequest: NodeRouteHandler = async (
     req,
     res,
@@ -886,6 +878,7 @@ export default class NextNodeServer extends BaseServer<
           {
             routeKind: RouteKind.IMAGE,
             incrementalCache: imageOptimizerCache,
+            isFallback: false,
           }
         )
 
