@@ -19,12 +19,12 @@ async function main() {
   const channel = '#next-info'
 
   const issue = context.payload.issue
+  const html_url = issue.html_url
+  const number = issue.number
+  const title = issue.title
 
   let latestVersion: string
   let latestCanaryVersion: string
-  let html_url: string
-  let number: number
-  let title: string
 
   try {
     latestVersion = await getLatestVersion()
@@ -49,13 +49,6 @@ async function main() {
         report_to_slack: tool({
           description: 'Report to Slack.',
           parameters: issueSchema,
-          execute: async ({ issue }) => {
-            html_url = issue.html_url
-            number = issue.number
-            title = issue.title
-
-            return { html_url, number, title }
-          },
         }),
       },
       system:

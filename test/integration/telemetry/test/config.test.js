@@ -264,7 +264,7 @@ describe('config telemetry', () => {
         expect(event1).toMatch(/"@next\/next\/.+?": "(off|warn|error)"/)
       })
 
-      it('emits telemery for usage of optimizeFonts, image, script & dynamic', async () => {
+      it('emits telemery for usage of image, script & dynamic', async () => {
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
           env: { NEXT_TELEMETRY_DEBUG: 1 },
@@ -277,10 +277,6 @@ describe('config telemetry', () => {
 
         expect(featureUsageEvents).toEqual(
           expect.arrayContaining([
-            {
-              featureName: 'optimizeFonts',
-              invocationCount: 1,
-            },
             {
               featureName: 'next/image',
               invocationCount: 2,
