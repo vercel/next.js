@@ -1,11 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('middleware-sitemap', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
 
-  it('should correctly render sitemap.xml when excluded from middleware matcher', async () => {
+  it('should not be affected by middleware if sitemap.xml is excluded from the matcher', async () => {
     let html = await next.render('/')
     expect(html).toContain('redirected')
 
@@ -17,10 +17,8 @@ describe('middleware-sitemap', () => {
       return content.replace('REPLACE_TO_SITEMAP', 'sitemap.xml')
     })
 
-    if (!isNextDev) {
-      await next.stop()
-      await next.start()
-    }
+    await next.stop()
+    await next.start()
 
     html = await next.render('/sitemap.xml')
     expect(html).not.toContain('redirected')
