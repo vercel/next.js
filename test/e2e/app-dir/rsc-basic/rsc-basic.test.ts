@@ -542,21 +542,48 @@ describe('app dir - rsc basics', () => {
 
   it('should use canary react for app', async () => {
     const resPages$ = await next.render$('/app-react')
-    const ssrPagesReactVersions = [
-      await resPages$('#react').text(),
-      await resPages$('#react-dom').text(),
-      await resPages$('#react-dom-server').text(),
-      await resPages$('#client-react').text(),
-      await resPages$('#client-react-dom').text(),
-      await resPages$('#client-react-dom-server').text(),
+    const [
+      ssrReact,
+      ssrReactDOM,
+      ssrReactDOMServer,
+      ssrClientReact,
+      ssrClientReactDOM,
+      ssrClientReactDOMServer,
+    ] = [
+      resPages$('#react').text(),
+      resPages$('#react-dom').text(),
+      resPages$('#react-dom-server').text(),
+      resPages$('#client-react').text(),
+      resPages$('#client-react-dom').text(),
+      resPages$('#client-react-dom-server').text(),
     ]
-
-    ssrPagesReactVersions.forEach((version) => {
-      expect(version).toMatch(bundledReactVersionPattern)
+    expect({
+      ssrReact,
+      ssrReactDOM,
+      ssrReactDOMServer,
+      ssrClientReact,
+      ssrClientReactDOM,
+      ssrClientReactDOMServer,
+    }).toEqual({
+      ssrReact: expect.stringMatching(bundledReactVersionPattern),
+      ssrReactDOM: expect.stringMatching(bundledReactVersionPattern),
+      ssrReactDOMServer: expect.stringMatching(bundledReactVersionPattern),
+      ssrClientReact: expect.stringMatching(bundledReactVersionPattern),
+      ssrClientReactDOM: expect.stringMatching(bundledReactVersionPattern),
+      ssrClientReactDOMServer: expect.stringMatching(
+        bundledReactVersionPattern
+      ),
     })
 
     const browser = await next.browser('/app-react')
-    const browserAppReactVersions = await browser.eval(`
+    const [
+      browserReact,
+      browserReactDOM,
+      browserReactDOMServer,
+      browserClientReact,
+      browserClientReactDOM,
+      browserClientReactDOMServer,
+    ] = await browser.eval(`
       [
         document.querySelector('#react').innerText,
         document.querySelector('#react-dom').innerText,
@@ -566,9 +593,23 @@ describe('app dir - rsc basics', () => {
         document.querySelector('#client-react-dom-server').innerText,
       ]
     `)
-    browserAppReactVersions.forEach((version) =>
-      expect(version).toMatch(bundledReactVersionPattern)
-    )
+    expect({
+      browserReact,
+      browserReactDOM,
+      browserReactDOMServer,
+      browserClientReact,
+      browserClientReactDOM,
+      browserClientReactDOMServer,
+    }).toEqual({
+      browserReact: expect.stringMatching(bundledReactVersionPattern),
+      browserReactDOM: expect.stringMatching(bundledReactVersionPattern),
+      browserReactDOMServer: expect.stringMatching(bundledReactVersionPattern),
+      browserClientReact: expect.stringMatching(bundledReactVersionPattern),
+      browserClientReactDOM: expect.stringMatching(bundledReactVersionPattern),
+      browserClientReactDOMServer: expect.stringMatching(
+        bundledReactVersionPattern
+      ),
+    })
   })
 
   it('should be able to call legacy react-dom/server APIs in client components', async () => {
