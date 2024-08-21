@@ -7,7 +7,3 @@ export default function (request) {
 
   return NextResponse.next()
 }
-
-export const config = {
-  matcher: ['/((?!REPLACE_TO_SITEMAP).*)'],
-}
