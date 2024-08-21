@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { pageAction } from './actions'
+import { clientComponentAction } from './actions'
 
 export default function Page() {
   const [text, setText] = useState('initial')
@@ -10,7 +10,7 @@ export default function Page() {
       <button
         id="action-1"
         onClick={async () => {
-          setText(await pageAction())
+          setText(await clientComponentAction())
         }}
       >
         Action 1

@@ -13,9 +13,16 @@ describe('actions-tree-shaking - basic', () => {
     )
 
     expect(actionsRoutesState).toMatchObject({
-      'app/page': {
-        rsc: 1, // only one server layer action
-        'action-browser': 1, // only one browser layer action
+      // only one server layer action
+      'app/server/page': {
+        rsc: 1,
+      },
+      // only one browser layer action
+      'app/client/page': {
+        'action-browser': 1,
+      },
+      'app/inline/page': {
+        rsc: 1,
       },
     })
   })

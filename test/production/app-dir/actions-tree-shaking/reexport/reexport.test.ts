@@ -16,11 +16,12 @@ describe('actions-tree-shaking - reexport', () => {
       'app/namespace-reexport/server/page': {
         rsc: 1,
       },
-      'app/namespaced-reexport/client/page': {
+      'app/namespace-reexport/client/page': {
         'action-browser': 1,
       },
+      // We're not able to tree-shake these re-exports here
       'app/named-reexport/server/page': {
-        rsc: 1,
+        rsc: 3,
       },
       'app/named-reexport/client/page': {
         'action-browser': 1,

@@ -935,12 +935,18 @@ export class FlightClientEntryPlugin {
       if (!usedActionNames) continue
       const containsAll = usedActionNames.has('*')
       if (usedActionNames && !containsAll) {
-        const filteredNames = names.filter((name) => usedActionNames.has(name))
+        const filteredNames = names.filter(
+          (name) => usedActionNames.has(name) || isInlineActionIdentifier(name)
+        )
         actions.set(filePath, filteredNames)
       } else if (!containsAll) {
         // If we didn't collect the used, we erase them from the collected actions
         // to avoid creating the action entry.
-        actions.delete(filePath)
+        if (
+          names.filter((name) => !isInlineActionIdentifier(name)).length === 0
+        ) {
+          actions.delete(filePath)
+        }
       }
     }
 
@@ -1177,4 +1183,9 @@ function getModuleResource(mod: webpack.NormalModule): string {
     modResource = mod.matchResource + ':' + modResource
   }
   return modResource
+}
+
+// x-ref crates/next-custom-transforms/src/transforms/server_actions.rs `gen_ident` funcition
+function isInlineActionIdentifier(name: string) {
+  return name.startsWith('$$ACTION_')
 }
