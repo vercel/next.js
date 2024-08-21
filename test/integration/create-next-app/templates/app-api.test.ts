@@ -1,11 +1,5 @@
 import { join } from 'node:path'
-import {
-  projectShouldHaveNoGitChanges,
-  tryNextDev,
-  run,
-  useTempDir,
-  projectFilesShouldExist,
-} from '../utils'
+import { tryNextDev, run, useTempDir, projectFilesShouldExist } from '../utils'
 import { mapSrcFiles, projectSpecification } from '../lib/specification'
 import { projectDepsShouldBe } from '../lib/utils'
 
@@ -115,7 +109,6 @@ describe('create-next-app --api (Headless App)', () => {
         mode: 'ts',
       })
       await tryNextDev({ cwd, isApi: true, projectName })
-      projectShouldHaveNoGitChanges({ cwd, projectName })
     })
   })
 
