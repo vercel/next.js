@@ -52,7 +52,7 @@ impl CodeGenerateable for EsmModuleItem {
                     match module_decl {
                         ModuleDecl::ExportDefaultExpr(ExportDefaultExpr { box expr, .. }) => {
                             let stmt = quote!("const $name = $expr;" as Stmt,
-                                name = Ident::new(magic_identifier::mangle("default export").into(), DUMMY_SP),
+                                name = Ident::new(magic_identifier::mangle("default export").into(), DUMMY_SP, Default::default()),
                                 expr: Expr = expr
                             );
                             *module_item = ModuleItem::Stmt(stmt);
@@ -61,14 +61,14 @@ impl CodeGenerateable for EsmModuleItem {
                             match decl {
                                 DefaultDecl::Class(class) => {
                                     *module_item = ModuleItem::Stmt(Stmt::Decl(Decl::Class(ClassDecl {
-                                        ident: class.ident.unwrap_or_else(|| Ident::new(magic_identifier::mangle("default export").into(), DUMMY_SP)),
+                                        ident: class.ident.unwrap_or_else(|| Ident::new(magic_identifier::mangle("default export").into(), DUMMY_SP, Default::default())),
                                         declare: false,
                                         class: class.class
                                     })))
                                 }
                                 DefaultDecl::Fn(fn_expr) => {
                                     *module_item = ModuleItem::Stmt(Stmt::Decl(Decl::Fn(FnDecl {
-                                        ident: fn_expr.ident.unwrap_or_else(|| Ident::new(magic_identifier::mangle("default export").into(), DUMMY_SP)),
+                                        ident: fn_expr.ident.unwrap_or_else(|| Ident::new(magic_identifier::mangle("default export").into(), DUMMY_SP, Default::default())),
                                         declare: false,
                                         function: fn_expr.function
                                     })))

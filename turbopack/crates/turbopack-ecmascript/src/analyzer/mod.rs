@@ -3667,7 +3667,7 @@ impl WellKnownFunctionKind {
 }
 
 fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
-    i.span.ctxt.outer() == unresolved_mark
+    i.ctxt.outer() == unresolved_mark
 }
 
 fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {

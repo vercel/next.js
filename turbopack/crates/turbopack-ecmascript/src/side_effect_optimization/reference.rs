@@ -132,7 +132,7 @@ impl CodeGenerateable for EcmascriptModulePartReference {
         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
             let stmt = quote!(
                 "var $name = __turbopack_import__($id);" as Stmt,
-                name = Ident::new(ident.clone().into(), DUMMY_SP),
+                name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
                 id: Expr = Expr::Lit(match &*id {
                     ModuleId::String(s) => s.as_str().into(),
                     ModuleId::Number(n) => (*n as f64).into(),
