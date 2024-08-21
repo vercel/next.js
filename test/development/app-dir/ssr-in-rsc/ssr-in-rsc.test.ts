@@ -39,8 +39,8 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-browser-explicit'
     )
 
+    await assertNoRedbox(browser)
     if (isTurbopack) {
-      await assertNoRedbox(browser)
       if (isReactExperimental) {
         expect(await browser.elementByCss('main').text())
           .toMatchInlineSnapshot(`
@@ -83,7 +83,47 @@ describe('react-dom/server in React Server environment', () => {
         `)
       }
     } else {
-      await assertHasRedbox(browser)
+      if (isReactExperimental) {
+        expect(await browser.elementByCss('main').text())
+          .toMatchInlineSnapshot(`
+          "{
+            "default": [
+              "renderToReadableStream",
+              "renderToStaticMarkup",
+              "renderToString",
+              "resume",
+              "version"
+            ],
+            "named": [
+              "default",
+              "renderToReadableStream",
+              "renderToStaticMarkup",
+              "renderToString",
+              "resume",
+              "version"
+            ]
+          }"
+        `)
+      } else {
+        expect(await browser.elementByCss('main').text())
+          .toMatchInlineSnapshot(`
+          "{
+            "default": [
+              "renderToReadableStream",
+              "renderToStaticMarkup",
+              "renderToString",
+              "version"
+            ],
+            "named": [
+              "default",
+              "renderToReadableStream",
+              "renderToStaticMarkup",
+              "renderToString",
+              "version"
+            ]
+          }"
+        `)
+      }
     }
     const redbox = {
       description: await getRedboxDescription(browser),
@@ -99,7 +139,7 @@ describe('react-dom/server in React Server environment', () => {
     } else {
       expect(redbox).toMatchInlineSnapshot(`
         {
-          "description": "Error: react-dom/server is not supported in React Server Components.",
+          "description": null,
           "source": null,
         }
       `)
