@@ -7,11 +7,7 @@ import { Input } from "@/components/forms/input";
 import { Label } from "@/components/forms/label";
 import { FormMessage, Message } from "@/components/forms/form-message";
 
-export default function Signup({
-  searchParams,
-}: {
-  searchParams: Message;
-}) {
+export default function Signup({ searchParams }: { searchParams: Message }) {
   const signUp = async (formData: FormData) => {
     "use server";
     const email = formData.get("email")?.toString();
@@ -90,11 +86,7 @@ export default function Signup({
             placeholder="••••••••"
             required
           />
-          <SubmitButton
-            formAction={signUp}
-            className="bg-green-700 rounded-md px-4 py-2 text-foreground mb-2"
-            pendingText="Signing In..."
-          >
+          <SubmitButton formAction={signUp} pendingText="Signing up...">
             Sign up
           </SubmitButton>
         </div>
