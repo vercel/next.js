@@ -103,9 +103,8 @@ export default class FetchCache implements CacheHandler {
       process.env.SUSPENSE_CACHE_BASEPATH
 
     if (process.env.SUSPENSE_CACHE_AUTH_TOKEN) {
-      this.headers[
-        'Authorization'
-      ] = `Bearer ${process.env.SUSPENSE_CACHE_AUTH_TOKEN}`
+      this.headers['Authorization'] =
+        `Bearer ${process.env.SUSPENSE_CACHE_AUTH_TOKEN}`
     }
 
     if (scHost) {
@@ -330,25 +329,6 @@ export default class FetchCache implements CacheHandler {
 
   public async set(...args: Parameters<CacheHandler['set']>) {
     const [key, data, ctx] = args
-
-    const newValue = data?.kind === 'FETCH' ? data.data : undefined
-    const existingCache = memoryCache?.get(key)
-    const existingValue = existingCache?.value
-    if (
-      existingValue?.kind === 'FETCH' &&
-      Object.keys(existingValue.data).every(
-        (field) =>
-          JSON.stringify(
-            (existingValue.data as Record<string, string | Object>)[field]
-          ) ===
-          JSON.stringify((newValue as Record<string, string | Object>)[field])
-      )
-    ) {
-      if (DEBUG) {
-        console.log(`skipping cache set for ${key} as not modified`)
-      }
-      return
-    }
 
     const { fetchCache, fetchIdx, fetchUrl, tags } = ctx
     if (!fetchCache) return

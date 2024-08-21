@@ -1,6 +1,7 @@
 import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
+import rawBody from 'next/dist/compiled/raw-body'
 import { FileRef, NextInstance, createNext } from 'e2e-utils'
 import {
   retry,
@@ -24,6 +25,8 @@ describe('fetch-cache', () => {
     method: string
     headers: Record<string, string | string[]>
   }> = []
+  let storeCacheItems = false
+  const fetchCacheStore = new Map<string, any>()
   let fetchCacheEnv: Record<string, string> = {
     SUSPENSE_CACHE_PROTO: 'http',
   }
@@ -65,9 +68,10 @@ describe('fetch-cache', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('port:', `minimalMode: ${minimalMode},port:`)
+      (await fs.readFile(testServer, 'utf8')).replace(
+        'port:',
+        `minimalMode: ${minimalMode},port:`
+      )
     )
     appPort = await findPort()
     nextInstance = await initNextServerScript(
@@ -96,8 +100,9 @@ describe('fetch-cache', () => {
     fetchGetReqIndex = 0
     revalidateReqIndex = 0
     fetchCacheRequests = []
+    storeCacheItems = false
     fetchGetShouldError = false
-    fetchCacheServer = http.createServer((req, res) => {
+    fetchCacheServer = http.createServer(async (req, res) => {
       console.log(`fetch cache request ${req.url} ${req.method}`, req.headers)
       const parsedUrl = new URL(req.url || '/', 'http://n')
 
@@ -137,6 +142,19 @@ describe('fetch-cache', () => {
             res.end('internal server error')
             return
           }
+
+          if (storeCacheItems && fetchCacheStore.has(key)) {
+            console.log(`returned cache for ${key}`)
+            res.statusCode = 200
+            res.end(JSON.stringify(fetchCacheStore.get(key)))
+            return
+          }
+        }
+
+        if (type === 'post' && storeCacheItems) {
+          const body = await rawBody(req, { encoding: 'utf8' })
+          fetchCacheStore.set(key, JSON.parse(body.toString()))
+          console.log(`set cache for ${key}`)
         }
         res.statusCode = type === 'post' ? 200 : 404
         res.end(`${type} for ${key}`)
@@ -224,6 +242,41 @@ describe('fetch-cache', () => {
       expect(fetchGetReqIndex).toBe(fetchGetReqIndexStart + 2)
     } finally {
       fetchGetShouldError = false
+    }
+  })
+
+  it('should update cache TTL even if cache data does not change', async () => {
+    storeCacheItems = true
+    const fetchCacheRequestsIndex = fetchCacheRequests.length
+
+    try {
+      for (let i = 0; i < 3; i++) {
+        const res = await fetchViaHTTP(appPort, '/not-changed')
+        expect(res.status).toBe(200)
+        // give time for revalidate period to pass
+        await new Promise((resolve) => setTimeout(resolve, 3_000))
+      }
+
+      const newCacheGets = []
+      const newCacheSets = []
+
+      for (
+        let i = fetchCacheRequestsIndex - 1;
+        i < fetchCacheRequests.length;
+        i++
+      ) {
+        const requestItem = fetchCacheRequests[i]
+        if (requestItem.method === 'get') {
+          newCacheGets.push(requestItem)
+        }
+        if (requestItem.method === 'post') {
+          newCacheSets.push(requestItem)
+        }
+      }
+      expect(newCacheGets.length).toBeGreaterThanOrEqual(2)
+      expect(newCacheSets.length).toBeGreaterThanOrEqual(2)
+    } finally {
+      storeCacheItems = false
     }
   })
 })
