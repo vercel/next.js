@@ -41,6 +41,8 @@ import getAssetPathFromRoute from '../../../shared/lib/router/utils/get-asset-pa
 import { getEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
+import { existsSync } from 'fs'
+import { addMetadataIdToRoute, addRouteSuffix, removeRouteSuffix } from '../turbopack-utils'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -65,17 +67,35 @@ async function readPartialManifest<T>(
   pageName: string,
   type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
 ): Promise<T> {
-  const manifestPath = posix.join(
+  const page = pageName.replace(/\/sitemap\/route$/, '/sitemap.xml/route')
+
+  let manifestPath = posix.join(
     distDir,
     `server`,
     type,
     type === 'middleware' || type === 'instrumentation'
       ? ''
       : type === 'app'
-        ? pageName
-        : getAssetPathFromRoute(pageName),
+        ? page
+        : getAssetPathFromRoute(page),
     name
   )
+  // existsSync is faster than using the async version
+  if(!existsSync(manifestPath) && page.endsWith('/route')) {
+    // TODO: Improve implementation of metadata routes, currently it requires this extra check for the variants of the files that can be written.
+    const metadataPage = addRouteSuffix(addMetadataIdToRoute(removeRouteSuffix(page.replace(/\/sitemap\.xml\/route$/, '/sitemap/route'))))
+    manifestPath = posix.join(
+      distDir,
+      `server`,
+      type,
+      type === 'middleware' || type === 'instrumentation'
+        ? ''
+        : type === 'app'
+          ? metadataPage
+          : getAssetPathFromRoute(metadataPage),
+      name
+    )
+  }
   return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
 }
 
