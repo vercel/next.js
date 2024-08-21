@@ -30,7 +30,7 @@ import {
   isClientOrActionEntryModule,
   isCSSMod,
   regexCSS,
-  isActionLayerEntryModule,
+  isActionServerLayerEntryModule,
 } from '../loaders/utils'
 import {
   traverseModules,
@@ -743,7 +743,7 @@ export class FlightClientEntryPlugin {
       }
       visitedOfActionTraverse.add(modResource)
 
-      if (isActionLayerEntryModule(mod)) {
+      if (isActionServerLayerEntryModule(mod)) {
         // `ids` are the identifiers that are imported from the dependency,
         // if it's present, it's an array of strings.
         if (!this.usedActionsMapping[modResource]) {
