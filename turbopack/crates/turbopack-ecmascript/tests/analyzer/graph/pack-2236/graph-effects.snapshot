@@ -1,52 +1,4 @@
 [
-    TypeOf {
-        arg: FreeVar(
-            "EdgeRuntime",
-        ),
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    2,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Left,
-            ),
-            Expr(
-                Unary,
-            ),
-        ],
-        span: 95..113#0,
-    },
     FreeVar {
         var: FreeVar(
             "EdgeRuntime",
@@ -99,7 +51,7 @@
                 Ident,
             ),
         ],
-        span: 102..113#1,
+        span: 102..113,
         in_try: false,
     },
     Conditional {
@@ -172,7 +124,7 @@
                                 Ident,
                             ),
                         ],
-                        span: 132..139#1,
+                        span: 132..139,
                         in_try: false,
                     },
                     Call {
@@ -226,7 +178,7 @@
                                 Call,
                             ),
                         ],
-                        span: 132..150#0,
+                        span: 132..150,
                         in_try: false,
                     },
                 ],
@@ -309,7 +261,7 @@
                                 Ident,
                             ),
                         ],
-                        span: 153..165#2,
+                        span: 153..165,
                         in_try: false,
                     },
                 ],
@@ -383,7 +335,7 @@
                 Test,
             ),
         ],
-        span: 95..165#0,
+        span: 95..165,
         in_try: false,
     },
 ]

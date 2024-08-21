@@ -52,7 +52,6 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
-  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
@@ -200,6 +199,7 @@ import {
 import { storeShuttle } from './flying-shuttle/store-shuttle'
 import { stitchBuilds } from './flying-shuttle/stitch-builds'
 import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
+import { FallbackMode } from '../lib/fallback'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -861,15 +861,9 @@ export default async function build(
       )
 
       const rootDir = path.join((pagesDir || appDir)!, '..')
-      const instrumentationHookEnabled = Boolean(
-        config.experimental.instrumentationHook
-      )
-
       const includes = [
         middlewareDetectionRegExp,
-        ...(instrumentationHookEnabled
-          ? [instrumentationHookDetectionRegExp]
-          : []),
+        instrumentationHookDetectionRegExp,
       ]
 
       const rootPaths = Array.from(await getFilesInDir(rootDir))
@@ -1350,7 +1344,6 @@ export default async function build(
           currentEntrypoints,
           currentEntryIssues,
           manifestLoader,
-          nextConfig: config,
           devRewrites: undefined,
           productionRewrites: customRoutes.rewrites,
           logErrors: false,
@@ -2077,7 +2070,11 @@ export default async function build(
                             }
                           }
 
-                          if (workerResult.prerenderFallback) {
+                          if (
+                            workerResult.prerenderFallbackMode !== undefined &&
+                            workerResult.prerenderFallbackMode !==
+                              FallbackMode.NOT_FOUND
+                          ) {
                             // whether or not to allow requests for paths not
                             // returned from generateStaticParams
                             appDynamicParamPaths.add(originalAppPath)
@@ -2130,9 +2127,15 @@ export default async function build(
                             )
                           }
 
-                          if (workerResult.prerenderFallback === 'blocking') {
+                          if (
+                            workerResult.prerenderFallbackMode ===
+                            FallbackMode.BLOCKING_STATIC_RENDER
+                          ) {
                             ssgBlockingFallbackPages.add(page)
-                          } else if (workerResult.prerenderFallback === true) {
+                          } else if (
+                            workerResult.prerenderFallbackMode ===
+                            FallbackMode.STATIC_PRERENDER
+                          ) {
                             ssgStaticFallbackPages.add(page)
                           }
                         } else if (workerResult.hasServerProps) {
@@ -2338,12 +2341,6 @@ export default async function build(
                   ]
                 : []),
               REACT_LOADABLE_MANIFEST,
-              config.optimizeFonts
-                ? path.join(
-                    SERVER_DIRECTORY,
-                    AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
-                  )
-                : null,
               BUILD_ID_FILE,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
@@ -2464,10 +2461,6 @@ export default async function build(
         {
           featureName: 'experimental/nextScriptWorkers',
           invocationCount: config.experimental.nextScriptWorkers ? 1 : 0,
-        },
-        {
-          featureName: 'optimizeFonts',
-          invocationCount: config.optimizeFonts ? 1 : 0,
         },
         {
           featureName: 'experimental/ppr',

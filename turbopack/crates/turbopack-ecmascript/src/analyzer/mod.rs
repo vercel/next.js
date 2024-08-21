@@ -12,7 +12,6 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use graph::VarGraph;
 use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
@@ -26,9 +25,7 @@ use swc_core::{
     },
 };
 use turbo_tasks::{RcStr, Vc};
-use turbopack_core::compile_time_info::{
-    CompileTimeDefineValue, DefineableNameSegment, FreeVarReference,
-};
+use turbopack_core::compile_time_info::CompileTimeDefineValue;
 use url::Url;
 
 use self::imports::ImportAnnotations;
@@ -546,20 +543,6 @@ impl From<&CompileTimeDefineValue> for JsValue {
             CompileTimeDefineValue::Bool(b) => JsValue::Constant((*b).into()),
             CompileTimeDefineValue::JSON(_) => {
                 JsValue::unknown_empty(false, "compile time injected JSON")
-            }
-        }
-    }
-}
-
-impl From<&FreeVarReference> for JsValue {
-    fn from(v: &FreeVarReference) -> Self {
-        match v {
-            FreeVarReference::Value(v) => v.into(),
-            FreeVarReference::EcmaScriptModule { .. } => {
-                JsValue::unknown_empty(false, "compile time injected free var module")
-            }
-            FreeVarReference::Error(_) => {
-                JsValue::unknown_empty(false, "compile time injected free var error")
             }
         }
     }
@@ -1785,14 +1768,13 @@ impl JsValue {
 
 // Defineable name management
 impl JsValue {
-    /// When the value has a user-defineable name, return the length of it (in segments). Otherwise
-    /// returns None.
-    /// - any free var has itself as user-defineable name: ["foo"]
-    /// - any member access adds the identifier as segment after the object: ["foo", "prop"]
-    /// - some well-known objects/functions have a user-defineable names: ["import"]
+    /// When the value has a user-defineable name, return the length of it (in
+    /// segments). Otherwise returns None.
+    /// - any free var has itself as user-defineable name.
+    /// - any member access adds the identifier as segement to the name of the object.
+    /// - some well-known objects/functions have a user-defineable names.
     /// - member calls without arguments also have a user-defineable name which is the property with
-    ///   `()` appended: ["foo", "prop()"]
-    /// - typeof expressions add `typeof` after the argument's segments: ["foo", "typeof"]
+    ///   `()` appended.
     pub fn get_defineable_name_len(&self) -> Option<usize> {
         match self {
             JsValue::FreeVar(_) => Some(1),
@@ -1806,7 +1788,6 @@ impl JsValue {
             {
                 Some(callee.get_defineable_name_len()? + 1)
             }
-            JsValue::TypeOf(_, arg) => Some(arg.get_defineable_name_len()? + 1),
 
             _ => None,
         }
@@ -1824,79 +1805,6 @@ impl JsValue {
             index: 0,
         }
     }
-
-    /// Returns any matching defined replacement that matches this value.
-    ///
-    /// Optionally when passed a VarGraph, verifies that the first segment was not reassigned.
-    ///
-    /// Optionally also prefixes `self` with `prefix`, e.g. to be able to match `typeof foo` if
-    /// `self` is just `foo`.
-    pub fn match_free_var_reference<'a>(
-        &self,
-        var_graph: Option<&VarGraph>,
-        free_var_references: &'a IndexMap<Vec<DefineableNameSegment>, FreeVarReference>,
-        prefix_self: &Option<DefineableNameSegment>,
-    ) -> Option<&'a FreeVarReference> {
-        if let Some(def_name_len) = self.get_defineable_name_len() {
-            for (name, value) in free_var_references.iter() {
-                if name.len() != def_name_len + (prefix_self.is_some() as usize) {
-                    continue;
-                }
-                let mut it = name.iter().map(Cow::Borrowed).rev();
-                if let Some(prefix_self) = prefix_self {
-                    if it.next().unwrap().as_ref() != prefix_self {
-                        continue;
-                    }
-                }
-
-                if let Some(var_graph) = var_graph {
-                    if let DefineableNameSegment::Name(first_str) = name.first().unwrap() {
-                        let first_str: &str = first_str;
-                        if var_graph
-                            .free_var_ids
-                            .get(&first_str.into())
-                            .map_or(false, |id| var_graph.values.contains_key(id))
-                        {
-                            // `typeof foo...` but `foo` was reassigned
-                            return None;
-                        }
-                    }
-                }
-
-                if it.eq(self.iter_defineable_name_rev()) {
-                    return Some(value);
-                }
-            }
-        }
-
-        None
-    }
-
-    /// Returns any matching defined replacement that matches this value. Optionally also prefixes
-    /// `self` with `prefix`, e.g. to be able to match `typeof foo` if `self` is just `foo`.
-    pub fn match_define<'a>(
-        &self,
-        defines: &'a IndexMap<Vec<DefineableNameSegment>, CompileTimeDefineValue>,
-    ) -> Option<&'a CompileTimeDefineValue> {
-        if let Some(def_name_len) = self.get_defineable_name_len() {
-            for (name, value) in defines.iter() {
-                if name.len() != def_name_len {
-                    continue;
-                }
-
-                if name
-                    .iter()
-                    .map(Cow::Borrowed)
-                    .rev()
-                    .eq(self.iter_defineable_name_rev())
-                {
-                    return Some(value);
-                }
-            }
-        }
-
-        None
-    }
 }
 
 pub struct DefineableNameIter<'a> {
@@ -1905,11 +1813,11 @@ pub struct DefineableNameIter<'a> {
 }
 
 impl<'a> Iterator for DefineableNameIter<'a> {
-    type Item = Cow<'a, DefineableNameSegment>;
+    type Item = Cow<'a, str>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let value = self.next.take()?;
-        Some(Cow::Owned(match value {
+        Some(match value {
             JsValue::FreeVar(kind) => (&**kind).into(),
             JsValue::Member(_, obj, prop) => {
                 self.next = Some(obj);
@@ -1937,13 +1845,8 @@ impl<'a> Iterator for DefineableNameIter<'a> {
                 self.next = Some(callee);
                 format!("{}()", prop.as_str()?).into()
             }
-            JsValue::TypeOf(_, arg) => {
-                self.next = Some(arg);
-                DefineableNameSegment::TypeOf
-            }
-
             _ => return None,
-        }))
+        })
     }
 }
 
@@ -3667,11 +3570,7 @@ impl WellKnownFunctionKind {
 }
 
 fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
-    i.span.ctxt.outer() == unresolved_mark
-}
-
-fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
-    i.1.outer() == unresolved_mark
+    i.ctxt.outer() == unresolved_mark
 }
 
 #[doc(hidden)]
@@ -4007,13 +3906,6 @@ mod tests {
                             Effect::FreeVar { var, .. } => {
                                 resolved.push((format!("{parent} -> {i} free var"), var));
                             }
-                            Effect::TypeOf { arg, .. } => {
-                                let arg = resolve(&var_graph, arg).await;
-                                resolved.push((
-                                    format!("{parent} -> {i} typeof"),
-                                    JsValue::type_of(Box::new(arg)),
-                                ));
-                            }
                             Effect::MemberCall {
                                 obj, prop, args, ..
                             } => {
@@ -4031,10 +3923,7 @@ mod tests {
                                     JsValue::unknown_empty(true, "unreachable"),
                                 ));
                             }
-                            Effect::ImportMeta { .. } => {}
-                            Effect::ImportedBinding { .. } => {}
-                            Effect::Member { .. } => {}
-                            Effect::Url { .. } => {}
+                            _ => {}
                         }
                         let time = start.elapsed();
                         if time.as_millis() > 1 {
