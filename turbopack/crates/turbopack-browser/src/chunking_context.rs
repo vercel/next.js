@@ -423,12 +423,9 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let evaluatable_assets_ref = evaluatable_assets.await?;
 
-            // TODO this collect is unnecessary, but it hits a compiler bug when it's not
-            // used
             let entries = evaluatable_assets_ref
                 .iter()
-                .map(|&evaluatable| Vc::upcast(evaluatable))
-                .collect::<Vec<_>>();
+                .map(|&evaluatable| Vc::upcast(evaluatable));
 
             let MakeChunkGroupResult {
                 chunks,
