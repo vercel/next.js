@@ -2,9 +2,9 @@ import type { __ApiPreviewProps } from './api-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import {
-  getParamKeys,
   type Params,
   type DynamicRouteParams,
+  getDynamicRouteParams,
 } from '../client/components/params'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type {
@@ -2327,13 +2327,13 @@ export default abstract class Server<
       /**
        * The unknown route params for this render.
        */
-      unknownRouteParams: DynamicRouteParams | null
+      fallbackRouteParams: DynamicRouteParams | null
     }
     type Renderer = (
       context: RendererContext
     ) => Promise<ResponseCacheEntry | null>
 
-    const doRender: Renderer = async ({ postponed, unknownRouteParams }) => {
+    const doRender: Renderer = async ({ postponed, fallbackRouteParams }) => {
       // In development, we always want to generate dynamic HTML.
       let supportsDynamicResponse: boolean =
         // If we're in development, we always support dynamic HTML, unless it's
@@ -2593,7 +2593,7 @@ export default abstract class Server<
               page: is404Page ? '/404' : pathname,
               params: opts.params,
               query,
-              unknownRouteParams,
+              fallbackRouteParams,
               renderOpts,
               serverComponentsHmrCache: this.getServerComponentsHmrCache(),
             })
@@ -2835,12 +2835,12 @@ export default abstract class Server<
             fallbackKey,
             // This is the response generator for the fallback shell.
             async ({ previousCacheEntry: previousFallbackCacheEntry }) => {
-              let unknownRouteParams: DynamicRouteParams | null = null
+              let fallbackRouteParams: DynamicRouteParams | null = null
 
               if (isProduction) {
                 if (isAppPath) {
                   // Mark that all the params in the page are unknown.
-                  unknownRouteParams = new Set(getParamKeys(pathname))
+                  fallbackRouteParams = getDynamicRouteParams(pathname)
                 }
                 // For the pages router, fallbacks cannot be revalidated or
                 // generated in production. In the case of a missing fallback,
@@ -2866,7 +2866,7 @@ export default abstract class Server<
                 // We pass `undefined` as rendering a fallback isn't resumed
                 // here.
                 postponed: undefined,
-                unknownRouteParams,
+                fallbackRouteParams,
               })
             },
             {
@@ -2898,7 +2898,7 @@ export default abstract class Server<
             : undefined,
         // This is a regular render, not a fallback render, so we don't need to
         // set this.
-        unknownRouteParams: null,
+        fallbackRouteParams: null,
       }
 
       // When we're in minimal mode, if we're trying to debug the static shell,
@@ -3288,7 +3288,7 @@ export default abstract class Server<
         postponed: cachedData.postponed,
         // This is a resume render, not a fallback render, so we don't need to
         // set this.
-        unknownRouteParams: null,
+        fallbackRouteParams: null,
       })
         .then(async (result) => {
           if (!result) {

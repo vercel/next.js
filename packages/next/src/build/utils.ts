@@ -947,13 +947,13 @@ export async function getJsPageSizeInKb(
 type StaticPrerenderedRoute = {
   path: string
   encoded: string
-  unknownRouteParams: undefined
+  fallbackRouteParams: undefined
 }
 
 type FallbackPrerenderedRoute = {
   path: string
   encoded: string
-  unknownRouteParams: readonly string[]
+  fallbackRouteParams: readonly string[]
 }
 
 export type PrerenderedRoute = StaticPrerenderedRoute | FallbackPrerenderedRoute
@@ -1077,7 +1077,7 @@ export async function buildStaticPaths({
           )
           .join('/'),
         encoded: entry,
-        unknownRouteParams: undefined,
+        fallbackRouteParams: undefined,
       })
     }
     // For the object-provided path, we must make sure it specifies all
@@ -1180,7 +1180,7 @@ export async function buildStaticPaths({
         encoded: `${curLocale ? `/${curLocale}` : ''}${
           curLocale && encodedBuiltPage === '/' ? '' : encodedBuiltPage
         }`,
-        unknownRouteParams: undefined,
+        fallbackRouteParams: undefined,
       })
     }
   })
@@ -1416,7 +1416,7 @@ export async function buildAppStaticPaths({
       page,
       // We're discovering the parameters here, so we don't have any unknown
       // ones.
-      unknownRouteParams: null,
+      fallbackRouteParams: null,
       renderOpts: {
         incrementalCache,
         supportsDynamicResponse: true,

@@ -19,12 +19,12 @@ type DynamicDataPostponedState = {
   /**
    * The type of dynamic state.
    */
-  t: DynamicState.DATA
+  readonly t: DynamicState.DATA
 
   /**
    * The unknown route params.
    */
-  u: ReadonlyArray<string> | null
+  readonly u: Readonly<Record<string, string>> | null
 }
 
 /**
@@ -34,17 +34,17 @@ type DynamicHTMLPostponedState = {
   /**
    * The type of dynamic state.
    */
-  t: DynamicState.HTML
+  readonly t: DynamicState.HTML
 
   /**
    * The postponed data used by React.
    */
-  d: object
+  readonly d: object
 
   /**
    * The unknown route params.
    */
-  u: ReadonlyArray<string> | null
+  readonly u: Readonly<Record<string, string>> | null
 }
 
 export type PostponedState =
@@ -53,21 +53,21 @@ export type PostponedState =
 
 export function getDynamicHTMLPostponedState(
   data: object,
-  unknownRouteParams: DynamicRouteParams | null
+  fallbackRouteParams: DynamicRouteParams | null
 ): DynamicHTMLPostponedState {
   return {
     t: DynamicState.HTML,
     d: data,
-    u: unknownRouteParams ? Array.from(unknownRouteParams.keys()) : null,
+    u: fallbackRouteParams ? Object.fromEntries(fallbackRouteParams) : null,
   }
 }
 
 export function getDynamicDataPostponedState(
-  unknownRouteParams: DynamicRouteParams | null
+  fallbackRouteParams: DynamicRouteParams | null
 ): DynamicDataPostponedState {
   return {
     t: DynamicState.DATA,
-    u: unknownRouteParams ? Array.from(unknownRouteParams.keys()) : null,
+    u: fallbackRouteParams ? Object.fromEntries(fallbackRouteParams) : null,
   }
 }
 

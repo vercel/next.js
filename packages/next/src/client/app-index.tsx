@@ -17,7 +17,6 @@ import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
-import { replaceUnknownRouteParams } from './components/router-reducer/replace-unknown-route-params'
 
 // Patch console.error to collect information about hydration errors
 const origConsoleError = window.console.error
@@ -167,21 +166,6 @@ const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
   (resolve, reject) => {
     initialServerResponse.then(
       (initialRSCPayload: InitialRSCPayload) => {
-        // If there are unknown route params, replace them with the values from
-        // the seed data. We do this first so that it only runs on the client
-        // after the initial HTML render. This should not run during client
-        // navigations.
-        if (
-          initialRSCPayload.u &&
-          Object.keys(initialRSCPayload.u).length > 0
-        ) {
-          const [tree, seedData] = initialRSCPayload.f[0]
-          const unknownRouteParams = new Map(
-            Object.entries(initialRSCPayload.u)
-          )
-          replaceUnknownRouteParams(tree, seedData, unknownRouteParams)
-        }
-
         resolve(
           createMutableActionQueue(
             createInitialRouterState({

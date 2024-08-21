@@ -40,7 +40,7 @@ type AppPageUserlandModule = {
 interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   page: string
   query: NextParsedUrlQuery
-  unknownRouteParams: DynamicRouteParams | null
+  fallbackRouteParams: DynamicRouteParams | null
   renderOpts: RenderOpts
   serverComponentsHmrCache?: ServerComponentsHmrCache
 }
@@ -64,7 +64,7 @@ export class AppPageRouteModule extends RouteModule<
       res,
       context.page,
       context.query,
-      context.unknownRouteParams,
+      context.fallbackRouteParams,
       context.renderOpts,
       context.serverComponentsHmrCache
     )

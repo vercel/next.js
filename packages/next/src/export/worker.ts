@@ -40,7 +40,11 @@ import {
   turborepoTraceAccess,
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
-import type { Params } from '../client/components/params'
+import {
+  getDynamicRouteParams,
+  type DynamicRouteParams,
+  type Params,
+} from '../client/components/params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 const envConfig = require('../shared/lib/runtime-config.external')
@@ -85,7 +89,7 @@ async function exportPageImpl(
     page,
 
     // The parameters that are currently unknown.
-    _unknownRouteParams = [],
+    _fallbackRouteParams = [],
 
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
@@ -102,7 +106,8 @@ async function exportPageImpl(
   } = pathMap
 
   try {
-    const unknownRouteParams: ReadonlySet<string> = new Set(_unknownRouteParams)
+    const fallbackRouteParams: DynamicRouteParams =
+      getDynamicRouteParams(_fallbackRouteParams)
 
     let query = { ...originalQuery }
     const pathname = normalizeAppPath(page)
@@ -280,7 +285,7 @@ async function exportPageImpl(
         path,
         pathname,
         query,
-        unknownRouteParams,
+        fallbackRouteParams,
         renderOpts,
         htmlFilepath,
         debugOutput,

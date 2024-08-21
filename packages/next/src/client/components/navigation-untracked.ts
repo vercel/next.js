@@ -1,6 +1,5 @@
 import { useContext } from 'react'
 import { PathnameContext } from '../../shared/lib/hooks-client-context.shared-runtime'
-import { isUnknownDynamicRouteParams } from './params'
 
 /**
  * This checks to see if the current render has any unknown route parameters.
@@ -8,7 +7,7 @@ import { isUnknownDynamicRouteParams } from './params'
  *
  * @returns true if there are any unknown route parameters, false otherwise
  */
-function hasUnknownRouteParams() {
+function hasFallbackRouteParams() {
   if (typeof window === 'undefined') {
     // AsyncLocalStorage should not be included in the client bundle.
     const { staticGenerationAsyncStorage } =
@@ -17,10 +16,10 @@ function hasUnknownRouteParams() {
     const staticGenerationStore = staticGenerationAsyncStorage.getStore()
     if (!staticGenerationStore) return false
 
-    const { unknownRouteParams } = staticGenerationStore
-    if (!unknownRouteParams) return false
+    const { fallbackRouteParams } = staticGenerationStore
+    if (!fallbackRouteParams || fallbackRouteParams.size === 0) return false
 
-    return isUnknownDynamicRouteParams(unknownRouteParams)
+    return true
   }
 
   return false
@@ -42,7 +41,7 @@ export function useUntrackedPathname(): string | null {
   // an error, but this internal method allows us to return a null value instead
   // for components that do not propagate the pathname to the static shell (like
   // the error boundary).
-  if (hasUnknownRouteParams()) {
+  if (hasFallbackRouteParams()) {
     return null
   }
 
