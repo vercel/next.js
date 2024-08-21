@@ -17034,7 +17034,7 @@
       "config telemetry production mode detects i18n and image configs for session start",
       "config telemetry production mode detects output config for session start",
       "config telemetry production mode detects rewrites, headers, and redirects for next build",
-      "config telemetry production mode emits telemery for usage of optimizeFonts, image, script & dynamic",
+      "config telemetry production mode emits telemery for usage of image, script & dynamic",
       "config telemetry production mode emits telemetry for `next lint`",
       "config telemetry production mode emits telemetry for configured React Compiler options",
       "config telemetry production mode emits telemetry for default React Compiler options",

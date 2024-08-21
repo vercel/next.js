@@ -14919,7 +14919,7 @@
         "config telemetry production mode emits telemetry for usage of swc plugins"
       ],
       "failed": [
-        "config telemetry production mode emits telemery for usage of optimizeFonts, image, script & dynamic",
+        "config telemetry production mode emits telemery for usage of image, script & dynamic",
         "config telemetry production mode emits telemetry for middleware related options",
         "config telemetry production mode emits telemetry for transpilePackages",
         "config telemetry production mode emits telemetry for usage of @vercel/og",
