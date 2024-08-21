@@ -5,7 +5,10 @@ version = "0.0.0"
 publish = false
 
 [features]
-plugin = ["turbopack-binding/__swc_core_binding_napi_plugin"]
+plugin = [
+  "swc_core/plugin_transform_host_native",
+  "turbopack-ecmascript-plugins/swc_ecma_transform_plugin",
+]
 
 [lints]
 workspace = true
@@ -27,25 +30,37 @@ tracing = { version = "0.1.37" }
 anyhow = { workspace = true }
 lazy_static = { workspace = true }
 
-turbopack-binding = { workspace = true, features = [
-  "__swc_core",
-  "__swc_core_next_core",
-  "__swc_transform_styled_jsx",
-  "__swc_transform_emotion",
-  "__swc_transform_styled_components",
-  "__swc_transform_modularize_imports",
-  "__swc_transform_relay",
+swc_core = { workspace = true, features = [
+  "base",
+  "cached",
+  "common_concurrent",
+  "ecma_ast",
+  "ecma_loader_lru",
+  "ecma_loader_node",
+  "ecma_minifier",
+  "ecma_parser",
+  "ecma_parser_typescript",
+  "ecma_preset_env",
+  "ecma_quote",
+  "ecma_transforms",
+  "ecma_transforms_optimization",
+  "ecma_transforms_react",
+  "ecma_transforms_typescript",
+  "ecma_utils",
+  "ecma_visit",
 ] }
-# To allow quote! macro works
-swc_core = { workspace = true, features = ["ecma_quote"] }
-react_remove_properties = "0.24.15"
-remove_console = "0.25.15"
+modularize_imports = { workspace = true }
+styled_components = { workspace = true }
+styled_jsx = { workspace = true }
+swc_emotion = { workspace = true }
+swc_relay = { workspace = true }
+turbopack-ecmascript-plugins = { workspace = true, optional = true }
+
+react_remove_properties = "0.24.18"
+remove_console = "0.25.18"
 preset_env_base = "0.5.1"
 
 [dev-dependencies]
-turbopack-binding = { workspace = true, features = [
-  "__swc_core_testing_transform",
-  "__swc_testing",
-] }
-
+swc_core = { workspace = true, features = ["testing_transform"]}
+testing = { workspace = true }
 walkdir = "2.3.2"

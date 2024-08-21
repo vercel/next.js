@@ -82,6 +82,7 @@ export async function webpackBuildImpl(
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
   const dir = NextBuildContext.dir!
   const config = NextBuildContext.config!
+  process.env.NEXT_COMPILER_NAME = compilerName || 'server'
 
   const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
   const entrypoints = await nextBuildSpan

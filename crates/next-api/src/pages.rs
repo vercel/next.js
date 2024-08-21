@@ -28,39 +28,33 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{trace::TraceRawVcs, Completion, RcStr, TaskInput, TryJoinIterExt, Value, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{
-        File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
-    },
-    turbopack::{
-        core::{
-            asset::AssetContent,
-            chunk::{
-                availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-                EntryChunkGroupResult, EvaluatableAssets,
-            },
-            context::AssetContext,
-            file_source::FileSource,
-            issue::IssueSeverity,
-            module::Module,
-            output::{OutputAsset, OutputAssets},
-            reference_type::{
-                EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
-            },
-            resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
-            source::Source,
-            virtual_output::VirtualOutputAsset,
-        },
-        ecmascript::{resolve::esm_resolve, EcmascriptModuleAsset},
-        nodejs::NodeJsChunkingContext,
-        turbopack::{
-            module_options::ModuleOptionsContext,
-            resolve_options_context::ResolveOptionsContext,
-            transition::{ContextTransition, TransitionsByName},
-            ModuleAssetContext,
-        },
-    },
+use turbo_tasks_fs::{
+    self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
 };
+use turbopack::{
+    module_options::ModuleOptionsContext,
+    resolve_options_context::ResolveOptionsContext,
+    transition::{ContextTransition, TransitionsByName},
+    ModuleAssetContext,
+};
+use turbopack_core::{
+    asset::AssetContent,
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+    },
+    context::AssetContext,
+    file_source::FileSource,
+    issue::IssueSeverity,
+    module::Module,
+    output::{OutputAsset, OutputAssets},
+    reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
+    resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
+    source::Source,
+    virtual_output::VirtualOutputAsset,
+};
+use turbopack_ecmascript::resolve::esm_resolve;
+use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     dynamic_imports::{
@@ -104,17 +98,17 @@ impl PagesProject {
         async fn add_page_to_routes(
             routes: &mut IndexMap<RcStr, Route>,
             page: Vc<PagesStructureItem>,
-            make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<FileSystemPath>) -> Route,
+            make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<PagesStructureItem>) -> Route,
         ) -> Result<()> {
             let PagesStructureItem {
                 next_router_path,
-                project_path,
                 original_path,
+                ..
             } = *page.await?;
             let pathname: RcStr = format!("/{}", next_router_path.await?.path).into();
             let pathname_vc = Vc::cell(pathname.clone());
             let original_name = Vc::cell(format!("/{}", original_path.await?.path).into());
-            let route = make_route(pathname_vc, original_name, project_path);
+            let route = make_route(pathname_vc, original_name, page);
             routes.insert(pathname, route);
             Ok(())
         }
@@ -122,7 +116,7 @@ impl PagesProject {
         async fn add_dir_to_routes(
             routes: &mut IndexMap<RcStr, Route>,
             dir: Vc<PagesDirectoryStructure>,
-            make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<FileSystemPath>) -> Route,
+            make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<PagesStructureItem>) -> Route,
         ) -> Result<()> {
             let mut queue = vec![dir];
             while let Some(dir) = queue.pop() {
@@ -143,14 +137,14 @@ impl PagesProject {
         }
 
         if let Some(api) = api {
-            add_dir_to_routes(&mut routes, *api, |pathname, original_name, path| {
+            add_dir_to_routes(&mut routes, *api, |pathname, original_name, page| {
                 Route::PageApi {
                     endpoint: Vc::upcast(PageEndpoint::new(
                         PageEndpointType::Api,
                         self,
                         pathname,
                         original_name,
-                        path,
+                        page,
                         pages_structure,
                     )),
                 }
@@ -158,13 +152,13 @@ impl PagesProject {
             .await?;
         }
 
-        let make_page_route = |pathname, original_name, path| Route::Page {
+        let make_page_route = |pathname, original_name, page| Route::Page {
             html_endpoint: Vc::upcast(PageEndpoint::new(
                 PageEndpointType::Html,
                 self,
                 pathname,
                 original_name,
-                path,
+                page,
                 pages_structure,
             )),
             data_endpoint: Vc::upcast(PageEndpoint::new(
@@ -172,7 +166,7 @@ impl PagesProject {
                 self,
                 pathname,
                 original_name,
-                path,
+                page,
                 pages_structure,
             )),
         };
@@ -196,19 +190,18 @@ impl PagesProject {
     ) -> Result<Vc<Box<dyn Endpoint>>> {
         let PagesStructureItem {
             next_router_path,
-            project_path,
             original_path,
+            ..
         } = *item.await?;
         let pathname: RcStr = format!("/{}", next_router_path.await?.path).into();
         let pathname_vc = Vc::cell(pathname.clone());
         let original_name = Vc::cell(format!("/{}", original_path.await?.path).into());
-        let path = project_path;
         let endpoint = Vc::upcast(PageEndpoint::new(
             ty,
             self,
             pathname_vc,
             original_name,
-            path,
+            item,
             self.pages_structure(),
         ));
         Ok(endpoint)
@@ -570,7 +563,7 @@ struct PageEndpoint {
     pages_project: Vc<PagesProject>,
     pathname: Vc<RcStr>,
     original_name: Vc<RcStr>,
-    path: Vc<FileSystemPath>,
+    page: Vc<PagesStructureItem>,
     pages_structure: Vc<PagesStructure>,
 }
 
@@ -601,7 +594,7 @@ impl PageEndpoint {
         pages_project: Vc<PagesProject>,
         pathname: Vc<RcStr>,
         original_name: Vc<RcStr>,
-        path: Vc<FileSystemPath>,
+        page: Vc<PagesStructureItem>,
         pages_structure: Vc<PagesStructure>,
     ) -> Vc<Self> {
         PageEndpoint {
@@ -609,7 +602,7 @@ impl PageEndpoint {
             pages_project,
             pathname,
             original_name,
-            path,
+            page,
             pages_structure,
         }
         .cell()
@@ -618,7 +611,7 @@ impl PageEndpoint {
     #[turbo_tasks::function]
     async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
         let this = self.await?;
-        Ok(Vc::upcast(FileSource::new(this.path)))
+        Ok(Vc::upcast(FileSource::new(this.page.project_path())))
     }
 
     #[turbo_tasks::function]
@@ -634,7 +627,7 @@ impl PageEndpoint {
             );
 
             let Some(client_module) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_module).await?
+                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
             else {
                 bail!("expected an ECMAScript module asset");
             };
@@ -660,7 +653,7 @@ impl PageEndpoint {
             .context("expected Next.js client runtime to resolve to a module")?;
 
             let Some(client_main_module) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_main_module).await?
+                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_main_module).await?
             else {
                 bail!("expected an ECMAScript module asset");
             };
@@ -671,8 +664,8 @@ impl PageEndpoint {
                 client_module.ident(),
                 this.pages_project
                     .client_runtime_entries()
-                    .with_entry(Vc::upcast(client_main_module))
-                    .with_entry(Vc::upcast(client_module)),
+                    .with_entry(client_main_module)
+                    .with_entry(client_module),
                 Value::new(AvailabilityInfo::Root),
             );
 

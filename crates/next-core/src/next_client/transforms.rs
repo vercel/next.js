@@ -1,7 +1,7 @@
 use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_tasks::Vc;
-use turbopack_binding::turbopack::turbopack::module_options::ModuleRule;
+use turbopack::module_options::ModuleRule;
 
 use crate::{
     mode::NextMode,

@@ -1,0 +1,63 @@
+a = object["a"]
+
+a1 = object["a"]
+
+a2 = object["a"]
+
+a3 = object_spread["a"]
+
+a4 = object["a"]
+
+a5 = unknown_spread["a"]
+
+a6 = object2["a"]
+
+b = object["b"]
+
+b1 = object["b"]
+
+b2 = object["b"]
+
+b3 = object_spread["b"]
+
+b4 = object["b"]
+
+b5 = unknown_spread["b"]
+
+b6 = object2["b"]
+
+c = object["c"]
+
+c1 = object["c"]
+
+c2 = object["c"]
+
+c3 = object_spread["c"]
+
+c4 = object["c"]
+
+c5 = unknown_spread["c"]
+
+c6 = object2["c"]
+
+d = object["d"]
+
+d1 = object["d"]
+
+d2 = object["d"]
+
+d3 = object_spread["d"]
+
+d4 = object["d"]
+
+d6 = object2["d"]
+
+e6 = object2["e"]
+
+object = {"a": 1, "b": 2, "c": 3}
+
+object2 = {"a": 1, FreeVar(global): 2, "c": 3, FreeVar(global): 4, "e": 5}
+
+object_spread = {"a": 11, ...object, "b": 22}
+
+unknown_spread = {"a": 1, ...FreeVar(global), "b": 2}

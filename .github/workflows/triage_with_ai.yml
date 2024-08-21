@@ -11,8 +11,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
       - run: corepack enable
-      - name: 'Send notification to Slack (AI-powered)'
-        run: node ./github/actions/next-repo-actions/dist/triage-issues-with-ai/index.js
+      - name: 'Send report to Slack (AI-powered)'
+        run: node ./.github/actions/next-repo-actions/dist/triage-issues-with-ai/index.js
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+      VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}

@@ -1142,6 +1142,13 @@
         "" === key &&
           null === handler.value &&
           (handler.value = parentObject[key]);
+        parentObject[0] === REACT_ELEMENT_TYPE &&
+          "3" === key &&
+          "object" === typeof handler.value &&
+          null !== handler.value &&
+          handler.value.$$typeof === REACT_ELEMENT_TYPE &&
+          null === handler.value.props &&
+          (handler.value.props = parentObject[key]);
         handler.deps--;
         0 === handler.deps &&
           ((i = handler.chunk),
@@ -1429,7 +1436,8 @@
       nonce,
       temporaryReferences,
       findSourceMapURL,
-      replayConsole
+      replayConsole,
+      environmentName
     ) {
       var chunks = new Map();
       this._bundlerConfig = bundlerConfig;
@@ -1445,6 +1453,8 @@
       this._tempRefs = temporaryReferences;
       this._debugFindSourceMapURL = findSourceMapURL;
       this._replayConsole = replayConsole;
+      this._rootEnvironmentName =
+        void 0 === environmentName ? "Server" : environmentName;
       this._fromJSON = createFromJSONCallback(this);
     }
     function resolveBuffer(response, id, buffer) {
@@ -1673,7 +1683,14 @@
         }
       );
     }
-    function createFakeFunction(name, filename, sourceMap, line, col) {
+    function createFakeFunction(
+      name,
+      filename,
+      sourceMap,
+      line,
+      col,
+      environmentName
+    ) {
       name || (name = "<anonymous>");
       var encodedName = JSON.stringify(name);
       1 >= line
@@ -1696,6 +1713,8 @@
       sourceMap
         ? ((col +=
             "\n//# sourceURL=rsc://React/" +
+            encodeURIComponent(environmentName) +
+            "/" +
             filename +
             "?" +
             fakeFunctionIdx++),
@@ -1718,10 +1737,14 @@
         (null != debugInfo.stack &&
           (debugInfo.debugStack = createFakeJSXCallStackInDEV(
             response,
-            debugInfo.stack
+            debugInfo.stack,
+            null == debugInfo.env ? "" : debugInfo.env
           )),
         null != debugInfo.owner &&
           initializeFakeStack(response, debugInfo.owner));
+    }
+    function getCurrentStackInDEV() {
+      return "";
     }
     function mergeBuffer(buffer, lastChunk) {
       for (
@@ -1834,10 +1857,10 @@
               break;
             case "L":
               id = response[0];
-              tag = response[1];
+              var as = response[1];
               3 === response.length
-                ? row.L(id, tag, response[2])
-                : row.L(id, tag);
+                ? row.L(id, as, response[2])
+                : row.L(id, as);
               break;
             case "m":
               "string" === typeof response
@@ -1865,18 +1888,18 @@
           }
           break;
         case 69:
-          var errorInfo = JSON.parse(row);
-          tag = errorInfo.digest;
-          var env = errorInfo.env;
+          tag = JSON.parse(row);
+          as = tag.digest;
+          var env = tag.env;
           row = Error(
-            errorInfo.message ||
+            tag.message ||
               "An error occurred in the Server Components render but no message was provided"
           );
-          errorInfo = errorInfo.stack;
+          tag = tag.stack;
           var v8StyleStack = row.name + ": " + row.message;
-          if (errorInfo)
-            for (var i = 0; i < errorInfo.length; i++) {
-              var frame = errorInfo[i],
+          if (tag)
+            for (var i = 0; i < tag.length; i++) {
+              var frame = tag[i],
                 name = frame[0],
                 filename = frame[1],
                 line = frame[2];
@@ -1896,18 +1919,18 @@
                   ("\n    at " + filename + ":" + line + ":" + frame);
             }
           row.stack = v8StyleStack;
-          row.digest = tag;
+          row.digest = as;
           row.environmentName = env;
-          tag = response._chunks;
-          (env = tag.get(id))
+          as = response._chunks;
+          (env = as.get(id))
             ? triggerErrorOnChunk(env, row)
-            : tag.set(id, new Chunk("rejected", null, row, response));
+            : as.set(id, new Chunk("rejected", null, row, response));
           break;
         case 84:
-          tag = response._chunks;
-          (env = tag.get(id)) && "pending" !== env.status
+          as = response._chunks;
+          (env = as.get(id)) && "pending" !== env.status
             ? env.reason.enqueueValue(row)
-            : tag.set(id, new Chunk("fulfilled", row, null, response));
+            : as.set(id, new Chunk("fulfilled", row, null, response));
           break;
         case 68:
           row = JSON.parse(row, response._fromJSON);
@@ -1916,43 +1939,52 @@
           (response._debugInfo || (response._debugInfo = [])).push(row);
           break;
         case 87:
-          if (response._replayConsole)
-            b: {
-              (row = JSON.parse(row, response._fromJSON)),
-                (response = row[0]),
-                (id = row[3]),
-                (tag = row.slice(4)),
-                (row = 0);
-              switch (response) {
-                case "dir":
-                case "dirxml":
-                case "groupEnd":
-                case "table":
-                  console[response].apply(console, tag);
-                  break b;
-                case "assert":
-                  row = 1;
+          if (response._replayConsole) {
+            row = JSON.parse(row, response._fromJSON);
+            response = row[0];
+            id = row[3];
+            row = row.slice(4);
+            tag = ReactSharedInternals.getCurrentStack;
+            ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
+            try {
+              b: {
+                v8StyleStack = 0;
+                switch (response) {
+                  case "dir":
+                  case "dirxml":
+                  case "groupEnd":
+                  case "table":
+                    as = bind$1.apply(console[response], [console].concat(row));
+                    break b;
+                  case "assert":
+                    v8StyleStack = 1;
+                }
+                env = row.slice(0);
+                "string" === typeof env[v8StyleStack]
+                  ? env.splice(
+                      v8StyleStack,
+                      1,
+                      "\u001b[0m\u001b[7m%c%s\u001b[0m%c " + env[v8StyleStack],
+                      "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+                      " " + id + " ",
+                      ""
+                    )
+                  : env.splice(
+                      v8StyleStack,
+                      0,
+                      "\u001b[0m\u001b[7m%c%s\u001b[0m%c ",
+                      "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+                      " " + id + " ",
+                      ""
+                    );
+                env.unshift(console);
+                as = bind$1.apply(console[response], env);
               }
-              tag = tag.slice(0);
-              "string" === typeof tag[row]
-                ? tag.splice(
-                    row,
-                    1,
-                    "\u001b[0m\u001b[7m%c%s\u001b[0m%c " + tag[row],
-                    "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-                    " " + id + " ",
-                    ""
-                  )
-                : tag.splice(
-                    row,
-                    0,
-                    "\u001b[0m\u001b[7m%c%s\u001b[0m%c ",
-                    "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-                    " " + id + " ",
-                    ""
-                  );
-              console[response].apply(console, tag);
+              as();
+            } finally {
+              ReactSharedInternals.getCurrentStack = tag;
             }
+          }
           break;
         case 82:
           startReadableStream(response, id, void 0);
@@ -1972,10 +2004,10 @@
             response.reason.close("" === row ? '"$undefined"' : row);
           break;
         default:
-          (tag = response._chunks),
-            (env = tag.get(id))
+          (as = response._chunks),
+            (env = as.get(id))
               ? resolveModelChunk(env, row)
-              : tag.set(id, new Chunk("resolved_model", row, null, response));
+              : as.set(id, new Chunk("resolved_model", row, null, response));
       }
     }
     function createFromJSONCallback(response) {
@@ -2047,7 +2079,9 @@
     }
     var util = require("util"),
       ReactDOM = require("react-dom"),
+      React = require("react"),
       decoderOptions = { stream: !0 },
+      bind$1 = Function.prototype.bind,
       chunkCache = new Map(),
       ReactDOMSharedInternals =
         ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
@@ -2077,6 +2111,10 @@
       FunctionBind = Function.prototype.bind,
       ArraySlice = Array.prototype.slice,
       REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
+    new ("function" === typeof WeakMap ? WeakMap : Map)();
+    var ReactSharedInternals =
+      React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
+      React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
     Chunk.prototype = Object.create(Promise.prototype);
     Chunk.prototype.then = function (resolve, reject) {
       switch (this.status) {
@@ -2107,20 +2145,32 @@
       fakeFunctionCache = new Map(),
       fakeFunctionIdx = 0,
       createFakeJSXCallStack = {
-        "react-stack-bottom-frame": function (response, stack) {
+        "react-stack-bottom-frame": function (
+          response,
+          stack,
+          environmentName
+        ) {
           for (var callStack = fakeJSXCallSite, i = 0; i < stack.length; i++) {
             var frame = stack[i],
-              frameKey = frame.join("-"),
+              frameKey = frame.join("-") + "-" + environmentName,
               fn = fakeFunctionCache.get(frameKey);
             if (void 0 === fn) {
               fn = frame[0];
               var filename = frame[1],
                 line = frame[2];
               frame = frame[3];
-              var sourceMap = response._debugFindSourceMapURL
-                ? response._debugFindSourceMapURL(filename)
+              var findSourceMapURL = response._debugFindSourceMapURL;
+              findSourceMapURL = findSourceMapURL
+                ? findSourceMapURL(filename, environmentName)
                 : null;
-              fn = createFakeFunction(fn, filename, sourceMap, line, frame);
+              fn = createFakeFunction(
+                fn,
+                filename,
+                findSourceMapURL,
+                line,
+                frame,
+                environmentName
+              );
               fakeFunctionCache.set(frameKey, fn);
             }
             callStack = fn.bind(null, callStack);
@@ -2140,7 +2190,8 @@
         options && "string" === typeof options.nonce ? options.nonce : void 0,
         void 0,
         options && options.findSourceMapURL ? options.findSourceMapURL : void 0,
-        options ? !0 === options.replayConsoleLogs : !1
+        options ? !0 === options.replayConsoleLogs : !1,
+        options && options.environmentName ? options.environmentName : void 0
       );
       stream.on("data", function (chunk) {
         if ("string" === typeof chunk) {

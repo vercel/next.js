@@ -25,9 +25,9 @@ import {
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../../../shared/lib/constants'
 import { join, posix } from 'path'
-import { readFile, writeFile } from 'fs/promises'
+import { readFile } from 'fs/promises'
 import type { SetupOpts } from '../../lib/router-utils/setup-dev-bundler'
-import { deleteCache } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
+import { deleteCache } from '../require-cache'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import {
@@ -41,6 +41,8 @@ import getAssetPathFromRoute from '../../../shared/lib/router/utils/get-asset-pa
 import { getEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
+import { existsSync } from 'fs'
+import { addMetadataIdToRoute, addRouteSuffix, removeRouteSuffix } from '../turbopack-utils'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -65,17 +67,35 @@ async function readPartialManifest<T>(
   pageName: string,
   type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
 ): Promise<T> {
-  const manifestPath = posix.join(
+  const page = pageName.replace(/\/sitemap\/route$/, '/sitemap.xml/route')
+
+  let manifestPath = posix.join(
     distDir,
     `server`,
     type,
     type === 'middleware' || type === 'instrumentation'
       ? ''
       : type === 'app'
-        ? pageName
-        : getAssetPathFromRoute(pageName),
+        ? page
+        : getAssetPathFromRoute(page),
     name
   )
+  // existsSync is faster than using the async version
+  if(!existsSync(manifestPath) && page.endsWith('/route')) {
+    // TODO: Improve implementation of metadata routes, currently it requires this extra check for the variants of the files that can be written.
+    const metadataPage = addRouteSuffix(addMetadataIdToRoute(removeRouteSuffix(page.replace(/\/sitemap\.xml\/route$/, '/sitemap/route'))))
+    manifestPath = posix.join(
+      distDir,
+      `server`,
+      type,
+      type === 'middleware' || type === 'instrumentation'
+        ? ''
+        : type === 'app'
+          ? metadataPage
+          : getAssetPathFromRoute(metadataPage),
+      name
+    )
+  }
   return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
 }
 
@@ -178,11 +198,10 @@ export class TurbopackManifestLoader {
     const json = JSON.stringify(actionManifest, null, 2)
     deleteCache(actionManifestJsonPath)
     deleteCache(actionManifestJsPath)
-    await writeFile(actionManifestJsonPath, json, 'utf-8')
-    await writeFile(
+    await writeFileAtomic(actionManifestJsonPath, json)
+    await writeFileAtomic(
       actionManifestJsPath,
-      `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`,
-      'utf-8'
+      `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`
     )
   }
 

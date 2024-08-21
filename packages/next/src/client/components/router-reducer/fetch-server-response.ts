@@ -25,11 +25,11 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
   NEXT_IS_PRERENDER_HEADER,
+  NEXT_DID_POSTPONE_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
-import { waitForWebpackRuntimeHotUpdate } from '../react-dev-overlay/app/hot-reloader-client'
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
@@ -58,10 +58,11 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
   return {
-    f: urlToUrlWithoutFlightMarker(url).toString(),
-    c: undefined,
-    i: false,
-    p: false,
+    flightData: urlToUrlWithoutFlightMarker(url).toString(),
+    canonicalUrl: undefined,
+    couldBeIntercepted: false,
+    isPrerender: false,
+    postponed: false,
   }
 }
 
@@ -80,6 +81,7 @@ export async function fetchServerResponse(
     [NEXT_ROUTER_STATE_TREE_HEADER]: string
     [NEXT_URL]?: string
     [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
+    'x-deployment-id'?: string
     [NEXT_HMR_REFRESH_HEADER]?: '1'
     // A header that is only added in test mode to assert on fetch priority
     'Next-Test-Fetch-Priority'?: RequestInit['priority']
@@ -108,6 +110,10 @@ export async function fetchServerResponse(
 
   if (nextUrl) {
     headers[NEXT_URL] = nextUrl
+  }
+
+  if (process.env.NEXT_DEPLOYMENT_ID) {
+    headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
   }
 
   const uniqueCacheQuery = hexHash(
@@ -160,6 +166,7 @@ export async function fetchServerResponse(
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
+    const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
     let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
 
     if (process.env.NODE_ENV === 'production') {
@@ -186,7 +193,7 @@ export async function fetchServerResponse(
     // In dev, the Webpack runtime is minimal for each page.
     // We need to ensure the Webpack runtime is updated before executing client-side JS of the new page.
     if (process.env.NODE_ENV !== 'production' && !process.env.TURBOPACK) {
-      await waitForWebpackRuntimeHotUpdate()
+      await require('../react-dev-overlay/app/hot-reloader-client').waitForWebpackRuntimeHotUpdate()
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
@@ -202,10 +209,11 @@ export async function fetchServerResponse(
     }
 
     return {
-      f: response.f,
-      c: canonicalUrl,
-      i: interception,
-      p: isPrerender,
+      flightData: response.f,
+      canonicalUrl: canonicalUrl,
+      couldBeIntercepted: interception,
+      isPrerender: isPrerender,
+      postponed,
     }
   } catch (err) {
     console.error(
@@ -216,10 +224,11 @@ export async function fetchServerResponse(
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
     return {
-      f: url.toString(),
-      c: undefined,
-      i: false,
-      p: false,
+      flightData: url.toString(),
+      canonicalUrl: undefined,
+      couldBeIntercepted: false,
+      isPrerender: false,
+      postponed: false,
     }
   }
 }
