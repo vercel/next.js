@@ -309,7 +309,10 @@ export default class NextNodeServer extends BaseServer<
         )
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
-          throw new Error('An error occurred while loading the instrumentation hook', { cause: err })
+          throw new Error(
+            'An error occurred while loading the instrumentation hook',
+            { cause: err }
+          )
         }
       }
     }
