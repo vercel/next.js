@@ -16602,6 +16602,33 @@
       "pending": [],
       "flakey": [],
       "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/basic/basic.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - basic should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/shared-actions-module/shared-module-actions.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - reexport should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
     }
   },
   "rules": {
