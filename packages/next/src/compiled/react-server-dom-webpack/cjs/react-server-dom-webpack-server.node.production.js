@@ -460,12 +460,12 @@ var ASYNC_ITERATOR = Symbol.asyncIterator,
   SuspenseException = Error(
     "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`"
   );
-function noop() {}
+function noop$1() {}
 function trackUsedThenable(thenableState, thenable, index) {
   index = thenableState[index];
   void 0 === index
     ? thenableState.push(thenable)
-    : index !== thenable && (thenable.then(noop, noop), (thenable = index));
+    : index !== thenable && (thenable.then(noop$1, noop$1), (thenable = index));
   switch (thenable.status) {
     case "fulfilled":
       return thenable.value;
@@ -473,7 +473,7 @@ function trackUsedThenable(thenableState, thenable, index) {
       throw thenable.reason;
     default:
       "string" === typeof thenable.status
-        ? thenable.then(noop, noop)
+        ? thenable.then(noop$1, noop$1)
         : ((thenableState = thenable),
           (thenableState.status = "pending"),
           thenableState.then(
@@ -717,8 +717,7 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
       : "\n  " + str;
 }
 var ObjectPrototype = Object.prototype,
-  stringify = JSON.stringify,
-  AbortSigil = {};
+  stringify = JSON.stringify;
 function defaultErrorHandler(error) {
   console.error(error);
 }
@@ -729,7 +728,11 @@ function RequestInstance(
   onError,
   identifierPrefix,
   onPostpone,
-  temporaryReferences
+  temporaryReferences,
+  environmentName,
+  filterStackFrame,
+  onAllReady,
+  onFatalError
 ) {
   if (
     null !== ReactSharedInternalsServer.A &&
@@ -737,9 +740,9 @@ function RequestInstance(
   )
     throw Error("Currently React only supports one RSC renderer at a time.");
   ReactSharedInternalsServer.A = DefaultAsyncDispatcher;
-  var abortSet = new Set(),
-    pingedTasks = [],
-    hints = new Set();
+  filterStackFrame = new Set();
+  environmentName = [];
+  var hints = new Set();
   this.status = 0;
   this.flushScheduled = !1;
   this.destination = this.fatalError = null;
@@ -748,8 +751,8 @@ function RequestInstance(
   this.pendingChunks = this.nextChunkId = 0;
   this.hints = hints;
   this.abortListeners = new Set();
-  this.abortableTasks = abortSet;
-  this.pingedTasks = pingedTasks;
+  this.abortableTasks = filterStackFrame;
+  this.pingedTasks = environmentName;
   this.completedImportChunks = [];
   this.completedHintChunks = [];
   this.completedRegularChunks = [];
@@ -764,9 +767,12 @@ function RequestInstance(
   this.taintCleanupQueue = [];
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
   this.onPostpone = void 0 === onPostpone ? defaultPostponeHandler : onPostpone;
-  model = createTask(this, model, null, !1, abortSet);
-  pingedTasks.push(model);
+  this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
+  this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
+  model = createTask(this, model, null, !1, filterStackFrame);
+  environmentName.push(model);
 }
+function noop() {}
 var currentRequest = null;
 function resolveRequest() {
   if (currentRequest) return currentRequest;
@@ -790,6 +796,8 @@ function serializeThenable(request, task, thenable) {
       return (
         (task = logRecoverableError(request, thenable.reason, null)),
         emitErrorChunk(request, newTask.id, task),
+        (newTask.status = 4),
+        request.abortableTasks.delete(newTask),
         newTask.id
       );
     default:
@@ -821,9 +829,9 @@ function serializeThenable(request, task, thenable) {
       pingTask(request, newTask);
     },
     function (reason) {
-      newTask.status = 4;
       reason = logRecoverableError(request, reason, newTask);
       emitErrorChunk(request, newTask.id, reason);
+      newTask.status = 4;
       request.abortableTasks.delete(newTask);
       enqueueFlush(request);
     }
@@ -980,13 +988,22 @@ function createLazyWrapperAroundWakeable(wakeable) {
   }
   return { $$typeof: REACT_LAZY_TYPE, _payload: wakeable, _init: readThenable };
 }
+function voidHandler() {}
 function renderFunctionComponent(request, task, key, Component, props) {
   var prevThenableState = task.thenableState;
   task.thenableState = null;
   thenableIndexCounter = 0;
   thenableState = prevThenableState;
   Component = Component(props, void 0);
-  if (1 === request.status) throw AbortSigil;
+  if (1 === request.status)
+    throw (
+      ("object" === typeof Component &&
+        null !== Component &&
+        "function" === typeof Component.then &&
+        Component.$$typeof !== CLIENT_REFERENCE_TAG$1 &&
+        Component.then(voidHandler, voidHandler),
+      null)
+    );
   if (
     "object" === typeof Component &&
     null !== Component &&
@@ -1077,7 +1094,7 @@ function renderElement(request, task, type, key, ref, props) {
       case REACT_LAZY_TYPE:
         var init = type._init;
         type = init(type._payload);
-        if (1 === request.status) throw AbortSigil;
+        if (1 === request.status) throw null;
         return renderElement(request, task, type, key, ref, props);
       case REACT_FORWARD_REF_TYPE:
         return renderFunctionComponent(request, task, key, type.render, props);
@@ -1171,7 +1188,7 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
               : serializeByValueID(JSCompiler_inline_result.id);
           }
         else
-          thrownValue === AbortSigil
+          1 === request.status
             ? ((task.status = 3),
               (prevKeyPath = request.fatalError),
               (JSCompiler_inline_result = parentPropertyName
@@ -1347,7 +1364,7 @@ function renderModelDestructive(
         task.thenableState = null;
         parentPropertyName = value._init;
         value = parentPropertyName(value._payload);
-        if (1 === request.status) throw AbortSigil;
+        if (1 === request.status) throw null;
         return renderModelDestructive(request, task, emptyRoot, "", value);
       case REACT_LEGACY_ELEMENT_TYPE:
         throw Error(
@@ -1609,6 +1626,8 @@ function logRecoverableError(request, error) {
   return errorDigest || "";
 }
 function fatalError(request, error) {
+  var onFatalError = request.onFatalError;
+  onFatalError(error);
   null !== request.destination
     ? ((request.status = 3), request.destination.destroy(error))
     : ((request.status = 2), (request.fatalError = error));
@@ -1718,7 +1737,7 @@ function retryTask(request, task) {
           var ping = task.ping;
           x.then(ping, ping);
         }
-      else if (x === AbortSigil) {
+      else if (1 === request.status) {
         request.abortableTasks.delete(task);
         task.status = 3;
         var model$19 = stringify(serializeByValueID(request.fatalError));
@@ -1745,6 +1764,10 @@ function performWork(request) {
       retryTask(request, pingedTasks[i]);
     null !== request.destination &&
       flushCompletedChunks(request, request.destination);
+    if (0 === request.abortableTasks.size) {
+      var onAllReady = request.onAllReady;
+      onAllReady();
+    }
   } catch (error) {
     logRecoverableError(request, error, null), fatalError(request, error);
   } finally {
@@ -1846,7 +1869,7 @@ function startFlowing(request, destination) {
 }
 function abort(request, reason) {
   try {
-    request.status = 1;
+    0 === request.status && (request.status = 1);
     var abortableTasks = request.abortableTasks;
     if (0 < abortableTasks.size) {
       request.pendingChunks++;
@@ -2757,7 +2780,11 @@ exports.renderToPipeableStream = function (model, webpackMap, options) {
       options ? options.onError : void 0,
       options ? options.identifierPrefix : void 0,
       options ? options.onPostpone : void 0,
-      options ? options.temporaryReferences : void 0
+      options ? options.temporaryReferences : void 0,
+      void 0,
+      void 0,
+      void 0,
+      void 0
     ),
     hasStartedFlowing = !1;
   startWork(request);

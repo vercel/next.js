@@ -10,8 +10,8 @@ const ASSET_PREFIX = "/";
 const REEXPORTED_OBJECTS = Symbol("reexported objects");
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
-function defineProp(obj, name1, options) {
-    if (!hasOwnProperty.call(obj, name1)) Object.defineProperty(obj, name1, options);
+function defineProp(obj, name, options) {
+    if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
 /**
  * Adds the getters to the exports object.
@@ -154,7 +154,7 @@ function commonJsRequire(sourceModule, id) {
         if (hasOwnProperty.call(map, id)) {
             return map[id].module();
         }
-        const e = new Error(`Cannot find module '${name}'`);
+        const e = new Error(`Cannot find module '${id}'`);
         e.code = "MODULE_NOT_FOUND";
         throw e;
     }
@@ -165,7 +165,7 @@ function commonJsRequire(sourceModule, id) {
         if (hasOwnProperty.call(map, id)) {
             return map[id].id();
         }
-        const e = new Error(`Cannot find module '${name}'`);
+        const e = new Error(`Cannot find module '${id}'`);
         e.code = "MODULE_NOT_FOUND";
         throw e;
     };
