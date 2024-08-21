@@ -1,23 +1,24 @@
-import type { FindComponentsResult } from '../next-server'
+import type { FindComponentsResult, NodeRequestHandler } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
 import type { Options as ServerOptions } from '../next-server'
-import type { Params } from '../../shared/lib/router/utils/route-matcher'
+import type { Params } from '../../client/components/params'
 import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
-import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
+import type { MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
-import type { RouteMatcherManager } from '../future/route-matcher-managers/route-matcher-manager'
-import type {
-  NextParsedUrlQuery,
-  NextUrlWithParsedQuery,
+import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
+import {
+  getRequestMeta,
+  type NextParsedUrlQuery,
+  type NextUrlWithParsedQuery,
 } from '../request-meta'
 import type { DevBundlerService } from '../lib/dev-bundler-service'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
-import type { RouteEnsurer } from '../future/route-matcher-managers/dev-route-matcher-manager'
+import type { RouteEnsurer } from '../route-matcher-managers/dev-route-matcher-manager'
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
 import fs from 'fs'
@@ -50,14 +51,14 @@ import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
-import { DevRouteMatcherManager } from '../future/route-matcher-managers/dev-route-matcher-manager'
-import { DevPagesRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-route-matcher-provider'
-import { DevPagesAPIRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
-import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-page-route-matcher-provider'
-import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
-import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
-import { BatchedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
-import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
+import { DevRouteMatcherManager } from '../route-matcher-managers/dev-route-matcher-manager'
+import { DevPagesRouteMatcherProvider } from '../route-matcher-providers/dev/dev-pages-route-matcher-provider'
+import { DevPagesAPIRouteMatcherProvider } from '../route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
+import { DevAppPageRouteMatcherProvider } from '../route-matcher-providers/dev/dev-app-page-route-matcher-provider'
+import { DevAppRouteRouteMatcherProvider } from '../route-matcher-providers/dev/dev-app-route-route-matcher-provider'
+import { NodeManifestLoader } from '../route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
+import { BatchedFileReader } from '../route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
+import { DefaultFileReader } from '../route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { DetachedPromise } from '../../lib/detached-promise'
@@ -65,6 +66,10 @@ import { isPostpone } from '../lib/router-utils/is-postpone'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 import { buildCustomRoute } from '../../lib/build-custom-route'
 import { decorateServerError } from '../../shared/lib/error-source'
+import type { ServerOnInstrumentationRequestError } from '../app-render/types'
+import type { ServerComponentsHmrCache } from '../response-cache'
+import { logRequests } from './log-requests'
+import { FallbackMode } from '../../lib/fallback'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -112,6 +117,9 @@ export default class DevServer extends Server {
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
   >
   private startServerSpan: Span
+  private readonly serverComponentsHmrCache:
+    | ServerComponentsHmrCache
+    | undefined
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -155,16 +163,13 @@ export default class DevServer extends Server {
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
-    this.storeGlobals()
     this.renderOpts.dev = true
-    this.renderOpts.appDirDevErrorLogger = (err: any) =>
-      this.logErrorWithOriginalStack(err, 'app-dir')
     this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache({
       // 5MB
       max: 5 * 1024 * 1024,
       length(value) {
-        return JSON.stringify(value.staticPaths).length
+        return JSON.stringify(value.staticPaths)?.length ?? 0
       },
     })
     this.renderOpts.ampSkipValidation =
@@ -191,6 +196,17 @@ export default class DevServer extends Server {
     const { pagesDir, appDir } = findPagesDir(this.dir)
     this.pagesDir = pagesDir
     this.appDir = appDir
+
+    if (this.nextConfig.experimental.serverComponentsHmrCache) {
+      this.serverComponentsHmrCache = new LRUCache({
+        max: this.nextConfig.cacheMaxMemorySize,
+        length: (value) => JSON.stringify(value).length,
+      })
+    }
+  }
+
+  protected override getServerComponentsHmrCache() {
+    return this.serverComponentsHmrCache
   }
 
   protected getRouteMatchers(): RouteMatcherManager {
@@ -276,13 +292,7 @@ export default class DevServer extends Server {
     const telemetry = new Telemetry({ distDir: this.distDir })
 
     await super.prepareImpl()
-    await this.startServerSpan
-      .traceChild('run-instrumentation-hook')
-      .traceAsyncFn(() => this.runInstrumentationHookIfAvailable())
     await this.matchers.reload()
-
-    // Store globals again to preserve changes made by the instrumentation hook.
-    this.storeGlobals()
 
     this.ready?.resolve()
     this.ready = undefined
@@ -443,9 +453,47 @@ export default class DevServer extends Server {
       this.logErrorWithOriginalStack(error, 'warning')
       const err = getProperError(error)
       const { req, res, page } = params
+
       res.statusCode = 500
       await this.renderError(err, req, res, page)
       return null
+    }
+  }
+
+  public getRequestHandler(): NodeRequestHandler {
+    const handler = super.getRequestHandler()
+
+    return (req, res, parsedUrl) => {
+      const request = this.normalizeReq(req)
+      const response = this.normalizeRes(res)
+      const loggingConfig = this.nextConfig.logging
+
+      if (loggingConfig !== false) {
+        const start = Date.now()
+        const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
+
+        if (!isMiddlewareRequest) {
+          response.originalResponse.once('close', () => {
+            // NOTE: The route match is only attached to the request's meta data
+            // after the request handler is created, so we need to check it in the
+            // close handler and not before.
+            const routeMatch = getRequestMeta(req).match
+
+            if (!routeMatch) {
+              return
+            }
+
+            logRequests({
+              request,
+              response,
+              loggingConfig,
+              requestDurationInMs: Date.now() - start,
+            })
+          })
+        }
+      }
+
+      return handler(request, response, parsedUrl)
     }
   }
 
@@ -584,7 +632,8 @@ export default class DevServer extends Server {
     })
   }
 
-  private async runInstrumentationHookIfAvailable() {
+  protected async loadInstrumentationModule(): Promise<any> {
+    let instrumentationModule: any
     if (
       this.actualInstrumentationHookFile &&
       (await this.ensurePage({
@@ -596,15 +645,21 @@ export default class DevServer extends Server {
         .catch(() => false))
     ) {
       try {
-        const instrumentationHook = await require(
+        instrumentationModule = await require(
           pathJoin(this.distDir, 'server', INSTRUMENTATION_HOOK_FILENAME)
         )
-        await instrumentationHook.register()
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
         throw err
       }
     }
+    return instrumentationModule
+  }
+
+  protected async runInstrumentationHookIfAvailable() {
+    await this.startServerSpan
+      .traceChild('run-instrumentation-hook')
+      .traceAsyncFn(() => this.instrumentation?.register?.())
   }
 
   protected async ensureEdgeFunction({
@@ -678,7 +733,7 @@ export default class DevServer extends Server {
     isAppPath: boolean
   }): Promise<{
     staticPaths?: string[]
-    fallbackMode?: false | 'static' | 'blocking'
+    fallbackMode?: FallbackMode
   }> {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
@@ -713,6 +768,7 @@ export default class DevServer extends Server {
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
+          nextConfigOutput: this.nextConfig.output,
         })
         return pathsResult
       } finally {
@@ -727,29 +783,26 @@ export default class DevServer extends Server {
       []
     )
       .then((res) => {
-        const { paths: staticPaths = [], fallback } = res.value
+        const { prerenderedRoutes: staticPaths, fallbackMode: fallback } =
+          res.value
         if (!isAppPath && this.nextConfig.output === 'export') {
-          if (fallback === 'blocking') {
+          if (fallback === FallbackMode.BLOCKING_STATIC_RENDER) {
             throw new Error(
               'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
             )
-          } else if (fallback === true) {
+          } else if (fallback === FallbackMode.STATIC_PRERENDER) {
             throw new Error(
               'getStaticPaths with "fallback: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
             )
           }
         }
+
         const value: {
-          staticPaths: string[]
-          fallbackMode: FallbackMode
+          staticPaths: string[] | undefined
+          fallbackMode: FallbackMode | undefined
         } = {
-          staticPaths,
-          fallbackMode:
-            fallback === 'blocking'
-              ? 'blocking'
-              : fallback === true
-                ? 'static'
-                : fallback,
+          staticPaths: staticPaths?.map((route) => route.path),
+          fallbackMode: fallback,
         }
         this.staticPathsCache.set(pathname, value)
         return value
@@ -765,14 +818,6 @@ export default class DevServer extends Server {
       return result
     }
     return nextInvoke as NonNullable<typeof result>
-  }
-
-  private storeGlobals(): void {
-    this.originalFetch = global.fetch
-  }
-
-  private restorePatchedGlobals(): void {
-    global.fetch = this.originalFetch ?? global.fetch
   }
 
   protected async ensurePage(opts: {
@@ -822,11 +867,6 @@ export default class DevServer extends Server {
       }
 
       this.nextFontManifest = super.getNextFontManifest()
-      // before we re-evaluate a route module, we want to restore globals that might
-      // have been patched previously to their original state so that we don't
-      // patch on top of the previous patch, which would keep the context of the previous
-      // patched global in memory, creating a memory leak.
-      this.restorePatchedGlobals()
 
       return await super.findPageComponents({
         page,
@@ -853,5 +893,15 @@ export default class DevServer extends Server {
 
   async getCompilationError(page: string): Promise<any> {
     return await this.bundlerService.getCompilationError(page)
+  }
+
+  protected async instrumentationOnRequestError(
+    ...args: Parameters<ServerOnInstrumentationRequestError>
+  ) {
+    await super.instrumentationOnRequestError(...args)
+
+    const err = args[0]
+    // Safe catch to avoid floating promises
+    this.logErrorWithOriginalStack(err, 'app-dir').catch(() => {})
   }
 }

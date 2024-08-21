@@ -23,7 +23,6 @@ declare module 'next/dist/compiled/react-server-dom-turbopack/server.edge'
 declare module 'next/dist/client/app-call-server'
 declare module 'next/dist/compiled/react-dom/server'
 declare module 'next/dist/compiled/react-dom/server.edge'
-declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
 
 declare module 'react-server-dom-webpack/client'
@@ -76,6 +75,11 @@ declare module 'next/dist/compiled/cssnano-simple' {
 
 declare module 'next/dist/compiled/p-limit' {
   import m from 'p-limit'
+  export = m
+}
+
+declare module 'next/dist/compiled/p-queue' {
+  import m from 'p-queue'
   export = m
 }
 
@@ -444,6 +448,16 @@ declare module 'next/dist/compiled/zod' {
 
 declare module 'mini-css-extract-plugin'
 declare module 'next/dist/compiled/loader-utils3'
+
+declare module 'next/dist/compiled/webpack-sources3' {
+  interface StringBufferUtils {
+    disableDualStringBufferCaching: () => boolean
+    enableDualStringBufferCaching: () => boolean
+    enterStringInterningRange: () => boolean
+    exitStringInterningRange: () => boolean
+  }
+  export let stringBufferUtils: StringBufferUtils
+}
 
 declare module 'next/dist/compiled/webpack/webpack' {
   import type webpackSources from 'webpack-sources1'

@@ -368,11 +368,11 @@ See the [`<Link>` API reference](/docs/app/api-reference/components/link) for mo
 
 ### 3. Caching
 
-Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/building-your-application/caching#router-cache). As users navigate around the app, the React Server Component Payload of [prefetched](#2-prefetching) route segments and visited routes are stored in the cache.
+Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/building-your-application/caching#client-side-router-cache). As users navigate around the app, the React Server Component Payload of [prefetched](#2-prefetching) route segments and visited routes are stored in the cache.
 
 This means on navigation, the cache is reused as much as possible, instead of making a new request to the server - improving performance by reducing the number of requests and data transferred.
 
-Learn more about how the [Router Cache](/docs/app/building-your-application/caching#router-cache) works and how to configure it.
+Learn more about how the [Router Cache](/docs/app/building-your-application/caching#client-side-router-cache) works and how to configure it.
 
 ### 4. Partial Rendering
 
@@ -396,7 +396,7 @@ Browsers perform a "hard navigation" when navigating between pages. The Next.js 
 
 ### 6. Back and Forward Navigation
 
-By default, Next.js will maintain the scroll position for backwards and forwards navigation, and re-use route segments in the [Router Cache](/docs/app/building-your-application/caching#router-cache).
+By default, Next.js will maintain the scroll position for backwards and forwards navigation, and re-use route segments in the [Router Cache](/docs/app/building-your-application/caching#client-side-router-cache).
 
 ### 7. Routing between `pages/` and `app/`
 

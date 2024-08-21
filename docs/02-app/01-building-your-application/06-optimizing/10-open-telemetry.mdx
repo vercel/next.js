@@ -27,10 +27,10 @@ That's why we prepared a package `@vercel/otel` that helps you get started quick
 
 ### Using `@vercel/otel`
 
-To get started, you must install `@vercel/otel`:
+To get started, install the following packages:
 
 ```bash filename="Terminal"
-npm install @vercel/otel
+npm install @vercel/otel @opentelemetry/sdk-logs @opentelemetry/api-logs @opentelemetry/instrumentation
 ```
 
 <AppOnly>
@@ -65,7 +65,7 @@ See the [`@vercel/otel` documentation](https://www.npmjs.com/package/@vercel/ote
 
 <AppOnly>
 
-> **Good to know**
+> **Good to know**:
 >
 > - The `instrumentation` file should be in the root of your project and not inside the `app` or `pages` directory. If you're using the `src` folder, then place the file inside `src` alongside `pages` and `app`.
 > - If you use the [`pageExtensions` config option](/docs/app/api-reference/next-config-js/pageExtensions) to add a suffix, you will also need to update the `instrumentation` filename to match.
@@ -75,7 +75,7 @@ See the [`@vercel/otel` documentation](https://www.npmjs.com/package/@vercel/ote
 
 <PagesOnly>
 
-> **Good to know**
+> **Good to know**:
 >
 > - The `instrumentation` file should be in the root of your project and not inside the `app` or `pages` directory. If you're using the `src` folder, then place the file inside `src` alongside `pages` and `app`.
 > - If you use the [`pageExtensions` config option](/docs/pages/api-reference/next-config-js/pageExtensions) to add a suffix, you will also need to update the `instrumentation` filename to match.
@@ -180,7 +180,7 @@ Once you have your collector up and running, you can deploy your Next.js app to 
 
 ### Custom Exporters
 
-OpenTelemetry Collector is not necessary. You can use a custom OpenTelemetry exporter with [`@vercel/otel`](#using-vercelotel) or [manual OpenTelemetry configuration](/docs/pages/building-your-application/optimizing/open-telemetry#manual-opentelemetry-configuration).
+OpenTelemetry Collector is not necessary. You can use a custom OpenTelemetry exporter with [`@vercel/otel`](#using-vercelotel) or [manual OpenTelemetry configuration](#manual-opentelemetry-configuration).
 
 ## Custom Spans
 

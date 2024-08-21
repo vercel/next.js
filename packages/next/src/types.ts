@@ -1,8 +1,8 @@
-/// <reference types="node" />
-/// <reference types="react" />
-/// <reference types="react/experimental" />
-/// <reference types="react-dom" />
-/// <reference types="react-dom/experimental" />
+/// <reference types="node" preserve="true" />
+/// <reference types="react" preserve="true" />
+/// <reference types="react/experimental" preserve="true" />
+/// <reference types="react-dom" preserve="true" />
+/// <reference types="react-dom/experimental" preserve="true" />
 
 import type { Agent as HttpAgent } from 'http'
 import type { Agent as HttpsAgent } from 'https'
@@ -18,6 +18,7 @@ import type {
   NextApiRequest,
   NextApiHandler,
 } from './shared/lib/utils'
+import type { GetStaticPathsFallback } from './lib/fallback'
 
 import type { NextApiRequestCookies } from './server/api-utils'
 
@@ -37,6 +38,8 @@ export type {
   ResolvingViewport,
   ResolvedViewport,
 } from './lib/metadata/types/metadata-interface'
+
+export type { Instrumentation } from './server/instrumentation/types'
 
 /**
  * Stub route type for typedRoutes before `next dev` or `next build` is run
@@ -142,16 +145,6 @@ export type PageConfig = {
   runtime?: ServerRuntime
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  /**
-   * @deprecated this config has been removed in favor of the next.config.js option
-   */
-  // TODO: remove in next minor release (current v13.1.1)
-  unstable_includeFiles?: string[]
-  /**
-   * @deprecated this config has been removed in favor of the next.config.js option
-   */
-  // TODO: remove in next minor release (current v13.1.1)
-  unstable_excludeFiles?: string[]
 }
 
 export type {
@@ -228,7 +221,7 @@ export type GetStaticPathsResult<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
 > = {
   paths: Array<string | { params: Params; locale?: string }>
-  fallback: boolean | 'blocking'
+  fallback: GetStaticPathsFallback
 }
 
 /**

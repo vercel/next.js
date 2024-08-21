@@ -402,8 +402,9 @@ describe('Image Optimizer', () => {
 
         await retry(() => {
           expect(stderr).toContain(
-            `Invalid assetPrefix provided. Original error: TypeError [ERR_INVALID_URL]: Invalid URL`
+            `Invalid assetPrefix provided. Original error:`
           )
+          expect(stderr).toContain(`Invalid URL`)
         })
       } finally {
         await killApp(app).catch(() => {})
@@ -584,7 +585,7 @@ describe('Image Optimizer', () => {
             `public, max-age=86400, must-revalidate`
           )
           expect(res.headers.get('Content-Disposition')).toBe(
-            `inline; filename="test.webp"`
+            `attachment; filename="test.webp"`
           )
 
           await check(async () => {
@@ -615,7 +616,7 @@ describe('Image Optimizer', () => {
             `public, max-age=60, must-revalidate`
           )
           expect(res.headers.get('Content-Disposition')).toBe(
-            `inline; filename="test.webp"`
+            `attachment; filename="test.webp"`
           )
         })
       }
@@ -723,7 +724,7 @@ describe('Image Optimizer', () => {
           )
           expect(res.headers.get('Vary')).toBe('Accept')
           expect(res.headers.get('Content-Disposition')).toBe(
-            `inline; filename="next-js-bg.webp"`
+            `attachment; filename="next-js-bg.webp"`
           )
 
           await check(async () => {

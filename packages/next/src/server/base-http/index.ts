@@ -19,7 +19,8 @@ export type FetchMetric = {
   method: string
   status: number
   cacheReason: string
-  cacheStatus: 'hit' | 'miss' | 'skip'
+  cacheStatus: 'hit' | 'miss' | 'skip' | 'hmr'
+  cacheWarning?: string
 }
 
 export type FetchMetrics = Array<FetchMetric>
@@ -82,6 +83,8 @@ export abstract class BaseNextResponse<Destination = any> {
   abstract body(value: string): this
 
   abstract send(): void
+
+  abstract onClose(callback: () => void): void
 
   // Utils implemented using the abstract methods above
 

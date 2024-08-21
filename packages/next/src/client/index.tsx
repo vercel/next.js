@@ -8,7 +8,7 @@ import type {
   PrivateRouteInfo,
 } from '../shared/lib/router/router'
 
-import React from 'react'
+import React, { type JSX } from 'react'
 import ReactDOM from 'react-dom/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import mitt from '../shared/lib/mitt'
@@ -698,6 +698,8 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
   function onHeadCommit(): void {
     if (
+      // Turbopack has it's own css injection handling, this code ends up removing the CSS.
+      !process.env.TURBOPACK &&
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
       process.env.NODE_ENV === 'production' &&

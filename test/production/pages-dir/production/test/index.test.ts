@@ -300,39 +300,50 @@ describe('Production Usage', () => {
     }
   })
 
-  it('should not contain currentScript usage for publicPath', async () => {
-    const globResult = await glob('webpack-*.js', {
-      cwd: join(next.testDir, '.next/static/chunks'),
-    })
+  // This test checks webpack chunks in particular
+  ;(process.env.TURBOPACK ? it.skip : it)(
+    'should not contain currentScript usage for publicPath',
+    async () => {
+      const globResult = await glob('webpack-*.js', {
+        cwd: join(next.testDir, '.next/static/chunks'),
+      })
 
-    if (!globResult || globResult.length !== 1) {
-      throw new Error('could not find webpack-hash.js chunk')
+      if (!globResult || globResult.length !== 1) {
+        throw new Error('could not find webpack-hash.js chunk')
+      }
+
+      const content = await next.readFile(
+        join('.next/static/chunks', globResult[0])
+      )
+
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(content).not.toContain('.currentScript')
     }
+  )
 
-    const content = await next.readFile(
-      join('.next/static/chunks', globResult[0])
-    )
+  // This test checks webpack chunks in particular
+  ;(process.env.TURBOPACK ? it.skip : it)(
+    'should not contain amp, rsc APIs in main chunk',
+    async () => {
+      const globResult = await glob('main-*.js', {
+        cwd: join(next.testDir, '.next/static/chunks'),
+      })
 
-    expect(content).not.toContain('.currentScript')
-  })
+      if (!globResult || globResult.length !== 1) {
+        throw new Error('could not find main js chunk')
+      }
 
-  it('should not contain amp, rsc APIs in main chunk', async () => {
-    const globResult = await glob('main-*.js', {
-      cwd: join(next.testDir, '.next/static/chunks'),
-    })
+      const content = await fs.readFile(
+        join(next.testDir, '.next/static/chunks', globResult[0]),
+        'utf8'
+      )
 
-    if (!globResult || globResult.length !== 1) {
-      throw new Error('could not find main js chunk')
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(content).not.toContain('useAmp')
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(content).not.toContain('useRefreshRoot')
     }
-
-    const content = await fs.readFile(
-      join(next.testDir, '.next/static/chunks', globResult[0]),
-      'utf8'
-    )
-
-    expect(content).not.toContain('useAmp')
-    expect(content).not.toContain('useRefreshRoot')
-  })
+  )
 
   describe('With basic usage', () => {
     it('should render the page', async () => {
@@ -500,10 +511,12 @@ describe('Production Usage', () => {
 
       const files = buildManifest.pages['/']
 
+      expect(files.length).toBeGreaterThan(0)
+
       for (const file of files) {
         const res = await fetchViaHTTP(
           `http://localhost:${next.appPort}`,
-          `/_next/${file}`,
+          `/_next/${encodeURI(file)}`,
           undefined,
           {
             method: 'GET',
@@ -521,10 +534,12 @@ describe('Production Usage', () => {
 
       const files = buildManifest.pages['/']
 
+      expect(files.length).toBeGreaterThan(0)
+
       for (const file of files) {
         const res = await fetchViaHTTP(
           `http://localhost:${next.appPort}`,
-          `/_next/${file}`,
+          `/_next/${encodeURI(file)}`,
           undefined,
           {
             method: 'GET',
@@ -571,20 +586,24 @@ describe('Production Usage', () => {
         { pathnameFilter: (f) => /\.css$/.test(f) }
       )
       expect(cssStaticAssets.length).toBeGreaterThanOrEqual(1)
-      expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
+      if (!process.env.TURBOPACK) {
+        expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
+      }
       const mediaStaticAssets = await recursiveReadDir(
         join(next.testDir, '.next', 'static'),
         { pathnameFilter: (f) => /\.svg$/.test(f) }
       )
       expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
-      expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
+      if (!process.env.TURBOPACK) {
+        expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
+      }
       ;[...cssStaticAssets, ...mediaStaticAssets].forEach((asset) => {
         resources.add(`/static${asset.replace(/\\+/g, '/')}`)
       })
 
       const responses = await Promise.all(
         [...resources].map((resource) =>
-          fetchViaHTTP(url, join('/_next', resource))
+          fetchViaHTTP(url, join('/_next', encodeURI(resource)))
         )
       )
 
@@ -706,9 +725,7 @@ describe('Production Usage', () => {
         // @ts-expect-error Exists on window
         window.__DATA_BE_GONE = 'true'
       })
-      await browser
-        .waitForElementByCss('#to-nonexistent-page')
-        .click('#to-nonexistent-page')
+      await browser.waitForElementByCss('#to-nonexistent-page').click()
       await browser.waitForElementByCss('.about-page')
 
       const oldData = await browser.eval(`window.__DATA_BE_GONE`)
@@ -1082,7 +1099,7 @@ describe('Production Usage', () => {
     let browser
     try {
       browser = await webdriver(next.appPort, '/development-logs')
-      const browserLogs = await browser.log('browser')
+      const browserLogs = await browser.log()
       let found = false
       browserLogs.forEach((log) => {
         if (log.message.includes('Next.js auto-prefetches automatically')) {
@@ -1110,7 +1127,8 @@ describe('Production Usage', () => {
       const version = await browser.eval('window.next.version')
       expect(version).toBeTruthy()
       expect(version).toBe(
-        (await next.readJSON('node_modules/next/package.json')).version
+        (await next.readJSON('node_modules/next/package.json')).version +
+          (process.env.TURBOPACK ? '-turbo' : '')
       )
     } finally {
       if (browser) {

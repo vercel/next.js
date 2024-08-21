@@ -13,7 +13,12 @@ function validate(docPath) {
   const extraPkgs = []
   const missingPkgs = []
 
-  for (let docPkg of docContent.split('opt-ed out:').pop().split('\n')) {
+  for (let docPkg of docContent
+    .split('opt-ed out:')
+    .pop()
+    .split('| Version')
+    .shift()
+    .split('\n')) {
     docPkg = docPkg.split('`')[1]
 
     if (!docPkg) {
@@ -53,7 +58,7 @@ const appRouterValid = validate(
   `docs/02-app/02-api-reference/05-next-config-js/serverExternalPackages.mdx`
 )
 const pagesRouterValid = validate(
-  `docs/03-pages/02-api-reference/03-next-config-js/serverExternalPackages.mdx`
+  `docs/03-pages/02-api-reference/04-next-config-js/serverExternalPackages.mdx`
 )
 
 if (appRouterValid && pagesRouterValid) {

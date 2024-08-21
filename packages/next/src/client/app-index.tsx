@@ -9,33 +9,35 @@ import { createFromReadableStream } from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './on-recoverable-error'
 import { callServer } from './app-call-server'
-import { isNextRouterError } from './components/is-next-router-error'
 import {
-  ActionQueueContext,
+  type AppRouterActionQueue,
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
+import { isNextRouterError } from './components/is-next-router-error'
+import { handleClientError } from './components/react-dev-overlay/internal/helpers/use-error-handler'
+import AppRouter from './components/app-router'
+import type { InitialRSCPayload } from '../server/app-render/types'
+import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
+import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 
-// Since React doesn't call onerror for errors caught in error boundaries.
+// Patch console.error to collect information about hydration errors
 const origConsoleError = window.console.error
 window.console.error = (...args) => {
   // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
-  if (
-    process.env.NODE_ENV !== 'production'
-      ? isNextRouterError(args[1])
-      : isNextRouterError(args[0])
-  ) {
-    return
-  }
-  origConsoleError.apply(window.console, args)
-}
+  const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
+  if (!isNextRouterError(error)) {
+    if (process.env.NODE_ENV !== 'production') {
+      const { storeHydrationErrorStateFromConsoleArgs } =
+        require('./components/react-dev-overlay/internal/helpers/hydration-error-info') as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info')
 
-window.addEventListener('error', (ev: WindowEventMap['error']): void => {
-  if (isNextRouterError(ev.error)) {
-    ev.preventDefault()
-    return
+      storeHydrationErrorStateFromConsoleArgs(...args)
+      handleClientError(error)
+    }
+
+    origConsoleError.apply(window.console, args)
   }
-})
+}
 
 /// <reference types="react-dom/experimental" />
 
@@ -43,7 +45,7 @@ const appElement: HTMLElement | Document | null = document
 
 const encoder = new TextEncoder()
 
-let initialServerDataBuffer: string[] | undefined = undefined
+let initialServerDataBuffer: (string | Uint8Array)[] | undefined = undefined
 let initialServerDataWriter: ReadableStreamDefaultController | undefined =
   undefined
 let initialServerDataLoaded = false
@@ -56,6 +58,7 @@ function nextServerDataCallback(
     | [isBootStrap: 0]
     | [isNotBootstrap: 1, responsePartial: string]
     | [isFormState: 2, formState: any]
+    | [isBinary: 3, responseBase64Partial: string]
 ): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
@@ -70,7 +73,28 @@ function nextServerDataCallback(
     }
   } else if (seg[0] === 2) {
     initialFormStateData = seg[1]
+  } else if (seg[0] === 3) {
+    if (!initialServerDataBuffer)
+      throw new Error('Unexpected server data: missing bootstrap script.')
+
+    // Decode the base64 string back to binary data.
+    const binaryString = atob(seg[1])
+    const decodedChunk = new Uint8Array(binaryString.length)
+    for (var i = 0; i < binaryString.length; i++) {
+      decodedChunk[i] = binaryString.charCodeAt(i)
+    }
+
+    if (initialServerDataWriter) {
+      initialServerDataWriter.enqueue(decodedChunk)
+    } else {
+      initialServerDataBuffer.push(decodedChunk)
+    }
   }
+}
+
+function isStreamErrorOrUnfinished(ctr: ReadableStreamDefaultController) {
+  // If `desiredSize` is null, it means the stream is closed or errored. If it is lower than 0, the stream is still unfinished.
+  return ctr.desiredSize === null || ctr.desiredSize < 0
 }
 
 // There might be race conditions between `nextServerDataRegisterWriter` and
@@ -84,10 +108,18 @@ function nextServerDataCallback(
 function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
   if (initialServerDataBuffer) {
     initialServerDataBuffer.forEach((val) => {
-      ctr.enqueue(encoder.encode(val))
+      ctr.enqueue(typeof val === 'string' ? encoder.encode(val) : val)
     })
     if (initialServerDataLoaded && !initialServerDataFlushed) {
-      ctr.close()
+      if (isStreamErrorOrUnfinished(ctr)) {
+        ctr.error(
+          new Error(
+            'The connection to the page was unexpectedly closed, possibly due to the stop button being clicked, loss of Wi-Fi, or an unstable internet connection.'
+          )
+        )
+      } else {
+        ctr.close()
+      }
       initialServerDataFlushed = true
       initialServerDataBuffer = undefined
     }
@@ -105,11 +137,13 @@ const DOMContentLoaded = function () {
   }
   initialServerDataLoaded = true
 }
+
 // It's possible that the DOM is already loaded.
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', DOMContentLoaded, false)
 } else {
-  DOMContentLoaded()
+  // Delayed in marco task to ensure it's executed later than hydration
+  setTimeout(DOMContentLoaded)
 }
 
 const nextServerDataLoadingGlobal = ((self as any).__next_f =
@@ -127,8 +161,56 @@ const initialServerResponse = createFromReadableStream(readable, {
   callServer,
 })
 
+// React overrides `.then` and doesn't return a new promise chain,
+// so we wrap the action queue in a promise to ensure that its value
+// is defined when the promise resolves.
+// https://github.com/facebook/react/blob/163365a07872337e04826c4f501565d43dbd2fd4/packages/react-client/src/ReactFlightClient.js#L189-L190
+const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
+  (resolve, reject) => {
+    initialServerResponse.then(
+      (initialRSCPayload: InitialRSCPayload) => {
+        resolve(
+          createMutableActionQueue(
+            createInitialRouterState({
+              buildId: initialRSCPayload.b,
+              initialFlightData: initialRSCPayload.f,
+              initialCanonicalUrl: initialRSCPayload.c,
+              initialParallelRoutes: new Map(),
+              location: window.location,
+              couldBeIntercepted: initialRSCPayload.i,
+              postponed: initialRSCPayload.s,
+            })
+          )
+        )
+      },
+      (err: Error) => reject(err)
+    )
+  }
+)
+
 function ServerRoot(): React.ReactNode {
-  return use(initialServerResponse)
+  const initialRSCPayload = use<InitialRSCPayload>(initialServerResponse)
+  const actionQueue = use<AppRouterActionQueue>(pendingActionQueue)
+
+  const router = (
+    <AppRouter
+      actionQueue={actionQueue}
+      globalErrorComponent={initialRSCPayload.G}
+      assetPrefix={initialRSCPayload.p}
+    />
+  )
+
+  if (process.env.NODE_ENV === 'development' && initialRSCPayload.m) {
+    // We provide missing slot information in a context provider only during development
+    // as we log some additional information about the missing slots in the console.
+    return (
+      <MissingSlotContext value={initialRSCPayload.m}>
+        {router}
+      </MissingSlotContext>
+    )
+  }
+
+  return router
 }
 
 const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
@@ -148,16 +230,12 @@ function Root({ children }: React.PropsWithChildren<{}>) {
 }
 
 export function hydrate() {
-  const actionQueue = createMutableActionQueue()
-
   const reactEl = (
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider value={{ appDir: true }}>
-        <ActionQueueContext.Provider value={actionQueue}>
-          <Root>
-            <ServerRoot />
-          </Root>
-        </ActionQueueContext.Provider>
+        <Root>
+          <ServerRoot />
+        </Root>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
   )
@@ -170,16 +248,6 @@ export function hydrate() {
   } satisfies ReactDOMClient.RootOptions
   const isError =
     document.documentElement.id === '__next_error__' || hasMissingTags
-
-  if (process.env.NODE_ENV !== 'production') {
-    // Patch console.error to collect information about hydration errors
-    const patchConsoleError =
-      require('./components/react-dev-overlay/internal/helpers/hydration-error-info')
-        .patchConsoleError as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info').patchConsoleError
-    if (!isError) {
-      patchConsoleError()
-    }
-  }
 
   if (isError) {
     if (process.env.NODE_ENV !== 'production') {

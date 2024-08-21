@@ -13,13 +13,12 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
-import type { ManifestRewriteRoute, PrerenderManifest } from '../../..'
+import type { ManifestRewriteRoute } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import type { SizeLimit } from '../../../../types'
 import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
 import type { PAGE_TYPES } from '../../../../lib/page-types'
 import type { NextRequestHint } from '../../../../server/web/adapter'
-import type { DeepReadonly } from '../../../../shared/lib/deep-readonly'
 
 export function getRender({
   dev,
@@ -31,7 +30,6 @@ export function getRender({
   pagesType,
   Document,
   buildManifest,
-  prerenderManifest,
   reactLoadableManifest,
   interceptionRouteRewrites,
   renderToHTML,
@@ -54,7 +52,6 @@ export function getRender({
   renderToHTML?: any
   Document: DocumentType
   buildManifest: BuildManifest
-  prerenderManifest: DeepReadonly<PrerenderManifest>
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
   interceptionRouteRewrites?: ManifestRewriteRoute[]
@@ -88,12 +85,11 @@ export function getRender({
       page,
       pathname: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
-      prerenderManifest,
       interceptionRouteRewrites,
       extendRenderOpts: {
         buildId,
         runtime: SERVER_RUNTIME.experimentalEdge,
-        supportsDynamicHTML: true,
+        supportsDynamicResponse: true,
         disableOptimizedLoading: true,
         serverActionsManifest,
         serverActions,
@@ -158,12 +154,20 @@ export function getRender({
     event?: NextFetchEvent
   ) {
     const extendedReq = new WebNextRequest(request)
-    const extendedRes = new WebNextResponse()
+    const extendedRes = new WebNextResponse(
+      undefined,
+      // tracking onClose adds overhead, so only do it if `experimental.after` is on.
+      !!process.env.__NEXT_AFTER
+    )
 
     handler(extendedReq, extendedRes)
     const result = await extendedRes.toResponse()
+    request.fetchMetrics = extendedReq.fetchMetrics
 
     if (event?.waitUntil) {
+      // TODO(after):
+      // remove `internal_runWithWaitUntil` and the `internal-edge-wait-until` module
+      // when consumers switch to `unstable_after`.
       const waitUntilPromise = internal_getCurrentFunctionWaitUntil()
       if (waitUntilPromise) {
         event.waitUntil(waitUntilPromise)

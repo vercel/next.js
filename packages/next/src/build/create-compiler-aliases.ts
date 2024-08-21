@@ -199,6 +199,7 @@ export function createNextApiEsmAliases() {
     dynamic: 'next/dist/api/dynamic',
     script: 'next/dist/api/script',
     link: 'next/dist/api/link',
+    form: 'next/dist/api/form',
     navigation: 'next/dist/api/navigation',
     headers: 'next/dist/api/headers',
     og: 'next/dist/api/og',
@@ -235,6 +236,16 @@ export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
   return aliasMap
 }
 
+export function createRSCRendererAliases(bundledReactChannel: string) {
+  return {
+    // react-server-dom-webpack alias
+    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
+    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
+    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
+    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+  }
+}
+
 export function createRSCAliases(
   bundledReactChannel: string,
   {
@@ -252,38 +263,38 @@ export function createRSCAliases(
     'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
     'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
     'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
+    'react/compiler-runtime$': `next/dist/compiled/react${bundledReactChannel}/compiler-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
     'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
-    'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
-    'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
-    'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
-    // TODO: restore optimizations to ignore the legacy build of react-dom/server in `server.browser` build
-    'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
     'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
+    'react-dom/static$': `next/dist/compiled/react-dom${bundledReactChannel}/static`,
+    'react-dom/static.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/static.edge`,
+    'react-dom/static.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/static.browser`,
+    // optimizations to ignore the legacy build of react-dom/server in `server.edge` build
+    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
     // react-server-dom-webpack alias
-    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
-    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
-    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+    ...createRSCRendererAliases(bundledReactChannel),
   }
 
   if (!isEdgeServer) {
     if (layer === WEBPACK_LAYERS.serverSideRendering) {
       alias = Object.assign(alias, {
-        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-runtime`,
-        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-dev-runtime`,
-        react$: `next/dist/server/future/route-modules/app-page/vendored/${layer}/react`,
-        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-dom`,
-        'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-client-edge`,
+        'react/jsx-runtime$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-jsx-runtime`,
+        'react/jsx-dev-runtime$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-jsx-dev-runtime`,
+        'react/compiler-runtime$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-compiler-runtime`,
+        react$: `next/dist/server/route-modules/app-page/vendored/${layer}/react`,
+        'react-dom$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-dom`,
+        'react-server-dom-webpack/client.edge$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-client-edge`,
       })
     } else if (layer === WEBPACK_LAYERS.reactServerComponents) {
       alias = Object.assign(alias, {
-        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-runtime`,
-        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-dev-runtime`,
-        react$: `next/dist/server/future/route-modules/app-page/vendored/${layer}/react`,
-        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-dom`,
-        'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-edge`,
-        'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-node`,
+        'react/jsx-runtime$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-jsx-runtime`,
+        'react/jsx-dev-runtime$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-jsx-dev-runtime`,
+        'react/compiler-runtime$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-compiler-runtime`,
+        react$: `next/dist/server/route-modules/app-page/vendored/${layer}/react`,
+        'react-dom$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-dom`,
+        'react-server-dom-webpack/server.edge$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-edge`,
+        'react-server-dom-webpack/server.node$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-node`,
       })
     }
   }
@@ -295,6 +306,7 @@ export function createRSCAliases(
         'next/dist/compiled/react$': `next/dist/compiled/react${bundledReactChannel}/react.react-server`,
         'next/dist/compiled/react-experimental$': `next/dist/compiled/react-experimental/react.react-server`,
         'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`,
+        'react/compiler-runtime$': `next/dist/compiled/react${bundledReactChannel}/compiler-runtime`,
         'next/dist/compiled/react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`,
         'next/dist/compiled/react-experimental/jsx-runtime$': `next/dist/compiled/react-experimental/jsx-runtime.react-server`,
         'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`,
@@ -312,8 +324,9 @@ export function createRSCAliases(
       `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
   }
 
-  alias['@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'] =
-    `next/dist/client/dev/noop-turbopack-hmr`
+  alias[
+    '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
+  ] = `next/dist/client/dev/noop-turbopack-hmr`
 
   return alias
 }

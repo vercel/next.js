@@ -82,15 +82,18 @@ Generate a route segment's shared image by creating an `opengraph-image` or `twi
 | `opengraph-image` | `.js`, `.ts`, `.tsx` |
 | `twitter-image`   | `.js`, `.ts`, `.tsx` |
 
-> **Good to know**
+> **Good to know**:
 >
 > - By default, generated images are [**statically optimized**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) (generated at build time and cached) unless they use [dynamic functions](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions) or uncached data.
 > - You can generate multiple Images in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
+> - `opengraph-image.js` and `twitter-image.js` are special Route Handlers that is cached by default unless it uses a [dynamic function](/docs/app/building-your-application/caching#dynamic-functions) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
 
 The easiest way to generate an image is to use the [ImageResponse](/docs/app/api-reference/functions/image-response) API from `next/og`.
 
 ```tsx filename="app/about/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
+
+export const runtime = 'edge'
 
 // Image metadata
 export const alt = 'About Acme'
@@ -145,6 +148,8 @@ export default async function Image() {
 
 ```jsx filename="app/about/opengraph-image.js" switcher
 import { ImageResponse } from 'next/og'
+
+export const runtime = 'edge'
 
 // Image metadata
 export const alt = 'About Acme'
@@ -396,13 +401,38 @@ export default async function Image({ params }) {
 
 This example uses the Edge runtime to fetch a local image on the file system and passes it as an `ArrayBuffer` to the `src` attribute of an `<img>` element. The local asset should be placed relative to the example source file location.
 
-```jsx filename="app/opengraph-image.js" switcher
+```tsx filename="app/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
-import { readFile } from 'node:fs/promises'
 
 export const runtime = 'edge'
 
-export async function GET() {
+export default async function Image() {
+  const logoSrc = await fetch(new URL('./logo.png', import.meta.url)).then(
+    (res) => res.arrayBuffer()
+  )
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <img src={logoSrc} height="100" />
+      </div>
+    )
+  )
+}
+```
+
+```jsx filename="app/opengraph-image.js" switcher
+import { ImageResponse } from 'next/og'
+
+export const runtime = 'edge'
+
+export default async function Image() {
   const logoSrc = await fetch(new URL('./logo.png', import.meta.url)).then(
     (res) => res.arrayBuffer()
   )
@@ -427,12 +457,37 @@ export async function GET() {
 
 This example uses the Node.js runtime to fetch a local image on the file system and passes it as an `ArrayBuffer` to the `src` attribute of an `<img>` element. The local asset should be placed relative to the root of your project, rather than the location of the example source file.
 
+```tsx filename="app/opengraph-image.tsx" switcher
+import { ImageResponse } from 'next/og'
+import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
+
+export default async function Image() {
+  const logoData = await readFile(join(process.cwd(), 'logo.png'))
+  const logoSrc = Uint8Array.from(logoData).buffer
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <img src={logoSrc} height="100" />
+      </div>
+    )
+  )
+}
+```
+
 ```jsx filename="app/opengraph-image.js" switcher
 import { ImageResponse } from 'next/og'
 import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
-export async function GET() {
+export default async function Image() {
   const logoData = await readFile(join(process.cwd(), 'logo.png'))
   const logoSrc = Uint8Array.from(logoData).buffer
 

@@ -53,6 +53,7 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     const opts = {
       trailingSlash: false,
       pathname: '/',
+      isStandaloneMode: false,
     }
     const resolver = (url: string | URL) =>
       resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
@@ -68,6 +69,7 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     const opts = {
       trailingSlash: true,
       pathname: '/',
+      isStandaloneMode: false,
     }
     const resolver = (url: string | URL) =>
       resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
@@ -106,6 +108,17 @@ describe('resolveAbsoluteUrlWithPathname', () => {
       expect(resolver('/foo?bar')).toBe('https://example.com/foo?bar')
       expect(resolver(new URL('/foo?bar', metadataBase))).toBe(
         'https://example.com/foo?bar'
+      )
+    })
+
+    it('should not add trailing slash to relative url that matches file pattern', () => {
+      expect(resolver('/foo.html')).toBe('https://example.com/foo.html')
+      expect(resolver('/foo.html?q=v')).toBe('https://example.com/foo.html?q=v')
+      expect(resolver(new URL('/.well-known/bar.jpg', metadataBase))).toBe(
+        'https://example.com/.well-known/bar.jpg/'
+      )
+      expect(resolver(new URL('/foo.html', metadataBase))).toBe(
+        'https://example.com/foo.html'
       )
     })
   })

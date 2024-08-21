@@ -1,0 +1,1 @@
+module.exports = "other-dep";

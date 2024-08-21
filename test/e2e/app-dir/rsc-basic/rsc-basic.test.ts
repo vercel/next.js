@@ -59,6 +59,20 @@ describe('app dir - rsc basics', () => {
     })
   }
 
+  describe('next internal shared context', () => {
+    it('should not error if just load next/navigation module in pages/api', async () => {
+      const res = await next.fetch('/api/navigation')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('just work')
+    })
+
+    it('should not error if just load next/router module in app page', async () => {
+      const res = await next.fetch('/shared-context/server')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('just work')
+    })
+  })
+
   it('should correctly render page returning null', async () => {
     const homeHTML = await next.render('/return-null/page')
     const $ = cheerio.load(homeHTML)
@@ -93,6 +107,16 @@ describe('app dir - rsc basics', () => {
     const homeHTML = await next.render('/return-undefined/layout')
     const $ = cheerio.load(homeHTML)
     expect($('#return-undefined-layout').html()).toBeEmpty()
+  })
+
+  it('should handle named client components imported as page', async () => {
+    const $ = await next.render$('/reexport-named')
+    expect($('#client-title').text()).toBe('Client Title')
+  })
+
+  it('should handle client components imported as namespace', async () => {
+    const $ = await next.render$('/reexport-namespace')
+    expect($('#foo').text()).toBe('Foo')
   })
 
   it('should render server components correctly', async () => {
@@ -420,7 +444,11 @@ describe('app dir - rsc basics', () => {
       .then(async (response) => {
         const result = await resolveStreamResponse(response)
         expect(result).toContain('component:index.server')
-        expect(result).toMatch(isNextDev ? /0:\["development",/ : /0:\[".*?",/)
+        if (isNextDev) {
+          expect(result).toContain('"b":"development"')
+        } else {
+          expect(result).toMatch(/"b":".*?"/)
+        }
       })
   })
 
@@ -456,7 +484,7 @@ describe('app dir - rsc basics', () => {
 
   // TODO: (PPR) remove once PPR is stable
   const bundledReactVersionPattern =
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ? '-experimental-' : '-beta-'
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ? '-experimental-' : '-rc-'
 
   // TODO: (React 19) During Beta, bundled and installed version match.
   it.skip('should not use bundled react for pages with app', async () => {
@@ -591,20 +619,6 @@ describe('app dir - rsc basics', () => {
       'count: 1'
     )
   })
-
-  // Skip as Turbopack doesn't support webpack loaders.
-  ;(process.env.TURBOPACK ? it.skip : it)(
-    'should support webpack loader rules',
-    async () => {
-      const browser = await next.browser('/loader-rule')
-
-      expect(
-        await browser.eval(
-          `window.getComputedStyle(document.querySelector('#red')).color`
-        )
-      ).toBe('rgb(255, 0, 0)')
-    }
-  )
 
   if (isNextStart) {
     it('should generate edge SSR manifests for Node.js', async () => {

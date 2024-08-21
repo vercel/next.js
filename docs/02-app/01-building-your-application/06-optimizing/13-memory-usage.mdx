@@ -11,7 +11,13 @@ Let's explore some strategies and techniques to optimize memory and address comm
 
 Applications with a large amount of dependencies will use more memory.
 
-The [Bundle Analyzer](/docs/app/building-your-application/optimizing/bundle-analyzer) can help you investigate large dependencies in your application that may be able to be removed to improve performance and memory usage.
+The [Bundle Analyzer](/docs/app/building-your-application/optimizing/package-bundling) can help you investigate large dependencies in your application that may be able to be removed to improve performance and memory usage.
+
+## Try `experimental.webpackMemoryOptimizations`
+
+Starting in `v15.0.0`, you can add `experimental.webpackMemoryOptimizations: true` to your `next.config.js` file to change behavior in Webpack that reduces max memory usage but may increase compilation times by a slight amount.
+
+> **Good to know**: This feature is currently experimental to test on more projects first, but it is considered to be low-risk.
 
 ## Run `next build` with `--experimental-debug-memory-usage`
 
@@ -76,7 +82,6 @@ const nextConfig = {
       config.cache = Object.freeze({
         type: 'memory',
       })
-      config.cache.maxMemoryGenerations = 0
     }
     // Important: return the modified config
     return config

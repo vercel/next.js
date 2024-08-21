@@ -2,12 +2,10 @@ import path from 'path'
 import { outdent } from 'outdent'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
-  check,
+  assertHasRedbox,
   getRedboxDescription,
   getRedboxSource,
   getVersionCheckerText,
-  hasRedbox,
-  retry,
 } from 'next-test-utils'
 
 describe('Error overlay - RSC runtime errors', () => {
@@ -29,10 +27,7 @@ describe('Error overlay - RSC runtime errors', () => {
 
     const browser = await next.browser('/server')
 
-    await check(
-      async () => ((await hasRedbox(browser)) ? 'success' : 'fail'),
-      /success/
-    )
+    await assertHasRedbox(browser)
     const errorDescription = await getRedboxDescription(browser)
 
     expect(errorDescription).toContain(
@@ -55,12 +50,9 @@ describe('Error overlay - RSC runtime errors', () => {
 
     const browser = await next.browser('/client')
 
-    await check(
-      async () => ((await hasRedbox(browser)) ? 'success' : 'fail'),
-      /success/
-    )
-    const errorDescription = await getRedboxDescription(browser)
+    await assertHasRedbox(browser)
 
+    const errorDescription = await getRedboxDescription(browser)
     expect(errorDescription).toContain(
       'Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context'
     )
@@ -77,10 +69,7 @@ describe('Error overlay - RSC runtime errors', () => {
     )
 
     const browser = await next.browser('/server')
-    await check(
-      async () => ((await hasRedbox(browser)) ? 'success' : 'fail'),
-      /success/
-    )
+    await assertHasRedbox(browser)
 
     const errorDescription = await getRedboxDescription(browser)
 
@@ -98,10 +87,7 @@ describe('Error overlay - RSC runtime errors', () => {
         `
     )
     const browser = await next.browser('/server')
-    await check(
-      async () => ((await hasRedbox(browser)) ? 'success' : 'fail'),
-      /success/
-    )
+    await assertHasRedbox(browser)
 
     const source = await getRedboxSource(browser)
     // Can show the original source code
@@ -120,11 +106,9 @@ describe('Error overlay - RSC runtime errors', () => {
     )
     const browser = await next.browser('/server')
 
-    await retry(async () => {
-      expect(await hasRedbox(browser)).toBe(true)
-    })
+    await assertHasRedbox(browser)
     const versionText = await getVersionCheckerText(browser)
-    await expect(versionText).toMatch(/Next.js \([\w.-]+\)/)
+    expect(versionText).toMatch(/Next.js \([\w.-]+\)/)
   })
 
   it('should not show the bundle layer info in the file trace', async () => {
@@ -138,9 +122,7 @@ describe('Error overlay - RSC runtime errors', () => {
     )
     const browser = await next.browser('/server')
 
-    await retry(async () => {
-      expect(await hasRedbox(browser)).toBe(true)
-    })
+    await assertHasRedbox(browser)
     const source = await getRedboxSource(browser)
     expect(source).toContain('app/server/page.js')
     expect(source).not.toContain('//app/server/page.js')

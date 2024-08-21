@@ -39,6 +39,7 @@ export const installTemplate = async ({
   srcDir,
   importAlias,
   skipInstall,
+  turbo,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -174,7 +175,7 @@ export const installTemplate = async ({
     version: "0.1.0",
     private: true,
     scripts: {
-      dev: "next dev",
+      dev: `next dev${turbo ? " --turbo" : ""}`,
       build: "next build",
       start: "next start",
       lint: "next lint",
@@ -183,8 +184,8 @@ export const installTemplate = async ({
      * Default dependencies.
      */
     dependencies: {
-      react: "19.0.0-beta-4508873393-20240430",
-      "react-dom": "19.0.0-beta-4508873393-20240430",
+      react: "19.0.0-rc-1eaccd82-20240816",
+      "react-dom": "19.0.0-rc-1eaccd82-20240816",
       next: version,
     },
     devDependencies: {},

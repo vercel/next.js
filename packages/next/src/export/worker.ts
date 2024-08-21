@@ -1,10 +1,12 @@
 import type {
+  ExportPagesInput,
   ExportPageInput,
   ExportPageResult,
   ExportRouteResult,
   ExportedPageFile,
   FileWriter,
   WorkerRenderOpts,
+  ExportPagesResult,
 } from './types'
 
 import '../server/node-environment'
@@ -29,7 +31,7 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { exportAppRoute } from './routes/app-route'
 import { exportAppPage } from './routes/app-page'
-import { exportPages } from './routes/pages'
+import { exportPagesPage } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
 import { isPostpone } from '../server/lib/router-utils/is-postpone'
@@ -39,6 +41,8 @@ import {
   turborepoTraceAccess,
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
+import type { Params } from '../client/components/params'
+import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -46,12 +50,19 @@ const envConfig = require('../shared/lib/runtime-config.external')
   nextExport: true,
 }
 
+class TimeoutError extends Error {
+  code = 'NEXT_EXPORT_TIMEOUT_ERROR'
+}
+
+class ExportPageError extends Error {
+  code = 'NEXT_EXPORT_PAGE_ERROR'
+}
+
 async function exportPageImpl(
   input: ExportPageInput,
   fileWriter: FileWriter
 ): Promise<ExportRouteResult | undefined> {
   const {
-    dir,
     path,
     pathMap,
     distDir,
@@ -63,14 +74,9 @@ async function exportPageImpl(
     optimizeCss,
     disableOptimizedLoading,
     debugOutput = false,
-    cacheMaxMemorySize,
-    fetchCache,
-    fetchCacheKeyPrefix,
-    cacheHandler,
     enableExperimentalReact,
     ampValidatorPath,
     trailingSlash,
-    enabledDirectories,
   } = input
 
   if (enableExperimentalReact) {
@@ -99,8 +105,6 @@ async function exportPageImpl(
     const pathname = normalizeAppPath(page)
     const isDynamic = isDynamicRoute(page)
     const outDir = isAppDir ? join(distDir, 'server/app') : input.outDir
-
-    let params: { [key: string]: string | string[] } | undefined
 
     const filePath = normalizePagePath(path)
     const ampPath = `${filePath}.amp`
@@ -137,6 +141,8 @@ async function exportPageImpl(
       path,
       input.renderOpts.locales
     )
+
+    let params: Params | undefined
 
     if (isDynamic && page !== nonLocalizedPath) {
       const normalizedPage = isAppDir ? normalizeAppPath(page) : page
@@ -220,24 +226,6 @@ async function exportPageImpl(
 
     await fs.mkdir(baseDir, { recursive: true })
 
-    // If the fetch cache was enabled, we need to create an incremental
-    // cache instance for this page.
-    const incrementalCache =
-      isAppDir && fetchCache
-        ? await createIncrementalCache({
-            cacheHandler,
-            cacheMaxMemorySize,
-            fetchCacheKeyPrefix,
-            distDir,
-            dir,
-            enabledDirectories,
-            isAppPPREnabled: input.renderOpts.experimental.isAppPPREnabled,
-            // skip writing to disk in minimal mode for now, pending some
-            // changes to better support it
-            flushToDisk: !hasNextSupport,
-          })
-        : undefined
-
     // Handle App Routes.
     if (isAppDir && isAppRouteRoute(page)) {
       return await exportAppRoute(
@@ -245,10 +233,11 @@ async function exportPageImpl(
         res,
         params,
         page,
-        incrementalCache,
+        input.renderOpts.incrementalCache,
         distDir,
         htmlFilepath,
-        fileWriter
+        fileWriter,
+        input.renderOpts.experimental
       )
     }
 
@@ -268,12 +257,13 @@ async function exportPageImpl(
       disableOptimizedLoading,
       fontManifest: optimizeFonts ? requireFontManifest(distDir) : undefined,
       locale,
-      supportsDynamicHTML: false,
-      originalPathname: page,
+      supportsDynamicResponse: false,
       experimental: {
         ...input.renderOpts.experimental,
         isRoutePPREnabled,
       },
+      waitUntil: undefined,
+      onClose: undefined,
     }
 
     if (hasNextSupport) {
@@ -282,10 +272,6 @@ async function exportPageImpl(
 
     // Handle App Pages
     if (isAppDir) {
-      // Set the incremental cache on the renderOpts, that's how app page's
-      // consume it.
-      renderOpts.incrementalCache = incrementalCache
-
       return await exportAppPage(
         req,
         res,
@@ -301,7 +287,7 @@ async function exportPageImpl(
       )
     }
 
-    return await exportPages(
+    return await exportPagesPage(
       req,
       res,
       path,
@@ -333,9 +319,164 @@ async function exportPageImpl(
   }
 }
 
-export default async function exportPage(
+export async function exportPages(
+  input: ExportPagesInput
+): Promise<ExportPagesResult> {
+  const {
+    exportPathMap,
+    paths,
+    dir,
+    distDir,
+    outDir,
+    cacheHandler,
+    cacheMaxMemorySize,
+    fetchCacheKeyPrefix,
+    pagesDataDir,
+    renderOpts,
+    nextConfig,
+    options,
+  } = input
+
+  // If the fetch cache was enabled, we need to create an incremental
+  // cache instance for this page.
+  const incrementalCache = await createIncrementalCache({
+    cacheHandler,
+    cacheMaxMemorySize,
+    fetchCacheKeyPrefix,
+    distDir,
+    dir,
+    // skip writing to disk in minimal mode for now, pending some
+    // changes to better support it
+    flushToDisk: !hasNextSupport,
+  })
+
+  renderOpts.incrementalCache = incrementalCache
+
+  const maxConcurrency =
+    nextConfig.experimental.staticGenerationMaxConcurrency ?? 8
+  const results: ExportPagesResult = []
+
+  const exportPageWithRetry = async (path: string, maxAttempts: number) => {
+    const pathMap = exportPathMap[path]
+    const { page } = exportPathMap[path]
+    const pageKey = page !== path ? `${page}: ${path}` : path
+    let attempt = 0
+    let result
+
+    while (attempt < maxAttempts) {
+      try {
+        result = await Promise.race<ExportPageResult | undefined>([
+          exportPage({
+            path,
+            pathMap,
+            distDir,
+            outDir,
+            pagesDataDir,
+            renderOpts,
+            ampValidatorPath:
+              nextConfig.experimental.amp?.validator || undefined,
+            trailingSlash: nextConfig.trailingSlash,
+            serverRuntimeConfig: nextConfig.serverRuntimeConfig,
+            subFolders: nextConfig.trailingSlash && !options.buildExport,
+            buildExport: options.buildExport,
+            optimizeFonts: nextConfig.optimizeFonts,
+            optimizeCss: nextConfig.experimental.optimizeCss,
+            disableOptimizedLoading:
+              nextConfig.experimental.disableOptimizedLoading,
+            parentSpanId: input.parentSpanId,
+            httpAgentOptions: nextConfig.httpAgentOptions,
+            debugOutput: options.debugOutput,
+            enableExperimentalReact: needsExperimentalReact(nextConfig),
+          }),
+          // If exporting the page takes longer than the timeout, reject the promise.
+          new Promise((_, reject) => {
+            setTimeout(() => {
+              reject(new TimeoutError())
+            }, nextConfig.staticPageGenerationTimeout * 1000)
+          }),
+        ])
+
+        // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,
+        // or immediately fail the build, depending on user configuration. We might also continue on and attempt other pages.
+        if (result && 'error' in result) {
+          throw new ExportPageError()
+        }
+
+        // If the export succeeds, break out of the retry loop
+        break
+      } catch (err) {
+        // The only error that should be caught here is an ExportError, as `exportPage` doesn't throw and instead returns an object with an `error` property.
+        // This is an overly cautious check to ensure that we don't accidentally catch an unexpected error.
+        if (!(err instanceof ExportPageError || err instanceof TimeoutError)) {
+          throw err
+        }
+
+        if (err instanceof TimeoutError) {
+          // If the export times out, we will restart the worker up to 3 times.
+          maxAttempts = 3
+        }
+
+        // We've reached the maximum number of attempts
+        if (attempt >= maxAttempts - 1) {
+          // Log a message if we've reached the maximum number of attempts.
+          // We only care to do this if maxAttempts was configured.
+          if (maxAttempts > 0) {
+            console.info(
+              `Failed to build ${pageKey} after ${maxAttempts} attempts.`
+            )
+          }
+          // If prerenderEarlyExit is enabled, we'll exit the build immediately.
+          if (nextConfig.experimental.prerenderEarlyExit) {
+            throw new ExportPageError(
+              `Export encountered an error on ${pageKey}, exiting the build.`
+            )
+          } else {
+            // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
+          }
+        } else {
+          // Otherwise, we have more attempts to make. Wait before retrying
+          if (err instanceof TimeoutError) {
+            console.info(
+              `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}) because it took more than ${nextConfig.staticPageGenerationTimeout} seconds. Retrying again shortly.`
+            )
+          } else {
+            console.info(
+              `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}). Retrying again shortly.`
+            )
+          }
+          await new Promise((r) => setTimeout(r, Math.random() * 500))
+        }
+      }
+
+      attempt++
+    }
+
+    return { result, path, pageKey }
+  }
+
+  for (let i = 0; i < paths.length; i += maxConcurrency) {
+    const subset = paths.slice(i, i + maxConcurrency)
+
+    const subsetResults = await Promise.all(
+      subset.map((path) =>
+        exportPageWithRetry(
+          path,
+          nextConfig.experimental.staticGenerationRetryCount ?? 1
+        )
+      )
+    )
+
+    results.push(...subsetResults)
+  }
+
+  return results
+}
+
+async function exportPage(
   input: ExportPageInput
 ): Promise<ExportPageResult | undefined> {
+  trace('export-page', input.parentSpanId).setAttribute('path', input.path)
+
   // Configure the http agent.
   setHttpClientAndAgentOptions({
     httpAgentOptions: input.httpAgentOptions,
@@ -374,6 +515,9 @@ export default async function exportPage(
     return { error: result.error, duration: Date.now() - start, files: [] }
   }
 
+  // Notify the parent process that we processed a page (used by the progress activity indicator)
+  process.send?.([3, { type: 'activity' }])
+
   // Otherwise we can return the result.
   return {
     duration: Date.now() - start,
@@ -385,6 +529,7 @@ export default async function exportPage(
     hasEmptyPrelude: result.hasEmptyPrelude,
     hasPostponed: result.hasPostponed,
     turborepoAccessTraceResult: turborepoAccessTraceResult.serialize(),
+    fetchMetrics: result.fetchMetrics,
   }
 }
 

@@ -25,16 +25,14 @@ Route Handlers allow you to create custom request handlers for a given route usi
 Route Handlers are defined in a [`route.js|ts` file](/docs/app/api-reference/file-conventions/route) inside the `app` directory:
 
 ```ts filename="app/api/route.ts" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
 export async function GET(request: Request) {}
 ```
 
 ```js filename="app/api/route.js" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
 export async function GET(request) {}
 ```
 
-Route Handlers can be nested inside the `app` directory, similar to `page.js` and `layout.js`. But there **cannot** be a `route.js` file at the same route segment level as `page.js`.
+Route Handlers can be nested anywhere inside the `app` directory, similar to `page.js` and `layout.js`. But there **cannot** be a `route.js` file at the same route segment level as `page.js`.
 
 ### Supported HTTP Methods
 
@@ -42,16 +40,17 @@ The following [HTTP methods](https://developer.mozilla.org/docs/Web/HTTP/Methods
 
 ### Extended `NextRequest` and `NextResponse` APIs
 
-In addition to supporting native [Request](https://developer.mozilla.org/docs/Web/API/Request) and [Response](https://developer.mozilla.org/docs/Web/API/Response). Next.js extends them with
-[`NextRequest`](/docs/app/api-reference/functions/next-request) and [`NextResponse`](/docs/app/api-reference/functions/next-response) to provide convenient helpers for advanced use cases.
+In addition to supporting the native [Request](https://developer.mozilla.org/docs/Web/API/Request) and [Response](https://developer.mozilla.org/docs/Web/API/Response) APIs, Next.js extends them with [`NextRequest`](/docs/app/api-reference/functions/next-request) and [`NextResponse`](/docs/app/api-reference/functions/next-response) to provide convenient helpers for advanced use cases.
 
 ## Behavior
 
 ### Caching
 
-Route Handlers are cached by default when using the `GET` method with the `Response` object.
+Route Handlers are not cached by default. You can, however, opt into caching for `GET` methods. To do so, use a [route config option](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) such as `export const dynamic = 'force-static'` in your Route Handler file.
 
 ```ts filename="app/items/route.ts" switcher
+export const dynamic = 'force-static'
+
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     headers: {
@@ -66,6 +65,8 @@ export async function GET() {
 ```
 
 ```js filename="app/items/route.js" switcher
+export const dynamic = 'force-static'
+
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     headers: {
@@ -79,88 +80,9 @@ export async function GET() {
 }
 ```
 
-> **TypeScript Warning:** `Response.json()` is only valid from TypeScript 5.2. If you use a lower TypeScript version, you can use [`NextResponse.json()`](/docs/app/api-reference/functions/next-response#json) for typed responses instead.
+### Special Route Handlers
 
-### Opting out of caching
-
-You can opt out of caching by:
-
-- Using the `Request` object with the `GET` method.
-- Using any of the other HTTP methods.
-- Using [Dynamic Functions](#dynamic-functions) like `cookies` and `headers`.
-- The [Segment Config Options](#segment-config-options) manually specifies dynamic mode.
-
-For example:
-
-```ts filename="app/products/api/route.ts" switcher
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const id = searchParams.get('id')
-  const res = await fetch(`https://data.mongodb-api.com/product/${id}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY!,
-    },
-  })
-  const product = await res.json()
-
-  return Response.json({ product })
-}
-```
-
-```js filename="app/products/api/route.js" switcher
-export async function GET(request) {
-  const { searchParams } = new URL(request.url)
-  const id = searchParams.get('id')
-  const res = await fetch(`https://data.mongodb-api.com/product/${id}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY,
-    },
-  })
-  const product = await res.json()
-
-  return Response.json({ product })
-}
-```
-
-Similarly, the `POST` method will cause the Route Handler to be evaluated dynamically.
-
-```ts filename="app/items/route.ts" switcher
-export async function POST() {
-  const res = await fetch('https://data.mongodb-api.com/...', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY!,
-    },
-    body: JSON.stringify({ time: new Date().toISOString() }),
-  })
-
-  const data = await res.json()
-
-  return Response.json(data)
-}
-```
-
-```js filename="app/items/route.js" switcher
-export async function POST() {
-  const res = await fetch('https://data.mongodb-api.com/...', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY,
-    },
-    body: JSON.stringify({ time: new Date().toISOString() }),
-  })
-
-  const data = await res.json()
-
-  return Response.json(data)
-}
-```
-
-> **Good to know**: Like API Routes, Route Handlers can be used for cases like handling form submissions. A new abstraction for [handling forms and mutations](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) that integrates deeply with React is being worked on.
+Special Route Handlers like [`sitemap.ts`](/docs/app/api-reference/file-conventions/metadata/sitemap), [`opengraph-image.tsx`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), and [`icon.tsx`](/docs/app/api-reference/file-conventions/metadata/app-icons), and other [metadata files](/docs/app/api-reference/file-conventions/metadata) remain static by default unless they use dynamic functions or dynamic config options.
 
 ### Route Resolution
 
@@ -193,7 +115,7 @@ The following examples show how to combine Route Handlers with other Next.js API
 
 ### Revalidating Cached Data
 
-You can [revalidate cached data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) using the [`next.revalidate`](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) option:
+You can [revalidate cached data](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating-data) using the [`next.revalidate`](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating-data) option:
 
 ```ts filename="app/items/route.ts" switcher
 export async function GET() {
@@ -557,8 +479,6 @@ Since `formData` data are all strings, you may want to use [`zod-form-data`](htt
 You can set CORS headers for a specific Route Handler using the standard Web API methods:
 
 ```ts filename="app/api/route.ts" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
-
 export async function GET(request: Request) {
   return new Response('Hello, Next.js!', {
     status: 200,
@@ -572,8 +492,6 @@ export async function GET(request: Request) {
 ```
 
 ```js filename="app/api/route.js" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
-
 export async function GET(request) {
   return new Response('Hello, Next.js!', {
     status: 200,
@@ -636,8 +554,6 @@ Notably, unlike API Routes with the Pages Router, you do not need to use `bodyPa
 You can use Route Handlers to return non-UI content. Note that [`sitemap.xml`](/docs/app/api-reference/file-conventions/metadata/sitemap#generating-a-sitemap-using-code-js-ts), [`robots.txt`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file), [`app icons`](/docs/app/api-reference/file-conventions/metadata/app-icons#generate-icons-using-code-js-ts-tsx), and [open graph images](/docs/app/api-reference/file-conventions/metadata/opengraph-image) all have built-in support.
 
 ```ts filename="app/rss.xml/route.ts" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
-
 export async function GET() {
   return new Response(
     `<?xml version="1.0" encoding="UTF-8" ?>
@@ -660,8 +576,6 @@ export async function GET() {
 ```
 
 ```js filename="app/rss.xml/route.js" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
-
 export async function GET() {
   return new Response(`<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">

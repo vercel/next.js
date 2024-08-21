@@ -32,7 +32,7 @@ Here are some common patterns when working with Server Components:
 
 When fetching data on the server, there may be cases where you need to share data across different components. For example, you may have a layout and a page that depend on the same data.
 
-Instead of using [React Context](https://react.dev/learn/passing-data-deeply-with-context) (which is not available on the server) or passing data as props, you can use [`fetch`](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#fetching-data-on-the-server-with-fetch) or React's `cache` function to fetch the same data in the components that need it, without worrying about making duplicate requests for the same data. This is because React extends `fetch` to automatically memoize data requests, and the `cache` function can be used when `fetch` is not available.
+Instead of using [React Context](https://react.dev/learn/passing-data-deeply-with-context) (which is not available on the server) or passing data as props, you can use [`fetch`](/docs/app/building-your-application/data-fetching/caching-and-revalidating#fetch-requests) or React's `cache` function to fetch the same data in the components that need it, without worrying about making duplicate requests for the same data. This is because React extends `fetch` to automatically memoize data requests, and the `cache` function can be used when `fetch` is not available.
 
 Learn more about [memoization](/docs/app/building-your-application/caching#request-memoization) in React.
 
@@ -117,7 +117,7 @@ import { useState } from 'react'
 import { Carousel } from 'acme-carousel'
 
 export default function Gallery() {
-  let [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
 
   return (
     <div>
@@ -137,7 +137,7 @@ import { useState } from 'react'
 import { Carousel } from 'acme-carousel'
 
 export default function Gallery() {
-  let [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
 
   return (
     <div>
@@ -404,7 +404,7 @@ export default function Layout({ children }) {
 
 If you fetch data in a Server Component, you may want to pass data down as props to Client Components. Props passed from the Server to Client Components need to be [serializable](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values) by React.
 
-If your Client Components depend on data that is not serializable, you can [fetch data on the client with a third party library](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#fetching-data-on-the-client-with-third-party-libraries) or on the server via a [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+If your Client Components depend on data that is not serializable, you can [fetch data on the client with a third party library](/docs/app/building-your-application/data-fetching/caching-and-revalidating#data-fetching-libraries-and-orms) or on the server via a [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 ## Interleaving Server and Client Components
 

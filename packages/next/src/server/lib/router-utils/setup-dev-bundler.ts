@@ -1,13 +1,17 @@
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
-import type { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
+import {
+  getPageStaticInfo,
+  type MiddlewareMatcher,
+} from '../../../build/analysis/get-page-static-info'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 import { createDefineEnv, type Project } from '../../../build/swc'
 import fs from 'fs'
+import { mkdir } from 'fs/promises'
 import url from 'url'
 import path from 'path'
 import qs from 'querystring'
@@ -46,7 +50,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   COMPILER_NAMES,
   DEV_CLIENT_PAGES_MANIFEST,
-  DEV_MIDDLEWARE_MANIFEST,
+  DEV_CLIENT_MIDDLEWARE_MANIFEST,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../../shared/lib/constants'
 
@@ -76,7 +80,15 @@ import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
-import { ModuleBuildError } from '../../dev/turbopack-utils'
+import {
+  ModuleBuildError,
+  TurbopackInternalError,
+} from '../../dev/turbopack-utils'
+import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
+import { createEnvDefinitions } from '../experimental/create-env-definitions'
+import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
+import { store as consoleStore } from '../../../build/output/store'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -91,6 +103,8 @@ export type SetupOpts = {
   >
   nextConfig: NextConfigComplete
   port: number
+  onCleanup: (listener: () => Promise<void>) => void
+  resetFetch: () => void
 }
 
 export type ServerFields = {
@@ -108,6 +122,8 @@ export type ServerFields = {
   interceptionRoutes?: ReturnType<
     typeof import('./filesystem').buildCustomRoute
   >[]
+  setAppIsrStatus?: (key: string, value: false | number | null) => void
+  resetFetch?: () => void
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
@@ -138,11 +154,19 @@ export async function propagateServerField(
 }
 
 async function startWatcher(opts: SetupOpts) {
-  const { nextConfig, appDir, pagesDir, dir } = opts
+  const { nextConfig, appDir, pagesDir, dir, resetFetch } = opts
   const { useFileSystemPublicRoutes } = nextConfig
   const usingTypeScript = await verifyTypeScript(opts)
 
   const distDir = path.join(opts.dir, opts.nextConfig.distDir)
+
+  // we ensure the types directory exists here
+  if (usingTypeScript) {
+    const distTypesDir = path.join(distDir, 'types')
+    if (!fs.existsSync(distTypesDir)) {
+      await mkdir(distTypesDir, { recursive: true })
+    }
+  }
 
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
@@ -154,8 +178,13 @@ async function startWatcher(opts: SetupOpts) {
 
   const serverFields: ServerFields = {}
 
+  // Update logging state once based on next.config.js when initializing
+  consoleStore.setState({
+    logging: nextConfig.logging !== false,
+  })
+
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
-    ? await createHotReloaderTurbopack(opts, serverFields, distDir)
+    ? await createHotReloaderTurbopack(opts, serverFields, distDir, resetFetch)
     : new HotReloaderWebpack(opts.dir, {
         appDir,
         pagesDir,
@@ -166,6 +195,7 @@ async function startWatcher(opts: SetupOpts) {
         telemetry: opts.telemetry,
         rewrites: opts.fsChecker.rewrites,
         previewProps: opts.fsChecker.prerenderManifest.preview,
+        resetFetch,
       })
 
   await hotReloader.start()
@@ -366,10 +396,7 @@ async function startWatcher(opts: SetupOpts) {
           ]
           continue
         }
-        if (
-          isInstrumentationHookFile(rootFile) &&
-          nextConfig.experimental.instrumentationHook
-        ) {
+        if (isInstrumentationHookFile(rootFile)) {
           serverFields.actualInstrumentationHookFile = rootFile
           await propagateServerField(
             opts,
@@ -396,6 +423,21 @@ async function startWatcher(opts: SetupOpts) {
           keepIndex: isAppPath,
           pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
         })
+
+        if (isAppPath && isMetadataRoute(pageName)) {
+          const staticInfo = await getPageStaticInfo({
+            pageFilePath: fileName,
+            nextConfig: {},
+            page: pageName,
+            isDev: true,
+            pageType: PAGE_TYPES.APP,
+          })
+
+          pageName = normalizeMetadataPageToRoute(
+            pageName,
+            !!(staticInfo.generateSitemaps || staticInfo.generateImageMetadata)
+          )
+        }
 
         if (
           !isAppPath &&
@@ -525,10 +567,24 @@ async function startWatcher(opts: SetupOpts) {
 
       if (envChange || tsconfigChange) {
         if (envChange) {
-          // only log changes in router server
-          loadEnvConfig(dir, true, Log, true, (envFilePath) => {
-            Log.info(`Reload env: ${envFilePath}`)
-          })
+          const { parsedEnv } = loadEnvConfig(
+            dir,
+            true,
+            Log,
+            true,
+            (envFilePath) => {
+              Log.info(`Reload env: ${envFilePath}`)
+            }
+          )
+
+          if (usingTypeScript && nextConfig.experimental?.typedEnv) {
+            // do not await, this is not essential for further process
+            createEnvDefinitions({
+              distDir,
+              env: { ...parsedEnv, ...nextConfig.env },
+            })
+          }
+
           await propagateServerField(opts, 'loadEnvConfig', [
             { dev: true, forceReload: true, silent: true },
           ])
@@ -580,16 +636,16 @@ async function startWatcher(opts: SetupOpts) {
             config.resolve?.plugins?.forEach((plugin: any) => {
               // look for the JsConfigPathsPlugin and update with
               // the latest paths/baseUrl config
-              if (plugin && plugin.jsConfigPlugin && tsconfigResult) {
+              if (plugin instanceof JsConfigPathsPlugin && tsconfigResult) {
                 const { resolvedBaseUrl, jsConfig } = tsconfigResult
                 const currentResolvedBaseUrl = plugin.resolvedBaseUrl
                 const resolvedUrlIndex = config.resolve?.modules?.findIndex(
-                  (item) => item === currentResolvedBaseUrl
+                  (item) => item === currentResolvedBaseUrl?.baseUrl
                 )
 
                 if (resolvedBaseUrl) {
                   if (
-                    resolvedBaseUrl.baseUrl !== currentResolvedBaseUrl.baseUrl
+                    resolvedBaseUrl.baseUrl !== currentResolvedBaseUrl?.baseUrl
                   ) {
                     // remove old baseUrl and add new one
                     if (resolvedUrlIndex && resolvedUrlIndex > -1) {
@@ -839,7 +895,7 @@ async function startWatcher(opts: SetupOpts) {
   const clientPagesManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_PAGES_MANIFEST}`
   opts.fsChecker.devVirtualFsItems.add(clientPagesManifestPath)
 
-  const devMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_MIDDLEWARE_MANIFEST}`
+  const devMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_MIDDLEWARE_MANIFEST}`
   opts.fsChecker.devVirtualFsItems.add(devMiddlewareManifestPath)
 
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
@@ -1011,7 +1067,11 @@ function logError(
   type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
 ) {
   if (err instanceof ModuleBuildError) {
+    // Errors that may come from issues from the user's code
     Log.error(err.message)
+  } else if (err instanceof TurbopackInternalError) {
+    // An internal Turbopack error that has been handled by next-swc, written
+    // to disk and a simplified message shown to user on the Rust side.
   } else if (type === 'warning') {
     Log.warn(err)
   } else if (type === 'app-dir') {

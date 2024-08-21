@@ -38,6 +38,7 @@ export type ErrorsProps = {
   errors: SupportedErrorEvent[]
   initialDisplayState: DisplayState
   versionInfo?: VersionInfo
+  hasStaticIndicator?: boolean
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
@@ -69,6 +70,7 @@ export function Errors({
   errors,
   initialDisplayState,
   versionInfo,
+  hasStaticIndicator,
 }: ErrorsProps) {
   const [lookups, setLookups] = useState(
     {} as { [eventId: string]: ReadyErrorEvent }
@@ -184,7 +186,11 @@ export function Errors({
 
   if (displayState === 'minimized') {
     return (
-      <Toast className="nextjs-toast-errors-parent" onClick={fullscreen}>
+      <Toast
+        data-nextjs-toast
+        className={`nextjs-toast-errors-parent${hasStaticIndicator ? ' nextjs-error-with-static' : ''}`}
+        onClick={fullscreen}
+      >
         <div className="nextjs-toast-errors">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -206,7 +212,7 @@ export function Errors({
           </span>
           <button
             data-nextjs-toast-errors-hide-button
-            className="nextjs-toast-errors-hide-button"
+            className="nextjs-toast-hide-button"
             type="button"
             onClick={(e) => {
               e.stopPropagation()
@@ -265,7 +271,7 @@ export function Errors({
                 {' error'}
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
-              {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
+              <VersionStalenessInfo versionInfo={versionInfo} />
             </LeftRightDialogHeader>
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
@@ -323,6 +329,12 @@ export function Errors({
 }
 
 export const styles = css`
+  .nextjs-error-with-static {
+    bottom: calc(var(--size-gap-double) * 4.5);
+  }
+  .nextjs-container-errors-header {
+    position: relative;
+  }
   .nextjs-container-errors-header > h1 {
     font-size: var(--size-font-big);
     line-height: var(--size-font-bigger);
@@ -394,7 +406,7 @@ export const styles = css`
   .nextjs-toast-errors > svg {
     margin-right: var(--size-gap);
   }
-  .nextjs-toast-errors-hide-button {
+  .nextjs-toast-hide-button {
     margin-left: var(--size-gap-triple);
     border: none;
     background: none;
@@ -403,7 +415,13 @@ export const styles = css`
     transition: opacity 0.25s ease;
     opacity: 0.7;
   }
-  .nextjs-toast-errors-hide-button:hover {
+  .nextjs-toast-hide-button:hover {
     opacity: 1;
+  }
+  .nextjs-container-errors-header
+    > .nextjs-container-build-error-version-status {
+    position: absolute;
+    top: 0;
+    right: 0;
   }
 `
