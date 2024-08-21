@@ -545,14 +545,12 @@ describe('app dir - rsc basics', () => {
     const [
       ssrReact,
       ssrReactDOM,
-      ssrReactDOMServer,
       ssrClientReact,
       ssrClientReactDOM,
       ssrClientReactDOMServer,
     ] = [
       resPages$('#react').text(),
       resPages$('#react-dom').text(),
-      resPages$('#react-dom-server').text(),
       resPages$('#client-react').text(),
       resPages$('#client-react-dom').text(),
       resPages$('#client-react-dom-server').text(),
@@ -560,14 +558,12 @@ describe('app dir - rsc basics', () => {
     expect({
       ssrReact,
       ssrReactDOM,
-      ssrReactDOMServer,
       ssrClientReact,
       ssrClientReactDOM,
       ssrClientReactDOMServer,
     }).toEqual({
       ssrReact: expect.stringMatching(bundledReactVersionPattern),
       ssrReactDOM: expect.stringMatching(bundledReactVersionPattern),
-      ssrReactDOMServer: expect.stringMatching(bundledReactVersionPattern),
       ssrClientReact: expect.stringMatching(bundledReactVersionPattern),
       ssrClientReactDOM: expect.stringMatching(bundledReactVersionPattern),
       ssrClientReactDOMServer: expect.stringMatching(
@@ -579,7 +575,6 @@ describe('app dir - rsc basics', () => {
     const [
       browserReact,
       browserReactDOM,
-      browserReactDOMServer,
       browserClientReact,
       browserClientReactDOM,
       browserClientReactDOMServer,
@@ -587,7 +582,6 @@ describe('app dir - rsc basics', () => {
       [
         document.querySelector('#react').innerText,
         document.querySelector('#react-dom').innerText,
-        document.querySelector('#react-dom-server').innerText,
         document.querySelector('#client-react').innerText,
         document.querySelector('#client-react-dom').innerText,
         document.querySelector('#client-react-dom-server').innerText,
@@ -596,14 +590,12 @@ describe('app dir - rsc basics', () => {
     expect({
       browserReact,
       browserReactDOM,
-      browserReactDOMServer,
       browserClientReact,
       browserClientReactDOM,
       browserClientReactDOMServer,
     }).toEqual({
       browserReact: expect.stringMatching(bundledReactVersionPattern),
       browserReactDOM: expect.stringMatching(bundledReactVersionPattern),
-      browserReactDOMServer: expect.stringMatching(bundledReactVersionPattern),
       browserClientReact: expect.stringMatching(bundledReactVersionPattern),
       browserClientReactDOM: expect.stringMatching(bundledReactVersionPattern),
       browserClientReactDOMServer: expect.stringMatching(
@@ -701,14 +693,12 @@ describe('app dir - rsc basics', () => {
             const [
               ssrReact,
               ssrReactDOM,
-              ssrReactDOMServer,
               ssrClientReact,
               ssrClientReactDOM,
               ssrClientReactDOMServer,
             ] = [
               resPages$('#react').text(),
               resPages$('#react-dom').text(),
-              resPages$('#react-dom-server').text(),
               resPages$('#client-react').text(),
               resPages$('#client-react-dom').text(),
               resPages$('#client-react-dom-server').text(),
@@ -716,14 +706,12 @@ describe('app dir - rsc basics', () => {
             expect({
               ssrReact,
               ssrReactDOM,
-              ssrReactDOMServer,
               ssrClientReact,
               ssrClientReactDOM,
               ssrClientReactDOMServer,
             }).toEqual({
               ssrReact: expect.stringMatching('-experimental-'),
               ssrReactDOM: expect.stringMatching('-experimental-'),
-              ssrReactDOMServer: expect.stringMatching('-experimental-'),
               ssrClientReact: expect.stringMatching('-experimental-'),
               ssrClientReactDOM: expect.stringMatching('-experimental-'),
               ssrClientReactDOMServer: expect.stringMatching('-experimental-'),
@@ -733,7 +721,6 @@ describe('app dir - rsc basics', () => {
             const [
               browserReact,
               browserReactDOM,
-              browserReactDOMServer,
               browserClientReact,
               browserClientReactDOM,
               browserClientReactDOMServer,
@@ -741,7 +728,6 @@ describe('app dir - rsc basics', () => {
               [
                 document.querySelector('#react').innerText,
                 document.querySelector('#react-dom').innerText,
-                document.querySelector('#react-dom-server').innerText,
                 document.querySelector('#client-react').innerText,
                 document.querySelector('#client-react-dom').innerText,
                 document.querySelector('#client-react-dom-server').innerText,
@@ -750,14 +736,12 @@ describe('app dir - rsc basics', () => {
             expect({
               browserReact,
               browserReactDOM,
-              browserReactDOMServer,
               browserClientReact,
               browserClientReactDOM,
               browserClientReactDOMServer,
             }).toEqual({
               browserReact: expect.stringMatching('-experimental-'),
               browserReactDOM: expect.stringMatching('-experimental-'),
-              browserReactDOMServer: expect.stringMatching('-experimental-'),
               browserClientReact: expect.stringMatching('-experimental-'),
               browserClientReactDOM: expect.stringMatching('-experimental-'),
               browserClientReactDOMServer:
