@@ -2826,18 +2826,72 @@ export default async function build(
               },
             ]
 
-            // Sort the outputted routes to ensure consistent output.
-            prerenderedRoutes = getSortedRouteObjects(
-              prerenderedRoutes,
+            // We should collect all the dynamic routes into a single array for
+            // this page. Including the full fallback route (the original
+            // route), any routes that were generated with unknown route params
+            // should be collected and included in the dynamic routes part
+            // of the manifest instead.
+            const routes: string[] = []
+            const dynamicRoutes: PrerenderedRoute[] = []
+
+            // Sort the outputted routes to ensure consistent output. Any route
+            // though that has unknown route params will be pulled and sorted
+            // independently. This is because the routes with unknown route
+            // params will contain the dynamic path parameters, some of which
+            // may conflict with the actual prerendered routes.
+            let unknownPrerenderRoutes: PrerenderedRoute[] = []
+            let knownPrerenderRoutes: PrerenderedRoute[] = []
+            for (const prerenderedRoute of prerenderedRoutes) {
+              if (
+                prerenderedRoute.fallbackRouteParams &&
+                prerenderedRoute.fallbackRouteParams.length > 0
+              ) {
+                unknownPrerenderRoutes.push(prerenderedRoute)
+              } else {
+                knownPrerenderRoutes.push(prerenderedRoute)
+              }
+            }
+
+            knownPrerenderRoutes = getSortedRouteObjects(
+              knownPrerenderRoutes,
+              (prerenderedRoute) => prerenderedRoute.path
+            )
+            unknownPrerenderRoutes = getSortedRouteObjects(
+              unknownPrerenderRoutes,
               (prerenderedRoute) => prerenderedRoute.path
             )
 
-            // Handle all the static routes.
-            for (const { path: route } of prerenderedRoutes) {
+            prerenderedRoutes = [
+              ...knownPrerenderRoutes,
+              ...unknownPrerenderRoutes,
+            ]
+
+            for (const prerenderedRoute of prerenderedRoutes) {
               // TODO: check if still needed?
               // Exclude the /_not-found route.
-              if (route === UNDERSCORE_NOT_FOUND_ROUTE) continue
+              if (prerenderedRoute.path === UNDERSCORE_NOT_FOUND_ROUTE) {
+                continue
+              }
+
+              if (
+                experimentalPPR &&
+                prerenderedRoute.fallbackRouteParams &&
+                prerenderedRoute.fallbackRouteParams.length > 0
+              ) {
+                // If the route has unknown params, then we need to add it to
+                // the list of dynamic routes.
+                dynamicRoutes.push(prerenderedRoute)
+              } else {
+                // If the route doesn't have unknown params, then we need to
+                // add it to the list of routes.
+                routes.push(prerenderedRoute.path)
+              }
+            }
+
+            // Handle all the static routes.
+            for (const route of routes) {
               if (isDynamicRoute(page) && route === page) continue
+              if (route === UNDERSCORE_NOT_FOUND_ROUTE) continue
 
               const {
                 revalidate = appConfig.revalidate ?? false,
@@ -2937,95 +2991,111 @@ export default async function build(
             }
 
             if (!hasRevalidateZero && isDynamicRoute(originalAppPath)) {
-              const fallbackRouteParams = experimentalPPR
-                ? getParamKeys(page)
-                : undefined
-
-              const normalizedRoute = normalizePagePath(page)
-
-              let dataRoute: string | null = null
-              if (!isRouteHandler) {
-                dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
+              // For pre-PPR routes, this ensures that the original app path
+              // is also included. We need to do this after the routes loop
+              // because we might modify the `hasDynamicData` while looping.
+              if (!experimentalPPR) {
+                dynamicRoutes.push({
+                  path: page,
+                  encoded: page,
+                  fallbackRouteParams: experimentalPPR
+                    ? getParamKeys(page)
+                    : undefined,
+                })
               }
 
-              let prefetchDataRoute: string | undefined
+              for (const {
+                path: route,
+                fallbackRouteParams,
+              } of dynamicRoutes) {
+                if (hasRevalidateZero) continue
 
-              // While we may only write the `.rsc` when the route does not
-              // have PPR enabled, we still want to generate the route when
-              // deployed so it doesn't 404. If the app has PPR enabled, we
-              // should add this key.
-              if (!isRouteHandler && isAppPPREnabled) {
-                prefetchDataRoute = path.posix.join(
-                  `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
+                const normalizedRoute = normalizePagePath(route)
+
+                let dataRoute: string | null = null
+                if (!isRouteHandler) {
+                  dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
+                }
+
+                let prefetchDataRoute: string | undefined
+
+                // While we may only write the `.rsc` when the route does not
+                // have PPR enabled, we still want to generate the route when
+                // deployed so it doesn't 404. If the app has PPR enabled, we
+                // should add this key.
+                if (!isRouteHandler && isAppPPREnabled) {
+                  prefetchDataRoute = path.posix.join(
+                    `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
+                  )
+                }
+
+                pageInfos.set(route, {
+                  ...(pageInfos.get(route) as PageInfo),
+                  isDynamicAppRoute: true,
+                  // if PPR is turned on and the route contains a dynamic segment,
+                  // we assume it'll be partially prerendered
+                  hasPostponed: experimentalPPR,
+                })
+
+                let fallbackMode: FallbackMode
+                let fallbackRevalidate: Revalidate | undefined
+
+                // If there are unknown route parameters, we should fallback to
+                // the generated prerender shell.
+                if (fallbackRouteParams && fallbackRouteParams.length > 0) {
+                  fallbackMode = FallbackMode.STATIC_PRERENDER
+                  fallbackRevalidate =
+                    exportResult.byPath.get(route)?.revalidate ?? false
+                }
+                // If the page should allow requests to paths that haven't been
+                // generated, then we should fallback to blocking the render.
+                else if (appDynamicParamPaths.has(originalAppPath)) {
+                  fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
+
+                  // When PPR is enabled, we should use `undefined` rather than
+                  // `false` as fallbacks aren't supported for non-ppr pages.
+                  if (experimentalPPR) fallbackRevalidate = false
+                }
+                // Otherwise, we should fallback to 404.
+                else {
+                  fallbackMode = FallbackMode.NOT_FOUND
+                }
+
+                const fallback: Fallback = fallbackToFallbackField(
+                  fallbackMode,
+                  route
                 )
-              }
 
-              pageInfos.set(page, {
-                ...(pageInfos.get(page) as PageInfo),
-                isDynamicAppRoute: true,
-                // if PPR is turned on and the route contains a dynamic segment,
-                // we assume it'll be partially prerendered
-                hasPostponed: experimentalPPR,
-              })
-
-              let fallbackMode: FallbackMode
-              let fallbackRevalidate: Revalidate | undefined
-
-              // If there are unknown route parameters, we should fallback to
-              // the generated prerender shell.
-              if (fallbackRouteParams && fallbackRouteParams.length > 0) {
-                fallbackMode = FallbackMode.STATIC_PRERENDER
-                fallbackRevalidate =
-                  exportResult.byPath.get(page)?.revalidate ?? false
-              }
-              // If the page should allow requests to paths that haven't been
-              // generated, then we should fallback to blocking the render.
-              else if (appDynamicParamPaths.has(originalAppPath)) {
-                fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
-
-                // When PPR is enabled, we should use `undefined` rather than
-                // `false` as fallbacks aren't supported for non-ppr pages.
-                if (experimentalPPR) fallbackRevalidate = false
-              }
-              // Otherwise, we should fallback to 404.
-              else {
-                fallbackMode = FallbackMode.NOT_FOUND
-              }
-
-              const fallback: Fallback = fallbackToFallbackField(
-                fallbackMode,
-                page
-              )
-
-              prerenderManifest.dynamicRoutes[page] = {
-                experimentalPPR,
-                experimentalBypassFor: bypassFor,
-                routeRegex: normalizeRouteRegex(
-                  getNamedRouteRegex(page, false).re.source
-                ),
-                dataRoute,
-                fallback,
-                fallbackRevalidate,
-                dataRouteRegex: !dataRoute
-                  ? null
-                  : normalizeRouteRegex(
-                      getNamedRouteRegex(
-                        dataRoute.replace(/\.rsc$/, ''),
-                        false
-                      ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
-                    ),
-                prefetchDataRoute,
-                prefetchDataRouteRegex: !prefetchDataRoute
-                  ? undefined
-                  : normalizeRouteRegex(
-                      getNamedRouteRegex(
-                        prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
-                        false
-                      ).re.source.replace(
-                        /\(\?:\\\/\)\?\$$/,
-                        '\\.prefetch\\.rsc$'
-                      )
-                    ),
+                prerenderManifest.dynamicRoutes[route] = {
+                  experimentalPPR,
+                  experimentalBypassFor: bypassFor,
+                  routeRegex: normalizeRouteRegex(
+                    getNamedRouteRegex(route, false).re.source
+                  ),
+                  dataRoute,
+                  fallback,
+                  fallbackRevalidate,
+                  dataRouteRegex: !dataRoute
+                    ? null
+                    : normalizeRouteRegex(
+                        getNamedRouteRegex(
+                          dataRoute.replace(/\.rsc$/, ''),
+                          false
+                        ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
+                      ),
+                  prefetchDataRoute,
+                  prefetchDataRouteRegex: !prefetchDataRoute
+                    ? undefined
+                    : normalizeRouteRegex(
+                        getNamedRouteRegex(
+                          prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
+                          false
+                        ).re.source.replace(
+                          /\(\?:\\\/\)\?\$$/,
+                          '\\.prefetch\\.rsc$'
+                        )
+                      ),
+                }
               }
             }
           })

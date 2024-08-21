@@ -971,6 +971,7 @@ export async function buildStaticPaths({
   locales,
   defaultLocale,
   appDir,
+  isRoutePPREnabled,
 }: {
   page: string
   getStaticPaths?: GetStaticPaths
@@ -979,13 +980,24 @@ export async function buildStaticPaths({
   locales?: string[]
   defaultLocale?: string
   appDir?: boolean
+  isRoutePPREnabled: boolean | undefined
 }): Promise<StaticPathsResult> {
   const prerenderRoutes: PrerenderedRoute[] = []
   const _routeRegex = getRouteRegex(page)
   const _routeMatcher = getRouteMatcher(_routeRegex)
 
   // Get the default list of allowed params.
-  const _validParamKeys = Object.keys(_routeMatcher(page))
+  const routeParameterKeys = Object.keys(_routeMatcher(page))
+
+  // When PPR is enabled for the route, we want to generate a fallback page
+  // using the dynamic path.
+  if (isRoutePPREnabled) {
+    prerenderRoutes.push({
+      path: page,
+      encoded: page,
+      fallbackRouteParams: routeParameterKeys,
+    })
+  }
 
   if (!staticPathsResult) {
     if (getStaticPaths) {
@@ -1091,7 +1103,7 @@ export async function buildStaticPaths({
         throw new Error(
           `Additional keys were returned from \`getStaticPaths\` in page "${page}". ` +
             `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
-            `\n\n\treturn { params: { ${_validParamKeys
+            `\n\n\treturn { params: { ${routeParameterKeys
               .map((k) => `${k}: ...`)
               .join(', ')} } }` +
             `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.\n`
@@ -1102,7 +1114,7 @@ export async function buildStaticPaths({
       let builtPage = page
       let encodedBuiltPage = page
 
-      _validParamKeys.forEach((validParamKey) => {
+      routeParameterKeys.forEach((validParamKey) => {
         const { repeat, optional } = _routeRegex.groups[validParamKey]
         let paramValue = params[validParamKey]
         if (
@@ -1118,9 +1130,8 @@ export async function buildStaticPaths({
           (repeat && !Array.isArray(paramValue)) ||
           (!repeat && typeof paramValue !== 'string')
         ) {
-          // If from appDir and not all params were provided from
-          // generateStaticParams we can just filter this entry out
-          // as it's meant to be generated at runtime
+          // If this is from app directory, and not all params were provided,
+          // then filter this out if the route is not PPR enabled.
           if (appDir && typeof paramValue === 'undefined') {
             builtPage = ''
             encodedBuiltPage = ''
@@ -1435,6 +1446,7 @@ export async function buildAppStaticPaths({
           page,
           configFileName,
           getStaticPaths: pageEntry.getStaticPaths,
+          isRoutePPREnabled,
         })
       } else {
         // if generateStaticParams is being used we iterate over them
@@ -1544,6 +1556,7 @@ export async function buildAppStaticPaths({
           page,
           configFileName,
           appDir: true,
+          isRoutePPREnabled,
         })
       }
     }
@@ -1779,6 +1792,7 @@ export async function isPageStatic({
             configFileName,
             staticPathsResult,
             getStaticPaths: componentsResult.getStaticPaths!,
+            isRoutePPREnabled,
           }))
       }
 
