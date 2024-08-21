@@ -1,5 +1,4 @@
 /* eslint-env jest */
-/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
