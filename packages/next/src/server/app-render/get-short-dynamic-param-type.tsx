@@ -9,11 +9,6 @@ export const dynamicParamTypes: Record<
   'optional-catchall': 'oc',
   dynamic: 'd',
   'dynamic-intercepted': 'di',
-  'fallback-catchall': 'fc',
-  'fallback-catchall-intercepted': 'fci',
-  'fallback-optional-catchall': 'foc',
-  'fallback-dynamic': 'fd',
-  'fallback-dynamic-intercepted': 'fdi',
 }
 
 /**

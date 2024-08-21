@@ -22,7 +22,7 @@ import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
 import type { FetchMetrics } from '../../server/base-http'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
-import type { UnknownDynamicRouteParams } from '../../client/components/params'
+import type { DynamicRouteParams } from '../../client/components/params'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -42,7 +42,7 @@ export async function exportAppPage(
   path: string,
   pathname: string,
   query: NextParsedUrlQuery,
-  unknownRouteParams: UnknownDynamicRouteParams | null,
+  fallbackRouteParams: DynamicRouteParams | null,
   renderOpts: RenderOpts,
   htmlFilepath: string,
   debugOutput: boolean,
@@ -63,7 +63,7 @@ export async function exportAppPage(
       new NodeNextResponse(res),
       pathname,
       query,
-      unknownRouteParams,
+      fallbackRouteParams,
       renderOpts
     )
 
@@ -105,7 +105,10 @@ export async function exportAppPage(
     // If page data isn't available, it means that the page couldn't be rendered
     // properly so long as we don't have unknown route params. When a route doesn't
     // have unknown route params, there will not be any flight data.
-    if (!flightData && (!unknownRouteParams || unknownRouteParams.size === 0)) {
+    if (
+      !flightData &&
+      (!fallbackRouteParams || fallbackRouteParams.size === 0)
+    ) {
       throw new Error(`Invariant: failed to get page data for ${path}`)
     }
 

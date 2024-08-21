@@ -26,7 +26,7 @@ export interface StaticGenerationStore {
    * The set of unknown route parameters. Accessing these will be tracked as
    * a dynamic access.
    */
-  readonly unknownRouteParams: DynamicRouteParams | null
+  readonly fallbackRouteParams: DynamicRouteParams | null
 
   readonly incrementalCache?: IncrementalCache
   readonly isOnDemandRevalidate?: boolean

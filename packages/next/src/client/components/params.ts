@@ -3,39 +3,9 @@ import { ReflectAdapter } from '../../server/web/spec-extension/adapters/reflect
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
+import crypto from 'crypto'
 
-export type UnknownDynamicRouteParams = ReadonlySet<string>
-export type KnownDynamicRouteParams = ReadonlyMap<string, string | string[]>
-
-export type DynamicRouteParams =
-  | UnknownDynamicRouteParams
-  | KnownDynamicRouteParams
-
-/**
- * Returns true if the params represent parameters where the value is known.
- *
- * @param unknownRouteParams the unknown route params
- * @returns true if the params represent parameters where the value is known
- */
-export function isKnownDynamicRouteParams(
-  unknownRouteParams: DynamicRouteParams
-): unknownRouteParams is KnownDynamicRouteParams {
-  if (unknownRouteParams instanceof Map) return unknownRouteParams.size > 0
-  return false
-}
-
-/**
- * Returns true if the params represent parameters where the value is unknown.
- *
- * @param unknownRouteParams the unknown route params
- * @returns true if the params represent parameters where the value is unknown
- */
-export function isUnknownDynamicRouteParams(
-  unknownRouteParams: DynamicRouteParams
-): unknownRouteParams is UnknownDynamicRouteParams {
-  if (unknownRouteParams instanceof Set) return unknownRouteParams.size > 0
-  return false
-}
+export type DynamicRouteParams = ReadonlyMap<string, string>
 
 export function getParamKeys(page: string) {
   const pattern = getRouteRegex(page)
@@ -43,6 +13,29 @@ export function getParamKeys(page: string) {
 
   // Get the default list of allowed params.
   return Object.keys(matcher(page))
+}
+
+export function getDynamicRouteParams(
+  keys: readonly string[]
+): DynamicRouteParams
+export function getDynamicRouteParams(page: string): DynamicRouteParams
+export function getDynamicRouteParams(
+  pageOrKeys: string | readonly string[]
+): DynamicRouteParams {
+  let keys: readonly string[]
+  if (typeof pageOrKeys === 'string') {
+    keys = getParamKeys(pageOrKeys)
+  } else {
+    keys = pageOrKeys
+  }
+
+  const params = new Map<string, string>()
+
+  for (const key of keys) {
+    params.set(key, `${key}:${crypto.randomUUID()}`)
+  }
+
+  return params
 }
 
 export type Params = Record<string, string | string[] | undefined>
@@ -58,8 +51,8 @@ export function createDynamicallyTrackedParams(params: Params): Params {
   if (!staticGenerationStore) return params
 
   // If there are no unknown route params, we can just return the params.
-  const { unknownRouteParams, forceStatic } = staticGenerationStore
-  if (!unknownRouteParams || !isUnknownDynamicRouteParams(unknownRouteParams)) {
+  const { fallbackRouteParams, forceStatic } = staticGenerationStore
+  if (!fallbackRouteParams || fallbackRouteParams.size === 0) {
     return params
   }
 
@@ -73,7 +66,7 @@ export function createDynamicallyTrackedParams(params: Params): Params {
       if (
         typeof prop === 'string' &&
         prop in params &&
-        unknownRouteParams.has(prop)
+        fallbackRouteParams.has(prop)
       ) {
         trackDynamicDataAccessed(staticGenerationStore, `params.${prop}`)
       }
@@ -84,7 +77,7 @@ export function createDynamicallyTrackedParams(params: Params): Params {
       if (
         typeof prop === 'string' &&
         prop in params &&
-        unknownRouteParams.has(prop)
+        fallbackRouteParams.has(prop)
       ) {
         trackDynamicDataAccessed(staticGenerationStore, `params.${prop}`)
       }
@@ -93,7 +86,7 @@ export function createDynamicallyTrackedParams(params: Params): Params {
     },
     ownKeys(target) {
       for (const key in params) {
-        if (unknownRouteParams.has(key)) {
+        if (fallbackRouteParams.has(key)) {
           trackDynamicDataAccessed(staticGenerationStore, 'params')
         }
       }

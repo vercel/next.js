@@ -1,15 +1,10 @@
 import type { DynamicParamTypes } from './types'
-import type { DynamicRouteParams } from '../../client/components/params'
 import { INTERCEPTION_ROUTE_MARKERS } from '../lib/interception-routes'
-import { createFallbackDynamicParamType } from './fallbacks'
 
 /**
  * Parse dynamic route segment to type of parameter
  */
-export function getSegmentParam(
-  segment: string,
-  unknownRouteParams?: DynamicRouteParams | null
-): {
+export function getSegmentParam(segment: string): {
   param: string
   type: DynamicParamTypes
 } | null {
@@ -39,11 +34,6 @@ export function getSegmentParam(
     param = segment.slice(1, -1)
   } else {
     return null
-  }
-
-  // If the param is unknown, mark it as a fallback.
-  if (unknownRouteParams?.has(param)) {
-    type = createFallbackDynamicParamType(type)
   }
 
   return {

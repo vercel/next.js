@@ -3,14 +3,13 @@ import type {
   Segment,
 } from '../../../server/app-render/types'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/lib/interception-routes'
-import { isKnownDynamicRouteParams, type Params } from '../params'
+import type { Params } from '../params'
 import {
   isGroupSegment,
   DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
-import { isFallbackDynamicParamTypeShort } from '../../../server/app-render/fallbacks'
 
 const removeLeadingSlash = (segment: string): string => {
   return segment[0] === '/' ? segment.slice(1) : segment
@@ -151,44 +150,13 @@ export function getSelectedParams(
     if (isDynamicParameter) {
       const segmentName = segment[0]
 
-      // This can only happen on the server, on the client we patch the tree prior
-      // to rendering.
-      if (
-        typeof window === 'undefined' &&
-        isFallbackDynamicParamTypeShort(segment[2])
-      ) {
-        // Replace the value with the one from the context. AsyncLocalStorage
-        // should not be included in the client bundle.
-        const { staticGenerationAsyncStorage } =
-          require('../static-generation-async-storage.external') as typeof import('../static-generation-async-storage.external')
+      // Ensure catchAll and optional catchall are turned into an array
+      const isCatchAll = segment[2] === 'c' || segment[2] === 'oc'
 
-        const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-
-        // If there are unknown route params and this is one of them, then
-        // we should use the fallback value.
-        if (
-          staticGenerationStore?.unknownRouteParams &&
-          isKnownDynamicRouteParams(staticGenerationStore.unknownRouteParams) &&
-          staticGenerationStore.unknownRouteParams.has(segmentName)
-        ) {
-          const unknownRouteParam =
-            staticGenerationStore.unknownRouteParams.get(segmentName)!
-
-          if (Array.isArray(unknownRouteParam)) {
-            params[segmentName] = unknownRouteParam
-          } else {
-            params[segmentName] = unknownRouteParam
-          }
-        }
+      if (isCatchAll) {
+        params[segmentName] = segment[1].split('/')
       } else {
-        // Ensure catchAll and optional catchall are turned into an array
-        const isCatchAll = segment[2] === 'c' || segment[2] === 'oc'
-
-        if (isCatchAll) {
-          params[segmentName] = segment[1].split('/')
-        } else {
-          params[segmentName] = segment[1]
-        }
+        params[segmentName] = segment[1]
       }
     }
 

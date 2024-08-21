@@ -19,11 +19,7 @@ import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
-import {
-  isKnownDynamicRouteParams,
-  type Params,
-} from '../../client/components/params'
-import { isFallbackDynamicParamTypeShort } from './fallbacks'
+import type { Params } from '../../client/components/params'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -100,7 +96,6 @@ async function createComponentTreeInternal({
       serverHooks: { DynamicServerError },
       Postpone,
     },
-    staticGenerationStore: { unknownRouteParams },
     pagePath,
     getDynamicParamFromSegment,
     isPrefetch,
@@ -350,14 +345,7 @@ async function createComponentTreeInternal({
     segmentParam && segmentParam.value !== null
       ? {
           ...parentParams,
-          [segmentParam.param]:
-            isFallbackDynamicParamTypeShort(segmentParam.type) &&
-            // If the unknown params is a map, we can use the map to get the
-            // value.
-            unknownRouteParams &&
-            isKnownDynamicRouteParams(unknownRouteParams)
-              ? unknownRouteParams.get(segmentParam.param)
-              : segmentParam.value,
+          [segmentParam.param]: segmentParam.value,
         }
       : // Pass through parent params to children
         parentParams

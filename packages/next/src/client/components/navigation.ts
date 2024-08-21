@@ -1,9 +1,5 @@
 import type { FlightRouterState } from '../../server/app-render/types'
-import {
-  isUnknownDynamicRouteParams,
-  isKnownDynamicRouteParams,
-  type Params,
-} from './params'
+import type { Params } from './params'
 
 import { useContext, useMemo } from 'react'
 import {
@@ -80,11 +76,8 @@ function trackParamsAccessed(expression: string) {
 
     // We only want to track dynamic parameter access if the params are
     // unknown.
-    const { unknownRouteParams } = staticGenerationStore
-    if (
-      !unknownRouteParams ||
-      !isUnknownDynamicRouteParams(unknownRouteParams)
-    ) {
+    const { fallbackRouteParams } = staticGenerationStore
+    if (!fallbackRouteParams || fallbackRouteParams.size === 0) {
       return
     }
 
@@ -179,40 +172,7 @@ export function useParams<T extends Params = Params>(): T {
   // a dynamic access.
   trackParamsAccessed('useParams()')
 
-  const params = useContext(PathParamsContext)
-
-  // Replace the unknown route params with the fallback ones.
-  if (typeof window === 'undefined' && params) {
-    const unknownRouteParams = getUnknownRouteParams()
-    if (unknownRouteParams) {
-      for (const [key, value] of unknownRouteParams) {
-        params[key] = value
-      }
-    }
-  }
-
-  return params as T
-}
-
-function getUnknownRouteParams():
-  | ReadonlyMap<string, string | string[]>
-  | undefined {
-  if (typeof window === 'undefined') {
-    // AsyncLocalStorage should not be included in the client bundle.
-    const { staticGenerationAsyncStorage } =
-      require('./static-generation-async-storage.external') as typeof import('./static-generation-async-storage.external')
-
-    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-    if (
-      staticGenerationStore &&
-      staticGenerationStore.unknownRouteParams &&
-      isKnownDynamicRouteParams(staticGenerationStore.unknownRouteParams)
-    ) {
-      return staticGenerationStore.unknownRouteParams
-    }
-  }
-
-  return undefined
+  return useContext(PathParamsContext) as T
 }
 
 /** Get the canonical parameters from the current level to the leaf node. */
@@ -242,21 +202,6 @@ export function getSelectedLayoutSegmentPath(
   const segment = node[0]
 
   let segmentValue = getSegmentValue(segment)
-
-  // AsyncLocalStorage should not be included in the client bundle.
-  if (typeof window === 'undefined') {
-    // If we have a fallback dynamic param, we should use it to determine if
-    // we should replace the segmentValue with the fallback one. This should
-    // only happen during the dynamic render because the above
-    // `trackDynamicDataAccessed` will throw during the static render.
-    const unknownRouteParams = getUnknownRouteParams()
-    const unknownRouteParam = unknownRouteParams?.get(segment[0])
-    if (typeof unknownRouteParam === 'string') {
-      segmentValue = unknownRouteParam
-    } else if (Array.isArray(unknownRouteParam)) {
-      segmentValue = unknownRouteParam.join('/')
-    }
-  }
 
   if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) {
     return segmentPath

@@ -18,7 +18,7 @@ export type StaticGenerationContext = {
   /**
    * The route parameters that are currently unknown.
    */
-  unknownRouteParams: DynamicRouteParams | null
+  fallbackRouteParams: DynamicRouteParams | null
 
   requestEndedState?: { ended?: boolean }
   renderOpts: {
@@ -66,7 +66,7 @@ export const withStaticGenerationStore: WithStore<
   storage: AsyncLocalStorage<StaticGenerationStore>,
   {
     page,
-    unknownRouteParams,
+    fallbackRouteParams,
     renderOpts,
     requestEndedState,
   }: StaticGenerationContext,
@@ -97,7 +97,7 @@ export const withStaticGenerationStore: WithStore<
   const store: StaticGenerationStore = {
     isStaticGeneration,
     page,
-    unknownRouteParams,
+    fallbackRouteParams,
     route: normalizeAppPath(page),
     incrementalCache:
       // we fallback to a global incremental cache for edge-runtime locally

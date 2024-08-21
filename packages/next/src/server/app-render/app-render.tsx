@@ -133,12 +133,7 @@ import { createMutableActionQueue } from '../../shared/lib/router/action-queue'
 import { prerenderAsyncStorage } from './prerender-async-storage.external'
 import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import {
-  isUnknownDynamicRouteParams,
-  isKnownDynamicRouteParams,
-  type DynamicRouteParams,
-} from '../../client/components/params'
-import { isFallbackDynamicParamType } from './fallbacks'
+import type { DynamicRouteParams } from '../../client/components/params'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -258,13 +253,13 @@ export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
   pagePath: string,
-  unknownRouteParams: DynamicRouteParams | null
+  fallbackRouteParams: DynamicRouteParams | null
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
     // [slug] / [[slug]] / [...slug]
     segment: string
   ) {
-    const segmentParam = getSegmentParam(segment, unknownRouteParams)
+    const segmentParam = getSegmentParam(segment)
     if (!segmentParam) {
       return null
     }
@@ -273,8 +268,8 @@ function makeGetDynamicParamFromSegment(
 
     let value = params[key]
 
-    if (isFallbackDynamicParamType(segmentParam.type)) {
-      value = ''
+    if (fallbackRouteParams && fallbackRouteParams.has(segmentParam.param)) {
+      value = fallbackRouteParams.get(segmentParam.param)!
     } else if (Array.isArray(value)) {
       value = value.map((i) => encodeURIComponent(i))
     } else if (typeof value === 'string') {
@@ -419,7 +414,6 @@ async function generateDynamicRSCPayload(
   // the result is falsey.
   if (options?.actionResult) {
     return {
-      t: 'a',
       a: options.actionResult,
       f: flightData,
       b: ctx.renderOpts.buildId,
@@ -428,7 +422,6 @@ async function generateDynamicRSCPayload(
 
   // Otherwise, it's a regular RSC response.
   return {
-    t: 'n',
     b: ctx.renderOpts.buildId,
     // Anything besides an action response should have non-null flightData.
     // We don't ever expect this to be null because `skipFlight` is only
@@ -523,7 +516,6 @@ async function getRSCPayload(
       createDynamicallyTrackedParams,
     },
     requestStore: { url },
-    staticGenerationStore: { unknownRouteParams },
   } = ctx
   const initialTree = createFlightRouterStateFromLoaderTree(
     tree,
@@ -575,14 +567,6 @@ async function getRSCPayload(
   )
 
   return {
-    t: 'i',
-    // When the unknown route params are provided and is a map, we need to pass it
-    // to the client so it can use the now known route params to perform
-    // replacements in the flight data.
-    u:
-      unknownRouteParams && isKnownDynamicRouteParams(unknownRouteParams)
-        ? Object.fromEntries(unknownRouteParams)
-        : null,
     // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: <Preloads preloadCallbacks={preloadCallbacks} />,
     b: ctx.renderOpts.buildId,
@@ -666,10 +650,7 @@ async function getErrorRSCPayload(
     null,
   ]
 
-  const { unknownRouteParams } = ctx.staticGenerationStore
-
   return {
-    t: 'i',
     b: ctx.renderOpts.buildId,
     p: ctx.assetPrefix,
     c: url.pathname + url.search,
@@ -677,10 +658,7 @@ async function getErrorRSCPayload(
     i: false,
     f: [[initialTree, initialSeedData, initialHead]],
     G: GlobalError,
-    u:
-      unknownRouteParams && isKnownDynamicRouteParams(unknownRouteParams)
-        ? Object.fromEntries(unknownRouteParams)
-        : null,
+
     s: typeof ctx.renderOpts.postponed === 'string',
   } satisfies RSCPayload
 }
@@ -956,12 +934,12 @@ async function renderToHTMLOrFlightImpl(
    */
   const params = renderOpts.params ?? {}
 
-  const { isStaticGeneration, unknownRouteParams } = staticGenerationStore
+  const { isStaticGeneration, fallbackRouteParams } = staticGenerationStore
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
     pagePath,
-    unknownRouteParams
+    fallbackRouteParams
   )
 
   const isActionRequest = getServerActionRequestMetadata(req).isServerAction
@@ -1176,7 +1154,7 @@ export type AppPageRender = (
   res: BaseNextResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
-  unknownRouteParams: DynamicRouteParams | null,
+  fallbackRouteParams: DynamicRouteParams | null,
   renderOpts: RenderOpts,
   serverComponentsHmrCache?: ServerComponentsHmrCache
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
@@ -1186,7 +1164,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   res,
   pagePath,
   query,
-  unknownRouteParams,
+  fallbackRouteParams,
   renderOpts,
   serverComponentsHmrCache
 ) => {
@@ -1215,7 +1193,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     } catch {
       // If we failed to parse the postponed state, we should default to
       // performing a dynamic data render.
-      postponedState = getDynamicDataPostponedState(unknownRouteParams)
+      postponedState = getDynamicDataPostponedState(fallbackRouteParams)
     }
 
     // If the postpone state is an object and the unknown route params are
@@ -1223,15 +1201,28 @@ export const renderToHTMLOrFlight: AppPageRender = (
     // string. This happens during resume operations.
     const { params } = renderOpts
     if (postponedState.u && params) {
-      if (!postponedState.u.every((v) => v in params)) {
-        throw new Error(
-          'The provided `unknownRouteParams` must be a list of unknown route params that are present in the query string.'
-        )
+      fallbackRouteParams = new Map(Object.entries(postponedState.u))
+
+      // Perform the replacements in the postponedState string.
+      if (postponedState.t === DynamicState.HTML) {
+        let postponed = renderOpts.postponed
+        for (const [key, searchValue] of fallbackRouteParams) {
+          const value = params[key]
+          if (typeof value === 'undefined') {
+            throw new Error(
+              'The provided `fallbackRouteParams` must be a list of unknown route params that are present in the pathname.'
+            )
+          }
+
+          const replaceValue = Array.isArray(value) ? value.join('/') : value
+          postponed = postponed.replaceAll(searchValue, replaceValue)
+        }
+
+        // Re-parse the postponed state after we've completed the replacements.
+        postponedState = JSON.parse(postponed)
       }
 
-      unknownRouteParams = new Map(
-        postponedState.u.map((v) => [v, params[v] as string | string[]])
-      )
+      fallbackRouteParams = null
     }
   }
 
@@ -1250,7 +1241,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
         renderOpts.ComponentMod.staticGenerationAsyncStorage,
         {
           page: renderOpts.routeModule.definition.page,
-          unknownRouteParams,
+          fallbackRouteParams,
           renderOpts,
           requestEndedState,
         },
@@ -1659,7 +1650,7 @@ async function renderToStream(
   }
 }
 
-type PrenderToStringResult = {
+type PrerenderToStringResult = {
   stream: ReadableStream<Uint8Array>
   digestErrorsMap: Map<string, DigestedError>
   ssrErrors: Array<unknown>
@@ -1673,10 +1664,10 @@ type PrenderToStringResult = {
 function shouldGenerateStaticFlightData(
   staticGenerationStore: StaticGenerationStore
 ): boolean {
-  const { unknownRouteParams, isStaticGeneration } = staticGenerationStore
+  const { fallbackRouteParams, isStaticGeneration } = staticGenerationStore
   if (!isStaticGeneration) return false
 
-  if (unknownRouteParams && isUnknownDynamicRouteParams(unknownRouteParams)) {
+  if (fallbackRouteParams && fallbackRouteParams.size > 0) {
     return false
   }
 
@@ -1690,7 +1681,7 @@ async function prerenderToStream(
   metadata: AppPageRenderResultMetadata,
   staticGenerationStore: StaticGenerationStore,
   tree: LoaderTree
-): Promise<PrenderToStringResult> {
+): Promise<PrerenderToStringResult> {
   // When prerendering formState is always null. We still include it
   // because some shared APIs expect a formState value and this is slightly
   // more explicit than making it an optional function argument
@@ -1700,7 +1691,7 @@ async function prerenderToStream(
   const ComponentMod = renderOpts.ComponentMod
   // TODO: fix this typescript
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
-  const { unknownRouteParams } = staticGenerationStore
+  const { fallbackRouteParams } = staticGenerationStore
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
@@ -1887,18 +1878,32 @@ async function prerenderToStream(
         if (postponed != null) {
           // Dynamic HTML case.
           metadata.postponed = JSON.stringify(
-            getDynamicHTMLPostponedState(postponed, unknownRouteParams)
+            getDynamicHTMLPostponedState(postponed, fallbackRouteParams)
           )
         } else {
           // Dynamic Data case.
           metadata.postponed = JSON.stringify(
-            getDynamicDataPostponedState(unknownRouteParams)
+            getDynamicDataPostponedState(fallbackRouteParams)
           )
         }
         // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
         // server inserted html in the static response because the html that is part of the prerender may depend on it
         // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
         // require the same set so we unify the code path here
+        return {
+          digestErrorsMap: reactServerErrorsByDigest,
+          ssrErrors: allCapturedErrors,
+          stream: await continueDynamicPrerender(prelude, {
+            getServerInsertedHTML,
+          }),
+          dynamicTracking,
+        }
+      } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
+        // Rendering the fallback case.
+        metadata.postponed = JSON.stringify(
+          getDynamicDataPostponedState(fallbackRouteParams)
+        )
+
         return {
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
