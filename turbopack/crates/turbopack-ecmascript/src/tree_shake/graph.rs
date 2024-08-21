@@ -379,7 +379,10 @@ impl DepGraph {
                 let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
                     local: var.clone().into(),
-                    imported: None,
+                    imported: Some(ModuleExportName::Ident(Ident::new_no_ctxt(
+                        "_".into(),
+                        DUMMY_SP,
+                    ))),
                     is_type_only: false,
                 })];
 
@@ -422,7 +425,10 @@ impl DepGraph {
                                 specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
                                     span: DUMMY_SP,
                                     orig: ModuleExportName::Ident(var.clone().into()),
-                                    exported: None,
+                                    exported: Some(ModuleExportName::Ident(Ident::new_no_ctxt(
+                                        "_".into(),
+                                        DUMMY_SP,
+                                    ))),
                                     is_type_only: false,
                                 })],
                                 src: if cfg!(test) {
