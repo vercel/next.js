@@ -146,12 +146,7 @@ export interface NextJsHotReloaderInterface {
   stop(): Promise<void>
   send(action: HMR_ACTION_TYPES): void
   getCompilationErrors(page: string): Promise<any[]>
-  onHMR(
-    req: IncomingMessage,
-    _socket: Duplex,
-    head: Buffer,
-    onUpgrade: (client: { send(data: string): void }) => void
-  ): void
+  onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer): void
   invalidate({
     reloadAfterInvalidation,
   }: {

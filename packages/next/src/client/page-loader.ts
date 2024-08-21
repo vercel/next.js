@@ -11,7 +11,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { createRouteLoader, getClientBuildManifest } from './route-loader'
 import {
   DEV_CLIENT_PAGES_MANIFEST,
-  DEV_MIDDLEWARE_MANIFEST,
+  DEV_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
 
 declare global {
@@ -99,7 +99,7 @@ export default class PageLoader {
           // TODO: Decide what should happen when fetching fails instead of asserting
           // @ts-ignore
           this.promisedMiddlewareMatchers = fetch(
-            `${this.assetPrefix}/_next/static/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`,
+            `${this.assetPrefix}/_next/static/${this.buildId}/${DEV_CLIENT_MIDDLEWARE_MANIFEST}`,
             { credentials: 'same-origin' }
           )
             .then((res) => res.json())
