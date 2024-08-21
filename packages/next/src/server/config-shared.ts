@@ -408,11 +408,6 @@ export interface ExperimentalConfig {
   webpackMemoryOptimizations?: boolean
 
   /**
-   *
-   */
-  instrumentationHook?: boolean
-
-  /**
    * The array of the meta tags to the client injected by tracing propagation data.
    */
   clientTraceMetadata?: string[]
@@ -1036,7 +1031,6 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
     typedRoutes: false,
     typedEnv: false,
-    instrumentationHook: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,

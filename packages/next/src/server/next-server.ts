@@ -297,10 +297,7 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected async loadInstrumentationModule() {
-    if (
-      !this.serverOptions.dev &&
-      !!this.nextConfig.experimental.instrumentationHook
-    ) {
+    if (!this.serverOptions.dev) {
       try {
         this.instrumentation = await dynamicRequire(
           resolve(

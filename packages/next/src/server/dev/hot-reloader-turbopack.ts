@@ -478,7 +478,6 @@ export async function createHotReloaderTurbopack(
 
         currentEntryIssues,
         manifestLoader,
-        nextConfig: opts.nextConfig,
         devRewrites: opts.fsChecker.rewrites,
         productionRewrites: undefined,
         logErrors: true,

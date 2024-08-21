@@ -394,7 +394,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),
         optimizeServerReact: z.boolean().optional(),
-        instrumentationHook: z.boolean().optional(),
         clientTraceMetadata: z.array(z.string()).optional(),
         turbotrace: z
           .object({

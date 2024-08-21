@@ -709,7 +709,6 @@ export async function handleEntrypoints({
 
   currentEntryIssues,
   manifestLoader,
-  nextConfig,
   devRewrites,
   productionRewrites,
   logErrors,
@@ -721,7 +720,6 @@ export async function handleEntrypoints({
 
   currentEntryIssues: EntryIssuesMap
   manifestLoader: TurbopackManifestLoader
-  nextConfig: NextConfigComplete
   devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined
   productionRewrites: CustomRoutes['rewrites'] | undefined
   logErrors: boolean
@@ -793,7 +791,7 @@ export async function handleEntrypoints({
 
   currentEntrypoints.global.middleware = middleware
 
-  if (nextConfig.experimental.instrumentationHook && instrumentation) {
+  if (instrumentation) {
     const processInstrumentation = async (
       name: string,
       prop: 'nodeJs' | 'edge'

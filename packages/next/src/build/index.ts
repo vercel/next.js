@@ -862,15 +862,9 @@ export default async function build(
       )
 
       const rootDir = path.join((pagesDir || appDir)!, '..')
-      const instrumentationHookEnabled = Boolean(
-        config.experimental.instrumentationHook
-      )
-
       const includes = [
         middlewareDetectionRegExp,
-        ...(instrumentationHookEnabled
-          ? [instrumentationHookDetectionRegExp]
-          : []),
+        instrumentationHookDetectionRegExp,
       ]
 
       const rootPaths = Array.from(await getFilesInDir(rootDir))
@@ -1351,7 +1345,6 @@ export default async function build(
           currentEntrypoints,
           currentEntryIssues,
           manifestLoader,
-          nextConfig: config,
           devRewrites: undefined,
           productionRewrites: customRoutes.rewrites,
           logErrors: false,
