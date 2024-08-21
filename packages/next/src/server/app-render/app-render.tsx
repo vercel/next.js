@@ -49,6 +49,7 @@ import {
 } from '../../client/components/app-router-headers'
 import {
   createMetadataComponents,
+  createTrackedMetadataContext,
   createMetadataContext,
 } from '../../lib/metadata/metadata'
 import { withRequestStore } from '../async-storage/with-request-store'
@@ -369,6 +370,7 @@ async function generateDynamicRSCPayload(
     query,
     requestId,
     flightRouterState,
+    staticGenerationStore,
   } = ctx
 
   if (!options?.skipFlight) {
@@ -377,7 +379,11 @@ async function generateDynamicRSCPayload(
     const [MetadataTree, getMetadataReady] = createMetadataComponents({
       tree: loaderTree,
       query,
-      metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
+      metadataContext: createTrackedMetadataContext(
+        url.pathname,
+        ctx.renderOpts,
+        staticGenerationStore
+      ),
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
       createDynamicallyTrackedSearchParams,
@@ -516,6 +522,7 @@ async function getRSCPayload(
       createDynamicallyTrackedParams,
     },
     requestStore: { url },
+    staticGenerationStore,
   } = ctx
   const initialTree = createFlightRouterStateFromLoaderTree(
     tree,
@@ -527,7 +534,11 @@ async function getRSCPayload(
     tree,
     errorType: is404 ? 'not-found' : undefined,
     query,
-    metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
+    metadataContext: createTrackedMetadataContext(
+      url.pathname,
+      ctx.renderOpts,
+      staticGenerationStore
+    ),
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
     createDynamicallyTrackedSearchParams,
@@ -612,6 +623,8 @@ async function getErrorRSCPayload(
 
   const [MetadataTree] = createMetadataComponents({
     tree,
+    // We create an untracked metadata context here because we can't postpone
+    // again during the error render.
     metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
     errorType,
     query,

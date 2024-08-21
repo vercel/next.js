@@ -118,6 +118,47 @@ export function markCurrentScopeAsDynamic(
 }
 
 /**
+ * This function communicates that some dynamic path parameter was read. This
+ * differs from the more general `trackDynamicDataAccessed` in that it is will
+ * not error when `dynamic = "error"` is set.
+ *
+ * @param store The static generation store
+ * @param expression The expression that was accessed dynamically
+ */
+export function trackFallbackParamAccessed(
+  store: StaticGenerationStore,
+  expression: string
+): void {
+  if (store.isUnstableCacheCallback) {
+    throw new Error(
+      `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+    )
+  }
+
+  const prerenderStore = prerenderAsyncStorage.getStore()
+  if (prerenderStore) {
+    postponeWithTracking(
+      prerenderStore.dynamicTracking,
+      expression,
+      store.route
+    )
+  } else {
+    store.revalidate = 0
+
+    if (store.isStaticGeneration) {
+      // We aren't prerendering but we are generating a static page. We need to bail out of static generation
+      const err = new DynamicServerError(
+        `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+      )
+      store.dynamicUsageDescription = expression
+      store.dynamicUsageStack = err.stack
+
+      throw err
+    }
+  }
+}
+
+/**
  * This function communicates that some dynamic data was read. This typically would refer to accessing
  * a Request specific data store such as cookies or headers. This function is not how end-users will
  * describe reading from dynamic data sources which are valid to cache and up to the author to make

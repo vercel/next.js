@@ -31,6 +31,8 @@ import type {
 import { isNotFoundError } from '../../client/components/not-found'
 import type { MetadataContext } from './types/resolvers'
 import type { CreateDynamicallyTrackedParams } from '../../client/components/params'
+import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
 
 export function createMetadataContext(
   pathname: string,
@@ -40,6 +42,34 @@ export function createMetadataContext(
     pathname,
     trailingSlash: renderOpts.trailingSlash,
     isStandaloneMode: renderOpts.nextConfigOutput === 'standalone',
+  }
+}
+
+export function createTrackedMetadataContext(
+  pathname: string,
+  renderOpts: AppRenderContext['renderOpts'],
+  staticGenerationStore: StaticGenerationStore | null
+): MetadataContext {
+  return {
+    // Use the regular metadata context, but we trap the pathname access.
+    ...createMetadataContext(pathname, renderOpts),
+
+    // Setup the trap around the pathname access so we can track when the
+    // pathname is accessed while resolving metadata which would indicate it's
+    // being used to resolve a relative URL. If that's the case, we don't want
+    // to provide it, and instead we should error.
+    get pathname() {
+      if (
+        staticGenerationStore &&
+        staticGenerationStore.isStaticGeneration &&
+        staticGenerationStore.fallbackRouteParams &&
+        staticGenerationStore.fallbackRouteParams.size > 0
+      ) {
+        trackFallbackParamAccessed(staticGenerationStore, 'pathname')
+      }
+
+      return pathname
+    },
   }
 }
 
