@@ -255,7 +255,7 @@ impl CodeGenerateable for EsmAssetReference {
                         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
                             let stmt = quote!(
                                 "var $name = __turbopack_import__($id);" as Stmt,
-                                name = Ident::new(ident.clone().into(), DUMMY_SP),
+                                name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
                                 id: Expr = Expr::Lit(match &*id {
                                     ModuleId::String(s) => s.clone().as_str().into(),
                                     ModuleId::Number(n) => (*n as f64).into(),
@@ -282,13 +282,13 @@ impl CodeGenerateable for EsmAssetReference {
                             let stmt = if import_externals {
                                 quote!(
                                     "var $name = __turbopack_external_import__($id);" as Stmt,
-                                    name = Ident::new(ident.clone().into(), DUMMY_SP),
+                                    name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
                                     id: Expr = Expr::Lit(request.to_string().into())
                                 )
                             } else {
                                 quote!(
                                     "var $name = __turbopack_external_require__($id, true);" as Stmt,
-                                    name = Ident::new(ident.clone().into(), DUMMY_SP),
+                                    name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
                                     id: Expr = Expr::Lit(request.to_string().into())
                                 )
                             };
@@ -315,7 +315,7 @@ impl CodeGenerateable for EsmAssetReference {
                         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
                             let stmt = quote!(
                                 "var $name = __turbopack_external_require__($id, true);" as Stmt,
-                                name = Ident::new(ident.clone().into(), DUMMY_SP),
+                                name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
                                 id: Expr = Expr::Lit(request.to_string().into())
                             );
                             insert_hoisted_stmt(program, stmt);

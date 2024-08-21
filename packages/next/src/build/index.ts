@@ -200,6 +200,7 @@ import {
 import { storeShuttle } from './flying-shuttle/store-shuttle'
 import { stitchBuilds } from './flying-shuttle/stitch-builds'
 import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
+import { FallbackMode } from '../lib/fallback'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -2077,7 +2078,11 @@ export default async function build(
                             }
                           }
 
-                          if (workerResult.prerenderFallback) {
+                          if (
+                            workerResult.prerenderFallbackMode !== undefined &&
+                            workerResult.prerenderFallbackMode !==
+                              FallbackMode.NOT_FOUND
+                          ) {
                             // whether or not to allow requests for paths not
                             // returned from generateStaticParams
                             appDynamicParamPaths.add(originalAppPath)
@@ -2130,9 +2135,15 @@ export default async function build(
                             )
                           }
 
-                          if (workerResult.prerenderFallback === 'blocking') {
+                          if (
+                            workerResult.prerenderFallbackMode ===
+                            FallbackMode.BLOCKING_STATIC_RENDER
+                          ) {
                             ssgBlockingFallbackPages.add(page)
-                          } else if (workerResult.prerenderFallback === true) {
+                          } else if (
+                            workerResult.prerenderFallbackMode ===
+                            FallbackMode.STATIC_PRERENDER
+                          ) {
                             ssgStaticFallbackPages.add(page)
                           }
                         } else if (workerResult.hasServerProps) {

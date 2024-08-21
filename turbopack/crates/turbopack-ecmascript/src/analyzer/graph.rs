@@ -274,7 +274,7 @@ pub fn create_graph(m: &Program, eval_context: &EvalContext) -> VarGraph {
         effects: Default::default(),
     };
 
-    m.visit_with_path(
+    m.visit_with_ast_path(
         &mut Analyzer {
             data: &mut graph,
             eval_context,
@@ -823,7 +823,7 @@ impl Analyzer<'_> {
                     {
                         let mut ast_path = ast_path
                             .with_guard(AstParentNodeRef::FnExpr(fn_expr, FnExprField::Ident));
-                        self.visit_opt_ident(ident.as_ref(), &mut ast_path);
+                        self.visit_opt_ident(ident, &mut ast_path);
                     }
 
                     {
@@ -874,6 +874,7 @@ impl Analyzer<'_> {
             return_type,
             span: _,
             type_params,
+            ctxt: _,
         } = arrow_expr;
         let mut iter = args.iter();
         for (i, param) in params.iter().enumerate() {
@@ -902,7 +903,7 @@ impl Analyzer<'_> {
                 arrow_expr,
                 ArrowExprField::ReturnType,
             ));
-            self.visit_opt_ts_type_ann(return_type.as_ref(), &mut ast_path);
+            self.visit_opt_ts_type_ann(return_type, &mut ast_path);
         }
 
         {
@@ -910,7 +911,7 @@ impl Analyzer<'_> {
                 arrow_expr,
                 ArrowExprField::TypeParams,
             ));
-            self.visit_opt_ts_type_param_decl(type_params.as_ref(), &mut ast_path);
+            self.visit_opt_ts_type_param_decl(type_params, &mut ast_path);
         }
     }
 
@@ -930,6 +931,7 @@ impl Analyzer<'_> {
             return_type,
             span: _,
             type_params,
+            ctxt: _,
         } = function;
         for (i, param) in params.iter().enumerate() {
             let mut ast_path = ast_path.with_guard(AstParentNodeRef::Function(
@@ -949,7 +951,7 @@ impl Analyzer<'_> {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::Function(function, FunctionField::Body));
 
-            self.visit_opt_block_stmt(body.as_ref(), &mut ast_path);
+            self.visit_opt_block_stmt(body, &mut ast_path);
         }
 
         {
@@ -967,7 +969,7 @@ impl Analyzer<'_> {
                 FunctionField::ReturnType,
             ));
 
-            self.visit_opt_ts_type_ann(return_type.as_ref(), &mut ast_path);
+            self.visit_opt_ts_type_ann(return_type, &mut ast_path);
         }
 
         {
@@ -976,7 +978,7 @@ impl Analyzer<'_> {
                 FunctionField::TypeParams,
             ));
 
-            self.visit_opt_ts_type_param_decl(type_params.as_ref(), &mut ast_path);
+            self.visit_opt_ts_type_param_decl(type_params, &mut ast_path);
         }
     }
 
@@ -1159,7 +1161,7 @@ impl VisitAstPath for Analyzer<'_> {
             match n.op {
                 AssignOp::Assign => {
                     self.current_value = Some(self.eval_context.eval(&n.right));
-                    n.left.visit_children_with_path(self, &mut ast_path);
+                    n.left.visit_children_with_ast_path(self, &mut ast_path);
                     self.current_value = None;
                 }
 
@@ -1173,7 +1175,7 @@ impl VisitAstPath for Analyzer<'_> {
                                 Some(right)
                             }
                             AssignOp::AddAssign => {
-                                let left = self.eval_context.eval(&Expr::Ident(key.clone()));
+                                let left = self.eval_context.eval(&Expr::Ident(key.clone().into()));
 
                                 let right = self.eval_context.eval(&n.right);
 
@@ -1187,13 +1189,13 @@ impl VisitAstPath for Analyzer<'_> {
                             // clientComponentLoadTimes += performance.now() - startTime
 
                             self.current_value = Some(value);
-                            n.left.visit_children_with_path(self, &mut ast_path);
+                            n.left.visit_children_with_ast_path(self, &mut ast_path);
                             self.current_value = None;
                         }
                     }
 
                     if n.left.as_ident().is_none() {
-                        n.left.visit_children_with_path(self, &mut ast_path);
+                        n.left.visit_children_with_ast_path(self, &mut ast_path);
                     }
                 }
             }
@@ -1245,7 +1247,7 @@ impl VisitAstPath for Analyzer<'_> {
             {
                 let mut ast_path =
                     ast_path.with_guard(AstParentNodeRef::CallExpr(n, CallExprField::Callee));
-                n.callee.visit_with_path(self, &mut ast_path);
+                n.callee.visit_with_ast_path(self, &mut ast_path);
             }
             let args = n
                 .args
@@ -1296,7 +1298,7 @@ impl VisitAstPath for Analyzer<'_> {
                         };
                         if let Some(path) = block_path {
                             let old_effects = take(&mut self.effects);
-                            arg.visit_with_path(self, &mut ast_path);
+                            arg.visit_with_ast_path(self, &mut ast_path);
                             let effects = replace(&mut self.effects, old_effects);
                             EffectArg::Closure(
                                 value,
@@ -1306,11 +1308,11 @@ impl VisitAstPath for Analyzer<'_> {
                                 },
                             )
                         } else {
-                            arg.visit_with_path(self, &mut ast_path);
+                            arg.visit_with_ast_path(self, &mut ast_path);
                             EffectArg::Value(value)
                         }
                     } else {
-                        arg.visit_with_path(self, &mut ast_path);
+                        arg.visit_with_ast_path(self, &mut ast_path);
                         EffectArg::Spread
                     }
                 })
@@ -1352,7 +1354,7 @@ impl VisitAstPath for Analyzer<'_> {
                 }
             }
         }
-        new_expr.visit_children_with_path(self, ast_path);
+        new_expr.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_member_expr<'ast: 'r, 'r>(
@@ -1361,7 +1363,7 @@ impl VisitAstPath for Analyzer<'_> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         self.check_member_expr_for_effects(member_expr, ast_path);
-        member_expr.visit_children_with_path(self, ast_path);
+        member_expr.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_expr<'ast: 'r, 'r>(
@@ -1371,7 +1373,7 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         let old = self.var_decl_kind;
         self.var_decl_kind = None;
-        n.visit_children_with_path(self, ast_path);
+        n.visit_children_with_ast_path(self, ast_path);
         self.var_decl_kind = old;
     }
 
@@ -1384,7 +1386,7 @@ impl VisitAstPath for Analyzer<'_> {
         for (index, p) in n.iter().enumerate() {
             self.current_value = Some(JsValue::Argument(self.cur_fn_ident, index));
             let mut ast_path = ast_path.with_index_guard(index);
-            p.visit_with_path(self, &mut ast_path);
+            p.visit_with_ast_path(self, &mut ast_path);
         }
         self.current_value = value;
     }
@@ -1429,7 +1431,7 @@ impl VisitAstPath for Analyzer<'_> {
         );
         let old_ident = self.cur_fn_ident;
         self.cur_fn_ident = decl.function.span.lo.0;
-        decl.visit_children_with_path(self, ast_path);
+        decl.visit_children_with_ast_path(self, ast_path);
         let return_value = self.take_return_values();
         self.hoisted_effects.append(&mut self.effects);
 
@@ -1453,7 +1455,7 @@ impl VisitAstPath for Analyzer<'_> {
         );
         let old_ident = self.cur_fn_ident;
         self.cur_fn_ident = expr.function.span.lo.0;
-        expr.visit_children_with_path(self, ast_path);
+        expr.visit_children_with_ast_path(self, ast_path);
         let return_value = self.take_return_values();
 
         if let Some(ident) = &expr.ident {
@@ -1496,14 +1498,14 @@ impl VisitAstPath for Analyzer<'_> {
                 expr,
                 ArrowExprField::Params(index),
             ));
-            p.visit_with_path(self, &mut ast_path);
+            p.visit_with_ast_path(self, &mut ast_path);
         }
         self.current_value = value;
 
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::ArrowExpr(expr, ArrowExprField::Body));
-            expr.body.visit_with_path(self, &mut ast_path);
+            expr.body.visit_with_ast_path(self, &mut ast_path);
         }
 
         let return_value = match &*expr.body {
@@ -1536,7 +1538,7 @@ impl VisitAstPath for Analyzer<'_> {
                 class: decl.class.clone(),
             }),
         );
-        decl.visit_children_with_path(self, ast_path);
+        decl.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_var_decl<'ast: 'r, 'r>(
@@ -1546,7 +1548,7 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         let old = self.var_decl_kind;
         self.var_decl_kind = Some(n.kind);
-        n.visit_children_with_path(self, ast_path);
+        n.visit_children_with_ast_path(self, ast_path);
         self.var_decl_kind = old;
     }
 
@@ -1571,7 +1573,7 @@ impl VisitAstPath for Analyzer<'_> {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::VarDeclarator(n, VarDeclaratorField::Init));
 
-            self.visit_opt_expr(n.init.as_ref(), &mut ast_path);
+            self.visit_opt_expr(&n.init, &mut ast_path);
         }
     }
 
@@ -1609,7 +1611,7 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         let value = self.current_value.take();
         if let SimpleAssignTarget::Ident(i) = n {
-            n.visit_children_with_path(self, ast_path);
+            n.visit_children_with_ast_path(self, ast_path);
 
             self.add_value(
                 i.to_id(),
@@ -1620,7 +1622,7 @@ impl VisitAstPath for Analyzer<'_> {
             return;
         }
 
-        n.visit_children_with_path(self, ast_path);
+        n.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_pat<'ast: 'r, 'r>(
@@ -1654,7 +1656,7 @@ impl VisitAstPath for Analyzer<'_> {
                                 arr,
                                 ArrayPatField::Elems(idx),
                             ));
-                            elem.visit_with_path(self, &mut ast_path);
+                            elem.visit_with_ast_path(self, &mut ast_path);
                         }
 
                         // We should not call visit_children_with
@@ -1675,7 +1677,7 @@ impl VisitAstPath for Analyzer<'_> {
                                 arr,
                                 ArrayPatField::Elems(idx),
                             ));
-                            elem.visit_with_path(self, &mut ast_path);
+                            elem.visit_with_ast_path(self, &mut ast_path);
                         }
                         // We should not call visit_children_with
                         return;
@@ -1697,7 +1699,7 @@ impl VisitAstPath for Analyzer<'_> {
 
             _ => {}
         }
-        pat.visit_children_with_path(self, ast_path);
+        pat.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_return_stmt<'ast: 'r, 'r>(
@@ -1705,7 +1707,7 @@ impl VisitAstPath for Analyzer<'_> {
         stmt: &'ast ReturnStmt,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        stmt.visit_children_with_path(self, ast_path);
+        stmt.visit_children_with_ast_path(self, ast_path);
 
         if let Some(values) = &mut self.cur_fn_return_values {
             let return_value = stmt
@@ -1784,7 +1786,7 @@ impl VisitAstPath for Analyzer<'_> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         self.effects = take(&mut self.data.effects);
-        program.visit_children_with_path(self, ast_path);
+        program.visit_children_with_ast_path(self, ast_path);
         self.end_early_return_block();
         self.effects.append(&mut self.hoisted_effects);
         self.data.effects = take(&mut self.effects);
@@ -1798,14 +1800,14 @@ impl VisitAstPath for Analyzer<'_> {
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Test));
-            expr.test.visit_with_path(self, &mut ast_path);
+            expr.test.visit_with_ast_path(self, &mut ast_path);
         }
 
         let prev_effects = take(&mut self.effects);
         let then = {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Cons));
-            expr.cons.visit_with_path(self, &mut ast_path);
+            expr.cons.visit_with_ast_path(self, &mut ast_path);
             EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
@@ -1814,7 +1816,7 @@ impl VisitAstPath for Analyzer<'_> {
         let r#else = {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Alt));
-            expr.alt.visit_with_path(self, &mut ast_path);
+            expr.alt.visit_with_ast_path(self, &mut ast_path);
             EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
@@ -1839,7 +1841,7 @@ impl VisitAstPath for Analyzer<'_> {
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::IfStmt(stmt, IfStmtField::Test));
-            stmt.test.visit_with_path(self, &mut ast_path);
+            stmt.test.visit_with_ast_path(self, &mut ast_path);
         }
         let prev_effects = take(&mut self.effects);
         let prev_early_return_stack = take(&mut self.early_return_stack);
@@ -1847,7 +1849,7 @@ impl VisitAstPath for Analyzer<'_> {
         let then = {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::IfStmt(stmt, IfStmtField::Cons));
-            stmt.cons.visit_with_path(self, &mut ast_path);
+            stmt.cons.visit_with_ast_path(self, &mut ast_path);
             then_returning = self.end_early_return_block();
             EffectsBlock {
                 effects: take(&mut self.effects),
@@ -1858,7 +1860,7 @@ impl VisitAstPath for Analyzer<'_> {
         let r#else = stmt.alt.as_ref().map(|alt| {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::IfStmt(stmt, IfStmtField::Alt));
-            alt.visit_with_path(self, &mut ast_path);
+            alt.visit_with_ast_path(self, &mut ast_path);
             else_returning = self.end_early_return_block();
             EffectsBlock {
                 effects: take(&mut self.effects),
@@ -1889,14 +1891,14 @@ impl VisitAstPath for Analyzer<'_> {
         let mut block = {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::TryStmt(stmt, TryStmtField::Block));
-            stmt.block.visit_with_path(self, &mut ast_path);
+            stmt.block.visit_with_ast_path(self, &mut ast_path);
             self.end_early_return_block();
             take(&mut self.effects)
         };
         let mut handler = if let Some(handler) = stmt.handler.as_ref() {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::TryStmt(stmt, TryStmtField::Handler));
-            handler.visit_with_path(self, &mut ast_path);
+            handler.visit_with_ast_path(self, &mut ast_path);
             self.end_early_return_block();
             take(&mut self.effects)
         } else {
@@ -1909,7 +1911,7 @@ impl VisitAstPath for Analyzer<'_> {
         if let Some(finalizer) = stmt.finalizer.as_ref() {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::TryStmt(stmt, TryStmtField::Finalizer));
-            finalizer.visit_with_path(self, &mut ast_path);
+            finalizer.visit_with_ast_path(self, &mut ast_path);
         };
     }
 
@@ -1920,7 +1922,7 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         let prev_effects = take(&mut self.effects);
         let prev_early_return_stack = take(&mut self.early_return_stack);
-        case.visit_children_with_path(self, ast_path);
+        case.visit_children_with_ast_path(self, ast_path);
         self.end_early_return_block();
         let mut effects = take(&mut self.effects);
         self.early_return_stack = prev_early_return_stack;
@@ -1970,7 +1972,7 @@ impl VisitAstPath for Analyzer<'_> {
                 let early_return_stack = take(&mut self.early_return_stack);
                 let mut effects = take(&mut self.effects);
                 let hoisted_effects = take(&mut self.hoisted_effects);
-                n.visit_children_with_path(self, ast_path);
+                n.visit_children_with_ast_path(self, ast_path);
                 self.end_early_return_block();
                 self.effects.append(&mut self.hoisted_effects);
                 effects.append(&mut self.effects);
@@ -1979,7 +1981,7 @@ impl VisitAstPath for Analyzer<'_> {
                 self.early_return_stack = early_return_stack;
             }
             Some(false) => {
-                n.visit_children_with_path(self, ast_path);
+                n.visit_children_with_ast_path(self, ast_path);
                 if self.end_early_return_block() {
                     self.early_return_stack.push(EarlyReturn::Always {
                         prev_effects: take(&mut self.effects),
@@ -1988,7 +1990,7 @@ impl VisitAstPath for Analyzer<'_> {
                 }
             }
             None => {
-                n.visit_children_with_path(self, ast_path);
+                n.visit_children_with_ast_path(self, ast_path);
             }
         }
     }
@@ -2007,7 +2009,7 @@ impl VisitAstPath for Analyzer<'_> {
             });
         }
 
-        n.visit_children_with_path(self, ast_path);
+        n.visit_children_with_ast_path(self, ast_path);
     }
 }
 
@@ -2159,7 +2161,7 @@ impl<'a> Analyzer<'a> {
                             kv,
                             KeyValuePatPropField::Key,
                         ));
-                        key.visit_with_path(self, &mut ast_path);
+                        key.visit_with_ast_path(self, &mut ast_path);
                     }
                     self.current_value = Some(JsValue::member(
                         Box::new(current_value.clone()),
@@ -2170,7 +2172,7 @@ impl<'a> Analyzer<'a> {
                             kv,
                             KeyValuePatPropField::Value,
                         ));
-                        value.visit_with_path(self, &mut ast_path);
+                        value.visit_with_ast_path(self, &mut ast_path);
                     }
                 }
                 ObjectPatProp::Assign(assign) => {
@@ -2185,7 +2187,7 @@ impl<'a> Analyzer<'a> {
                             assign,
                             AssignPatPropField::Key,
                         ));
-                        key.visit_with_path(self, &mut ast_path);
+                        key.visit_with_ast_path(self, &mut ast_path);
                     }
                     self.add_value(
                         key.to_id(),
@@ -2207,11 +2209,11 @@ impl<'a> Analyzer<'a> {
                             assign,
                             AssignPatPropField::Value,
                         ));
-                        value.visit_with_path(self, &mut ast_path);
+                        value.visit_with_ast_path(self, &mut ast_path);
                     }
                 }
 
-                _ => prop.visit_with_path(self, &mut ast_path),
+                _ => prop.visit_with_ast_path(self, &mut ast_path),
             }
         }
     }

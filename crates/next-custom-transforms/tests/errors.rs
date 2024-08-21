@@ -57,7 +57,7 @@ fn next_dynamic_errors(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -93,7 +93,7 @@ fn react_server_components_server_graph_errors(input: PathBuf) {
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/layout.js")),
+                FileName::Real(PathBuf::from("/some-project/src/layout.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
                 }),
@@ -118,7 +118,7 @@ fn react_server_components_client_graph_errors(input: PathBuf) {
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/page.js")),
+                FileName::Real(PathBuf::from("/some-project/src/page.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: false,
                 }),
@@ -165,7 +165,7 @@ fn react_server_actions_server_errors(input: PathBuf) {
             chain!(
                 resolver(Mark::new(), Mark::new(), false),
                 server_components(
-                    FileName::Real(PathBuf::from("/app/item.js")),
+                    FileName::Real(PathBuf::from("/app/item.js")).into(),
                     Config::WithOptions(Options {
                         is_react_server_layer: true
                     },),
@@ -201,7 +201,7 @@ fn react_server_actions_client_errors(input: PathBuf) {
             chain!(
                 resolver(Mark::new(), Mark::new(), false),
                 server_components(
-                    FileName::Real(PathBuf::from("/app/item.js")),
+                    FileName::Real(PathBuf::from("/app/item.js")).into(),
                     Config::WithOptions(Options {
                         is_react_server_layer: false
                     },),

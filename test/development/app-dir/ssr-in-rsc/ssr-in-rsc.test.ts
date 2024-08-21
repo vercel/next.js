@@ -39,8 +39,8 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-browser-explicit'
     )
 
-    await assertNoRedbox(browser)
     if (isTurbopack) {
+      await assertNoRedbox(browser)
       if (isReactExperimental) {
         expect(await browser.elementByCss('main').text())
           .toMatchInlineSnapshot(`
@@ -83,55 +83,7 @@ describe('react-dom/server in React Server environment', () => {
         `)
       }
     } else {
-      if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-          "{
-            "default": [
-              "renderToNodeStream",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToStaticNodeStream",
-              "renderToString",
-              "resume",
-              "version"
-            ],
-            "named": [
-              "default",
-              "renderToNodeStream",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToStaticNodeStream",
-              "renderToString",
-              "resume",
-              "version"
-            ]
-          }"
-        `)
-      } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-          "{
-            "default": [
-              "renderToNodeStream",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToStaticNodeStream",
-              "renderToString",
-              "version"
-            ],
-            "named": [
-              "default",
-              "renderToNodeStream",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToStaticNodeStream",
-              "renderToString",
-              "version"
-            ]
-          }"
-        `)
-      }
+      await assertHasRedbox(browser)
     }
     const redbox = {
       description: await getRedboxDescription(browser),
@@ -147,7 +99,7 @@ describe('react-dom/server in React Server environment', () => {
     } else {
       expect(redbox).toMatchInlineSnapshot(`
         {
-          "description": null,
+          "description": "Error: react-dom/server is not supported in React Server Components.",
           "source": null,
         }
       `)
@@ -208,20 +160,16 @@ describe('react-dom/server in React Server environment', () => {
           .toMatchInlineSnapshot(`
           "{
             "default": [
-              "renderToNodeStream",
               "renderToReadableStream",
               "renderToStaticMarkup",
-              "renderToStaticNodeStream",
               "renderToString",
               "resume",
               "version"
             ],
             "named": [
               "default",
-              "renderToNodeStream",
               "renderToReadableStream",
               "renderToStaticMarkup",
-              "renderToStaticNodeStream",
               "renderToString",
               "resume",
               "version"
@@ -231,26 +179,22 @@ describe('react-dom/server in React Server environment', () => {
       } else {
         expect(await browser.elementByCss('main').text())
           .toMatchInlineSnapshot(`
-                  "{
-                    "default": [
-                      "renderToNodeStream",
-                      "renderToReadableStream",
-                      "renderToStaticMarkup",
-                      "renderToStaticNodeStream",
-                      "renderToString",
-                      "version"
-                    ],
-                    "named": [
-                      "default",
-                      "renderToNodeStream",
-                      "renderToReadableStream",
-                      "renderToStaticMarkup",
-                      "renderToStaticNodeStream",
-                      "renderToString",
-                      "version"
-                    ]
-                  }"
-              `)
+          "{
+            "default": [
+              "renderToReadableStream",
+              "renderToStaticMarkup",
+              "renderToString",
+              "version"
+            ],
+            "named": [
+              "default",
+              "renderToReadableStream",
+              "renderToStaticMarkup",
+              "renderToString",
+              "version"
+            ]
+          }"
+        `)
       }
     }
     const redbox = {
@@ -499,20 +443,16 @@ describe('react-dom/server in React Server environment', () => {
           "{
             "default": {
               "default": [
-                "renderToNodeStream",
                 "renderToReadableStream",
                 "renderToStaticMarkup",
-                "renderToStaticNodeStream",
                 "renderToString",
                 "resume",
                 "version"
               ],
               "named": [
                 "default",
-                "renderToNodeStream",
                 "renderToReadableStream",
                 "renderToStaticMarkup",
-                "renderToStaticNodeStream",
                 "renderToString",
                 "resume",
                 "version"
@@ -523,28 +463,24 @@ describe('react-dom/server in React Server environment', () => {
       } else {
         expect(await browser.elementByCss('main').text())
           .toMatchInlineSnapshot(`
-                  "{
-                    "default": {
-                      "default": [
-                        "renderToNodeStream",
-                        "renderToReadableStream",
-                        "renderToStaticMarkup",
-                        "renderToStaticNodeStream",
-                        "renderToString",
-                        "version"
-                      ],
-                      "named": [
-                        "default",
-                        "renderToNodeStream",
-                        "renderToReadableStream",
-                        "renderToStaticMarkup",
-                        "renderToStaticNodeStream",
-                        "renderToString",
-                        "version"
-                      ]
-                    }
-                  }"
-              `)
+          "{
+            "default": {
+              "default": [
+                "renderToReadableStream",
+                "renderToStaticMarkup",
+                "renderToString",
+                "version"
+              ],
+              "named": [
+                "default",
+                "renderToReadableStream",
+                "renderToStaticMarkup",
+                "renderToString",
+                "version"
+              ]
+            }
+          }"
+        `)
       }
     }
     const redbox = {
@@ -627,20 +563,16 @@ describe('react-dom/server in React Server environment', () => {
           "{
             "default": {
               "default": [
-                "renderToNodeStream",
                 "renderToReadableStream",
                 "renderToStaticMarkup",
-                "renderToStaticNodeStream",
                 "renderToString",
                 "resume",
                 "version"
               ],
               "named": [
                 "default",
-                "renderToNodeStream",
                 "renderToReadableStream",
                 "renderToStaticMarkup",
-                "renderToStaticNodeStream",
                 "renderToString",
                 "resume",
                 "version"
@@ -651,28 +583,24 @@ describe('react-dom/server in React Server environment', () => {
       } else {
         expect(await browser.elementByCss('main').text())
           .toMatchInlineSnapshot(`
-                  "{
-                    "default": {
-                      "default": [
-                        "renderToNodeStream",
-                        "renderToReadableStream",
-                        "renderToStaticMarkup",
-                        "renderToStaticNodeStream",
-                        "renderToString",
-                        "version"
-                      ],
-                      "named": [
-                        "default",
-                        "renderToNodeStream",
-                        "renderToReadableStream",
-                        "renderToStaticMarkup",
-                        "renderToStaticNodeStream",
-                        "renderToString",
-                        "version"
-                      ]
-                    }
-                  }"
-              `)
+          "{
+            "default": {
+              "default": [
+                "renderToReadableStream",
+                "renderToStaticMarkup",
+                "renderToString",
+                "version"
+              ],
+              "named": [
+                "default",
+                "renderToReadableStream",
+                "renderToStaticMarkup",
+                "renderToString",
+                "version"
+              ]
+            }
+          }"
+        `)
       }
     }
     const redbox = {
