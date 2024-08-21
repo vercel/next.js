@@ -1,19 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('no-react', () => {
+describe('app-dir no-react', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    installCommand: 'pnpm remove react react-dom',
+    skippedDependencies: ['react', 'react-dom'],
   })
 
-  it('should not have react or react-dom in the package.json', async () => {
-    const packageJson = await next.readJSON('package.json')
-    expect(packageJson.dependencies).toHaveProperty('next')
-    expect(packageJson.dependencies).not.toHaveProperty('react')
-    expect(packageJson.dependencies).not.toHaveProperty('react-dom')
-  })
-
-  it('should work using cheerio without react, react-dom', async () => {
+  it('should render without react, react-dom in App Router', async () => {
     const $ = await next.render$('/')
     expect($('p').text()).toBe('hello world')
   })

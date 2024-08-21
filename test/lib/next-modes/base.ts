@@ -26,6 +26,7 @@ export type PackageJson = {
 export interface NextInstanceOpts {
   files: FileRef | string | { [filename: string]: string | FileRef }
   dependencies?: { [name: string]: string }
+  skippedDependencies?: string[]
   resolutions?: { [name: string]: string }
   packageJson?: PackageJson
   nextConfig?: NextConfig
@@ -56,6 +57,7 @@ export class NextInstance {
   protected buildCommand?: string
   protected startCommand?: string
   protected dependencies?: PackageJson['dependencies'] = {}
+  protected skippedDependencies?: string[] = []
   protected resolutions?: PackageJson['resolutions']
   protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
@@ -173,6 +175,10 @@ export class NextInstance {
           '@types/node': 'latest',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
+        }
+
+        for (const skippedDependency of this.skippedDependencies) {
+          delete finalDependencies[skippedDependency]
         }
 
         if (skipInstall || skipIsolatedNext) {
