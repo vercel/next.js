@@ -29,8 +29,10 @@ const unsupportedTurbopackNextConfigOptions = [
   // 'experimental.serverMinification',
   // 'experimental.serverSourceMaps',
 
-  'experimental.adjustFontFallbacks',
-  'experimental.adjustFontFallbacksWithSizeAdjust',
+  // adjustFontFallbacks and adjustFontFallbacksWithSizeAdjust still need to be implemented.
+  // They don't warn as it doesn't immediately break the build.
+  // 'experimental.adjustFontFallbacks',
+  // 'experimental.adjustFontFallbacksWithSizeAdjust',
   'experimental.allowedRevalidateHeaderKeys',
   'experimental.extensionAlias',
   'experimental.fallbackNodePolyfills',

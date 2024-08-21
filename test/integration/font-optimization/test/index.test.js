@@ -177,7 +177,7 @@ describe('Font Optimization', () => {
         })
 
         // Re-run build to check if it works when build is cached
-        ;(process.env.TURBOPACK ? it.skip : it)(
+        ;(process.env.TURBOPACK_DEV ? it.skip : it)(
           'should work when build is cached',
           async () => {
             await nextBuild(appDir)
@@ -249,7 +249,7 @@ describe('Font Optimization', () => {
       })
     }
   )
-  ;(process.env.TURBOPACK ? it.skip : it)(
+  ;(process.env.TURBOPACK_DEV ? it.skip : it)(
     'Spread operator regression on <link>',
     async () => {
       const appDir = join(fixturesDir, 'spread-operator-regression')
@@ -258,7 +258,7 @@ describe('Font Optimization', () => {
       expect(code).toBe(0)
     }
   )
-  ;(process.env.TURBOPACK ? it.skip : it)(
+  ;(process.env.TURBOPACK_DEV ? it.skip : it)(
     'makeStylesheetInert regression',
     async () => {
       const appDir = join(fixturesDir, 'make-stylesheet-inert-regression')

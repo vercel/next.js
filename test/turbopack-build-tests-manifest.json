@@ -10875,6 +10875,8 @@
     },
     "test/integration/font-optimization/test/index.test.js": {
       "passed": [
+        "Font Optimization Spread operator regression on <link>",
+        "Font Optimization makeStylesheetInert regression",
         "Font Optimization with-google Font optimization for SSR apps production mode should skip this optimization for AMP pages",
         "Font Optimization with-google Font optimization for unreachable font definitions. production mode should fallback to normal stylesheet if the contents of the fonts are unreachable",
         "Font Optimization with-google Font optimization for unreachable font definitions. production mode should not inline multiple fallback link tag",
@@ -10899,14 +10901,11 @@
         "Font Optimization with-typekit Font optimization for SSR apps production mode should inline the typekit fonts for static pages with Next/Head",
         "Font Optimization with-typekit Font optimization for SSR apps production mode should only inline included fonts per page",
         "Font Optimization with-typekit Font optimization for SSR apps production mode should pass nonce to the inlined font definition",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should work for fonts loaded on navigation"
-      ],
-      "pending": [
-        "Font Optimization Spread operator regression on <link>",
-        "Font Optimization makeStylesheetInert regression",
+        "Font Optimization with-typekit Font optimization for SSR apps production mode should work for fonts loaded on navigation",
         "Font Optimization with-google Font optimization for SSR apps production mode should work when build is cached",
         "Font Optimization with-typekit Font optimization for SSR apps production mode should work when build is cached"
       ],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
