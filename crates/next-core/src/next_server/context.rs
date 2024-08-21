@@ -15,8 +15,7 @@ use turbopack::{
 };
 use turbopack_core::{
     compile_time_info::{
-        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
-        FreeVarReferences,
+        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
     },
     condition::ContextCondition,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions},
@@ -317,11 +316,7 @@ fn defines(define_env: &IndexMap<RcStr, RcStr>) -> CompileTimeDefines {
 
     for (k, v) in define_env {
         defines
-            .entry(
-                k.split('.')
-                    .map(|s| DefineableNameSegment::Name(s.into()))
-                    .collect::<Vec<_>>(),
-            )
+            .entry(k.split('.').map(|s| s.into()).collect::<Vec<RcStr>>())
             .or_insert_with(|| {
                 let val = serde_json::from_str(v);
                 match val {
