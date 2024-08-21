@@ -1,11 +1,11 @@
 import { createClient } from "@/utils/supabase/server";
-import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { SubmitButton } from "../../components/forms/submit-button";
 import { Input } from "@/components/forms/input";
 import { Label } from "@/components/forms/label";
 import { FormMessage, Message } from "@/components/forms/form-message";
+import { encodedRedirect } from "@/utils/utils";
 
 export default function Signup({ searchParams }: { searchParams: Message }) {
   const signUp = async (formData: FormData) => {
@@ -29,10 +29,12 @@ export default function Signup({ searchParams }: { searchParams: Message }) {
 
     if (error) {
       console.error(error.code + " " + error.message);
-      return redirect("/signup?error=Error trying to sign up");
+      return encodedRedirect("error", "/signup", "Error trying to sign up");
     } else {
-      return redirect(
-        "/signup?success=Thanks for signing up! Please check your email for a verification link.",
+      return encodedRedirect(
+        "success",
+        "/signup",
+        "Thanks for signing up! Please check your email for a verification link.",
       );
     }
   };

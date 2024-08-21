@@ -5,6 +5,7 @@ import { SubmitButton } from "../../components/forms/submit-button";
 import { Label } from "@/components/forms/label";
 import { Input } from "@/components/forms/input";
 import { FormMessage, Message } from "@/components/forms/form-message";
+import { encodedRedirect } from "@/utils/utils";
 
 export default function Login({ searchParams }: { searchParams: Message }) {
   const signIn = async (formData: FormData) => {
@@ -20,7 +21,7 @@ export default function Login({ searchParams }: { searchParams: Message }) {
     });
 
     if (error) {
-      return redirect("/login?error=Could not authenticate user");
+      return encodedRedirect("error", "/login", "Could not authenticate user");
     }
 
     return redirect("/protected");

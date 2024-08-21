@@ -6,6 +6,7 @@ import { Label } from "@/components/forms/label";
 import { Input } from "@/components/forms/input";
 import { FormMessage, Message } from "@/components/forms/form-message";
 import { headers } from "next/headers";
+import { encodedRedirect } from "@/utils/utils";
 
 export default function ForgotPassword({
   searchParams,
@@ -21,7 +22,7 @@ export default function ForgotPassword({
     const callbackUrl = formData.get("callbackUrl")?.toString();
 
     if (!email) {
-      return redirect("/forgot-password?error=Email is required");
+      return encodedRedirect("error", "/forgot-password", "Email is required");
     }
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -30,15 +31,21 @@ export default function ForgotPassword({
 
     if (error) {
       console.error(error.message);
-      return redirect("/forgot-password?error=Could not reset password");
+      return encodedRedirect(
+        "error",
+        "/forgot-password",
+        "Could not reset password",
+      );
     }
 
     if (callbackUrl) {
       return redirect(callbackUrl);
     }
 
-    return redirect(
-      "/forgot-password?success=Check your email for a link to reset your password.",
+    return encodedRedirect(
+      "success",
+      "/forgot-password",
+      "Check your email for a link to reset your password.",
     );
   };
 

@@ -3,7 +3,7 @@ import { Input } from "@/components/forms/input";
 import { Label } from "@/components/forms/label";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { createClient } from "@/utils/supabase/server";
-import { redirect } from "next/navigation";
+import { encodedRedirect } from "@/utils/utils";
 
 export default async function ResetPassword({
   searchParams,
@@ -18,13 +18,19 @@ export default async function ResetPassword({
     const confirmPassword = formData.get("confirmPassword") as string;
 
     if (!password || !confirmPassword) {
-      redirect(
-        "/protected/reset-password?error=Password and confirm password are required",
+      encodedRedirect(
+        "error",
+        "/protected/reset-password",
+        "Password and confirm password are required",
       );
     }
 
     if (password !== confirmPassword) {
-      redirect("/protected/reset-password?error=Passwords do not match");
+      encodedRedirect(
+        "error",
+        "/protected/reset-password",
+        "Passwords do not match",
+      );
     }
 
     const { error } = await supabase.auth.updateUser({
@@ -32,10 +38,14 @@ export default async function ResetPassword({
     });
 
     if (error) {
-      redirect("/protected/reset-password?error=Password update failed");
+      encodedRedirect(
+        "error",
+        "/protected/reset-password",
+        "Password update failed",
+      );
     }
 
-    redirect("/protected/reset-password?success=Password updated");
+    encodedRedirect("success", "/protected/reset-password", "Password updated");
   };
 
   return (
