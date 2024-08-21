@@ -254,8 +254,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         appIsrStatus: z.boolean().optional(),
         appNavFailHandling: z.boolean().optional(),
         preloadEntriesOnStart: z.boolean().optional(),
-        adjustFontFallbacks: z.boolean().optional(),
-        adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
         allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
         amp: z
           .object({
@@ -563,7 +561,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         pagesBufferLength: z.number().optional(),
       })
       .optional(),
-    optimizeFonts: z.boolean().optional(),
     output: z.enum(['standalone', 'export']).optional(),
     outputFileTracingRoot: z.string().optional(),
     outputFileTracingExcludes: z
