@@ -26,6 +26,28 @@ const requiredPackages = [
     pkg: '@types/node',
     exportsRestrict: true,
   },
+  // Added react and react-dom here to check if
+  // @types/react and @types/react-dom are needed.
+  {
+    file: 'react/index.js',
+    pkg: 'react',
+    exportsRestrict: false,
+  },
+  {
+    file: 'react-dom/index.js',
+    pkg: 'react-dom',
+    exportsRestrict: false,
+  },
+  {
+    file: '@types/react/index.d.ts',
+    pkg: '@types/react',
+    exportsRestrict: true,
+  },
+  {
+    file: '@types/react-dom/index.d.ts',
+    pkg: '@types/react-dom',
+    exportsRestrict: true,
+  },
 ]
 
 export async function verifyTypeScriptSetup({
@@ -58,31 +80,6 @@ export async function verifyTypeScriptSetup({
       return { version: null }
     }
 
-    if (
-      (
-        await hasNecessaryDependencies(dir, [
-          {
-            file: 'react/index.js',
-            pkg: 'react',
-            exportsRestrict: false,
-          },
-        ])
-      ).resolved.has('react')
-    ) {
-      requiredPackages.push(
-        {
-          file: '@types/react/index.d.ts',
-          pkg: '@types/react',
-          exportsRestrict: true,
-        },
-        {
-          file: '@types/react-dom/index.d.ts',
-          pkg: '@types/react-dom',
-          exportsRestrict: true,
-        }
-      )
-    }
-
     // Ensure TypeScript and necessary `@types/*` are installed:
     let deps: NecessaryDependencies = await hasNecessaryDependencies(
       dir,
@@ -111,6 +108,19 @@ export async function verifyTypeScriptSetup({
           ) +
           '\n'
       )
+
+      // TODO(jiwon): refactor to reduce loop
+      if (!deps.resolved.has('react')) {
+        deps.missing = deps.missing.filter(
+          (dep) => dep.pkg !== '@types/react' && dep.pkg !== 'react'
+        )
+      }
+      if (!deps.resolved.has('react-dom')) {
+        deps.missing = deps.missing.filter(
+          (dep) => dep.pkg !== '@types/react-dom' && dep.pkg !== 'react-dom'
+        )
+      }
+
       await installDependencies(dir, deps.missing, true).catch((err) => {
         if (err && typeof err === 'object' && 'command' in err) {
           console.error(
