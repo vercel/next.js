@@ -204,7 +204,6 @@ import { storeShuttle } from './flying-shuttle/store-shuttle'
 import { stitchBuilds } from './flying-shuttle/stitch-builds'
 import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
 import { FallbackMode, fallbackToFallbackField } from '../lib/fallback'
-import { getParamKeys } from '../client/components/params'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -1697,7 +1696,7 @@ export default async function build(
       const additionalPaths = new Map<string, PrerenderedRoute[]>()
       const staticPaths = new Map<string, PrerenderedRoute[]>()
       const appNormalizedPaths = new Map<string, string>()
-      const appDynamicParamPaths = new Set<string>()
+      const fallbackModes = new Map<string, FallbackMode>()
       const appDefaultConfigs = new Map<string, AppConfig>()
       const pageInfos: PageInfos = new Map<string, PageInfo>()
       let pagesManifest = await readManifest<PagesManifest>(pagesManifestPath)
@@ -2084,14 +2083,11 @@ export default async function build(
                             }
                           }
 
-                          if (
-                            workerResult.prerenderFallbackMode &&
-                            workerResult.prerenderFallbackMode !==
-                              FallbackMode.NOT_FOUND
-                          ) {
-                            // whether or not to allow requests for paths not
-                            // returned from generateStaticParams
-                            appDynamicParamPaths.add(originalAppPath)
+                          if (workerResult.prerenderFallbackMode) {
+                            fallbackModes.set(
+                              originalAppPath,
+                              workerResult.prerenderFallbackMode
+                            )
                           }
 
                           appDefaultConfigs.set(originalAppPath, appConfig)
@@ -2832,7 +2828,7 @@ export default async function build(
             // should be collected and included in the dynamic routes part
             // of the manifest instead.
             const routes: string[] = []
-            const dynamicRoutes: PrerenderedRoute[] = []
+            const dynamicRoutes: string[] = []
 
             // Sort the outputted routes to ensure consistent output. Any route
             // though that has unknown route params will be pulled and sorted
@@ -2852,12 +2848,12 @@ export default async function build(
               }
             }
 
-            knownPrerenderRoutes = getSortedRouteObjects(
-              knownPrerenderRoutes,
-              (prerenderedRoute) => prerenderedRoute.path
-            )
             unknownPrerenderRoutes = getSortedRouteObjects(
               unknownPrerenderRoutes,
+              (prerenderedRoute) => prerenderedRoute.path
+            )
+            knownPrerenderRoutes = getSortedRouteObjects(
+              knownPrerenderRoutes,
               (prerenderedRoute) => prerenderedRoute.path
             )
 
@@ -2880,7 +2876,7 @@ export default async function build(
               ) {
                 // If the route has unknown params, then we need to add it to
                 // the list of dynamic routes.
-                dynamicRoutes.push(prerenderedRoute)
+                dynamicRoutes.push(prerenderedRoute.path)
               } else {
                 // If the route doesn't have unknown params, then we need to
                 // add it to the list of routes.
@@ -2995,19 +2991,10 @@ export default async function build(
               // is also included. We need to do this after the routes loop
               // because we might modify the `hasDynamicData` while looping.
               if (!experimentalPPR) {
-                dynamicRoutes.push({
-                  path: page,
-                  encoded: page,
-                  fallbackRouteParams: experimentalPPR
-                    ? getParamKeys(page)
-                    : undefined,
-                })
+                dynamicRoutes.push(page)
               }
 
-              for (const {
-                path: route,
-                fallbackRouteParams,
-              } of dynamicRoutes) {
+              for (const route of dynamicRoutes) {
                 if (hasRevalidateZero) continue
 
                 const normalizedRoute = normalizePagePath(route)
@@ -3037,21 +3024,18 @@ export default async function build(
                   hasPostponed: experimentalPPR,
                 })
 
-                let fallbackMode: FallbackMode
+                let fallbackMode = fallbackModes.get(originalAppPath)
                 let fallbackRevalidate: Revalidate | undefined
 
                 // If there are unknown route parameters, we should fallback to
                 // the generated prerender shell.
-                if (fallbackRouteParams && fallbackRouteParams.length > 0) {
-                  fallbackMode = FallbackMode.STATIC_PRERENDER
+                if (fallbackMode === FallbackMode.STATIC_PRERENDER) {
                   fallbackRevalidate =
                     exportResult.byPath.get(route)?.revalidate ?? false
                 }
                 // If the page should allow requests to paths that haven't been
                 // generated, then we should fallback to blocking the render.
-                else if (appDynamicParamPaths.has(originalAppPath)) {
-                  fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
-
+                else if (fallbackMode === FallbackMode.BLOCKING_STATIC_RENDER) {
                   // When PPR is enabled, we should use `undefined` rather than
                   // `false` as fallbacks aren't supported for non-ppr pages.
                   if (experimentalPPR) fallbackRevalidate = false

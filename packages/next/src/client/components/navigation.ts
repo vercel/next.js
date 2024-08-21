@@ -15,7 +15,7 @@ import {
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import { ReadonlyURLSearchParams } from './navigation.react-server'
-import { trackDynamicDataAccessed } from '../../server/app-render/dynamic-rendering'
+import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
 
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
@@ -81,9 +81,9 @@ function trackParamsAccessed(expression: string) {
       return
     }
 
-    // If there are any unknown route parameters, then we should track this as
-    // a dynamic access.
-    trackDynamicDataAccessed(staticGenerationStore, expression)
+    // There are fallback route params, we should track these as dynamic
+    // accesses.
+    trackFallbackParamAccessed(staticGenerationStore, expression)
   }
 }
 

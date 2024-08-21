@@ -1,4 +1,4 @@
-import { trackDynamicDataAccessed } from '../../server/app-render/dynamic-rendering'
+import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
 import { ReflectAdapter } from '../../server/web/spec-extension/adapters/reflect'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -6,7 +6,7 @@ import { staticGenerationAsyncStorage } from './static-generation-async-storage.
 
 export type DynamicRouteParams = ReadonlyMap<string, string>
 
-export function getParamKeys(page: string) {
+function getParamKeys(page: string) {
   const pattern = getRouteRegex(page)
   const matcher = getRouteMatcher(pattern)
 
@@ -60,13 +60,10 @@ export function createDynamicallyTrackedParams(params: Params): Params {
   if (!staticGenerationStore) return params
 
   // If there are no unknown route params, we can just return the params.
-  const { fallbackRouteParams, forceStatic } = staticGenerationStore
+  const { fallbackRouteParams } = staticGenerationStore
   if (!fallbackRouteParams || fallbackRouteParams.size === 0) {
     return params
   }
-
-  // If we are in force static mode, we should return the params as is.
-  if (forceStatic) return params
 
   return new Proxy(params as Params, {
     get(target, prop, receiver) {
@@ -77,7 +74,7 @@ export function createDynamicallyTrackedParams(params: Params): Params {
         prop in params &&
         fallbackRouteParams.has(prop)
       ) {
-        trackDynamicDataAccessed(staticGenerationStore, `params.${prop}`)
+        trackFallbackParamAccessed(staticGenerationStore, `params.${prop}`)
       }
 
       return ReflectAdapter.get(target, prop, receiver)
@@ -88,7 +85,7 @@ export function createDynamicallyTrackedParams(params: Params): Params {
         prop in params &&
         fallbackRouteParams.has(prop)
       ) {
-        trackDynamicDataAccessed(staticGenerationStore, `params.${prop}`)
+        trackFallbackParamAccessed(staticGenerationStore, `params.${prop}`)
       }
 
       return ReflectAdapter.has(target, prop)
@@ -96,7 +93,7 @@ export function createDynamicallyTrackedParams(params: Params): Params {
     ownKeys(target) {
       for (const key in params) {
         if (fallbackRouteParams.has(key)) {
-          trackDynamicDataAccessed(staticGenerationStore, 'params')
+          trackFallbackParamAccessed(staticGenerationStore, 'params')
         }
       }
 

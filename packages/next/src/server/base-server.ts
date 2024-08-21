@@ -2817,7 +2817,12 @@ export default abstract class Server<
           throw new NoFallbackError()
         }
 
-        if (!isNextDataRequest && !isRSCRequest) {
+        // We want to try and render a fallback if this is an app page or if
+        // it's a pages page.
+        if (
+          (isPagesRouteModule(components.routeModule) && !isNextDataRequest) ||
+          (isAppPageRouteModule(components.routeModule) && !isRSCRequest)
+        ) {
           let fallbackKey: string | null = null
           if (isProduction) {
             if (isAppPath) {

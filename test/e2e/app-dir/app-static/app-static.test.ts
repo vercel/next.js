@@ -2161,11 +2161,8 @@ describe('app-dir static/dynamic handling', () => {
   it('should correctly handle statusCode with notFound + ISR', async () => {
     for (let i = 0; i < 5; i++) {
       const res = await next.fetch('/articles/non-existent')
-      if (process.env.__NEXT_EXPERIMENTAL_PPR) {
-        expect(res.status).toBe(200)
-      } else {
-        expect(res.status).toBe(404)
-      }
+
+      expect(res.status).toBe(404)
       expect(await res.text()).toContain('This page could not be found')
       await waitFor(500)
     }
@@ -3102,11 +3099,7 @@ describe('app-dir static/dynamic handling', () => {
       const html = await res.text()
       const $ = cheerio.load(html)
 
-      if (process.env.__NEXT_EXPERIMENTAL_PPR) {
-        expect(JSON.parse($('#params').text())).toEqual({ slug: '' })
-      } else {
-        expect(JSON.parse($('#params').text())).toEqual({ slug: 'random' })
-      }
+      expect(JSON.parse($('#params').text())).toEqual({ slug: 'random' })
       expect(JSON.parse($('#headers').text())).toEqual([])
       expect(JSON.parse($('#cookies').text())).toEqual([])
 
