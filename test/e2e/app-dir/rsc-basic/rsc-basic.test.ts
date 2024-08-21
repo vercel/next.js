@@ -653,75 +653,77 @@ describe('app dir - rsc basics', () => {
               ${flag}: true
             }
           }
-          `
+          `,
+          async () => {
+            await next.start()
+            const resPages$ = await next.render$('/app-react')
+            const [
+              ssrReact,
+              ssrReactDOM,
+              ssrReactDOMServer,
+              ssrClientReact,
+              ssrClientReactDOM,
+              ssrClientReactDOMServer,
+            ] = [
+              resPages$('#react').text(),
+              resPages$('#react-dom').text(),
+              resPages$('#react-dom-server').text(),
+              resPages$('#client-react').text(),
+              resPages$('#client-react-dom').text(),
+              resPages$('#client-react-dom-server').text(),
+            ]
+            expect({
+              ssrReact,
+              ssrReactDOM,
+              ssrReactDOMServer,
+              ssrClientReact,
+              ssrClientReactDOM,
+              ssrClientReactDOMServer,
+            }).toEqual({
+              ssrReact: expect.stringMatching('-experimental-'),
+              ssrReactDOM: expect.stringMatching('-experimental-'),
+              ssrReactDOMServer: expect.stringMatching('-experimental-'),
+              ssrClientReact: expect.stringMatching('-experimental-'),
+              ssrClientReactDOM: expect.stringMatching('-experimental-'),
+              ssrClientReactDOMServer: expect.stringMatching('-experimental-'),
+            })
+
+            const browser = await next.browser('/app-react')
+            const [
+              browserReact,
+              browserReactDOM,
+              browserReactDOMServer,
+              browserClientReact,
+              browserClientReactDOM,
+              browserClientReactDOMServer,
+            ] = await browser.eval(`
+              [
+                document.querySelector('#react').innerText,
+                document.querySelector('#react-dom').innerText,
+                document.querySelector('#react-dom-server').innerText,
+                document.querySelector('#client-react').innerText,
+                document.querySelector('#client-react-dom').innerText,
+                document.querySelector('#client-react-dom-server').innerText,
+              ]
+            `)
+            expect({
+              browserReact,
+              browserReactDOM,
+              browserReactDOMServer,
+              browserClientReact,
+              browserClientReactDOM,
+              browserClientReactDOMServer,
+            }).toEqual({
+              browserReact: expect.stringMatching('-experimental-'),
+              browserReactDOM: expect.stringMatching('-experimental-'),
+              browserReactDOMServer: expect.stringMatching('-experimental-'),
+              browserClientReact: expect.stringMatching('-experimental-'),
+              browserClientReactDOM: expect.stringMatching('-experimental-'),
+              browserClientReactDOMServer:
+                expect.stringMatching('-experimental-'),
+            })
+          }
         )
-
-        await next.start()
-        const resPages$ = await next.render$('/app-react')
-        const [
-          ssrReact,
-          ssrReactDOM,
-          ssrReactDOMServer,
-          ssrClientReact,
-          ssrClientReactDOM,
-          ssrClientReactDOMServer,
-        ] = [
-          resPages$('#react').text(),
-          resPages$('#react-dom').text(),
-          resPages$('#react-dom-server').text(),
-          resPages$('#client-react').text(),
-          resPages$('#client-react-dom').text(),
-          resPages$('#client-react-dom-server').text(),
-        ]
-        expect({
-          ssrReact,
-          ssrReactDOM,
-          ssrReactDOMServer,
-          ssrClientReact,
-          ssrClientReactDOM,
-          ssrClientReactDOMServer,
-        }).toEqual({
-          ssrReact: expect.stringMatching('-experimental-'),
-          ssrReactDOM: expect.stringMatching('-experimental-'),
-          ssrReactDOMServer: expect.stringMatching('-experimental-'),
-          ssrClientReact: expect.stringMatching('-experimental-'),
-          ssrClientReactDOM: expect.stringMatching('-experimental-'),
-          ssrClientReactDOMServer: expect.stringMatching('-experimental-'),
-        })
-
-        const browser = await next.browser('/app-react')
-        const [
-          browserReact,
-          browserReactDOM,
-          browserReactDOMServer,
-          browserClientReact,
-          browserClientReactDOM,
-          browserClientReactDOMServer,
-        ] = await browser.eval(`
-          [
-            document.querySelector('#react').innerText,
-            document.querySelector('#react-dom').innerText,
-            document.querySelector('#react-dom-server').innerText,
-            document.querySelector('#client-react').innerText,
-            document.querySelector('#client-react-dom').innerText,
-            document.querySelector('#client-react-dom-server').innerText,
-          ]
-        `)
-        expect({
-          browserReact,
-          browserReactDOM,
-          browserReactDOMServer,
-          browserClientReact,
-          browserClientReactDOM,
-          browserClientReactDOMServer,
-        }).toEqual({
-          browserReact: expect.stringMatching('-experimental-'),
-          browserReactDOM: expect.stringMatching('-experimental-'),
-          browserReactDOMServer: expect.stringMatching('-experimental-'),
-          browserClientReact: expect.stringMatching('-experimental-'),
-          browserClientReactDOM: expect.stringMatching('-experimental-'),
-          browserClientReactDOMServer: expect.stringMatching('-experimental-'),
-        })
       }
     )
   })
