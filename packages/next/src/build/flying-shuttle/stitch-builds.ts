@@ -17,7 +17,6 @@ import {
   APP_BUILD_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
   APP_PATHS_MANIFEST,
-  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   BUILD_MANIFEST,
   CLIENT_REFERENCE_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
@@ -365,22 +364,6 @@ export async function stitchBuilds(
       JSON.stringify(mergedNextFontManifest)
     )}`
   )
-
-  // for server/font-manifest.json we just merge the arrays
-  for (const file of [AUTOMATIC_FONT_OPTIMIZATION_MANIFEST]) {
-    const [restoreFontManifest, currentFontManifest] = await Promise.all(
-      [
-        path.join(shuttleDir, 'server', file),
-        path.join(distDir, 'server', file),
-      ].map(async (f) => JSON.parse(await fs.promises.readFile(f, 'utf8')))
-    )
-    const mergedFontManifest = [...restoreFontManifest, ...currentFontManifest]
-
-    await fs.promises.writeFile(
-      path.join(distDir, 'server', file),
-      JSON.stringify(mergedFontManifest, null, 2)
-    )
-  }
 
   // for server/functions-config-manifest.json we just merge
   // the functions field
