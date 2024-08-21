@@ -189,7 +189,7 @@ export const projectSpecification: ProjectSpecification = {
     },
     ts: {
       deps: ['next'],
-      devDeps: ['@types/node', 'typescript'],
+      devDeps: ['@types/node', '@types/react', 'typescript'],
       files: [
         'app/[...not-found]/route.ts',
         'app/methods/[method]/route.ts',

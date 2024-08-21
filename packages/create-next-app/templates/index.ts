@@ -228,7 +228,12 @@ export const installTemplate = async ({
   if (isApi) {
     delete packageJson.dependencies.react;
     delete packageJson.dependencies["react-dom"];
-    delete packageJson.devDependencies["@types/react"];
+    // We cannot delete `@types/react` now since it is used in
+    // route type definitions e.g. `.next/types/app/page.ts`.
+    // TODO(jiwon): Implement this when we added logic to
+    // auto-install `react` and `react-dom` if page.tsx was used.
+    // We can achieve this during verify-typescript stage and see
+    // if a type error was thrown at `distDir/types/app/page.ts`.
     delete packageJson.devDependencies["@types/react-dom"];
 
     delete packageJson.scripts.lint;
