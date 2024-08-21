@@ -1,4 +1,4 @@
-import { serverComponentAction } from './actions'
+import { serverComponentAction } from '../actions'
 
 export default function Page() {
   return (

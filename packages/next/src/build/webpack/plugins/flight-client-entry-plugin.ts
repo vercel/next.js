@@ -164,6 +164,14 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
   return dedupedCSSImports
 }
 
+type UsedActionMap = {
+  node: Record<string, Set<string>>
+  edge: Record<string, Set<string>>
+}
+type UsedActionPerEntry = {
+  [entryPath: string]: UsedActionMap
+}
+
 export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
@@ -171,10 +179,7 @@ export class FlightClientEntryPlugin {
   isEdgeServer: boolean
   assetPrefix: string
   webpackRuntime: string
-  usedActions: {
-    node: Record<string, Set<string>>
-    edge: Record<string, Set<string>>
-  }
+  usedActions: UsedActionPerEntry
 
   constructor(options: Options) {
     this.dev = options.dev
@@ -186,14 +191,39 @@ export class FlightClientEntryPlugin {
       ? EDGE_RUNTIME_WEBPACK
       : DEFAULT_RUNTIME_WEBPACK
 
-    this.usedActions = {
-      node: {},
-      edge: {},
-    }
+    this.usedActions = {}
   }
 
-  get usedActionsMapping() {
-    return this.usedActions[this.isEdgeServer ? 'edge' : 'node']
+  getUsedActionsInEntry(
+    entryName: string,
+    modResource: string
+  ): Set<string> | undefined {
+    const runtime = this.isEdgeServer ? 'edge' : 'node'
+    const actionsRuntimeMap = this.usedActions[entryName]
+    const actionMap = actionsRuntimeMap ? actionsRuntimeMap[runtime] : undefined
+    return actionMap ? actionMap[modResource] : undefined
+  }
+
+  setUsedActionsInEntry(
+    entryName: string,
+    modResource: string,
+    actionNames: string[]
+  ) {
+    const runtime = this.isEdgeServer ? 'edge' : 'node'
+    if (!this.usedActions[entryName]) {
+      this.usedActions[entryName] = {
+        node: {},
+        edge: {},
+      }
+    }
+    if (!this.usedActions[entryName][runtime]) {
+      this.usedActions[entryName][runtime] = {}
+    }
+    const actionsMap = this.usedActions[entryName][runtime]
+    if (!actionsMap[modResource]) {
+      actionsMap[modResource] = new Set()
+    }
+    actionNames.forEach((name) => actionsMap[modResource].add(name))
   }
 
   apply(compiler: webpack.Compiler) {
@@ -307,6 +337,7 @@ export class FlightClientEntryPlugin {
 
         const { clientComponentImports, actionImports, cssImports } =
           this.collectComponentInfoFromServerEntryDependency({
+            entryName: name,
             entryRequest,
             compilation,
             resolvedModule: connection.resolvedModule,
@@ -469,6 +500,7 @@ export class FlightClientEntryPlugin {
       // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
       // add aggregate them.
       const actionEntryImports = this.collectClientActionsFromDependencies({
+        entryName: name,
         compilation,
         dependencies: ssrEntryDependencies,
       })
@@ -526,9 +558,11 @@ export class FlightClientEntryPlugin {
   }
 
   collectClientActionsFromDependencies({
+    entryName,
     compilation,
     dependencies,
   }: {
+    entryName: string
     compilation: webpack.Compilation
     dependencies: ReturnType<typeof webpack.EntryPlugin.createDependency>[]
   }) {
@@ -560,11 +594,7 @@ export class FlightClientEntryPlugin {
 
         // Collect used exported actions.
         if (visitedModule.has(modResource) && actions) {
-          if (!this.usedActionsMapping[modResource]) {
-            this.usedActionsMapping[modResource] = new Set(ids)
-          } else {
-            ids.forEach((id) => this.usedActionsMapping[modResource].add(id))
-          }
+          this.setUsedActionsInEntry(entryName, modResource, ids)
         }
 
         if (visitedModule.has(modResource)) return
@@ -630,10 +660,12 @@ export class FlightClientEntryPlugin {
   }
 
   collectComponentInfoFromServerEntryDependency({
+    entryName,
     entryRequest,
     compilation,
     resolvedModule,
   }: {
+    entryName: string
     entryRequest: string
     compilation: webpack.Compilation
     resolvedModule: any /* Dependency */
@@ -734,9 +766,11 @@ export class FlightClientEntryPlugin {
 
       if (!modResource) return
       if (visitedOfActionTraverse.has(modResource)) {
-        if (this.usedActionsMapping[modResource]) {
-          importedIdentifiers.forEach((id) =>
-            this.usedActionsMapping[modResource].add(id)
+        if (this.getUsedActionsInEntry(entryName, modResource)) {
+          this.setUsedActionsInEntry(
+            entryName,
+            modResource,
+            importedIdentifiers
           )
         }
         return
@@ -746,13 +780,8 @@ export class FlightClientEntryPlugin {
       if (isActionServerLayerEntryModule(mod)) {
         // `ids` are the identifiers that are imported from the dependency,
         // if it's present, it's an array of strings.
-        if (!this.usedActionsMapping[modResource]) {
-          this.usedActionsMapping[modResource] = new Set(importedIdentifiers)
-        } else {
-          importedIdentifiers.forEach((id) =>
-            this.usedActionsMapping[modResource].add(id)
-          )
-        }
+        this.setUsedActionsInEntry(entryName, modResource, importedIdentifiers)
+
         return
       }
 
@@ -931,7 +960,7 @@ export class FlightClientEntryPlugin {
   }) {
     // Filter out the unused actions before create action entry.
     for (const [filePath, names] of actions.entries()) {
-      const usedActionNames = this.usedActionsMapping[filePath]
+      const usedActionNames = this.getUsedActionsInEntry(entryName, filePath)
       if (!usedActionNames) continue
       const containsAll = usedActionNames.has('*')
       if (usedActionNames && !containsAll) {
@@ -970,9 +999,10 @@ export class FlightClientEntryPlugin {
     const currentCompilerServerActions = this.isEdgeServer
       ? pluginState.edgeServerActions
       : pluginState.serverActions
-    for (const [p, names] of actionsArray) {
-      for (const name of names) {
-        const id = generateActionId(p, name)
+
+    for (const [actionFilePath, actionNames] of actionsArray) {
+      for (const name of actionNames) {
+        const id = generateActionId(actionFilePath, name)
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},

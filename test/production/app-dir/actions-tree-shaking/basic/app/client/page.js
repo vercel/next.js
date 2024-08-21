@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { clientComponentAction } from './actions'
+import { clientComponentAction } from '../actions'
 
 export default function Page() {
   const [text, setText] = useState('initial')
