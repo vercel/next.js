@@ -312,7 +312,7 @@ pub async fn parse_segment_config_from_source(
 }
 
 fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
-    IssueSource::from_byte_offset(source, span.lo.to_usize(), span.hi.to_usize())
+    IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
 fn parse_config_value(
