@@ -1,7 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('middleware-sitemap', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
@@ -17,14 +18,18 @@ describe('middleware-sitemap', () => {
       return content.replace('REPLACE_TO_SITEMAP', 'sitemap.xml')
     })
 
-    await next.stop()
-    await next.start()
+    if (!isNextDev) {
+      await next.stop()
+      await next.start()
+    }
 
-    html = await next.render('/sitemap.xml')
-    expect(html).not.toContain('redirected')
-    expect(html).toContain('<?xml version="1.0" encoding="UTF-8"?>')
-    expect(html).toContain(
-      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-    )
+    await retry(async () => {
+      html = await next.render('/sitemap.xml')
+      expect(html).not.toContain('redirected')
+      expect(html).toContain('<?xml version="1.0" encoding="UTF-8"?>')
+      expect(html).toContain(
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+      )
+    })
   })
 })
