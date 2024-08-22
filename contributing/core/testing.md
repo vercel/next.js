@@ -176,3 +176,8 @@ $ gh workflow run --repo vercel/front cron-update-next.yml --field version=#6757
 # Uses a build from commit 188f76947389a27e9bcff8ebf9079433679256a7
 $ gh workflow run --repo vercel/front cron-update-next.yml --raw-field version=@188f76947389a27e9bcff8ebf9079433679256a7
 ```
+
+The workflow will start soon in https://github.com/vercel/front/actions/workflows/cron-update-next.yml.
+The workflow run should create a branch and a PR that you can checkout to validate beyond CI (e.g. dev-only changes).
+The logs of the workflow run will print a link to the PR.
+The PR will also be assigned to you to find it easier.
