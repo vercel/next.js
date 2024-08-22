@@ -68,10 +68,9 @@ describe('fetch-cache', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (await fs.readFile(testServer, 'utf8')).replace(
-        'port:',
-        `minimalMode: ${minimalMode},port:`
-      )
+      (
+        await fs.readFile(testServer, 'utf8')
+      ).replace('port:', `minimalMode: ${minimalMode},port:`)
     )
     appPort = await findPort()
     nextInstance = await initNextServerScript(
