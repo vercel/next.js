@@ -126,7 +126,7 @@ export default async function handler(req, res) {
 
 ### Testing on-Demand ISR during development
 
-When running locally with `next dev`, `getStaticProps` is invoked on every request. To verify your on-demand ISR configuration is correct, you will need to create a [production build](/docs/pages/api-reference/next-cli#build) and start the [production server](/docs/pages/api-reference/next-cli#production):
+When running locally with `next dev`, `getStaticProps` is invoked on every request. To verify your on-demand ISR configuration is correct, you will need to create a [production build](/docs/pages/api-reference/cli/next#next-build-options) and start the [production server](/docs/pages/api-reference/cli/next#next-start-options):
 
 ```bash filename="Terminal"
 $ next build
