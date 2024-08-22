@@ -1615,8 +1615,8 @@ importers:
         specifier: 18.2.0
         version: 18.2.0(react@18.2.0)
       styled-jsx:
-        specifier: ^5.1.2
-        version: 5.1.6(@babel/core@7.22.5)(react@18.2.0)
+        specifier: 5.1.1
+        version: 5.1.1(@babel/core@7.22.5)(react@18.2.0)
 
   turbopack/packages/node-module-trace: {}
 
@@ -4448,7 +4448,7 @@ packages:
     resolution: {integrity: sha512-MHjT95QuipcPrpLM+8JMSzFx6eHp5Bm+4XeFDJlwsvVBjmKNiIAvasGK2fxz2WbGRlnvqehFbh07MMa7n3YJnw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dependencies:
-      '@jridgewell/trace-mapping': 0.3.22
+      '@jridgewell/trace-mapping': 0.3.19
       callsites: 3.1.0
       graceful-fs: 4.2.11
 
@@ -23331,24 +23331,6 @@ packages:
       '@babel/core': 7.22.5
       client-only: 0.0.1
       react: 18.2.0
-
-  /styled-jsx@5.1.6(@babel/core@7.22.5)(react@18.2.0):
-    resolution: {integrity: sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA==}
-    engines: {node: '>= 12.0.0'}
-    peerDependencies:
-      '@babel/core': '*'
-      babel-plugin-macros: '*'
-      react: '>= 16.8.0 || 17.x.x || ^18.0.0-0 || ^19.0.0-0'
-    peerDependenciesMeta:
-      '@babel/core':
-        optional: true
-      babel-plugin-macros:
-        optional: true
-    dependencies:
-      '@babel/core': 7.22.5
-      client-only: 0.0.1
-      react: 18.2.0
-    dev: false
 
   /stylehacks@4.0.3:
     resolution: {integrity: sha512-7GlLk9JwlElY4Y6a/rmbH2MhVlTyVmiJd1PfTCqFaIBEGMYNsrO/v3SeGTdhBThLg4Z+NbOk/qFMwCa+J+3p/g==}
