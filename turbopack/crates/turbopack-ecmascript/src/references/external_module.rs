@@ -245,7 +245,7 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
     }
 }
 
-/// A module that only has an ident and no content. This is used
+/// A module that only has an ident and no content nor references. It is used
 /// to include a module's ident in the module graph before the module
 /// itself is resolved, as is the case with NextServerComponentModule's
 /// "client modules" and "client modules ssr".
