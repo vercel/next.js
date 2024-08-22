@@ -56,8 +56,8 @@ const Hit = ({ hit }: HitProps) => {
     <div className="p-5 mb-5 space-y-6 bg-gray-100 border sm:flex sm:space-y-0 sm:space-x-8 sm:flex-row border-white/25 bg-opacity-5 backdrop-blur-sm rounded-xl">
       <Image
         src={hit.image}
-        width="0"
-        height="0"
+        width="230"
+        height="107"
         sizes="100vw"
         alt={hit.name + " steam banner"}
         className="w-full sm:max-w-[230px] h-auto rounded-xl"
