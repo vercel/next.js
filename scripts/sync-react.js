@@ -12,6 +12,13 @@ const filesReferencingReactPeerDependencyVersion = [
   'packages/create-next-app/templates/index.ts',
   'test/lib/next-modes/base.ts',
 ]
+const appManifestsInstallingNextjsPeerDependencies = [
+  'examples/reproduction-template/package.json',
+  'test/.stats-app/package.json',
+  // TODO: These should use the usual test helpers that automatically install the right React version
+  'test/e2e/next-test/first-time-setup-js/package.json',
+  'test/e2e/next-test/first-time-setup-ts/package.json',
+]
 
 // Use this script to update Next's vendored copy of React and related packages:
 //
@@ -154,6 +161,20 @@ Or, run this command with no arguments to use the most recently published versio
         // Prettier would add a newline anyway so do it manually to skip the additional `pnpm prettier-write`
         '\n'
     )
+
+    for (const fileName of appManifestsInstallingNextjsPeerDependencies) {
+      const packageJsonPath = path.join(cwd, fileName)
+      const packageJson = await fsp.readFile(packageJsonPath, 'utf-8')
+      const manifest = JSON.parse(packageJson)
+      manifest.dependencies['react'] = newVersionStr
+      manifest.dependencies['react-dom'] = newVersionStr
+      await fsp.writeFile(
+        packageJsonPath,
+        JSON.stringify(manifest, null, 2) +
+          // Prettier would add a newline anyway so do it manually to skip the additional `pnpm prettier-write`
+          '\n'
+      )
+    }
   }
 
   // Install the updated dependencies and build the vendored React files.
