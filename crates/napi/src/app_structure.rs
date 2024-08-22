@@ -35,7 +35,7 @@ async fn project_fs(project_dir: RcStr, watching: bool) -> Result<Vc<Box<dyn Fil
 #[serde(rename_all = "camelCase")]
 struct LoaderTreeForJs {
     segment: RcStr,
-    parallel_routes: IndexMap<RcStr, ReadRef<LoaderTreeForJs>>,
+    parallel_routes: IndexMap<RcStr, LoaderTreeForJs>,
     #[turbo_tasks(trace_ignore)]
     components: ComponentsForJs,
     #[turbo_tasks(trace_ignore)]
@@ -143,7 +143,7 @@ enum MetadataItemForJs {
 
 async fn prepare_components_for_js(
     project_path: Vc<FileSystemPath>,
-    components: Vc<Components>,
+    components: &Components,
 ) -> Result<ComponentsForJs> {
     let Components {
         page,
@@ -156,7 +156,7 @@ async fn prepare_components_for_js(
         default,
         route,
         metadata,
-    } = &*components.await?;
+    } = &components;
     let mut result = ComponentsForJs::default();
     async fn add(
         result: &mut Option<RcStr>,
@@ -250,20 +250,33 @@ async fn prepare_loader_tree_for_js(
     project_path: Vc<FileSystemPath>,
     loader_tree: Vc<LoaderTree>,
 ) -> Result<Vc<LoaderTreeForJs>> {
+    let loader_tree = &*loader_tree.await?;
+
+    Ok(
+        prepare_loader_tree_for_js_internal(project_path, loader_tree)
+            .await?
+            .cell(),
+    )
+}
+
+async fn prepare_loader_tree_for_js_internal(
+    project_path: Vc<FileSystemPath>,
+    loader_tree: &LoaderTree,
+) -> Result<LoaderTreeForJs> {
     let LoaderTree {
         page: _,
         segment,
         parallel_routes,
         components,
         global_metadata,
-    } = &*loader_tree.await?;
+    } = &loader_tree;
 
     let parallel_routes = parallel_routes
         .iter()
-        .map(|(key, &value)| async move {
+        .map(|(key, value)| async move {
             Ok((
                 key.clone(),
-                prepare_loader_tree_for_js(project_path, value).await?,
+                prepare_loader_tree_for_js_internal(project_path, value).await?,
             ))
         })
         .try_join()
@@ -271,7 +284,7 @@ async fn prepare_loader_tree_for_js(
         .into_iter()
         .collect();
 
-    let components = prepare_components_for_js(project_path, *components).await?;
+    let components = prepare_components_for_js(project_path, components).await?;
 
     let global_metadata = global_metadata.await?;
 
@@ -285,8 +298,7 @@ async fn prepare_loader_tree_for_js(
         parallel_routes,
         components,
         global_metadata: meta,
-    }
-    .cell())
+    })
 }
 
 #[turbo_tasks::function]

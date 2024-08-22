@@ -41,6 +41,7 @@ export async function loadStaticPaths({
   maxMemoryCacheSize,
   requestHeaders,
   cacheHandler,
+  nextConfigOutput,
 }: {
   dir: string
   distDir: string
@@ -56,6 +57,7 @@ export async function loadStaticPaths({
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
+  nextConfigOutput: 'standalone' | 'export' | undefined
 }): Promise<PartialStaticPathsResult> {
   // update work memory runtime-config
   require('../../shared/lib/runtime-config.external').setConfig(config)
@@ -107,6 +109,7 @@ export async function loadStaticPaths({
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
       ComponentMod: components.ComponentMod,
+      nextConfigOutput,
     })
   }
 
