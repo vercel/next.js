@@ -30,6 +30,7 @@ import {
   isClientComponentEntryModule,
   isCSSMod,
   regexCSS,
+  isActionServerLayerEntryModule,
 } from '../loaders/utils'
 import {
   traverseModules,
@@ -75,6 +76,11 @@ const pluginState = getProxiedPluginState({
   // A map to track "action" -> "list of bundles".
   serverActions: {} as ActionManifest['node'],
   edgeServerActions: {} as ActionManifest['edge'],
+
+  usedActions: {
+    node: {} as Record<string, Set<string>>,
+    edge: {} as Record<string, Set<string>>,
+  },
 
   actionModServerId: {} as Record<
     string,
@@ -158,12 +164,25 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
   return dedupedCSSImports
 }
 
+// Collection of action module path and action names per runtime.
+type UsedActionMap = {
+  node: Record<string, Set<string>>
+  edge: Record<string, Set<string>>
+}
+type UsedActionPerEntry = {
+  [entryName: string]: UsedActionMap
+}
+
 export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
   encryptionKey: string
   isEdgeServer: boolean
   assetPrefix: string
+  webpackRuntime: string
+
+  // Collect the used actions based on the entry name and runtime.
+  usedActions: UsedActionPerEntry
 
   constructor(options: Options) {
     this.dev = options.dev
@@ -171,6 +190,43 @@ export class FlightClientEntryPlugin {
     this.isEdgeServer = options.isEdgeServer
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
     this.encryptionKey = options.encryptionKey
+    this.webpackRuntime = this.isEdgeServer
+      ? EDGE_RUNTIME_WEBPACK
+      : DEFAULT_RUNTIME_WEBPACK
+
+    this.usedActions = {}
+  }
+
+  getUsedActionsInEntry(
+    entryName: string,
+    modResource: string
+  ): Set<string> | undefined {
+    const runtime = this.isEdgeServer ? 'edge' : 'node'
+    const actionsRuntimeMap = this.usedActions[entryName]
+    const actionMap = actionsRuntimeMap ? actionsRuntimeMap[runtime] : undefined
+    return actionMap ? actionMap[modResource] : undefined
+  }
+
+  setUsedActionsInEntry(
+    entryName: string,
+    modResource: string,
+    actionNames: string[]
+  ) {
+    const runtime = this.isEdgeServer ? 'edge' : 'node'
+    if (!this.usedActions[entryName]) {
+      this.usedActions[entryName] = {
+        node: {},
+        edge: {},
+      }
+    }
+    if (!this.usedActions[entryName][runtime]) {
+      this.usedActions[entryName][runtime] = {}
+    }
+    const actionsMap = this.usedActions[entryName][runtime]
+    if (!actionsMap[modResource]) {
+      actionsMap[modResource] = new Set()
+    }
+    actionNames.forEach((name) => actionsMap[modResource].add(name))
   }
 
   apply(compiler: webpack.Compiler) {
@@ -284,6 +340,7 @@ export class FlightClientEntryPlugin {
 
         const { clientComponentImports, actionImports, cssImports } =
           this.collectComponentInfoFromServerEntryDependency({
+            entryName: name,
             entryRequest,
             compilation,
             resolvedModule: connection.resolvedModule,
@@ -399,11 +456,6 @@ export class FlightClientEntryPlugin {
     for (const [name, actionEntryImports] of Object.entries(
       actionMapsPerEntry
     )) {
-      for (const [dep, actionNames] of actionEntryImports) {
-        for (const actionName of actionNames) {
-          createdActions.add(name + '@' + dep + '@' + actionName)
-        }
-      }
       addActionEntryList.push(
         this.injectActionEntry({
           compiler,
@@ -411,6 +463,7 @@ export class FlightClientEntryPlugin {
           actions: actionEntryImports,
           entryName: name,
           bundlePath: name,
+          createdActions,
         })
       )
     }
@@ -450,6 +503,7 @@ export class FlightClientEntryPlugin {
       // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
       // add aggregate them.
       const actionEntryImports = this.collectClientActionsFromDependencies({
+        entryName: name,
         compilation,
         dependencies: ssrEntryDependencies,
       })
@@ -497,6 +551,7 @@ export class FlightClientEntryPlugin {
             entryName: name,
             bundlePath: name,
             fromClient: true,
+            createdActions,
           })
         )
       }
@@ -506,9 +561,11 @@ export class FlightClientEntryPlugin {
   }
 
   collectClientActionsFromDependencies({
+    entryName,
     compilation,
     dependencies,
   }: {
+    entryName: string
     compilation: webpack.Compilation
     dependencies: ReturnType<typeof webpack.EntryPlugin.createDependency>[]
   }) {
@@ -526,23 +583,45 @@ export class FlightClientEntryPlugin {
       entryRequest: string
       resolvedModule: any
     }) => {
-      const collectActionsInDep = (mod: webpack.NormalModule): void => {
+      const collectActionsInDep = (
+        mod: webpack.NormalModule,
+        ids: string[]
+      ): void => {
         if (!mod) return
 
         const modResource = getModuleResource(mod)
 
-        if (!modResource || visitedModule.has(modResource)) return
-        visitedModule.add(modResource)
+        if (!modResource) return
 
         const actions = getActionsFromBuildInfo(mod)
+
+        // Collect used exported actions.
+        if (visitedModule.has(modResource) && actions) {
+          this.setUsedActionsInEntry(entryName, modResource, ids)
+        }
+
+        if (visitedModule.has(modResource)) return
+
+        visitedModule.add(modResource)
+
         if (actions) {
           collectedActions.set(modResource, actions)
         }
 
+        // Collect used exported actions transversely.
         getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
-          (connection) => {
+          (connection: any) => {
+            let dependencyIds: string[] = []
+            const depModule = connection.dependency
+            if (depModule?.ids) {
+              dependencyIds.push(...depModule.ids)
+            } else {
+              dependencyIds = depModule.category === 'esm' ? [] : ['*']
+            }
+
             collectActionsInDep(
-              connection.resolvedModule as webpack.NormalModule
+              connection.resolvedModule as webpack.NormalModule,
+              dependencyIds
             )
           }
         )
@@ -554,7 +633,7 @@ export class FlightClientEntryPlugin {
         !entryRequest.includes('next-flight-action-entry-loader')
       ) {
         // Traverse the module graph to find all client components.
-        collectActionsInDep(resolvedModule)
+        collectActionsInDep(resolvedModule, [])
       }
     }
 
@@ -584,10 +663,12 @@ export class FlightClientEntryPlugin {
   }
 
   collectComponentInfoFromServerEntryDependency({
+    entryName,
     entryRequest,
     compilation,
     resolvedModule,
   }: {
+    entryName: string
     entryRequest: string
     compilation: webpack.Compilation
     resolvedModule: any /* Dependency */
@@ -597,7 +678,8 @@ export class FlightClientEntryPlugin {
     actionImports: [string, string[]][]
   } {
     // Keep track of checked modules to avoid infinite loops with recursive imports.
-    const visited = new Set()
+    const visitedOfClientComponentsTraverse = new Set()
+    const visitedOfActionTraverse = new Set()
 
     // Info to collect.
     const clientComponentImports: ClientComponentImports = {}
@@ -610,11 +692,10 @@ export class FlightClientEntryPlugin {
     ): void => {
       if (!mod) return
 
-      const isCSS = isCSSMod(mod)
       const modResource = getModuleResource(mod)
 
       if (!modResource) return
-      if (visited.has(modResource)) {
+      if (visitedOfClientComponentsTraverse.has(modResource)) {
         if (clientComponentImports[modResource]) {
           addClientImport(
             mod,
@@ -626,25 +707,21 @@ export class FlightClientEntryPlugin {
         }
         return
       }
-      visited.add(modResource)
+      visitedOfClientComponentsTraverse.add(modResource)
 
       const actions = getActionsFromBuildInfo(mod)
       if (actions) {
         actionImports.push([modResource, actions])
       }
 
-      const webpackRuntime = this.isEdgeServer
-        ? EDGE_RUNTIME_WEBPACK
-        : DEFAULT_RUNTIME_WEBPACK
-
-      if (isCSS) {
+      if (isCSSMod(mod)) {
         const sideEffectFree =
           mod.factoryMeta && (mod.factoryMeta as any).sideEffectFree
 
         if (sideEffectFree) {
           const unused = !compilation.moduleGraph
             .getExportsInfo(mod)
-            .isModuleUsed(webpackRuntime)
+            .isModuleUsed(this.webpackRuntime)
 
           if (unused) return
         }
@@ -682,8 +759,55 @@ export class FlightClientEntryPlugin {
       )
     }
 
+    const filterUsedActions = (
+      mod: webpack.NormalModule,
+      importedIdentifiers: string[]
+    ): void => {
+      if (!mod) return
+
+      const modResource = getModuleResource(mod)
+
+      if (!modResource) return
+      if (visitedOfActionTraverse.has(modResource)) {
+        if (this.getUsedActionsInEntry(entryName, modResource)) {
+          this.setUsedActionsInEntry(
+            entryName,
+            modResource,
+            importedIdentifiers
+          )
+        }
+        return
+      }
+      visitedOfActionTraverse.add(modResource)
+
+      if (isActionServerLayerEntryModule(mod)) {
+        // `ids` are the identifiers that are imported from the dependency,
+        // if it's present, it's an array of strings.
+        this.setUsedActionsInEntry(entryName, modResource, importedIdentifiers)
+
+        return
+      }
+
+      getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
+        (connection: any) => {
+          let dependencyIds: string[] = []
+          const depModule = connection.dependency
+          if (depModule?.ids) {
+            dependencyIds.push(...depModule.ids)
+          } else {
+            dependencyIds = depModule.category === 'esm' ? [] : ['*']
+          }
+
+          filterUsedActions(connection.resolvedModule, dependencyIds)
+        }
+      )
+    }
+
     // Traverse the module graph to find all client components.
     filterClientComponents(resolvedModule, [])
+
+    // Traverse the module graph to find all used actions.
+    filterUsedActions(resolvedModule, [])
 
     return {
       clientComponentImports,
@@ -827,15 +951,48 @@ export class FlightClientEntryPlugin {
     entryName,
     bundlePath,
     fromClient,
+    createdActions,
   }: {
     compiler: webpack.Compiler
     compilation: webpack.Compilation
     actions: Map<string, string[]>
     entryName: string
     bundlePath: string
+    createdActions: Set<string>
     fromClient?: boolean
   }) {
+    // Filter out the unused actions before create action entry.
+    for (const [filePath, names] of actions.entries()) {
+      const usedActionNames = this.getUsedActionsInEntry(entryName, filePath)
+      if (!usedActionNames) continue
+      const containsAll = usedActionNames.has('*')
+      if (usedActionNames && !containsAll) {
+        const filteredNames = names.filter(
+          (name) => usedActionNames.has(name) || isInlineActionIdentifier(name)
+        )
+        actions.set(filePath, filteredNames)
+      } else if (!containsAll) {
+        // If we didn't collect the used, we erase them from the collected actions
+        // to avoid creating the action entry.
+        if (
+          names.filter((name) => !isInlineActionIdentifier(name)).length === 0
+        ) {
+          actions.delete(filePath)
+        }
+      }
+    }
+
     const actionsArray = Array.from(actions.entries())
+
+    for (const [dep, actionNames] of actions) {
+      for (const actionName of actionNames) {
+        createdActions.add(entryName + '@' + dep + '@' + actionName)
+      }
+    }
+
+    if (actionsArray.length === 0) {
+      return Promise.resolve()
+    }
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),
@@ -845,9 +1002,10 @@ export class FlightClientEntryPlugin {
     const currentCompilerServerActions = this.isEdgeServer
       ? pluginState.edgeServerActions
       : pluginState.serverActions
-    for (const [p, names] of actionsArray) {
-      for (const name of names) {
-        const id = generateActionId(p, name)
+
+    for (const [actionFilePath, actionNames] of actionsArray) {
+      for (const name of actionNames) {
+        const id = generateActionId(actionFilePath, name)
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},
@@ -1058,4 +1216,9 @@ function getModuleResource(mod: webpack.NormalModule): string {
     modResource = mod.matchResource + ':' + modResource
   }
   return modResource
+}
+
+// x-ref crates/next-custom-transforms/src/transforms/server_actions.rs `gen_ident` funcition
+function isInlineActionIdentifier(name: string) {
+  return name.startsWith('$$ACTION_')
 }
