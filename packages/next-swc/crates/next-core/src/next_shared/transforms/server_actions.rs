@@ -50,6 +50,7 @@ impl CustomTransformer for NextServerActions {
             Config {
                 is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
                 enabled: true,
+                hash_salt: "".into(),
             },
             ctx.comments.clone(),
         );
