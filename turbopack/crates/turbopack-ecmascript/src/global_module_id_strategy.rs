@@ -190,20 +190,25 @@ pub async fn process_module(
         return Ok(());
     }
 
-    let mut masked_hash = full_hash & 0xF;
-    let mut mask = 0xF;
-    while used_ids.contains(&masked_hash) {
-        if mask == 0xFFFFFFFFFFFFFFFF {
-            return Err(anyhow::anyhow!("This is a... 64-bit hash collision?"));
+    let mut trimmed_hash = full_hash % 10;
+    let mut power = 10;
+    while used_ids.contains(&trimmed_hash) {
+        if power >= u64::MAX / 10 {
+            // We don't want to take the next power as it would overflow
+            if used_ids.contains(&full_hash) {
+                return Err(anyhow::anyhow!("This is a... 64-bit hash collision?"));
+            }
+            trimmed_hash = full_hash;
+            break;
         }
-        mask = (mask << 4) | 0xF;
-        masked_hash = full_hash & mask;
+        power *= 10;
+        trimmed_hash = full_hash % power;
     }
 
-    let hashed_module_id = ModuleId::String(masked_hash.to_string().into());
+    let hashed_module_id = ModuleId::String(trimmed_hash.to_string().into());
 
     id_map.insert(ident_str, hashed_module_id.cell());
-    used_ids.insert(masked_hash);
+    used_ids.insert(trimmed_hash);
 
     Ok(())
 }
