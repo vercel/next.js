@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@meilisearch/instant-meilisearch": "^0.16.0",
+    "@meilisearch/instant-meilisearch": "^0.19.3",
     "autoprefixer": "^10.4.17",
     "next": "latest",
     "postcss": "^8.4.35",
