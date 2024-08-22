@@ -168,7 +168,7 @@ jobs:
       - name: ast-grep lint step
         uses: ast-grep/action@v1.5.0
         with:
-          version: 0.25.6
+          version: 0.26.1
 
   devlow-bench:
     name: Run devlow benchmarks

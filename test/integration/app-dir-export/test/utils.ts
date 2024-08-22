@@ -106,6 +106,7 @@ export async function runTests({
   isDev = false,
   trailingSlash = true,
   dynamicPage,
+  dynamicParams,
   dynamicApiRoute,
   generateStaticParamsOpt,
   expectedErrMsg,
@@ -113,6 +114,7 @@ export async function runTests({
   isDev?: boolean
   trailingSlash?: boolean
   dynamicPage?: string
+  dynamicParams?: string
   dynamicApiRoute?: string
   generateStaticParamsOpt?: 'set noop' | 'set client'
   expectedErrMsg?: string
@@ -129,12 +131,18 @@ export async function runTests({
       `const dynamic = ${dynamicPage}`
     )
   }
+
   if (dynamicApiRoute !== undefined) {
     apiJson.replace(
       `const dynamic = 'force-static'`,
       `const dynamic = ${dynamicApiRoute}`
     )
   }
+
+  if (dynamicParams !== undefined) {
+    slugPage.prepend(`export const dynamicParams = ${dynamicParams}\n`)
+  }
+
   if (generateStaticParamsOpt === 'set noop') {
     slugPage.replace('export function generateStaticParams', 'function noop')
   } else if (generateStaticParamsOpt === 'set client') {

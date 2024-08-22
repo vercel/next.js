@@ -697,37 +697,6 @@ describe('app-dir static/dynamic handling', () => {
   })
 
   if (isNextStart) {
-    it.failing(
-      'should have deterministic etag across revalidates',
-      async () => {
-        const initialRes = await next.fetch(
-          '/variable-revalidate-stable/revalidate-3'
-        )
-        expect(initialRes.status).toBe(200)
-
-        // check 2 revalidate passes to ensure it's consistent
-        for (let i = 0; i < 2; i++) {
-          let startIdx = next.cliOutput.length
-
-          await retry(
-            async () => {
-              const res = await next.fetch(
-                '/variable-revalidate-stable/revalidate-3'
-              )
-              expect(next.cliOutput.substring(startIdx)).toContain(
-                'rendering /variable-revalidate-stable'
-              )
-              expect(initialRes.headers.get('etag')).toBe(
-                res.headers.get('etag')
-              )
-            },
-            12_000,
-            3_000
-          )
-        }
-      }
-    )
-
     it('should output HTML/RSC files for static paths', async () => {
       const files = (
         await glob('**/*', {

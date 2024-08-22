@@ -47,7 +47,7 @@ use swc_core::{
     common::GLOBALS,
     ecma::{
         codegen::{text_writer::JsWriter, Emitter},
-        visit::{VisitMutWith, VisitMutWithPath},
+        visit::{VisitMutWith, VisitMutWithAstPath},
     },
 };
 pub use transform::{
@@ -831,7 +831,7 @@ async fn gen_content_with_visitors(
 
             GLOBALS.set(globals, || {
                 if !visitors.is_empty() {
-                    program.visit_mut_with_path(
+                    program.visit_mut_with_ast_path(
                         &mut ApplyVisitors::new(visitors),
                         &mut Default::default(),
                     );
