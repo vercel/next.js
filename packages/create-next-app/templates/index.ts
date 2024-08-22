@@ -11,6 +11,10 @@ import pkg from "../package.json";
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
+// Do not rename or format. sync-react script relies on this line.
+// prettier-ignore
+const nextjsReactPeerVersion = "19.0.0-rc-1eaccd82-20240816";
+
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
  */
@@ -184,8 +188,8 @@ export const installTemplate = async ({
      * Default dependencies.
      */
     dependencies: {
-      react: "19.0.0-rc-1eaccd82-20240816",
-      "react-dom": "19.0.0-rc-1eaccd82-20240816",
+      react: nextjsReactPeerVersion,
+      "react-dom": nextjsReactPeerVersion,
       next: version,
     },
     devDependencies: {},

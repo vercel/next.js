@@ -7,6 +7,19 @@ const execa = require('execa')
 /** @type {any} */
 const fetch = require('node-fetch')
 
+const filesReferencingReactPeerDependencyVersion = [
+  'run-tests.js',
+  'packages/create-next-app/templates/index.ts',
+  'test/lib/next-modes/base.ts',
+]
+const appManifestsInstallingNextjsPeerDependencies = [
+  'examples/reproduction-template/package.json',
+  'test/.stats-app/package.json',
+  // TODO: These should use the usual test helpers that automatically install the right React version
+  'test/e2e/next-test/first-time-setup-js/package.json',
+  'test/e2e/next-test/first-time-setup-ts/package.json',
+]
+
 // Use this script to update Next's vendored copy of React and related packages:
 //
 // Basic usage (defaults to most recent React canary version):
@@ -15,7 +28,9 @@ const fetch = require('node-fetch')
 // Update package.json but skip installing the dependencies automatically:
 //   pnpm run sync-react --no-install
 
-async function sync(channel = 'next') {
+async function sync({ channel, useAsPeerDependency }) {
+  const errors = []
+
   const noInstall = readBoolArg(process.argv, 'no-install')
   const useExperimental = channel === 'experimental'
   let newVersionStr = readStringArg(process.argv, 'version')
@@ -110,6 +125,58 @@ Or, run this command with no arguments to use the most recently published versio
   )
   console.log('Successfully updated React dependencies in package.json.\n')
 
+  if (useAsPeerDependency) {
+    for (const fileName of filesReferencingReactPeerDependencyVersion) {
+      const filePath = path.join(cwd, fileName)
+      const previousSource = await fsp.readFile(filePath, 'utf-8')
+      const updatedSource = previousSource.replace(
+        `const nextjsReactPeerVersion = "${baseVersionStr}";`,
+        `const nextjsReactPeerVersion = "${newVersionStr}";`
+      )
+      if (updatedSource === previousSource) {
+        errors.push(
+          new Error(
+            `${fileName}: Failed to update ${baseVersionStr} to ${newVersionStr}. Is this file still referencing the React peer dependency version?`
+          )
+        )
+      } else {
+        await fsp.writeFile(filePath, updatedSource)
+      }
+    }
+
+    const nextjsPackageJsonPath = path.join(
+      cwd,
+      'packages',
+      'next',
+      'package.json'
+    )
+    const nextjsPackageJson = JSON.parse(
+      await fsp.readFile(nextjsPackageJsonPath, 'utf-8')
+    )
+    nextjsPackageJson.peerDependencies.react = `${newVersionStr}`
+    nextjsPackageJson.peerDependencies['react-dom'] = `${newVersionStr}`
+    await fsp.writeFile(
+      nextjsPackageJsonPath,
+      JSON.stringify(nextjsPackageJson, null, 2) +
+        // Prettier would add a newline anyway so do it manually to skip the additional `pnpm prettier-write`
+        '\n'
+    )
+
+    for (const fileName of appManifestsInstallingNextjsPeerDependencies) {
+      const packageJsonPath = path.join(cwd, fileName)
+      const packageJson = await fsp.readFile(packageJsonPath, 'utf-8')
+      const manifest = JSON.parse(packageJson)
+      manifest.dependencies['react'] = newVersionStr
+      manifest.dependencies['react-dom'] = newVersionStr
+      await fsp.writeFile(
+        packageJsonPath,
+        JSON.stringify(manifest, null, 2) +
+          // Prettier would add a newline anyway so do it manually to skip the additional `pnpm prettier-write`
+          '\n'
+      )
+    }
+  }
+
   // Install the updated dependencies and build the vendored React files.
   if (noInstall) {
     console.log('Skipping install step because --no-install flag was passed.\n')
@@ -178,6 +245,11 @@ Or run this command again without the --no-install flag to do both automatically
   }
 
   await fsp.writeFile(path.join(cwd, '.github/.react-version'), newVersionStr)
+
+  if (errors.length) {
+    // eslint-disable-next-line no-undef -- Defined in Node.js
+    throw new AggregateError(errors)
+  }
 
   console.log(
     `Successfully updated React from ${baseSha} to ${newSha}.\n` +
@@ -255,8 +327,8 @@ async function getChangelogFromGitHub(baseSha, newSha) {
   return changelog.length > 0 ? changelog.join('\n') : null
 }
 
-sync('experimental')
-  .then(() => sync('rc'))
+sync({ channel: 'experimental', useAsPeerDependency: false })
+  .then(() => sync({ channel: 'rc', useAsPeerDependency: true }))
   .catch((error) => {
     console.error(error)
     process.exit(1)
