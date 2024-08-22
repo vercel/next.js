@@ -3,7 +3,9 @@ use std::sync::Arc;
 use swc_core::{
     common::{errors::HANDLER, SourceMap, Span},
     ecma::{
-        ast::{Expr, IdentName, MemberExpr, MemberProp},
+        ast::{
+            CallExpr, Callee, Expr, IdentName, ImportDecl, Lit, MemberExpr, MemberProp, NamedExport,
+        },
         utils::{ExprCtx, ExprExt},
         visit::{Visit, VisitWith},
     },
@@ -42,12 +44,41 @@ const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
     "WritableStreamDefaultController",
 ];
 
+const NODEJS_MODULE_NAMES: &[&str] = &[];
+
 impl WarnForEdgeRuntime {
-    fn build_unsupported_api_error(&self, span: Span, api_name: &str) -> Option<()> {
+    fn warn_if_nodejs_module(&self, span: Span, module_specifier: &str) -> Option<()> {
+        if NODEJS_MODULE_NAMES.contains(&module_specifier) {
+            let loc = self.cm.lookup_line(span.lo).ok()?;
+
+            let msg = format!(
+                "A Node.js module is loaded ('${module_specifier}' at line {}) which is not \
+                 supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime",
+                loc.line + 1
+            );
+
+            HANDLER.with(|h| {
+                if self.should_error {
+                    h.struct_span_err(span, &msg).emit();
+                } else {
+                    h.struct_span_warn(span, &msg).emit();
+                }
+            });
+        }
+
+        None
+    }
+
+    fn emit_unsupported_api_error(&self, span: Span, api_name: &str) -> Option<()> {
         let loc = self.cm.lookup_line(span.lo).ok()?;
 
-        let msg=format!("A Node.js API is used ({api_name} at line: {}) which is not supported in the Edge Runtime.
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime",loc.line+1);
+        let msg = format!(
+            "A Node.js API is used ({api_name} at line: {}) which is not supported in the Edge \
+             Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
+            loc.line + 1
+        );
 
         HANDLER.with(|h| {
             if self.should_error {
@@ -69,7 +100,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",loc.line+1);
             return;
         }
 
-        self.build_unsupported_api_error(span, &format!("process.{}", prop.sym));
+        self.emit_unsupported_api_error(span, &format!("process.{}", prop.sym));
     }
 }
 
@@ -90,7 +121,7 @@ impl Visit for WarnForEdgeRuntime {
             if ident.ctxt == self.ctx.unresolved_ctxt {
                 for api in EDGE_UNSUPPORTED_NODE_APIS {
                     if self.is_in_middleware_layer() && ident.sym == *api {
-                        self.build_unsupported_api_error(ident.span, api);
+                        self.emit_unsupported_api_error(ident.span, api);
                         return;
                     }
                 }
@@ -98,5 +129,29 @@ impl Visit for WarnForEdgeRuntime {
         }
 
         n.visit_children_with(self);
+    }
+
+    fn visit_import_decl(&mut self, n: &ImportDecl) {
+        n.visit_children_with(self);
+
+        self.warn_if_nodejs_module(n.span, &n.src.value);
+    }
+
+    fn visit_named_export(&mut self, n: &NamedExport) {
+        n.visit_children_with(self);
+
+        if let Some(module_specifier) = &n.src {
+            self.warn_if_nodejs_module(n.span, &module_specifier.value);
+        }
+    }
+
+    fn visit_call_expr(&mut self, n: &CallExpr) {
+        n.visit_children_with(self);
+
+        if let Callee::Import(_) = &n.callee {
+            if let Some(Expr::Lit(Lit::Str(s))) = n.args.first().map(|e| &*e.expr) {
+                self.warn_if_nodejs_module(n.span, &s.value);
+            }
+        }
     }
 }
