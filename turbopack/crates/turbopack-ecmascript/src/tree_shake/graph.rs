@@ -14,10 +14,10 @@ use swc_core::{
     common::{util::take::Take, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
-            op, ClassDecl, Decl, DefaultDecl, ExportAll, ExportDecl, ExportNamedSpecifier,
-            ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName, ImportDecl,
-            ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp, Lit,
-            Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
+            op, ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl,
+            ExportNamedSpecifier, ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName,
+            ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp,
+            Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
             PropName, PropOrSpread, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
@@ -276,6 +276,15 @@ impl DepGraph {
             }
         }
 
+        let mut mangle_count = 0;
+        let mut mangled_vars = FxHashMap::default();
+        let mut mangle = |var: &Id| {
+            mangled_vars
+                .entry(var.clone())
+                .or_insert_with(|| encode_base54(&mut mangle_count, true))
+                .clone()
+        };
+
         for (ix, group) in groups.graph_ix.iter().enumerate() {
             let mut chunk = Module {
                 span: DUMMY_SP,
@@ -380,7 +389,7 @@ impl DepGraph {
                     span: DUMMY_SP,
                     local: var.clone().into(),
                     imported: Some(ModuleExportName::Ident(Ident::new_no_ctxt(
-                        "_".into(),
+                        mangle(var),
                         DUMMY_SP,
                     ))),
                     is_type_only: false,
@@ -426,7 +435,7 @@ impl DepGraph {
                                     span: DUMMY_SP,
                                     orig: ModuleExportName::Ident(var.clone().into()),
                                     exported: Some(ModuleExportName::Ident(Ident::new_no_ctxt(
-                                        "_".into(),
+                                        mangle(var),
                                         DUMMY_SP,
                                     ))),
                                     is_type_only: false,
@@ -1194,4 +1203,50 @@ pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<P
         },
         _ => None,
     })
+}
+/// givin a number, return a base54 encoded string
+/// `usize -> [a-zA-Z$_][a-zA-Z$_0-9]*`
+pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> JsWord {
+    static BASE54_CHARS: &[u8; 64] =
+        b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$_";
+
+    let mut n = *init;
+
+    *init += 1;
+
+    let mut base = 54;
+
+    while n >= base {
+        n -= base;
+        base <<= 6;
+    }
+
+    // Not sure if this is ideal, but it's safe
+    let mut ret = Vec::with_capacity(14);
+
+    base /= 54;
+    let mut c = BASE54_CHARS[n / base];
+    ret.push(c);
+
+    while base > 1 {
+        n %= base;
+        base >>= 6;
+        c = BASE54_CHARS[n / base];
+
+        ret.push(c);
+    }
+
+    let s = unsafe {
+        // Safety: We are only using ascii characters
+        // Safety: The stack memory for ret is alive while creating JsWord
+        JsWord::from(std::str::from_utf8_unchecked(&ret))
+    };
+
+    if skip_reserved
+        && (s.is_reserved() || s.is_reserved_in_strict_bind() || s.is_reserved_in_strict_mode(true))
+    {
+        return encode_base54(init, skip_reserved);
+    }
+
+    s
 }
