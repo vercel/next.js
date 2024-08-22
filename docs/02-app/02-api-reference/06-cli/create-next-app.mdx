@@ -65,3 +65,21 @@ Would you like to customize the import alias (`@/*` by default)?  No / Yes
 ```
 
 Once you've answered the prompts, a new project will be created with your chosen configuration.
+
+## With an official Next.js example
+
+To create a new app using an official Next.js example, use the `--example` flag with the following command:
+
+```bash filename="Terminal"
+npx create-next-app@latest --example [example-name] [your-project-name]
+```
+
+You can view a list of all available examples along with setup instructions in the [Next.js repository](https://github.com/vercel/next.js/tree/canary/examples).
+
+## With any public Github example
+
+To create a new app using any public Github example, use the `--example` option with the Github repo's URL. For example:
+
+```bash filename="Terminal"
+npx create-next-app@latest --example nextjs-example  "https://github.com/.../"
+```
