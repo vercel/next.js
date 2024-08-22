@@ -166,13 +166,13 @@ It is recommended to use the dedicated GitHub Workflow for that which also takes
 ```bash
 # while the current working directory is vercel/front
 # Uses a build from the PR 67571
-$ gh workflow run cron-update-next.yml --fiel version=#67571
+$ gh workflow run cron-update-next.yml --field version=#67571
 # Uses a build from commit 188f76947389a27e9bcff8ebf9079433679256a7
 $ gh workflow run cron-update-next.yml --raw-field version=@188f76947389a27e9bcff8ebf9079433679256a7
 
 # or, from any current working directory
 # Uses a build from the PR 67571
-$ gh workflow run --repo vercel/front cron-update-next.yml --fiel version=#67571
+$ gh workflow run --repo vercel/front cron-update-next.yml --field version=#67571
 # Uses a build from commit 188f76947389a27e9bcff8ebf9079433679256a7
 $ gh workflow run --repo vercel/front cron-update-next.yml --raw-field version=@188f76947389a27e9bcff8ebf9079433679256a7
 ```
