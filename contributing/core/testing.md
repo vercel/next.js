@@ -157,3 +157,22 @@ or, to use `next` from a specific Pull Request (PR number required):
 <sup>1</sup> Not all native packages are built automatically.
 `build-and-deploy` excludes slow, rarely used native variants of `next-swc`.
 To force a build of all packages, you can trigger `build-and-deploy` manually (i.e. `workflow_dispatch`).
+
+### Integration testing on Front
+
+To test a preview build on Front, you can use the `next` package from the preview build URL.
+It is recommended to use the dedicated GitHub Workflow for that which also takes care of syncing versions across the whole repo, updating React etc:
+
+```bash
+# while the current working directory is vercel/front
+# Uses a build from the PR 67571
+$ gh workflow run cron-update-next.yml --fiel version=#67571
+# Uses a build from commit 188f76947389a27e9bcff8ebf9079433679256a7
+$ gh workflow run cron-update-next.yml --raw-field version=@188f76947389a27e9bcff8ebf9079433679256a7
+
+# or, from any current working directory
+# Uses a build from the PR 67571
+$ gh workflow run --repo vercel/front cron-update-next.yml --fiel version=#67571
+# Uses a build from commit 188f76947389a27e9bcff8ebf9079433679256a7
+$ gh workflow run --repo vercel/front cron-update-next.yml --raw-field version=@188f76947389a27e9bcff8ebf9079433679256a7
+```
