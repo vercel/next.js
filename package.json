@@ -12,7 +12,6 @@
     "build": "turbo run build --remote-cache-timeout 60 --summarize true",
     "lerna": "lerna",
     "dev": "turbo run dev --parallel",
-    "pack-next": "node scripts/pack-next.cjs",
     "test-types": "tsc",
     "test-unit": "jest test/unit/ packages/next/ packages/font",
     "test-dev": "cross-env NEXT_TEST_MODE=dev pnpm testheadless",
@@ -261,7 +260,7 @@
   },
   "engines": {
     "node": ">=18.17.0",
-    "pnpm": "9.6.0"
+    "pnpm": "8.15.4"
   },
-  "packageManager": "pnpm@9.6.0"
+  "packageManager": "pnpm@8.15.4"
 }
