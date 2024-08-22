@@ -1,5 +1,5 @@
 use anyhow::Result;
-use criterion::{BenchmarkId, Criterion};
+use codspeed_criterion_compat::{BenchmarkId, Criterion};
 use turbo_tasks::{Completion, ReadConsistency, TryJoinIterExt, TurboTasks, Vc};
 use turbo_tasks_memory::MemoryBackend;
 

@@ -10,7 +10,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Context, Result};
-use criterion::{
+use codspeed_criterion_compat::{
     measurement::{Measurement, WallTime},
     BenchmarkGroup, BenchmarkId, Criterion,
 };

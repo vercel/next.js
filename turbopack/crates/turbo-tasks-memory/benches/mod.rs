@@ -1,6 +1,6 @@
 #![feature(arbitrary_self_types)]
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
 
 pub(crate) mod scope_stress;
 pub(crate) mod stress;

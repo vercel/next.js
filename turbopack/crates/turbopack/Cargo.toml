@@ -41,6 +41,7 @@ turbopack-static = { workspace = true }
 turbopack-wasm = { workspace = true }
 
 [dev-dependencies]
+codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
 criterion = { workspace = true, features = ["async_tokio"] }
 difference = "2.0"
 futures = { workspace = true }

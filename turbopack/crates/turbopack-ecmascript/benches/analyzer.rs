@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 
-use criterion::{Bencher, BenchmarkId, Criterion};
+use codspeed_criterion_compat::{Bencher, BenchmarkId, Criterion};
 use swc_core::{
     common::{FilePathMapping, Mark, SourceMap, GLOBALS},
     ecma::{

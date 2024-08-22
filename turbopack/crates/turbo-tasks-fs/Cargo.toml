@@ -50,6 +50,7 @@ turbo-tasks-hash = { workspace = true }
 unicode-segmentation = { workspace = true }
 
 [dev-dependencies]
+codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
 criterion = { workspace = true, features = ["async_tokio"] }
 rstest = { workspace = true }
 sha2 = "0.10.2"

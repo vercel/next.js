@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use criterion::{
+use codspeed_criterion_compat::{
     criterion_group, criterion_main,
     measurement::{Measurement, WallTime},
     BenchmarkId, Criterion,

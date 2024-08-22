@@ -131,10 +131,11 @@ atty = "0.2.14"
 bytes = "1.1.0"
 chrono = "0.4.23"
 clap = { version = "4.5.2", features = ["derive"] }
+codspeed-criterion-compat = "2.6.0"
 concurrent-queue = "2.5.0"
 console = "0.15.5"
 console-subscriber = "0.1.8"
-criterion = "0.4.0"
+criterion = "0.5.1"
 crossbeam-channel = "0.5.8"
 dashmap = "5.4.0"
 dhat = { version = "0.3.2" }

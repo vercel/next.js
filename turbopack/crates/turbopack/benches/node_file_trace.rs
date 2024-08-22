@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use criterion::{Bencher, BenchmarkId, Criterion};
+use codspeed_criterion_compat::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
 use turbo_tasks::{RcStr, ReadConsistency, TurboTasks, Value, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};

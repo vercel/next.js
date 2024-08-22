@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main};
+use codspeed_criterion_compat::{criterion_group, criterion_main};
 
 mod analyzer;
 

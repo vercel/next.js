@@ -12,7 +12,9 @@ use chromiumoxide::{
     browser::{Browser, BrowserConfig},
     error::CdpError::Ws,
 };
-use criterion::{async_executor::AsyncExecutor, black_box, measurement::WallTime, AsyncBencher};
+use codspeed_criterion_compat::{
+    async_executor::AsyncExecutor, black_box, measurement::WallTime, AsyncBencher,
+};
 use futures::{Future, StreamExt};
 pub use page_guard::PageGuard;
 use parking_lot::Mutex;
@@ -155,7 +157,7 @@ pub trait AsyncBencherExtension<A: AsyncExecutor> {
         TF: Future<Output = ()>;
 }
 
-impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension<A> for AsyncBencher<'a, 'b, A, WallTime> {
+impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension<A> for AsyncBencher<'a, 'b, A> {
     fn try_iter_custom<R, F>(&mut self, routine: R)
     where
         R: Fn(u64, WallTime) -> F,

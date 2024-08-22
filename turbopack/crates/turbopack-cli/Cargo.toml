@@ -72,6 +72,7 @@ turbopack-trace-utils = { workspace = true }
 webbrowser = { workspace = true }
 
 [dev-dependencies]
+codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
 criterion = { workspace = true, features = ["async_tokio"] }
 regex = { workspace = true }
 turbopack-bench = { workspace = true }

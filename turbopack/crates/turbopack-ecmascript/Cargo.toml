@@ -68,6 +68,7 @@ swc_core = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
+codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
 criterion = { workspace = true, features = ["async_tokio"] }
 #rstest = { workspace = true }
 turbo-tasks-memory = { workspace = true }

@@ -21,6 +21,7 @@ anyhow = { workspace = true, features = ["backtrace"] }
 chromiumoxide = { workspace = true, features = [
   "tokio-runtime",
 ], default-features = false }
+codspeed-criterion-compat = { workspace = true, features = ["async_tokio"] }
 criterion = { workspace = true, features = ["async_tokio"] }
 futures = { workspace = true }
 once_cell = { workspace = true }
