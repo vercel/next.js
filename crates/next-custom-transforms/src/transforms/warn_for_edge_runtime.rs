@@ -130,7 +130,11 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime",
             );
 
             HANDLER.with(|h| {
-                h.struct_span_err(span, &msg).emit();
+                if self.should_error {
+                    h.struct_span_err(span, &msg).emit();
+                } else {
+                    h.struct_span_warn(span, &msg).emit();
+                }
             });
         }
 
