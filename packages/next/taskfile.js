@@ -2356,42 +2356,46 @@ export async function compile(task, opts) {
 export async function bin(task, opts) {
   await task
     .source('src/bin/*')
-    .swc('server', { stripExtension: true, dev: opts.dev })
+    .swc('server', {
+      stripExtension: true,
+      dev: opts.dev,
+      keepImportAttributes: true,
+    })
     .target('dist/bin', { mode: '0755' })
 }
 
 export async function cli(task, opts) {
   await task
     .source('src/cli/**/*.+(js|ts|tsx)')
-    .swc('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev, keepImportAttributes: true })
     .target('dist/cli')
 }
 
 export async function lib(task, opts) {
   await task
     .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
-    .swc('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev, keepImportAttributes: true })
     .target('dist/lib')
 }
 
 export async function lib_esm(task, opts) {
   await task
     .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
-    .swc('server', { dev: opts.dev, esm: true })
+    .swc('server', { dev: opts.dev, esm: true, keepImportAttributes: true })
     .target('dist/esm/lib')
 }
 
 export async function server(task, opts) {
   await task
     .source('src/server/**/!(*.test).+(js|ts|tsx)')
-    .swc('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev, keepImportAttributes: true })
     .target('dist/server')
 }
 
 export async function server_esm(task, opts) {
   await task
     .source('src/server/**/!(*.test).+(js|mts|ts|tsx)')
-    .swc('server', { dev: opts.dev, esm: true })
+    .swc('server', { dev: opts.dev, esm: true, keepImportAttributes: true })
     .target('dist/esm/server')
 }
 
@@ -2400,7 +2404,7 @@ export async function server_esm(task, opts) {
 export async function api_esm(task, opts) {
   await task
     .source('src/api/**/*.+(js|mts|ts|tsx)')
-    .swc('server', { dev: opts.dev, esm: true })
+    .swc('server', { dev: opts.dev, esm: true, keepImportAttributes: true })
     .target('dist/api')
     .target('dist/esm/api')
 }
@@ -2416,7 +2420,7 @@ export async function nextbuild(task, opts) {
         '**/*.test.+(js|ts|tsx)',
       ],
     })
-    .swc('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev, keepImportAttributes: true })
     .target('dist/build')
 }
 
@@ -2431,7 +2435,7 @@ export async function nextbuild_esm(task, opts) {
         '**/*.test.+(js|ts|tsx)',
       ],
     })
-    .swc('server', { dev: opts.dev, esm: true })
+    .swc('server', { dev: opts.dev, esm: true, keepImportAttributes: true })
     .target('dist/esm/build')
 }
 
@@ -2445,21 +2449,29 @@ export async function nextbuildjest(task, opts) {
         '**/*.test.+(js|ts|tsx)',
       ],
     })
-    .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
+    .swc('server', {
+      dev: opts.dev,
+      interopClientDefaultExport: true,
+      keepImportAttributes: true,
+    })
     .target('dist/build/jest')
 }
 
 export async function client(task, opts) {
   await task
     .source('src/client/**/!(*.test).+(js|ts|tsx)')
-    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
+    .swc('client', {
+      dev: opts.dev,
+      interopClientDefaultExport: true,
+      keepImportAttributes: true,
+    })
     .target('dist/client')
 }
 
 export async function client_esm(task, opts) {
   await task
     .source('src/client/**/!(*.test).+(js|ts|tsx)')
-    .swc('client', { dev: opts.dev, esm: true })
+    .swc('client', { dev: opts.dev, esm: true, keepImportAttributes: true })
     .target('dist/esm/client')
 }
 
@@ -2467,7 +2479,7 @@ export async function client_esm(task, opts) {
 export async function nextbuildstatic(task, opts) {
   await task
     .source('src/export/**/!(*.test).+(js|ts|tsx)')
-    .swc('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev, keepImportAttributes: true })
     .target('dist/export')
 }
 
@@ -2475,7 +2487,7 @@ export async function nextbuildstatic(task, opts) {
 export async function nextbuildstatic_esm(task, opts) {
   await task
     .source('src/export/**/!(*.test).+(js|ts|tsx)')
-    .swc('server', { dev: opts.dev, esm: true })
+    .swc('server', { dev: opts.dev, esm: true, keepImportAttributes: true })
     .target('dist/esm/export')
 }
 
