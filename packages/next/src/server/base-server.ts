@@ -138,7 +138,6 @@ import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { PostponedPathnameNormalizer } from './normalizers/request/postponed'
-import { ActionPathnameNormalizer } from './normalizers/request/action'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
   isAppPageRouteModule,
@@ -435,7 +434,6 @@ export default abstract class Server<
   protected readonly localeNormalizer?: LocaleRouteNormalizer
 
   protected readonly normalizers: {
-    readonly action: ActionPathnameNormalizer | undefined
     readonly postponed: PostponedPathnameNormalizer | undefined
     readonly rsc: RSCPathnameNormalizer | undefined
     readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
@@ -532,10 +530,6 @@ export default abstract class Server<
       data: this.enabledDirectories.pages
         ? new NextDataPathnameNormalizer(this.buildId)
         : undefined,
-      action:
-        this.enabledDirectories.app && this.minimalMode
-          ? new ActionPathnameNormalizer()
-          : undefined,
     }
 
     this.nextFontManifest = this.getNextFontManifest()
@@ -1519,10 +1513,6 @@ export default abstract class Server<
 
     if (this.normalizers.rsc) {
       normalizers.push(this.normalizers.rsc)
-    }
-
-    if (this.normalizers.action) {
-      normalizers.push(this.normalizers.action)
     }
 
     for (const normalizer of normalizers) {
