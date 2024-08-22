@@ -41,7 +41,7 @@ export function getDynamicRouteParams(
   }
 
   for (const key of keys) {
-    params.set(key, `drp:${key}:${uniqueID}`)
+    params.set(key, `%%drp:${key}:${uniqueID}%%`)
   }
 
   return params
