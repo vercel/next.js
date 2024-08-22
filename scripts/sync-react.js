@@ -136,6 +136,24 @@ Or, run this command with no arguments to use the most recently published versio
         await fsp.writeFile(filePath, updatedSource)
       }
     }
+
+    const nextjsPackageJsonPath = path.join(
+      cwd,
+      'packages',
+      'next',
+      'package.json'
+    )
+    const nextjsPackageJson = JSON.parse(
+      await fsp.readFile(nextjsPackageJsonPath, 'utf-8')
+    )
+    nextjsPackageJson.peerDependencies.react = `${newVersionStr}`
+    nextjsPackageJson.peerDependencies['react-dom'] = `${newVersionStr}`
+    await fsp.writeFile(
+      nextjsPackageJsonPath,
+      JSON.stringify(nextjsPackageJson, null, 2) +
+        // Prettier would add a newline anyway so do it manually to skip the additional `pnpm prettier-write`
+        '\n'
+    )
   }
 
   // Install the updated dependencies and build the vendored React files.
