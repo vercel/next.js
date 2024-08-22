@@ -1,0 +1,40 @@
+# Avoid running the full CI on mid-stack PRs: https://graphite.dev/docs/stacking-and-ci
+#
+# We still run some high-signal low-cost jobs (e.g. lint, unit tests) on these mid-stack PRs, just
+# not anything slow (e.g. integration tests).
+#
+# Because we don't use Graphite's CI batching, full CI will still run on every PR individually
+# before it merges. The goal is just to avoid wasting CI capacity when frequently rebasing large
+# stacks.
+#
+# This can by bypassed by labeling a PR with 'CI Bypass Graphite Optimization', and manually
+# re-running CI.
+
+name: Graphite CI Optimizer
+on:
+  workflow_call:
+    outputs:
+      skip:
+        description: "'true' if expensive CI checks should be skipped, 'false' otherwise."
+        value: ${{ jobs.optimize-ci.outputs.skip }}
+    secrets:
+      GRAPHITE_TOKEN:
+        description: 'The Graphite CI optimization secret'
+        required: true
+jobs:
+  optimize-ci:
+    name: Graphite CI Optimizer
+    runs-on: ubuntu-latest
+    outputs:
+      skip: |
+        ${{
+          github.event_name == 'pull_request' &&
+            !contains(github.event.pull_request.labels.*.name, 'CI Bypass Graphite Optimization') &&
+            steps.check-skip.outputs.skip == 'true'
+        }}
+    steps:
+      - name: Optimize CI
+        id: check-skip
+        uses: withgraphite/graphite-ci-action@main
+        with:
+          graphite_token: ${{ secrets.GRAPHITE_TOKEN }}
