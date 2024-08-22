@@ -12,7 +12,7 @@
     "postcss": "^8.4.35",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "react-instantsearch-dom": "^6.40.4",
+    "react-instantsearch": "^7.13.0",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3"
   },
@@ -20,6 +20,6 @@
     "@types/node": "^20.7.0",
     "@types/react": "^18.2.23",
     "@types/react-dom": "^18.2.8",
-    "@types/react-instantsearch-dom": "^6.12.4"
+    "@types/react-instantsearch": "^6.10.4"
   }
 }

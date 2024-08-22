@@ -5,10 +5,13 @@ import {
   InstantSearch,
   Hits,
   Highlight,
-  connectSearchBox,
-} from "react-instantsearch-dom";
+  useInstantSearch,
+  useSearchBox,
+} from "react-instantsearch";
 import { instantMeiliSearch } from "@meilisearch/instant-meilisearch";
 import logo from "../assets/meilisearch.svg";
+
+const INDEX_NAME = "steam-videogames";
 
 const { searchClient } = instantMeiliSearch(
   process.env.NEXT_PUBLIC_MEILISEARCH_HOST,
@@ -25,34 +28,26 @@ interface HitProps {
   };
 }
 
-interface SearchBoxProps {
-  currentRefinement: string;
-  isSearchStalled: boolean;
-  refine: Function;
-}
-
-const SearchBox = ({
-  currentRefinement,
-  isSearchStalled,
-  refine,
-}: SearchBoxProps) => (
-  <form noValidate action="" role="search" className="mb-12">
-    <input
-      type="search"
-      value={currentRefinement}
-      placeholder="Search Steam video games"
-      onChange={(event) => refine(event.currentTarget.value)}
-      className="w-full h-10 px-3 overflow-hidden rounded-lg shadow-md"
-    />
-    {isSearchStalled ? (
-      <div className="my-5 text-center text-primary">Loading...</div>
-    ) : (
-      ""
-    )}
-  </form>
-);
-
-const CustomSearchBox = connectSearchBox(SearchBox);
+const SearchBox = () => {
+  const searchbox = useSearchBox();
+  const { status } = useInstantSearch();
+  return (
+    <form noValidate action="" role="search" className="mb-12">
+      <input
+        type="search"
+        value={searchbox.query}
+        placeholder="Search Steam video games"
+        onChange={(event) => searchbox.refine(event.currentTarget.value)}
+        className="w-full h-10 px-3 overflow-hidden rounded-lg shadow-md"
+      />
+      {status === "stalled" ? (
+        <div className="my-5 text-center text-primary">Loading...</div>
+      ) : (
+        ""
+      )}
+    </form>
+  );
+};
 
 const Hit = ({ hit }: HitProps) => {
   return (
@@ -67,10 +62,10 @@ const Hit = ({ hit }: HitProps) => {
       ></Image>
       <div className="flex flex-col justify-center">
         <div className="mb-3 text-lg leading-5 text-gray-100">
-          <Highlight attribute="name" hit={hit} tagName="span" />
+          <Highlight attribute="name" hit={hit} highlightedTagName="span" />
         </div>
         <div className="text-sm text-gray-300">
-          <Highlight attribute="genres" hit={hit} tagName="span" />
+          <Highlight attribute="genres" hit={hit} highlightedTagName="span" />
         </div>
       </div>
     </div>
@@ -91,10 +86,11 @@ export default function Home() {
           </Link>
         </h1>
         <InstantSearch
-          indexName="steam-video-games"
+          indexName={INDEX_NAME}
           searchClient={searchClient}
+          future={{ preserveSharedStateOnUnmount: true }}
         >
-          <CustomSearchBox />
+          <SearchBox />
           <Hits hitComponent={Hit} />
         </InstantSearch>
       </main>
