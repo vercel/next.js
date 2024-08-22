@@ -123,7 +123,7 @@ impl WarnForEdgeRuntime {
             let loc = self.cm.lookup_line(span.lo).ok()?;
 
             let msg = format!(
-                "A Node.js module is loaded ('${module_specifier}' at line {}) which is not \
+                "A Node.js module is loaded ('{module_specifier}' at line {}) which is not \
                  supported in the Edge Runtime.
 Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime",
                 loc.line + 1
