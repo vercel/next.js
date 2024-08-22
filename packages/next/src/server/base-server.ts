@@ -2817,73 +2817,84 @@ export default abstract class Server<
           throw new NoFallbackError()
         }
 
-        // We want to try and render a fallback if this is an app page or if
-        // it's a pages page.
-        if (
-          (isPagesRouteModule(components.routeModule) && !isNextDataRequest) ||
-          (isAppPageRouteModule(components.routeModule) && !isRSCRequest)
-        ) {
-          let fallbackKey: string | null = null
-          if (isProduction) {
-            if (isAppPath) {
-              fallbackKey = pathname
-            } else if (locale) {
-              fallbackKey = `/${locale}${pathname}`
-            } else {
-              fallbackKey = pathname
-            }
-          }
+        let fallbackResponse: ResponseCacheEntry | null | undefined
 
+        // If this is a pages router page.
+        if (isPagesRouteModule(components.routeModule) && !isNextDataRequest) {
           // We use the response cache here to handle the revalidation and
           // management of the fallback shell.
-          const fallbackResponse = await this.responseCache.get(
-            fallbackKey,
+          fallbackResponse = await this.responseCache.get(
+            isProduction ? (locale ? `/${locale}${pathname}` : pathname) : null,
             // This is the response generator for the fallback shell.
-            async ({ previousCacheEntry: previousFallbackCacheEntry }) => {
-              let fallbackRouteParams: DynamicRouteParams | null = null
-
+            async ({
+              previousCacheEntry: previousFallbackCacheEntry = null,
+            }) => {
+              // For the pages router, fallbacks cannot be revalidated or
+              // generated in production. In the case of a missing fallback,
+              // we return null, but if it's being revalidated, we just return
+              // the previous fallback cache entry. This preserves the previous
+              // behavior.
               if (isProduction) {
-                if (isAppPath) {
-                  // Mark that all the params in the page are unknown.
-                  fallbackRouteParams = getDynamicRouteParams(pathname)
-                }
-                // For the pages router, fallbacks cannot be revalidated or
-                // generated in production. In the case of a missing fallback,
-                // we return null, but if it's being revalidated, we just return
-                // the previous fallback cache entry. This preserves the previous
-                // behavior.
-                else {
-                  if (!previousFallbackCacheEntry) {
-                    return null
-                  }
-
-                  return toResponseCacheEntry(previousFallbackCacheEntry)
-                }
-              } else if (!isAppPath) {
-                // For the pages router, fallbacks can only be generated on
-                // demand in development, so if we're not in production, and we
-                // aren't a app path, then just add the __nextFallback query
-                // and render.
-                query.__nextFallback = 'true'
+                return toResponseCacheEntry(previousFallbackCacheEntry)
               }
 
+              // For the pages router, fallbacks can only be generated on
+              // demand in development, so if we're not in production, and we
+              // aren't a app path, then just add the __nextFallback query
+              // and render.
+              query.__nextFallback = 'true'
+
+              // We pass `undefined` and `null` as it doesn't apply to the pages
+              // router.
               return doRender({
-                // We pass `undefined` as rendering a fallback isn't resumed
-                // here.
                 postponed: undefined,
-                fallbackRouteParams,
+                fallbackRouteParams: null,
               })
             },
             {
-              routeKind: isAppPath ? RouteKind.APP_PAGE : RouteKind.PAGES,
+              routeKind: RouteKind.PAGES,
               incrementalCache,
               isRoutePPREnabled,
               isFallback: true,
             }
           )
+        }
+        // If this is a app router page, PPR is enabled, and PFPR is also
+        // enabled, then we should use the fallback renderer.
+        else if (
+          isRoutePPREnabled &&
+          this.nextConfig.experimental.pprFallbacks &&
+          isAppPageRouteModule(components.routeModule) &&
+          !isRSCRequest
+        ) {
+          // We use the response cache here to handle the revalidation and
+          // management of the fallback shell.
+          fallbackResponse = await this.responseCache.get(
+            isProduction ? pathname : null,
+            // This is the response generator for the fallback shell.
+            async () =>
+              doRender({
+                // We pass `undefined` as rendering a fallback isn't resumed
+                // here.
+                postponed: undefined,
+                fallbackRouteParams: isProduction
+                  ? getDynamicRouteParams(pathname)
+                  : null,
+              }),
+            {
+              routeKind: RouteKind.APP_PAGE,
+              incrementalCache,
+              isRoutePPREnabled,
+              isFallback: true,
+            }
+          )
+        }
 
-          if (!fallbackResponse) return null
+        // If the fallback response was set to null, then we should return null.
+        if (fallbackResponse === null) return null
 
+        // Otherwise, if we did get a fallback response, we should return it.
+        if (fallbackResponse) {
           // Remove the revalidate from the response to prevent it from being
           // used in the surrounding cache.
           delete fallbackResponse.revalidate
