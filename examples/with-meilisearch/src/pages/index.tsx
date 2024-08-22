@@ -25,6 +25,8 @@ interface HitProps {
     image: string;
     description: string;
     genres: string[];
+    __position: number;
+    objectID: string;
   };
 }
 
