@@ -212,7 +212,16 @@ Or, run this command with no arguments to use the most recently published versio
     console.log()
   }
 
+  if (useAsPeerDependency) {
+    console.log(
+      `**breaking change for canary users: Bumps peer dependency of React from \`${baseVersionStr}\` to \`${newVersionStr}\`**`
+    )
+  }
+
   // Fetch the changelog from GitHub and print it to the console.
+  console.log(
+    `[diff facebook/react@${baseSha}...${newSha}](https://github.com/facebook/react/compare/${baseSha}...${newSha})`
+  )
   try {
     const changelog = await getChangelogFromGitHub(baseSha, newSha)
     if (changelog === null) {
@@ -252,10 +261,7 @@ Or run this command again without the --no-install flag to do both automatically
   }
 
   console.log(
-    `Successfully updated React from ${baseSha} to ${newSha}.\n` +
-      `Don't forget to find & replace all references to the React version '${baseVersionStr}' with '${newVersionStr}':\n` +
-      `-${baseVersionStr}\n` +
-      `+${newVersionStr}\n`
+    `Successfully updated React from \`${baseSha}-${baseDateString}\` to \`${newSha}-${newDateString}\``
   )
 }
 
