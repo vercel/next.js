@@ -16630,7 +16630,7 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/production/app-dir/actions-tree-shaking/shared-actions-module/shared-module-actions.test.ts": {
+    "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions.test.ts": {
       "passed": [],
       "failed": [
         "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
@@ -16666,7 +16666,7 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/production/app-dir/actions-tree-shaking/shared-actions-module/shared-module-actions-edge.test.ts": {
+    "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions-edge.test.ts": {
       "passed": [],
       "failed": [
         "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
