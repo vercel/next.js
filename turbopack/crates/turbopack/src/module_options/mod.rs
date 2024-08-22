@@ -422,6 +422,7 @@ impl ModuleOptions {
                                 Some(import_map),
                                 None,
                                 "postcss".into(),
+                                true,
                             ),
                             execution_context,
                             options.config_location,
@@ -560,28 +561,21 @@ impl ModuleOptions {
                         },
                         ModuleRuleCondition::not(ModuleRuleCondition::ResourceIsVirtualSource),
                     ]),
-                    vec![
-                        // By default, loaders are expected to return ecmascript code.
-                        // This can be overriden by specifying e. g. `as: "*.css"` in the rule.
-                        ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
-                            transforms: app_transforms,
-                            options: ecmascript_options_vc,
-                        }),
-                        ModuleRuleEffect::SourceTransforms(Vc::cell(vec![Vc::upcast(
-                            WebpackLoaders::new(
-                                node_evaluate_asset_context(
-                                    execution_context,
-                                    Some(import_map),
-                                    None,
-                                    "webpack_loaders".into(),
-                                ),
+                    vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
+                        Vc::upcast(WebpackLoaders::new(
+                            node_evaluate_asset_context(
                                 execution_context,
-                                rule.loaders,
-                                rule.rename_as.clone(),
-                                resolve_options_context,
+                                Some(import_map),
+                                None,
+                                "webpack_loaders".into(),
+                                false,
                             ),
-                        )])),
-                    ],
+                            execution_context,
+                            rule.loaders,
+                            rule.rename_as.clone(),
+                            resolve_options_context,
+                        )),
+                    ]))],
                 ));
             }
         }

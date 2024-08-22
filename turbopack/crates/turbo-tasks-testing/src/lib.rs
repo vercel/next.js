@@ -20,8 +20,8 @@ use turbo_tasks::{
     registry,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
-    CellId, ExecutionId, InvalidationReason, MagicAny, RawVc, TaskId, TraitTypeId, TurboTasksApi,
-    TurboTasksCallApi,
+    CellId, ExecutionId, InvalidationReason, MagicAny, RawVc, ReadConsistency, TaskId,
+    TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
 };
 
 pub use crate::run::{run, run_without_cache_check, Registration};
@@ -88,7 +88,12 @@ impl VcStorage {
 }
 
 impl TurboTasksCallApi for VcStorage {
-    fn dynamic_call(&self, func: turbo_tasks::FunctionId, arg: Box<dyn MagicAny>) -> RawVc {
+    fn dynamic_call(
+        &self,
+        func: turbo_tasks::FunctionId,
+        arg: Box<dyn MagicAny>,
+        _persistence: TaskPersistence,
+    ) -> RawVc {
         self.dynamic_call(func, None, arg)
     }
 
@@ -97,11 +102,17 @@ impl TurboTasksCallApi for VcStorage {
         func: turbo_tasks::FunctionId,
         this_arg: RawVc,
         arg: Box<dyn MagicAny>,
+        _persistence: TaskPersistence,
     ) -> RawVc {
         self.dynamic_call(func, Some(this_arg), arg)
     }
 
-    fn native_call(&self, _func: turbo_tasks::FunctionId, _arg: Box<dyn MagicAny>) -> RawVc {
+    fn native_call(
+        &self,
+        _func: turbo_tasks::FunctionId,
+        _arg: Box<dyn MagicAny>,
+        _persistence: TaskPersistence,
+    ) -> RawVc {
         unreachable!()
     }
 
@@ -110,6 +121,7 @@ impl TurboTasksCallApi for VcStorage {
         _func: turbo_tasks::FunctionId,
         _this: RawVc,
         _arg: Box<dyn MagicAny>,
+        _persistence: TaskPersistence,
     ) -> RawVc {
         unreachable!()
     }
@@ -120,6 +132,7 @@ impl TurboTasksCallApi for VcStorage {
         _trait_fn_name: Cow<'static, str>,
         _this: RawVc,
         _arg: Box<dyn MagicAny>,
+        _persistence: TaskPersistence,
     ) -> RawVc {
         unreachable!()
     }
@@ -171,7 +184,7 @@ impl TurboTasksApi for VcStorage {
     fn try_read_task_output(
         &self,
         id: TaskId,
-        _strongly_consistent: bool,
+        _consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>> {
         let tasks = self.tasks.lock().unwrap();
         let i = *id - 1;
@@ -188,9 +201,9 @@ impl TurboTasksApi for VcStorage {
     fn try_read_task_output_untracked(
         &self,
         task: TaskId,
-        strongly_consistent: bool,
+        consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>> {
-        self.try_read_task_output(task, strongly_consistent)
+        self.try_read_task_output(task, consistency)
     }
 
     fn try_read_task_cell(

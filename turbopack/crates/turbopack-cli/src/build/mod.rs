@@ -6,7 +6,9 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use turbo_tasks::{RcStr, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc};
+use turbo_tasks::{
+    RcStr, ReadConsistency, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc,
+};
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_memory::MemoryBackend;
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
@@ -148,7 +150,9 @@ impl TurbopackBuildBuilder {
             Ok(Default::default())
         });
 
-        self.turbo_tasks.wait_task_completion(task, true).await?;
+        self.turbo_tasks
+            .wait_task_completion(task, ReadConsistency::Strong)
+            .await?;
 
         Ok(())
     }

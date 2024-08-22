@@ -7,7 +7,7 @@ use std::{
 
 use serde::{de::Visitor, Deserialize, Serialize};
 
-use crate::registry;
+use crate::{registry, TaskPersistence};
 
 macro_rules! define_id {
     ($name:ident : $primitive:ty $(,derive($($derive:ty),*))?) => {
@@ -75,6 +75,22 @@ define_id!(LocalCellId: u32, derive(Debug));
 impl Debug for TaskId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TaskId").field("id", &self.id).finish()
+    }
+}
+
+pub const TRANSIENT_TASK_BIT: u32 = 0x8000_0000;
+
+impl TaskId {
+    pub fn is_transient(&self) -> bool {
+        **self & TRANSIENT_TASK_BIT != 0
+    }
+    pub fn persistence(&self) -> TaskPersistence {
+        // tasks with `TaskPersistence::LocalCells` have no `TaskId`, so we can ignore that case
+        if self.is_transient() {
+            TaskPersistence::Transient
+        } else {
+            TaskPersistence::Persistent
+        }
     }
 }
 

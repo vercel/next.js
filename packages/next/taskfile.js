@@ -1,3 +1,4 @@
+const { outdent } = require('outdent')
 const { relative, basename, resolve, join, dirname } = require('path')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const glob = require('glob')
@@ -1634,7 +1635,7 @@ export async function copy_vendor_react(task_) {
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
         // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source
+        let newSource = source
           .replace(
             /require\(["']scheduler["']\)/g,
             `require("next/dist/compiled/scheduler${packageSuffix}")`
@@ -1644,10 +1645,80 @@ export async function copy_vendor_react(task_) {
             `require("next/dist/compiled/react${packageSuffix}")`
           )
 
+        const filepath = file.dir + '/' + file.base
+        if (
+          /cjs\/react-dom-server\.edge\.(?:development|production)\.js$/.test(
+            filepath
+          )
+        ) {
+          newSource = replaceSetTimeout({
+            code: newSource,
+            file: filepath,
+            insertBefore: /\n\s*exports\.version =/,
+          })
+        }
+
+        file.data = newSource
+
         // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
         // as it mighe be aliased to the server rendering stub.
       })
       .target(`src/compiled/react-dom${packageSuffix}/cjs`)
+
+    function replaceSetTimeout({
+      code,
+      file,
+      insertBefore: insertBeforePattern,
+    }) {
+      // FIXME: we need this hack until we can use the Node build of 'react-dom/server'
+      //
+      // We're currently using the Edge builds of 'react-dom/server' and 'react-server-dom-{webpack,turbopack}' everywhere.
+      // But if we're in Node, we want to change the implementation of `scheduleWork` from the Edge one:
+      //   https://github.com/facebook/react/blob/19bd26beb689e554fceb0b929dc5199be8cba594/packages/react-server/src/ReactServerStreamConfigEdge.js#L31-L33
+      // to the Node one:
+      //   https://github.com/facebook/react/blob/19bd26beb689e554fceb0b929dc5199be8cba594/packages/react-server/src/ReactServerStreamConfigNode.js#L25-L27
+      // for performance and correctness reasons (e.g. in DynamicIO).
+      //
+      // Since `scheduleWork` is inlined, we have to convert `setTimeout` calls like this
+      //   setTimeout(() => ..., 0)
+      // into this:
+      //   setImmediate(() => ...)
+      //
+      // ReactDOM only ever calls `setTimeout` with `0` (and no further arguments),
+      // so we can just naively replace `setTimeout` with `setImmediate`.
+      // Technically the `0` will then be passed to the callback as an argument,
+      // but the callbacks will always ignore it anyway.
+
+      // NOTE: we have to replace these before inserting the definition of `setTimeoutOrImmediate`,
+      // otherwise we'd break it!
+      code = code.replaceAll(`setTimeout`, `setTimeoutOrImmediate`)
+
+      const insertionPoint = code.search(insertBeforePattern)
+      if (insertionPoint === -1) {
+        throw new Error(
+          `Cannot find insertion point for setTimeoutOrImmediate in ${file}`
+        )
+      }
+
+      const toInsert =
+        '\n\n' +
+        outdent`
+          // This is a patch added by Next.js
+          const setTimeoutOrImmediate =
+            typeof globalThis['set' + 'Immediate'] === 'function' &&
+            // edge runtime sandbox defines a stub for setImmediate
+            // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+            // but it's made non-enumerable, so we can detect it
+            globalThis.propertyIsEnumerable('setImmediate')
+              ? globalThis['set' + 'Immediate']
+              : setTimeout;
+        ` +
+        '\n'
+
+      return (
+        code.slice(0, insertionPoint) + toInsert + code.slice(insertionPoint)
+      )
+    }
 
     // Remove unused files
     const reactDomCompiledDir = join(
@@ -1701,10 +1772,18 @@ export async function copy_vendor_react(task_) {
             !file.base.startsWith('react-server-dom-webpack-server.browser'))
         ) {
           const source = file.data.toString()
-          file.data = source.replace(
+          let newSource = source.replace(
             /__webpack_require__/g,
             'globalThis.__next_require__'
           )
+          if (file.base.startsWith('react-server-dom-webpack-server.edge')) {
+            newSource = replaceSetTimeout({
+              code: newSource,
+              file: file.base,
+              insertBefore: /\n\s*exports\.renderToReadableStream =/,
+            })
+          }
+          file.data = newSource
         } else if (file.base === 'package.json') {
           file.data = overridePackageName(file.data)
         }
@@ -1748,9 +1827,19 @@ export async function copy_vendor_react(task_) {
             !file.base.startsWith('react-server-dom-turbopack-server.browser'))
         ) {
           const source = file.data.toString()
-          file.data = source
+          let newSource = source
             .replace(/__turbopack_load__/g, 'globalThis.__next_chunk_load__')
             .replace(/__turbopack_require__/g, 'globalThis.__next_require__')
+
+          if (file.base.startsWith('react-server-dom-turbopack-server.edge')) {
+            newSource = replaceSetTimeout({
+              code: newSource,
+              file: file.base,
+              insertBefore: /\n\s*exports\.renderToReadableStream =/,
+            })
+          }
+
+          file.data = newSource
         } else if (file.base === 'package.json') {
           file.data = overridePackageName(file.data)
         }

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, quote_spanned};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
@@ -24,6 +24,8 @@ pub struct TurboFn {
     inputs: Vec<Input>,
     /// Should we check that the return type contains a `ResolvedValue`?
     resolved: Option<Span>,
+    /// Should this function use `TaskPersistence::LocalCells`?
+    local_cells: bool,
 }
 
 #[derive(Debug)]
@@ -257,6 +259,7 @@ impl TurboFn {
             this,
             inputs,
             resolved: args.resolved,
+            local_cells: args.local_cells.is_some(),
         })
     }
 
@@ -301,15 +304,24 @@ impl TurboFn {
         }
     }
 
-    fn inputs(&self) -> Vec<&Ident> {
-        self.inputs
-            .iter()
-            .map(|Input { ident, .. }| ident)
-            .collect()
+    fn input_idents(&self) -> impl Iterator<Item = &Ident> {
+        self.inputs.iter().map(|Input { ident, .. }| ident)
     }
 
     pub fn input_types(&self) -> Vec<&Type> {
         self.inputs.iter().map(|Input { ty, .. }| ty).collect()
+    }
+
+    pub fn persistence(&self) -> impl ToTokens {
+        if self.local_cells {
+            quote! {
+                turbo_tasks::TaskPersistence::LocalCells
+            }
+        } else {
+            quote! {
+                turbo_tasks::macro_helpers::get_non_local_persistence_from_inputs(&*inputs)
+            }
+        }
     }
 
     fn converted_this(&self) -> Option<Expr> {
@@ -326,14 +338,7 @@ impl TurboFn {
             quote_spanned! {
                 span =>
                 {
-                    fn assert_returns_resolved_value<
-                        ReturnType,
-                        Rv,
-                    >() where
-                        ReturnType: turbo_tasks::task::TaskOutput<Return = Vc<Rv>>,
-                        Rv: turbo_tasks::ResolvedValue + Send,
-                    {}
-                    assert_returns_resolved_value::<#return_type, _>()
+                    turbo_tasks::macro_helpers::assert_returns_resolved_value::<#return_type, _>()
                 }
             }
         } else {
@@ -344,29 +349,33 @@ impl TurboFn {
     /// The block of the exposed function for a dynamic dispatch call to the
     /// given trait.
     pub fn dynamic_block(&self, trait_type_id_ident: &Ident) -> Block {
-        let ident = &self.ident;
-        let output = &self.output;
-        let assertions = self.get_assertions();
-        if let Some(converted_this) = self.converted_this() {
-            let inputs = self.inputs();
-            parse_quote! {
-                {
-                    #assertions
-                    <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
-                        turbo_tasks::trait_call(
-                            *#trait_type_id_ident,
-                            std::borrow::Cow::Borrowed(stringify!(#ident)),
-                            #converted_this,
-                            Box::new((#(#inputs,)*)) as Box<dyn turbo_tasks::MagicAny>,
-                        )
-                    )
-                }
-            }
-        } else {
-            parse_quote! {
+        let Some(converted_this) = self.converted_this() else {
+            return parse_quote! {
                 {
                     unimplemented!("trait methods without self are not yet supported")
                 }
+            };
+        };
+
+        let ident = &self.ident;
+        let output = &self.output;
+        let assertions = self.get_assertions();
+        let inputs = self.input_idents();
+        let persistence = self.persistence();
+        parse_quote! {
+            {
+                #assertions
+                let inputs = std::boxed::Box::new((#(#inputs,)*));
+                let persistence = #persistence;
+                <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
+                    turbo_tasks::trait_call(
+                        *#trait_type_id_ident,
+                        std::borrow::Cow::Borrowed(stringify!(#ident)),
+                        #converted_this,
+                        inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
+                        persistence,
+                    )
+                )
             }
         }
     }
@@ -375,17 +384,21 @@ impl TurboFn {
     /// given native function.
     pub fn static_block(&self, native_function_id_ident: &Ident) -> Block {
         let output = &self.output;
-        let inputs = self.inputs();
+        let inputs = self.input_idents();
+        let persistence = self.persistence();
         let assertions = self.get_assertions();
         if let Some(converted_this) = self.converted_this() {
             parse_quote! {
                 {
                     #assertions
+                    let inputs = std::boxed::Box::new((#(#inputs,)*));
+                    let persistence = #persistence;
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_this_call(
                             *#native_function_id_ident,
                             #converted_this,
-                            Box::new((#(#inputs,)*)) as Box<dyn turbo_tasks::MagicAny>,
+                            inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
+                            persistence,
                         )
                     )
                 }
@@ -394,10 +407,13 @@ impl TurboFn {
             parse_quote! {
                 {
                     #assertions
+                    let inputs = std::boxed::Box::new((#(#inputs,)*));
+                    let persistence = #persistence;
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
                             *#native_function_id_ident,
-                            Box::new((#(#inputs,)*)) as Box<dyn turbo_tasks::MagicAny>,
+                            inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
+                            persistence,
                         )
                     )
                 }

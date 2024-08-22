@@ -132,6 +132,8 @@ import { getServerActionRequestMetadata } from '../lib/server-action-request-met
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
 import { createMutableActionQueue } from '../../shared/lib/router/action-queue'
 import { prerenderAsyncStorage } from './prerender-async-storage.external'
+import { getRevalidateReason } from '../instrumentation/utils'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -227,7 +229,20 @@ function parseRequestHeaders(
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   // Align the segment with parallel-route-default in next-app-loader
-  return ['', {}, loaderTree[2]]
+  const components = loaderTree[2]
+  return [
+    '',
+    {
+      children: [
+        PAGE_SEGMENT_KEY,
+        {},
+        {
+          page: components['not-found'],
+        },
+      ],
+    },
+    components,
+  ]
 }
 
 export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
@@ -333,7 +348,6 @@ async function generateDynamicRSCPayload(
   options?: {
     actionResult: ActionResult
     skipFlight: boolean
-    asNotFound?: boolean
   }
 ): Promise<RSCPayload> {
   // Flight data that is going to be passed to the browser.
@@ -381,7 +395,6 @@ async function generateDynamicRSCPayload(
         injectedJS: new Set(),
         injectedFontPreloadTags: new Set(),
         rootLayoutIncluded: false,
-        asNotFound: ctx.isNotFoundPath || options?.asNotFound,
         getMetadataReady,
         preloadCallbacks,
       })
@@ -420,6 +433,7 @@ function createErrorContext(
     routePath: ctx.pagePath,
     routeType: ctx.isAction ? 'action' : 'render',
     renderSource,
+    revalidateReason: getRevalidateReason(ctx.staticGenerationStore),
   }
 }
 /**
@@ -432,7 +446,6 @@ async function generateDynamicFlightRenderResult(
   options?: {
     actionResult: ActionResult
     skipFlight: boolean
-    asNotFound?: boolean
     componentTree?: CacheNodeSeedData
     preloadCallbacks?: PreloadCallbacks
   }
@@ -473,7 +486,7 @@ async function generateDynamicFlightRenderResult(
 async function getRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
-  asNotFound: boolean
+  is404: boolean
 ) {
   const injectedCSS = new Set<string>()
   const injectedJS = new Set<string>()
@@ -500,7 +513,7 @@ async function getRSCPayload(
 
   const [MetadataTree, getMetadataReady] = createMetadataComponents({
     tree,
-    errorType: asNotFound ? 'not-found' : undefined,
+    errorType: is404 ? 'not-found' : undefined,
     query,
     metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
     getDynamicParamFromSegment: getDynamicParamFromSegment,
@@ -520,7 +533,6 @@ async function getRSCPayload(
     injectedJS,
     injectedFontPreloadTags,
     rootLayoutIncluded: false,
-    asNotFound: asNotFound,
     getMetadataReady,
     missingSlots,
     preloadCallbacks,
@@ -754,6 +766,9 @@ async function renderToHTMLOrFlightImpl(
   requestEndedState: { ended?: boolean }
 ) {
   const isNotFoundPath = pagePath === '/404'
+  if (isNotFoundPath) {
+    res.statusCode = 404
+  }
 
   // A unique request timestamp used by development to ensure that it's
   // consistent and won't change during this request. This is important to
@@ -799,11 +814,14 @@ async function renderToHTMLOrFlightImpl(
     req.originalRequest.on('end', () => {
       const staticGenStore =
         ComponentMod.staticGenerationAsyncStorage.getStore()
+      const prerenderStore = prerenderAsyncStorage.getStore()
+      const isPPR = !!prerenderStore?.dynamicTracking?.dynamicAccesses?.length
 
       if (
         process.env.NODE_ENV === 'development' &&
         staticGenStore &&
-        renderOpts.setAppIsrStatus
+        renderOpts.setAppIsrStatus &&
+        !isPPR
       ) {
         // only node can be ISR so we only need to update the status here
         const { pathname } = new URL(req.url || '/', 'http://n')
@@ -943,14 +961,12 @@ async function renderToHTMLOrFlightImpl(
       prerenderToStream
     )
 
-    const asNotFound = isNotFoundPath
     let response = await prerenderToStreamWithTracing(
       req,
       res,
       ctx,
       metadata,
       staticGenerationStore,
-      asNotFound,
       loaderTree
     )
 
@@ -1055,12 +1071,11 @@ async function renderToHTMLOrFlightImpl(
       if (actionRequestResult) {
         if (actionRequestResult.type === 'not-found') {
           const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
-          const asNotFound = true
+          res.statusCode = 404
           const stream = await renderToStreamWithTracing(
             req,
             res,
             ctx,
-            asNotFound,
             notFoundLoaderTree,
             formState
           )
@@ -1081,12 +1096,10 @@ async function renderToHTMLOrFlightImpl(
       metadata,
     }
 
-    const asNotFound = isNotFoundPath
     const stream = await renderToStreamWithTracing(
       req,
       res,
       ctx,
-      asNotFound,
       loaderTree,
       formState
     )
@@ -1183,8 +1196,6 @@ async function renderToStream(
   req: BaseNextRequest,
   res: BaseNextResponse,
   ctx: AppRenderContext,
-
-  asNotFound: boolean,
   tree: LoaderTree,
   formState: any
 ): Promise<ReadableStream<Uint8Array>> {
@@ -1271,7 +1282,7 @@ async function renderToStream(
 
   try {
     // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
-    const RSCPayload = await getRSCPayload(tree, ctx, asNotFound)
+    const RSCPayload = await getRSCPayload(tree, ctx, res.statusCode === 404)
     const reactServerStream = ComponentMod.renderToReadableStream(
       RSCPayload,
       clientReferenceManifest.clientModules,
@@ -1592,8 +1603,6 @@ async function prerenderToStream(
   ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
   staticGenerationStore: StaticGenerationStore,
-
-  asNotFound: boolean,
   tree: LoaderTree
 ): Promise<PrenderToStringResult> {
   // When prerendering formState is always null. We still include it
@@ -1698,7 +1707,7 @@ async function prerenderToStream(
       const reactServerPrerenderStore = {
         dynamicTracking,
       }
-      const RSCPayload = await getRSCPayload(tree, ctx, asNotFound)
+      const RSCPayload = await getRSCPayload(tree, ctx, res.statusCode === 404)
       const reactServerStream: ReadableStream<Uint8Array> =
         prerenderAsyncStorage.run(
           reactServerPrerenderStore,
@@ -1862,7 +1871,7 @@ async function prerenderToStream(
     } else {
       // This is a regular static generation. We don't do dynamic tracking because we rely on
       // the old-school dynamic error handling to bail out of static generation
-      const RSCPayload = await getRSCPayload(tree, ctx, asNotFound)
+      const RSCPayload = await getRSCPayload(tree, ctx, res.statusCode === 404)
       const reactServerStream = ComponentMod.renderToReadableStream(
         RSCPayload,
         clientReferenceManifest.clientModules,
