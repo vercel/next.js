@@ -313,7 +313,7 @@ export function createRSCAliases(
   }
 
   alias[
-    '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
+    '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
   ] = `next/dist/client/dev/noop-turbopack-hmr`
 
   return alias
