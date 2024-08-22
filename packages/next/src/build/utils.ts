@@ -1375,6 +1375,7 @@ export async function buildAppStaticPaths({
   nextConfigOutput,
   ComponentMod,
   isRoutePPREnabled,
+  isAppPPRFallbacksEnabled,
 }: {
   dir: string
   page: string
@@ -1389,6 +1390,7 @@ export async function buildAppStaticPaths({
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule
   isRoutePPREnabled: boolean | undefined
+  isAppPPRFallbacksEnabled: boolean | undefined
 }): Promise<PartialStaticPathsResult> {
   ComponentMod.patchFetch()
 
@@ -1533,7 +1535,7 @@ export async function buildAppStaticPaths({
           // the prerender-manifest to allow this behavior
           (generate) => generate.config?.dynamicParams === false
         )
-          ? isRoutePPREnabled
+          ? isRoutePPREnabled && isAppPPRFallbacksEnabled
             ? FallbackMode.STATIC_PRERENDER
             : FallbackMode.BLOCKING_STATIC_RENDER
           : FallbackMode.NOT_FOUND
@@ -1597,6 +1599,7 @@ export async function isPageStatic({
   nextConfigOutput,
   cacheHandler,
   pprConfig,
+  isAppPPRFallbacksEnabled,
 }: {
   dir: string
   page: string
@@ -1616,6 +1619,7 @@ export async function isPageStatic({
   cacheHandler?: string
   nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
+  isAppPPRFallbacksEnabled: boolean | undefined
 }): Promise<PageIsStaticResult> {
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
@@ -1740,6 +1744,7 @@ export async function isPageStatic({
               ComponentMod,
               nextConfigOutput,
               isRoutePPREnabled,
+              isAppPPRFallbacksEnabled,
             }))
         }
       } else {

@@ -44,6 +44,7 @@ describe('required server files app router', () => {
         cacheHandler: './cache-handler.js',
         experimental: {
           ppr: true,
+          pprFallbacks: true,
         },
         eslint: {
           ignoreDuringBuilds: true,
