@@ -51,6 +51,7 @@ export async function loadStaticPaths({
   requestHeaders,
   cacheHandler,
   nextConfigOutput,
+  isAppPPRFallbacksEnabled,
 }: {
   dir: string
   distDir: string
@@ -67,6 +68,7 @@ export async function loadStaticPaths({
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
   nextConfigOutput: 'standalone' | 'export' | undefined
+  isAppPPRFallbacksEnabled: boolean | undefined
 }): Promise<PartialStaticPathsResult> {
   // update work memory runtime-config
   require('../../shared/lib/runtime-config.external').setConfig(config)
@@ -124,6 +126,7 @@ export async function loadStaticPaths({
       ComponentMod: components.ComponentMod,
       nextConfigOutput,
       isRoutePPREnabled,
+      isAppPPRFallbacksEnabled,
     })
   }
 

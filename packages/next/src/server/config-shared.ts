@@ -417,6 +417,12 @@ export interface ExperimentalConfig {
   ppr?: ExperimentalPPRConfig
 
   /**
+   * Enables experimental Partial Fallback Prerendering features. Using this
+   * requires use of the `experimental.ppr` feature.
+   */
+  pprFallbacks?: boolean
+
+  /**
    * Enables experimental taint APIs in React.
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
@@ -1028,6 +1034,15 @@ export const defaultConfig: NextConfig = {
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
     ppr:
+      // TODO: remove once we've made PPR default
+      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
+      // has been set to `true`, enable the experimental PPR feature so long as it
+      // wasn't explicitly disabled in the config.
+      !!(
+        process.env.__NEXT_TEST_MODE &&
+        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+      ),
+    pprFallbacks:
       // TODO: remove once we've made PPR default
       // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
       // has been set to `true`, enable the experimental PPR feature so long as it

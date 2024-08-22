@@ -319,6 +319,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .union([z.boolean(), z.literal('incremental')])
           .readonly()
           .optional(),
+        pprFallbacks: z.boolean().optional(),
         taint: z.boolean().optional(),
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
