@@ -206,7 +206,7 @@ function getBaseSWCOptions({
             // TODO: remove this option
             enabled: true,
             isReactServerLayer,
-            serverActionsHashSalt: '',
+            hashSalt: '',
           }
         : undefined,
     // For app router we prefer to bundle ESM,
