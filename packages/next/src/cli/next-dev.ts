@@ -33,7 +33,6 @@ import {
 } from '../lib/helpers/get-reserved-port'
 import os from 'os'
 import { once } from 'node:events'
-import { clearTimeout } from 'timers'
 
 type NextDevOptions = {
   turbo?: boolean
@@ -56,32 +55,13 @@ let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
-// How long should we wait for the child to cleanly exit after sending
-// SIGINT/SIGTERM to the child process before sending SIGKILL?
-const CHILD_EXIT_TIMEOUT_MS = parseInt(
-  process.env.NEXT_EXIT_TIMEOUT_MS ?? '100',
-  10
-)
-
 const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
-  if (signal != null && child?.pid) child.kill(signal)
+  if (child?.pid) child.kill(signal ?? 0)
   if (sessionStopHandled) return
   sessionStopHandled = true
 
   if (child?.pid && child.exitCode === null && child.signalCode === null) {
-    if (
-      signal != null &&
-      child?.pid &&
-      child.exitCode === null &&
-      child.signalCode === null
-    ) {
-      let exitTimeout = setTimeout(() => {
-        child?.kill('SIGKILL')
-      }, CHILD_EXIT_TIMEOUT_MS)
-      await once(child, 'exit').catch(() => {})
-      await once(child, 'exit').catch(() => {})
-      clearTimeout(exitTimeout)
-    }
+    await once(child, 'exit').catch(() => {})
   }
 
   try {
@@ -142,8 +122,8 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   process.exit(0)
 }
 
-process.on('SIGINT', () => handleSessionStop('SIGINT'))
-process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
+process.on('SIGINT', () => handleSessionStop('SIGKILL'))
+process.on('SIGTERM', () => handleSessionStop('SIGKILL'))
 
 // exit event must be synchronous
 process.on('exit', () => child?.kill('SIGKILL'))
@@ -314,9 +294,7 @@ const nextDev = async (
           }
           return startServer(startServerOptions)
         }
-        // Call handler (e.g. upload telemetry). Don't try to send a signal to
-        // the child, as it has already exited.
-        await handleSessionStop(/* signal */ null)
+        await handleSessionStop(signal)
       })
     })
   }

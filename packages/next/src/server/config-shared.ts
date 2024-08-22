@@ -143,14 +143,9 @@ export interface ExperimentalTurboOptions {
   rules?: Record<string, TurboRuleConfigItemOrShortcut>
 
   /**
-   * Use swc_css instead of lightningcss for Turbopack
+   * Use swc_css instead of lightningcss for turbopakc
    */
   useSwcCss?: boolean
-
-  /**
-   * A target memory limit for turbo, in bytes.
-   */
-  memoryLimit?: number
 }
 
 export interface WebpackConfigContext {
@@ -322,16 +317,7 @@ export interface ExperimentalConfig {
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
    */
-  mdxRs?:
-    | boolean
-    | {
-        development?: boolean
-        jsx?: boolean
-        jsxRuntime?: string
-        jsxImportSource?: string
-        providerImportSource?: string
-        mdxType?: 'gfm' | 'commonmark'
-      }
+  mdxRs?: boolean
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
@@ -455,7 +441,7 @@ export interface ExperimentalConfig {
   useEarlyImport?: boolean
 
   /**
-   * Enables `fetch` requests to be proxied to the experimental test proxy server
+   * Enables `fetch` requests to be proxied to the experimental text proxy server
    */
   testProxy?: boolean
 }
@@ -945,10 +931,10 @@ export const defaultConfig: NextConfig = {
       // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
       // has been set to `true`, enable the experimental PPR feature so long as it
       // wasn't explicitly disabled in the config.
-      !!(
-        process.env.__NEXT_TEST_MODE &&
-        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-      ),
+      process.env.__NEXT_TEST_MODE &&
+      process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? true
+        : false,
     webpackBuildWorker: undefined,
     missingSuspenseWithCSRBailout: true,
     optimizeServerReact: true,

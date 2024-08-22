@@ -549,12 +549,12 @@ pub async fn load_next_js_template(
     injections: IndexMap<&'static str, RcStr>,
     imports: IndexMap<&'static str, Option<RcStr>>,
 ) -> Result<Vc<Box<dyn Source>>> {
-    let path = virtual_next_js_template_path(project_path, path.to_string());
+    let filesystem_path = virtual_next_js_template_path(project_path, path.to_string());
 
-    let content = &*file_content_rope(path.read()).await?;
+    let content = &*file_content_rope(filesystem_path.read()).await?;
     let content = content.to_str()?.to_string();
 
-    let parent_path = path.parent();
+    let parent_path = filesystem_path.parent();
     let parent_path_value = &*parent_path.await?;
 
     let package_root = get_next_package(project_path).parent();
@@ -632,7 +632,10 @@ pub async fn load_next_js_template(
     // we don't accidentally remove the import replacement code or use the wrong
     // template file.
     if count == 0 {
-        bail!("Invariant: Expected to replace at least one import")
+        bail!(
+            "Invariant: Expected to replace at least one import in file {}",
+            path
+        );
     }
 
     // Replace all the template variables with the actual values. If a template
@@ -792,7 +795,7 @@ pub async fn load_next_js_template(
 
     let file = File::from(content);
 
-    let source = VirtualSource::new(path, AssetContent::file(file.into()));
+    let source = VirtualSource::new(filesystem_path, AssetContent::file(file.into()));
 
     Ok(Vc::upcast(source))
 }

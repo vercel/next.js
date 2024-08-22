@@ -316,9 +316,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       return handleSuccess()
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
-      if (hasCompileErrors || RuntimeErrorHandler.hadRuntimeError) {
-        window.location.reload()
-      }
+      window.location.reload()
       return
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
@@ -335,7 +333,6 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       for (const listener of turbopackMessageListeners) {
         listener({
           type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
-          data: obj.data,
         })
       }
       break

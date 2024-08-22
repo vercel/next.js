@@ -63,7 +63,6 @@ export class NextServer {
   private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
 
-  protected cleanupListeners: (() => Promise<void>)[] = []
   protected standaloneMode?: boolean
 
   public options: NextServerOptions
@@ -157,15 +156,8 @@ export class NextServer {
   }
 
   async close() {
-    await Promise.all(
-      [
-        async () => {
-          const server = await this.getServer()
-          await (server as any).close()
-        },
-        ...this.cleanupListeners,
-      ].map((f) => f())
-    )
+    const server = await this.getServer()
+    return (server as any).close()
   }
 
   private async createServer(
@@ -291,7 +283,6 @@ class NextCustomServer extends NextServer {
       dir: this.options.dir!,
       port: this.options.port || 3000,
       isDev: !!this.options.dev,
-      onCleanup: (listener) => this.cleanupListeners.push(listener),
       hostname: this.options.hostname || 'localhost',
       minimalMode: this.options.minimalMode,
       isNodeDebugging: !!isNodeDebugging,

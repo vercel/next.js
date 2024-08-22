@@ -64,7 +64,6 @@ export async function initialize(opts: {
   dir: string
   port: number
   dev: boolean
-  onCleanup: (listener: () => Promise<void>) => void
   server?: import('http').Server
   minimalMode?: boolean
   hostname?: string
@@ -132,7 +131,6 @@ export async function initialize(opts: {
         isCustomServer: opts.customServer,
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
-        onCleanup: opts.onCleanup,
       })
     )
 
