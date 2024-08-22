@@ -1842,28 +1842,28 @@ impl JsValue {
                 if name.len() != def_name_len + (prefix_self.is_some() as usize) {
                     continue;
                 }
-                let mut it = name.iter().map(Cow::Borrowed).rev();
+                let mut name_rev_it = name.iter().map(Cow::Borrowed).rev();
                 if let Some(prefix_self) = prefix_self {
-                    if it.next().unwrap().as_ref() != prefix_self {
+                    if name_rev_it.next().unwrap().as_ref() != prefix_self {
                         continue;
                     }
                 }
 
-                if let Some(var_graph) = var_graph {
-                    if let DefineableNameSegment::Name(first_str) = name.first().unwrap() {
-                        let first_str: &str = first_str;
-                        if var_graph
-                            .free_var_ids
-                            .get(&first_str.into())
-                            .map_or(false, |id| var_graph.values.contains_key(id))
-                        {
-                            // `typeof foo...` but `foo` was reassigned
-                            return None;
+                if name_rev_it.eq(self.iter_defineable_name_rev()) {
+                    if let Some(var_graph) = var_graph {
+                        if let DefineableNameSegment::Name(first_str) = name.first().unwrap() {
+                            let first_str: &str = first_str;
+                            if var_graph
+                                .free_var_ids
+                                .get(&first_str.into())
+                                .map_or(false, |id| var_graph.values.contains_key(id))
+                            {
+                                // `typeof foo...` but `foo` was reassigned
+                                return None;
+                            }
                         }
                     }
-                }
 
-                if it.eq(self.iter_defineable_name_rev()) {
                     return Some(value);
                 }
             }
