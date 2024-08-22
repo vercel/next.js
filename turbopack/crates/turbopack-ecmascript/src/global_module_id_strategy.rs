@@ -144,12 +144,19 @@ pub async fn children_modules_idents(
                 modules_idents.insert(ident_str, hash);
             }
             ReferencedModule::AsyncLoaderModule(async_loader_module) => {
-                let async_loader_ident = async_loader_module
+                let loader_ident = async_loader_module
                     .ident()
                     .with_modifier(Vc::cell("async loader".into()));
-                let ident_str = async_loader_ident.to_string().await?.clone_value();
-                let hash = hash_xxh3_hash64(&ident_str);
-                modules_idents.insert(ident_str, hash);
+                let loader_ident_str = loader_ident.to_string().await?.clone_value();
+                let loader_hash = hash_xxh3_hash64(&loader_ident_str);
+                modules_idents.insert(loader_ident_str, loader_hash);
+
+                let loaded_client_ident = async_loader_module
+                    .ident()
+                    .with_layer(Vc::cell("app-client".into()));
+                let loaded_client_ident_str = loaded_client_ident.to_string().await?.clone_value();
+                let loaded_client_hash = hash_xxh3_hash64(&loaded_client_ident_str);
+                modules_idents.insert(loaded_client_ident_str, loaded_client_hash);
             }
         }
     }
