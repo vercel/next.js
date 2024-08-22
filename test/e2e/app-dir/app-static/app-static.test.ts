@@ -2162,7 +2162,11 @@ describe('app-dir static/dynamic handling', () => {
     for (let i = 0; i < 5; i++) {
       const res = await next.fetch('/articles/non-existent')
 
-      expect(res.status).toBe(404)
+      if (process.env.__NEXT_EXPERIMENTAL_PPR && !isNextDev) {
+        expect(res.status).toBe(200)
+      } else {
+        expect(res.status).toBe(404)
+      }
       expect(await res.text()).toContain('This page could not be found')
       await waitFor(500)
     }
@@ -3277,7 +3281,7 @@ describe('app-dir static/dynamic handling', () => {
     expect(html).toInclude('"noindex"')
     expect(html).toInclude('This page could not be found.')
 
-    if (process.env.__NEXT_EXPERIMENTAL_PPR) {
+    if (process.env.__NEXT_EXPERIMENTAL_PPR && !isNextDev) {
       expect(res.status).toBe(200)
     } else {
       expect(res.status).toBe(404)
