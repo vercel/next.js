@@ -1,4 +1,5 @@
 {
+  "private": true,
   "scripts": {
     "dev": "next dev --turbo",
     "build": "next build",
