@@ -8961,14 +8961,13 @@
         "Edge runtime code with imports Middleware statically importing 3rd party module production mode does not build and reports",
         "Edge runtime code with imports Middleware statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware using Buffer polyfill does not throw in dev at runtime",
-        "Edge runtime code with imports Middleware using Buffer polyfill production mode does not throw in production at runtime"
-      ],
-      "failed": [
+        "Edge runtime code with imports Middleware using Buffer polyfill production mode does not throw in production at runtime",
         "Edge runtime code with imports Edge API dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Edge API dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Middleware dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Middleware dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
       ],
+      "failed": [],
       "pending": [
         "Edge runtime code with imports Edge API dynamically importing node.js module development mode throws unsupported module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Edge API dynamically importing node.js module in a lib development mode throws unsupported module error in dev at runtime and highlights the faulty line",
@@ -8991,13 +8990,13 @@
         "Edge runtime code with imports Middleware importing unused 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
-        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
+        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
+        "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
+        "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
       ],
       "failed": [
         "Edge runtime code with imports Edge API importing unused node.js module production mode does not throw in production at runtime",
-        "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime",
-        "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
+        "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime"
       ],
       "pending": [],
       "flakey": [],
