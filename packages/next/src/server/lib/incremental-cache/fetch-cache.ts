@@ -103,8 +103,9 @@ export default class FetchCache implements CacheHandler {
       process.env.SUSPENSE_CACHE_BASEPATH
 
     if (process.env.SUSPENSE_CACHE_AUTH_TOKEN) {
-      this.headers['Authorization'] =
-        `Bearer ${process.env.SUSPENSE_CACHE_AUTH_TOKEN}`
+      this.headers[
+        'Authorization'
+      ] = `Bearer ${process.env.SUSPENSE_CACHE_AUTH_TOKEN}`
     }
 
     if (scHost) {
