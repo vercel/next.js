@@ -14,10 +14,6 @@ createNextDescribe(
   'app-custom-routes',
   {
     files: __dirname,
-    dependencies: {
-      // pin with repo's version of node-fetch
-      '@types/node-fetch': '2.6.1',
-    },
   },
   ({ next, isNextDeploy, isNextDev, isNextStart }) => {
     describe('works with api prefix correctly', () => {
