@@ -96,7 +96,7 @@
     "@replayio/replay": "0.20.1",
     "@svgr/webpack": "5.5.0",
     "@swc/cli": "0.1.55",
-    "@swc/core": "1.6.13",
+    "@swc/core": "1.4.4",
     "@swc/helpers": "0.5.5",
     "@testing-library/jest-dom": "6.1.2",
     "@testing-library/react": "13.0.0",
