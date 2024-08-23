@@ -78,7 +78,7 @@ const nextLint = async (options: NextLintOptions, directory?: string) => {
   const pathsToLint = (
     filesToLint.length ? filesToLint : ESLINT_DEFAULT_DIRS
   ).reduce((res: string[], d: string) => {
-    const currDir = join(baseDir, d)
+    const currDir = existsSync(d) ? d : join(baseDir, d)
 
     if (!existsSync(currDir)) {
       return res
