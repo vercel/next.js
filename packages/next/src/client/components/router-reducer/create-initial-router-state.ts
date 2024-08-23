@@ -7,6 +7,7 @@ import { extractPathFromFlightRouterState } from './compute-changed-path'
 import { createPrefetchCacheEntryForInitialLoad } from './prefetch-cache-utils'
 import type { PrefetchCacheEntry } from './router-reducer-types'
 import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
+import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 
 export interface InitialRouterStateParameters {
   buildId: string
@@ -31,21 +32,26 @@ export function createInitialRouterState({
   // This is to ensure that when the RSC payload streamed to the client, crawlers don't interpret it
   // as a URL that should be crawled.
   const initialCanonicalUrl = initialCanonicalUrlParts.join('/')
-  // The initialFlightData is an array of FlightDataPath arrays.
-  // For the root render, there'll only be a top-level FlightDataPath array.
-  const [initialTree, initialSeedData, initialHead] = initialFlightData[0]
+  const {
+    tree: initialTree,
+    seedData: initialSeedData,
+    head: initialHead,
+  } = getFlightDataPartsFromPath(initialFlightData[0])
   const isServer = !location
-  const rsc = initialSeedData[1]
+  // For the SSR render, seed data should always be available (we only send back a `null` response
+  // in the case of a `loading` segment, pre-PPR.)
+  const rsc = initialSeedData?.[1]
+  const loading = initialSeedData?.[3] ?? null
 
   const cache: CacheNode = {
     lazyData: null,
-    rsc: rsc,
+    rsc,
     prefetchRsc: null,
     head: null,
     prefetchHead: null,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
-    loading: initialSeedData[3],
+    loading,
   }
 
   const canonicalUrl =

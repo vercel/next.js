@@ -3,6 +3,7 @@ import type {
   FlightSegmentPath,
 } from '../../../server/app-render/types'
 import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/segment'
+import { getNextFlightSegmentPath } from '../../flight-data-helpers'
 import { matchSegment } from '../match-segments'
 import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
 
@@ -106,7 +107,7 @@ export function applyRouterStatePatchToTree(
     parallelRoutePatch = applyPatch(parallelRoutes[parallelRouteKey], treePatch)
   } else {
     parallelRoutePatch = applyRouterStatePatchToTree(
-      flightSegmentPath.slice(2),
+      getNextFlightSegmentPath(flightSegmentPath),
       parallelRoutes[parallelRouteKey],
       treePatch,
       path

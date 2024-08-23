@@ -3,6 +3,10 @@ import type { FlightDataPath } from '../../../server/app-render/types'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 import type { PrefetchCacheEntry } from './router-reducer-types'
+import {
+  getFlightDataPartsFromPath,
+  isRootFlightDataPath,
+} from '../../flight-data-helpers'
 
 export function applyFlightData(
   existingCache: CacheNode,
@@ -11,16 +15,20 @@ export function applyFlightData(
   prefetchEntry?: PrefetchCacheEntry
 ): boolean {
   // The one before last item is the router state tree patch
-  const [treePatch, cacheNodeSeedData, head] = flightDataPath.slice(-3)
+  const {
+    tree: treePatch,
+    seedData,
+    head,
+  } = getFlightDataPartsFromPath(flightDataPath)
 
   // Handles case where prefetch only returns the router tree patch without rendered components.
-  if (cacheNodeSeedData === null) {
+  if (seedData === null) {
     return false
   }
 
-  if (flightDataPath.length === 3) {
-    const rsc = cacheNodeSeedData[1]
-    const loading = cacheNodeSeedData[3]
+  if (isRootFlightDataPath(flightDataPath)) {
+    const rsc = seedData[1]
+    const loading = seedData[3]
     cache.loading = loading
     cache.rsc = rsc
     // This is a PPR-only field. When PPR is enabled, we shouldn't hit
@@ -33,7 +41,7 @@ export function applyFlightData(
       cache,
       existingCache,
       treePatch,
-      cacheNodeSeedData,
+      seedData,
       head,
       prefetchEntry
     )

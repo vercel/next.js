@@ -3,6 +3,7 @@ import type {
   FlightDataPath,
   Segment,
 } from '../../../server/app-render/types'
+import { getNextFlightSegmentPath } from '../../flight-data-helpers'
 import { matchSegment } from '../match-segments'
 
 // TODO-APP: flightSegmentPath will be empty in case of static response, needs to be handled.
@@ -34,7 +35,7 @@ export function shouldHardNavigate(
   }
 
   return shouldHardNavigate(
-    flightSegmentPath.slice(2),
+    getNextFlightSegmentPath(flightSegmentPath),
     parallelRoutes[parallelRouteKey]
   )
 }

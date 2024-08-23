@@ -5,6 +5,11 @@ import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-
 import { createRouterCacheKey } from './create-router-cache-key'
 import type { PrefetchCacheEntry } from './router-reducer-types'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
+import {
+  getFlightDataPartsFromPath,
+  getNextFlightSegmentPath,
+  isLastFlightDataPathEntry,
+} from '../../flight-data-helpers'
 
 /**
  * Common logic for filling cache with new sub tree data.
@@ -16,7 +21,7 @@ function fillCacheHelper(
   prefetchEntry: PrefetchCacheEntry | undefined,
   fillLazyItems: boolean
 ): void {
-  const isLastEntry = flightDataPath.length <= 5
+  const isLastEntry = isLastFlightDataPathEntry(flightDataPath)
   const [parallelRouteKey, segment] = flightDataPath
 
   const cacheKey = createRouterCacheKey(segment)
@@ -38,7 +43,11 @@ function fillCacheHelper(
 
   const existingChildCacheNode = existingChildSegmentMap.get(cacheKey)
   let childCacheNode = childSegmentMap.get(cacheKey)
-  const cacheNodeSeedData = flightDataPath[3]
+  const {
+    seedData: cacheNodeSeedData,
+    tree: treePatch,
+    head,
+  } = getFlightDataPartsFromPath(flightDataPath)
 
   if (isLastEntry) {
     if (
@@ -70,16 +79,16 @@ function fillCacheHelper(
         invalidateCacheByRouterState(
           childCacheNode,
           existingChildCacheNode,
-          flightDataPath[2]
+          treePatch
         )
       }
       if (fillLazyItems) {
         fillLazyItemsTillLeafWithHead(
           childCacheNode,
           existingChildCacheNode,
-          flightDataPath[2],
+          treePatch,
           cacheNodeSeedData,
-          flightDataPath[4],
+          head,
           prefetchEntry
         )
       }
@@ -111,7 +120,7 @@ function fillCacheHelper(
   fillCacheHelper(
     childCacheNode,
     existingChildCacheNode,
-    flightDataPath.slice(2),
+    getNextFlightSegmentPath(flightDataPath),
     prefetchEntry,
     fillLazyItems
   )

@@ -15,6 +15,10 @@ import type { CacheNode } from '../../../../shared/lib/app-router-context.shared
 import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
+import {
+  getFlightDataPartsFromPath,
+  isRootFlightDataPath,
+} from '../../../flight-data-helpers'
 
 // A version of refresh reducer that keeps the cache around instead of wiping all of it.
 function hmrRefreshReducerImpl(
@@ -60,15 +64,14 @@ function hmrRefreshReducerImpl(
       let currentCache = state.cache
 
       for (const flightDataPath of flightData) {
-        // FlightDataPath with more than two items means unexpected Flight data was returned
-        if (flightDataPath.length !== 3) {
+        if (!isRootFlightDataPath(flightDataPath)) {
           // TODO-APP: handle this case better
           console.log('REFRESH FAILED')
           return state
         }
 
-        // Given the path can only have two items the items are only the router state and rsc for the root.
-        const [treePatch] = flightDataPath
+        const { tree: treePatch } = getFlightDataPartsFromPath(flightDataPath)
+
         const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           [''],
