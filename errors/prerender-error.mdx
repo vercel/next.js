@@ -17,4 +17,3 @@ While prerendering a page an error occurred. This can occur for many reasons fro
 - Make sure you are not trying to export (`output: 'export'` or `next export`) pages that have server-side rendering enabled [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props)
 - If necessary, you can [disable server-side rendering](/docs/pages/building-your-application/optimizing/lazy-loading#with-no-ssr) for a specific component that may be attempting to use browser APIs like `window`
 - Make sure that components which require browser APIs or client-only features have the `'use client'` directive
-
