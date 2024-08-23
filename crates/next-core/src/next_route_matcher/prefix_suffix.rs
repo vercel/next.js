@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use turbopack_binding::turbopack::node::route_matcher::{Params, RouteMatcherRef};
+use turbopack_node::route_matcher::{Params, RouteMatcherRef};
 
 /// A composite route matcher that matches a path if it has a given prefix and
 /// suffix.

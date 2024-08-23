@@ -79,8 +79,13 @@ impl TraceReader {
     }
 
     pub fn run(&mut self) {
+        let mut file_warning_printed = false;
         loop {
-            self.try_read();
+            let read_success = self.try_read();
+            if !file_warning_printed && !read_success {
+                println!("Unable to read trace file at {:?}, waiting...", self.path);
+                file_warning_printed = true;
+            }
             thread::sleep(Duration::from_millis(500));
         }
     }

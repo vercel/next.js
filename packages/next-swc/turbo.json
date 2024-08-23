@@ -6,6 +6,7 @@
       "inputs": [
         "../../.cargo/**",
         "../../crates/**",
+        "../../turbopack/crates/**",
         "../../Cargo.toml",
         "../../Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -17,6 +18,7 @@
       "inputs": [
         "../../.cargo/**",
         "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -28,6 +30,7 @@
       "inputs": [
         "../../.cargo/**",
         "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -39,6 +42,7 @@
       "inputs": [
         "../../.cargo/**",
         "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -50,6 +54,7 @@
       "inputs": [
         "../../.cargo/**",
         "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -61,6 +66,7 @@
       "inputs": [
         "../../.cargo/**",
         "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -72,6 +78,7 @@
       "inputs": [
         "../../.cargo/**",
         "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -90,6 +97,7 @@
       "inputs": [
         "../../.cargo/**",
         "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -101,6 +109,7 @@
       "inputs": [
         "../../.cargo/**",
         "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -111,6 +120,7 @@
       "inputs": [
         "../../.cargo/**",
         "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -121,6 +131,7 @@
       "inputs": [
         "../../.cargo/**",
         "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",

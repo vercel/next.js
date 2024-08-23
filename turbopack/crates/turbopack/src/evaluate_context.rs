@@ -15,7 +15,9 @@ use turbopack_node::execution_context::ExecutionContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
-    module_options::ModuleOptionsContext, transition::TransitionsByName, ModuleAssetContext,
+    module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
+    transition::TransitionsByName,
+    ModuleAssetContext,
 };
 
 #[turbo_tasks::function]
@@ -31,6 +33,7 @@ pub async fn node_evaluate_asset_context(
     import_map: Option<Vc<ImportMap>>,
     transitions: Option<Vc<TransitionsByName>>,
     layer: RcStr,
+    ignore_dynamic_requests: bool,
 ) -> Result<Vc<Box<dyn AssetContext>>> {
     let mut import_map = if let Some(import_map) = import_map {
         import_map.await?.clone_value()
@@ -87,8 +90,12 @@ pub async fn node_evaluate_asset_context(
             )
             .cell(),
         ModuleOptionsContext {
-            enable_typescript_transform: Some(Default::default()),
             tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+            ecmascript: EcmascriptOptionsContext {
+                enable_typescript_transform: Some(Default::default()),
+                ignore_dynamic_requests,
+                ..Default::default()
+            },
             ..Default::default()
         }
         .cell(),

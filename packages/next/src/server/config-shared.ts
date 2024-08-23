@@ -153,6 +153,11 @@ export interface ExperimentalTurboOptions {
    * A target memory limit for turbo, in bytes.
    */
   memoryLimit?: number
+
+  /**
+   * Enable tree shaking for the turbopack dev server and build.
+   */
+  treeShaking?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -211,8 +216,9 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
-  flyingShuttle?: boolean
+  flyingShuttle?: { mode?: 'full' | 'store-only' }
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
@@ -292,8 +298,6 @@ export interface ExperimentalConfig {
   sri?: {
     algorithm?: SubresourceIntegrityAlgorithm
   }
-  adjustFontFallbacks?: boolean
-  adjustFontFallbacksWithSizeAdjust?: boolean
 
   webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
 
@@ -402,11 +406,6 @@ export interface ExperimentalConfig {
   webpackMemoryOptimizations?: boolean
 
   /**
-   *
-   */
-  instrumentationHook?: boolean
-
-  /**
    * The array of the meta tags to the client injected by tracing propagation data.
    */
   clientTraceMetadata?: string[]
@@ -504,6 +503,16 @@ export interface ExperimentalConfig {
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
+
+  /**
+   * The amount of pages to export per worker during static generation.
+   */
+  staticGenerationMaxConcurrency?: number
+
+  /**
+   * The minimum number of pages to be chunked into each export worker.
+   */
+  staticGenerationMinPagesPerWorker?: number
 
   /**
    * Allows previously fetched data to be re-used when editing server components.
@@ -740,15 +749,6 @@ export interface NextConfig extends Record<string, any> {
   productionBrowserSourceMaps?: boolean
 
   /**
-   * By default, Next.js will automatically inline font CSS at build time
-   *
-   * @default true
-   * @since version 10.2
-   * @see [Font Optimization](https://nextjs.org/docs/basic-features/font-optimization)
-   */
-  optimizeFonts?: boolean
-
-  /**
    * Enable react profiling in production
    *
    */
@@ -952,7 +952,6 @@ export const defaultConfig: NextConfig = {
   trailingSlash: false,
   i18n: null,
   productionBrowserSourceMaps: false,
-  optimizeFonts: true,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
@@ -969,8 +968,13 @@ export const defaultConfig: NextConfig = {
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   experimental: {
+    multiZoneDraftMode: false,
     appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
-    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
+    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE)
+      ? {
+          mode: 'full',
+        }
+      : undefined,
     prerenderEarlyExit: true,
     serverMinification: true,
     serverSourceMaps: false,
@@ -1009,13 +1013,10 @@ export const defaultConfig: NextConfig = {
     disablePostcssPresetEnv: undefined,
     amp: undefined,
     urlImports: undefined,
-    adjustFontFallbacks: false,
-    adjustFontFallbacksWithSizeAdjust: false,
     turbo: undefined,
     turbotrace: undefined,
     typedRoutes: false,
     typedEnv: false,
-    instrumentationHook: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
@@ -1041,6 +1042,8 @@ export const defaultConfig: NextConfig = {
     after: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
+    staticGenerationMaxConcurrency: 8,
+    staticGenerationMinPagesPerWorker: 25,
   },
   bundlePagesRouterDependencies: false,
 }

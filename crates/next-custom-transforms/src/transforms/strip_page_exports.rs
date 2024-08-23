@@ -6,7 +6,7 @@
 use std::{cell::RefCell, mem::take, rc::Rc};
 
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{
         errors::HANDLER,
         pass::{Repeat, Repeated},
@@ -51,8 +51,7 @@ impl PageMode {
 }
 
 /// A transform that either:
-/// * strips Next.js data exports (getServerSideProps, getStaticProps,
-///   getStaticPaths); or
+/// * strips Next.js data exports (getServerSideProps, getStaticProps, getStaticPaths); or
 /// * strips the default export.
 ///
 /// Note: This transform requires running `resolver` **before** running it.
@@ -601,13 +600,15 @@ impl NextSsg {
                         decl: Decl::Var(Box::new(VarDecl {
                             span: DUMMY_SP,
                             kind: VarDeclKind::Var,
-                            declare: Default::default(),
                             decls: vec![VarDeclarator {
                                 span: DUMMY_SP,
-                                name: Pat::Ident(Ident::new(data_marker.into(), DUMMY_SP).into()),
+                                name: Pat::Ident(
+                                    IdentName::new(data_marker.into(), DUMMY_SP).into(),
+                                ),
                                 init: Some(true.into()),
                                 definite: Default::default(),
                             }],
+                            ..Default::default()
                         })),
                     })),
                 );
@@ -737,7 +738,7 @@ impl Fold for NextSsg {
                     tracing::trace!(
                         "Dropping import `{}{:?}` because it should be removed",
                         local.sym,
-                        local.span.ctxt
+                        local.ctxt
                     );
 
                     self.state.should_run_again = true;
@@ -926,7 +927,7 @@ impl Fold for NextSsg {
                         tracing::trace!(
                             "Dropping var `{}{:?}` because it should be removed",
                             name.id.sym,
-                            name.id.span.ctxt
+                            name.id.ctxt
                         );
 
                         return Pat::Invalid(Invalid { span: DUMMY_SP });
@@ -980,7 +981,7 @@ impl Fold for NextSsg {
                 tracing::trace!(
                     "Dropping var `{}{:?}` because it should be removed",
                     name.id.sym,
-                    name.id.span.ctxt
+                    name.id.ctxt
                 );
 
                 return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });

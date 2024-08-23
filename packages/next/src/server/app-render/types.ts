@@ -90,10 +90,10 @@ export type FlightSegmentPath =
  */
 export type CacheNodeSeedData = [
   segment: Segment,
+  node: React.ReactNode | null,
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  node: React.ReactNode | null,
   loading: LoadingModuleData,
 ]
 
@@ -216,6 +216,8 @@ export type InitialRSCPayload = {
   m: Set<string> | undefined
   /** GlobalError */
   G: React.ComponentType<any>
+  /** postponed */
+  s: boolean
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -237,14 +239,11 @@ export type ActionFlightResponse = {
 }
 
 export type FetchServerResponseResult = {
-  /** flightData */
-  f: FlightData
-  /** canonicalUrl */
-  c: URL | undefined
-  /** couldBeIntercepted */
-  i: boolean
-  /** isPrerender */
-  p: boolean
+  flightData: FlightData
+  canonicalUrl: URL | undefined
+  couldBeIntercepted: boolean
+  isPrerender: boolean
+  postponed: boolean
 }
 
 export type RSCPayload =

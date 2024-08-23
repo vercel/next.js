@@ -3,7 +3,7 @@
 // - Refactors `useState` calls (under the `optimize_use_state` flag)
 
 use serde::Deserialize;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::*,
@@ -170,8 +170,7 @@ impl Fold for OptimizeServerReact {
                                                             is_async: false,
                                                             is_generator: false,
                                                             params: vec![],
-                                                            return_type: None,
-                                                            type_params: None,
+                                                            ..Default::default()
                                                         })
                                                         .into(),
                                                     ),

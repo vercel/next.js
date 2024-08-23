@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_tasks::{RcStr, ValueToString, Vc};
-use turbopack_binding::turbopack::core::{
+use turbopack_core::{
     chunk::ChunkableModuleReference, module::Module, reference::ModuleReference,
     resolve::ModuleResolveResult,
 };

@@ -40,14 +40,14 @@ use swc_core::{
         comments::{CommentKind, Comments},
         errors::{DiagnosticId, Handler, HANDLER},
         pass::AstNodePath,
-        source_map::Pos,
+        source_map::SmallPos,
         Globals, Span, Spanned, GLOBALS,
     },
     ecma::{
         ast::*,
         visit::{
             fields::{AssignExprField, AssignTargetField, SimpleAssignTargetField},
-            AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithPath,
+            AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithAstPath,
         },
     },
 };
@@ -135,7 +135,8 @@ use crate::{
     },
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
     utils::AstPathRange,
-    EcmascriptInputTransforms, EcmascriptModuleAsset, SpecifiedModuleType, TreeShakingMode,
+    EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptParsable, SpecifiedModuleType,
+    TreeShakingMode,
 };
 
 #[derive(Clone)]
@@ -357,7 +358,6 @@ struct AnalysisState<'a> {
     // the object allocation.
     first_import_meta: bool,
     tree_shaking_mode: Option<TreeShakingMode>,
-    special_exports: Vc<Vec<RcStr>>,
     import_externals: bool,
     ignore_dynamic_requests: bool,
 }
@@ -417,7 +417,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let options = raw_module.options;
     let compile_time_info = raw_module.compile_time_info;
     let options = options.await?;
-    let special_exports = options.special_exports;
     let import_externals = options.import_externals;
 
     let origin = Vc::upcast::<Box<dyn ResolveOrigin>>(module);
@@ -434,7 +433,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let parsed = if let Some(part) = part {
         let parsed = parse(source, ty, transforms);
-        let split_data = split(source.ident(), source, parsed, special_exports);
+        let split_data = split(source.ident(), source, parsed);
         part_of_module(split_data, part)
     } else {
         module.failsafe_parse()
@@ -602,7 +601,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     None
                 }
             },
-            special_exports,
             import_externals,
         );
 
@@ -655,7 +653,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
             }
 
-            program.visit_with_path(&mut visitor, &mut Default::default());
+            program.visit_with_ast_path(&mut visitor, &mut Default::default());
 
             (
                 visitor.webpack_runtime,
@@ -828,7 +826,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         first_import_meta: true,
         tree_shaking_mode: options.tree_shaking_mode,
         import_externals: options.import_externals,
-        special_exports: options.special_exports,
         ignore_dynamic_requests: options.ignore_dynamic_requests,
     };
 
@@ -2039,7 +2036,6 @@ async fn handle_free_var_reference(
                         .map(|export| ModulePart::export(export.clone())),
                     None => None,
                 },
-                state.special_exports,
                 state.import_externals,
             )
             .resolve()
@@ -2632,7 +2628,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
     ) {
         let path = Vc::cell(as_parent_path(ast_path));
         self.analysis.add_code_gen(EsmModuleItem::new(path));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_named_export<'ast: 'r, 'r>(
@@ -2697,7 +2693,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         }
 
         self.analysis.add_code_gen(EsmModuleItem::new(path));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_export_decl<'ast: 'r, 'r>(
@@ -2711,7 +2707,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         });
         self.analysis
             .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_export_default_expr<'ast: 'r, 'r>(
@@ -2725,7 +2721,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         );
         self.analysis
             .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_export_default_decl<'ast: 'r, 'r>(
@@ -2752,7 +2748,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         }
         self.analysis
             .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
-        export.visit_children_with_path(self, ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_import_decl<'ast: 'r, 'r>(
@@ -2762,7 +2758,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
     ) {
         let path = Vc::cell(as_parent_path(ast_path));
         let src = import.src.value.to_string();
-        import.visit_children_with_path(self, ast_path);
+        import.visit_children_with_ast_path(self, ast_path);
         if import.type_only {
             return;
         }
@@ -2825,7 +2821,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
                 }
             }
         }
-        decl.visit_children_with_path(self, ast_path);
+        decl.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_call_expr<'ast: 'r, 'r>(
@@ -2864,7 +2860,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
                 }
             }
         }
-        call.visit_children_with_path(self, ast_path);
+        call.visit_children_with_ast_path(self, ast_path);
     }
 }
 
