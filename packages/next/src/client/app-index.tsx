@@ -178,6 +178,7 @@ const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
               initialParallelRoutes: new Map(),
               location: window.location,
               couldBeIntercepted: initialRSCPayload.i,
+              postponed: initialRSCPayload.s,
             })
           )
         )

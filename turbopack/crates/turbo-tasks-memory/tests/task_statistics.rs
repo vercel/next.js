@@ -184,13 +184,13 @@ async fn test_no_execution() {
     .await;
 }
 
-// Internally, this function uses `PersistentTaskType::Native`.
+// Internally, this function uses `CachedTaskType::Native`.
 #[turbo_tasks::function]
 fn double(val: u64) -> Vc<u64> {
     Vc::cell(val * 2)
 }
 
-// Internally, this function uses `PersistentTaskType::ResolveNative`.
+// Internally, this function uses `CachedTaskType::ResolveNative`.
 #[turbo_tasks::function]
 async fn double_vc(val: Vc<u64>) -> Result<Vc<u64>> {
     let val = *val.await?;

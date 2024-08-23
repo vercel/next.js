@@ -19,7 +19,7 @@ export function applyFlightData(
   }
 
   if (flightDataPath.length === 3) {
-    const rsc = cacheNodeSeedData[2]
+    const rsc = cacheNodeSeedData[1]
     const loading = cacheNodeSeedData[3]
     cache.loading = loading
     cache.rsc = rsc

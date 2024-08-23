@@ -266,12 +266,12 @@ export function createRSCAliases(
     'react/compiler-runtime$': `next/dist/compiled/react${bundledReactChannel}/compiler-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
     'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
+    'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
     'react-dom/static$': `next/dist/compiled/react-dom${bundledReactChannel}/static`,
     'react-dom/static.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/static.edge`,
     'react-dom/static.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/static.browser`,
-    // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
+    // optimizations to ignore the legacy build of react-dom/server in `server.edge` build
     'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
-    'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
     // react-server-dom-webpack alias
     ...createRSCRendererAliases(bundledReactChannel),
   }

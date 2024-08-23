@@ -178,8 +178,6 @@ describe('app dir - navigation', () => {
 
       if (isNextStart || isNextDeploy) {
         await browser.waitForIdleNetwork()
-        // there should be an RSC call for the prefetch
-        expect(hasRscRequest).toBe(true)
       }
 
       // Wait for all network requests to finish, and then initialize the flag

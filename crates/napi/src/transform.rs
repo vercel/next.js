@@ -105,7 +105,7 @@ impl Task for TransformTask {
                                         FileName::Real(options.swc.filename.clone().into())
                                     };
 
-                                    self.c.cm.new_source_file(filename, src.to_string())
+                                    self.c.cm.new_source_file(filename.into(), src.to_string())
                                 }
                                 Input::FromFilename => {
                                     let filename = &options.swc.filename;
@@ -114,7 +114,7 @@ impl Task for TransformTask {
                                     }
 
                                     self.c.cm.new_source_file(
-                                        FileName::Real(filename.into()),
+                                        FileName::Real(filename.into()).into(),
                                         read_to_string(filename).with_context(|| {
                                             format!("Failed to read source code from {}", filename)
                                         })?,
