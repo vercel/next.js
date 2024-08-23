@@ -8,10 +8,10 @@ use turbo_tasks::{
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use crate::{
-    changed::get_referenced_modules,
     chunk::ModuleId,
     ident::AssetIdent,
     module::{Module, Modules},
+    reference::primary_referenced_modules,
 };
 
 #[turbo_tasks::value]
@@ -20,6 +20,14 @@ pub struct PreprocessedChildrenIdents {
     // We save the full hash to avoid re-hashing in `merge_preprocessed_module_ids`
     // if this endpoint did not change.
     modules_idents: HashMap<AssetIdent, u64>,
+}
+
+pub async fn get_children_modules(
+    parent: Vc<Box<dyn Module>>,
+) -> Result<impl Iterator<Item = Vc<Box<dyn Module>>> + Send> {
+    let mut primary_modules = primary_referenced_modules(parent).await?.clone_value();
+    primary_modules.extend(parent.additional_layers_modules().await?.clone_value());
+    Ok(primary_modules.into_iter())
 }
 
 // NOTE(LichuAcu) Called on endpoint.root_modules(). It would probably be better if this was called
@@ -32,7 +40,7 @@ pub async fn children_modules_idents(
 ) -> Result<Vc<PreprocessedChildrenIdents>> {
     let children_modules_iter = AdjacencyMap::new()
         .skip_duplicates()
-        .visit(root_modules.await?.iter().copied(), get_referenced_modules)
+        .visit(root_modules.await?.iter().copied(), get_children_modules)
         .await
         .completed()?
         .into_inner()
