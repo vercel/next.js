@@ -8,18 +8,10 @@ function Dynamic() {
 
   use(new Promise((resolve) => setTimeout(resolve, 1000)))
 
-  return (
-    <div
-      data-slug={
-        Array.isArray(params.slug) ? params.slug.join('/') : params.slug
-      }
-    >
-      {Array.isArray(params.slug) ? params.slug.join('/') : params.slug}
-    </div>
-  )
+  return <div data-slug={params.slug}>{params.slug}</div>
 }
 
-export default () => {
+export default function Page() {
   return (
     <Suspense fallback={<div data-fallback>Dynamic Loading...</div>}>
       <Dynamic />

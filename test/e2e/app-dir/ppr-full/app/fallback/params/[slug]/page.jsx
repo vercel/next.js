@@ -4,18 +4,10 @@ import { setTimeout } from 'timers/promises'
 async function Dynamic({ params = null }) {
   await setTimeout(1000)
 
-  return (
-    <div
-      data-slug={
-        Array.isArray(params.slug) ? params.slug.join('/') : params.slug
-      }
-    >
-      {Array.isArray(params.slug) ? params.slug.join('/') : params.slug}
-    </div>
-  )
+  return <div data-slug={params.slug}>{params.slug}</div>
 }
 
-export default ({ params }) => {
+export default function Page({ params }) {
   return (
     <Suspense fallback={<div data-fallback>Dynamic Loading...</div>}>
       <Dynamic params={params} />

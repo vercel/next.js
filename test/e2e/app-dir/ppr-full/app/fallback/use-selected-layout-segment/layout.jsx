@@ -10,7 +10,7 @@ function Dynamic() {
   return <div data-slug={segment}>{segment}</div>
 }
 
-export default ({ children }) => {
+export default function Layout({ children }) {
   return (
     <>
       <Suspense fallback={<div data-fallback>Dynamic Loading...</div>}>

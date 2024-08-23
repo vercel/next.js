@@ -1,2 +1,3 @@
-'use client'
-export { default } from '../../../use-selected-layout-segments/[slug]/page'
+export default function Page() {
+  return 'useSelectedLayoutSegments'
+}
