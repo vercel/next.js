@@ -1,0 +1,175 @@
+[
+    FreeVar {
+        var: FreeVar(
+            "Worker",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    0,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                New,
+            ),
+            NewExpr(
+                Callee,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 16..22,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "URL",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    0,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                New,
+            ),
+            NewExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                New,
+            ),
+            NewExpr(
+                Callee,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 27..30,
+        in_try: false,
+    },
+    Member {
+        obj: Unknown {
+            original_value: None,
+            reason: "unsupported expression",
+            has_side_effects: true,
+        },
+        prop: Constant(
+            Str(
+                Atom(
+                    "url",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    0,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                New,
+            ),
+            NewExpr(
+                Args(
+                    1,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 47..62,
+        in_try: false,
+    },
+    ImportMeta {
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    0,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                New,
+            ),
+            NewExpr(
+                Args(
+                    1,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Obj,
+            ),
+            Expr(
+                MetaProp,
+            ),
+        ],
+        span: 47..58,
+        in_try: false,
+    },
+]
