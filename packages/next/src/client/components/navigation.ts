@@ -72,18 +72,17 @@ function trackParamsAccessed(expression: string) {
       require('./static-generation-async-storage.external') as typeof import('./static-generation-async-storage.external')
 
     const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-    if (!staticGenerationStore) return
 
-    // We only want to track dynamic parameter access if the params are
-    // unknown.
-    const { fallbackRouteParams } = staticGenerationStore
-    if (!fallbackRouteParams || fallbackRouteParams.size === 0) {
-      return
+    if (
+      staticGenerationStore &&
+      staticGenerationStore.isStaticGeneration &&
+      staticGenerationStore.fallbackRouteParams &&
+      staticGenerationStore.fallbackRouteParams.size > 0
+    ) {
+      // There are fallback route params, we should track these as dynamic
+      // accesses.
+      trackFallbackParamAccessed(staticGenerationStore, expression)
     }
-
-    // There are fallback route params, we should track these as dynamic
-    // accesses.
-    trackFallbackParamAccessed(staticGenerationStore, expression)
   }
 }
 

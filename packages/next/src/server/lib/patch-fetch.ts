@@ -142,7 +142,7 @@ export function addImplicitTags(
   const newTags: string[] = []
   const { page, fallbackRouteParams } = staticGenerationStore
   const hasFallbackRouteParams =
-    fallbackRouteParams instanceof Set && fallbackRouteParams.size > 0
+    fallbackRouteParams && fallbackRouteParams.size > 0
 
   // Ini the tags array if it doesn't exist.
   staticGenerationStore.tags ??= []

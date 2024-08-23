@@ -49,7 +49,7 @@ import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
-import type { CreateDynamicallyTrackedParams } from '../../client/components/params'
+import type { CreateDynamicallyTrackedParams } from '../../client/components/fallback-params'
 
 type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 

@@ -22,7 +22,7 @@ import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
 import type { FetchMetrics } from '../../server/base-http'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
-import type { DynamicRouteParams } from '../../client/components/params'
+import type { FallbackRouteParams } from '../../client/components/fallback-params'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -42,7 +42,7 @@ export async function exportAppPage(
   path: string,
   pathname: string,
   query: NextParsedUrlQuery,
-  fallbackRouteParams: DynamicRouteParams | null,
+  fallbackRouteParams: FallbackRouteParams | null,
   renderOpts: RenderOpts,
   htmlFilepath: string,
   debugOutput: boolean,

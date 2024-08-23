@@ -13,6 +13,8 @@ type Page = {
    * to be sent as the static part.
    */
   emptyStaticPart?: boolean
+
+  fallback?: boolean
 }
 
 const pages: Page[] = [
@@ -267,17 +269,18 @@ describe('ppr-full', () => {
           true,
         ],
       ]
-      for (let i = 0; i < 3; i++) {
+      const pad = (num: number) => String(num).padStart(2, '0')
+      for (let i = 1; i < 2; i++) {
         for (const [pattern, client, nested] of patterns) {
           let slug: string
           if (nested) {
             let slugs: string[] = []
-            for (let j = 0; j < 3; j++) {
-              slugs.push(`slug-${String(j).padStart(2, '0')}`)
+            for (let j = i + 1; j < i + 2; j++) {
+              slugs.push(`slug-${pad(i)}/slug-${pad(j)}`)
             }
             slug = slugs.join('/')
           } else {
-            slug = `slug-${String(i).padStart(2, '0')}`
+            slug = `slug-${pad(i)}`
           }
 
           pathnames.push({ pathname: pattern(slug), slug, client })

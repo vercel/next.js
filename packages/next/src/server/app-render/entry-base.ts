@@ -16,7 +16,7 @@ import {
   createUntrackedSearchParams,
   createDynamicallyTrackedSearchParams,
 } from '../../client/components/search-params'
-import { createDynamicallyTrackedParams } from '../../client/components/params'
+import { createDynamicallyTrackedParams } from '../../client/components/fallback-params'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { NotFoundBoundary } from '../../client/components/not-found-boundary'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'

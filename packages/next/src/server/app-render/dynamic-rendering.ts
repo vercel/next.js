@@ -129,33 +129,10 @@ export function trackFallbackParamAccessed(
   store: StaticGenerationStore,
   expression: string
 ): void {
-  if (store.isUnstableCacheCallback) {
-    throw new Error(
-      `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-    )
-  }
-
   const prerenderStore = prerenderAsyncStorage.getStore()
-  if (prerenderStore) {
-    postponeWithTracking(
-      prerenderStore.dynamicTracking,
-      expression,
-      store.route
-    )
-  } else {
-    store.revalidate = 0
+  if (!prerenderStore) return
 
-    if (store.isStaticGeneration) {
-      // We aren't prerendering but we are generating a static page. We need to bail out of static generation
-      const err = new DynamicServerError(
-        `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
-      )
-      store.dynamicUsageDescription = expression
-      store.dynamicUsageStack = err.stack
-
-      throw err
-    }
-  }
+  postponeWithTracking(prerenderStore.dynamicTracking, expression, store.route)
 }
 
 /**

@@ -147,17 +147,14 @@ export function getSelectedParams(
     const segmentValue = isDynamicParameter ? segment[1] : segment
     if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
 
-    if (isDynamicParameter) {
-      const segmentName = segment[0]
+    // Ensure catchAll and optional catchall are turned into an array
+    const isCatchAll =
+      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
 
-      // Ensure catchAll and optional catchall are turned into an array
-      const isCatchAll = segment[2] === 'c' || segment[2] === 'oc'
-
-      if (isCatchAll) {
-        params[segmentName] = segment[1].split('/')
-      } else {
-        params[segmentName] = segment[1]
-      }
+    if (isCatchAll) {
+      params[segment[0]] = segment[1].split('/')
+    } else if (isDynamicParameter) {
+      params[segment[0]] = segment[1]
     }
 
     params = getSelectedParams(parallelRoute, params)

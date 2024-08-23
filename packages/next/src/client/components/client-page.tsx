@@ -1,5 +1,5 @@
 'use client'
-import { createDynamicallyTrackedParams } from './params'
+import { createDynamicallyTrackedParams } from './fallback-params'
 import { createDynamicallyTrackedSearchParams } from './search-params'
 
 export function ClientPageRoot({

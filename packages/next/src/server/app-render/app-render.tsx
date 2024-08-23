@@ -94,7 +94,11 @@ import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-st
 import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './encryption-utils'
-import { DynamicState, type PostponedState } from './postponed-state'
+import {
+  DynamicState,
+  type PostponedState,
+  parsePostponedState,
+} from './postponed-state'
 import {
   getDynamicDataPostponedState,
   getDynamicHTMLPostponedState,
@@ -134,7 +138,7 @@ import { createMutableActionQueue } from '../../shared/lib/router/action-queue'
 import { prerenderAsyncStorage } from './prerender-async-storage.external'
 import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import type { DynamicRouteParams } from '../../client/components/params'
+import type { FallbackRouteParams } from '../../client/components/fallback-params'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -254,7 +258,7 @@ export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
   pagePath: string,
-  fallbackRouteParams: DynamicRouteParams | null
+  fallbackRouteParams: FallbackRouteParams | null
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
     // [slug] / [[slug]] / [...slug]
@@ -681,7 +685,6 @@ async function getErrorRSCPayload(
     i: false,
     f: [[initialTree, initialSeedData, initialHead]],
     G: GlobalError,
-
     s: typeof ctx.renderOpts.postponed === 'string',
   } satisfies RSCPayload
 }
@@ -1177,7 +1180,7 @@ export type AppPageRender = (
   res: BaseNextResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
-  fallbackRouteParams: DynamicRouteParams | null,
+  fallbackRouteParams: FallbackRouteParams | null,
   renderOpts: RenderOpts,
   serverComponentsHmrCache?: ServerComponentsHmrCache
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
@@ -1208,45 +1211,19 @@ export const renderToHTMLOrFlight: AppPageRender = (
   const requestEndedState = { ended: false }
   let postponedState: PostponedState | null = null
 
-  // If provided, the postpone state should be parsed as JSON so it can be
-  // provided to React.
+  // If provided, the postpone state should be parsed so it can be provided to
+  // React.
   if (typeof renderOpts.postponed === 'string') {
-    try {
-      postponedState = JSON.parse(renderOpts.postponed) as PostponedState
-    } catch {
-      // If we failed to parse the postponed state, we should default to
-      // performing a dynamic data render.
-      postponedState = getDynamicDataPostponedState(fallbackRouteParams)
+    if (fallbackRouteParams && fallbackRouteParams.size > 0) {
+      throw new Error(
+        'Invariant: postponed state should not be provided when fallback params are provided'
+      )
     }
 
-    // If the postpone state is an object and the unknown route params are
-    // provided, we should parse the unknown route params from the query
-    // string. This happens during resume operations.
-    const { params } = renderOpts
-    if (postponedState.u && params) {
-      fallbackRouteParams = new Map(Object.entries(postponedState.u))
-
-      // Perform the replacements in the postponedState string.
-      if (postponedState.t === DynamicState.HTML) {
-        let postponed = renderOpts.postponed
-        for (const [key, searchValue] of fallbackRouteParams) {
-          const value = params[key]
-          if (typeof value === 'undefined') {
-            throw new Error(
-              'The provided `fallbackRouteParams` must be a list of unknown route params that are present in the pathname.'
-            )
-          }
-
-          const replaceValue = Array.isArray(value) ? value.join('/') : value
-          postponed = postponed.replaceAll(searchValue, replaceValue)
-        }
-
-        // Re-parse the postponed state after we've completed the replacements.
-        postponedState = JSON.parse(postponed)
-      }
-
-      fallbackRouteParams = null
-    }
+    postponedState = parsePostponedState(
+      renderOpts.postponed,
+      renderOpts.params
+    )
   }
 
   return withRequestStore(
@@ -1390,7 +1367,7 @@ async function renderToStream(
     // If provided, the postpone state should be parsed as JSON so it can be
     // provided to React.
     if (typeof renderOpts.postponed === 'string') {
-      if (postponedState?.t === DynamicState.DATA) {
+      if (postponedState?.type === DynamicState.DATA) {
         // We have a complete HTML Document in the prerender but we need to
         // still include the new server component render because it was not included
         // in the static prelude.
@@ -1900,14 +1877,13 @@ async function prerenderToStream(
       if (usedDynamicAPIs(dynamicTracking)) {
         if (postponed != null) {
           // Dynamic HTML case.
-          metadata.postponed = JSON.stringify(
-            getDynamicHTMLPostponedState(postponed, fallbackRouteParams)
+          metadata.postponed = getDynamicHTMLPostponedState(
+            postponed,
+            fallbackRouteParams
           )
         } else {
           // Dynamic Data case.
-          metadata.postponed = JSON.stringify(
-            getDynamicDataPostponedState(fallbackRouteParams)
-          )
+          metadata.postponed = getDynamicDataPostponedState()
         }
         // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
         // server inserted html in the static response because the html that is part of the prerender may depend on it
@@ -1923,9 +1899,7 @@ async function prerenderToStream(
         }
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
         // Rendering the fallback case.
-        metadata.postponed = JSON.stringify(
-          getDynamicDataPostponedState(fallbackRouteParams)
-        )
+        metadata.postponed = getDynamicDataPostponedState()
 
         return {
           digestErrorsMap: reactServerErrorsByDigest,
