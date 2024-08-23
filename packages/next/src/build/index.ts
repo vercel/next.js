@@ -52,7 +52,6 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
-  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
@@ -100,11 +99,13 @@ import {
 } from '../telemetry/events'
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
+import { hadUnsupportedValue } from './analysis/get-page-static-info'
 import {
-  getPageStaticInfo,
-  hadUnsupportedValue,
-} from './analysis/get-page-static-info'
-import { createPagesMapping, getPageFromPath, sortByPageExts } from './entries'
+  createPagesMapping,
+  getPageFromPath,
+  getStaticInfoIncludingLayouts,
+  sortByPageExts,
+} from './entries'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -198,6 +199,7 @@ import {
 import { storeShuttle } from './flying-shuttle/store-shuttle'
 import { stitchBuilds } from './flying-shuttle/stitch-builds'
 import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
+import { FallbackMode } from '../lib/fallback'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -859,15 +861,9 @@ export default async function build(
       )
 
       const rootDir = path.join((pagesDir || appDir)!, '..')
-      const instrumentationHookEnabled = Boolean(
-        config.experimental.instrumentationHook
-      )
-
       const includes = [
         middlewareDetectionRegExp,
-        ...(instrumentationHookEnabled
-          ? [instrumentationHookDetectionRegExp]
-          : []),
+        instrumentationHookDetectionRegExp,
       ]
 
       const rootPaths = Array.from(await getFilesInDir(rootDir))
@@ -1234,103 +1230,6 @@ export default async function build(
         PAGES_MANIFEST
       )
 
-      const { cacheHandler } = config
-
-      const requiredServerFilesManifest = nextBuildSpan
-        .traceChild('generate-required-server-files')
-        .traceFn(() => {
-          const serverFilesManifest: RequiredServerFilesManifest = {
-            version: 1,
-            config: {
-              ...config,
-              configFile: undefined,
-              ...(ciEnvironment.hasNextSupport
-                ? {
-                    compress: false,
-                  }
-                : {}),
-              cacheHandler: cacheHandler
-                ? path.relative(distDir, cacheHandler)
-                : config.cacheHandler,
-              experimental: {
-                ...config.experimental,
-                trustHostHeader: ciEnvironment.hasNextSupport,
-
-                // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
-                isExperimentalCompile: isCompileMode,
-              },
-            },
-            appDir: dir,
-            relativeAppDir: path.relative(outputFileTracingRoot, dir),
-            files: [
-              ROUTES_MANIFEST,
-              path.relative(distDir, pagesManifestPath),
-              BUILD_MANIFEST,
-              PRERENDER_MANIFEST,
-              path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-              path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
-              path.join(
-                SERVER_DIRECTORY,
-                MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
-              ),
-              ...(appDir
-                ? [
-                    ...(config.experimental.sri
-                      ? [
-                          path.join(
-                            SERVER_DIRECTORY,
-                            SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
-                          ),
-                          path.join(
-                            SERVER_DIRECTORY,
-                            SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
-                          ),
-                        ]
-                      : []),
-                    path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
-                    path.join(APP_PATH_ROUTES_MANIFEST),
-                    APP_BUILD_MANIFEST,
-                    path.join(
-                      SERVER_DIRECTORY,
-                      SERVER_REFERENCE_MANIFEST + '.js'
-                    ),
-                    path.join(
-                      SERVER_DIRECTORY,
-                      SERVER_REFERENCE_MANIFEST + '.json'
-                    ),
-                  ]
-                : []),
-              REACT_LOADABLE_MANIFEST,
-              config.optimizeFonts
-                ? path.join(
-                    SERVER_DIRECTORY,
-                    AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
-                  )
-                : null,
-              BUILD_ID_FILE,
-              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
-              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
-              ...(hasInstrumentationHook
-                ? [
-                    path.join(
-                      SERVER_DIRECTORY,
-                      `${INSTRUMENTATION_HOOK_FILENAME}.js`
-                    ),
-                    path.join(
-                      SERVER_DIRECTORY,
-                      `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
-                    ),
-                  ]
-                : []),
-            ]
-              .filter(nonNullable)
-              .map((file) => path.join(config.distDir, file)),
-            ignore: [] as string[],
-          }
-
-          return serverFilesManifest
-        })
-
       async function turbopackBuild(): Promise<{
         duration: number
         buildTraceContext: undefined
@@ -1445,7 +1344,6 @@ export default async function build(
           currentEntrypoints,
           currentEntryIssues,
           manifestLoader,
-          nextConfig: config,
           devRewrites: undefined,
           productionRewrites: customRoutes.rewrites,
           logErrors: false,
@@ -2018,13 +1916,19 @@ export default async function build(
                       pagePath
                     )
 
+                const isInsideAppDir = pageType === 'app'
                 const staticInfo = pagePath
-                  ? await getPageStaticInfo({
+                  ? await getStaticInfoIncludingLayouts({
+                      isInsideAppDir,
                       pageFilePath,
-                      nextConfig: config,
-                      // TODO: fix type mismatch
-                      pageType:
-                        pageType === 'app' ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
+                      pageExtensions: config.pageExtensions,
+                      appDir,
+                      config,
+                      isDev: false,
+                      // If this route is an App Router page route, inherit the
+                      // route segment configs (e.g. `runtime`) from the layout by
+                      // passing the `originalAppPath`, which should end with `/page`.
+                      page: isInsideAppDir ? originalAppPath! : page,
                     })
                   : undefined
 
@@ -2166,7 +2070,11 @@ export default async function build(
                             }
                           }
 
-                          if (workerResult.prerenderFallback) {
+                          if (
+                            workerResult.prerenderFallbackMode !== undefined &&
+                            workerResult.prerenderFallbackMode !==
+                              FallbackMode.NOT_FOUND
+                          ) {
                             // whether or not to allow requests for paths not
                             // returned from generateStaticParams
                             appDynamicParamPaths.add(originalAppPath)
@@ -2219,9 +2127,15 @@ export default async function build(
                             )
                           }
 
-                          if (workerResult.prerenderFallback === 'blocking') {
+                          if (
+                            workerResult.prerenderFallbackMode ===
+                            FallbackMode.BLOCKING_STATIC_RENDER
+                          ) {
                             ssgBlockingFallbackPages.add(page)
-                          } else if (workerResult.prerenderFallback === true) {
+                          } else if (
+                            workerResult.prerenderFallbackMode ===
+                            FallbackMode.STATIC_PRERENDER
+                          ) {
                             ssgStaticFallbackPages.add(page)
                           }
                         } else if (workerResult.hasServerProps) {
@@ -2344,6 +2258,102 @@ export default async function build(
         )
       }
 
+      const { cacheHandler } = config
+
+      const instrumentationHookEntryFiles: string[] = []
+      if (hasInstrumentationHook) {
+        instrumentationHookEntryFiles.push(
+          path.join(SERVER_DIRECTORY, `${INSTRUMENTATION_HOOK_FILENAME}.js`)
+        )
+        // If there's edge routes, append the edge instrumentation hook
+        if (edgeRuntimeAppCount || edgeRuntimePagesCount) {
+          instrumentationHookEntryFiles.push(
+            path.join(
+              SERVER_DIRECTORY,
+              `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
+            )
+          )
+        }
+      }
+
+      const requiredServerFilesManifest = nextBuildSpan
+        .traceChild('generate-required-server-files')
+        .traceFn(() => {
+          const serverFilesManifest: RequiredServerFilesManifest = {
+            version: 1,
+            config: {
+              ...config,
+              configFile: undefined,
+              ...(ciEnvironment.hasNextSupport
+                ? {
+                    compress: false,
+                  }
+                : {}),
+              cacheHandler: cacheHandler
+                ? path.relative(distDir, cacheHandler)
+                : config.cacheHandler,
+              experimental: {
+                ...config.experimental,
+                trustHostHeader: ciEnvironment.hasNextSupport,
+
+                // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
+                isExperimentalCompile: isCompileMode,
+              },
+            },
+            appDir: dir,
+            relativeAppDir: path.relative(outputFileTracingRoot, dir),
+            files: [
+              ROUTES_MANIFEST,
+              path.relative(distDir, pagesManifestPath),
+              BUILD_MANIFEST,
+              PRERENDER_MANIFEST,
+              path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+              path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
+              path.join(
+                SERVER_DIRECTORY,
+                MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
+              ),
+              ...(appDir
+                ? [
+                    ...(config.experimental.sri
+                      ? [
+                          path.join(
+                            SERVER_DIRECTORY,
+                            SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
+                          ),
+                          path.join(
+                            SERVER_DIRECTORY,
+                            SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
+                          ),
+                        ]
+                      : []),
+                    path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
+                    path.join(APP_PATH_ROUTES_MANIFEST),
+                    APP_BUILD_MANIFEST,
+                    path.join(
+                      SERVER_DIRECTORY,
+                      SERVER_REFERENCE_MANIFEST + '.js'
+                    ),
+                    path.join(
+                      SERVER_DIRECTORY,
+                      SERVER_REFERENCE_MANIFEST + '.json'
+                    ),
+                  ]
+                : []),
+              REACT_LOADABLE_MANIFEST,
+              BUILD_ID_FILE,
+              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
+              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
+              ...instrumentationHookEntryFiles,
+            ]
+              .filter(nonNullable)
+              .map((file) => path.join(config.distDir, file)),
+            ignore: [] as string[],
+          }
+
+          return serverFilesManifest
+        })
+
       if (!hasSsrAmpPages) {
         requiredServerFilesManifest.ignore.push(
           path.relative(
@@ -2451,10 +2461,6 @@ export default async function build(
         {
           featureName: 'experimental/nextScriptWorkers',
           invocationCount: config.experimental.nextScriptWorkers ? 1 : 0,
-        },
-        {
-          featureName: 'optimizeFonts',
-          invocationCount: config.optimizeFonts ? 1 : 0,
         },
         {
           featureName: 'experimental/ppr',

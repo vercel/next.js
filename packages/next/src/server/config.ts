@@ -471,6 +471,13 @@ function assignDefaults(
     silent
   )
 
+  warnOptionHasBeenDeprecated(
+    result,
+    'experimental.instrumentationHook',
+    '`experimental.instrumentationHook` is no longer needed to be configured in Next.js',
+    silent
+  )
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'bundlePagesExternals',

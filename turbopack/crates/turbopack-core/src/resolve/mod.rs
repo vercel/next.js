@@ -13,8 +13,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{
-    util::{normalize_path, normalize_request},
-    FileSystemEntryType, FileSystemPath, RealPathResult,
+    util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
 };
 
 use self::{
@@ -888,11 +887,10 @@ impl ResolveResult {
         ))
     }
 
-    /// Returns a new [ResolveResult] where all [RequestKey]s are updates. The
-    /// `old_request_key` (prefix) is replaced with the `request_key`. It's not
-    /// expected that the [ResolveResult] contains [RequestKey]s that don't have
-    /// the `old_request_key` prefix, but if there are still some, they are
-    /// discarded.
+    /// Returns a new [ResolveResult] where all [RequestKey]s are updated. The `old_request_key`
+    /// (prefix) is replaced with the `request_key`. It's not expected that the [ResolveResult]
+    /// contains [RequestKey]s that don't have the `old_request_key` prefix, but if there are still
+    /// some, they are discarded.
     #[turbo_tasks::function]
     pub async fn with_replaced_request_key(
         self: Vc<Self>,
@@ -916,6 +914,43 @@ impl ResolveResult {
                     },
                     v.clone(),
                 ))
+            })
+            .collect();
+        Ok(ResolveResult {
+            primary: new_primary,
+            affecting_sources: this.affecting_sources.clone(),
+        }
+        .into())
+    }
+
+    /// Returns a new [ResolveResult] where all [RequestKey]s are updated. All keys matching
+    /// `old_request_key` are rewritten according to `request_key`. It's not expected that the
+    /// [ResolveResult] contains [RequestKey]s that do not match the `old_request_key` prefix, but
+    /// if there are still some, they are discarded.
+    #[turbo_tasks::function]
+    pub async fn with_replaced_request_key_pattern(
+        self: Vc<Self>,
+        old_request_key: Vc<Pattern>,
+        request_key: Vc<Pattern>,
+    ) -> Result<Vc<Self>> {
+        let old_request_key = &*old_request_key.await?;
+        let request_key = &*request_key.await?;
+        let this = self.await?;
+        let new_primary = this
+            .primary
+            .iter()
+            .map(|(k, v)| {
+                (
+                    RequestKey {
+                        request: k
+                            .request
+                            .as_ref()
+                            .and_then(|r| old_request_key.match_apply_template(r, request_key))
+                            .map(Into::into),
+                        conditions: k.conditions.clone(),
+                    },
+                    v.clone(),
+                )
             })
             .collect();
         Ok(ResolveResult {
@@ -1537,41 +1572,44 @@ async fn resolve_internal_inline(
         )
     };
     async move {
-        // This explicit deref of `options` is necessary
-        #[allow(clippy::explicit_auto_deref)]
         let options_value: &ResolveOptions = &*options.await?;
-
-        let mut has_alias = false;
+        let request_value = request.await?;
 
         // Apply import mappings if provided
+        let mut has_alias = false;
         if let Some(import_map) = &options_value.import_map {
-            let result = import_map.await?.lookup(lookup_path, request).await?;
-            if !matches!(result, ImportMapResult::NoEntry) {
-                has_alias = true;
-                let resolved_result = resolve_import_map_result(
-                    &result,
-                    lookup_path,
-                    lookup_path,
-                    request,
-                    options,
-                    request.query(),
-                )
-                .await?;
-                // We might have matched an alias in the import map, but there is no guarantee
-                // the alias actually resolves to something. For instance, a tsconfig.json
-                // `compilerOptions.paths` option might alias "@*" to "./*", which
-                // would also match a request to "@emotion/core". Here, we follow what the
-                // Typescript resolution algorithm does in case an alias match
-                // doesn't resolve to anything: fall back to resolving the request normally.
-                if let Some(result) = resolved_result {
-                    if !*result.is_unresolveable().await? {
-                        return Ok(result);
+            let request_parts = match &*request_value {
+                Request::Alternatives { requests } => requests.as_slice(),
+                _ => &[request],
+            };
+            for request in request_parts {
+                let result = import_map.await?.lookup(lookup_path, *request).await?;
+                if !matches!(result, ImportMapResult::NoEntry) {
+                    has_alias = true;
+                    let resolved_result = resolve_import_map_result(
+                        &result,
+                        lookup_path,
+                        lookup_path,
+                        *request,
+                        options,
+                        request.query(),
+                    )
+                    .await?;
+                    // We might have matched an alias in the import map, but there is no guarantee
+                    // the alias actually resolves to something. For instance, a tsconfig.json
+                    // `compilerOptions.paths` option might alias "@*" to "./*", which
+                    // would also match a request to "@emotion/core". Here, we follow what the
+                    // Typescript resolution algorithm does in case an alias match
+                    // doesn't resolve to anything: fall back to resolving the request normally.
+                    if let Some(result) = resolved_result {
+                        if !*result.is_unresolveable().await? {
+                            return Ok(result);
+                        }
                     }
                 }
             }
         }
 
-        let request_value = request.await?;
         let result = match &*request_value {
             Request::Dynamic => ResolveResult::unresolveable().into(),
             Request::Alternatives { requests } => {
@@ -2450,7 +2488,11 @@ async fn resolve_import_map_result(
             {
                 None
             } else {
-                Some(resolve_internal(lookup_path, request, options))
+                let result = resolve_internal(lookup_path, request, options);
+                Some(result.with_replaced_request_key_pattern(
+                    request.request_pattern(),
+                    original_request.request_pattern(),
+                ))
             }
         }
         ImportMapResult::Alternatives(list) => {
@@ -2469,9 +2511,7 @@ async fn resolve_import_map_result(
                 .try_join()
                 .await?;
 
-            Some(ResolveResult::select_first(
-                results.into_iter().flatten().collect(),
-            ))
+            Some(merge_results(results.into_iter().flatten().collect()))
         }
         ImportMapResult::NoEntry => None,
     })
@@ -2572,8 +2612,8 @@ async fn handle_exports_imports_field(
     let mut conditions_state = HashMap::new();
 
     let query_str = query.await?;
+    let req = Pattern::Constant(format!("{}{}", path, query_str).into());
 
-    let req = format!("{}{}", path, query_str);
     let values = exports_imports_field
         .lookup(&req)
         .map(AliasMatch::try_into_self)
@@ -2592,9 +2632,12 @@ async fn handle_exports_imports_field(
 
     let mut resolved_results = Vec::new();
     for (result_path, conditions) in results {
-        if let Some(result_path) = normalize_path(result_path) {
-            let request =
-                Request::parse(Value::new(RcStr::from(format!("./{}", result_path)).into()));
+        if let Some(result_path) = result_path.with_normalized_path() {
+            let request = Request::parse(Value::new(Pattern::Concatenation(vec![
+                Pattern::Constant("./".into()),
+                result_path,
+            ])));
+
             let resolve_result = resolve_internal_boxed(package_path, request, options).await?;
             if conditions.is_empty() {
                 resolved_results.push(resolve_result.with_request(path.into()));

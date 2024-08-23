@@ -52,7 +52,6 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -119,7 +118,6 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -167,7 +165,6 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -258,7 +255,6 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -318,7 +314,6 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -356,7 +351,6 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -409,7 +403,6 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -439,7 +432,6 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -458,6 +450,47 @@ describe('AfterContext', () => {
 
     expect(waitUntil).not.toHaveBeenCalled()
     expect(afterCallback1).not.toHaveBeenCalled()
+  })
+
+  it('shadows requestAsyncStorage within after callbacks', async () => {
+    const waitUntil = jest.fn()
+
+    let onCloseCallback: (() => void) | undefined = undefined
+    const onClose = jest.fn((cb) => {
+      onCloseCallback = cb
+    })
+
+    const afterContext = new AfterContext({
+      waitUntil,
+      onClose,
+    })
+
+    const requestStore = createMockRequestStore(afterContext)
+    const run = createRun(afterContext, requestStore)
+
+    // ==================================
+
+    const stores = new DetachedPromise<
+      [RequestStore | undefined, RequestStore | undefined]
+    >()
+
+    await run(async () => {
+      const store1 = requestAsyncStorage.getStore()
+      after(() => {
+        const store2 = requestAsyncStorage.getStore()
+        stores.resolve([store1, store2])
+      })
+    })
+
+    // the response is done.
+    onCloseCallback!()
+
+    const [store1, store2] = await stores.promise
+    // if we use .toBe, the proxy from createMockRequestStore throws because jest checks '$$typeof'
+    expect(store1).toBeTruthy()
+    expect(store2).toBeTruthy()
+    expect(store1 === requestStore).toBe(true)
+    expect(store2 !== store1).toBe(true)
   })
 })
 

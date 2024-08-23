@@ -67,6 +67,7 @@ export type LoadComponentsReturnType<NextModule = any> = {
   routeModule: RouteModule
   isAppPath?: boolean
   page: string
+  multiZoneDraftMode?: boolean
 }
 
 /**

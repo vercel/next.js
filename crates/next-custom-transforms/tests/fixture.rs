@@ -16,23 +16,24 @@ use next_custom_transforms::transforms::{
     page_config::page_config_test,
     pure::pure_magic,
     react_server_components::server_components,
-    server_actions::{
-        server_actions, {self},
-    },
+    server_actions::{self, server_actions},
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
+    warn_for_edge_runtime::warn_for_edge_runtime,
 };
 use serde::de::DeserializeOwned;
 use swc_core::{
     common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
     ecma::{
+        ast::{Module, Script},
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
             react::jsx,
-            testing::{test, test_fixture},
+            testing::{test, test_fixture, FixtureTestConfig},
         },
-        visit::as_folder,
+        utils::ExprCtx,
+        visit::{as_folder, noop_fold_type, Fold, Visit},
     },
 };
 use swc_relay::{relay, RelayLanguageConfig};
@@ -71,7 +72,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -88,7 +89,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -105,7 +106,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -133,7 +134,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -150,7 +151,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -167,7 +168,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -184,7 +185,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Webpack,
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
             )
         },
@@ -317,7 +318,7 @@ fn react_server_components_typescript(input: PathBuf) {
         Syntax::Typescript(Default::default()),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
                 }),
@@ -339,7 +340,7 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
                 }),
@@ -361,7 +362,7 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: false,
                 }),
@@ -404,7 +405,8 @@ fn server_actions_server_fixture(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
-                        enabled: true
+                        enabled: true,
+                        hash_salt: "".into()
                     },
                     _tr.comments.as_ref().clone(),
                 )
@@ -428,7 +430,8 @@ fn server_actions_client_fixture(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: false,
-                        enabled: true
+                        enabled: true,
+                        hash_salt: "".into()
                     },
                     _tr.comments.as_ref().clone(),
                 )
@@ -671,4 +674,67 @@ fn test_debug_name(input: PathBuf) {
         &output,
         Default::default(),
     );
+}
+
+#[fixture("tests/fixture/edge-assert/**/input.js")]
+fn test_edge_assert(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+
+    test_fixture(
+        syntax(),
+        &|t| {
+            let top_level_mark = Mark::fresh(Mark::root());
+            let unresolved_mark = Mark::fresh(Mark::root());
+
+            chain!(
+                swc_core::ecma::transforms::base::resolver(unresolved_mark, top_level_mark, true),
+                lint_to_fold(warn_for_edge_runtime(
+                    t.cm.clone(),
+                    ExprCtx {
+                        is_unresolved_ref_safe: false,
+                        unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
+                    },
+                    true
+                ))
+            )
+        },
+        &input,
+        &output,
+        FixtureTestConfig {
+            allow_error: true,
+            ..Default::default()
+        },
+    );
+}
+
+fn lint_to_fold<R>(r: R) -> impl Fold
+where
+    R: Visit,
+{
+    LintFolder(r)
+}
+
+struct LintFolder<R>(R)
+where
+    R: Visit;
+
+impl<R> Fold for LintFolder<R>
+where
+    R: Visit,
+{
+    noop_fold_type!();
+
+    #[inline(always)]
+    fn fold_module(&mut self, program: Module) -> Module {
+        self.0.visit_module(&program);
+
+        program
+    }
+
+    #[inline(always)]
+    fn fold_script(&mut self, program: Script) -> Script {
+        self.0.visit_script(&program);
+
+        program
+    }
 }

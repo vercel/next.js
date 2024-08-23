@@ -10,7 +10,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn dirty_in_progress() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let cases = [
             (1, 3, 2, 2, ""),
             (11, 13, 12, 42, "12"),
@@ -25,20 +25,22 @@ async fn dirty_in_progress() {
                 state: State::new(a),
             }
             .cell();
-            let input_val = input.await.unwrap();
+            let input_val = input.await?;
             let output = compute(input);
-            output.await.unwrap();
+            output.await?;
             println!("update to {}", b);
             input_val.state.set(b);
             tokio::time::sleep(Duration::from_millis(100)).await;
             println!("update to {}", c);
             input_val.state.set(c);
-            let read = output.strongly_consistent().await.unwrap();
+            let read = output.strongly_consistent().await?;
             assert_eq!(read.value, value);
             assert_eq!(read.collectible, collectible);
         }
+        anyhow::Ok(())
     })
     .await
+    .unwrap()
 }
 
 #[turbo_tasks::value]
