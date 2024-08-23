@@ -81,6 +81,33 @@ describe('next.config.js validation', () => {
           '"env.QUX" is missing'
         )
       })
+
+      it('should allow for empty topLevelImportPaths and meaninglessFileNames arrays (compiler.styledComponents)', async () => {
+        const configContent = `
+        module.exports = {
+          compiler: {
+            styledComponents: {
+              topLevelImportPaths: [],
+              meaninglessFileNames: []
+            }
+          }
+        }`
+
+        await fs.writeFile(nextConfigPath, configContent)
+        const result = await nextBuild(path.join(__dirname, '../'), undefined, {
+          stderr: true,
+          stdout: true,
+        })
+
+        await fs.remove(nextConfigPath)
+
+        expect(result.stdout + result.stderr).not.toContain(
+          'Array must contain at least 1 element(s) at "compiler.styledComponents.topLevelImportPaths'
+        )
+        expect(result.stdout + result.stderr).not.toContain(
+          'Array must contain at least 1 element(s) at "compiler.styledComponents.meaninglessFilenames'
+        )
+      })
     }
   )
 })
