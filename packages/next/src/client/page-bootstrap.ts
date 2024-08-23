@@ -16,7 +16,7 @@ import { RuntimeErrorHandler } from './components/react-dev-overlay/internal/hel
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from './components/react-dev-overlay/shared'
 import { performFullReload } from './components/react-dev-overlay/pages/hot-reloader-client'
 
-export function pageBootrap(assetPrefix: string) {
+export function pageBootstrap(assetPrefix: string) {
   connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
 
   return hydrate({ beforeRender: displayContent }).then(() => {

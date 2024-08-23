@@ -21,7 +21,6 @@ import {
   setLazyProp,
 } from './api-utils'
 import { getCookieParser } from './api-utils/get-cookie-parser'
-import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type {
   GetServerSideProps,
@@ -252,8 +251,6 @@ export type RenderOptsPartial = {
   basePath: string
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  optimizeFonts: FontConfig
-  fontManifest?: DeepReadonly<FontManifest>
   optimizeCss: any
   nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
@@ -640,7 +637,12 @@ export async function renderToHTMLImpl(
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
     // invoke.
-    previewData = tryGetPreviewData(req, res, previewProps)
+    previewData = tryGetPreviewData(
+      req,
+      res,
+      previewProps,
+      !!renderOpts.multiZoneDraftMode
+    )
     isPreview = previewData !== false
   }
 
@@ -1486,7 +1488,6 @@ export async function renderToHTMLImpl(
     styles: documentResult.styles,
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
-    optimizeFonts: renderOpts.optimizeFonts,
     nextConfigOutput: renderOpts.nextConfigOutput,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,

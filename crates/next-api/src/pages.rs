@@ -28,39 +28,33 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{trace::TraceRawVcs, Completion, RcStr, TaskInput, TryJoinIterExt, Value, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{
-        File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
-    },
-    turbopack::{
-        core::{
-            asset::AssetContent,
-            chunk::{
-                availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-                EntryChunkGroupResult, EvaluatableAssets,
-            },
-            context::AssetContext,
-            file_source::FileSource,
-            issue::IssueSeverity,
-            module::Module,
-            output::{OutputAsset, OutputAssets},
-            reference_type::{
-                EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
-            },
-            resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
-            source::Source,
-            virtual_output::VirtualOutputAsset,
-        },
-        ecmascript::{resolve::esm_resolve, EcmascriptModuleAsset},
-        nodejs::NodeJsChunkingContext,
-        turbopack::{
-            module_options::ModuleOptionsContext,
-            resolve_options_context::ResolveOptionsContext,
-            transition::{ContextTransition, TransitionsByName},
-            ModuleAssetContext,
-        },
-    },
+use turbo_tasks_fs::{
+    self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
 };
+use turbopack::{
+    module_options::ModuleOptionsContext,
+    resolve_options_context::ResolveOptionsContext,
+    transition::{ContextTransition, TransitionsByName},
+    ModuleAssetContext,
+};
+use turbopack_core::{
+    asset::AssetContent,
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+    },
+    context::AssetContext,
+    file_source::FileSource,
+    issue::IssueSeverity,
+    module::Module,
+    output::{OutputAsset, OutputAssets},
+    reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
+    resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
+    source::Source,
+    virtual_output::VirtualOutputAsset,
+};
+use turbopack_ecmascript::resolve::esm_resolve;
+use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     dynamic_imports::{
@@ -633,7 +627,7 @@ impl PageEndpoint {
             );
 
             let Some(client_module) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_module).await?
+                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
             else {
                 bail!("expected an ECMAScript module asset");
             };
@@ -659,7 +653,7 @@ impl PageEndpoint {
             .context("expected Next.js client runtime to resolve to a module")?;
 
             let Some(client_main_module) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_main_module).await?
+                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_main_module).await?
             else {
                 bail!("expected an ECMAScript module asset");
             };
@@ -670,8 +664,8 @@ impl PageEndpoint {
                 client_module.ident(),
                 this.pages_project
                     .client_runtime_entries()
-                    .with_entry(Vc::upcast(client_main_module))
-                    .with_entry(Vc::upcast(client_module)),
+                    .with_entry(client_main_module)
+                    .with_entry(client_module),
                 Value::new(AvailabilityInfo::Root),
             );
 

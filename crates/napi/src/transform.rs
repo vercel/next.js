@@ -39,7 +39,7 @@ use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
 use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
 use once_cell::sync::Lazy;
-use turbopack_binding::swc::core::{
+use swc_core::{
     base::{try_with_handler, Compiler, TransformOutput},
     common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, Mark, GLOBALS},
     ecma::transforms::base::pass::noop,
@@ -90,7 +90,7 @@ impl Task for TransformTask {
             let res = catch_unwind(AssertUnwindSafe(|| {
                 try_with_handler(
                     self.c.cm.clone(),
-                    turbopack_binding::swc::core::base::HandlerOpts {
+                    swc_core::base::HandlerOpts {
                         color: ColorConfig::Always,
                         skip_filename: skip_filename(),
                     },
@@ -105,7 +105,7 @@ impl Task for TransformTask {
                                         FileName::Real(options.swc.filename.clone().into())
                                     };
 
-                                    self.c.cm.new_source_file(filename, src.to_string())
+                                    self.c.cm.new_source_file(filename.into(), src.to_string())
                                 }
                                 Input::FromFilename => {
                                     let filename = &options.swc.filename;
@@ -114,7 +114,7 @@ impl Task for TransformTask {
                                     }
 
                                     self.c.cm.new_source_file(
-                                        FileName::Real(filename.into()),
+                                        FileName::Real(filename.into()).into(),
                                         read_to_string(filename).with_context(|| {
                                             format!("Failed to read source code from {}", filename)
                                         })?,

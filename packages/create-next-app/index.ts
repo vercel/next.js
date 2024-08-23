@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 /* eslint-disable import/no-extraneous-dependencies */
-import type { InitialReturnValue } from 'prompts'
-import type { PackageManager } from './helpers/get-pkg-manager'
-import Conf from 'conf'
 import ciInfo from 'ci-info'
+import { Command } from 'commander'
+import Conf from 'conf'
+import { existsSync } from 'node:fs'
+import { basename, resolve } from 'node:path'
+import { blue, bold, cyan, green, red, yellow } from 'picocolors'
+import type { InitialReturnValue } from 'prompts'
 import prompts from 'prompts'
 import updateCheck from 'update-check'
-import packageJson from './package.json'
-import { basename, resolve } from 'node:path'
-import { existsSync } from 'node:fs'
-import { Command } from 'commander'
-import { cyan, green, red, yellow, bold, blue } from 'picocolors'
 import { createApp, DownloadError } from './create-app'
+import type { PackageManager } from './helpers/get-pkg-manager'
 import { getPkgManager } from './helpers/get-pkg-manager'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { validateNpmName } from './helpers/validate-pkg'
+import packageJson from './package.json'
 
 let projectPath: string = ''
 
@@ -102,6 +102,7 @@ const program = new Command(packageJson.name)
   --example-path foo/bar
 `
   )
+  .option('--disable-git', `Skip initializing a git repository.`)
   .action((name) => {
     // Commander does not implicitly support negated options. When they are used
     // by the user they will be interpreted as the positional argument (name) in
@@ -114,7 +115,7 @@ const program = new Command(packageJson.name)
   .parse(process.argv)
 
 const opts = program.opts()
-// const { args } = program
+const { args } = program
 
 const packageManager: PackageManager = !!opts.useNpm
   ? 'npm'
@@ -233,6 +234,7 @@ async function run(): Promise<void> {
       customizeImportAlias: false,
       empty: false,
       turbo: false,
+      disableGit: false,
     }
     const getPrefOrDefault = (field: string) =>
       preferences[field] ?? defaults[field]
@@ -273,10 +275,7 @@ async function run(): Promise<void> {
       }
     }
 
-    if (
-      !process.argv.includes('--eslint') &&
-      !process.argv.includes('--no-eslint')
-    ) {
+    if (!opts.eslint && !args.includes('--no-eslint')) {
       if (skipPrompt) {
         opts.eslint = getPrefOrDefault('eslint')
       } else {
@@ -295,10 +294,7 @@ async function run(): Promise<void> {
       }
     }
 
-    if (
-      !process.argv.includes('--tailwind') &&
-      !process.argv.includes('--no-tailwind')
-    ) {
+    if (!opts.tailwind && !args.includes('--no-tailwind')) {
       if (skipPrompt) {
         opts.tailwind = getPrefOrDefault('tailwind')
       } else {
@@ -317,10 +313,7 @@ async function run(): Promise<void> {
       }
     }
 
-    if (
-      !process.argv.includes('--src-dir') &&
-      !process.argv.includes('--no-src-dir')
-    ) {
+    if (!opts.srcDir && !args.includes('--no-src-dir')) {
       if (skipPrompt) {
         opts.srcDir = getPrefOrDefault('srcDir')
       } else {
@@ -339,26 +332,26 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
+    if (!opts.app && !args.includes('--no-app')) {
       if (skipPrompt) {
         opts.app = getPrefOrDefault('app')
       } else {
         const styledAppDir = blue('App Router')
-        const { appRouter } = await prompts({
+        const { app } = await prompts({
           onState: onPromptState,
           type: 'toggle',
-          name: 'appRouter',
+          name: 'app',
           message: `Would you like to use ${styledAppDir}? (recommended)`,
           initial: getPrefOrDefault('app'),
           active: 'Yes',
           inactive: 'No',
         })
-        opts.app = Boolean(appRouter)
-        preferences.app = Boolean(appRouter)
+        opts.app = Boolean(app)
+        preferences.app = Boolean(app)
       }
     }
 
-    if (!opts.turbo && !process.argv.includes('--no-turbo')) {
+    if (!opts.turbo && !args.includes('--no-turbo')) {
       if (skipPrompt) {
         opts.turbo = getPrefOrDefault('turbo')
       } else {
@@ -385,7 +378,7 @@ async function run(): Promise<void> {
       if (skipPrompt) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
         opts.importAlias = defaults.importAlias
-      } else if (process.argv.includes('--no-import-alias')) {
+      } else if (args.includes('--no-import-alias')) {
         opts.importAlias = defaults.importAlias
       } else {
         const styledImportAlias = blue('import alias')
@@ -431,12 +424,13 @@ async function run(): Promise<void> {
       typescript: opts.typescript,
       tailwind: opts.tailwind,
       eslint: opts.eslint,
-      appRouter: opts.app,
+      app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,
       skipInstall: opts.skipInstall,
       empty: opts.empty,
       turbo: opts.turbo,
+      disableGit: opts.disableGit,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -462,12 +456,13 @@ async function run(): Promise<void> {
       typescript: opts.typescript,
       eslint: opts.eslint,
       tailwind: opts.tailwind,
-      appRouter: opts.app,
+      app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,
       skipInstall: opts.skipInstall,
       empty: opts.empty,
       turbo: opts.turbo,
+      disableGit: opts.disableGit,
     })
   }
   conf.set('preferences', preferences)

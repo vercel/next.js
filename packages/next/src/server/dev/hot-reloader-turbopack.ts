@@ -31,10 +31,7 @@ import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import {
-  deleteAppClientCache,
-  deleteCache,
-} from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
+import { deleteAppClientCache, deleteCache } from './require-cache'
 import {
   clearAllModuleContexts,
   clearModuleContext,
@@ -90,10 +87,13 @@ const isTestMode = !!(
   process.env.DEBUG
 )
 
+const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
+
 export async function createHotReloaderTurbopack(
   opts: SetupOpts,
   serverFields: ServerFields,
-  distDir: string
+  distDir: string,
+  resetFetch: () => void
 ): Promise<NextJsHotReloaderInterface> {
   const buildId = 'development'
   const { nextConfig, dir } = opts
@@ -128,7 +128,7 @@ export async function createHotReloaderTurbopack(
   const project = await bindings.turbo.createProject(
     {
       projectPath: dir,
-      rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
+      rootPath: opts.nextConfig.outputFileTracingRoot || dir,
       nextConfig: opts.nextConfig,
       jsConfig: await getTurbopackJsConfig(dir, nextConfig),
       watch: true,
@@ -236,6 +236,8 @@ export async function createHotReloaderTurbopack(
         return
       }
     }
+
+    resetFetch()
 
     const hasAppPaths = writtenEndpoint.serverPaths.some(({ path: p }) =>
       p.startsWith('server/app')
@@ -476,7 +478,6 @@ export async function createHotReloaderTurbopack(
 
         currentEntryIssues,
         manifestLoader,
-        nextConfig: opts.nextConfig,
         devRewrites: opts.fsChecker.rewrites,
         productionRewrites: undefined,
         logErrors: true,
@@ -667,6 +668,7 @@ export async function createHotReloaderTurbopack(
 
         const turbopackConnected: TurbopackConnectedAction = {
           action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+          data: { sessionId },
         }
         sendToClient(client, turbopackConnected)
 

@@ -42,7 +42,7 @@ function hmrRefreshReducerImpl(
   })
 
   return cache.lazyData.then(
-    ({ f: flightData, c: canonicalUrlOverride }) => {
+    ({ flightData, canonicalUrl: canonicalUrlOverride }) => {
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
         return handleExternalUrl(

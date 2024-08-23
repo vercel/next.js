@@ -1,5 +1,4 @@
 import type { __ApiPreviewProps } from './api-utils'
-import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from '../client/components/params'
@@ -15,13 +14,15 @@ import type {
   RenderOptsPartial as AppRenderOptsPartial,
   ServerOnInstrumentationRequestError,
 } from './app-render/types'
-import type {
-  CachedAppPageValue,
-  CachedPageValue,
-  ServerComponentsHmrCache,
-  ResponseCacheBase,
-  ResponseCacheEntry,
-  ResponseGenerator,
+import {
+  type CachedAppPageValue,
+  type CachedPageValue,
+  type ServerComponentsHmrCache,
+  type ResponseCacheBase,
+  type ResponseCacheEntry,
+  type ResponseGenerator,
+  CachedRouteKind,
+  type CachedRedirectValue,
 } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
@@ -137,7 +138,6 @@ import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { PostponedPathnameNormalizer } from './normalizers/request/postponed'
-import { ActionPathnameNormalizer } from './normalizers/request/action'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
   isAppPageRouteModule,
@@ -159,6 +159,11 @@ import {
 } from './after/builtin-request-context'
 import { ENCODED_TAGS } from './stream-utils/encodedTags'
 import { NextRequestHint } from './web/adapter'
+import { getRevalidateReason } from './instrumentation/utils'
+import { RouteKind } from './route-kind'
+import type { RouteModule } from './route-modules/route-module'
+import { FallbackMode, parseFallbackField } from '../lib/fallback'
+import { toResponseCacheEntry } from './response-cache/utils'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -288,8 +293,6 @@ export type RequestContext<
   renderOpts: RenderOpts
 }
 
-export type FallbackMode = false | undefined | 'blocking' | 'static'
-
 export class NoFallbackError extends Error {}
 
 // Internal wrapper around build errors at development
@@ -365,7 +368,6 @@ export default abstract class Server<
     shouldEnsure?: boolean
     url?: string
   }): Promise<FindComponentsResult | null>
-  protected abstract getFontManifest(): DeepReadonly<FontManifest> | undefined
   protected abstract getPrerenderManifest(): DeepReadonly<PrerenderManifest>
   protected abstract getNextFontManifest():
     | DeepReadonly<NextFontManifest>
@@ -374,7 +376,6 @@ export default abstract class Server<
     req: ServerRequest,
     parsedUrl: NextUrlWithParsedQuery
   ): void
-  protected abstract getFallback(page: string): Promise<string>
   protected abstract hasPage(pathname: string): Promise<boolean>
 
   protected abstract sendRenderResult(
@@ -433,7 +434,6 @@ export default abstract class Server<
   protected readonly localeNormalizer?: LocaleRouteNormalizer
 
   protected readonly normalizers: {
-    readonly action: ActionPathnameNormalizer | undefined
     readonly postponed: PostponedPathnameNormalizer | undefined
     readonly rsc: RSCPathnameNormalizer | undefined
     readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
@@ -530,10 +530,6 @@ export default abstract class Server<
       data: this.enabledDirectories.pages
         ? new NextDataPathnameNormalizer(this.buildId)
         : undefined,
-      action:
-        this.enabledDirectories.app && this.minimalMode
-          ? new ActionPathnameNormalizer()
-          : undefined,
     }
 
     this.nextFontManifest = this.getNextFontManifest()
@@ -556,11 +552,6 @@ export default abstract class Server<
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
       images: this.nextConfig.images,
-      optimizeFonts: this.nextConfig.optimizeFonts as FontConfig,
-      fontManifest:
-        (this.nextConfig.optimizeFonts as FontConfig) && !dev
-          ? this.getFontManifest()
-          : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       nextConfigOutput: this.nextConfig.output,
       nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
@@ -590,6 +581,7 @@ export default abstract class Server<
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
+      reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
     }
 
     // Initialize next/config with the environment configuration
@@ -842,7 +834,7 @@ export default abstract class Server<
         await this.instrumentation.onRequestError?.(
           err,
           {
-            url: req.url || '',
+            path: req.url || '',
             method: req.method || 'GET',
             // Normalize middleware headers and other server request headers
             headers:
@@ -1523,10 +1515,6 @@ export default abstract class Server<
       normalizers.push(this.normalizers.rsc)
     }
 
-    if (this.normalizers.action) {
-      normalizers.push(this.normalizers.action)
-    }
-
     for (const normalizer of normalizers) {
       if (!normalizer.match(pathname)) continue
 
@@ -1825,7 +1813,7 @@ export default abstract class Server<
     isAppPath: boolean
   }): Promise<{
     staticPaths?: string[]
-    fallbackMode?: 'static' | 'blocking' | false
+    fallbackMode?: FallbackMode
   }> {
     // Read whether or not fallback should exist from the manifest.
     const fallbackField =
@@ -1835,12 +1823,7 @@ export default abstract class Server<
       // `staticPaths` is intentionally set to `undefined` as it should've
       // been caught when checking disk data.
       staticPaths: undefined,
-      fallbackMode:
-        typeof fallbackField === 'string'
-          ? 'static'
-          : fallbackField === null
-            ? 'blocking'
-            : fallbackField,
+      fallbackMode: parseFallbackField(fallbackField),
     }
   }
 
@@ -1914,7 +1897,7 @@ export default abstract class Server<
     const isAppPath = components.isAppPath === true
 
     const hasServerProps = !!components.getServerSideProps
-    let hasStaticPaths = !!components.getStaticPaths
+    let hasGetStaticPaths = !!components.getStaticPaths
     const isServerAction = getIsServerAction(req)
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
@@ -1930,7 +1913,7 @@ export default abstract class Server<
 
     let staticPaths: string[] | undefined
 
-    let fallbackMode: FallbackMode
+    let fallbackMode: FallbackMode | undefined
     let hasFallback = false
     const isDynamic = isDynamicRoute(components.page)
 
@@ -1950,14 +1933,14 @@ export default abstract class Server<
 
       if (this.nextConfig.output === 'export') {
         const page = components.page
-
-        if (fallbackMode !== 'static') {
+        if (!staticPaths) {
           throw new Error(
             `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
           )
         }
+
         const resolvedWithoutSlash = removeTrailingSlash(resolvedUrlPathname)
-        if (!staticPaths?.includes(resolvedWithoutSlash)) {
+        if (!staticPaths.includes(resolvedWithoutSlash)) {
           throw new Error(
             `Page "${page}" is missing param "${resolvedWithoutSlash}" in "generateStaticParams()", which is required with "output: export" config.`
           )
@@ -1965,7 +1948,7 @@ export default abstract class Server<
       }
 
       if (hasFallback) {
-        hasStaticPaths = true
+        hasGetStaticPaths = true
       }
     }
 
@@ -2042,7 +2025,10 @@ export default abstract class Server<
       )
     }
 
-    const { routeModule } = components
+    let routeModule: RouteModule | undefined
+    if (components.routeModule) {
+      routeModule = components.routeModule
+    }
 
     /**
      * If the route being rendered is an app page, and the ppr feature has been
@@ -2178,7 +2164,12 @@ export default abstract class Server<
       if (process.env.NEXT_RUNTIME !== 'edge') {
         const { tryGetPreviewData } =
           require('./api-utils/node/try-get-preview-data') as typeof import('./api-utils/node/try-get-preview-data')
-        previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
+        previewData = tryGetPreviewData(
+          req,
+          res,
+          this.renderOpts.previewProps,
+          !!this.nextConfig.experimental.multiZoneDraftMode
+        )
         isPreviewMode = previewData !== false
       }
     }
@@ -2310,7 +2301,7 @@ export default abstract class Server<
     } catch {}
 
     // use existing incrementalCache instance if available
-    const incrementalCache =
+    const incrementalCache: import('./lib/incremental-cache').IncrementalCache =
       (globalThis as any).__incrementalCache ||
       (await this.getIncrementalCache({
         requestHeaders: Object.assign({}, req.headers),
@@ -2341,7 +2332,7 @@ export default abstract class Server<
         (!isNextDataRequest && opts.dev === true) ||
         // If this is not SSG or does not have static paths, then it supports
         // dynamic HTML.
-        (!isSSG && !hasStaticPaths) ||
+        (!isSSG && !hasGetStaticPaths) ||
         // If this request has provided postponed data, it supports dynamic
         // HTML.
         typeof postponed === 'string' ||
@@ -2385,6 +2376,7 @@ export default abstract class Server<
         locale,
         locales,
         defaultLocale,
+        multiZoneDraftMode: this.nextConfig.experimental.multiZoneDraftMode,
         // For getServerSideProps and getInitialProps we need to ensure we use the original URL
         // and not the resolved URL to prevent a hydration mismatch on
         // asPath
@@ -2492,7 +2484,7 @@ export default abstract class Server<
               // Create the cache entry for the response.
               const cacheEntry: ResponseCacheEntry = {
                 value: {
-                  kind: 'ROUTE',
+                  kind: CachedRouteKind.APP_ROUTE,
                   status: response.status,
                   body: Buffer.from(await blob.arrayBuffer()),
                   headers,
@@ -2512,16 +2504,17 @@ export default abstract class Server<
             )
             return null
           } catch (err) {
-            // If this is during static generation, throw the error again.
-            if (isSSG) throw err
-
-            Log.error(err)
-
             await this.instrumentationOnRequestError(err, req, {
               routerKind: 'App Router',
               routePath: pathname,
               routeType: 'route',
+              revalidateReason: getRevalidateReason(renderOpts),
             })
+
+            // If this is during static generation, throw the error again.
+            if (isSSG) throw err
+
+            Log.error(err)
 
             // Otherwise, send a 500 response.
             await sendResponse(req, res, handleInternalServerErrorResponse())
@@ -2571,6 +2564,10 @@ export default abstract class Server<
                 routerKind: 'Pages Router',
                 routePath: pathname,
                 routeType: 'render',
+                revalidateReason: getRevalidateReason({
+                  isRevalidate: isSSG,
+                  isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
+                }),
               })
               throw err
             }
@@ -2656,9 +2653,9 @@ export default abstract class Server<
       if (metadata.isRedirect) {
         return {
           value: {
-            kind: 'REDIRECT',
+            kind: CachedRouteKind.REDIRECT,
             props: metadata.pageData ?? metadata.flightData,
-          },
+          } satisfies CachedRedirectValue,
           revalidate: metadata.revalidate,
         }
       }
@@ -2672,7 +2669,7 @@ export default abstract class Server<
       if (isAppPath) {
         return {
           value: {
-            kind: 'APP_PAGE',
+            kind: CachedRouteKind.APP_PAGE,
             html: result,
             headers,
             rscData: metadata.flightData,
@@ -2685,7 +2682,7 @@ export default abstract class Server<
 
       return {
         value: {
-          kind: 'PAGE',
+          kind: CachedRouteKind.PAGES,
           html: result,
           pageData: metadata.pageData ?? metadata.flightData,
           headers,
@@ -2695,27 +2692,40 @@ export default abstract class Server<
       }
     }
 
-    const responseGenerator: ResponseGenerator = async (
+    const responseGenerator: ResponseGenerator = async ({
       hasResolved,
       previousCacheEntry,
-      isRevalidating
-    ): Promise<ResponseCacheEntry | null> => {
+      isRevalidating,
+    }): Promise<ResponseCacheEntry | null> => {
       const isProduction = !this.renderOpts.dev
       const didRespond = hasResolved || res.sent
 
+      // If we haven't found the static paths for the route, then do it now.
       if (!staticPaths) {
-        ;({ staticPaths, fallbackMode } = hasStaticPaths
-          ? await this.getStaticPaths({
-              pathname,
-              requestHeaders: req.headers,
-              isAppPath,
-              page: components.page,
-            })
-          : { staticPaths: undefined, fallbackMode: false })
+        if (hasGetStaticPaths) {
+          const pathsResult = await this.getStaticPaths({
+            pathname,
+            requestHeaders: req.headers,
+            isAppPath,
+            page: components.page,
+          })
+
+          staticPaths = pathsResult.staticPaths
+          fallbackMode = pathsResult.fallbackMode
+        } else {
+          staticPaths = undefined
+          fallbackMode = FallbackMode.NOT_FOUND
+        }
       }
 
-      if (fallbackMode === 'static' && isBot(req.headers['user-agent'] || '')) {
-        fallbackMode = 'blocking'
+      // When serving a bot request, we want to serve a blocking render and not
+      // the prerendered page. This ensures that the correct content is served
+      // to the bot in the head.
+      if (
+        fallbackMode === FallbackMode.STATIC_PRERENDER &&
+        isBot(req.headers['user-agent'] || '')
+      ) {
+        fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
       }
 
       // skip on-demand revalidate if cache is not present and
@@ -2738,9 +2748,9 @@ export default abstract class Server<
       // or for prerendered fallback: false paths
       if (
         isOnDemandRevalidate &&
-        (fallbackMode !== false || previousCacheEntry)
+        (fallbackMode !== FallbackMode.NOT_FOUND || previousCacheEntry)
       ) {
-        fallbackMode = 'blocking'
+        fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
       }
 
       // We use `ssgCacheKey` here as it is normalized to match the encoding
@@ -2757,8 +2767,12 @@ export default abstract class Server<
       const isPageIncludedInStaticPaths =
         staticPathKey && staticPaths?.includes(staticPathKey)
 
-      if ((this.nextConfig.experimental as any).isExperimentalCompile) {
-        fallbackMode = 'blocking'
+      // When experimental compile is used, no pages have been prerendered,
+      // so they should all be blocking.
+
+      // @ts-expect-error internal field
+      if (this.nextConfig.experimental.isExperimentalCompile) {
+        fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
       }
 
       // When we did not respond from cache, we need to choose to block on
@@ -2775,7 +2789,7 @@ export default abstract class Server<
       if (
         process.env.NEXT_RUNTIME !== 'edge' &&
         !this.minimalMode &&
-        fallbackMode !== 'blocking' &&
+        fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER &&
         staticPathKey &&
         !didRespond &&
         !isPreviewMode &&
@@ -2787,42 +2801,56 @@ export default abstract class Server<
           // getStaticPaths.
           (isProduction || (staticPaths && staticPaths?.length > 0)) &&
           // When fallback isn't present, abort this render so we 404
-          fallbackMode !== 'static'
+          fallbackMode === FallbackMode.NOT_FOUND
         ) {
           throw new NoFallbackError()
         }
 
-        if (!isNextDataRequest) {
-          // Production already emitted the fallback as static HTML.
-          if (isProduction) {
-            const html = await this.getFallback(
-              locale ? `/${locale}${pathname}` : pathname
-            )
+        if (!isNextDataRequest && !isRSCRequest) {
+          const key = isProduction
+            ? isAppPath
+              ? pathname
+              : locale
+                ? `/${locale}${pathname}`
+                : pathname
+            : null
 
-            return {
-              value: {
-                kind: 'PAGE',
-                html: RenderResult.fromStatic(html),
-                status: undefined,
-                headers: undefined,
-                pageData: {},
-              },
-            }
-          }
-          // We need to generate the fallback on-demand for development.
-          else {
-            query.__nextFallback = 'true'
+          const fallbackResponse = await this.responseCache.get(
+            key,
+            async ({ previousCacheEntry: previousFallbackCacheEntry }) => {
+              // For the pages router, fallbacks cannot be revalidated or
+              // generated in production. In the case of a missing fallback,
+              // we return null, but if it's being revalidated, we just return
+              // the previous fallback cache entry. This preserves the previous
+              // behavior.
+              if (isProduction) {
+                if (!previousFallbackCacheEntry) {
+                  return null
+                }
 
-            // We pass `undefined` as there cannot be a postponed state in
-            // development.
-            const result = await doRender({ postponed: undefined })
-            if (!result) {
-              return null
+                return toResponseCacheEntry(previousFallbackCacheEntry)
+              }
+
+              query.__nextFallback = 'true'
+
+              // We pass `undefined` as rendering a fallback isn't resumed here.
+              return doRender({ postponed: undefined })
+            },
+            {
+              routeKind: isAppPath ? RouteKind.APP_PAGE : RouteKind.PAGES,
+              incrementalCache,
+              isRoutePPREnabled,
+              isFallback: true,
             }
-            // Prevent caching this result
-            delete result.revalidate
-            return result
-          }
+          )
+
+          if (!fallbackResponse) return null
+
+          // Remove the revalidate from the response to prevent it from being
+          // used in the surrounding cache.
+          delete fallbackResponse.revalidate
+
+          return fallbackResponse
         }
       }
 
@@ -2844,12 +2872,12 @@ export default abstract class Server<
         return {
           revalidate: 1,
           value: {
-            kind: 'PAGE',
+            kind: CachedRouteKind.PAGES,
             html: RenderResult.fromStatic(''),
             pageData: {},
             headers: undefined,
             status: undefined,
-          },
+          } satisfies CachedPageValue,
         }
       }
 
@@ -2870,11 +2898,16 @@ export default abstract class Server<
       ssgCacheKey,
       responseGenerator,
       {
-        routeKind: routeModule?.definition.kind,
+        routeKind:
+          // If the route module is not defined, we can assume it's a page being
+          // rendered and thus check isAppPath.
+          routeModule?.definition.kind ??
+          (isAppPath ? RouteKind.APP_PAGE : RouteKind.PAGES),
         incrementalCache,
         isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
         isRoutePPREnabled,
+        isFallback: false,
       }
     )
 
@@ -2891,7 +2924,7 @@ export default abstract class Server<
     }
 
     const didPostpone =
-      cacheEntry.value?.kind === 'APP_PAGE' &&
+      cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
       typeof cacheEntry.value.postponed === 'string'
 
     if (
@@ -2923,7 +2956,7 @@ export default abstract class Server<
     const { value: cachedData } = cacheEntry
 
     // If the cache value is an image, we should error early.
-    if (cachedData?.kind === 'IMAGE') {
+    if (cachedData?.kind === CachedRouteKind.IMAGE) {
       throw new Error('invariant SSG should not return an image cache value')
     }
 
@@ -3006,7 +3039,7 @@ export default abstract class Server<
           value: {
             ...cacheEntry.value,
             kind:
-              cacheEntry.value?.kind === 'APP_PAGE'
+              cacheEntry.value?.kind === CachedRouteKind.APP_PAGE
                 ? 'PAGE'
                 : cacheEntry.value?.kind,
           },
@@ -3048,7 +3081,7 @@ export default abstract class Server<
       }
       await this.render404(req, res, { pathname, query }, false)
       return null
-    } else if (cachedData.kind === 'REDIRECT') {
+    } else if (cachedData.kind === CachedRouteKind.REDIRECT) {
       if (cacheEntry.revalidate) {
         res.setHeader(
           'Cache-Control',
@@ -3072,7 +3105,7 @@ export default abstract class Server<
         await handleRedirect(cachedData.props)
         return null
       }
-    } else if (cachedData.kind === 'ROUTE') {
+    } else if (cachedData.kind === CachedRouteKind.APP_ROUTE) {
       const headers = { ...cachedData.headers }
 
       if (!(this.minimalMode && isSSG)) {
@@ -3088,7 +3121,7 @@ export default abstract class Server<
         })
       )
       return null
-    } else if (cachedData.kind === 'APP_PAGE') {
+    } else if (cachedData.kind === CachedRouteKind.APP_PAGE) {
       // If the request has a postponed state and it's a resume request we
       // should error.
       if (cachedData.postponed && minimalPostponed) {
@@ -3139,7 +3172,7 @@ export default abstract class Server<
       }
 
       // Mark that the request did postpone if this is a data request.
-      if (cachedData.postponed && isRSCRequest) {
+      if (typeof cachedData.postponed === 'string' && isRSCRequest) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
@@ -3223,7 +3256,7 @@ export default abstract class Server<
             throw new Error('Invariant: expected a result to be returned')
           }
 
-          if (result.value?.kind !== 'APP_PAGE') {
+          if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
             throw new Error(
               `Invariant: expected a page response, got ${result.value?.kind}`
             )

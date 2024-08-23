@@ -21,6 +21,6 @@ shadow_rs::shadow!(build);
 
 pub fn register() {
     next_core::register();
-    turbopack_binding::turbopack::nodejs::register();
+    turbopack_nodejs::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

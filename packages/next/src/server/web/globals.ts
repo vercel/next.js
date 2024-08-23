@@ -18,6 +18,8 @@ export async function getEdgeInstrumentationModule(): Promise<
 
 let instrumentationModulePromise: Promise<any> | null = null
 async function registerInstrumentation() {
+  // Ensure registerInstrumentation is not called in production build
+  if (process.env.NEXT_PHASE === 'phase-production-build') return
   if (!instrumentationModulePromise) {
     instrumentationModulePromise = getEdgeInstrumentationModule()
   }

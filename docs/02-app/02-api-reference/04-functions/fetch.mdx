@@ -68,7 +68,10 @@ fetch(`https://...`, { cache: 'force-cache' | 'no-store' })
   - If there is a match and it is fresh, it will be returned from the cache.
   - If there is no match or a stale match, Next.js will fetch the resource from the remote server and update the cache with the downloaded resource.
 
-> **Good to know**: The `no-cache` option behaves the same way as `no-store` in Next.js.
+> **Good to know**:
+>
+> - In version 15, the default cache option was changed from `'force-cache'` to `'no-store'`. If you're using an older version of Next.js, the default cache option is `'force-cache'`.
+> - The `no-cache` option behaves the same way as `no-store` in Next.js.
 
 ### `options.next.revalidate`
 
@@ -99,13 +102,13 @@ Set the cache tags of a resource. Data can then be revalidated on-demand using [
 
 ## Troubleshooting
 
-## Fetch `cache: 'no-store'` not showing fresh data in development
+### Fetch `cache: 'no-store'` not showing fresh data in development
 
 Next.js caches `fetch` responses in Server Components across Hot Module Replacement (HMR) in local development for faster responses and to reduce costs for billed API calls.
 
-By default, the [HMR cache](docs/app/api-reference/next-config-js/servercomponentshmrcache) applies to all fetch requests, including those with the `cache: 'no-store'` option. This means uncached requests will not show fresh data between HMR refreshes. However, the cache will be cleared on navigation or full-page reloads.
+By default, the [HMR cache](/docs/app/api-reference/next-config-js/serverComponentsHmrCache) applies to all fetch requests, including those with the `cache: 'no-store'` option. This means uncached requests will not show fresh data between HMR refreshes. However, the cache will be cleared on navigation or full-page reloads.
 
-See the [`serverComponentsHmrCache`](docs/app/api-reference/next-config-js/servercomponentshmrcache) docs for more information.
+See the [`serverComponentsHmrCache`](/docs/app/api-reference/next-config-js/serverComponentsHmrCache) docs for more information.
 
 ## Version History
 
