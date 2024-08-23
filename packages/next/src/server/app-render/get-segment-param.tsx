@@ -1,5 +1,5 @@
-import type { DynamicParamTypes } from './types'
 import { INTERCEPTION_ROUTE_MARKERS } from '../lib/interception-routes'
+import type { DynamicParamTypes } from './types'
 
 /**
  * Parse dynamic route segment to type of parameter
@@ -18,26 +18,28 @@ export function getSegmentParam(segment: string): {
     segment = segment.slice(interceptionMarker.length)
   }
 
-  let param: string
-  let type: DynamicParamTypes
-
   if (segment.startsWith('[[...') && segment.endsWith(']]')) {
-    // TODO-APP: Optional catchall does not currently work with parallel routes,
-    // so for now aren't handling a potential interception marker.
-    type = 'optional-catchall'
-    param = segment.slice(5, -2)
-  } else if (segment.startsWith('[...') && segment.endsWith(']')) {
-    type = interceptionMarker ? 'catchall-intercepted' : 'catchall'
-    param = segment.slice(4, -1)
-  } else if (segment.startsWith('[') && segment.endsWith(']')) {
-    type = interceptionMarker ? 'dynamic-intercepted' : 'dynamic'
-    param = segment.slice(1, -1)
-  } else {
-    return null
+    return {
+      // TODO-APP: Optional catchall does not currently work with parallel routes,
+      // so for now aren't handling a potential interception marker.
+      type: 'optional-catchall',
+      param: segment.slice(5, -2),
+    }
   }
 
-  return {
-    param,
-    type,
+  if (segment.startsWith('[...') && segment.endsWith(']')) {
+    return {
+      type: interceptionMarker ? 'catchall-intercepted' : 'catchall',
+      param: segment.slice(4, -1),
+    }
   }
+
+  if (segment.startsWith('[') && segment.endsWith(']')) {
+    return {
+      type: interceptionMarker ? 'dynamic-intercepted' : 'dynamic',
+      param: segment.slice(1, -1),
+    }
+  }
+
+  return null
 }

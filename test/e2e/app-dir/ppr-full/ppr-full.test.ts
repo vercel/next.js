@@ -13,6 +13,8 @@ type Page = {
    * to be sent as the static part.
    */
   emptyStaticPart?: boolean
+
+  fallback?: boolean
 }
 
 const pages: Page[] = [

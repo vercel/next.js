@@ -203,7 +203,7 @@ import {
 import { storeShuttle } from './flying-shuttle/store-shuttle'
 import { stitchBuilds } from './flying-shuttle/stitch-builds'
 import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
-import { FallbackMode, fallbackToFallbackField } from '../lib/fallback'
+import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -2148,7 +2148,7 @@ export default async function build(
                             ssgBlockingFallbackPages.add(page)
                           } else if (
                             workerResult.prerenderFallbackMode ===
-                            FallbackMode.STATIC_PRERENDER
+                            FallbackMode.PRERENDER
                           ) {
                             ssgStaticFallbackPages.add(page)
                           }
@@ -2808,7 +2808,7 @@ export default async function build(
 
             // When this is an app page and PPR is enabled, the route supports
             // partial pre-rendering.
-            const experimentalPPR: true | undefined =
+            const isRoutePPREnabled: true | undefined =
               !isRouteHandler &&
               checkIsRoutePPREnabled(config.experimental.ppr, appConfig)
                 ? true
@@ -2873,7 +2873,7 @@ export default async function build(
               }
 
               if (
-                experimentalPPR &&
+                isRoutePPREnabled &&
                 prerenderedRoute.fallbackRouteParams &&
                 prerenderedRoute.fallbackRouteParams.length > 0
               ) {
@@ -2970,7 +2970,7 @@ export default async function build(
 
                 prerenderManifest.routes[route] = {
                   ...routeMeta,
-                  experimentalPPR,
+                  experimentalPPR: isRoutePPREnabled,
                   experimentalBypassFor: bypassFor,
                   initialRevalidateSeconds: revalidate,
                   srcRoute: page,
@@ -2993,7 +2993,7 @@ export default async function build(
               // For pre-PPR routes, this ensures that the original app path
               // is also included. We need to do this after the routes loop
               // because we might modify the `hasDynamicData` while looping.
-              if (!experimentalPPR) {
+              if (!isRoutePPREnabled || !config.experimental.pprFallbacks) {
                 dynamicRoutes.push(page)
               }
 
@@ -3024,37 +3024,27 @@ export default async function build(
                   isDynamicAppRoute: true,
                   // if PPR is turned on and the route contains a dynamic segment,
                   // we assume it'll be partially prerendered
-                  hasPostponed: experimentalPPR,
+                  hasPostponed: isRoutePPREnabled,
                 })
 
-                let fallbackMode = fallbackModes.get(originalAppPath)
-                let fallbackRevalidate: Revalidate | undefined
+                const fallbackMode =
+                  fallbackModes.get(originalAppPath) ?? FallbackMode.NOT_FOUND
 
-                // If there are unknown route parameters, we should fallback to
-                // the generated prerender shell.
-                if (fallbackMode === FallbackMode.STATIC_PRERENDER) {
-                  fallbackRevalidate =
-                    exportResult.byPath.get(route)?.revalidate ?? false
-                }
-                // If the page should allow requests to paths that haven't been
-                // generated, then we should fallback to blocking the render.
-                else if (fallbackMode === FallbackMode.BLOCKING_STATIC_RENDER) {
-                  // When PPR is enabled, we should use `undefined` rather than
-                  // `false` as fallbacks aren't supported for non-ppr pages.
-                  if (experimentalPPR) fallbackRevalidate = false
-                }
-                // Otherwise, we should fallback to 404.
-                else {
-                  fallbackMode = FallbackMode.NOT_FOUND
-                }
+                // When we're configured to serve a prerender, we should use the
+                // fallback revalidate from the export result. If it can't be
+                // found, mark that we should keep the shell forever (`false`).
+                let fallbackRevalidate: Revalidate | undefined =
+                  isRoutePPREnabled && fallbackMode === FallbackMode.PRERENDER
+                    ? exportResult.byPath.get(route)?.revalidate ?? false
+                    : undefined
 
-                const fallback: Fallback = fallbackToFallbackField(
+                const fallback: Fallback = fallbackModeToFallbackField(
                   fallbackMode,
                   route
                 )
 
                 prerenderManifest.dynamicRoutes[route] = {
-                  experimentalPPR,
+                  experimentalPPR: isRoutePPREnabled,
                   experimentalBypassFor: bypassFor,
                   routeRegex: normalizeRouteRegex(
                     getNamedRouteRegex(route, false).re.source

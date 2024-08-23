@@ -5,7 +5,7 @@ import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOptsPartial } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
-import type { DynamicRouteParams } from '../../client/components/params'
+import type { FallbackRouteParams } from '../../client/components/fallback-params'
 
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
@@ -18,7 +18,7 @@ export type StaticGenerationContext = {
   /**
    * The route parameters that are currently unknown.
    */
-  fallbackRouteParams: DynamicRouteParams | null
+  fallbackRouteParams: FallbackRouteParams | null
 
   requestEndedState?: { ended?: boolean }
   renderOpts: {

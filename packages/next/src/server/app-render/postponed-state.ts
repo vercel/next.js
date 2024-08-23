@@ -1,4 +1,4 @@
-import type { DynamicRouteParams } from '../../client/components/params'
+import type { FallbackRouteParams } from '../../client/components/fallback-params'
 
 export enum DynamicState {
   /**
@@ -15,7 +15,7 @@ export enum DynamicState {
 /**
  * The postponed state for dynamic data.
  */
-type DynamicDataPostponedState = {
+export type DynamicDataPostponedState = {
   /**
    * The type of dynamic state.
    */
@@ -24,13 +24,13 @@ type DynamicDataPostponedState = {
   /**
    * The unknown route params.
    */
-  readonly u: Readonly<Record<string, string>> | null
+  readonly f: ReadonlyArray<[string, string]> | null
 }
 
 /**
  * The postponed state for dynamic HTML.
  */
-type DynamicHTMLPostponedState = {
+export type DynamicHTMLPostponedState = {
   /**
    * The type of dynamic state.
    */
@@ -44,7 +44,7 @@ type DynamicHTMLPostponedState = {
   /**
    * The unknown route params.
    */
-  readonly u: Readonly<Record<string, string>> | null
+  readonly f: ReadonlyArray<[string, string]> | null
 }
 
 export type PostponedState =
@@ -53,21 +53,21 @@ export type PostponedState =
 
 export function getDynamicHTMLPostponedState(
   data: object,
-  fallbackRouteParams: DynamicRouteParams | null
+  fallbackRouteParams: FallbackRouteParams | null
 ): DynamicHTMLPostponedState {
   return {
     t: DynamicState.HTML,
     d: data,
-    u: fallbackRouteParams ? Object.fromEntries(fallbackRouteParams) : null,
+    f: fallbackRouteParams ? Array.from(fallbackRouteParams) : null,
   }
 }
 
 export function getDynamicDataPostponedState(
-  fallbackRouteParams: DynamicRouteParams | null
+  fallbackRouteParams: FallbackRouteParams | null
 ): DynamicDataPostponedState {
   return {
     t: DynamicState.DATA,
-    u: fallbackRouteParams ? Object.fromEntries(fallbackRouteParams) : null,
+    f: fallbackRouteParams ? Array.from(fallbackRouteParams) : null,
   }
 }
 

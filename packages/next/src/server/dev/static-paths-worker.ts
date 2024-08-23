@@ -136,7 +136,5 @@ export async function loadStaticPaths({
     configFileName: config.configFileName,
     locales,
     defaultLocale,
-    // Pages does not support PPR.
-    isRoutePPREnabled: false,
   })
 }

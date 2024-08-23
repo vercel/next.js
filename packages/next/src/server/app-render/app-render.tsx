@@ -94,7 +94,11 @@ import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-st
 import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './encryption-utils'
-import { DynamicState, type PostponedState } from './postponed-state'
+import {
+  DynamicState,
+  type PostponedState,
+  type DynamicHTMLPostponedState,
+} from './postponed-state'
 import {
   getDynamicDataPostponedState,
   getDynamicHTMLPostponedState,
@@ -134,7 +138,7 @@ import { createMutableActionQueue } from '../../shared/lib/router/action-queue'
 import { prerenderAsyncStorage } from './prerender-async-storage.external'
 import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import type { DynamicRouteParams } from '../../client/components/params'
+import type { FallbackRouteParams } from '../../client/components/fallback-params'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -254,7 +258,7 @@ export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
   pagePath: string,
-  fallbackRouteParams: DynamicRouteParams | null
+  fallbackRouteParams: FallbackRouteParams | null
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
     // [slug] / [[slug]] / [...slug]
@@ -671,7 +675,6 @@ async function getErrorRSCPayload(
     i: false,
     f: [[initialTree, initialSeedData, initialHead]],
     G: GlobalError,
-
     s: typeof ctx.renderOpts.postponed === 'string',
   } satisfies RSCPayload
 }
@@ -1167,7 +1170,7 @@ export type AppPageRender = (
   res: BaseNextResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
-  fallbackRouteParams: DynamicRouteParams | null,
+  fallbackRouteParams: FallbackRouteParams | null,
   renderOpts: RenderOpts,
   serverComponentsHmrCache?: ServerComponentsHmrCache
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
@@ -1209,34 +1212,31 @@ export const renderToHTMLOrFlight: AppPageRender = (
       postponedState = getDynamicDataPostponedState(fallbackRouteParams)
     }
 
-    // If the postpone state is an object and the unknown route params are
-    // provided, we should parse the unknown route params from the query
-    // string. This happens during resume operations.
-    const { params } = renderOpts
-    if (postponedState.u && params) {
-      fallbackRouteParams = new Map(Object.entries(postponedState.u))
-
+    // If the postponed state is for a HTML render, then we need to replace the
+    // data in the postponed state. If we don't have any fallback route params
+    // though, or params, we don't have to do anything.
+    if (
+      postponedState.t === DynamicState.HTML &&
+      postponedState.f &&
+      postponedState.f.length > 0 &&
+      renderOpts.params
+    ) {
       // Perform the replacements in the postponedState string.
       if (postponedState.t === DynamicState.HTML) {
         let postponed = renderOpts.postponed
-        for (const [key, searchValue] of fallbackRouteParams) {
-          const value = params[key]
-          if (typeof value === 'undefined') {
-            throw new Error(
-              'The provided `fallbackRouteParams` must be a list of unknown route params that are present in the pathname.'
-            )
-          }
-
+        for (const [key, searchValue] of postponedState.f) {
+          const value = renderOpts.params[key] ?? ''
           const replaceValue = Array.isArray(value) ? value.join('/') : value
           postponed = postponed.replaceAll(searchValue, replaceValue)
         }
 
         // Re-parse the postponed state after we've completed the replacements.
-        postponedState = JSON.parse(postponed)
+        postponedState = JSON.parse(postponed) as DynamicHTMLPostponedState
       }
-
-      fallbackRouteParams = null
     }
+
+    // Unset the fallback route params.
+    fallbackRouteParams = null
   }
 
   return withRequestStore(

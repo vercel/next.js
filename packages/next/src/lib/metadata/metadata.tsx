@@ -30,7 +30,7 @@ import type {
 } from './types/metadata-interface'
 import { isNotFoundError } from '../../client/components/not-found'
 import type { MetadataContext } from './types/resolvers'
-import type { CreateDynamicallyTrackedParams } from '../../client/components/params'
+import type { CreateDynamicallyTrackedParams } from '../../client/components/fallback-params'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
 

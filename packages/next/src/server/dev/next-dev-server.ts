@@ -792,7 +792,7 @@ export default class DevServer extends Server {
             throw new Error(
               'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
             )
-          } else if (fallback === FallbackMode.STATIC_PRERENDER) {
+          } else if (fallback === FallbackMode.PRERENDER) {
             throw new Error(
               'getStaticPaths with "fallback: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
             )

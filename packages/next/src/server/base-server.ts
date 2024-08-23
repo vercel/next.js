@@ -1,11 +1,11 @@
 import type { __ApiPreviewProps } from './api-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
+import type { Params } from '../client/components/params'
 import {
-  type Params,
-  type DynamicRouteParams,
-  getDynamicRouteParams,
-} from '../client/components/params'
+  type FallbackRouteParams,
+  getFallbackRouteParams,
+} from '../client/components/fallback-params'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type {
   NextParsedUrlQuery,
@@ -2327,7 +2327,7 @@ export default abstract class Server<
       /**
        * The unknown route params for this render.
        */
-      fallbackRouteParams: DynamicRouteParams | null
+      fallbackRouteParams: FallbackRouteParams | null
     }
     type Renderer = (
       context: RendererContext
@@ -2711,7 +2711,7 @@ export default abstract class Server<
       const didRespond = hasResolved || res.sent
 
       // If we haven't found the static paths for the route, then do it now.
-      if (!staticPaths) {
+      if (!staticPaths && isDynamic) {
         if (hasGetStaticPaths) {
           const pathsResult = await this.getStaticPaths({
             pathname,
@@ -2732,7 +2732,7 @@ export default abstract class Server<
       // the prerendered page. This ensures that the correct content is served
       // to the bot in the head.
       if (
-        fallbackMode === FallbackMode.STATIC_PRERENDER &&
+        fallbackMode === FallbackMode.PRERENDER &&
         isBot(req.headers['user-agent'] || '')
       ) {
         fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
@@ -2878,7 +2878,7 @@ export default abstract class Server<
                 // here.
                 postponed: undefined,
                 fallbackRouteParams: isProduction
-                  ? getDynamicRouteParams(pathname)
+                  ? getFallbackRouteParams(pathname)
                   : null,
               }),
             {
