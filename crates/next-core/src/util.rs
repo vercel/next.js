@@ -580,7 +580,7 @@ pub async fn load_next_js_template(
 
     // Update the relative imports to be absolute. This will update any relative
     // imports to be relative to the root of the `next` package.
-    let regex = lazy_regex::regex!("(?:from '(\\..*)'|import '(\\..*)')");
+    let regex = lazy_regex::regex!("(?:from \"(\\..*)\"|import \"(\\..*)\")");
 
     let mut count = 0;
     let mut content = replace_all(regex, &content, |caps| {
@@ -642,7 +642,7 @@ pub async fn load_next_js_template(
     // variable is missing, throw an error.
     let mut replaced = IndexSet::new();
     for (key, replacement) in &replacements {
-        let full = format!("'{}'", key);
+        let full = format!("\"{}\"", key);
 
         if content.contains(&full) {
             replaced.insert(*key);
