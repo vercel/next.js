@@ -23,7 +23,6 @@ import type { RequestData } from '../../server/web/types'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { PAGE_TYPES } from '../../lib/page-types'
-import { getEdgePreviewProps } from '../../server/web/get-edge-preview-props'
 
 // injected by the loader afterwards.
 declare const pagesType: PAGE_TYPES
@@ -101,13 +100,6 @@ const render = getRender({
   buildManifest,
   renderToHTML,
   reactLoadableManifest,
-  prerenderManifest: {
-    version: -1 as any, // letting us know this doesn't conform to spec
-    routes: {},
-    dynamicRoutes: {},
-    notFoundRoutes: [],
-    preview: getEdgePreviewProps(),
-  },
   subresourceIntegrityManifest,
   config: nextConfig,
   buildId: process.env.__NEXT_BUILD_ID!,

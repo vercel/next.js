@@ -19,7 +19,6 @@ import { isDeepStrictEqual } from 'util'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
 import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { PageExtensions } from '../page-extensions-type'
-import type { __ApiPreviewProps } from '../../server/api-utils'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -430,21 +429,6 @@ export interface ProjectOptions {
    * The mode in which Next.js is running.
    */
   dev: boolean
-
-  /**
-   * The server actions encryption key.
-   */
-  encryptionKey: string
-
-  /**
-   * The build id.
-   */
-  buildId: string
-
-  /**
-   * Options for draft mode.
-   */
-  previewProps: __ApiPreviewProps
 }
 
 type RustifiedEnv = { name: string; value: string }[]

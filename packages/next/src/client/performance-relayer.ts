@@ -12,7 +12,7 @@ type Attribution = (typeof WEB_VITALS)[number]
 
 function onReport(metric: Metric): void {
   if (userReportHandler) {
-    userReportHandler(metric as any)
+    userReportHandler(metric)
   }
 
   // This code is not shipped, executed, or present in the client-side
