@@ -6,7 +6,7 @@
     "resolveJsonModule": true,
     "jsx": "react-jsx",
     "module": "esnext",
-    "target": "esnext",
+    "target": "ESNext",
     "esModuleInterop": true,
     "moduleResolution": "node",
     "types": ["react", "jest", "node", "trusted-types", "jest-extended"],
