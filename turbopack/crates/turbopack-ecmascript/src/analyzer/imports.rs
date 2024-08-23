@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::{collections::BTreeMap, fmt::Display, mem::take};
 
 use indexmap::{IndexMap, IndexSet};
 use once_cell::sync::Lazy;
@@ -14,7 +14,10 @@ use turbo_tasks::{RcStr, Vc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
 use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
-use crate::tree_shake::{find_turbopack_part_id_in_asserts, PartId};
+use crate::{
+    tree_shake::{find_turbopack_part_id_in_asserts, PartId},
+    utils::unparen,
+};
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Default, Debug, Clone, Hash)]
@@ -66,6 +69,23 @@ impl ImportAnnotations {
         }
 
         ImportAnnotations { map }
+    }
+
+    fn insert(&mut self, key: JsWord, value: JsWord) {
+        self.map.insert(key, value);
+    }
+
+    fn clear(&mut self) {
+        self.map.clear();
+    }
+
+    /// Merges entries from `other` into self overriding entries already in `self`.
+    fn merge(mut self, other: ImportAnnotations) -> Self {
+        for (k, v) in other.map.into_iter() {
+            self.map.insert(k, v);
+        }
+
+        self
     }
 
     /// Returns the content on the transition annotation
@@ -205,6 +225,7 @@ impl ImportMap {
 
         m.visit_with(&mut Analyzer {
             data: &mut data,
+            current_annotations: ImportAnnotations::default(),
             source,
         });
 
@@ -214,6 +235,7 @@ impl ImportMap {
 
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
+    current_annotations: ImportAnnotations,
     source: Option<Vc<Box<dyn Source>>>,
 }
 
@@ -253,8 +275,43 @@ fn to_word(name: &ModuleExportName) -> JsWord {
 }
 
 impl Visit for Analyzer<'_> {
+    fn visit_module_item(&mut self, n: &ModuleItem) {
+        if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = n {
+            if let Expr::Lit(Lit::Str(s)) = unparen(expr) {
+                if s.value.starts_with("TURBOPACK") {
+                    let value = &*s.value;
+                    let value = value["TURBOPACK".len()..].trim();
+                    if !value.starts_with('{') || !value.ends_with('}') {
+                        // TODO report issue
+                    } else {
+                        value[1..value.len() - 1]
+                            .trim()
+                            .split(';')
+                            .map(|p| p.trim())
+                            .filter(|p| !p.is_empty())
+                            .for_each(|part| {
+                                if let Some(colon) = part.find(':') {
+                                    self.current_annotations.insert(
+                                        part[..colon].trim_end().into(),
+                                        part[colon + 1..].trim_start().into(),
+                                    );
+                                } else {
+                                    // TODO report issue
+                                }
+                            })
+                    }
+                    n.visit_children_with(self);
+                    return;
+                }
+            }
+        }
+        n.visit_children_with(self);
+        self.current_annotations.clear();
+    }
+
     fn visit_import_decl(&mut self, import: &ImportDecl) {
-        let annotations = ImportAnnotations::parse(import.with.as_deref());
+        let annotations = take(&mut self.current_annotations)
+            .merge(ImportAnnotations::parse(import.with.as_deref()));
 
         let internal_symbol = parse_with(import.with.as_deref());
 
@@ -314,7 +371,8 @@ impl Visit for Analyzer<'_> {
     fn visit_export_all(&mut self, export: &ExportAll) {
         self.data.has_exports = true;
 
-        let annotations = ImportAnnotations::parse(export.with.as_deref());
+        let annotations = take(&mut self.current_annotations)
+            .merge(ImportAnnotations::parse(export.with.as_deref()));
 
         self.ensure_reference(
             export.span,
@@ -342,7 +400,8 @@ impl Visit for Analyzer<'_> {
             return;
         };
 
-        let annotations = ImportAnnotations::parse(export.with.as_deref());
+        let annotations = take(&mut self.current_annotations)
+            .merge(ImportAnnotations::parse(export.with.as_deref()));
 
         let internal_symbol = parse_with(export.with.as_deref());
 
