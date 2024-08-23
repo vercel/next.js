@@ -451,13 +451,16 @@ pub enum JsValue {
     Logical(usize, LogicalOperator, Vec<JsValue>),
     /// Binary expression e. g. `expr == expr`
     Binary(usize, Box<JsValue>, BinaryOperator, Box<JsValue>),
-    /// A function call without a this context.
+    /// A constructor call.
+    /// `(total_node_count, callee, args)`
+    New(usize, Box<JsValue>, Vec<JsValue>),
+    /// A function call without a `this` context.
     /// `(total_node_count, callee, args)`
     Call(usize, Box<JsValue>, Vec<JsValue>),
     /// A super call to the parent constructor.
     /// `(total_node_count, args)`
     SuperCall(usize, Vec<JsValue>),
-    /// A function call with a this context.
+    /// A function call with a `this` context.
     /// `(total_node_count, obj, prop, args)`
     MemberCall(usize, Box<JsValue>, Box<JsValue>, Vec<JsValue>),
     /// A member access `obj[prop]`
@@ -652,6 +655,15 @@ impl Display for JsValue {
             ),
             JsValue::Binary(_, a, op, b) => write!(f, "({}{}{})", a, op.joiner(), b),
             JsValue::Tenary(_, test, cons, alt) => write!(f, "({} ? {} : {})", test, cons, alt),
+            JsValue::New(_, callee, list) => write!(
+                f,
+                "new {}({})",
+                callee,
+                list.iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             JsValue::Call(_, callee, list) => write!(
                 f,
                 "{}({})",
@@ -764,6 +776,7 @@ impl JsValue {
             | JsValue::Not(..)
             | JsValue::Logical(..)
             | JsValue::Binary(..)
+            | JsValue::New(..)
             | JsValue::Call(..)
             | JsValue::SuperCall(..)
             | JsValue::Tenary(..)
@@ -928,6 +941,10 @@ impl JsValue {
         }
     }
 
+    pub fn new(f: Box<JsValue>, args: Vec<JsValue>) -> Self {
+        Self::New(1 + f.total_nodes() + total_nodes(&args), f, args)
+    }
+
     pub fn call(f: Box<JsValue>, args: Vec<JsValue>) -> Self {
         Self::Call(1 + f.total_nodes() + total_nodes(&args), f, args)
     }
@@ -993,6 +1010,7 @@ impl JsValue {
             | JsValue::Logical(c, _, _)
             | JsValue::Binary(c, _, _, _)
             | JsValue::Tenary(c, _, _, _)
+            | JsValue::New(c, _, _)
             | JsValue::Call(c, _, _)
             | JsValue::SuperCall(c, _)
             | JsValue::MemberCall(c, _, _, _)
@@ -1053,6 +1071,9 @@ impl JsValue {
                         ObjectPart::Spread(s) => s.total_nodes(),
                     })
                     .sum::<usize>();
+            }
+            JsValue::New(c, f, list) => {
+                *c = 1 + f.total_nodes() + total_nodes(list);
             }
             JsValue::Call(c, f, list) => {
                 *c = 1 + f.total_nodes() + total_nodes(list);
@@ -1157,6 +1178,10 @@ impl JsValue {
                         ObjectPart::KeyValue(k, v) => vec![k, v].into_iter(),
                         ObjectPart::Spread(s) => vec![s].into_iter(),
                     }));
+                    self.update_total_nodes();
+                }
+                JsValue::New(_, f, args) => {
+                    make_max_unknown([&mut **f].into_iter().chain(args.iter_mut()));
                     self.update_total_nodes();
                 }
                 JsValue::Call(_, f, args) => {
@@ -1421,6 +1446,27 @@ impl JsValue {
                 format!(
                     "typeof({})",
                     operand.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
+                )
+            }
+            JsValue::New(_, callee, list) => {
+                format!(
+                    "new {}({})",
+                    callee.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
+                    pretty_join(
+                        &list
+                            .iter()
+                            .map(|v| v.explain_internal_inner(
+                                hints,
+                                indent_depth + 1,
+                                depth,
+                                unknown_depth
+                            ))
+                            .collect::<Vec<_>>(),
+                        indent_depth,
+                        ", ",
+                        ",",
+                        ""
+                    )
                 )
             }
             JsValue::Call(_, callee, list) => {
@@ -1986,6 +2032,9 @@ impl JsValue {
                 ObjectPart::KeyValue(k, v) => k.has_side_effects() || v.has_side_effects(),
                 ObjectPart::Spread(v) => v.has_side_effects(),
             }),
+            JsValue::New(_, callee, args) => {
+                callee.has_side_effects() || args.iter().any(JsValue::has_side_effects)
+            }
             JsValue::Call(_, callee, args) => {
                 callee.has_side_effects() || args.iter().any(JsValue::has_side_effects)
             }
@@ -2248,6 +2297,7 @@ impl JsValue {
             | JsValue::Variable(_)
             | JsValue::Unknown { .. }
             | JsValue::Argument(..)
+            | JsValue::New(..)
             | JsValue::Call(..)
             | JsValue::MemberCall(..)
             | JsValue::Member(..)
@@ -2448,6 +2498,19 @@ macro_rules! for_each_children_async {
                         }
                     }
 
+                }
+                $value.update_total_nodes();
+                ($value, modified)
+            }
+            JsValue::New(_, box callee, list) => {
+                let (new_callee, mut modified) = $visit_fn(take(callee), $($args),+).await?;
+                *callee = new_callee;
+                for item in list.iter_mut() {
+                    let (v, m) = $visit_fn(take(item), $($args),+).await?;
+                    *item = v;
+                    if m {
+                        modified = true
+                    }
                 }
                 $value.update_total_nodes();
                 ($value, modified)
@@ -2759,6 +2822,18 @@ impl JsValue {
                 }
                 modified
             }
+            JsValue::New(_, callee, list) => {
+                let mut modified = visitor(callee);
+                for item in list.iter_mut() {
+                    if visitor(item) {
+                        modified = true
+                    }
+                }
+                if modified {
+                    self.update_total_nodes();
+                }
+                modified
+            }
             JsValue::Call(_, callee, list) => {
                 let mut modified = visitor(callee);
                 for item in list.iter_mut() {
@@ -2869,6 +2944,13 @@ impl JsValue {
         visitor: &mut impl FnMut(&mut JsValue) -> bool,
     ) -> bool {
         match self {
+            JsValue::New(_, callee, list) if !list.is_empty() => {
+                let m = visitor(callee);
+                if m {
+                    self.update_total_nodes();
+                }
+                m
+            }
             JsValue::Call(_, callee, list) if !list.is_empty() => {
                 let m = visitor(callee);
                 if m {
@@ -2903,6 +2985,18 @@ impl JsValue {
         visitor: &mut impl FnMut(&mut JsValue) -> bool,
     ) -> bool {
         match self {
+            JsValue::New(_, _, list) if !list.is_empty() => {
+                let mut modified = false;
+                for item in list.iter_mut() {
+                    if visitor(item) {
+                        modified = true
+                    }
+                }
+                if modified {
+                    self.update_total_nodes();
+                }
+                modified
+            }
             JsValue::Call(_, _, list) if !list.is_empty() => {
                 let mut modified = false;
                 for item in list.iter_mut() {
@@ -2974,6 +3068,12 @@ impl JsValue {
                             visitor(value);
                         }
                     }
+                }
+            }
+            JsValue::New(_, callee, list) => {
+                visitor(callee);
+                for item in list.iter() {
+                    visitor(item);
                 }
             }
             JsValue::Call(_, callee, list) => {
@@ -3280,6 +3380,9 @@ impl JsValue {
                 lc == rc && lo == ro && all_similar(l, r, depth - 1)
             }
             (JsValue::Not(lc, l), JsValue::Not(rc, r)) => lc == rc && l.similar(r, depth - 1),
+            (JsValue::New(lc, lf, la), JsValue::New(rc, rf, ra)) => {
+                lc == rc && lf.similar(rf, depth - 1) && all_similar(la, ra, depth - 1)
+            }
             (JsValue::Call(lc, lf, la), JsValue::Call(rc, rf, ra)) => {
                 lc == rc && lf.similar(rf, depth - 1) && all_similar(la, ra, depth - 1)
             }
@@ -3374,6 +3477,10 @@ impl JsValue {
             | JsValue::Add(_, v)
             | JsValue::Logical(_, _, v) => all_similar_hash(v, state, depth - 1),
             JsValue::Not(_, v) => v.similar_hash(state, depth - 1),
+            JsValue::New(_, a, b) => {
+                a.similar_hash(state, depth - 1);
+                all_similar_hash(b, state, depth - 1);
+            }
             JsValue::Call(_, a, b) => {
                 a.similar_hash(state, depth - 1);
                 all_similar_hash(b, state, depth - 1);
