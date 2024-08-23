@@ -112,6 +112,11 @@ describe('next/font/google loader', () => {
         {},
         'https://fonts.googleapis.com/css2?family=Ballet&display=swap',
       ],
+      [
+        'Montserrat',
+        { text: 'Hello world!' },
+        'https://fonts.googleapis.com/css2?family=Montserrat&display=swap&text=Hello%20world!',
+      ],
     ]
     test.each(fixtures)(
       '%s',
