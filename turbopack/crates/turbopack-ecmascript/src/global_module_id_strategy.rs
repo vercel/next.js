@@ -6,8 +6,7 @@ use turbo_tasks::{
     ValueToString, Vc,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
-
-use crate::{
+use turbopack_core::{
     chunk::ModuleId,
     ident::AssetIdent,
     module::{Module, Modules},

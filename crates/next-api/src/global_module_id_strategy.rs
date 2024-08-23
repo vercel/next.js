@@ -1,10 +1,8 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbopack_core::chunk::{
-    global_module_id_strategy::{
-        children_modules_idents, merge_preprocessed_module_ids, PreprocessedChildrenIdents,
-    },
-    module_id_strategies::{GlobalModuleIdStrategy, ModuleIdStrategy},
+use turbopack_core::chunk::module_id_strategies::{GlobalModuleIdStrategy, ModuleIdStrategy};
+use turbopack_ecmascript::global_module_id_strategy::{
+    children_modules_idents, merge_preprocessed_module_ids, PreprocessedChildrenIdents,
 };
 
 use crate::{
