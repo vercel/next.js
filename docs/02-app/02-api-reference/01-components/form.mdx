@@ -1,9 +1,14 @@
 ---
 title: <Form>
 description: Learn how to use the `<Form>` component to handle form submissions and search params updates with client-side navigation.
+version: canary
 ---
 
-The `<Form>` component extends the HTML `<form>` element to provide **prefetching**, **client-side navigation**, and **progressive enhancement**. It's useful for forms that update URL search params on submission as it reduces boilerplate code needed while improving the navigation experience.
+The `<Form>` component extends the HTML `<form>` element to provide [**prefetching**](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) of [loading UI](/docs/app/building-your-application/routing/loading-ui-and-streaming), **client-side navigation** on submission, and **progressive enhancement**.
+
+It's useful for forms that update URL search params as it reduces the boilerplate code needed to achieve the above.
+
+Basic usage:
 
 ```tsx filename="/app/page.tsx" switcher
 import Form from 'next/form'
@@ -116,6 +121,8 @@ export default function Page() {
 
 When the user updates the query input field and submits the form, the form data will be encoded into the URL as search params, e.g. `/search?query=abc`.
 
+> **Good to know**: If you pass an empty string `""` to `action`, the form will navigate to the same route with updated search params.
+
 On the results page, you can access the query using the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) `page.js` prop and use it to fetch data from an external source.
 
 ```tsx filename="/app/search/page.tsx" switcher
@@ -156,7 +163,7 @@ export default function Loading() {
 }
 ```
 
-To cover cases when shared UI hasn't yet loaded, you can show instant feedback to to user using [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus).
+To cover cases when shared UI hasn't yet loaded, you can show instant feedback to the user using [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus).
 
 First, create a component that displays a loading state when the form is pending:
 
@@ -184,7 +191,7 @@ export default function SearchButton() {
 }
 ```
 
-Then update the search form page to use the `SearchButton` component:
+Then, update the search form page to use the `SearchButton` component:
 
 ```tsx filename="/app/page.tsx" switcher
 import Form from 'next/form'
@@ -213,8 +220,6 @@ export default function Page() {
   )
 }
 ```
-
-> **Good to know**: If you pass an empty string `""` to `action`, the form will navigate to the same route with updated search params.
 
 ### Mutations with Server Actions
 
