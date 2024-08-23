@@ -85,13 +85,19 @@ export function streamFromBuffer(chunk: Buffer): ReadableStream<Uint8Array> {
 export async function streamToBuffer(
   stream: ReadableStream<Uint8Array>
 ): Promise<Buffer> {
-  const buffers: Buffer[] = []
+  const reader = stream.getReader()
+  const chunks: Uint8Array[] = []
 
-  for await (const chunk of stream) {
-    buffers.push(Buffer.from(chunk))
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) {
+      break
+    }
+
+    chunks.push(value)
   }
 
-  return Buffer.concat(buffers)
+  return Buffer.concat(chunks)
 }
 
 export async function streamToString(
@@ -644,19 +650,6 @@ export async function continueDynamicHTMLResume(
   )
 }
 
-type ContinueDynamicDataResumeOptions = {
-  inlinedDataStream: ReadableStream<Uint8Array>
-}
-
-export async function continueDynamicDataResume(
-  renderStream: ReadableStream<Uint8Array>,
-  { inlinedDataStream }: ContinueDynamicDataResumeOptions
-) {
-  return (
-    renderStream
-      // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-      .pipeThrough(createMergedTransformStream(inlinedDataStream))
-      // Close tags should always be deferred to the end
-      .pipeThrough(createMoveSuffixStream())
-  )
+export function createDocumentClosingStream(): ReadableStream<Uint8Array> {
+  return streamFromString(CLOSE_TAG)
 }

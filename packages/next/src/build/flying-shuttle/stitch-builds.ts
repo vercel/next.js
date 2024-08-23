@@ -17,7 +17,6 @@ import {
   APP_BUILD_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
   APP_PATHS_MANIFEST,
-  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   BUILD_MANIFEST,
   CLIENT_REFERENCE_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
@@ -31,9 +30,11 @@ import {
   ROUTES_MANIFEST,
 } from '../../shared/lib/constants'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import type { NextConfigComplete } from '../../server/config-shared'
 
 export async function stitchBuilds(
   {
+    config,
     distDir,
     shuttleDir,
     buildId,
@@ -43,6 +44,7 @@ export async function stitchBuilds(
     encryptionKey,
     edgePreviewProps,
   }: {
+    config: NextConfigComplete
     buildId: string
     distDir: string
     shuttleDir: string
@@ -64,7 +66,7 @@ export async function stitchBuilds(
 ): Promise<{
   pagesManifest?: PagesManifest
 }> {
-  if (!(await hasShuttle(shuttleDir))) {
+  if (!(await hasShuttle(config, shuttleDir))) {
     // no shuttle directory nothing to stitch
     return {}
   }
@@ -75,19 +77,6 @@ export async function stitchBuilds(
     pagesManifest?: PagesManifest
   } = {}
 
-  // we need to copy the chunks from the shuttle folder
-  // to the distDir (we copy all server split chunks currently)
-  await recursiveCopy(
-    path.join(shuttleDir, 'server'),
-    path.join(distDir, 'server'),
-    {
-      filter(item) {
-        // we copy page chunks separately to not copy stale entries
-        return !item.match(/^[/\\](pages|app)[/\\]/)
-      },
-      overwrite: true,
-    }
-  )
   // copy static chunks (this includes stale chunks but won't be loaded)
   // unless referenced
   await recursiveCopy(
@@ -124,6 +113,17 @@ export async function stitchBuilds(
       path.join(shuttleDir, entryFile),
       path.join(distDir, entryFile)
     )
+    // copy map file as well if it exists
+    await fs.promises
+      .copyFile(
+        path.join(shuttleDir, `${entryFile}.map`),
+        path.join(distDir, `${entryFile}.map`)
+      )
+      .catch((err) => {
+        if (err.code !== 'ENOENT') {
+          throw err
+        }
+      })
   }
   const copySema = new Sema(8)
 
@@ -364,22 +364,6 @@ export async function stitchBuilds(
       JSON.stringify(mergedNextFontManifest)
     )}`
   )
-
-  // for server/font-manifest.json we just merge the arrays
-  for (const file of [AUTOMATIC_FONT_OPTIMIZATION_MANIFEST]) {
-    const [restoreFontManifest, currentFontManifest] = await Promise.all(
-      [
-        path.join(shuttleDir, 'server', file),
-        path.join(distDir, 'server', file),
-      ].map(async (f) => JSON.parse(await fs.promises.readFile(f, 'utf8')))
-    )
-    const mergedFontManifest = [...restoreFontManifest, ...currentFontManifest]
-
-    await fs.promises.writeFile(
-      path.join(distDir, 'server', file),
-      JSON.stringify(mergedFontManifest, null, 2)
-    )
-  }
 
   // for server/functions-config-manifest.json we just merge
   // the functions field

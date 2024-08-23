@@ -318,7 +318,7 @@ You can opt out of the Full Route Cache, or in other words, dynamically render c
 
 Next.js has an in-memory client-side router cache that stores the RSC payload of route segments, split by layouts, loading states, and pages.
 
-When a user navigates between routes, Next.js caches the visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) the routes the user is likely to navigate to.This results in instant back/forward navigation, no full-page reload between navigations, and preservation of React state and browser state.
+When a user navigates between routes, Next.js caches the visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) the routes the user is likely to navigate to. This results in instant back/forward navigation, no full-page reload between navigations, and preservation of React state and browser state.
 
 With the Router Cache:
 
@@ -335,13 +335,13 @@ With the Router Cache:
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
 - **Session**: The cache persists across navigation. However, it's cleared on page refresh.
-- **Automatic Invalidation Period**: The cache of layouts and loading states is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch):
-  - **Default Prefetching** (`prefetch={null}` or unspecified): 0 seconds
-  - **Full Prefetching**: (`prefetch={true}` or `router.prefetch`): 5 minutes
+- **Automatic Invalidation Period**: The cache of layouts and loading states is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the resource was [statically generated](/docs/app/building-your-application/rendering/server-components#static-rendering-default):
+  - **Default Prefetching** (`prefetch={null}` or unspecified): not cached for dynamic pages, 5 minutes for static pages.
+  - **Full Prefetching** (`prefetch={true}` or `router.prefetch`): 5 minutes for both static & dynamic pages.
 
 While a page refresh will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was prefetched.
 
-> **Good to know**: The experimental [`staleTimes`](/docs/app/api-reference/next-config-js/staleTimes) config option can be used to enable caching of page segments.
+> **Good to know**: The experimental [`staleTimes`](/docs/app/api-reference/next-config-js/staleTimes) config option can be used to adjust the automatic invalidation times mentioned above.
 
 ### Invalidation
 

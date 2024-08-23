@@ -8,7 +8,7 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/dist/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP, findPort, retry } from 'next-test-utils'
+import { renderViaHTTP, fetchViaHTTP, findPort } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
 import { BrowserInterface } from '../browsers/base'
@@ -49,6 +49,10 @@ type OmitFirstArgument<F> = F extends (
   ? (...args: P) => R
   : never
 
+// Do not rename or format. sync-react script relies on this line.
+// prettier-ignore
+const nextjsReactPeerVersion = "19.0.0-rc-eb3ad065-20240822";
+
 export class NextInstance {
   protected files: FileRef | { [filename: string]: string | FileRef }
   protected nextConfig?: NextConfig
@@ -69,7 +73,7 @@ export class NextInstance {
   public env: Record<string, string>
   public forcedPort?: string
   public dirSuffix: string = ''
-  public serverReadyPattern?: RegExp = /^\s* ✓ Ready in /
+  public serverReadyPattern?: RegExp = / ✓ Ready in /
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
@@ -163,7 +167,7 @@ export class NextInstance {
         )
 
         const reactVersion =
-          process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc.0'
+          process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
@@ -491,7 +495,7 @@ export class NextInstance {
   public async patchFile(
     filename: string,
     content: string | ((content: string) => string),
-    retryWithTempContent?: (context: { newFile: boolean }) => Promise<void>
+    runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
   ): Promise<{ newFile: boolean }> {
     const outputPath = path.join(this.testDir, filename)
     const newFile = !existsSync(outputPath)
@@ -503,9 +507,9 @@ export class NextInstance {
       typeof content === 'function' ? content(previousContent) : content
     )
 
-    if (retryWithTempContent) {
+    if (runWithTempContent) {
       try {
-        await retry(() => retryWithTempContent({ newFile }))
+        await runWithTempContent({ newFile })
       } finally {
         if (previousContent === undefined) {
           await fs.rm(outputPath)

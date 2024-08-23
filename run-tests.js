@@ -18,6 +18,10 @@ const exec = promisify(execOrig)
 const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
 
+// Do not rename or format. sync-react script relies on this line.
+// prettier-ignore
+const nextjsReactPeerVersion = "19.0.0-rc-eb3ad065-20240822";
+
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
   .string('test-pattern')
@@ -398,24 +402,18 @@ ${tests.map((t) => t.file).join('\n')}
 ${ENDGROUP}`)
   console.log(`total: ${tests.length}`)
 
-  const hasIsolatedTests = tests.some((test) => {
-    return configuredTestTypes.some(
-      (type) =>
-        type !== testFilters.unit && test.file.startsWith(`test/${type}`)
-    )
-  })
-
   if (
     !options.dry &&
-    process.platform !== 'win32' &&
     process.env.NEXT_TEST_MODE !== 'deploy' &&
-    ((options.type && options.type !== 'unit') || hasIsolatedTests)
+    ((options.type && options.type !== 'unit') ||
+      tests.some((test) => !testFilters.unit.test(test.file)))
   ) {
-    // for isolated next tests: e2e, dev, prod we create
-    // a starter Next.js install to re-use to speed up tests
-    // to avoid having to run yarn each time
-    console.log(`${GROUP}Creating Next.js install for isolated tests`)
-    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc.0'
+    // For isolated next tests (e2e, dev, prod) and integration tests we create
+    // a starter Next.js install to re-use to speed up tests to avoid having to
+    // run `pnpm install` each time.
+    console.log(`${GROUP}Creating shared Next.js install`)
+    const reactVersion =
+      process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {

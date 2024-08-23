@@ -158,6 +158,15 @@ export function withQuery(
   return `${pathname}?${querystring}`
 }
 
+export function getFetchUrl(
+  appPort: string | number,
+  pathname: string,
+  query?: Record<string, any> | string | null | undefined
+) {
+  const url = query ? withQuery(pathname, query) : pathname
+  return getFullUrl(appPort, url)
+}
+
 export function fetchViaHTTP(
   appPort: string | number,
   pathname: string,
@@ -854,8 +863,19 @@ export async function assertNoRedbox(browser: BrowserInterface) {
   })
 
   if (hasRedbox) {
-    const error = new Error('Expected no Redbox but found one')
-    Error.captureStackTrace(error, assertHasRedbox)
+    const [redboxHeader, redboxDescription, redboxSource] = await Promise.all([
+      getRedboxHeader(browser).catch(() => '<missing>'),
+      getRedboxDescription(browser).catch(() => '<missing>'),
+      getRedboxSource(browser).catch(() => '<missing>'),
+    ])
+
+    const error = new Error(
+      'Expected no Redbox but found one\n' +
+        `header: ${redboxHeader}\n` +
+        `description: ${redboxDescription}\n` +
+        `source: ${redboxSource}`
+    )
+    Error.captureStackTrace(error, assertNoRedbox)
     throw error
   }
 }

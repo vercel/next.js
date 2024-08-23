@@ -20,6 +20,8 @@ import { lazyRenderAppPage } from '../../server/route-modules/app-page/module.re
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
+import type { FetchMetrics } from '../../server/base-http'
+import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -29,6 +31,9 @@ export const enum ExportedAppPageFiles {
   POSTPONED = 'POSTPONED',
 }
 
+/**
+ * Renders & exports a page associated with the /app directory
+ */
 export async function exportAppPage(
   req: MockedRequest,
   res: MockedResponse,
@@ -62,7 +67,13 @@ export async function exportAppPage(
     const html = result.toUnchunkedString()
 
     const { metadata } = result
-    const { flightData, revalidate = false, postponed, fetchTags } = metadata
+    const {
+      flightData,
+      revalidate = false,
+      postponed,
+      fetchTags,
+      fetchMetrics,
+    } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
     if (postponed && !renderOpts.experimental.isRoutePPREnabled) {
@@ -85,7 +96,7 @@ export async function exportAppPage(
         })
       }
 
-      return { revalidate: 0 }
+      return { revalidate: 0, fetchMetrics }
     }
     // If page data isn't available, it means that the page couldn't be rendered
     // properly.
@@ -167,6 +178,7 @@ export async function exportAppPage(
       hasEmptyPrelude: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
       revalidate,
+      fetchMetrics,
     }
   } catch (err) {
     if (!isDynamicUsageError(err)) {
@@ -179,18 +191,21 @@ export async function exportAppPage(
       throw err
     }
 
+    let fetchMetrics: FetchMetrics | undefined
+
     if (debugOutput) {
-      const { dynamicUsageDescription, dynamicUsageStack } = (renderOpts as any)
-        .store
+      const store = (renderOpts as any).store as StaticGenerationStore
+      const { dynamicUsageDescription, dynamicUsageStack } = store
+      fetchMetrics = store.fetchMetrics
 
       logDynamicUsageWarning({
         path,
-        description: dynamicUsageDescription,
+        description: dynamicUsageDescription ?? '',
         stack: dynamicUsageStack,
       })
     }
 
-    return { revalidate: 0 }
+    return { revalidate: 0, fetchMetrics }
   }
 }
 

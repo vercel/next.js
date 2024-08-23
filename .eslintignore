@@ -34,7 +34,7 @@ test/production/emit-decorator-metadata/**/*.js
 !test/**/*.test.*
 test/e2e/app-dir/rsc-errors/app/swc/use-client/page.js
 test-timings.json
-packages/next-swc/crates/**
+crates/**
 bench/nested-deps/**
 bench/nested-deps-app-router/**
 bench/heavy-npm-deps/**
@@ -45,3 +45,7 @@ packages/next-swc/docs/assets/**/*
 test/lib/amp-validator-wasm.js
 test/production/pages-dir/production/fixture/amp-validator-wasm.js
 test/e2e/async-modules/amp-validator-wasm.js
+
+# turbopack crates
+turbopack/crates/*/tests/**
+turbopack/crates/*/js/src/compiled

@@ -89,6 +89,12 @@ import type { PageExtensions } from './page-extensions-type'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/lib/interception-routes'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
+import type { Params } from '../client/components/params'
+import { FallbackMode } from '../lib/fallback'
+import {
+  fallbackToStaticPathsResult,
+  parseFallbackStaticPathsResult,
+} from '../lib/fallback'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -938,6 +944,16 @@ export async function getJsPageSizeInKb(
   return [-1, -1]
 }
 
+export type PrerenderedRoute = {
+  path: string
+  encoded: string
+}
+
+export type StaticPathsResult = {
+  fallbackMode: FallbackMode
+  prerenderedRoutes: PrerenderedRoute[]
+}
+
 export async function buildStaticPaths({
   page,
   getStaticPaths,
@@ -954,14 +970,8 @@ export async function buildStaticPaths({
   locales?: string[]
   defaultLocale?: string
   appDir?: boolean
-}): Promise<
-  Omit<GetStaticPathsResult, 'paths'> & {
-    paths: string[]
-    encodedPaths: string[]
-  }
-> {
-  const prerenderPaths = new Set<string>()
-  const encodedPrerenderPaths = new Set<string>()
+}): Promise<StaticPathsResult> {
+  const prerenderRoutes: PrerenderedRoute[] = []
   const _routeRegex = getRouteRegex(page)
   const _routeMatcher = getRouteMatcher(_routeRegex)
 
@@ -1050,15 +1060,15 @@ export async function buildStaticPaths({
       // If leveraging the string paths variant the entry should already be
       // encoded so we decode the segments ensuring we only escape path
       // delimiters
-      prerenderPaths.add(
-        entry
+      prerenderRoutes.push({
+        path: entry
           .split('/')
           .map((segment) =>
             escapePathDelimiters(decodeURIComponent(segment), true)
           )
-          .join('/')
-      )
-      encodedPrerenderPaths.add(entry)
+          .join('/'),
+        encoded: entry,
+      })
     }
     // For the object-provided path, we must make sure it specifies all
     // required keys.
@@ -1153,23 +1163,28 @@ export async function buildStaticPaths({
       }
       const curLocale = entry.locale || defaultLocale || ''
 
-      prerenderPaths.add(
-        `${curLocale ? `/${curLocale}` : ''}${
+      prerenderRoutes.push({
+        path: `${curLocale ? `/${curLocale}` : ''}${
           curLocale && builtPage === '/' ? '' : builtPage
-        }`
-      )
-      encodedPrerenderPaths.add(
-        `${curLocale ? `/${curLocale}` : ''}${
+        }`,
+        encoded: `${curLocale ? `/${curLocale}` : ''}${
           curLocale && encodedBuiltPage === '/' ? '' : encodedBuiltPage
-        }`
-      )
+        }`,
+      })
     }
   })
 
+  const seen = new Set<string>()
+
   return {
-    paths: [...prerenderPaths],
-    fallback: staticPathsResult.fallback,
-    encodedPaths: [...encodedPrerenderPaths],
+    fallbackMode: parseFallbackStaticPathsResult(staticPathsResult.fallback),
+    prerenderedRoutes: prerenderRoutes.filter((route) => {
+      if (seen.has(route.path)) return false
+
+      // Filter out duplicate paths.
+      seen.add(route.path)
+      return true
+    }),
   }
 }
 
@@ -1193,8 +1208,6 @@ export type AppConfig = {
    */
   experimental_ppr?: boolean
 }
-
-type Params = Record<string, string | string[]>
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
 
@@ -1322,6 +1335,10 @@ export async function collectGenerateParams(tree: LoaderTree) {
   return generateParams
 }
 
+export type PartialStaticPathsResult = {
+  [P in keyof StaticPathsResult]: StaticPathsResult[P] | undefined
+}
+
 export async function buildAppStaticPaths({
   dir,
   page,
@@ -1333,6 +1350,7 @@ export async function buildAppStaticPaths({
   requestHeaders,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
+  nextConfigOutput,
   ComponentMod,
 }: {
   dir: string
@@ -1345,8 +1363,9 @@ export async function buildAppStaticPaths({
   cacheHandler?: string
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
+  nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule
-}) {
+}): Promise<PartialStaticPathsResult> {
   ComponentMod.patchFetch()
 
   let CacheHandler: any
@@ -1362,9 +1381,6 @@ export async function buildAppStaticPaths({
   const incrementalCache = new IncrementalCache({
     fs: nodeFs,
     dev: true,
-    // Enabled both for build as we're only writing this cache, not reading it.
-    pagesDir: true,
-    appDir: true,
     flushToDisk: isrFlushToDisk,
     serverDistDir: path.join(distDir, 'server'),
     fetchCacheKeyPrefix,
@@ -1394,7 +1410,7 @@ export async function buildAppStaticPaths({
         },
       },
     },
-    async () => {
+    async (): Promise<PartialStaticPathsResult> => {
       const pageEntry = generateParams[generateParams.length - 1]
 
       // if the page has legacy getStaticPaths we call it like normal
@@ -1470,28 +1486,41 @@ export async function buildAppStaticPaths({
         }
 
         const builtParams = await buildParams()
-        const fallback = !generateParams.some(
+
+        if (
+          generateParams.some(
+            (generate) => generate.config?.dynamicParams === true
+          ) &&
+          nextConfigOutput === 'export'
+        ) {
+          throw new Error(
+            '"dynamicParams: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/app/building-your-application/deploying/static-exports'
+          )
+        }
+
+        const fallbackMode = !generateParams.some(
           // TODO: dynamic params should be allowed
           // to be granular per segment but we need
           // additional information stored/leveraged in
           // the prerender-manifest to allow this behavior
           (generate) => generate.config?.dynamicParams === false
         )
+          ? FallbackMode.BLOCKING_STATIC_RENDER
+          : FallbackMode.NOT_FOUND
 
         if (!hadAllParamsGenerated) {
           return {
-            paths: undefined,
-            fallback:
+            fallbackMode:
               process.env.NODE_ENV === 'production' && isDynamicRoute(page)
-                ? true
+                ? FallbackMode.BLOCKING_STATIC_RENDER
                 : undefined,
-            encodedPaths: undefined,
+            prerenderedRoutes: undefined,
           }
         }
 
         return buildStaticPaths({
           staticPathsResult: {
-            fallback,
+            fallback: fallbackToStaticPathsResult(fallbackMode),
             paths: builtParams.map((params) => ({ params })),
           },
           page,
@@ -1501,6 +1530,21 @@ export async function buildAppStaticPaths({
       }
     }
   )
+}
+
+type PageIsStaticResult = {
+  isRoutePPREnabled?: boolean
+  isStatic?: boolean
+  isAmpOnly?: boolean
+  isHybridAmp?: boolean
+  hasServerProps?: boolean
+  hasStaticProps?: boolean
+  prerenderedRoutes: PrerenderedRoute[] | undefined
+  prerenderFallbackMode: FallbackMode | undefined
+  isNextImageImported?: boolean
+  traceIncludes?: string[]
+  traceExcludes?: string[]
+  appConfig?: AppConfig
 }
 
 export async function isPageStatic({
@@ -1519,6 +1563,7 @@ export async function isPageStatic({
   originalAppPath,
   isrFlushToDisk,
   maxMemoryCacheSize,
+  nextConfigOutput,
   cacheHandler,
   pprConfig,
 }: {
@@ -1538,26 +1583,12 @@ export async function isPageStatic({
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
   cacheHandler?: string
-  nextConfigOutput: 'standalone' | 'export'
+  nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
-}): Promise<{
-  isRoutePPREnabled?: boolean
-  isStatic?: boolean
-  isAmpOnly?: boolean
-  isHybridAmp?: boolean
-  hasServerProps?: boolean
-  hasStaticProps?: boolean
-  prerenderRoutes?: string[]
-  encodedPrerenderRoutes?: string[]
-  prerenderFallback?: boolean | 'blocking'
-  isNextImageImported?: boolean
-  traceIncludes?: string[]
-  traceExcludes?: string[]
-  appConfig?: AppConfig
-}> {
+}): Promise<PageIsStaticResult> {
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
-    .traceAsyncFn(async () => {
+    .traceAsyncFn(async (): Promise<PageIsStaticResult> => {
       require('../shared/lib/runtime-config.external').setConfig(
         runtimeEnvConfig
       )
@@ -1566,9 +1597,8 @@ export async function isPageStatic({
       })
 
       let componentsResult: LoadComponentsReturnType
-      let prerenderRoutes: Array<string> | undefined
-      let encodedPrerenderRoutes: Array<string> | undefined
-      let prerenderFallback: boolean | 'blocking' | undefined
+      let prerenderedRoutes: PrerenderedRoute[] | undefined
+      let prerenderFallbackMode: FallbackMode | undefined
       let appConfig: AppConfig = {}
       let isClientComponent: boolean = false
       const pathIsEdgeRuntime = isEdgeRuntime(pageRuntime)
@@ -1641,49 +1671,7 @@ export async function isPageStatic({
               ]
             : await collectGenerateParams(tree)
 
-        appConfig = generateParams.reduce(
-          (builtConfig: AppConfig, curGenParams): AppConfig => {
-            const {
-              dynamic,
-              fetchCache,
-              preferredRegion,
-              revalidate: curRevalidate,
-              experimental_ppr,
-            } = curGenParams?.config || {}
-
-            // TODO: should conflicting configs here throw an error
-            // e.g. if layout defines one region but page defines another
-            if (typeof builtConfig.preferredRegion === 'undefined') {
-              builtConfig.preferredRegion = preferredRegion
-            }
-            if (typeof builtConfig.dynamic === 'undefined') {
-              builtConfig.dynamic = dynamic
-            }
-            if (typeof builtConfig.fetchCache === 'undefined') {
-              builtConfig.fetchCache = fetchCache
-            }
-            // If partial prerendering has been set, only override it if the current value is
-            // provided as it's resolved from root layout to leaf page.
-            if (typeof experimental_ppr !== 'undefined') {
-              builtConfig.experimental_ppr = experimental_ppr
-            }
-
-            // any revalidate number overrides false
-            // shorter revalidate overrides longer (initially)
-            if (typeof builtConfig.revalidate === 'undefined') {
-              builtConfig.revalidate = curRevalidate
-            }
-            if (
-              typeof curRevalidate === 'number' &&
-              (typeof builtConfig.revalidate !== 'number' ||
-                curRevalidate < builtConfig.revalidate)
-            ) {
-              builtConfig.revalidate = curRevalidate
-            }
-            return builtConfig
-          },
-          {}
-        )
+        appConfig = reduceAppConfig(generateParams)
 
         if (appConfig.dynamic === 'force-static' && pathIsEdgeRuntime) {
           Log.warn(
@@ -1707,22 +1695,20 @@ export async function isPageStatic({
         }
 
         if (isDynamicRoute(page)) {
-          ;({
-            paths: prerenderRoutes,
-            fallback: prerenderFallback,
-            encodedPaths: encodedPrerenderRoutes,
-          } = await buildAppStaticPaths({
-            dir,
-            page,
-            configFileName,
-            generateParams,
-            distDir,
-            requestHeaders: {},
-            isrFlushToDisk,
-            maxMemoryCacheSize,
-            cacheHandler,
-            ComponentMod,
-          }))
+          ;({ fallbackMode: prerenderFallbackMode, prerenderedRoutes } =
+            await buildAppStaticPaths({
+              dir,
+              page,
+              configFileName,
+              generateParams,
+              distDir,
+              requestHeaders: {},
+              isrFlushToDisk,
+              maxMemoryCacheSize,
+              cacheHandler,
+              ComponentMod,
+              nextConfigOutput,
+            }))
         }
       } else {
         if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
@@ -1766,18 +1752,15 @@ export async function isPageStatic({
       }
 
       if ((hasStaticProps && hasStaticPaths) || staticPathsResult) {
-        ;({
-          paths: prerenderRoutes,
-          fallback: prerenderFallback,
-          encodedPaths: encodedPrerenderRoutes,
-        } = await buildStaticPaths({
-          page,
-          locales,
-          defaultLocale,
-          configFileName,
-          staticPathsResult,
-          getStaticPaths: componentsResult.getStaticPaths!,
-        }))
+        ;({ fallbackMode: prerenderFallbackMode, prerenderedRoutes } =
+          await buildStaticPaths({
+            page,
+            locales,
+            defaultLocale,
+            configFileName,
+            staticPathsResult,
+            getStaticPaths: componentsResult.getStaticPaths!,
+          }))
       }
 
       const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED
@@ -1801,9 +1784,8 @@ export async function isPageStatic({
         isRoutePPREnabled,
         isHybridAmp: config.amp === 'hybrid',
         isAmpOnly: config.amp === true,
-        prerenderRoutes,
-        prerenderFallback,
-        encodedPrerenderRoutes,
+        prerenderFallbackMode,
+        prerenderedRoutes,
         hasStaticProps,
         hasServerProps,
         isNextImageImported,
@@ -1817,6 +1799,73 @@ export async function isPageStatic({
       console.error(err)
       throw new Error(`Failed to collect page data for ${page}`)
     })
+}
+
+type ReducedAppConfig = Pick<
+  AppConfig,
+  | 'dynamic'
+  | 'fetchCache'
+  | 'preferredRegion'
+  | 'revalidate'
+  | 'experimental_ppr'
+>
+
+/**
+ * Collect the app config from the generate param segments. This only gets a
+ * subset of the config options.
+ *
+ * @param segments the generate param segments
+ * @returns the reduced app config
+ */
+function reduceAppConfig(segments: GenerateParamsResults): ReducedAppConfig {
+  const config: ReducedAppConfig = {}
+
+  for (const segment of segments) {
+    if (!segment.config) continue
+
+    const {
+      dynamic,
+      fetchCache,
+      preferredRegion,
+      revalidate,
+      experimental_ppr,
+    } = segment.config
+
+    // TODO: should conflicting configs here throw an error
+    // e.g. if layout defines one region but page defines another
+
+    // Get the first value of preferredRegion, dynamic, revalidate, and
+    // fetchCache.
+    if (typeof config.preferredRegion === 'undefined') {
+      config.preferredRegion = preferredRegion
+    }
+    if (typeof config.dynamic === 'undefined') {
+      config.dynamic = dynamic
+    }
+    if (typeof config.fetchCache === 'undefined') {
+      config.fetchCache = fetchCache
+    }
+    if (typeof config.revalidate === 'undefined') {
+      config.revalidate = revalidate
+    }
+
+    // Any revalidate number overrides false, and shorter revalidate overrides
+    // longer (initially).
+    if (
+      typeof revalidate === 'number' &&
+      (typeof config.revalidate !== 'number' || revalidate < config.revalidate)
+    ) {
+      config.revalidate = revalidate
+    }
+
+    // If partial prerendering has been set, only override it if the current
+    // value is provided as it's resolved from root layout to leaf page.
+    if (typeof experimental_ppr !== 'undefined') {
+      config.experimental_ppr = experimental_ppr
+    }
+  }
+
+  return config
 }
 
 export async function hasCustomGetInitialProps({
@@ -1872,7 +1921,7 @@ export async function getDefinedNamedExports({
 export function detectConflictingPaths(
   combinedPages: string[],
   ssgPages: Set<string>,
-  additionalSsgPaths: Map<string, string[]>
+  additionalGeneratedSSGPaths: Map<string, string[]>
 ) {
   const conflictingPaths = new Map<
     string,
@@ -1887,7 +1936,7 @@ export function detectConflictingPaths(
     [page: string]: { [path: string]: string }
   } = {}
 
-  additionalSsgPaths.forEach((paths, pathsPage) => {
+  additionalGeneratedSSGPaths.forEach((paths, pathsPage) => {
     additionalSsgPathsByPath[pathsPage] ||= {}
     paths.forEach((curPath) => {
       const currentPath = curPath.toLowerCase()
@@ -1895,7 +1944,7 @@ export function detectConflictingPaths(
     })
   })
 
-  additionalSsgPaths.forEach((paths, pathsPage) => {
+  additionalGeneratedSSGPaths.forEach((paths, pathsPage) => {
     paths.forEach((curPath) => {
       const lowerPath = curPath.toLowerCase()
       let conflictingPage = combinedPages.find(
@@ -1914,7 +1963,7 @@ export function detectConflictingPaths(
           if (page === pathsPage) return false
 
           conflictingPath =
-            additionalSsgPaths.get(page) == null
+            additionalGeneratedSSGPaths.get(page) == null
               ? undefined
               : additionalSsgPathsByPath[page][lowerPath]
           return conflictingPath

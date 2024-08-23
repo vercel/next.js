@@ -13,7 +13,6 @@ const pagesExternals = [
   'react-dom/package.json',
   'react-dom/client',
   'react-dom/server',
-  'react-dom/server.browser',
   'react-dom/server.edge',
   'react-server-dom-webpack/client',
   'react-server-dom-webpack/client.edge',
@@ -40,13 +39,11 @@ function makeAppAliases(reactChannel = '') {
     'react/compiler-runtime$': `next/dist/compiled/react${reactChannel}/compiler-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${reactChannel}/client`,
     'react-dom/server$': `next/dist/compiled/react-dom${reactChannel}/server`,
-    'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
-    'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
-    'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
+    'react-dom/static$': `next/dist/compiled/react-dom${reactChannel}/static`,
+    'react-dom/static.edge$': `next/dist/compiled/react-dom${reactChannel}/static.edge`,
+    'react-dom/static.browser$': `next/dist/compiled/react-dom${reactChannel}/static.browser`,
     // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
     'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${reactChannel}.js`,
-    // In Next.js runtime only use react-dom/server.edge
-    'react-dom/server.browser$': 'react-dom/server.edge',
     // react-server-dom-webpack alias
     'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client`,
     'react-server-dom-turbopack/client.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.edge`,
@@ -173,6 +170,8 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
             format: {
               preamble: '',
             },
+            mangle:
+              dev && !process.env.NEXT_SERVER_EVAL_SOURCE_MAPS ? false : true,
           },
         }),
       ],

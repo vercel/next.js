@@ -104,7 +104,7 @@ function mergeMiddlewareCookies(
 
     // Transfer cookies from ResponseCookies to RequestCookies
     for (const cookie of responseCookies.getAll()) {
-      existingCookies.set(cookie.name, cookie.value ?? '')
+      existingCookies.set(cookie)
     }
   }
 }
@@ -218,11 +218,8 @@ function createAfterContext(
   if (!isAfterEnabled(renderOpts)) {
     return undefined
   }
-
-  const { waitUntil, onClose, ComponentMod } = renderOpts
-  const cacheScope = ComponentMod?.createCacheScope()
-
-  return new AfterContext({ waitUntil, onClose, cacheScope })
+  const { waitUntil, onClose } = renderOpts
+  return new AfterContext({ waitUntil, onClose })
 }
 
 function isAfterEnabled(

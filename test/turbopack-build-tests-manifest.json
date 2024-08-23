@@ -455,6 +455,7 @@
         "app dir - external dependency app route should resolve next/server api from external esm package",
         "app dir - external dependency mixed syntax external modules should handle mixed module in server and client components",
         "app dir - external dependency mixed syntax external modules should handle mixed module with next/dynamic",
+        "app dir - external dependency react in external esm packages should apply serverExternalPackages inside of node_modules",
         "app dir - external dependency react in external esm packages should support namespace import with ESM packages",
         "app dir - external dependency react in external esm packages should use the same react in client app",
         "app dir - external dependency react in external esm packages should use the same react in edge server app",
@@ -486,7 +487,9 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/app-fetch-deduping/app-fetch-deduping.test.ts": {
-      "passed": ["app-fetch-deduping should skip other scenarios"],
+      "passed": [
+        "app-fetch-deduping during static generation dedupes requests amongst static workers"
+      ],
       "failed": [],
       "pending": [],
       "flakey": [],
@@ -521,7 +524,9 @@
         "app-dir with middleware Mutate request headers for next/headers Supports draft mode",
         "app-dir with middleware Mutate request headers for next/headers Updates headers",
         "app-dir with middleware should be possible to modify cookies & read them in an RSC in a single request",
-        "app-dir with middleware should filter correctly after middleware rewrite"
+        "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
+        "app-dir with middleware should filter correctly after middleware rewrite",
+        "app-dir with middleware should respect cookie options of merged middleware cookies"
       ],
       "failed": [],
       "pending": [],
@@ -576,6 +581,7 @@
         "app dir - prefetching fetch priority should have an auto priority for all other fetch operations",
         "app dir - prefetching fetch priority should prefetch links in viewport with low priority",
         "app dir - prefetching fetch priority should prefetch with high priority when navigating to a page without a prefetch entry",
+        "app dir - prefetching fetch priority should respect multiple prefetch types to the same URL",
         "app dir - prefetching invalid URLs should not throw when an invalid URL is passed to Link",
         "app dir - prefetching invalid URLs should throw when an invalid URL is passed to router.prefetch",
         "app dir - prefetching should calculate `_rsc` query based on `Next-Url`",
@@ -828,12 +834,12 @@
         "app-dir static/dynamic handling should handle partial-gen-params with layout dynamicParams = false correctly",
         "app-dir static/dynamic handling should handle partial-gen-params with page dynamicParams = false correctly",
         "app-dir static/dynamic handling should have correct prerender-manifest entries",
-        "app-dir static/dynamic handling should have deterministic etag across revalidates",
         "app-dir static/dynamic handling should have logs from cache-handler",
         "app-dir static/dynamic handling should honor fetch cache correctly",
         "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
         "app-dir static/dynamic handling should infer a fetchCache of force-no-store when force-dynamic is used",
         "app-dir static/dynamic handling should keep querystring on static page",
+        "app-dir static/dynamic handling should log fetch metrics to the diagnostics directory",
         "app-dir static/dynamic handling should not cache correctly with POST method request init",
         "app-dir static/dynamic handling should not cache non-ok statusCode",
         "app-dir static/dynamic handling should not error with dynamic server usage with force-static",
@@ -928,7 +934,6 @@
         "app-dir static/dynamic handling should handle partial-gen-params with layout dynamicParams = false correctly",
         "app-dir static/dynamic handling should handle partial-gen-params with page dynamicParams = false correctly",
         "app-dir static/dynamic handling should have correct prerender-manifest entries",
-        "app-dir static/dynamic handling should have deterministic etag across revalidates",
         "app-dir static/dynamic handling should honor dynamic = \"force-static\" correctly",
         "app-dir static/dynamic handling should honor dynamic = \"force-static\" correctly (lazy)",
         "app-dir static/dynamic handling should honor fetch cache correctly",
@@ -937,6 +942,7 @@
         "app-dir static/dynamic handling should honor force-static with fetch cache: no-store correctly",
         "app-dir static/dynamic handling should infer a fetchCache of force-no-store when force-dynamic is used",
         "app-dir static/dynamic handling should keep querystring on static page",
+        "app-dir static/dynamic handling should log fetch metrics to the diagnostics directory",
         "app-dir static/dynamic handling should navigate to static path correctly",
         "app-dir static/dynamic handling should not cache correctly with POST method request init",
         "app-dir static/dynamic handling should not cache non-ok statusCode",
@@ -1043,6 +1049,7 @@
         "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
         "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
         "app dir - basic next/script should support next/script and render in correct order",
+        "app dir - basic outputs correct build-diagnostics.json",
         "app dir - basic rewrites should support rewrites on client-side navigation",
         "app dir - basic rewrites should support rewrites on client-side navigation from pages to app with existing pages path",
         "app dir - basic rewrites should support rewrites on initial load",
@@ -1076,6 +1083,7 @@
         "app dir - basic server components should serve client component should serve client-side",
         "app dir - basic server components should serve client component should serve server-side",
         "app dir - basic server components should serve shared component",
+        "app dir - basic should contain framework.json",
         "app dir - basic should ensure the </body></html> suffix is at the end of the stream",
         "app dir - basic should handle hash in initial url",
         "app dir - basic should have correct searchParams and params (client)",
@@ -1130,7 +1138,11 @@
       "passed": [],
       "failed": [],
       "pending": [
-        "should output updated trace files should have file hashes in trace files"
+        "should output updated trace files should hard navigate on chunk load failure",
+        "should output updated trace files should have file hashes in trace files",
+        "should output updated trace files should only rebuild a changed app and pages route correctly",
+        "should output updated trace files should only rebuild just a changed app route correctly",
+        "should output updated trace files should only rebuild just a changed pages route correctly"
       ],
       "flakey": [],
       "runtimeError": false
@@ -1169,6 +1181,7 @@
         "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
         "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
         "app dir - basic next/script should support next/script and render in correct order",
+        "app dir - basic outputs correct build-diagnostics.json",
         "app dir - basic rewrites should support rewrites on client-side navigation",
         "app dir - basic rewrites should support rewrites on client-side navigation from pages to app with existing pages path",
         "app dir - basic rewrites should support rewrites on initial load",
@@ -1202,6 +1215,7 @@
         "app dir - basic server components should serve client component should serve client-side",
         "app dir - basic server components should serve client component should serve server-side",
         "app dir - basic server components should serve shared component",
+        "app dir - basic should contain framework.json",
         "app dir - basic should ensure the </body></html> suffix is at the end of the stream",
         "app dir - basic should handle hash in initial url",
         "app dir - basic should have correct preferredRegion values in manifest",
@@ -1214,7 +1228,6 @@
         "app dir - basic should match redirects in pages correctly $path",
         "app dir - basic should not apply client router filter on shallow",
         "app dir - basic should not create new root layout when nested (optional)",
-        "app dir - basic should not have entire prerender-manifest for edge",
         "app dir - basic should not include parent when not in parent directory",
         "app dir - basic should not rerender layout when navigating between routes in the same layout",
         "app dir - basic should not serve when layout is provided but no folder index",
@@ -1243,9 +1256,7 @@
       "failed": [
         "app dir - basic should encode chunk path correctly",
         "app dir - basic should generate build traces correctly",
-        "app dir - basic should not have loader generated function for edge runtime",
-        "app dir - basic should contain framework.json",
-        "app dir - basic outputs correct build-diagnostics.json"
+        "app dir - basic should not have loader generated function for edge runtime"
       ],
       "pending": [
         "app dir - basic known bugs should support React fetch instrumentation client component",
@@ -1254,15 +1265,6 @@
         "app dir - basic should match partial parameters",
         "app dir - basic should not include parent when not in parent directory with route in directory"
       ],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/e2e/app-dir/app/provide-paths.test.ts": {
-      "passed": [],
-      "failed": [
-        "Provided page/app paths should only build the provided paths"
-      ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -1286,8 +1288,8 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/app/useReportWebVitals.test.ts": {
-      "passed": [],
-      "failed": ["useReportWebVitals hook should send web-vitals"],
+      "passed": ["useReportWebVitals hook should send web-vitals"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -1295,6 +1297,8 @@
     "test/e2e/app-dir/asset-prefix-with-basepath/asset-prefix-with-basepath.test.ts": {
       "passed": [
         "app-dir assetPrefix with basePath handling bundles should return 200 on served assetPrefix",
+        "app-dir assetPrefix with basePath handling rewrites rewrites that do not start with assetPrefix should still work",
+        "app-dir assetPrefix with basePath handling rewrites should respect rewrites that start with assetPrefix",
         "app-dir assetPrefix with basePath handling should redirect route when clicking link",
         "app-dir assetPrefix with basePath handling should redirect route when requesting it directly",
         "app-dir assetPrefix with basePath handling should redirect route when requesting it directly by browser",
@@ -1308,6 +1312,8 @@
     "test/e2e/app-dir/asset-prefix/asset-prefix.test.ts": {
       "passed": [
         "app-dir assetPrefix handling bundles should return 200 on served assetPrefix",
+        "app-dir assetPrefix handling rewrites rewrites that do not start with assetPrefix should still work",
+        "app-dir assetPrefix handling rewrites should respect rewrites that start with assetPrefix",
         "app-dir assetPrefix handling should redirect route when clicking link",
         "app-dir assetPrefix handling should redirect route when requesting it directly",
         "app-dir assetPrefix handling should redirect route when requesting it directly by browser",
@@ -1365,6 +1371,16 @@
     "test/e2e/app-dir/catchall-parallel-routes-group/catchall-parallel-routes-group.test.ts": {
       "passed": [
         "catchall-parallel-routes-group should work without throwing any errors about invalid pages"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/catchall-specificity/catchall-specificity.test.ts": {
+      "passed": [
+        "catchall-specificity should match the generic catchall correctly",
+        "catchall-specificity should match the specific catchall correctly"
       ],
       "failed": [],
       "pending": [],
@@ -1542,6 +1558,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/disable-logging-route/disable-logging-route.test.ts": {
+      "passed": [
+        "app-dir - disable-logging-route should not log if disabled logging"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/draft-mode-middleware/draft-mode-middleware.test.ts": {
       "passed": [
         "app-dir - draft-mode-middleware should be able to disable draft mode with middleware present",
@@ -1620,10 +1645,11 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/dynamic-in-generate-params/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app-dir - dynamic in generate params should be able to call fetch while generating multiple dynamic pages",
-        "app-dir - dynamic in generate params should be able to call while generating multiple dynamic sitemaps",
+        "app-dir - dynamic in generate params should be able to call while generating multiple dynamic sitemaps"
+      ],
+      "failed": [
         "app-dir - dynamic in generate params should render sitemap with generateSitemaps in force-dynamic config dynamically"
       ],
       "pending": [],
@@ -1959,6 +1985,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/interception-segments-two-levels-above/interception-segments-two-levels-above.test.ts": {
+      "passed": [
+        "interception-segments-two-levels-above should work when interception route is paired with segments two levels above"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/interoperability-with-pages/navigation.test.ts": {
       "passed": [
         "navigation between pages and app dir It should be able to navigate app -> pages",
@@ -2001,7 +2036,7 @@
         "app-dir - logging with default logging should not log fetch requests at all",
         "app-dir - logging with fetches default logging should only log requests in development mode",
         "app-dir - logging with fetches verbose logging should only log requests in development mode",
-        "app-dir - logging with verbose logging for edge runtime should not log fetch requests at all"
+        "app-dir - logging with verbose logging for edge runtime should only log requests in development mode"
       ],
       "failed": [],
       "pending": [],
@@ -2010,9 +2045,7 @@
     },
     "test/e2e/app-dir/logging/fetch-warning.test.ts": {
       "passed": [
-        "app-dir - fetch warnings should log when request input is a Request instance",
-        "app-dir - fetch warnings should log when request input is a string",
-        "app-dir - fetch warnings should not log when overriding cache within the Request object"
+        "app-dir - fetch warnings should not log fetch warnings in production"
       ],
       "failed": [],
       "pending": [],
@@ -2032,7 +2065,19 @@
         "mdx with-mdx-rs pages directory should work in initial html",
         "mdx with-mdx-rs pages directory should work in initial html with mdx import",
         "mdx with-mdx-rs pages directory should work using browser",
-        "mdx with-mdx-rs pages directory should work using browser with mdx import"
+        "mdx with-mdx-rs pages directory should work using browser with mdx import",
+        "mdx without-mdx-rs app directory should allow importing client components",
+        "mdx without-mdx-rs app directory should allow overriding components",
+        "mdx without-mdx-rs app directory should work in initial html",
+        "mdx without-mdx-rs app directory should work in initial html with mdx import",
+        "mdx without-mdx-rs app directory should work using browser",
+        "mdx without-mdx-rs app directory should work using browser with mdx import",
+        "mdx without-mdx-rs app directory should work with next/image",
+        "mdx without-mdx-rs pages directory should allow overriding components",
+        "mdx without-mdx-rs pages directory should work in initial html",
+        "mdx without-mdx-rs pages directory should work in initial html with mdx import",
+        "mdx without-mdx-rs pages directory should work using browser",
+        "mdx without-mdx-rs pages directory should work using browser with mdx import"
       ],
       "failed": [],
       "pending": [],
@@ -2040,14 +2085,11 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/metadata-dynamic-routes/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app dir - metadata dynamic routes icon image routes should render apple icon with dynamic routes",
         "app dir - metadata dynamic routes icon image routes should render icon with dynamic routes",
         "app dir - metadata dynamic routes robots.txt should handle robots.[ext] dynamic routes",
-        "app dir - metadata dynamic routes route segment config should generate dynamic route if dynamic config is force-dynamic",
         "app dir - metadata dynamic routes should generate unique path for image routes under group routes",
-        "app dir - metadata dynamic routes should include default og font files in file trace",
         "app dir - metadata dynamic routes should inject dynamic metadata properly to head",
         "app dir - metadata dynamic routes should pick configured metadataBase instead of deployment url for canonical url",
         "app dir - metadata dynamic routes should statically optimized single image route",
@@ -2059,6 +2101,7 @@
         "app dir - metadata dynamic routes sitemap should optimize routes without multiple generation API as static routes",
         "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
         "app dir - metadata dynamic routes sitemap should support generate multi sitemaps with generateSitemaps",
+        "app dir - metadata dynamic routes sitemap should support images in sitemap",
         "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
         "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
         "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime",
@@ -2067,6 +2110,10 @@
         "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
         "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
         "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
+      ],
+      "failed": [
+        "app dir - metadata dynamic routes route segment config should generate dynamic route if dynamic config is force-dynamic",
+        "app dir - metadata dynamic routes should include default og font files in file trace"
       ],
       "pending": [],
       "flakey": [],
@@ -2079,6 +2126,29 @@
       "failed": [
         "app dir - Metadata API on the Edge runtime OG image route should not bundle `ImageResponse` into the page worker"
       ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/metadata-icons-parallel-routes/metadata-icons-parallel-routes.test.ts": {
+      "passed": [
+        "app-dir - metadata-icons-parallel-routes should inherit parent apple icon when child does not present but parent contain static apple icon",
+        "app-dir - metadata-icons-parallel-routes should override parent icon when both static icon presented",
+        "app-dir - metadata-icons-parallel-routes should present favicon with other icons when parallel routes are presented"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/metadata-icons/metadata-icons.test.ts": {
+      "passed": [
+        "app-dir - metadata-icons should only have 1 favicon link in nested page",
+        "app-dir - metadata-icons should only have 1 favicon link in root page",
+        "app-dir - metadata-icons should render custom icons along with favicon in nested page",
+        "app-dir - metadata-icons should render custom icons along with favicon in root page"
+      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -2190,6 +2260,24 @@
         "app dir - metadata twitter should support default twitter player card",
         "app dir - metadata twitter should support twitter card summary_large_image when image present",
         "app dir - metadata viewport should support dynamic viewport export"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/middleware-sitemap/matcher-exclude-sitemap/index.test.ts": {
+      "passed": [
+        "middleware-sitemap should not be affected by middleware if sitemap.xml is excluded from the matcher"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/middleware-sitemap/no-matcher/index.test.ts": {
+      "passed": [
+        "middleware-sitemap should be affected by middleware for sitemap.xml if there is no matcher"
       ],
       "failed": [],
       "pending": [],
@@ -2462,11 +2550,42 @@
         "app dir - next/font app dir - next-font preconnect should not preconnect when css is used but no fonts",
         "app dir - next/font app dir - next-font preload should preload correctly with client components",
         "app dir - next/font app dir - next-font preload should preload correctly with layout using fonts",
-        "app dir - next/font app dir - next-font preload should preload correctly with page using fonts"
-      ],
-      "failed": [
+        "app dir - next/font app dir - next-font preload should preload correctly with page using fonts",
         "app dir - next/font app dir - next-font preload should preload correctly with server components"
       ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-form/basepath/next-form-basepath.test.ts": {
+      "passed": [
+        "app dir - form - with basepath should add basePath to `action`",
+        "app dir - form - with basepath should not add basePath to a submitter's formAction"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-form/default/next-form.test.ts": {
+      "passed": [
+        "app dir - form does not navigate if preventDefault is called in onSubmit",
+        "app dir - form does not push a new history entry if `replace` is passed",
+        "app dir - form functions passed to action runs client action",
+        "app dir - form functions passed to action runs server action",
+        "app dir - form functions passed to action runs server action (closure)",
+        "app dir - form functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
+        "app dir - form functions passed to formAction runs server action (closure) from submitter and doesn't warn about unsupported attributes",
+        "app dir - form functions passed to formAction runs server action from submitter and doesn't warn about unsupported attributes",
+        "app dir - form should soft-navigate on submit and show the prefetched loading state",
+        "app dir - form should soft-navigate to the formAction url of the submitter",
+        "app dir - form unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
+        "app dir - form unsupported attributes on submitter should warn if submitter sets \"formMethod\" to an unsupported value and fall back to default submit behavior",
+        "app dir - form unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
+        "app dir - form url-encodes file inputs, but warns about them"
+      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -2762,13 +2881,12 @@
     },
     "test/e2e/app-dir/parallel-routes-catchall/parallel-routes-catchall.test.ts": {
       "passed": [
+        "parallel-routes-catchall should match both the catch-all page & slot",
         "parallel-routes-catchall should match correctly when defining an explicit page & slot",
+        "parallel-routes-catchall should match correctly when defining an explicit page but no slot",
         "parallel-routes-catchall should match correctly when defining an explicit slot but no page"
       ],
-      "failed": [
-        "parallel-routes-catchall should match both the catch-all page & slot",
-        "parallel-routes-catchall should match correctly when defining an explicit page but no slot"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -3062,6 +3180,13 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/ppr-history-replace-state/ppr-history-replace-state.test.ts": {
+      "passed": ["ppr-history-replace-state should not remount component"],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/ppr-incremental/ppr-incremental.test.ts": {
       "passed": [
         "ppr-incremental ppr disabled / should not have the dynamic content hidden /",
@@ -3110,6 +3235,7 @@
         "ppr-incremental ppr disabled /omitted/disabled/[slug] should render without the fallback in the initial load /omitted/disabled/a",
         "ppr-incremental ppr disabled /omitted/disabled/[slug] should render without the fallback in the initial load /omitted/disabled/b",
         "ppr-incremental ppr disabled /omitted/disabled/[slug] should render without the fallback in the initial load /omitted/disabled/c",
+        "ppr-incremental ppr disabled should not trigger a dynamic request for static pages",
         "ppr-incremental ppr enabled /dynamic/enabled/[slug] should have the dynamic content hidden /dynamic/enabled/a",
         "ppr-incremental ppr enabled /dynamic/enabled/[slug] should have the dynamic content hidden /dynamic/enabled/b",
         "ppr-incremental ppr enabled /dynamic/enabled/[slug] should have the dynamic content hidden /dynamic/enabled/c",
@@ -3268,10 +3394,29 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/react-max-headers-length/react-max-headers-length.test.ts": {
+      "passed": [
+        "react-max-headers-length reactMaxHeadersLength = 0 should respect reactMaxHeadersLength",
+        "react-max-headers-length reactMaxHeadersLength = 10000 should respect reactMaxHeadersLength",
+        "react-max-headers-length reactMaxHeadersLength = 400 should respect reactMaxHeadersLength",
+        "react-max-headers-length reactMaxHeadersLength = undefined should respect reactMaxHeadersLength"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/react-owner-stacks-svgr/react-owner-stacks-svgr.test.ts": {
       "passed": [
         "react-owner-stacks-svgr renders an SVG that is transformed by @svgr/webpack into a React component"
       ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/remove-console/remove-console.test.ts": {
+      "passed": ["remove-console should remove console.log"],
       "failed": [],
       "pending": [],
       "flakey": [],
@@ -3519,13 +3664,11 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/scss/compilation-and-prefixing/compilation-and-prefixing.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "SCSS Support ({\"sass\": \"1.54.0\"}) Production only CSS Compilation and Prefixing should've compiled and prefixed",
-        "SCSS Support ({\"sass\": \"1.54.0\"}) Production only CSS Compilation and Prefixing should've emitted a source map",
-        "SCSS Support ({\"sass-embedded\": \"1.75.0\"}) Production only CSS Compilation and Prefixing should've compiled and prefixed",
-        "SCSS Support ({\"sass-embedded\": \"1.75.0\"}) Production only CSS Compilation and Prefixing should've emitted a source map"
+        "SCSS Support ({\"sass-embedded\": \"1.75.0\"}) Production only CSS Compilation and Prefixing should've compiled and prefixed"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -3627,10 +3770,10 @@
     },
     "test/e2e/app-dir/scss/invalid-module-document/invalid-module-document.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Invalid SCSS in _document production only should fail to build"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -3853,7 +3996,7 @@
     "test/e2e/app-dir/scss/webpack-error/webpack-error.test.ts": {
       "passed": [],
       "failed": [
-        "SCSS Support production only Friendly Webpack Error should be a friendly error successfully"
+        "SCSS Support Friendly Webpack Error should be a friendly error successfully"
       ],
       "pending": [],
       "flakey": [],
@@ -3878,6 +4021,20 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/searchparams-reuse-loading/searchparams-reuse-loading.test.ts": {
+      "passed": [
+        "searchparams-reuse-loading With Middleware should correctly return different RSC data for full prefetches with different searchParam values",
+        "searchparams-reuse-loading Without Middleware should correctly return different RSC data for full prefetches with different searchParam values",
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-full route",
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-less route",
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-less URL when navigating to param-full route",
+        "searchparams-reuse-loading should re-use the prefetched loading state when navigating to a new searchParam value"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts": {
       "passed": [
         "searchparams-static-bailout client component should bailout when using searchParams",
@@ -3885,6 +4042,24 @@
         "searchparams-static-bailout client component should not bailout when not using searchParams",
         "searchparams-static-bailout server component should bailout when using searchParams",
         "searchparams-static-bailout server component should not bailout when not using searchParams"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/self-importing-package-monorepo/self-importing-package-monorepo.test.ts": {
+      "passed": [
+        "self-importing-package-monorepo should resolve self-imports inside a monorepo"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/self-importing-package/self-importing-package.test.ts": {
+      "passed": [
+        "self-importing-package should resolve self-imports in an external package"
       ],
       "failed": [],
       "pending": [],
@@ -4123,6 +4298,15 @@
       "passed": [
         "webpack-loader-conditions should render correctly on client side",
         "webpack-loader-conditions should render correctly on server site"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/webpack-loader-ts-transform/webpack-loader-ts-transform.test.ts": {
+      "passed": [
+        "webpack-loader-ts-transform should accept Typescript returned from Webpack loaders"
       ],
       "failed": [],
       "pending": [],
@@ -4874,6 +5058,16 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/i18n-navigations-middleware/i18n-navigations-middleware.test.ts": {
+      "passed": [
+        "i18n-navigations-middleware should respect selected locale when navigating to a dynamic route",
+        "i18n-navigations-middleware should respect selected locale when navigating to a static route"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/i18n-preferred-locale-detection/i18n-preferred-locale-detection.test.ts": {
       "passed": [
         "i18-preferred-locale-redirect should not request a path prefixed with my preferred detected locale when clicking link to index from a non-locale-prefixed path",
@@ -4945,6 +5139,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/instrumentation-hook/flying-shuttle/flying-shuttle.test.ts": {
+      "passed": [
+        "instrumentation-hook - flying-shuttle should only register without errors"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/instrumentation-hook/instrumentation-hook.test.ts": {
       "passed": [
         "Instrumentation Hook general should not overlap with a instrumentation page",
@@ -4952,9 +5155,20 @@
         "Instrumentation Hook with-async-node-page with-async-node-page should run the instrumentation hook",
         "Instrumentation Hook with-edge-api with-edge-api should run the instrumentation hook",
         "Instrumentation Hook with-edge-page with-edge-page should run the instrumentation hook",
+        "Instrumentation Hook with-esm-import with-esm-import should run the instrumentation hook",
         "Instrumentation Hook with-middleware with-middleware should run the instrumentation hook",
         "Instrumentation Hook with-node-api with-node-api should run the instrumentation hook",
         "Instrumentation Hook with-node-page with-node-page should run the instrumentation hook"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/instrumentation-hook/register-once/register-once.test.ts": {
+      "passed": [
+        "instrumentation-hook - register-once should not error when concurrent requests are made",
+        "instrumentation-hook - register-once should only register once"
       ],
       "failed": [],
       "pending": [],
@@ -5646,6 +5860,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/og-routes-custom-font/og-routes-custom-font.test.ts": {
+      "passed": [
+        "og-routes-custom-font should render og with custom font for app routes"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/on-request-error/basic/basic.test.ts": {
       "passed": [
         "on-request-error - basic app router should catch app routes error in edge runtime",
@@ -5665,6 +5888,46 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/on-request-error/dynamic-routes/dynamic-routes.test.ts": {
+      "passed": [
+        "on-request-error - dynamic-routes app router should catch app router dynamic page error with search params",
+        "on-request-error - dynamic-routes app router should catch app router dynamic routes error with search params",
+        "on-request-error - dynamic-routes app router should catch suspense rendering page error in node runtime",
+        "on-request-error - dynamic-routes pages router should catch pages router dynamic API route error with search params",
+        "on-request-error - dynamic-routes pages router should catch pages router dynamic page error with search params"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/on-request-error/isr/isr.test.ts": {
+      "passed": [
+        "on-request-error - isr app router ISR should capture correct reason for build errored route",
+        "on-request-error - isr app router ISR should capture correct reason for on-demand revalidated page",
+        "on-request-error - isr app router ISR should capture correct reason for on-demand revalidated route",
+        "on-request-error - isr app router ISR should capture correct reason for stale errored page",
+        "on-request-error - isr app router ISR should capture revalidate from server action",
+        "on-request-error - isr pages router ISR should capture correct reason for on-demand revalidated page",
+        "on-request-error - isr pages router ISR should capture correct reason for stale errored page"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/on-request-error/server-action-error/server-action-error.test.ts": {
+      "passed": [
+        "on-request-error - server-action-error should catch server action error in listener callback in edge runtime",
+        "on-request-error - server-action-error should catch server action error in listener callback in nodejs runtime",
+        "on-request-error - server-action-error should catch the server action form error in edge runtime",
+        "on-request-error - server-action-error should catch the server action form error in nodejs runtime"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/on-request-error/skip-next-internal-error/skip-next-internal-error.test.ts": {
       "passed": [
         "on-request-error - skip-next-internal-error app router API should not catch server component not-found errors",
@@ -5673,6 +5936,8 @@
         "on-request-error - skip-next-internal-error app router render should not catch client component not-found errors",
         "on-request-error - skip-next-internal-error app router render should not catch client component redirect errors",
         "on-request-error - skip-next-internal-error app router render should not catch next dynamic no-ssr errors",
+        "on-request-error - skip-next-internal-error app router render should not catch server action not-found errors",
+        "on-request-error - skip-next-internal-error app router render should not catch server action redirect errors",
         "on-request-error - skip-next-internal-error app router render should not catch server component dynamic usage errors",
         "on-request-error - skip-next-internal-error app router render should not catch server component not-found errors",
         "on-request-error - skip-next-internal-error app router render should not catch server component redirect errors"
@@ -6470,8 +6735,18 @@
       "passed": [],
       "failed": [],
       "pending": [
-        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
-        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
+        "AMP Usage AMP dev no-warn should not warn on valid amp",
+        "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
+        "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
+        "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
+        "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
+        "AMP Usage AMP development mode should detect changes and refresh an AMP page",
+        "AMP Usage AMP development mode should detect changes and refresh an AMP page at root pages/",
+        "AMP Usage AMP development mode should detect changes to component and refresh an AMP page",
+        "AMP Usage AMP development mode should detect the changes and display it",
+        "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
+        "AMP Usage AMP development mode should not contain missing files warning",
+        "AMP Usage AMP development mode should not reload unless the page is edited for an AMP page",
         "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
         "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
         "AMP Usage production mode With AMP context should render the AMP page that uses the AMP hook",
@@ -6479,6 +6754,8 @@
         "AMP Usage production mode With basic AMP usage should auto import extensions",
         "AMP Usage production mode With basic AMP usage should drop custom scripts",
         "AMP Usage production mode With basic AMP usage should not drop custom amp scripts",
+        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
+        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
         "AMP Usage production mode With basic AMP usage should optimize clean",
         "AMP Usage production mode With basic AMP usage should render the page as valid AMP",
         "AMP Usage production mode With basic AMP usage should render the page without leaving render target",
@@ -6495,19 +6772,7 @@
         "AMP Usage production mode combined styles should combine style tags",
         "AMP Usage production mode combined styles should remove sourceMaps from styles",
         "AMP Usage production mode should have amp optimizer in trace",
-        "AMP Usage production mode should not contain missing files warning",
-        "AMP Usage AMP dev no-warn should not warn on valid amp",
-        "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
-        "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
-        "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
-        "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
-        "AMP Usage AMP development mode should not contain missing files warning",
-        "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
-        "AMP Usage AMP development mode should detect changes and refresh an AMP page",
-        "AMP Usage AMP development mode should detect changes and refresh an AMP page at root pages/",
-        "AMP Usage AMP development mode should detect changes to component and refresh an AMP page",
-        "AMP Usage AMP development mode should detect the changes and display it",
-        "AMP Usage AMP development mode should not reload unless the page is edited for an AMP page"
+        "AMP Usage production mode should not contain missing files warning"
       ],
       "flakey": [],
       "runtimeError": false
@@ -6692,7 +6957,8 @@
       "failed": [],
       "pending": [
         "app dir - with output export - dynamic missing gsp dev development mode should error when client component has generateStaticParams",
-        "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams"
+        "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams",
+        "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is set to true"
       ],
       "flakey": [],
       "runtimeError": false
@@ -6892,6 +7158,7 @@
       "passed": [],
       "failed": [],
       "pending": [
+        "app type checking production mode should generate route types correctly and report form errors",
         "app type checking production mode should generate route types correctly and report link error",
         "app type checking production mode should generate route types correctly and report router API errors",
         "app type checking production mode should type check invalid entry exports"
@@ -7362,9 +7629,7 @@
       "runtimeError": false
     },
     "test/integration/create-next-app/examples.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app --example should create if --example value is default",
         "create-next-app --example should create on valid Next.js example name",
         "create-next-app --example should create with GitHub URL",
@@ -7375,84 +7640,86 @@
         "create-next-app --example should not create if --example flag value is invalid",
         "create-next-app --example should use --example-path over the GitHub URL"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/index.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app should not create if the target directory is not empty",
         "create-next-app should not create if the target directory is not writable",
         "create-next-app should not install dependencies if --skip-install"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/bun.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app with package manager bun should use bun for --use-bun flag",
         "create-next-app with package manager bun should use bun for --use-bun flag with example",
         "create-next-app with package manager bun should use bun when user-agent is bun",
         "create-next-app with package manager bun should use bun when user-agent is bun with example"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/npm.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app with package manager npm should use npm for --use-npm flag",
         "create-next-app with package manager npm should use npm for --use-npm flag with example",
         "create-next-app with package manager npm should use npm when user-agent is npm",
         "create-next-app with package manager npm should use npm when user-agent is npm with example"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/pnpm.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag",
         "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag with example",
         "create-next-app with package manager pnpm should use pnpm when user-agent is pnpm",
         "create-next-app with package manager pnpm should use pnpm when user-agent is pnpm with example"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/yarn.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app with package manager yarn should use yarn for --use-yarn flag",
         "create-next-app with package manager yarn should use yarn for --use-yarn flag with example",
         "create-next-app with package manager yarn should use yarn when user-agent is yarn",
         "create-next-app with package manager yarn should use yarn when user-agent is yarn with example"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/prompts.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
+        "create-next-app prompts should not prompt user for choice and use defaults if --yes is defined",
         "create-next-app prompts should prompt user for choice if --import-alias is absent",
         "create-next-app prompts should prompt user for choice if --js or --ts flag is absent",
         "create-next-app prompts should prompt user for choice if --tailwind is absent",
-        "create-next-app prompts should prompt user for choice if directory name is absent"
+        "create-next-app prompts should prompt user for choice if directory name is absent",
+        "create-next-app prompts should prompt user to confirm reset preferences"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/templates/app.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app --app (App Router) should create JavaScript project with --js flag",
         "create-next-app --app (App Router) should create TailwindCSS project with --tailwind flag",
         "create-next-app --app (App Router) should create TypeScript project with --ts flag",
@@ -7461,13 +7728,13 @@
         "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag",
         "create-next-app --app (App Router) should enable turbopack dev with --turbo flag"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/templates/pages.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "create-next-app --no-app (Pages Router) should create JavaScript project with --js flag",
         "create-next-app --no-app (Pages Router) should create TailwindCSS project with --tailwind flag",
         "create-next-app --no-app (Pages Router) should create TypeScript project with --ts flag",
@@ -7476,18 +7743,19 @@
         "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag",
         "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbo flag"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/critical-css/test/index.test.js": {
       "passed": [
         "CSS optimization for SSR apps production mode should have all CSS files in manifest",
+        "CSS optimization for SSR apps production mode should inline critical CSS",
+        "CSS optimization for SSR apps production mode should inline critical CSS (dynamic)",
         "CSS optimization for SSR apps production mode should not inline non-critical css"
       ],
-      "failed": [
-        "CSS optimization for SSR apps production mode should inline critical CSS",
-        "CSS optimization for SSR apps production mode should inline critical CSS (dynamic)"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -7553,32 +7821,28 @@
     },
     "test/integration/css-features/test/css-modules.test.js": {
       "passed": [
-        "CSS Modules: Import Exports production mode should have compiled successfully",
-        "CSS Modules: Import Global CSS production mode should have compiled successfully"
+        "CSS Modules: Import Global CSS production mode should've emitted a single CSS file"
       ],
       "failed": [
-        "CSS Modules: Import Exports production mode should've emitted a single CSS file",
-        "CSS Modules: Import Global CSS production mode should've emitted a single CSS file",
         "CSS Modules: Importing Invalid Global CSS production mode should fail to build",
-        "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build",
         "Custom Properties: Fail for global element in CSS Modules production mode should fail to build"
       ],
-      "pending": [],
+      "pending": [
+        "CSS Modules: Import Exports production mode should've emitted a single CSS file",
+        "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build"
+      ],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/css-features/test/index.test.js": {
       "passed": [
-        "Custom Properties: Pass-Through IE11 production mode should have compiled successfully",
-        "Custom Properties: Pass-Through Modern production mode should have compiled successfully",
-        "Inline Comments: Minify production mode should have compiled successfully"
-      ],
-      "failed": [
         "Custom Properties: Pass-Through IE11 production mode should've emitted a single CSS file",
-        "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file",
+        "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file"
+      ],
+      "failed": [],
+      "pending": [
         "Inline Comments: Minify production mode should've emitted a single CSS file"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -7594,30 +7858,30 @@
     "test/integration/css-modules/test/index.test.js": {
       "passed": [
         "3rd Party CSS Module Support production mode should have compiled successfully",
+        "3rd Party CSS Module Support production mode should've emitted a single CSS file",
+        "3rd Party CSS Module Support production mode should've injected the CSS on server render",
         "Basic CSS Module Support production mode should have compiled successfully",
+        "Basic CSS Module Support production mode should've emitted a single CSS file",
+        "Basic CSS Module Support production mode should've injected the CSS on server render",
         "CSS Module Composes Usage (Basic) production mode should have compiled successfully",
+        "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
         "Can hot reload CSS Module without losing state should update CSS color without remounting <input>",
         "Catch-all Route CSS Module Usage production mode should apply styles correctly",
         "Catch-all Route CSS Module Usage production mode should have compiled successfully",
+        "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
         "Dynamic Route CSS Module Usage production mode should apply styles correctly",
         "Dynamic Route CSS Module Usage production mode should have compiled successfully",
+        "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file",
         "Has CSS Module in computed styles in Development should have CSS for page",
         "Has CSS Module in computed styles in Production production mode should have CSS for page",
         "Has CSS Module in computed styles in Production production mode should have compiled successfully",
-        "Valid CSS Module Usage from within node_modules production mode should have compiled successfully"
+        "Valid CSS Module Usage from within node_modules production mode should have compiled successfully",
+        "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
+        "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
       ],
       "failed": [
-        "3rd Party CSS Module Support production mode should've emitted a single CSS file",
-        "3rd Party CSS Module Support production mode should've injected the CSS on server render",
-        "Basic CSS Module Support production mode should've emitted a single CSS file",
-        "Basic CSS Module Support production mode should've injected the CSS on server render",
-        "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
         "CSS Module Composes Usage (External) production mode should have compiled successfully",
         "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
-        "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
-        "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file",
-        "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
-        "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data",
         "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
         "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
         "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
@@ -7631,24 +7895,6 @@
     },
     "test/integration/css/test/basic-global-support.test.js": {
       "passed": [
-        "Basic Global Support production mode useLightnincsss(false) should compile successfully",
-        "Basic Global Support production mode useLightnincsss(true) should compile successfully",
-        "Basic Global Support with special characters in path production mode useLightnincsss(false) should compile successfully",
-        "Basic Global Support with special characters in path production mode useLightnincsss(true) should compile successfully",
-        "Basic Global Support with src/ dir production mode useLightnincsss(false) should compile successfully",
-        "Basic Global Support with src/ dir production mode useLightnincsss(true) should compile successfully",
-        "CSS URL via `file-loader` and asset prefix (1) production mode should compile successfully",
-        "CSS URL via `file-loader` and asset prefix (2) production mode should compile successfully",
-        "CSS URL via `file-loader` production mode useLightnincsss(false) should compile successfully",
-        "CSS URL via `file-loader` production mode useLightnincsss(true) should compile successfully",
-        "Multi Global Support (reversed) production mode useLightnincsss(false) should compile successfully",
-        "Multi Global Support (reversed) production mode useLightnincsss(true) should compile successfully",
-        "Multi Global Support production mode useLightnincsss(false) should compile successfully",
-        "Multi Global Support production mode useLightnincsss(true) should compile successfully",
-        "Nested @import() Global Support production mode useLightnincsss(false) should compile successfully",
-        "Nested @import() Global Support production mode useLightnincsss(true) should compile successfully"
-      ],
-      "failed": [
         "Basic Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
         "Basic Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
         "Basic Global Support with special characters in path production mode useLightnincsss(false) should've emitted a single CSS file",
@@ -7666,6 +7912,7 @@
         "Nested @import() Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
         "Nested @import() Global Support production mode useLightnincsss(true) should've emitted a single CSS file"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -7683,37 +7930,22 @@
     },
     "test/integration/css/test/css-compilation.test.js": {
       "passed": [
-        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should compile successfully",
-        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should compile successfully",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have CSS for page",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have compiled successfully",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have CSS for page",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have compiled successfully",
-        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have compiled successfully",
-        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have the correct color on mount after navigation",
-        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have compiled successfully",
-        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have the correct color on mount after navigation"
-      ],
-      "failed": [
-        "CSS Property Ordering production mode useLightnincsss(false) should have compiled successfully",
         "CSS Property Ordering production mode useLightnincsss(false) should have the border width (property ordering)",
-        "CSS Property Ordering production mode useLightnincsss(true) should have compiled successfully",
         "CSS Property Ordering production mode useLightnincsss(true) should have the border width (property ordering)",
         "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've compiled and prefixed",
-        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've emitted a source map",
         "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've compiled and prefixed",
-        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've emitted a source map",
-        "CSS Support production mode Good CSS Import from node_modules useLightnincsss(false) should compile successfully",
         "CSS Support production mode Good CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
-        "CSS Support production mode Good CSS Import from node_modules useLightnincsss(true) should compile successfully",
         "CSS Support production mode Good CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
-        "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should compile successfully",
         "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
-        "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should compile successfully",
         "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have CSS for page",
         "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should've preloaded the CSS file and injected it in <head>",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should've preloaded the CSS file and injected it in <head>"
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have CSS for page",
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should've preloaded the CSS file and injected it in <head>",
+        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have the correct color on mount after navigation",
+        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have the correct color on mount after navigation"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -7776,8 +8008,11 @@
     },
     "test/integration/css/test/css-rendering.test.js": {
       "passed": [
+        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct CSS injection order",
         "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on hover)",
         "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on load)",
+        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from index)",
+        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from other)",
         "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should not change color on hover",
         "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(false) production mode should hydrate black without dependencies manifest",
         "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(false) production mode should hydrate red without dependencies manifest",
@@ -7789,15 +8024,13 @@
         "CSS Support production mode CSS Import from node_modules useLightnincsss(true) should fail the build"
       ],
       "failed": [
-        "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
-        "CSS Support CSS Cleanup on Render Failure useLightnincsss(true) production mode not have intermediary page styles on error rendering",
-        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct CSS injection order",
-        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from index)",
-        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from other)",
         "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
         "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS"
       ],
-      "pending": [],
+      "pending": [
+        "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
+        "CSS Support CSS Cleanup on Render Failure useLightnincsss(true) production mode not have intermediary page styles on error rendering"
+      ],
       "flakey": [],
       "runtimeError": false
     },
@@ -7816,16 +8049,15 @@
     },
     "test/integration/css/test/valid-invalid-css.test.js": {
       "passed": [
-        "Valid Global CSS from npm production mode should compile successfully"
+        "Valid Global CSS from npm production mode should've emitted a single CSS file"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Invalid CSS in _document production mode should fail to build",
         "Invalid Global CSS production mode should fail to build",
         "Invalid Global CSS with Custom App production mode should fail to build",
-        "Valid Global CSS from npm production mode should've emitted a single CSS file",
         "Valid and Invalid Global CSS with Custom App production mode should fail to build"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -8800,14 +9032,13 @@
         "Edge runtime code with imports Middleware statically importing 3rd party module production mode does not build and reports",
         "Edge runtime code with imports Middleware statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware using Buffer polyfill does not throw in dev at runtime",
-        "Edge runtime code with imports Middleware using Buffer polyfill production mode does not throw in production at runtime"
-      ],
-      "failed": [
+        "Edge runtime code with imports Middleware using Buffer polyfill production mode does not throw in production at runtime",
         "Edge runtime code with imports Edge API dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Edge API dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Middleware dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Middleware dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
       ],
+      "failed": [],
       "pending": [
         "Edge runtime code with imports Edge API dynamically importing node.js module development mode throws unsupported module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Edge API dynamically importing node.js module in a lib development mode throws unsupported module error in dev at runtime and highlights the faulty line",
@@ -8830,13 +9061,13 @@
         "Edge runtime code with imports Middleware importing unused 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
-        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
+        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
+        "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
+        "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
       ],
       "failed": [
         "Edge runtime code with imports Edge API importing unused node.js module production mode does not throw in production at runtime",
-        "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime",
-        "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
+        "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime"
       ],
       "pending": [],
       "flakey": [],
@@ -8862,8 +9093,7 @@
       "runtimeError": false
     },
     "test/integration/edge-runtime-with-node.js-apis/test/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Edge route using Node.js API production mode does not warn on using process.arch",
         "Edge route using Node.js API production mode does not warn on using process.version",
         "Edge route using Node.js API production mode warns for BroadcastChannel during build",
@@ -8907,6 +9137,7 @@
         "Middleware using Node.js API production mode warns for process.getuid during build",
         "Middleware using Node.js API production mode warns for setImmediate during build"
       ],
+      "failed": [],
       "pending": [
         "Edge route using Node.js API development mode does not throw on using process.arch",
         "Edge route using Node.js API development mode does not throw on using process.version",
@@ -9107,6 +9338,7 @@
         "Next Lint format flag \"compact\" creates a file respecting the chosen format",
         "Next Lint format flag \"json\" creates a file respecting the chosen format",
         "Next Lint format flag supports additional user-defined formats",
+        "Next Lint format flag supports async formatters",
         "Next Lint lint files with cjs and mjs file extension",
         "Next Lint max warnings flag does not error when warnings do not exceed threshold",
         "Next Lint max warnings flag errors when warnings exceed threshold",
@@ -10711,43 +10943,6 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/integration/font-optimization/test/index.test.js": {
-      "passed": [
-        "Font Optimization with-google Font optimization for SSR apps production mode should skip this optimization for AMP pages",
-        "Font Optimization with-google Font optimization for unreachable font definitions. production mode should fallback to normal stylesheet if the contents of the fonts are unreachable",
-        "Font Optimization with-google Font optimization for unreachable font definitions. production mode should not inline multiple fallback link tag",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should skip this optimization for AMP pages",
-        "Font Optimization with-typekit Font optimization for unreachable font definitions. production mode should fallback to normal stylesheet if the contents of the fonts are unreachable",
-        "Font Optimization with-typekit Font optimization for unreachable font definitions. production mode should not inline multiple fallback link tag"
-      ],
-      "failed": [
-        "Font Optimization font override production mode should inline font-override values",
-        "Font Optimization font override with size adjust production mode should inline font-override values",
-        "Font Optimization invalid configuration production mode should show a proper error if assetPrefix starts with .",
-        "Font Optimization with-google Font optimization for SSR apps production mode should add preconnect tag",
-        "Font Optimization with-google Font optimization for SSR apps production mode should inline the google fonts for SSR pages",
-        "Font Optimization with-google Font optimization for SSR apps production mode should inline the google fonts for static pages",
-        "Font Optimization with-google Font optimization for SSR apps production mode should inline the google fonts for static pages with Next/Head",
-        "Font Optimization with-google Font optimization for SSR apps production mode should only inline included fonts per page",
-        "Font Optimization with-google Font optimization for SSR apps production mode should pass nonce to the inlined font definition",
-        "Font Optimization with-google Font optimization for SSR apps production mode should work for fonts loaded on navigation",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should add preconnect tag",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should inline the typekit fonts for SSR pages",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should inline the typekit fonts for static pages",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should inline the typekit fonts for static pages with Next/Head",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should only inline included fonts per page",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should pass nonce to the inlined font definition",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should work for fonts loaded on navigation"
-      ],
-      "pending": [
-        "Font Optimization Spread operator regression on <link>",
-        "Font Optimization makeStylesheetInert regression",
-        "Font Optimization with-google Font optimization for SSR apps production mode should work when build is cached",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should work when build is cached"
-      ],
-      "flakey": [],
-      "runtimeError": false
-    },
     "test/integration/future/test/index.test.js": {
       "passed": [
         "excludeDefaultMomentLocales production mode should load momentjs"
@@ -11524,6 +11719,10 @@
     },
     "test/integration/image-optimizer/test/content-disposition-type.test.ts": {
       "passed": [
+        "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with contentDispositionType inline dev support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with contentDispositionType inline dev support with next.config.js should compress avif smaller than webp at q=100",
         "with contentDispositionType inline dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -11546,7 +11745,6 @@
         "with contentDispositionType inline dev support with next.config.js should fail when url has ftp protocol",
         "with contentDispositionType inline dev support with next.config.js should fail when url is missing",
         "with contentDispositionType inline dev support with next.config.js should fail when url is protocol relative",
-        "with contentDispositionType inline dev support with next.config.js should fail when url is recursive",
         "with contentDispositionType inline dev support with next.config.js should fail when url is too long",
         "with contentDispositionType inline dev support with next.config.js should fail when w is 0",
         "with contentDispositionType inline dev support with next.config.js should fail when w is less than 0",
@@ -11595,6 +11793,10 @@
       ],
       "failed": [],
       "pending": [
+        "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with contentDispositionType inline Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with contentDispositionType inline Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
         "with contentDispositionType inline Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -11617,7 +11819,6 @@
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url has ftp protocol",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is missing",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is protocol relative",
-        "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is recursive",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is too long",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is 0",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is less than 0",
@@ -11669,6 +11870,10 @@
     },
     "test/integration/image-optimizer/test/dangerously-allow-svg.test.ts": {
       "passed": [
+        "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with dangerouslyAllowSVG config dev support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with dangerouslyAllowSVG config dev support with next.config.js should compress avif smaller than webp at q=100",
         "with dangerouslyAllowSVG config dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -11691,7 +11896,6 @@
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when url has ftp protocol",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is missing",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is protocol relative",
-        "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is recursive",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is too long",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is 0",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is less than 0",
@@ -11737,6 +11941,10 @@
       ],
       "failed": [],
       "pending": [
+        "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -11759,7 +11967,6 @@
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url has ftp protocol",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is missing",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is protocol relative",
-        "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is recursive",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is too long",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is 0",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is less than 0",
@@ -11842,6 +12049,10 @@
     },
     "test/integration/image-optimizer/test/minimum-cache-ttl.test.ts": {
       "passed": [
+        "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should compress avif smaller than webp at q=100",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -11864,7 +12075,6 @@
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url has ftp protocol",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is missing",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is protocol relative",
-        "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is recursive",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is too long",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is 0",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is less than 0",
@@ -11913,6 +12123,10 @@
       ],
       "failed": [],
       "pending": [
+        "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -11935,7 +12149,6 @@
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url has ftp protocol",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is missing",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is protocol relative",
-        "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is recursive",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is too long",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is 0",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is less than 0",
@@ -11987,6 +12200,10 @@
     },
     "test/integration/image-optimizer/test/sharp.test.ts": {
       "passed": [
+        "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with latest sharp dev support w/o next.config.js recursive url is not allowed should fail with relative next image url",
         "with latest sharp dev support w/o next.config.js should downlevel avif format to jpeg for old Safari",
         "with latest sharp dev support w/o next.config.js should downlevel webp format to jpeg for old Safari",
         "with latest sharp dev support w/o next.config.js should emit blur svg when width is 8 in dev but not prod",
@@ -12004,7 +12221,6 @@
         "with latest sharp dev support w/o next.config.js should fail when url has ftp protocol",
         "with latest sharp dev support w/o next.config.js should fail when url is missing",
         "with latest sharp dev support w/o next.config.js should fail when url is protocol relative",
-        "with latest sharp dev support w/o next.config.js should fail when url is recursive",
         "with latest sharp dev support w/o next.config.js should fail when url is too long",
         "with latest sharp dev support w/o next.config.js should fail when w is 0",
         "with latest sharp dev support w/o next.config.js should fail when w is less than 0",
@@ -12043,6 +12259,10 @@
         "with latest sharp dev support w/o next.config.js should set cache-control to immutable for static images",
         "with latest sharp dev support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
         "with latest sharp dev support w/o next.config.js should use cached image file when parameters are the same for animated gif",
+        "with latest sharp dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with latest sharp dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with latest sharp dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with latest sharp dev support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with latest sharp dev support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with latest sharp dev support with next.config.js should compress avif smaller than webp at q=100",
         "with latest sharp dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -12065,7 +12285,6 @@
         "with latest sharp dev support with next.config.js should fail when url has ftp protocol",
         "with latest sharp dev support with next.config.js should fail when url is missing",
         "with latest sharp dev support with next.config.js should fail when url is protocol relative",
-        "with latest sharp dev support with next.config.js should fail when url is recursive",
         "with latest sharp dev support with next.config.js should fail when url is too long",
         "with latest sharp dev support with next.config.js should fail when w is 0",
         "with latest sharp dev support with next.config.js should fail when w is less than 0",
@@ -12114,6 +12333,10 @@
       ],
       "failed": [],
       "pending": [
+        "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with latest sharp Production Mode Server support w/o next.config.js recursive url is not allowed should fail with relative next image url",
         "with latest sharp Production Mode Server support w/o next.config.js should downlevel avif format to jpeg for old Safari",
         "with latest sharp Production Mode Server support w/o next.config.js should downlevel webp format to jpeg for old Safari",
         "with latest sharp Production Mode Server support w/o next.config.js should emit blur svg when width is 8 in dev but not prod",
@@ -12131,7 +12354,6 @@
         "with latest sharp Production Mode Server support w/o next.config.js should fail when url has ftp protocol",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when url is missing",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when url is protocol relative",
-        "with latest sharp Production Mode Server support w/o next.config.js should fail when url is recursive",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when url is too long",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when w is 0",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when w is less than 0",
@@ -12170,6 +12392,10 @@
         "with latest sharp Production Mode Server support w/o next.config.js should set cache-control to immutable for static images",
         "with latest sharp Production Mode Server support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
         "with latest sharp Production Mode Server support w/o next.config.js should use cached image file when parameters are the same for animated gif",
+        "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
+        "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+        "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+        "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
         "with latest sharp Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with latest sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
         "with latest sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -12192,7 +12418,6 @@
         "with latest sharp Production Mode Server support with next.config.js should fail when url has ftp protocol",
         "with latest sharp Production Mode Server support with next.config.js should fail when url is missing",
         "with latest sharp Production Mode Server support with next.config.js should fail when url is protocol relative",
-        "with latest sharp Production Mode Server support with next.config.js should fail when url is recursive",
         "with latest sharp Production Mode Server support with next.config.js should fail when url is too long",
         "with latest sharp Production Mode Server support with next.config.js should fail when w is 0",
         "with latest sharp Production Mode Server support with next.config.js should fail when w is less than 0",
@@ -12527,11 +12752,13 @@
         "Invalid hrefs production mode should not have a race condition with a click handler",
         "Invalid hrefs production mode should preload with child ref with React.createRef",
         "Invalid hrefs production mode should preload with child ref with function",
+        "Invalid hrefs production mode should preload with child ref with function that returns a cleanup function",
         "Invalid hrefs production mode should preload with forwardRef"
       ],
       "failed": [],
       "pending": [
         "Invalid hrefs development mode should handle child ref that is a function",
+        "Invalid hrefs development mode should handle child ref that is a function that returns a cleanup function",
         "Invalid hrefs development mode should handle child ref with React.createRef",
         "Invalid hrefs development mode should not have a race condition with a click handler",
         "Invalid hrefs development mode should not show error for class component as child of next/link",
@@ -12757,6 +12984,7 @@
     },
     "test/integration/next-image-legacy/base-path/test/static.test.ts": {
       "passed": [
+        "Build Error Tests for basePath production mode should throw build error when import statement is used with missing file",
         "Static Image Component Tests for basePath production mode Should add a blur placeholder to statically imported jpg",
         "Static Image Component Tests for basePath production mode Should add a blur placeholder to statically imported png",
         "Static Image Component Tests for basePath production mode Should allow an image with a static src to omit height and width",
@@ -12765,9 +12993,7 @@
         "Static Image Component Tests for basePath production mode Should use immutable cache-control header even when unoptimized",
         "Static Image Component Tests for basePath production mode Should use immutable cache-control header for static import"
       ],
-      "failed": [
-        "Build Error Tests for basePath production mode should throw build error when import statement is used with missing file"
-      ],
+      "failed": [],
       "pending": [
         "Static Image Component Tests for basePath development mode Should add a blur placeholder to statically imported jpg",
         "Static Image Component Tests for basePath development mode Should add a blur placeholder to statically imported png",
@@ -12934,6 +13160,9 @@
     },
     "test/integration/next-image-legacy/default/test/static.test.ts": {
       "passed": [
+        "Build Error Tests production mode should throw build error when import statement is used with missing file",
+        "Static Image Component Tests production mode Should add a blur placeholder to statically imported jpg",
+        "Static Image Component Tests production mode Should add a blur placeholder to statically imported png",
         "Static Image Component Tests production mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests production mode Should allow provided width and height to override intrinsic",
         "Static Image Component Tests production mode Should automatically provide an image height and width",
@@ -12942,11 +13171,7 @@
         "Static Image Component Tests production mode should load direct imported image",
         "Static Image Component Tests production mode should load staticprops imported image"
       ],
-      "failed": [
-        "Build Error Tests production mode should throw build error when import statement is used with missing file",
-        "Static Image Component Tests production mode Should add a blur placeholder to statically imported jpg",
-        "Static Image Component Tests production mode Should add a blur placeholder to statically imported png"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -13075,6 +13300,7 @@
         "Image Component Default Tests production mode should apply filter style after image loads",
         "Image Component Default Tests production mode should apply style inheritance for img elements but not wrapper elements",
         "Image Component Default Tests production mode should be valid HTML",
+        "Image Component Default Tests production mode should call callback ref cleanups when unmounting",
         "Image Component Default Tests production mode should callback native onError even when error before hydration",
         "Image Component Default Tests production mode should callback native onError when error occurred while loading image",
         "Image Component Default Tests production mode should callback native onLoad with sythetic event",
@@ -13118,6 +13344,7 @@
         "Image Component Default Tests development mode should apply filter style after image loads",
         "Image Component Default Tests development mode should apply style inheritance for img elements but not wrapper elements",
         "Image Component Default Tests development mode should be valid HTML",
+        "Image Component Default Tests development mode should call callback ref cleanups when unmounting",
         "Image Component Default Tests development mode should callback native onError even when error before hydration",
         "Image Component Default Tests development mode should callback native onError when error occurred while loading image",
         "Image Component Default Tests development mode should callback native onLoad with sythetic event",
@@ -13173,6 +13400,7 @@
     },
     "test/integration/next-image-new/app-dir/test/static.test.ts": {
       "passed": [
+        "Build Error Tests production mode should throw build error when import statement is used with missing file",
         "Static Image Component Tests production mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests production mode Should automatically provide an image height and width",
         "Static Image Component Tests production mode Should use immutable cache-control header even when unoptimized",
@@ -13189,9 +13417,7 @@
         "Static Image Component Tests production mode should use width and height prop to override import",
         "Static Image Component Tests production mode should use width prop to adjust both width and height"
       ],
-      "failed": [
-        "Build Error Tests production mode should throw build error when import statement is used with missing file"
-      ],
+      "failed": [],
       "pending": [
         "Static Image Component Tests development mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests development mode Should automatically provide an image height and width",
@@ -13395,6 +13621,7 @@
     },
     "test/integration/next-image-new/default/test/static.test.ts": {
       "passed": [
+        "Build Error Tests production mode should throw build error when import statement is used with missing file",
         "Static Image Component Tests production mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests production mode Should automatically provide an image height and width",
         "Static Image Component Tests production mode Should use immutable cache-control header even when unoptimized",
@@ -13412,9 +13639,7 @@
         "Static Image Component Tests production mode should use width and height prop to override import",
         "Static Image Component Tests production mode should use width prop to adjust both width and height"
       ],
-      "failed": [
-        "Build Error Tests production mode should throw build error when import statement is used with missing file"
-      ],
+      "failed": [],
       "pending": [
         "Static Image Component Tests development mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests development mode Should automatically provide an image height and width",
@@ -14108,13 +14333,12 @@
     },
     "test/integration/react-profiling-mode/test/index.test.js": {
       "passed": [
-        "React Profiling Mode production mode without config enabled should not have used the react-dom profiling bundle"
-      ],
-      "failed": [
         "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for client component",
         "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for pages",
-        "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for server component"
+        "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for server component",
+        "React Profiling Mode production mode without config enabled should not have used the react-dom profiling bundle"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -14753,6 +14977,9 @@
         "config telemetry production mode detects output config for session start",
         "config telemetry production mode detects rewrites, headers, and redirects for next build",
         "config telemetry production mode emits telemetry for `next lint`",
+        "config telemetry production mode emits telemetry for configured React Compiler options",
+        "config telemetry production mode emits telemetry for default React Compiler options",
+        "config telemetry production mode emits telemetry for enabled React Compiler",
         "config telemetry production mode emits telemetry for lint during build",
         "config telemetry production mode emits telemetry for lint during build when '--no-lint' is specified",
         "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
@@ -14762,7 +14989,7 @@
         "config telemetry production mode emits telemetry for usage of swc plugins"
       ],
       "failed": [
-        "config telemetry production mode emits telemery for usage of optimizeFonts, image, script & dynamic",
+        "config telemetry production mode emits telemery for usage of image, script & dynamic",
         "config telemetry production mode emits telemetry for middleware related options",
         "config telemetry production mode emits telemetry for transpilePackages",
         "config telemetry production mode emits telemetry for usage of @vercel/og",
@@ -15380,6 +15607,78 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/actions-tree-shaking/basic/basic-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - basic should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/basic/basic.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - basic should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/reexport/reexport-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - reexport should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - reexport should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/app-edge-middleware/app-edge-middleware.test.ts": {
       "passed": [
         "app edge middleware without node.js modules should not have any errors about using Node.js modules if not present in middleware"
@@ -15459,6 +15758,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/client-page-error-bailout/client-page-error-bailout.test.ts": {
+      "passed": [
+        "app-dir - client-page-error-bailout should bail out in static generation build"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/deopted-into-client-rendering-warning/deopted-into-client-rendering-warning.test.ts": {
       "passed": ["should not show deopted into client rendering warning"],
       "failed": [],
@@ -15471,15 +15779,16 @@
       "failed": [
         "fetch-cache should have correct fetchUrl field for fetches and unstable_cache",
         "fetch-cache should not retry for failed fetch-cache GET",
-        "fetch-cache should retry 3 times when revalidate times out"
+        "fetch-cache should retry 3 times when revalidate times out",
+        "fetch-cache should update cache TTL even if cache data does not change"
       ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/mangle-reserved/mangle-reserved.test.ts": {
-      "passed": [],
-      "failed": ["mangle-reserved should preserve the name"],
+      "passed": ["mangle-reserved should preserve the name"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15494,10 +15803,10 @@
       "runtimeError": false
     },
     "test/production/app-dir/metadata-static/metadata-static.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app dir - metadata should have statically optimized metadata routes by default"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15514,6 +15823,16 @@
     "test/production/app-dir/revalidate/revalidate.test.ts": {
       "passed": [
         "app-dir revalidate should be able to revalidate the cache via pages/api"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/ssg-single-pass/ssg-single-pass.test.ts": {
+      "passed": [
+        "ssg-single-pass should only render the page once during an ISR revalidation",
+        "ssg-single-pass should only render the page once during build"
       ],
       "failed": [],
       "pending": [],
@@ -15650,7 +15969,9 @@
         "deployment-id-handling disabled should not append dpl query to all assets for /from-app",
         "deployment-id-handling disabled should not append dpl query to all assets for /from-app/edge",
         "deployment-id-handling disabled should not append dpl query to all assets for /pages-edge",
+        "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should contain deployment id in RSC payload request headers",
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should have deployment id env available",
+        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should contain deployment id in RSC payload request headers",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should have deployment id env available"
       ],
       "failed": [
@@ -15675,14 +15996,13 @@
       "runtimeError": false
     },
     "test/production/disable-fallback-polyfills/index.test.ts": {
-      "passed": [
-        "Disable fallback polyfills Fallback polyfills added by default"
-      ],
-      "failed": [
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "Disable fallback polyfills Fallback polyfills added by default",
         "Disable fallback polyfills Pass build without error if non-polyfilled module is unreachable",
         "Disable fallback polyfills Reduced bundle size when polyfills are disabled"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -15888,6 +16208,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/instrumentation/required-files-instrumentation-entry/required-files-instrumentation-entry.test.ts": {
+      "passed": [
+        "instrumentation - required-files-instrumentation-entry should not contain edge entry in required files manifest"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/ipc-forbidden-headers/ipc-forbidden-headers.test.ts": {
       "passed": [
         "ipc-forbidden-headers should not error if expect header is included",
@@ -15903,7 +16232,7 @@
       "failed": [],
       "pending": [],
       "flakey": [],
-      "runtimeError": true
+      "runtimeError": false
     },
     "test/production/jest/new-link-behavior.test.ts": {
       "passed": ["next/jest newLinkBehavior should use new link behavior"],
@@ -15931,7 +16260,7 @@
       "failed": [],
       "pending": [],
       "flakey": [],
-      "runtimeError": true
+      "runtimeError": false
     },
     "test/production/jest/rsc/lib/utils.test.js": {
       "passed": ["works with server-only code"],
@@ -16067,6 +16396,7 @@
         "Production Usage should handle query/hash correctly during query updating #hello? $search",
         "Production Usage should handle query/hash correctly during query updating #hello?world $search",
         "Production Usage should have defer on all script tags",
+        "Production Usage should navigate through history after query update",
         "Production Usage should navigate to external site and back",
         "Production Usage should navigate to external site and back (with query)",
         "Production Usage should navigate to page with CSS and back",
@@ -16086,7 +16416,6 @@
       "failed": [
         "Production Usage process.browser should eliminate client only code on the server",
         "Production Usage process.browser should eliminate server only code on the client",
-        "Production Usage should navigate through history after query update",
         "Production Usage should output traces"
       ],
       "pending": [
@@ -16353,7 +16682,10 @@
       "runtimeError": false
     },
     "test/production/terser-class-static-blocks/terser-class-static-blocks.test.ts": {
-      "passed": ["terser-class-static-blocks should work using cheerio"],
+      "passed": [
+        "terser-class-static-blocks should have stripped away all comments",
+        "terser-class-static-blocks should work using cheerio"
+      ],
       "failed": [],
       "pending": [],
       "flakey": [],
@@ -16374,8 +16706,8 @@
         "TypeScript basic have built and started correctly",
         "TypeScript basic should not have eslint setup started"
       ],
-      "failed": ["TypeScript basic should work with babel"],
-      "pending": [],
+      "failed": [],
+      "pending": ["TypeScript basic should work with babel"],
       "flakey": [],
       "runtimeError": false
     },

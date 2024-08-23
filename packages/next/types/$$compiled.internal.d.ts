@@ -23,7 +23,6 @@ declare module 'next/dist/compiled/react-server-dom-turbopack/server.edge'
 declare module 'next/dist/client/app-call-server'
 declare module 'next/dist/compiled/react-dom/server'
 declare module 'next/dist/compiled/react-dom/server.edge'
-declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
 
 declare module 'react-server-dom-webpack/client'
@@ -453,9 +452,9 @@ declare module 'next/dist/compiled/loader-utils3'
 declare module 'next/dist/compiled/webpack-sources3' {
   interface StringBufferUtils {
     disableDualStringBufferCaching: () => boolean
-    disableStringInterning: () => boolean
     enableDualStringBufferCaching: () => boolean
-    enableStringInterning: () => boolean
+    enterStringInterningRange: () => boolean
+    exitStringInterningRange: () => boolean
   }
   export let stringBufferUtils: StringBufferUtils
 }

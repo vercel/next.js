@@ -8,8 +8,10 @@ related:
 
 Errors can be divided into two categories: **expected errors** and **uncaught exceptions**:
 
-- **Model expected errors as return values**: Avoid using `try`/`catch` for expected errors in Server Actions. Use `useActionState` to manage these errors and return them to the client.
+- **Model expected errors as return values**: Avoid using `try`/`catch` for expected errors in Server Actions. Use [`useActionState`](https://react.dev/reference/react/useActionState) to manage these errors and return them to the client.
 - **Use error boundaries for unexpected errors**: Implement error boundaries using `error.tsx` and `global-error.tsx` files to handle unexpected errors and provide a fallback UI.
+
+> **Good to know**: These examples use React's `useActionState` hook, which is available in React 19 RC. If you are using an earlier version of React, use `useFormState` instead. See the [React docs](https://react.dev/reference/react/useActionState) for more information.
 
 ## Handling Expected Errors
 
@@ -17,7 +19,7 @@ Expected errors are those that can occur during the normal operation of the appl
 
 ### Handling Expected Errors from Server Actions
 
-Use the `useActionState` hook (previously `useFormState`) to manage the state of Server Actions, including handling errors. This approach avoids `try`/`catch` blocks for expected errors, which should be modeled as return values rather than thrown exceptions.
+Use the [`useActionState`](https://react.dev/reference/react/useActionState) hook to manage the state of Server Actions, including handling errors. This approach avoids `try`/`catch` blocks for expected errors, which should be modeled as return values rather than thrown exceptions.
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -210,6 +212,8 @@ export default function Error({ error, reset }) {
   )
 }
 ```
+
+If you want errors to bubble up to the parent error boundary, you can `throw` when rendering the `error` component.
 
 ### Handling Errors in Nested Routes
 

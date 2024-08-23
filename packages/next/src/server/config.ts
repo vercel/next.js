@@ -335,25 +335,6 @@ function assignDefaults(
     )
   }
 
-  // TODO: remove after next minor (current v13.1.1)
-  if (Array.isArray(result.experimental?.outputFileTracingIgnores)) {
-    if (!result.experimental) {
-      result.experimental = {}
-    }
-    if (!result.experimental.outputFileTracingExcludes) {
-      result.experimental.outputFileTracingExcludes = {}
-    }
-    if (!result.experimental.outputFileTracingExcludes['**/*']) {
-      result.experimental.outputFileTracingExcludes['**/*'] = []
-    }
-    result.experimental.outputFileTracingExcludes['**/*'].push(
-      ...(result.experimental.outputFileTracingIgnores || [])
-    )
-    Log.warn(
-      `\`outputFileTracingIgnores\` has been moved to \`experimental.outputFileTracingExcludes\`. Please update your ${configFileName} file accordingly.`
-    )
-  }
-
   if (result.basePath !== '') {
     if (result.basePath === '/') {
       throw new Error(
@@ -490,6 +471,13 @@ function assignDefaults(
     silent
   )
 
+  warnOptionHasBeenDeprecated(
+    result,
+    'experimental.instrumentationHook',
+    '`experimental.instrumentationHook` is no longer needed to be configured in Next.js',
+    silent
+  )
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'bundlePagesExternals',
@@ -546,6 +534,27 @@ function assignDefaults(
     configFileName,
     silent
   )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'outputFileTracingRoot',
+    'outputFileTracingRoot',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'outputFileTracingIncludes',
+    'outputFileTracingIncludes',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'outputFileTracingExcludes',
+    'outputFileTracingExcludes',
+    configFileName,
+    silent
+  )
 
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
@@ -592,15 +601,13 @@ function assignDefaults(
   )
 
   if (
-    result.experimental?.outputFileTracingRoot &&
-    !isAbsolute(result.experimental.outputFileTracingRoot)
+    result?.outputFileTracingRoot &&
+    !isAbsolute(result.outputFileTracingRoot)
   ) {
-    result.experimental.outputFileTracingRoot = resolve(
-      result.experimental.outputFileTracingRoot
-    )
+    result.outputFileTracingRoot = resolve(result.outputFileTracingRoot)
     if (!silent) {
       Log.warn(
-        `experimental.outputFileTracingRoot should be absolute, using: ${result.experimental.outputFileTracingRoot}`
+        `experimental.outputFileTracingRoot should be absolute, using: ${result.outputFileTracingRoot}`
       )
     }
   }
@@ -611,7 +618,7 @@ function assignDefaults(
   }
 
   // use the closest lockfile as tracing root
-  if (!result.experimental?.outputFileTracingRoot) {
+  if (!result?.outputFileTracingRoot) {
     let rootDir = findRootDir(dir)
 
     if (rootDir) {
@@ -621,9 +628,8 @@ function assignDefaults(
       if (!defaultConfig.experimental) {
         defaultConfig.experimental = {}
       }
-      result.experimental.outputFileTracingRoot = rootDir
-      defaultConfig.experimental.outputFileTracingRoot =
-        result.experimental.outputFileTracingRoot
+      result.outputFileTracingRoot = rootDir
+      defaultConfig.outputFileTracingRoot = result.outputFileTracingRoot
     }
   }
 
@@ -923,11 +929,13 @@ export default async function loadConfig(
     rawConfig,
     silent = true,
     onLoadUserConfig,
+    reactProductionProfiling,
   }: {
     customConfig?: object | null
     rawConfig?: boolean
     silent?: boolean
     onLoadUserConfig?: (conf: NextConfig) => void
+    reactProductionProfiling?: boolean
   } = {}
 ): Promise<NextConfigComplete> {
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
@@ -1082,6 +1090,10 @@ export default async function loadConfig(
         (canonicalBase.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
+    }
+
+    if (reactProductionProfiling) {
+      userConfig.reactProductionProfiling = reactProductionProfiling
     }
 
     if (
