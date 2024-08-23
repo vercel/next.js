@@ -37,33 +37,27 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt, Value, Vc};
-use turbopack_binding::{
-    turbo::{
-        tasks_env::{CustomProcessEnv, ProcessEnv},
-        tasks_fs::{File, FileContent, FileSystemPath},
+use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbopack::{
+    module_options::ModuleOptionsContext,
+    resolve_options_context::ResolveOptionsContext,
+    transition::{ContextTransition, FullContextTransition, Transition},
+    ModuleAssetContext,
+};
+use turbopack_core::{
+    asset::AssetContent,
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult, EvaluatableAssets,
     },
-    turbopack::{
-        core::{
-            asset::AssetContent,
-            chunk::{
-                availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-                EntryChunkGroupResult, EvaluatableAssets,
-            },
-            file_source::FileSource,
-            ident::AssetIdent,
-            module::Module,
-            output::{OutputAsset, OutputAssets},
-            raw_output::RawOutput,
-            source::Source,
-            virtual_output::VirtualOutputAsset,
-        },
-        turbopack::{
-            module_options::ModuleOptionsContext,
-            resolve_options_context::ResolveOptionsContext,
-            transition::{ContextTransition, FullContextTransition, Transition},
-            ModuleAssetContext,
-        },
-    },
+    file_source::FileSource,
+    ident::AssetIdent,
+    module::Module,
+    output::{OutputAsset, OutputAssets},
+    raw_output::RawOutput,
+    source::Source,
+    virtual_output::VirtualOutputAsset,
 };
 
 use crate::{

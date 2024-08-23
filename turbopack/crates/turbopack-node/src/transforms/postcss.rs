@@ -331,8 +331,8 @@ impl PostCssTransformedAsset {
         // i.e, this is possible
         // - root
         //  - node_modules
-        //     - somepkg/(some.module.css, postcss.config.js) // this could be symlinked
-        //       local, or actual remote pkg or anything
+        //     - somepkg/(some.module.css, postcss.config.js) // this could be symlinked local, or
+        //       actual remote pkg or anything
         //  - packages // root of workspace pkgs
         //     - pkg1/(postcss.config.js) // The actual config we're looking for
         //

@@ -16,10 +16,14 @@ use crate::{
     id::{FunctionId, TraitTypeId},
     magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::{register_trait_type, register_value_type},
+    task::shared_reference::TypedSharedReference,
+    vc::VcCellMode,
+    RawVc, VcValueType,
 };
 
 type MagicSerializationFn = fn(&dyn MagicAny) -> &dyn erased_serde::Serialize;
 type AnySerializationFn = fn(&(dyn Any + Sync + Send)) -> &dyn erased_serde::Serialize;
+type RawCellFactoryFn = fn(TypedSharedReference) -> RawVc;
 
 // TODO this type need some refactoring when multiple languages are added to
 // turbo-task In this case a trait_method might be of a different function type.
@@ -41,6 +45,17 @@ pub struct ValueType {
     /// Functors for serialization
     magic_serialization: Option<(MagicSerializationFn, MagicAnyDeserializeSeed)>,
     any_serialization: Option<(AnySerializationFn, AnyDeserializeSeed)>,
+
+    /// An implementation of
+    /// [`VcCellMode::raw_cell`][crate::vc::cell_mode::VcCellMode::raw_cell].
+    ///
+    /// Allows dynamically constructing a cell using the type id. Used inside of
+    /// [`RawVc`] where we have a type id, but not the concrete type `T` of
+    /// `Vc<T>`.
+    ///
+    /// Because we allow resolving `Vc<dyn Trait>`, it's otherwise not possible
+    /// for `RawVc` to know what the appropriate `VcCellMode` is.
+    pub(crate) raw_cell: RawCellFactoryFn,
 }
 
 impl Hash for ValueType {
@@ -88,19 +103,20 @@ pub fn any_as_serialize<T: Any + Serialize + Send + Sync + 'static>(
 
 impl ValueType {
     /// This is internally used by `#[turbo_tasks::value]`
-    pub fn new<T>() -> Self {
+    pub fn new<T: VcValueType>() -> Self {
         Self {
             name: std::any::type_name::<T>().to_string(),
             traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
             magic_serialization: None,
             any_serialization: None,
+            raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
         }
     }
 
     /// This is internally used by `#[turbo_tasks::value]`
     pub fn new_with_magic_serialization<
-        T: Debug + Eq + Hash + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static,
+        T: VcValueType + Debug + Eq + Hash + Serialize + for<'de> Deserialize<'de>,
     >() -> Self {
         Self {
             name: std::any::type_name::<T>().to_string(),
@@ -111,12 +127,13 @@ impl ValueType {
                 MagicAnyDeserializeSeed::new::<T>(),
             )),
             any_serialization: Some((any_as_serialize::<T>, AnyDeserializeSeed::new::<T>())),
+            raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
         }
     }
 
     /// This is internally used by `#[turbo_tasks::value]`
     pub fn new_with_any_serialization<
-        T: Any + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static,
+        T: VcValueType + Any + Serialize + for<'de> Deserialize<'de>,
     >() -> Self {
         Self {
             name: std::any::type_name::<T>().to_string(),
@@ -124,6 +141,7 @@ impl ValueType {
             trait_methods: AutoMap::new(),
             magic_serialization: None,
             any_serialization: Some((any_as_serialize::<T>, AnyDeserializeSeed::new::<T>())),
+            raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
         }
     }
 

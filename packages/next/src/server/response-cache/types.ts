@@ -16,8 +16,16 @@ export interface ResponseCacheBase {
        * this is so it knows where to look up the cache entry from. If not
        * provided it will test the filesystem to check.
        */
-      routeKind?: RouteKind
+      routeKind: RouteKind
 
+      /**
+       * True if this is a fallback request.
+       */
+      isFallback: boolean
+
+      /**
+       * True if the route is enabled for PPR.
+       */
       isRoutePPREnabled?: boolean
     }
   ): Promise<ResponseCacheEntry | null>
@@ -37,8 +45,17 @@ export type CachedFetchData = {
   status?: number
 }
 
+export const enum CachedRouteKind {
+  APP_PAGE = 'APP_PAGE',
+  APP_ROUTE = 'APP_ROUTE',
+  PAGES = 'PAGES',
+  FETCH = 'FETCH',
+  REDIRECT = 'REDIRECT',
+  IMAGE = 'IMAGE',
+}
+
 export interface CachedFetchValue {
-  kind: 'FETCH'
+  kind: CachedRouteKind.FETCH
   data: CachedFetchData
   // tags are only present with file-system-cache
   // fetch cache stores tags outside of cache entry
@@ -47,12 +64,12 @@ export interface CachedFetchValue {
 }
 
 export interface CachedRedirectValue {
-  kind: 'REDIRECT'
+  kind: CachedRouteKind.REDIRECT
   props: Object
 }
 
 export interface CachedAppPageValue {
-  kind: 'APP_PAGE'
+  kind: CachedRouteKind.APP_PAGE
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   html: RenderResult
@@ -63,7 +80,7 @@ export interface CachedAppPageValue {
 }
 
 export interface CachedPageValue {
-  kind: 'PAGE'
+  kind: CachedRouteKind.PAGES
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   html: RenderResult
@@ -73,7 +90,7 @@ export interface CachedPageValue {
 }
 
 export interface CachedRouteValue {
-  kind: 'ROUTE'
+  kind: CachedRouteKind.APP_ROUTE
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   body: Buffer
@@ -82,7 +99,7 @@ export interface CachedRouteValue {
 }
 
 export interface CachedImageValue {
-  kind: 'IMAGE'
+  kind: CachedRouteKind.IMAGE
   etag: string
   buffer: Buffer
   extension: string
@@ -91,7 +108,7 @@ export interface CachedImageValue {
 }
 
 export interface IncrementalCachedAppPageValue {
-  kind: 'APP_PAGE'
+  kind: CachedRouteKind.APP_PAGE
   // this needs to be a string since the cache expects to store
   // the string value
   html: string
@@ -102,7 +119,7 @@ export interface IncrementalCachedAppPageValue {
 }
 
 export interface IncrementalCachedPageValue {
-  kind: 'PAGE'
+  kind: CachedRouteKind.PAGES
   // this needs to be a string since the cache expects to store
   // the string value
   html: string
@@ -146,11 +163,11 @@ export type ResponseCacheEntry = {
  * @param hasResolved whether the responseGenerator has resolved it's promise
  * @param previousCacheEntry the previous cache entry if it exists or the current
  */
-export type ResponseGenerator = (
-  hasResolved: boolean,
-  previousCacheEntry?: IncrementalCacheItem,
+export type ResponseGenerator = (state: {
+  hasResolved: boolean
+  previousCacheEntry?: IncrementalCacheItem
   isRevalidating?: boolean
-) => Promise<ResponseCacheEntry | null>
+}) => Promise<ResponseCacheEntry | null>
 
 export type IncrementalCacheItem = {
   revalidateAfter?: number | false
@@ -161,19 +178,29 @@ export type IncrementalCacheItem = {
   isMiss?: boolean
 } | null
 
-export type IncrementalCacheKindHint = 'app' | 'pages' | 'fetch'
+export const enum IncrementalCacheKind {
+  APP_PAGE = 'APP_PAGE',
+  APP_ROUTE = 'APP_ROUTE',
+  PAGES = 'PAGES',
+  FETCH = 'FETCH',
+  IMAGE = 'IMAGE',
+}
 
 export interface IncrementalCache {
   get: (
     key: string,
-    ctx?: {
-      /**
-       * The kind of cache entry to get. If not provided it will try to
-       * determine the kind from the filesystem.
-       */
-      kindHint?: IncrementalCacheKindHint
+    ctx: {
+      kind: IncrementalCacheKind
 
+      /**
+       * True if the route is enabled for PPR.
+       */
       isRoutePPREnabled?: boolean
+
+      /**
+       * True if this is a fallback request.
+       */
+      isFallback: boolean
     }
   ) => Promise<IncrementalCacheItem>
   set: (
@@ -181,7 +208,16 @@ export interface IncrementalCache {
     data: IncrementalCacheValue | null,
     ctx: {
       revalidate: Revalidate
+
+      /**
+       * True if the route is enabled for PPR.
+       */
       isRoutePPREnabled?: boolean
+
+      /**
+       * True if this is a fallback request.
+       */
+      isFallback: boolean
     }
   ) => Promise<void>
 }

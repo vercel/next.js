@@ -242,7 +242,7 @@ pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptE
     // We initialize the cell with a stream that is open, but has no values.
     // The first [compute_evaluate_stream] pipe call will pick up that stream.
     let (sender, receiver) = unbounded();
-    cell.update_shared(JavaScriptEvaluation(JavaScriptStream::new_open(
+    cell.update(JavaScriptEvaluation(JavaScriptStream::new_open(
         vec![],
         Box::new(receiver),
     )));
@@ -258,7 +258,7 @@ pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptE
                     // In cases when only [compute_evaluate_stream] is (re)executed, we need to
                     // update the old stream with a new value.
                     let (sender, receiver) = unbounded();
-                    cell.update_shared(JavaScriptEvaluation(JavaScriptStream::new_open(
+                    cell.update(JavaScriptEvaluation(JavaScriptStream::new_open(
                         vec![],
                         Box::new(receiver),
                     )));

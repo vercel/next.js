@@ -107,7 +107,7 @@ where
     }
 
     fn is_transient(&self) -> bool {
-        false
+        self.node.get_task_id().is_transient()
     }
 
     async fn resolve(&self) -> Result<Self> {
@@ -124,7 +124,7 @@ where
     }
 
     fn is_transient(&self) -> bool {
-        false
+        self.node.node.get_task_id().is_transient()
     }
 }
 
@@ -189,7 +189,7 @@ where
 
 impl<T> TaskInput for TransientInstance<T>
 where
-    T: Sync + Send,
+    T: Sync + Send + 'static,
 {
     fn is_transient(&self) -> bool {
         true

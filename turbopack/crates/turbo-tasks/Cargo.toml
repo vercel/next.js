@@ -10,9 +10,7 @@ bench = false
 
 [features]
 default = []
-assert_task_state = []
 tokio_tracing = ["tokio/tracing"]
-log_function_stats = []
 hanging_detection = []
 
 [lints]
@@ -40,14 +38,11 @@ serde_regex = "1.1.0"
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
-triomphe = { workspace = true, features = ["unsize"] }
+triomphe = { workspace = true, features = ["unsize", "unstable"] }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-macros = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 unsize = { workspace = true }
-
-[dev-dependencies]
-serde_test = "1.0.157"
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

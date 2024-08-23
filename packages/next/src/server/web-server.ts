@@ -81,8 +81,6 @@ export default class NextWebServer extends BaseServer<
       dev,
       requestHeaders,
       requestProtocol: 'https',
-      pagesDir: this.enabledDirectories.pages,
-      appDir: this.enabledDirectories.app,
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -355,10 +353,6 @@ export default class NextWebServer extends BaseServer<
 
   protected getHasStaticDir() {
     return false
-  }
-
-  protected async getFallback() {
-    return ''
   }
 
   protected getFontManifest() {

@@ -4,10 +4,10 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    manager::find_cell_by_type,
+    registry::get_value_type,
     task::shared_reference::TypedSharedReference,
     vc::{cast::VcCast, ReadVcFuture, VcValueTraitCast},
-    RawVc, Vc, VcValueTrait,
+    Vc, VcValueTrait,
 };
 
 /// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait
@@ -90,6 +90,10 @@ where
             _t: PhantomData,
         }
     }
+
+    pub fn ptr_eq(this: &Self, other: &Self) -> bool {
+        triomphe::Arc::ptr_eq(&this.shared_reference.1 .0, &other.shared_reference.1 .0)
+    }
 }
 
 impl<T> TraitRef<T>
@@ -99,12 +103,11 @@ where
     /// Returns a new cell that points to a value that implements the value
     /// trait `T`.
     pub fn cell(trait_ref: TraitRef<T>) -> Vc<T> {
-        // See Safety clause above.
-        let TypedSharedReference(ty, shared_ref) = trait_ref.shared_reference;
-        let local_cell = find_cell_by_type(ty);
-        local_cell.update_shared_reference(shared_ref);
-        let raw_vc: RawVc = local_cell.into();
-        raw_vc.into()
+        let TraitRef {
+            shared_reference, ..
+        } = trait_ref;
+        let value_type = get_value_type(shared_reference.0);
+        (value_type.raw_cell)(shared_reference).into()
     }
 }
 

@@ -19,7 +19,7 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         nanoid: '4.0.1',
       },
       env: {
-        NEXT_PRIVATE_FLYING_SHUTTLE: '1',
+        NEXT_PRIVATE_FLYING_SHUTTLE_STORE_ONLY: '1',
       },
     })
     let initialConfig: Record<string, any> = {}
@@ -49,20 +49,16 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
     }
 
     it('should have file hashes in trace files', async () => {
-      const deploymentsTracePath = path.join(
-        next.testDir,
+      const deploymentsTracePath =
         '.next/server/app/dashboard/deployments/[id]/page.js.nft.json'
-      )
-      const deploymentsTrace = JSON.parse(
-        await fs.promises.readFile(deploymentsTracePath, 'utf8')
-      )
-      const ssgTracePath = path.join(
-        next.testDir,
-        '.next/server/pages/ssg.js.nft.json'
-      )
-      const ssgTrace = JSON.parse(
-        await fs.promises.readFile(ssgTracePath, 'utf8')
-      )
+      const deploymentsTrace = await next.readJSON(deploymentsTracePath)
+      const dynamicClientTracePath =
+        '.next/server/app/dynamic-client/[category]/[id]/page.js.nft.json'
+      const dynamicClientTrace = await next.readJSON(dynamicClientTracePath)
+      const indexTracePath = '.next/server/pages/index.js.nft.json'
+      const indexTrace = await next.readJSON(indexTracePath)
+      const ssgTracePath = '.next/server/pages/ssg.js.nft.json'
+      const ssgTrace = await next.readJSON(ssgTracePath)
 
       expect(deploymentsTrace.fileHashes).toBeTruthy()
 
@@ -79,10 +75,53 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
       // ensure all files have corresponding fileHashes
       for (const [traceFile, traceFilePath] of [
         [deploymentsTrace, deploymentsTracePath],
+        [dynamicClientTrace, dynamicClientTracePath],
+        [indexTrace, indexTracePath],
         [ssgTrace, ssgTracePath],
       ]) {
+        // ensure client components are included in trace properly
+        const isIndexTrace = traceFilePath === indexTracePath
+        const isDynamicClientTrace = traceFilePath === dynamicClientTracePath
+
+        if (isIndexTrace || isDynamicClientTrace) {
+          const fileHashKeys = Object.keys(traceFile.fileHashes)
+          const expectedFiles = [
+            'button.js',
+            'button.module.css',
+
+            ...(isDynamicClientTrace ? ['global.css', 'style.css'] : []),
+
+            ...(isIndexTrace ? ['shared.module.css'] : []),
+          ]
+          const foundFiles = fileHashKeys.filter((item) =>
+            expectedFiles.some((expectedItem) => item.includes(expectedItem))
+          )
+
+          try {
+            expect(foundFiles.length).toBe(expectedFiles.length)
+          } catch (err) {
+            require('console').error(
+              traceFilePath,
+              'does not include all expected files',
+              JSON.stringify(
+                {
+                  expectedFiles,
+                  foundFiles,
+                },
+                null,
+                2
+              )
+            )
+            throw err
+          }
+        }
+
         for (const key of traceFile.files) {
-          const absoluteKey = path.join(path.dirname(traceFilePath), key)
+          const absoluteKey = path.join(
+            next.testDir,
+            path.dirname(traceFilePath),
+            key
+          )
           const stats = await fs.promises.stat(absoluteKey)
 
           if (
@@ -132,7 +171,11 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
       const index$ = await next.render$('/')
       const deployments$ = await next.render$('/dashboard/deployments/123')
       expect(index$('#my-env').text()).toContain(testEnvId)
+      expect(index$('#my-other-env').text()).toContain(`${testEnvId}-suffix`)
       expect(deployments$('#my-env').text()).toContain(testEnvId)
+      expect(deployments$('#my-other-env').text()).toContain(
+        `${testEnvId}-suffix`
+      )
 
       const testPaths = [
         { path: '/', content: 'hello from pages/index', type: 'pages' },
@@ -209,6 +252,11 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
     }
 
     it('should only rebuild just a changed app route correctly', async () => {
+      // our initial build was built in store-only mode so
+      // enable full version in successive builds
+      delete next.env['NEXT_PRIVATE_FLYING_SHUTTLE_STORE_ONLY']
+      next.env['NEXT_PRIVATE_FLYING_SHUTTLE'] = '1'
+
       await next.stop()
 
       const dataPath = 'app/dashboard/deployments/[id]/data.json'
