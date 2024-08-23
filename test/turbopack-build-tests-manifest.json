@@ -834,7 +834,6 @@
         "app-dir static/dynamic handling should handle partial-gen-params with layout dynamicParams = false correctly",
         "app-dir static/dynamic handling should handle partial-gen-params with page dynamicParams = false correctly",
         "app-dir static/dynamic handling should have correct prerender-manifest entries",
-        "app-dir static/dynamic handling should have deterministic etag across revalidates",
         "app-dir static/dynamic handling should have logs from cache-handler",
         "app-dir static/dynamic handling should honor fetch cache correctly",
         "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
@@ -935,7 +934,6 @@
         "app-dir static/dynamic handling should handle partial-gen-params with layout dynamicParams = false correctly",
         "app-dir static/dynamic handling should handle partial-gen-params with page dynamicParams = false correctly",
         "app-dir static/dynamic handling should have correct prerender-manifest entries",
-        "app-dir static/dynamic handling should have deterministic etag across revalidates",
         "app-dir static/dynamic handling should honor dynamic = \"force-static\" correctly",
         "app-dir static/dynamic handling should honor dynamic = \"force-static\" correctly (lazy)",
         "app-dir static/dynamic handling should honor fetch cache correctly",
@@ -1299,6 +1297,8 @@
     "test/e2e/app-dir/asset-prefix-with-basepath/asset-prefix-with-basepath.test.ts": {
       "passed": [
         "app-dir assetPrefix with basePath handling bundles should return 200 on served assetPrefix",
+        "app-dir assetPrefix with basePath handling rewrites rewrites that do not start with assetPrefix should still work",
+        "app-dir assetPrefix with basePath handling rewrites should respect rewrites that start with assetPrefix",
         "app-dir assetPrefix with basePath handling should redirect route when clicking link",
         "app-dir assetPrefix with basePath handling should redirect route when requesting it directly",
         "app-dir assetPrefix with basePath handling should redirect route when requesting it directly by browser",
@@ -1312,6 +1312,8 @@
     "test/e2e/app-dir/asset-prefix/asset-prefix.test.ts": {
       "passed": [
         "app-dir assetPrefix handling bundles should return 200 on served assetPrefix",
+        "app-dir assetPrefix handling rewrites rewrites that do not start with assetPrefix should still work",
+        "app-dir assetPrefix handling rewrites should respect rewrites that start with assetPrefix",
         "app-dir assetPrefix handling should redirect route when clicking link",
         "app-dir assetPrefix handling should redirect route when requesting it directly",
         "app-dir assetPrefix handling should redirect route when requesting it directly by browser",
@@ -1369,6 +1371,16 @@
     "test/e2e/app-dir/catchall-parallel-routes-group/catchall-parallel-routes-group.test.ts": {
       "passed": [
         "catchall-parallel-routes-group should work without throwing any errors about invalid pages"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/catchall-specificity/catchall-specificity.test.ts": {
+      "passed": [
+        "catchall-specificity should match the generic catchall correctly",
+        "catchall-specificity should match the specific catchall correctly"
       ],
       "failed": [],
       "pending": [],
@@ -1633,10 +1645,11 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/dynamic-in-generate-params/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app-dir - dynamic in generate params should be able to call fetch while generating multiple dynamic pages",
-        "app-dir - dynamic in generate params should be able to call while generating multiple dynamic sitemaps",
+        "app-dir - dynamic in generate params should be able to call while generating multiple dynamic sitemaps"
+      ],
+      "failed": [
         "app-dir - dynamic in generate params should render sitemap with generateSitemaps in force-dynamic config dynamically"
       ],
       "pending": [],
@@ -1972,6 +1985,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/interception-segments-two-levels-above/interception-segments-two-levels-above.test.ts": {
+      "passed": [
+        "interception-segments-two-levels-above should work when interception route is paired with segments two levels above"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/interoperability-with-pages/navigation.test.ts": {
       "passed": [
         "navigation between pages and app dir It should be able to navigate app -> pages",
@@ -2073,9 +2095,12 @@
         "app dir - metadata dynamic routes should statically optimized single image route",
         "app dir - metadata dynamic routes should support edge runtime of image routes",
         "app dir - metadata dynamic routes should use localhost for local prod and fallback to deployment url when metadataBase is falsy",
+        "app dir - metadata dynamic routes sitemap should generate static paths of dynamic sitemap in production",
         "app dir - metadata dynamic routes sitemap should handle sitemap.[ext] dynamic routes",
         "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
+        "app dir - metadata dynamic routes sitemap should optimize routes without multiple generation API as static routes",
         "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
+        "app dir - metadata dynamic routes sitemap should support generate multi sitemaps with generateSitemaps",
         "app dir - metadata dynamic routes sitemap should support images in sitemap",
         "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
         "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
@@ -2084,14 +2109,11 @@
         "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
         "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
         "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
-        "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
-        "app dir - metadata dynamic routes sitemap should generate static paths of dynamic sitemap in production",
-        "app dir - metadata dynamic routes sitemap should optimize routes without multiple generation API as static routes",
-        "app dir - metadata dynamic routes sitemap should support generate multi sitemaps with generateSitemaps"
+        "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
       ],
       "failed": [
-        "app dir - metadata dynamic routes should include default og font files in file trace",
-        "app dir - metadata dynamic routes route segment config should generate dynamic route if dynamic config is force-dynamic"
+        "app dir - metadata dynamic routes route segment config should generate dynamic route if dynamic config is force-dynamic",
+        "app dir - metadata dynamic routes should include default og font files in file trace"
       ],
       "pending": [],
       "flakey": [],
@@ -2238,6 +2260,24 @@
         "app dir - metadata twitter should support default twitter player card",
         "app dir - metadata twitter should support twitter card summary_large_image when image present",
         "app dir - metadata viewport should support dynamic viewport export"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/middleware-sitemap/matcher-exclude-sitemap/index.test.ts": {
+      "passed": [
+        "middleware-sitemap should not be affected by middleware if sitemap.xml is excluded from the matcher"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/middleware-sitemap/no-matcher/index.test.ts": {
+      "passed": [
+        "middleware-sitemap should be affected by middleware for sitemap.xml if there is no matcher"
       ],
       "failed": [],
       "pending": [],
@@ -3983,7 +4023,8 @@
     },
     "test/e2e/app-dir/searchparams-reuse-loading/searchparams-reuse-loading.test.ts": {
       "passed": [
-        "searchparams-reuse-loading should correctly return different RSC data for full prefetches with different searchParam values",
+        "searchparams-reuse-loading With Middleware should correctly return different RSC data for full prefetches with different searchParam values",
+        "searchparams-reuse-loading Without Middleware should correctly return different RSC data for full prefetches with different searchParam values",
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-full route",
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-less route",
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-less URL when navigating to param-full route",
@@ -4257,6 +4298,15 @@
       "passed": [
         "webpack-loader-conditions should render correctly on client side",
         "webpack-loader-conditions should render correctly on server site"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/webpack-loader-ts-transform/webpack-loader-ts-transform.test.ts": {
+      "passed": [
+        "webpack-loader-ts-transform should accept Typescript returned from Webpack loaders"
       ],
       "failed": [],
       "pending": [],
@@ -5008,6 +5058,16 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/i18n-navigations-middleware/i18n-navigations-middleware.test.ts": {
+      "passed": [
+        "i18n-navigations-middleware should respect selected locale when navigating to a dynamic route",
+        "i18n-navigations-middleware should respect selected locale when navigating to a static route"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/i18n-preferred-locale-detection/i18n-preferred-locale-detection.test.ts": {
       "passed": [
         "i18-preferred-locale-redirect should not request a path prefixed with my preferred detected locale when clicking link to index from a non-locale-prefixed path",
@@ -5079,6 +5139,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/instrumentation-hook/flying-shuttle/flying-shuttle.test.ts": {
+      "passed": [
+        "instrumentation-hook - flying-shuttle should only register without errors"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/instrumentation-hook/instrumentation-hook.test.ts": {
       "passed": [
         "Instrumentation Hook general should not overlap with a instrumentation page",
@@ -5086,6 +5155,7 @@
         "Instrumentation Hook with-async-node-page with-async-node-page should run the instrumentation hook",
         "Instrumentation Hook with-edge-api with-edge-api should run the instrumentation hook",
         "Instrumentation Hook with-edge-page with-edge-page should run the instrumentation hook",
+        "Instrumentation Hook with-esm-import with-esm-import should run the instrumentation hook",
         "Instrumentation Hook with-middleware with-middleware should run the instrumentation hook",
         "Instrumentation Hook with-node-api with-node-api should run the instrumentation hook",
         "Instrumentation Hook with-node-page with-node-page should run the instrumentation hook"
@@ -6887,7 +6957,8 @@
       "failed": [],
       "pending": [
         "app dir - with output export - dynamic missing gsp dev development mode should error when client component has generateStaticParams",
-        "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams"
+        "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams",
+        "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is set to true"
       ],
       "flakey": [],
       "runtimeError": false
@@ -15536,6 +15607,78 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/actions-tree-shaking/basic/basic-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - basic should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/basic/basic.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - basic should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/reexport/reexport-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - reexport should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - reexport should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/app-edge-middleware/app-edge-middleware.test.ts": {
       "passed": [
         "app edge middleware without node.js modules should not have any errors about using Node.js modules if not present in middleware"
@@ -15660,10 +15803,10 @@
       "runtimeError": false
     },
     "test/production/app-dir/metadata-static/metadata-static.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app dir - metadata should have statically optimized metadata routes by default"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16060,6 +16203,15 @@
     },
     "test/production/handle-already-sent-response/handle-already-sent-response.test.ts": {
       "passed": ["handle already sent response should work with fetch"],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/instrumentation/required-files-instrumentation-entry/required-files-instrumentation-entry.test.ts": {
+      "passed": [
+        "instrumentation - required-files-instrumentation-entry should not contain edge entry in required files manifest"
+      ],
       "failed": [],
       "pending": [],
       "flakey": [],
@@ -16562,78 +16714,6 @@
     "test/production/typescript-basic/typechecking.test.ts": {
       "passed": ["typechecking should typecheck"],
       "failed": [],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/production/app-dir/actions-tree-shaking/basic/basic.test.ts": {
-      "passed": [],
-      "failed": [
-        "actions-tree-shaking - basic should not have the unused action in the manifest"
-      ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions.test.ts": {
-      "passed": [],
-      "failed": [
-        "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
-      ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts": {
-      "passed": [],
-      "failed": [
-        "actions-tree-shaking - reexport should not have the unused action in the manifest"
-      ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions.test.ts": {
-      "passed": [],
-      "failed": [
-        "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
-      ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/production/app-dir/actions-tree-shaking/basic/basic-edge.test.ts": {
-      "passed": [],
-      "failed": [
-        "actions-tree-shaking - basic should not have the unused action in the manifest"
-      ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions-edge.test.ts": {
-      "passed": [],
-      "failed": [
-        "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
-      ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/production/app-dir/actions-tree-shaking/reexport/reexport-edge.test.ts": {
-      "passed": [],
-      "failed": [
-        "actions-tree-shaking - reexport should not have the unused action in the manifest"
-      ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions-edge.test.ts": {
-      "passed": [],
-      "failed": [
-        "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
-      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
