@@ -196,6 +196,14 @@ pub enum Effect {
         span: Span,
         in_try: bool,
     },
+    /// A reference to `new Worker(...)`.
+    Worker {
+        url: JsValue,
+        options: Option<JsValue>,
+        ast_path: Vec<AstParentKind>,
+        span: Span,
+        in_try: bool,
+    },
     /// Unreachable code, e.g. after a `return` statement.
     Unreachable { start_ast_path: Vec<AstParentKind> },
 }
@@ -239,6 +247,12 @@ impl Effect {
             Effect::ImportMeta { .. } => {}
             Effect::Url { input, .. } => {
                 input.normalize();
+            }
+            Effect::Worker { url, options, .. } => {
+                url.normalize();
+                if let Some(options) = options {
+                    options.normalize();
+                }
             }
             Effect::Unreachable { .. } => {}
         }
@@ -538,8 +552,6 @@ impl EvalContext {
 
             Expr::Await(AwaitExpr { arg, .. }) => self.eval(arg),
 
-            Expr::New(..) => JsValue::unknown_empty(true, "unknown new expression"),
-
             Expr::Seq(e) => {
                 let mut seq = e.exprs.iter().map(|e| self.eval(e)).peekable();
                 let mut side_effects = false;
@@ -571,6 +583,22 @@ impl EvalContext {
                 let obj = self.eval(obj);
                 let prop = self.eval(&computed.expr);
                 JsValue::member(Box::new(obj), Box::new(prop))
+            }
+
+            Expr::New(NewExpr {
+                callee: box callee,
+                args,
+                ..
+            }) => {
+                let args = args.as_deref().unwrap_or(&[]);
+                // We currently do not handle spreads.
+                if args.iter().any(|arg| arg.spread.is_some()) {
+                    return JsValue::unknown_empty(true, "spread in new calls is not supported");
+                }
+
+                let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
+                let callee = Box::new(self.eval(callee));
+                JsValue::new(callee, args)
             }
 
             Expr::Call(CallExpr {
@@ -1339,30 +1367,43 @@ impl VisitAstPath for Analyzer<'_> {
         new_expr: &'ast NewExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        // new URL("path", import.meta.url)
         if let box Expr::Ident(ref callee) = &new_expr.callee {
-            if &*callee.sym == "URL" && is_unresolved(callee, self.eval_context.unresolved_mark) {
+            if is_unresolved(callee, self.eval_context.unresolved_mark) {
                 if let Some(args) = &new_expr.args {
-                    if args.len() == 2 {
-                        if let Expr::Member(MemberExpr {
-                            obj:
-                                box Expr::MetaProp(MetaPropExpr {
-                                    kind: MetaPropKind::ImportMeta,
-                                    ..
-                                }),
-                            prop: MemberProp::Ident(prop),
-                            ..
-                        }) = &*args[1].expr
-                        {
-                            if &*prop.sym == "url" {
-                                self.add_effect(Effect::Url {
-                                    input: self.eval_context.eval(&args[0].expr),
-                                    ast_path: as_parent_path(ast_path),
-                                    span: new_expr.span(),
-                                    in_try: is_in_try(ast_path),
-                                });
+                    match &*callee.sym {
+                        // new URL("path", import.meta.url)
+                        "URL" if args.len() == 2 => {
+                            if let Expr::Member(MemberExpr {
+                                obj:
+                                    box Expr::MetaProp(MetaPropExpr {
+                                        kind: MetaPropKind::ImportMeta,
+                                        ..
+                                    }),
+                                prop: MemberProp::Ident(prop),
+                                ..
+                            }) = &*args[1].expr
+                            {
+                                if &*prop.sym == "url" {
+                                    self.add_effect(Effect::Url {
+                                        input: self.eval_context.eval(&args[0].expr),
+                                        ast_path: as_parent_path(ast_path),
+                                        span: new_expr.span(),
+                                        in_try: is_in_try(ast_path),
+                                    });
+                                }
                             }
                         }
+                        // new Worker(...)
+                        "Worker" if (args.len() == 1 || args.len() == 2) => {
+                            self.add_effect(Effect::Worker {
+                                url: self.eval_context.eval(&args[0].expr),
+                                options: args.get(1).map(|v| self.eval_context.eval(&v.expr)),
+                                ast_path: as_parent_path(ast_path),
+                                span: new_expr.span(),
+                                in_try: is_in_try(ast_path),
+                            });
+                        }
+                        _ => (),
                     }
                 }
             }
