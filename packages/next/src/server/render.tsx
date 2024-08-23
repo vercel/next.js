@@ -29,7 +29,7 @@ import type {
   PreviewData,
   ServerRuntime,
   SizeLimit,
-} from '../types'
+} from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'

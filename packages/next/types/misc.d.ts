@@ -446,33 +446,3 @@ declare module 'next/dist/compiled/zod' {
   import * as m from 'zod'
   export = m
 }
-
-declare module 'mini-css-extract-plugin'
-declare module 'next/dist/compiled/loader-utils3'
-
-declare module 'next/dist/compiled/webpack/webpack' {
-  import type webpackSources from 'webpack-sources1'
-  export function init(): void
-  export let BasicEvaluatedExpression: any
-  export let GraphHelpers: any
-  export let sources: typeof webpackSources
-  export let StringXor: any
-  export {
-    default as webpack,
-    Compiler,
-    Compilation,
-    Module,
-    Stats,
-    Template,
-    RuntimeModule,
-    RuntimeGlobals,
-    NormalModule,
-    ResolvePluginInstance,
-    ModuleFilenameHelpers,
-  } from 'webpack'
-  export type {
-    LoaderDefinitionFunction,
-    LoaderContext,
-    ModuleGraph,
-  } from 'webpack'
-}

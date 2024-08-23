@@ -9,7 +9,7 @@ import type {
   GetStaticPaths,
   GetServerSideProps,
   GetStaticProps,
-} from '../types'
+} from 'next/types'
 import type { RouteModule } from './future/route-modules/route-module'
 import type { BuildManifest } from './get-page-files'
 

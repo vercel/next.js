@@ -524,8 +524,8 @@ function createPendingCacheNode(
 
     // Create a deferred promise. This will be fulfilled once the dynamic
     // response is received from the server.
-    rsc: createDeferredRsc() as React.ReactNode,
-    head: isLeafSegment ? (createDeferredRsc() as React.ReactNode) : null,
+    rsc: createDeferredRsc(),
+    head: isLeafSegment ? createDeferredRsc() : null,
     lazyDataResolved: false,
   }
 }

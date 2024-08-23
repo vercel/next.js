@@ -26,17 +26,14 @@ describe('getHostname', () => {
       // With headers.
       expect(getHostname(parsed, { host: parsed.host })).toBe(hostname)
       // With an empty headers array.
-      // @ts-expect-error passing an array of strings is not allowed
       expect(getHostname(parsed, { host: [] })).toBe(hostname)
       // With a headers array.
-      // @ts-expect-error passing an array of strings is not allowed
       expect(getHostname({}, { host: [parsed.host] })).toBe(undefined)
     })
   })
 
   it('should return undefined for empty input', () => {
     expect(getHostname({})).toBe(undefined)
-    // @ts-expect-error passing an array of strings is not allowed
     expect(getHostname({}, { host: [] })).toBe(undefined)
   })
 })

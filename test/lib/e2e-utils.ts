@@ -1,6 +1,6 @@
 import path from 'path'
 import assert from 'assert'
-import { flushAllTraces, setGlobal, trace } from 'next/dist/trace'
+import { flushAllTraces, setGlobal, trace } from 'next/src/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { NextInstance, NextInstanceOpts } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'

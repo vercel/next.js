@@ -5,7 +5,7 @@ import type {
   Visitor,
   NodePath,
 } from 'next/dist/compiled/babel/core'
-import type { PageConfig } from '../../../types'
+import type { PageConfig } from 'next/types'
 import { STRING_LITERAL_DROP_BUNDLE } from '../../../shared/lib/constants'
 
 const CONFIG_KEY = 'config'

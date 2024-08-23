@@ -3,7 +3,7 @@
  */
 
 import { expectTypeOf } from 'expect-type'
-import { NextRequest } from 'next/dist/server/web/spec-extension/request'
+import { NextRequest } from 'next/src/server/web/spec-extension/request'
 
 it('should have 1 required parameter for constructor', () => {
   expect(NextRequest.length).toBe(1)

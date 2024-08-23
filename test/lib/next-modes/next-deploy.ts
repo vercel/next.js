@@ -9,7 +9,7 @@ import {
   TEST_TOKEN,
 } from '../../../scripts/reset-project.mjs'
 import fetch from 'node-fetch'
-import { Span } from 'next/dist/trace'
+import { Span } from 'next/src/trace'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string

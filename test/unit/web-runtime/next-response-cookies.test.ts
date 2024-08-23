@@ -2,7 +2,7 @@
  * @jest-environment @edge-runtime/jest-environment
  */
 
-import { NextResponse } from 'next/dist/server/web/spec-extension/response'
+import { NextResponse } from 'next/src/server/web/spec-extension/response'
 
 it('reflect .set into `set-cookie`', async () => {
   const response = new NextResponse()

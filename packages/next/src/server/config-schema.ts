@@ -4,7 +4,7 @@ import { VALID_LOADERS } from '../shared/lib/image-config'
 import { z } from 'next/dist/compiled/zod'
 import type zod from 'next/dist/compiled/zod'
 
-import type { SizeLimit } from '../types'
+import type { SizeLimit } from '../../types'
 import type {
   ExportPathMap,
   TurboLoaderItem,

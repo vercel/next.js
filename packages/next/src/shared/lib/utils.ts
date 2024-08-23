@@ -5,7 +5,7 @@ import type { Env } from '@next/env'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
-import type { PreviewData } from '../../types'
+import type { PreviewData } from 'next/types'
 import type { COMPILER_NAMES } from './constants'
 import type fs from 'fs'
 

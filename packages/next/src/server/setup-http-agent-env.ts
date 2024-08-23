@@ -1,4 +1,4 @@
-import type { NextConfig } from '../types'
+import type { NextConfig } from '../../types'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
 

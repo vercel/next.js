@@ -3,7 +3,7 @@ import type { NextApiResponse } from '../../../shared/lib/utils'
 import { checkIsOnDemandRevalidate } from '../.'
 import type { __ApiPreviewProps } from '../.'
 import type { BaseNextRequest, BaseNextResponse } from '../../base-http'
-import type { PreviewData } from '../../../types'
+import type { PreviewData } from 'next/types'
 
 import {
   clearPreviewData,

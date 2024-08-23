@@ -26,7 +26,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-import type { NextConfig } from '../../../types'
+import type { NextConfig } from '../../../../types'
 import type { WebpackLayerName } from '../../../lib/constants'
 import { isWasm, transform } from '../../swc'
 import { getLoaderSWCOptions } from '../../swc/options'

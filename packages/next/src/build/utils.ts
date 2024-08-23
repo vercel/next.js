@@ -6,7 +6,7 @@ import type {
   GetStaticPathsResult,
   PageConfig,
   ServerRuntime,
-} from '../types'
+} from 'next/types'
 import type { BuildManifest } from '../server/get-page-files'
 import type {
   Redirect,
