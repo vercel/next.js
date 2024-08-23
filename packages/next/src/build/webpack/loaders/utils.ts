@@ -5,14 +5,28 @@ import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'ico', 'svg']
 const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
 
+// Determine if the whole module is server action, 'use server' in the top level of module
+export function isActionServerLayerEntryModule(mod: {
+  resource: string
+  buildInfo?: any
+}) {
+  const rscInfo = mod.buildInfo.rsc
+  return !!(rscInfo?.actions && rscInfo?.type === RSC_MODULE_TYPES.server)
+}
+
+// Determine if the whole module is client action, 'use server' in nested closure in the client module
+function isActionClientLayerModule(mod: { resource: string; buildInfo?: any }) {
+  const rscInfo = mod.buildInfo.rsc
+  return !!(rscInfo?.actions && rscInfo?.type === RSC_MODULE_TYPES.client)
+}
+
 export function isClientComponentEntryModule(mod: {
   resource: string
   buildInfo?: any
 }) {
   const rscInfo = mod.buildInfo.rsc
   const hasClientDirective = rscInfo?.isClientRef
-  const isActionLayerEntry =
-    rscInfo?.actions && rscInfo?.type === RSC_MODULE_TYPES.client
+  const isActionLayerEntry = isActionClientLayerModule(mod)
   return (
     hasClientDirective || isActionLayerEntry || imageRegex.test(mod.resource)
   )
@@ -39,7 +53,7 @@ export function isCSSMod(mod: {
   )
 }
 
-export function getActions(mod: {
+export function getActionsFromBuildInfo(mod: {
   resource: string
   buildInfo?: any
 }): undefined | string[] {

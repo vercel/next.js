@@ -8,7 +8,9 @@ pub use super::{
     magic_any::MagicAny,
     manager::{find_cell_by_type, notify_scheduled_tasks, spawn_detached_for_testing},
 };
-use crate::debug::ValueDebugFormatString;
+use crate::{
+    debug::ValueDebugFormatString, task::TaskOutput, ResolvedValue, TaskInput, TaskPersistence, Vc,
+};
 
 #[inline(never)]
 pub async fn value_debug_format_field(value: ValueDebugFormatString<'_>) -> String {
@@ -19,6 +21,21 @@ pub async fn value_debug_format_field(value: ValueDebugFormatString<'_>) -> Stri
         },
         Err(err) => format!("{0:?}", err),
     }
+}
+
+pub fn get_non_local_persistence_from_inputs(inputs: &impl TaskInput) -> TaskPersistence {
+    if inputs.is_transient() {
+        TaskPersistence::Transient
+    } else {
+        TaskPersistence::Persistent
+    }
+}
+
+pub fn assert_returns_resolved_value<ReturnType, Rv>()
+where
+    ReturnType: TaskOutput<Return = Vc<Rv>>,
+    Rv: ResolvedValue + Send,
+{
 }
 
 #[macro_export]

@@ -2063,25 +2063,19 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/metadata-dynamic-routes/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app dir - metadata dynamic routes icon image routes should render apple icon with dynamic routes",
         "app dir - metadata dynamic routes icon image routes should render icon with dynamic routes",
         "app dir - metadata dynamic routes robots.txt should handle robots.[ext] dynamic routes",
-        "app dir - metadata dynamic routes route segment config should generate dynamic route if dynamic config is force-dynamic",
         "app dir - metadata dynamic routes should generate unique path for image routes under group routes",
-        "app dir - metadata dynamic routes should include default og font files in file trace",
         "app dir - metadata dynamic routes should inject dynamic metadata properly to head",
         "app dir - metadata dynamic routes should pick configured metadataBase instead of deployment url for canonical url",
         "app dir - metadata dynamic routes should statically optimized single image route",
         "app dir - metadata dynamic routes should support edge runtime of image routes",
         "app dir - metadata dynamic routes should use localhost for local prod and fallback to deployment url when metadataBase is falsy",
-        "app dir - metadata dynamic routes sitemap should generate static paths of dynamic sitemap in production",
         "app dir - metadata dynamic routes sitemap should handle sitemap.[ext] dynamic routes",
         "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
-        "app dir - metadata dynamic routes sitemap should optimize routes without multiple generation API as static routes",
         "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
-        "app dir - metadata dynamic routes sitemap should support generate multi sitemaps with generateSitemaps",
         "app dir - metadata dynamic routes sitemap should support images in sitemap",
         "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
         "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
@@ -2090,7 +2084,14 @@
         "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
         "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
         "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
-        "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
+        "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
+        "app dir - metadata dynamic routes sitemap should generate static paths of dynamic sitemap in production",
+        "app dir - metadata dynamic routes sitemap should optimize routes without multiple generation API as static routes",
+        "app dir - metadata dynamic routes sitemap should support generate multi sitemaps with generateSitemaps"
+      ],
+      "failed": [
+        "app dir - metadata dynamic routes should include default og font files in file trace",
+        "app dir - metadata dynamic routes route segment config should generate dynamic route if dynamic config is force-dynamic"
       ],
       "pending": [],
       "flakey": [],
@@ -7952,12 +7953,13 @@
         "CSS Support production mode CSS Import from node_modules useLightnincsss(true) should fail the build"
       ],
       "failed": [
-        "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
-        "CSS Support CSS Cleanup on Render Failure useLightnincsss(true) production mode not have intermediary page styles on error rendering",
         "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
         "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS"
       ],
-      "pending": [],
+      "pending": [
+        "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
+        "CSS Support CSS Cleanup on Render Failure useLightnincsss(true) production mode not have intermediary page styles on error rendering"
+      ],
       "flakey": [],
       "runtimeError": false
     },
@@ -9021,8 +9023,7 @@
       "runtimeError": false
     },
     "test/integration/edge-runtime-with-node.js-apis/test/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Edge route using Node.js API production mode does not warn on using process.arch",
         "Edge route using Node.js API production mode does not warn on using process.version",
         "Edge route using Node.js API production mode warns for BroadcastChannel during build",
@@ -9066,6 +9067,7 @@
         "Middleware using Node.js API production mode warns for process.getuid during build",
         "Middleware using Node.js API production mode warns for setImmediate during build"
       ],
+      "failed": [],
       "pending": [
         "Edge route using Node.js API development mode does not throw on using process.arch",
         "Edge route using Node.js API development mode does not throw on using process.version",
@@ -10867,43 +10869,6 @@
       "failed": [],
       "pending": [
         "Building Firebase production mode Throws an error when building with firebase dependency with worker_threads"
-      ],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/integration/font-optimization/test/index.test.js": {
-      "passed": [
-        "Font Optimization with-google Font optimization for SSR apps production mode should skip this optimization for AMP pages",
-        "Font Optimization with-google Font optimization for unreachable font definitions. production mode should fallback to normal stylesheet if the contents of the fonts are unreachable",
-        "Font Optimization with-google Font optimization for unreachable font definitions. production mode should not inline multiple fallback link tag",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should skip this optimization for AMP pages",
-        "Font Optimization with-typekit Font optimization for unreachable font definitions. production mode should fallback to normal stylesheet if the contents of the fonts are unreachable",
-        "Font Optimization with-typekit Font optimization for unreachable font definitions. production mode should not inline multiple fallback link tag"
-      ],
-      "failed": [
-        "Font Optimization font override production mode should inline font-override values",
-        "Font Optimization font override with size adjust production mode should inline font-override values",
-        "Font Optimization invalid configuration production mode should show a proper error if assetPrefix starts with .",
-        "Font Optimization with-google Font optimization for SSR apps production mode should add preconnect tag",
-        "Font Optimization with-google Font optimization for SSR apps production mode should inline the google fonts for SSR pages",
-        "Font Optimization with-google Font optimization for SSR apps production mode should inline the google fonts for static pages",
-        "Font Optimization with-google Font optimization for SSR apps production mode should inline the google fonts for static pages with Next/Head",
-        "Font Optimization with-google Font optimization for SSR apps production mode should only inline included fonts per page",
-        "Font Optimization with-google Font optimization for SSR apps production mode should pass nonce to the inlined font definition",
-        "Font Optimization with-google Font optimization for SSR apps production mode should work for fonts loaded on navigation",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should add preconnect tag",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should inline the typekit fonts for SSR pages",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should inline the typekit fonts for static pages",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should inline the typekit fonts for static pages with Next/Head",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should only inline included fonts per page",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should pass nonce to the inlined font definition",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should work for fonts loaded on navigation"
-      ],
-      "pending": [
-        "Font Optimization Spread operator regression on <link>",
-        "Font Optimization makeStylesheetInert regression",
-        "Font Optimization with-google Font optimization for SSR apps production mode should work when build is cached",
-        "Font Optimization with-typekit Font optimization for SSR apps production mode should work when build is cached"
       ],
       "flakey": [],
       "runtimeError": false
@@ -14954,7 +14919,7 @@
         "config telemetry production mode emits telemetry for usage of swc plugins"
       ],
       "failed": [
-        "config telemetry production mode emits telemery for usage of optimizeFonts, image, script & dynamic",
+        "config telemetry production mode emits telemery for usage of image, script & dynamic",
         "config telemetry production mode emits telemetry for middleware related options",
         "config telemetry production mode emits telemetry for transpilePackages",
         "config telemetry production mode emits telemetry for usage of @vercel/og",
@@ -15672,7 +15637,8 @@
       "failed": [
         "fetch-cache should have correct fetchUrl field for fetches and unstable_cache",
         "fetch-cache should not retry for failed fetch-cache GET",
-        "fetch-cache should retry 3 times when revalidate times out"
+        "fetch-cache should retry 3 times when revalidate times out",
+        "fetch-cache should update cache TTL even if cache data does not change"
       ],
       "pending": [],
       "flakey": [],
@@ -16597,6 +16563,78 @@
     "test/production/typescript-basic/typechecking.test.ts": {
       "passed": ["typechecking should typecheck"],
       "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/basic/basic.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - basic should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - reexport should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/basic/basic-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - basic should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/reexport/reexport-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - reexport should not have the unused action in the manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false

@@ -58,13 +58,21 @@ export default class ResponseCache implements ResponseCacheBase {
       isPrefetch?: boolean
       incrementalCache: IncrementalCache
       isRoutePPREnabled?: boolean
+      isFallback: boolean
     }
   ): Promise<ResponseCacheEntry | null> {
     // If there is no key for the cache, we can't possibly look this up in the
     // cache so just return the result of the response generator.
-    if (!key) return responseGenerator(false, null)
+    if (!key) {
+      return responseGenerator({ hasResolved: false, previousCacheEntry: null })
+    }
 
-    const { incrementalCache, isOnDemandRevalidate = false } = context
+    const {
+      incrementalCache,
+      isOnDemandRevalidate = false,
+      isFallback = false,
+      isRoutePPREnabled = false,
+    } = context
 
     const response = await this.batcher.batch(
       { key, isOnDemandRevalidate },
@@ -89,6 +97,7 @@ export default class ResponseCache implements ResponseCacheBase {
             ? await incrementalCache.get(key, {
                 kind,
                 isRoutePPREnabled: context.isRoutePPREnabled,
+                isFallback,
               })
             : null
 
@@ -112,11 +121,11 @@ export default class ResponseCache implements ResponseCacheBase {
             }
           }
 
-          const cacheEntry = await responseGenerator(
-            resolved,
-            cachedResponse,
-            true
-          )
+          const cacheEntry = await responseGenerator({
+            hasResolved: resolved,
+            previousCacheEntry: cachedResponse,
+            isRevalidating: true,
+          })
 
           // If the cache entry couldn't be generated, we don't want to cache
           // the result.
@@ -143,6 +152,8 @@ export default class ResponseCache implements ResponseCacheBase {
             resolved = true
           }
 
+          // We want to persist the result only if it has a revalidate value
+          // defined.
           if (typeof resolveValue.revalidate !== 'undefined') {
             if (this.minimalMode) {
               this.previousCacheItem = {
@@ -153,7 +164,8 @@ export default class ResponseCache implements ResponseCacheBase {
             } else {
               await incrementalCache.set(key, resolveValue.value, {
                 revalidate: resolveValue.revalidate,
-                isRoutePPREnabled: context.isRoutePPREnabled,
+                isRoutePPREnabled,
+                isFallback,
               })
             }
           }
@@ -168,7 +180,8 @@ export default class ResponseCache implements ResponseCacheBase {
                 Math.max(cachedResponse.revalidate || 3, 3),
                 30
               ),
-              isRoutePPREnabled: context.isRoutePPREnabled,
+              isRoutePPREnabled,
+              isFallback,
             })
           }
 

@@ -10,7 +10,7 @@ use next_api::{
     project::{ProjectContainer, ProjectOptions},
     route::{Endpoint, Route},
 };
-use turbo_tasks::{RcStr, TransientInstance, TurboTasks, Vc};
+use turbo_tasks::{RcStr, ReadConsistency, TransientInstance, TurboTasks, Vc};
 use turbo_tasks_malloc::TurboMalloc;
 use turbo_tasks_memory::MemoryBackend;
 
@@ -261,7 +261,8 @@ async fn hmr(tt: &TurboTasks<MemoryBackend>, project: Vc<ProjectContainer>) -> R
                 Ok(Vc::<()>::cell(()))
             }
         });
-        tt.wait_task_completion(task, true).await?;
+        tt.wait_task_completion(task, ReadConsistency::Strong)
+            .await?;
         let e = start.elapsed();
         if e.as_millis() > 10 {
             tracing::info!("HMR: {:?} {:?}", ident, e);

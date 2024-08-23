@@ -5131,7 +5131,7 @@
             } else internalInstance.queue = null;
           }
           var nextChildren = callRenderInDEV(instance);
-          if (1 === request.status) throw AbortSigil;
+          if (1 === request.status) throw null;
           instance.props !== resolvedProps &&
             (didWarnAboutReassigningProps ||
               console.error(
@@ -5163,7 +5163,7 @@
             props,
             void 0
           );
-          if (1 === request.status) throw AbortSigil;
+          if (1 === request.status) throw null;
           var hasId = 0 !== localIdCounter,
             actionStateCount = actionStateCounter,
             actionStateMatchingIndex$jscomp$0 = actionStateMatchingIndex;
@@ -5387,8 +5387,7 @@
                     (boundarySegment.status = COMPLETED);
                 } catch (thrownValue) {
                   throw (
-                    ((boundarySegment.status =
-                      thrownValue === AbortSigil ? 3 : 4),
+                    ((boundarySegment.status = 1 === request.status ? 3 : 4),
                     thrownValue)
                   );
                 } finally {
@@ -5440,7 +5439,7 @@
                   }
                 } catch (thrownValue$2) {
                   newBoundary.status = CLIENT_RENDERED;
-                  if (thrownValue$2 === AbortSigil) {
+                  if (1 === request.status) {
                     contentRootSegment.status = 3;
                     var error = request.fatalError;
                   } else
@@ -5601,7 +5600,7 @@
               return;
             case REACT_LAZY_TYPE:
               var Component = callLazyInitInDEV(type);
-              if (1 === request.status) throw AbortSigil;
+              if (1 === request.status) throw null;
               renderElement(request, task, keyPath, Component, props, ref);
               return;
           }
@@ -5892,7 +5891,7 @@
               );
             case REACT_LAZY_TYPE:
               node = callLazyInitInDEV(node);
-              if (1 === request.status) throw AbortSigil;
+              if (1 === request.status) throw null;
               renderNodeDestructive(request, task, node, childIndex);
               return;
           }
@@ -6580,8 +6579,13 @@
                     )),
                     logRecoverableError(request, task, boundary, null),
                     fatalError(request, task, boundary, null)))
-              : (logRecoverableError(request, error, boundary, null),
-                fatalError(request, error, boundary, null));
+              : null !== request.trackedPostpones && null !== segment
+                ? ((replay = request.trackedPostpones),
+                  logRecoverableError(request, error, boundary, null),
+                  trackPostpone(request, replay, task, segment),
+                  finishedTask(request, null, segment))
+                : (logRecoverableError(request, error, boundary, null),
+                  fatalError(request, error, boundary, null));
             return;
           }
           replay.pendingTasks--;
@@ -6606,25 +6610,54 @@
           request.pendingRootTasks--;
           0 === request.pendingRootTasks && completeShell(request);
         }
-      } else
-        boundary.pendingTasks--,
-          boundary.status !== CLIENT_RENDERED &&
-            ((boundary.status = CLIENT_RENDERED),
-            (task = getThrownInfo(task.componentStack)),
+      } else {
+        boundary.pendingTasks--;
+        replay = getThrownInfo(task.componentStack);
+        var _trackedPostpones2 = request.trackedPostpones;
+        if (boundary.status !== CLIENT_RENDERED) {
+          if (null !== _trackedPostpones2 && null !== segment)
+            return (
+              "object" === typeof error &&
+              null !== error &&
+              error.$$typeof === REACT_POSTPONE_TYPE
+                ? logPostpone(request, error.message, replay, null)
+                : logRecoverableError(request, error, replay, null),
+              trackPostpone(request, _trackedPostpones2, task, segment),
+              boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
+                return abortTask(fallbackTask, request, error);
+              }),
+              boundary.fallbackAbortableTasks.clear(),
+              finishedTask(request, boundary, segment)
+            );
+          boundary.status = CLIENT_RENDERED;
+          if (
             "object" === typeof error &&
             null !== error &&
             error.$$typeof === REACT_POSTPONE_TYPE
-              ? (logPostpone(request, error.message, task, null),
-                (segment = "POSTPONE"))
-              : (segment = logRecoverableError(request, error, task, null)),
-            encodeErrorForBoundary(boundary, segment, error, task, !0),
-            untrackBoundary(request, boundary),
-            boundary.parentFlushed &&
-              request.clientRenderedBoundaries.push(boundary)),
-          boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
-            return abortTask(fallbackTask, request, error);
-          }),
-          boundary.fallbackAbortableTasks.clear();
+          ) {
+            logPostpone(request, error.message, replay, null);
+            if (null !== request.trackedPostpones && null !== segment) {
+              trackPostpone(request, request.trackedPostpones, task, segment);
+              finishedTask(request, task.blockedBoundary, segment);
+              boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
+                return abortTask(fallbackTask, request, error);
+              });
+              boundary.fallbackAbortableTasks.clear();
+              return;
+            }
+            task = "POSTPONE";
+          } else task = logRecoverableError(request, error, replay, null);
+          boundary.status = CLIENT_RENDERED;
+          encodeErrorForBoundary(boundary, task, error, replay, !0);
+          untrackBoundary(request, boundary);
+          boundary.parentFlushed &&
+            request.clientRenderedBoundaries.push(boundary);
+        }
+        boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
+          return abortTask(fallbackTask, request, error);
+        });
+        boundary.fallbackAbortableTasks.clear();
+      }
       request.allPendingTasks--;
       0 === request.allPendingTasks && completeAll(request);
     }
@@ -6831,7 +6864,9 @@
                     erroredReplay(
                       request$jscomp$0,
                       request.blockedBoundary,
-                      x === AbortSigil ? request$jscomp$0.fatalError : x,
+                      1 === request$jscomp$0.status
+                        ? request$jscomp$0.fatalError
+                        : x,
                       errorInfo,
                       request.replay.nodes,
                       request.replay.slots,
@@ -6882,92 +6917,132 @@
                     var x$jscomp$0 =
                       thrownValue === SuspenseException
                         ? getSuspendedThenable()
-                        : thrownValue === AbortSigil
+                        : 1 === request.status
                           ? request.fatalError
                           : thrownValue;
-                    if ("object" === typeof x$jscomp$0 && null !== x$jscomp$0) {
-                      if ("function" === typeof x$jscomp$0.then) {
-                        segment$jscomp$0.status = PENDING;
-                        task$jscomp$0.thenableState =
-                          getThenableStateAfterSuspending();
-                        var ping$jscomp$0 = task$jscomp$0.ping;
-                        x$jscomp$0.then(ping$jscomp$0, ping$jscomp$0);
-                        break a;
-                      }
-                      if (
-                        null !== request.trackedPostpones &&
-                        x$jscomp$0.$$typeof === REACT_POSTPONE_TYPE
-                      ) {
-                        var trackedPostpones = request.trackedPostpones;
-                        task$jscomp$0.abortSet.delete(task$jscomp$0);
-                        var postponeInfo = getThrownInfo(
+                    if (
+                      1 === request.status &&
+                      null !== request.trackedPostpones
+                    ) {
+                      var trackedPostpones = request.trackedPostpones,
+                        thrownInfo = getThrownInfo(
                           task$jscomp$0.componentStack
                         );
-                        logPostpone(
-                          request,
-                          x$jscomp$0.message,
-                          postponeInfo,
-                          task$jscomp$0.debugTask
-                        );
-                        trackPostpone(
-                          request,
-                          trackedPostpones,
-                          task$jscomp$0,
-                          segment$jscomp$0
-                        );
-                        finishedTask(
-                          request,
-                          task$jscomp$0.blockedBoundary,
-                          segment$jscomp$0
-                        );
-                        break a;
+                      task$jscomp$0.abortSet.delete(task$jscomp$0);
+                      "object" === typeof x$jscomp$0 &&
+                      null !== x$jscomp$0 &&
+                      x$jscomp$0.$$typeof === REACT_POSTPONE_TYPE
+                        ? logPostpone(
+                            request,
+                            x$jscomp$0.message,
+                            thrownInfo,
+                            task$jscomp$0.debugTask
+                          )
+                        : logRecoverableError(
+                            request,
+                            x$jscomp$0,
+                            thrownInfo,
+                            task$jscomp$0.debugTask
+                          );
+                      trackPostpone(
+                        request,
+                        trackedPostpones,
+                        task$jscomp$0,
+                        segment$jscomp$0
+                      );
+                      finishedTask(
+                        request,
+                        task$jscomp$0.blockedBoundary,
+                        segment$jscomp$0
+                      );
+                    } else {
+                      if (
+                        "object" === typeof x$jscomp$0 &&
+                        null !== x$jscomp$0
+                      ) {
+                        if ("function" === typeof x$jscomp$0.then) {
+                          segment$jscomp$0.status = PENDING;
+                          task$jscomp$0.thenableState =
+                            getThenableStateAfterSuspending();
+                          var ping$jscomp$0 = task$jscomp$0.ping;
+                          x$jscomp$0.then(ping$jscomp$0, ping$jscomp$0);
+                          break a;
+                        }
+                        if (
+                          null !== request.trackedPostpones &&
+                          x$jscomp$0.$$typeof === REACT_POSTPONE_TYPE
+                        ) {
+                          var _trackedPostpones3 = request.trackedPostpones;
+                          task$jscomp$0.abortSet.delete(task$jscomp$0);
+                          var postponeInfo = getThrownInfo(
+                            task$jscomp$0.componentStack
+                          );
+                          logPostpone(
+                            request,
+                            x$jscomp$0.message,
+                            postponeInfo,
+                            task$jscomp$0.debugTask
+                          );
+                          trackPostpone(
+                            request,
+                            _trackedPostpones3,
+                            task$jscomp$0,
+                            segment$jscomp$0
+                          );
+                          finishedTask(
+                            request,
+                            task$jscomp$0.blockedBoundary,
+                            segment$jscomp$0
+                          );
+                          break a;
+                        }
                       }
-                    }
-                    var errorInfo$jscomp$0 = getThrownInfo(
-                      task$jscomp$0.componentStack
-                    );
-                    task$jscomp$0.abortSet.delete(task$jscomp$0);
-                    segment$jscomp$0.status = 4;
-                    var boundary = task$jscomp$0.blockedBoundary,
-                      debugTask = task$jscomp$0.debugTask;
-                    "object" === typeof x$jscomp$0 &&
-                    null !== x$jscomp$0 &&
-                    x$jscomp$0.$$typeof === REACT_POSTPONE_TYPE
-                      ? (logPostpone(
-                          request,
-                          x$jscomp$0.message,
-                          errorInfo$jscomp$0,
-                          debugTask
-                        ),
-                        (prevTaskInDEV = "POSTPONE"))
-                      : (prevTaskInDEV = logRecoverableError(
-                          request,
-                          x$jscomp$0,
-                          errorInfo$jscomp$0,
-                          debugTask
-                        ));
-                    null === boundary
-                      ? fatalError(
-                          request,
-                          x$jscomp$0,
-                          errorInfo$jscomp$0,
-                          debugTask
-                        )
-                      : (boundary.pendingTasks--,
-                        boundary.status !== CLIENT_RENDERED &&
-                          ((boundary.status = CLIENT_RENDERED),
-                          encodeErrorForBoundary(
-                            boundary,
-                            prevTaskInDEV,
+                      var errorInfo$jscomp$0 = getThrownInfo(
+                        task$jscomp$0.componentStack
+                      );
+                      task$jscomp$0.abortSet.delete(task$jscomp$0);
+                      segment$jscomp$0.status = 4;
+                      var boundary = task$jscomp$0.blockedBoundary,
+                        debugTask = task$jscomp$0.debugTask;
+                      "object" === typeof x$jscomp$0 &&
+                      null !== x$jscomp$0 &&
+                      x$jscomp$0.$$typeof === REACT_POSTPONE_TYPE
+                        ? (logPostpone(
+                            request,
+                            x$jscomp$0.message,
+                            errorInfo$jscomp$0,
+                            debugTask
+                          ),
+                          (prevTaskInDEV = "POSTPONE"))
+                        : (prevTaskInDEV = logRecoverableError(
+                            request,
                             x$jscomp$0,
                             errorInfo$jscomp$0,
-                            !1
-                          ),
-                          untrackBoundary(request, boundary),
-                          boundary.parentFlushed &&
-                            request.clientRenderedBoundaries.push(boundary)));
-                    request.allPendingTasks--;
-                    0 === request.allPendingTasks && completeAll(request);
+                            debugTask
+                          ));
+                      null === boundary
+                        ? fatalError(
+                            request,
+                            x$jscomp$0,
+                            errorInfo$jscomp$0,
+                            debugTask
+                          )
+                        : (boundary.pendingTasks--,
+                          boundary.status !== CLIENT_RENDERED &&
+                            ((boundary.status = CLIENT_RENDERED),
+                            encodeErrorForBoundary(
+                              boundary,
+                              prevTaskInDEV,
+                              x$jscomp$0,
+                              errorInfo$jscomp$0,
+                              !1
+                            ),
+                            untrackBoundary(request, boundary),
+                            boundary.parentFlushed &&
+                              request.clientRenderedBoundaries.push(boundary)));
+                      request.allPendingTasks--;
+                      0 === request.allPendingTasks && completeAll(request);
+                    }
                   } finally {
                     currentTaskInDEV = request$jscomp$0;
                   }
@@ -7593,9 +7668,10 @@
     }
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
-      performWork(request);
-      null === request.trackedPostpones &&
-        safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
+      null !== request.trackedPostpones
+        ? performWork(request)
+        : (performWork(request),
+          safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks));
     }
     function enqueueFlush(request) {
       if (
@@ -9151,7 +9227,6 @@
       FLUSHED = 2,
       POSTPONED = 5,
       CLOSED = 3,
-      AbortSigil = {},
       currentRequest = null,
       didWarnAboutBadClass = {},
       didWarnAboutContextTypes = {},
@@ -9176,5 +9251,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.0.0-experimental-187dd6a7-20240806";
+    exports.version = "19.0.0-experimental-eb3ad065-20240822";
   })();

@@ -355,10 +355,6 @@ export default class NextWebServer extends BaseServer<
     return false
   }
 
-  protected async getFallback() {
-    return ''
-  }
-
   protected getFontManifest() {
     return undefined
   }

@@ -97,6 +97,11 @@ type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
    * The error handler for the request.
    */
   onError?: Parameters<typeof apiResolver>[8]
+
+  /**
+   * whether multi-zone flag is enabled for draft mode
+   */
+  multiZoneDraftMode?: boolean
 }
 
 export type PagesAPIRouteModuleOptions = RouteModuleOptions<
@@ -148,6 +153,7 @@ export class PagesAPIRouteModule extends RouteModule<
         trustHostHeader: context.trustHostHeader,
         allowedRevalidateHeaderKeys: context.allowedRevalidateHeaderKeys,
         hostname: context.hostname,
+        multiZoneDraftMode: context.multiZoneDraftMode,
       },
       context.minimalMode,
       context.dev,

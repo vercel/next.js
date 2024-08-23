@@ -15,7 +15,7 @@ System Requirements:
 
 ## Automatic Installation
 
-We recommend starting a new Next.js app using [`create-next-app`](/docs/app/api-reference/create-next-app), which sets up everything automatically for you. To create a project, run:
+We recommend starting a new Next.js app using [`create-next-app`](/docs/app/api-reference/cli/create-next-app), which sets up everything automatically for you. To create a project, run:
 
 ```bash filename="Terminal"
 npx create-next-app@latest
@@ -35,7 +35,7 @@ Would you like to customize the import alias (`@/*` by default)? No / Yes
 What import alias would you like configured? @/*
 ```
 
-After the prompts, [`create-next-app`](/docs/app/api-reference/create-next-app) will create a folder with your project name and install the required dependencies.
+After the prompts, [`create-next-app`](/docs/app/api-reference/cli/create-next-app) will create a folder with your project name and install the required dependencies.
 
 If you're new to Next.js, see the [project structure](/docs/getting-started/project-structure) docs for an overview of all the possible files and folders in your application.
 
@@ -67,10 +67,10 @@ Open your `package.json` file and add the following `scripts`:
 
 These scripts refer to the different stages of developing an application:
 
-- `dev`: runs [`next dev`](/docs/app/api-reference/next-cli#development) to start Next.js in development mode.
-- `build`: runs [`next build`](/docs/app/api-reference/next-cli#build) to build the application for production usage.
-- `start`: runs [`next start`](/docs/app/api-reference/next-cli#production) to start a Next.js production server.
-- `lint`: runs [`next lint`](/docs/app/api-reference/next-cli#lint) to set up Next.js' built-in ESLint configuration.
+- `dev`: runs [`next dev`](/docs/app/api-reference/cli/next#next-dev-options) to start Next.js in development mode.
+- `build`: runs [`next build`](/docs/app/api-reference/cli/next#next-build-options) to build the application for production usage.
+- `start`: runs [`next start`](/docs/app/api-reference/cli/next#next-start-options) to start a Next.js production server.
+- `lint`: runs [`next lint`](/docs/app/api-reference/cli/next#next-lint-options) to set up Next.js' built-in ESLint configuration.
 
 ### Creating directories
 
