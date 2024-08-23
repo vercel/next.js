@@ -79,6 +79,7 @@ export async function streamToString(
   const decoder = new TextDecoder('utf-8', { fatal: true })
   let string = ''
 
+  // @ts-expect-error TypeScript gets this wrong (https://nodejs.org/api/webstreams.html#async-iteration)
   for await (const chunk of stream) {
     string += decoder.decode(chunk, { stream: true })
   }

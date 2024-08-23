@@ -1,8 +1,8 @@
-/// <reference types="node" preserve="true" />
-/// <reference types="react" preserve="true" />
-/// <reference types="react/experimental" preserve="true" />
-/// <reference types="react-dom" preserve="true" />
-/// <reference types="react-dom/experimental" preserve="true" />
+/// <reference types="node" />
+/// <reference types="react" />
+/// <reference types="react/experimental" />
+/// <reference types="react-dom" />
+/// <reference types="react-dom/experimental" />
 
 import type { Agent as HttpAgent } from 'http'
 import type { Agent as HttpsAgent } from 'https'
