@@ -199,10 +199,10 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           z.boolean().optional(),
           z.object({
             displayName: z.boolean().optional(),
-            topLevelImportPaths: z.array(z.string()).min(1).optional(),
+            topLevelImportPaths: z.array(z.string()).optional(),
             ssr: z.boolean().optional(),
             fileName: z.boolean().optional(),
-            meaninglessFileNames: z.array(z.string()).min(1).optional(),
+            meaninglessFileNames: z.array(z.string()).optional(),
             minify: z.boolean().optional(),
             transpileTemplateLiterals: z.boolean().optional(),
             namespace: z.string().min(1).optional(),
