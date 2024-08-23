@@ -1646,6 +1646,10 @@ impl JsValue {
                         "require.cache",
                         "The CommonJS require.cache object: https://nodejs.org/api/modules.html#requirecache"
                     ),
+                    WellKnownObjectKind::ImportMeta => (
+                        "import.meta",
+                        "The import.meta object"
+                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -3586,6 +3590,7 @@ pub enum WellKnownObjectKind {
     NodeProtobufLoader,
     NodeBuffer,
     RequireCache,
+    ImportMeta,
 }
 
 impl WellKnownObjectKind {
@@ -3602,6 +3607,7 @@ impl WellKnownObjectKind {
             Self::NodeProcessEnv => Some(&["process", "env"]),
             Self::NodeBuffer => Some(&["Buffer"]),
             Self::RequireCache => Some(&["require", "cache"]),
+            Self::ImportMeta => Some(&["import", "meta"]),
             _ => None,
         }
     }

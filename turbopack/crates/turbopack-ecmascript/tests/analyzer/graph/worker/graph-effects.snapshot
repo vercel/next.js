@@ -15,11 +15,9 @@
                 ),
                 Member(
                     3,
-                    Unknown {
-                        original_value: None,
-                        reason: "unsupported expression",
-                        has_side_effects: true,
-                    },
+                    WellKnownObject(
+                        ImportMeta,
+                    ),
                     Constant(
                         Str(
                             Atom(
@@ -182,11 +180,9 @@
         in_try: false,
     },
     Member {
-        obj: Unknown {
-            original_value: None,
-            reason: "unsupported expression",
-            has_side_effects: true,
-        },
+        obj: WellKnownObject(
+            ImportMeta,
+        ),
         prop: Constant(
             Str(
                 Atom(

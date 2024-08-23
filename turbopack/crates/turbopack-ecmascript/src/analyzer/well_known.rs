@@ -549,6 +549,9 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
         (WellKnownFunctionKind::NodeResolveFrom, Some("silent")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
         }
+        (WellKnownFunctionKind::Import { .. }, Some("meta")) => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
+        }
         #[allow(unreachable_patterns)]
         (kind, _) => {
             return (
