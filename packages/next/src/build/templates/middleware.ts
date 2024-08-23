@@ -6,7 +6,7 @@ import { adapter } from '../../server/web/adapter'
 
 // Import the userland code.
 import * as _mod from 'VAR_USERLAND'
-import { edgeInstrumentationOnRequestError } from '../../server/web/globals'
+// import { edgeInstrumentationOnRequestError } from '../../server/web/globals'
 
 const mod = { ..._mod }
 const handler = mod.middleware || mod.default
@@ -26,23 +26,23 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
     try {
       return await fn(...args)
     } catch (err) {
-      const req = args[0]
-      const url = new URL(req.url)
-      const resource = url.pathname + url.search
-      await edgeInstrumentationOnRequestError(
-        err,
-        {
-          path: resource,
-          method: req.method,
-          headers: Object.fromEntries(req.headers.entries()),
-        },
-        {
-          routerKind: 'Pages Router',
-          routePath: '/middleware',
-          routeType: 'middleware',
-          revalidateReason: undefined,
-        }
-      )
+      // const req = args[0]
+      // const url = new URL(req.url)
+      // const resource = url.pathname + url.search
+      // await edgeInstrumentationOnRequestError(
+      //   err,
+      //   {
+      //     path: resource,
+      //     method: req.method,
+      //     headers: Object.fromEntries(req.headers.entries()),
+      //   },
+      //   {
+      //     routerKind: 'Pages Router',
+      //     routePath: '/middleware',
+      //     routeType: 'middleware',
+      //     revalidateReason: undefined,
+      //   }
+      // )
 
       throw err
     }

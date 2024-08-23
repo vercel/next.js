@@ -36,10 +36,11 @@ const { requestAsyncStorage, staticGenerationAsyncStorage, serverHooks } =
   routeModule
 
 function patchFetch() {
-  return _patchFetch({
-    staticGenerationAsyncStorage,
-    requestAsyncStorage,
-  })
+  return _patchFetch({ serverHooks, staticGenerationAsyncStorage })
+  // return _patchFetch({
+  //   staticGenerationAsyncStorage,
+  //   requestAsyncStorage,
+  // })
 }
 
 export {

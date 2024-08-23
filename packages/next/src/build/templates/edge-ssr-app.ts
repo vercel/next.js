@@ -13,6 +13,7 @@ import type { NextConfigComplete } from '../../server/config-shared'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
 import { createServerModuleMap } from '../../server/app-render/action-utils'
+import { getEdgePreviewProps } from '../../server/web/get-edge-preview-props'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -71,6 +72,13 @@ const render = getRender({
   buildManifest,
   renderToHTML,
   reactLoadableManifest,
+  prerenderManifest: {
+    version: -1 as any, // letting us know this doesn't conform to spec
+    routes: {},
+    dynamicRoutes: {},
+    notFoundRoutes: [],
+    preview: getEdgePreviewProps(),
+  },
   clientReferenceManifest: isServerComponent ? rscManifest : null,
   serverActionsManifest: isServerComponent ? rscServerManifest : null,
   serverActions: isServerComponent ? serverActions : undefined,

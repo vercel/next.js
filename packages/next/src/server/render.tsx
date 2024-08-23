@@ -470,10 +470,9 @@ export async function renderToHTMLImpl(
     renderOpts.Component
   const OriginComponent = Component
 
-  let serverComponentsInlinedTransformStream: TransformStream<
-    Uint8Array,
-    Uint8Array
-  > | null = null
+  let serverComponentsInlinedTransformStream:
+    | TransformStream<Uint8Array, Uint8Array>
+    | any = null
 
   const isFallback = !!query.__nextFallback
   const notFoundSrcPage = query.__nextNotFoundSrcPage
