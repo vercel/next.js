@@ -197,6 +197,12 @@ const PAGES: Record<
     selector: '#hello2',
     color: 'rgb(0, 0, 255)',
   },
+  vendor: {
+    group: 'vendor',
+    url: '/vendor',
+    selector: '#vendor1',
+    color: 'rgb(0, 255, 0)',
+  },
 }
 
 const allPairs = getPairs(Object.keys(PAGES))
