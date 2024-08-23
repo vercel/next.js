@@ -26,9 +26,20 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    reactCompiler: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
 Optionally, you can configure the compiler to run in "opt-in" mode as follows:
 
-```ts filename="next.config.ts"
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -40,6 +51,19 @@ const nextConfig: NextConfig = {
 }
 
 export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    reactCompiler: {
+      compilationMode: 'annotation',
+    },
+  },
+}
+
+module.exports = nextConfig
 ```
 
 > **Note:** The React Compiler is currently only possible to use in Next.js through a Babel plugin. This will opt-out of Next.js's default [Rust-based compiler](/docs/architecture/nextjs-compiler), which could result in slower build times. We are working on support for the React Compiler as our default compiler.
