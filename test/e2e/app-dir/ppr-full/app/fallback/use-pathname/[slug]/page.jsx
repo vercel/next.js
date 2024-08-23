@@ -11,7 +11,7 @@ function Dynamic() {
   return <div data-slug={pathname}>{pathname}</div>
 }
 
-export default () => {
+export default function Page() {
   return (
     <Suspense fallback={<div data-fallback>Dynamic Loading...</div>}>
       <Dynamic />
