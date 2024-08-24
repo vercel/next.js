@@ -25,11 +25,12 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../../shared/lib/constants'
 import {
-  getActions,
+  getActionsFromBuildInfo,
   generateActionId,
   isClientComponentEntryModule,
   isCSSMod,
   regexCSS,
+  isActionServerLayerEntryModule,
 } from '../loaders/utils'
 import {
   traverseModules,
@@ -75,6 +76,11 @@ const pluginState = getProxiedPluginState({
   // A map to track "action" -> "list of bundles".
   serverActions: {} as ActionManifest['node'],
   edgeServerActions: {} as ActionManifest['edge'],
+
+  usedActions: {
+    node: {} as Record<string, Set<string>>,
+    edge: {} as Record<string, Set<string>>,
+  },
 
   actionModServerId: {} as Record<
     string,
@@ -158,12 +164,25 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
   return dedupedCSSImports
 }
 
+// Collection of action module path and action names per runtime.
+type UsedActionMap = {
+  node: Record<string, Set<string>>
+  edge: Record<string, Set<string>>
+}
+type UsedActionPerEntry = {
+  [entryName: string]: UsedActionMap
+}
+
 export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
   encryptionKey: string
   isEdgeServer: boolean
   assetPrefix: string
+  webpackRuntime: string
+
+  // Collect the used actions based on the entry name and runtime.
+  usedActions: UsedActionPerEntry
 
   constructor(options: Options) {
     this.dev = options.dev
@@ -171,6 +190,43 @@ export class FlightClientEntryPlugin {
     this.isEdgeServer = options.isEdgeServer
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
     this.encryptionKey = options.encryptionKey
+    this.webpackRuntime = this.isEdgeServer
+      ? EDGE_RUNTIME_WEBPACK
+      : DEFAULT_RUNTIME_WEBPACK
+
+    this.usedActions = {}
+  }
+
+  getUsedActionsInEntry(
+    entryName: string,
+    modResource: string
+  ): Set<string> | undefined {
+    const runtime = this.isEdgeServer ? 'edge' : 'node'
+    const actionsRuntimeMap = this.usedActions[entryName]
+    const actionMap = actionsRuntimeMap ? actionsRuntimeMap[runtime] : undefined
+    return actionMap ? actionMap[modResource] : undefined
+  }
+
+  setUsedActionsInEntry(
+    entryName: string,
+    modResource: string,
+    actionNames: string[]
+  ) {
+    const runtime = this.isEdgeServer ? 'edge' : 'node'
+    if (!this.usedActions[entryName]) {
+      this.usedActions[entryName] = {
+        node: {},
+        edge: {},
+      }
+    }
+    if (!this.usedActions[entryName][runtime]) {
+      this.usedActions[entryName][runtime] = {}
+    }
+    const actionsMap = this.usedActions[entryName][runtime]
+    if (!actionsMap[modResource]) {
+      actionsMap[modResource] = new Set()
+    }
+    actionNames.forEach((name) => actionsMap[modResource].add(name))
   }
 
   apply(compiler: webpack.Compiler) {
@@ -284,6 +340,7 @@ export class FlightClientEntryPlugin {
 
         const { clientComponentImports, actionImports, cssImports } =
           this.collectComponentInfoFromServerEntryDependency({
+            entryName: name,
             entryRequest,
             compilation,
             resolvedModule: connection.resolvedModule,
@@ -356,10 +413,10 @@ export class FlightClientEntryPlugin {
             ...clientEntryToInject.clientComponentImports,
             ...(
               dedupedCSSImports[clientEntryToInject.absolutePagePath] || []
-            ).reduce((res, curr) => {
+            ).reduce<ClientComponentImports>((res, curr) => {
               res[curr] = new Set()
               return res
-            }, {} as ClientComponentImports),
+            }, {}),
           },
         })
 
@@ -399,11 +456,6 @@ export class FlightClientEntryPlugin {
     for (const [name, actionEntryImports] of Object.entries(
       actionMapsPerEntry
     )) {
-      for (const [dep, actionNames] of actionEntryImports) {
-        for (const actionName of actionNames) {
-          createdActions.add(name + '@' + dep + '@' + actionName)
-        }
-      }
       addActionEntryList.push(
         this.injectActionEntry({
           compiler,
@@ -411,6 +463,7 @@ export class FlightClientEntryPlugin {
           actions: actionEntryImports,
           entryName: name,
           bundlePath: name,
+          createdActions,
         })
       )
     }
@@ -450,6 +503,7 @@ export class FlightClientEntryPlugin {
       // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
       // add aggregate them.
       const actionEntryImports = this.collectClientActionsFromDependencies({
+        entryName: name,
         compilation,
         dependencies: ssrEntryDependencies,
       })
@@ -497,6 +551,7 @@ export class FlightClientEntryPlugin {
             entryName: name,
             bundlePath: name,
             fromClient: true,
+            createdActions,
           })
         )
       }
@@ -506,9 +561,11 @@ export class FlightClientEntryPlugin {
   }
 
   collectClientActionsFromDependencies({
+    entryName,
     compilation,
     dependencies,
   }: {
+    entryName: string
     compilation: webpack.Compilation
     dependencies: ReturnType<typeof webpack.EntryPlugin.createDependency>[]
   }) {
@@ -526,36 +583,45 @@ export class FlightClientEntryPlugin {
       entryRequest: string
       resolvedModule: any
     }) => {
-      const collectActionsInDep = (mod: webpack.NormalModule): void => {
+      const collectActionsInDep = (
+        mod: webpack.NormalModule,
+        ids: string[]
+      ): void => {
         if (!mod) return
 
-        const modPath: string = mod.resourceResolveData?.path || ''
-        // We have to always use the resolved request here to make sure the
-        // server and client are using the same module path (required by RSC), as
-        // the server compiler and client compiler have different resolve configs.
-        let modRequest: string =
-          modPath + (mod.resourceResolveData?.query || '')
+        const modResource = getModuleResource(mod)
 
-        // For the barrel optimization, we need to use the match resource instead
-        // because there will be 2 modules for the same file (same resource path)
-        // but they're different modules and can't be deduped via `visitedModule`.
-        // The first module is a virtual re-export module created by the loader.
-        if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
-          modRequest = mod.matchResource + ':' + modRequest
+        if (!modResource) return
+
+        const actions = getActionsFromBuildInfo(mod)
+
+        // Collect used exported actions.
+        if (visitedModule.has(modResource) && actions) {
+          this.setUsedActionsInEntry(entryName, modResource, ids)
         }
 
-        if (!modRequest || visitedModule.has(modRequest)) return
-        visitedModule.add(modRequest)
+        if (visitedModule.has(modResource)) return
 
-        const actions = getActions(mod)
+        visitedModule.add(modResource)
+
         if (actions) {
-          collectedActions.set(modRequest, actions)
+          collectedActions.set(modResource, actions)
         }
 
+        // Collect used exported actions transversely.
         getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
-          (connection) => {
+          (connection: any) => {
+            let dependencyIds: string[] = []
+            const depModule = connection.dependency
+            if (depModule?.ids) {
+              dependencyIds.push(...depModule.ids)
+            } else {
+              dependencyIds = depModule.category === 'esm' ? [] : ['*']
+            }
+
             collectActionsInDep(
-              connection.resolvedModule as webpack.NormalModule
+              connection.resolvedModule as webpack.NormalModule,
+              dependencyIds
             )
           }
         )
@@ -567,7 +633,7 @@ export class FlightClientEntryPlugin {
         !entryRequest.includes('next-flight-action-entry-loader')
       ) {
         // Traverse the module graph to find all client components.
-        collectActionsInDep(resolvedModule)
+        collectActionsInDep(resolvedModule, [])
       }
     }
 
@@ -578,8 +644,8 @@ export class FlightClientEntryPlugin {
         ssrEntryModule,
         compilation.moduleGraph
       )) {
-        const dependency = connection.dependency!
-        const request = (dependency as unknown as webpack.NormalModule).request
+        const depModule = connection.dependency
+        const request = (depModule as unknown as webpack.NormalModule).request
 
         // It is possible that the same entry is added multiple times in the
         // connection graph. We can just skip these to speed up the process.
@@ -597,10 +663,12 @@ export class FlightClientEntryPlugin {
   }
 
   collectComponentInfoFromServerEntryDependency({
+    entryName,
     entryRequest,
     compilation,
     resolvedModule,
   }: {
+    entryName: string
     entryRequest: string
     compilation: webpack.Compilation
     resolvedModule: any /* Dependency */
@@ -610,7 +678,8 @@ export class FlightClientEntryPlugin {
     actionImports: [string, string[]][]
   } {
     // Keep track of checked modules to avoid infinite loops with recursive imports.
-    const visited = new Set()
+    const visitedOfClientComponentsTraverse = new Set()
+    const visitedOfActionTraverse = new Set()
 
     // Info to collect.
     const clientComponentImports: ClientComponentImports = {}
@@ -623,34 +692,14 @@ export class FlightClientEntryPlugin {
     ): void => {
       if (!mod) return
 
-      const isCSS = isCSSMod(mod)
+      const modResource = getModuleResource(mod)
 
-      const modPath: string = mod.resourceResolveData?.path || ''
-      const modQuery = mod.resourceResolveData?.query || ''
-      // We have to always use the resolved request here to make sure the
-      // server and client are using the same module path (required by RSC), as
-      // the server compiler and client compiler have different resolve configs.
-      let modRequest: string = modPath + modQuery
-
-      // Context modules don't have a resource path, we use the identifier instead.
-      if (mod.constructor.name === 'ContextModule') {
-        modRequest = (mod as any)._identifier
-      }
-
-      // For the barrel optimization, we need to use the match resource instead
-      // because there will be 2 modules for the same file (same resource path)
-      // but they're different modules and can't be deduped via `visitedModule`.
-      // The first module is a virtual re-export module created by the loader.
-      if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
-        modRequest = mod.matchResource + ':' + modRequest
-      }
-
-      if (!modRequest) return
-      if (visited.has(modRequest)) {
-        if (clientComponentImports[modRequest]) {
+      if (!modResource) return
+      if (visitedOfClientComponentsTraverse.has(modResource)) {
+        if (clientComponentImports[modResource]) {
           addClientImport(
             mod,
-            modRequest,
+            modResource,
             clientComponentImports,
             importedIdentifiers,
             false
@@ -658,37 +707,33 @@ export class FlightClientEntryPlugin {
         }
         return
       }
-      visited.add(modRequest)
+      visitedOfClientComponentsTraverse.add(modResource)
 
-      const actions = getActions(mod)
+      const actions = getActionsFromBuildInfo(mod)
       if (actions) {
-        actionImports.push([modRequest, actions])
+        actionImports.push([modResource, actions])
       }
 
-      const webpackRuntime = this.isEdgeServer
-        ? EDGE_RUNTIME_WEBPACK
-        : DEFAULT_RUNTIME_WEBPACK
-
-      if (isCSS) {
+      if (isCSSMod(mod)) {
         const sideEffectFree =
           mod.factoryMeta && (mod.factoryMeta as any).sideEffectFree
 
         if (sideEffectFree) {
           const unused = !compilation.moduleGraph
             .getExportsInfo(mod)
-            .isModuleUsed(webpackRuntime)
+            .isModuleUsed(this.webpackRuntime)
 
           if (unused) return
         }
 
-        CSSImports.add(modRequest)
+        CSSImports.add(modResource)
       } else if (isClientComponentEntryModule(mod)) {
-        if (!clientComponentImports[modRequest]) {
-          clientComponentImports[modRequest] = new Set()
+        if (!clientComponentImports[modResource]) {
+          clientComponentImports[modResource] = new Set()
         }
         addClientImport(
           mod,
-          modRequest,
+          modResource,
           clientComponentImports,
           importedIdentifiers,
           true
@@ -700,7 +745,6 @@ export class FlightClientEntryPlugin {
       getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
         (connection: any) => {
           let dependencyIds: string[] = []
-          const depModule = connection.resolvedModule
 
           // `ids` are the identifiers that are imported from the dependency,
           // if it's present, it's an array of strings.
@@ -710,13 +754,60 @@ export class FlightClientEntryPlugin {
             dependencyIds = ['*']
           }
 
-          filterClientComponents(depModule, dependencyIds)
+          filterClientComponents(connection.resolvedModule, dependencyIds)
+        }
+      )
+    }
+
+    const filterUsedActions = (
+      mod: webpack.NormalModule,
+      importedIdentifiers: string[]
+    ): void => {
+      if (!mod) return
+
+      const modResource = getModuleResource(mod)
+
+      if (!modResource) return
+      if (visitedOfActionTraverse.has(modResource)) {
+        if (this.getUsedActionsInEntry(entryName, modResource)) {
+          this.setUsedActionsInEntry(
+            entryName,
+            modResource,
+            importedIdentifiers
+          )
+        }
+        return
+      }
+      visitedOfActionTraverse.add(modResource)
+
+      if (isActionServerLayerEntryModule(mod)) {
+        // `ids` are the identifiers that are imported from the dependency,
+        // if it's present, it's an array of strings.
+        this.setUsedActionsInEntry(entryName, modResource, importedIdentifiers)
+
+        return
+      }
+
+      getModuleReferencesInOrder(mod, compilation.moduleGraph).forEach(
+        (connection: any) => {
+          let dependencyIds: string[] = []
+          const depModule = connection.dependency
+          if (depModule?.ids) {
+            dependencyIds.push(...depModule.ids)
+          } else {
+            dependencyIds = depModule.category === 'esm' ? [] : ['*']
+          }
+
+          filterUsedActions(connection.resolvedModule, dependencyIds)
         }
       )
     }
 
     // Traverse the module graph to find all client components.
     filterClientComponents(resolvedModule, [])
+
+    // Traverse the module graph to find all used actions.
+    filterUsedActions(resolvedModule, [])
 
     return {
       clientComponentImports,
@@ -860,15 +951,48 @@ export class FlightClientEntryPlugin {
     entryName,
     bundlePath,
     fromClient,
+    createdActions,
   }: {
     compiler: webpack.Compiler
     compilation: webpack.Compilation
     actions: Map<string, string[]>
     entryName: string
     bundlePath: string
+    createdActions: Set<string>
     fromClient?: boolean
   }) {
+    // Filter out the unused actions before create action entry.
+    for (const [filePath, names] of actions.entries()) {
+      const usedActionNames = this.getUsedActionsInEntry(entryName, filePath)
+      if (!usedActionNames) continue
+      const containsAll = usedActionNames.has('*')
+      if (usedActionNames && !containsAll) {
+        const filteredNames = names.filter(
+          (name) => usedActionNames.has(name) || isInlineActionIdentifier(name)
+        )
+        actions.set(filePath, filteredNames)
+      } else if (!containsAll) {
+        // If we didn't collect the used, we erase them from the collected actions
+        // to avoid creating the action entry.
+        if (
+          names.filter((name) => !isInlineActionIdentifier(name)).length === 0
+        ) {
+          actions.delete(filePath)
+        }
+      }
+    }
+
     const actionsArray = Array.from(actions.entries())
+
+    for (const [dep, actionNames] of actions) {
+      for (const actionName of actionNames) {
+        createdActions.add(entryName + '@' + dep + '@' + actionName)
+      }
+    }
+
+    if (actionsArray.length === 0) {
+      return Promise.resolve()
+    }
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),
@@ -878,9 +1002,10 @@ export class FlightClientEntryPlugin {
     const currentCompilerServerActions = this.isEdgeServer
       ? pluginState.edgeServerActions
       : pluginState.serverActions
-    for (const [p, names] of actionsArray) {
-      for (const name of names) {
-        const id = generateActionId(p, name)
+
+    for (const [actionFilePath, actionNames] of actionsArray) {
+      for (const name of actionNames) {
+        const id = generateActionId(actionFilePath, name)
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},
@@ -1029,7 +1154,7 @@ function addClientImport(
   modRequest: string,
   clientComponentImports: ClientComponentImports,
   importedIdentifiers: string[],
-  isFirstImport: boolean
+  isFirstVisitModule: boolean
 ) {
   const clientEntryType = getModuleBuildInfo(mod).rsc?.clientEntryType
   const isCjsModule = clientEntryType === 'cjs'
@@ -1044,7 +1169,7 @@ function addClientImport(
     // If there's collected import path with named import identifiers,
     // or there's nothing in collected imports are empty.
     // we should include the whole module.
-    if (!isFirstImport && [...clientImportsSet][0] !== '*') {
+    if (!isFirstVisitModule && [...clientImportsSet][0] !== '*') {
       clientComponentImports[modRequest] = new Set(['*'])
     }
   } else {
@@ -1068,4 +1193,32 @@ function addClientImport(
       }
     }
   }
+}
+
+function getModuleResource(mod: webpack.NormalModule): string {
+  const modPath: string = mod.resourceResolveData?.path || ''
+  const modQuery = mod.resourceResolveData?.query || ''
+  // We have to always use the resolved request here to make sure the
+  // server and client are using the same module path (required by RSC), as
+  // the server compiler and client compiler have different resolve configs.
+  let modResource: string = modPath + modQuery
+
+  // Context modules don't have a resource path, we use the identifier instead.
+  if (mod.constructor.name === 'ContextModule') {
+    modResource = mod.identifier()
+  }
+
+  // For the barrel optimization, we need to use the match resource instead
+  // because there will be 2 modules for the same file (same resource path)
+  // but they're different modules and can't be deduped via `visitedModule`.
+  // The first module is a virtual re-export module created by the loader.
+  if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
+    modResource = mod.matchResource + ':' + modResource
+  }
+  return modResource
+}
+
+// x-ref crates/next-custom-transforms/src/transforms/server_actions.rs `gen_ident` funcition
+function isInlineActionIdentifier(name: string) {
+  return name.startsWith('$$ACTION_')
 }
