@@ -16,8 +16,8 @@ use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, Browser
 use turbopack_core::{
     chunk::{module_id_strategies::ModuleIdStrategy, ChunkingContext},
     compile_time_info::{
-        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
-        FreeVarReferences,
+        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
+        FreeVarReference, FreeVarReferences,
     },
     condition::ContextCondition,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
@@ -68,7 +68,11 @@ fn defines(define_env: &IndexMap<RcStr, RcStr>) -> CompileTimeDefines {
 
     for (k, v) in define_env {
         defines
-            .entry(k.split('.').map(|s| s.into()).collect::<Vec<RcStr>>())
+            .entry(
+                k.split('.')
+                    .map(|s| DefineableNameSegment::Name(s.into()))
+                    .collect::<Vec<_>>(),
+            )
             .or_insert_with(|| {
                 let val = serde_json::from_str(v);
                 match val {
