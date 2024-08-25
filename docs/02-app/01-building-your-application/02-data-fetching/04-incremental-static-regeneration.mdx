@@ -458,6 +458,7 @@ This will make the Next.js server console log ISR cache hits and misses. You can
 ## Caveats
 
 - ISR is only supported when using the Node.js runtime (default).
+- ISR is not supported when creating a [Static Export](/docs/app/building-your-application/deploying/static-exports).
 - If you have multiple `fetch` requests in a statically rendered route, and each has a different `revalidate` frequency, the lowest time will be used for all requests.
 - Middleware won't be executed for on-demand ISR requests, meaning any path rewrites or logic in Middleware will not be applied. Ensure you are revalidating the exact path. For example, `/post/1` instead of a rewritten `/post-1`.
 
