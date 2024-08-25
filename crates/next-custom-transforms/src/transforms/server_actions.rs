@@ -2,6 +2,7 @@ use std::{
     collections::BTreeMap,
     convert::{TryFrom, TryInto},
     mem::take,
+    sync::Arc,
 };
 
 use hex::encode as hex_encode;
@@ -12,7 +13,7 @@ use swc_core::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         util::take::Take,
-        BytePos, FileName, Span, SyntaxContext, DUMMY_SP,
+        BytePos, FileName, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
@@ -39,10 +40,12 @@ pub fn server_actions<C: Comments>(
     file_name: &FileName,
     config: Config,
     comments: C,
+    source_map: Arc<SourceMap>,
 ) -> impl VisitMut + Fold {
     as_folder(ServerActions {
         config,
         comments,
+        source_map,
         file_name: file_name.to_string(),
         start_pos: BytePos(0),
         in_action_file: false,
@@ -85,6 +88,7 @@ struct ServerActions<C: Comments> {
     config: Config,
     file_name: String,
     comments: C,
+    source_map: Arc<SourceMap>,
 
     start_pos: BytePos,
     in_action_file: bool,
@@ -1323,8 +1327,11 @@ fn annotate_ident_as_action(
     // Add the proxy wrapper call `registerServerReference($$id, $$bound, myAction,
     // maybe_orig_action)`.
 
+    // Map the call's span to the identifier's span.
+    let ident_span = ident.span;
+
     let proxy_expr = Expr::Call(CallExpr {
-        span: DUMMY_SP,
+        span: ident_span,
         callee: quote_ident!("registerServerReference").as_callee(),
         args: vec![
             // $$id

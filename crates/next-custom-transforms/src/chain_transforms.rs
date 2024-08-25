@@ -272,7 +272,7 @@ where
                             config.clone(),
                             path,
                             file.src_hash as u32,
-                            cm,
+                            cm.clone(),
                             comments.clone(),
                         ))
                     })
@@ -291,6 +291,7 @@ where
                 &file.name,
                 config.clone(),
                 comments.clone(),
+                cm
             )),
             None => Either::Right(noop()),
         },

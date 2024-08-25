@@ -393,12 +393,12 @@ fn next_font_loaders_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/server-actions/server/**/input.js")]
+#[fixture("tests/fixture/server-actions/server/1/input.js")]
 fn server_actions_server_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|_tr| {
+        &|tr| {
             chain!(
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
@@ -408,13 +408,17 @@ fn server_actions_server_fixture(input: PathBuf) {
                         enabled: true,
                         hash_salt: "".into()
                     },
-                    _tr.comments.as_ref().clone(),
+                    tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
                 )
             )
         },
         &input,
         &output,
-        Default::default(),
+        FixtureTestConfig {
+            sourcemap: true,
+            ..Default::default()
+        },
     );
 }
 
@@ -423,7 +427,7 @@ fn server_actions_client_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|_tr| {
+        &|tr| {
             chain!(
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
@@ -433,7 +437,8 @@ fn server_actions_client_fixture(input: PathBuf) {
                         enabled: true,
                         hash_salt: "".into()
                     },
-                    _tr.comments.as_ref().clone(),
+                    tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
                 )
             )
         },

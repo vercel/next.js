@@ -180,6 +180,7 @@ fn react_server_actions_server_errors(input: PathBuf) {
                         hash_salt: "".into()
                     },
                     tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
                 )
             )
         },
@@ -217,6 +218,7 @@ fn react_server_actions_client_errors(input: PathBuf) {
                         hash_salt: "".into()
                     },
                     tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
                 )
             )
         },

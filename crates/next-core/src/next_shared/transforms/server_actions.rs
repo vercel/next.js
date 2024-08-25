@@ -50,6 +50,7 @@ impl CustomTransformer for NextServerActions {
                 hash_salt: "".into(),
             },
             ctx.comments.clone(),
+            ctx.source_map.clone(),
         );
 
         program.visit_mut_with(&mut actions);
