@@ -24,6 +24,7 @@ pub fn warn_for_edge_runtime(
         should_error_for_node_apis,
         should_add_guards: false,
         in_guards: Vec::new(),
+        in_process_guards: Vec::new(),
     }
 }
 
@@ -34,6 +35,7 @@ struct WarnForEdgeRuntime {
 
     should_add_guards: bool,
     in_guards: Vec<Atom>,
+    in_process_guards: Vec<Atom>,
 }
 
 const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
@@ -246,9 +248,20 @@ impl Visit for WarnForEdgeRuntime {
 
     fn visit_unary_expr(&mut self, node: &UnaryExpr) {
         if node.op == op!("typeof") {
-            if let Expr::Ident(ident) = &*node.arg {
-                self.in_guards.push(ident.sym.clone());
-                return;
+            match &*node.arg {
+                Expr::Ident(ident) => {
+                    self.in_guards.push(ident.sym.clone());
+                    return;
+                }
+                Expr::Member(member) => {
+                    if member.obj.is_global_ref_to(&self.ctx, "process") {
+                        if let MemberProp::Ident(prop) = &member.prop {
+                            self.in_process_guards.push(prop.sym.clone())
+                        }
+                        return;
+                    }
+                }
+                _ => (),
             }
         }
 
