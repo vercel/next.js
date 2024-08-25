@@ -65,7 +65,10 @@ export function createTrackedMetadataContext(
         staticGenerationStore.fallbackRouteParams &&
         staticGenerationStore.fallbackRouteParams.size > 0
       ) {
-        trackFallbackParamAccessed(staticGenerationStore, 'pathname')
+        trackFallbackParamAccessed(
+          staticGenerationStore,
+          'metadata relative url resolving'
+        )
       }
 
       return pathname

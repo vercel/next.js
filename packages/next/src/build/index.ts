@@ -2989,17 +2989,19 @@ export default async function build(
               }
             }
 
+            const shouldUsePPRFallback =
+              isRoutePPREnabled === true &&
+              config.experimental.pprFallbacks === true
+
             if (!hasRevalidateZero && isDynamicRoute(originalAppPath)) {
-              // For pre-PPR routes, this ensures that the original app path
-              // is also included. We need to do this after the routes loop
-              // because we might modify the `hasDynamicData` while looping.
-              if (!isRoutePPREnabled || !config.experimental.pprFallbacks) {
+              // When PPR fallbacks aren't used, we need to include it here. If
+              // they are enabled, then it'll already be included in the
+              // prerendered routes.
+              if (!shouldUsePPRFallback) {
                 dynamicRoutes.push(page)
               }
 
               for (const route of dynamicRoutes) {
-                if (hasRevalidateZero) continue
-
                 const normalizedRoute = normalizePagePath(route)
 
                 let dataRoute: string | null = null

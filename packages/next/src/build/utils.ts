@@ -1389,8 +1389,6 @@ export async function buildAppStaticPaths({
     }
   }
 
-  const isProduction = process.env.NODE_ENV === 'production'
-
   ComponentMod.patchFetch()
 
   let CacheHandler: any
@@ -1526,28 +1524,27 @@ export async function buildAppStaticPaths({
           )
         }
 
-        const shouldUsePPRFallback =
-          isRoutePPREnabled && isAppPPRFallbacksEnabled
-
         // TODO: dynamic params should be allowed to be granular per segment but
         // we need  additional information stored/leveraged in the prerender
         // manifest to allow this behavior.
-        const allParamsAllowDynamic = !generateParams.some(
-          (param) => param.config?.dynamicParams === false
+        const dynamicParams = generateParams.every(
+          (param) => param.config?.dynamicParams !== false
         )
 
-        let fallbackMode: FallbackMode | undefined
-        if (hadAllParamsGenerated) {
-          fallbackMode = allParamsAllowDynamic
-            ? shouldUsePPRFallback
+        const isProduction = process.env.NODE_ENV === 'production'
+
+        const supportsStaticGeneration = hadAllParamsGenerated || isProduction
+
+        const supportsPPRFallbacks =
+          isRoutePPREnabled && isAppPPRFallbacksEnabled
+
+        const fallbackMode = dynamicParams
+          ? supportsStaticGeneration
+            ? supportsPPRFallbacks
               ? FallbackMode.PRERENDER
               : FallbackMode.BLOCKING_STATIC_RENDER
-            : FallbackMode.NOT_FOUND
-        } else if (isProduction) {
-          fallbackMode = shouldUsePPRFallback
-            ? FallbackMode.PRERENDER
-            : FallbackMode.BLOCKING_STATIC_RENDER
-        }
+            : undefined
+          : FallbackMode.NOT_FOUND
 
         let result: PartialStaticPathsResult = {
           fallbackMode,
@@ -1568,7 +1565,7 @@ export async function buildAppStaticPaths({
 
         // If the fallback mode is a prerender, we want to include the dynamic
         // route in the prerendered routes too.
-        if (result.fallbackMode === FallbackMode.PRERENDER) {
+        if (isRoutePPREnabled && isAppPPRFallbacksEnabled) {
           result.prerenderedRoutes ??= []
           result.prerenderedRoutes.unshift({
             path: page,

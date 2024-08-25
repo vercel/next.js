@@ -22,7 +22,9 @@ export type DynamicDataPostponedState = {
   readonly t: DynamicState.DATA
 
   /**
-   * The unknown route params.
+   * The fallback route params.These are the params that might have been
+   * included in the postponed state and should have their actual values
+   * replaced prior to resuming.
    */
   readonly f: ReadonlyArray<[string, string]> | null
 }
@@ -42,7 +44,9 @@ export type DynamicHTMLPostponedState = {
   readonly d: object
 
   /**
-   * The unknown route params.
+   * The fallback route params. These are the params that might have been
+   * included in the postponed state and should have their actual values
+   * replaced prior to resuming.
    */
   readonly f: ReadonlyArray<[string, string]> | null
 }
