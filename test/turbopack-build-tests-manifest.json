@@ -1665,6 +1665,27 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/dynamic-io/dynamic-io.test.ts": {
+      "passed": [
+        "dynamic-io should not prerender pages that use `cookies()`",
+        "dynamic-io should not prerender pages that use `headers()`",
+        "dynamic-io should not prerender pages that use `searchParams` in Client Components",
+        "dynamic-io should not prerender pages that use `searchParams` in Server Components",
+        "dynamic-io should not prerender pages that use `unstable_noStore()`",
+        "dynamic-io should prerender fully static pages",
+        "dynamic-io should prerender pages that only use cached (unstable_cache) IO",
+        "dynamic-io should prerender pages that only use cached fetches",
+        "dynamic-io should prerender pages that render in a microtask"
+      ],
+      "failed": [
+        "dynamic-io should not prerender pages that do any uncached IO",
+        "dynamic-io should not prerender pages that take longer than a single task to render",
+        "dynamic-io should not prerender pages that use at least one fetch without cache"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/dynamic-requests/dynamic-requests.test.ts": {
       "passed": [
         "dynamic-requests should not error for dynamic requests in pages",
@@ -6079,6 +6100,7 @@
         "Prerender should automatically reset cache TTL when an error occurs and runtime cache was available",
         "Prerender should fetch /_next/data correctly with mismatched href and as",
         "Prerender should handle de-duping correctly",
+        "Prerender should handle fallback only page correctly HTML",
         "Prerender should handle fallback only page correctly data",
         "Prerender should handle on-demand revalidate for fallback: blocking",
         "Prerender should handle on-demand revalidate for fallback: false",
@@ -6137,10 +6159,7 @@
         "Prerender should use correct caching headers for a no-revalidate page",
         "Prerender should use correct caching headers for a revalidate page"
       ],
-      "failed": [
-        "Prerender should handle fallback only page correctly HTML",
-        "Prerender should output traces"
-      ],
+      "failed": ["Prerender should output traces"],
       "pending": [
         "Prerender should reload page on failed data request, and retry"
       ],
@@ -6667,10 +6686,10 @@
       "runtimeError": false
     },
     "test/integration/amp-export-validation/test/index.test.js": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "AMP Validation on Export production mode should have shown errors during build"
       ],
-      "failed": [],
       "pending": [
         "AMP Validation on Export production mode shows AMP warning without throwing error",
         "AMP Validation on Export production mode shows warning and error when throwing error",
@@ -9021,22 +9040,22 @@
     },
     "test/integration/edge-runtime-module-errors/test/index.test.js": {
       "passed": [
+        "Edge runtime code with imports Edge API dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
+        "Edge runtime code with imports Edge API dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Edge API importing vanilla 3rd party module does not throw in dev at runtime",
         "Edge runtime code with imports Edge API importing vanilla 3rd party module production mode does not throw in production at runtime",
         "Edge runtime code with imports Edge API statically importing 3rd party module production mode does not build and reports",
         "Edge runtime code with imports Edge API statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Edge API using Buffer polyfill does not throw in dev at runtime",
         "Edge runtime code with imports Edge API using Buffer polyfill production mode does not throw in production at runtime",
+        "Edge runtime code with imports Middleware dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
+        "Edge runtime code with imports Middleware dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Middleware importing vanilla 3rd party module does not throw in dev at runtime",
         "Edge runtime code with imports Middleware importing vanilla 3rd party module production mode does not throw in production at runtime",
         "Edge runtime code with imports Middleware statically importing 3rd party module production mode does not build and reports",
         "Edge runtime code with imports Middleware statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware using Buffer polyfill does not throw in dev at runtime",
-        "Edge runtime code with imports Middleware using Buffer polyfill production mode does not throw in production at runtime",
-        "Edge runtime code with imports Edge API dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Edge API dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Middleware dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Middleware dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
+        "Edge runtime code with imports Middleware using Buffer polyfill production mode does not throw in production at runtime"
       ],
       "failed": [],
       "pending": [
@@ -9055,20 +9074,19 @@
         "Edge runtime code with imports Edge API importing unused 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Edge API importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Edge API importing unused node.js module does not throw in dev at runtime",
+        "Edge runtime code with imports Edge API importing unused node.js module production mode does not throw in production at runtime",
+        "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Edge API statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware dynamically importing 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Middleware dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware importing unused 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
-        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
-        "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
+        "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime",
+        "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
+        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
       ],
-      "failed": [
-        "Edge runtime code with imports Edge API importing unused node.js module production mode does not throw in production at runtime",
-        "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15643,15 +15661,6 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/production/app-dir/actions-tree-shaking/reexport/reexport-edge.test.ts": {
-      "passed": [],
-      "failed": [
-        "actions-tree-shaking - reexport should not have the unused action in the manifest"
-      ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
     "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts": {
       "passed": [],
       "failed": [
@@ -15681,11 +15690,10 @@
     },
     "test/production/app-dir/app-edge-middleware/app-edge-middleware.test.ts": {
       "passed": [
+        "app edge middleware with node.js modules should have errors about using Node.js modules when present in middleware",
         "app edge middleware without node.js modules should not have any errors about using Node.js modules if not present in middleware"
       ],
-      "failed": [
-        "app edge middleware with node.js modules should have errors about using Node.js modules when present in middleware"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
