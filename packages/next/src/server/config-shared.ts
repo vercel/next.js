@@ -524,6 +524,12 @@ export interface ExperimentalConfig {
    * Allows previously fetched data to be re-used when editing server components.
    */
   serverComponentsHmrCache?: boolean
+
+  /**
+   * When enabled will cause IO in App Router to be excluded from prerenders
+   * unless explicitly cached.
+   */
+  dynamicIO?: boolean
 }
 
 export type ExportPathMap = {
@@ -1066,6 +1072,7 @@ export const defaultConfig: NextConfig = {
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
+    dynamicIO: false,
   },
   bundlePagesRouterDependencies: false,
 }

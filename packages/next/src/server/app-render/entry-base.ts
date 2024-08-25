@@ -6,10 +6,14 @@ export {
   decodeFormState,
 } from 'react-server-dom-webpack/server.edge'
 
+// eslint-disable-next-line import/no-extraneous-dependencies
+export { prerender } from 'react-server-dom-webpack/static.edge'
+
 import LayoutRouter from '../../client/components/layout-router'
 import RenderFromTemplateContext from '../../client/components/render-from-template-context'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
+import { prerenderAsyncStorage } from './prerender-async-storage.external'
 import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
 import { ClientPageRoot } from '../../client/components/client-page'
 import {
@@ -37,6 +41,7 @@ function patchFetch() {
   return _patchFetch({
     staticGenerationAsyncStorage,
     requestAsyncStorage,
+    prerenderAsyncStorage,
   })
 }
 
