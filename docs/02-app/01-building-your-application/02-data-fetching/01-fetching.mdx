@@ -17,7 +17,21 @@ This guide will walk you through the basics of data fetching and caching in Next
 
 Here's a minimal example of data fetching in Next.js:
 
-```tsx
+```tsx filename="app/page.tsx" switcher
+export default async function Page() {
+  let data = await fetch('https://api.vercel.app/blog')
+  let posts = await data.json()
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
 export default async function Page() {
   let data = await fetch('https://api.vercel.app/blog')
   let posts = await data.json()
@@ -35,9 +49,9 @@ This example demonstrates a basic server-side data fetch using the `fetch` API i
 
 ## Reference
 
-- [`fetch`](https://nextjs.org/docs/app/api-reference/functions/fetch)
+- [`fetch`](/docs/app/api-reference/functions/fetch)
 - React [`cache`](https://react.dev/reference/react/cache)
-- Next.js [`unstable_cache`](https://nextjs.org/docs/app/api-reference/functions/unstable_cache)
+- Next.js [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache)
 
 ## Examples
 
@@ -45,7 +59,7 @@ This example demonstrates a basic server-side data fetch using the `fetch` API i
 
 This component will fetch and display a list of blog posts. The response from `fetch` will be automatically cached.
 
-```tsx
+```tsx filename="app/page.tsx" switcher
 export default async function Page() {
   let data = await fetch('https://api.vercel.app/blog')
   let posts = await data.json()
@@ -59,11 +73,25 @@ export default async function Page() {
 }
 ```
 
-If you are not using any [dynamic functions](https://nextjs.org/docs/app/building-your-application/rendering/server-components#dynamic-rendering) anywhere else in your application, this page will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](https://nextjs.org/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
+```jsx filename="app/page.js" switcher
+export default async function Page() {
+  let data = await fetch('https://api.vercel.app/blog')
+  let posts = await data.json()
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+If you are not using any [dynamic functions](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) anywhere else in your application, this page will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
 
 If you do _not_ want to cache the response from `fetch`, you can do the following:
 
-```jsx
+```js
 let data = await fetch('https://api.vercel.app/blog', { cache: 'force-cache' })
 ```
 
@@ -71,7 +99,7 @@ let data = await fetch('https://api.vercel.app/blog', { cache: 'force-cache' })
 
 This component will always fetch and display a dynamic, up-to-date list of blog posts.
 
-```tsx
+```tsx filename="app/page.tsx" switcher
 import { db, posts } from '@/lib/db'
 
 export default async function Page() {
@@ -86,15 +114,59 @@ export default async function Page() {
 }
 ```
 
-The database call is _not_ cached. This example would opt your Next.js application into [server-side rendering](https://nextjs.org/docs/app/building-your-application/rendering/server-components#dynamic-rendering). If you want to cache the response and allow the page to be prerendered, see this example.
+```jsx filename="app/page.js" switcher
+import { db, posts } from '@/lib/db'
+
+export default async function Page() {
+  let allPosts = await db.select().from(posts)
+  return (
+    <ul>
+      {allPosts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+The database call is _not_ cached. This example would opt your Next.js application into [server-side rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering). If you want to cache the response and allow the page to be prerendered, see this example.
 
 ### Fetching data on the client
 
 We recommend first attempting to fetch data on the server-side.
 
-However, there are still cases where client-side data fetching makes sense. In these scenarios, you can manually call `fetch` in a `useEffect` (not recommended), or lean on popular React libraries in the community (such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest)) for client fetching.
+However, there are still cases where client-side data fetching makes sense. In these scenarios, you can manually call `fetch` in a `useEffect` (not recommended), or lean on popular React libraries in the community (such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest)) for client fetching.
 
-```tsx
+```tsx filename="app/page.tsx" switcher
+'use client'
+
+import { useState, useEffect } from 'react'
+
+export function Posts() {
+  const [posts, setPosts] = useState(null)
+
+  useEffect(() => {
+    async function fetchPosts() {
+      let res = await fetch('https://api.vercel.app/blog')
+      let data = await res.json()
+      setPosts(data)
+    }
+    fetchPosts()
+  }, [])
+
+  if (!posts) return <div>Loading...</div>
+
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -127,7 +199,7 @@ export function Posts() {
 
 You can use the `unstable_cache` API to cache the response to allow pages to be prerendered when running `next build`.
 
-```tsx
+```tsx filename="app/page.tsx" switcher
 import { unstable_cache } from 'next/cache'
 import { db, posts } from '@/lib/db'
 
@@ -135,8 +207,7 @@ const getPosts = unstable_cache(
   async () => {
     return await db.select().from(posts)
   },
-  ['posts'], // part of the cache key
-  // optionally use ISR or add cache tags
+  ['posts'],
   { revalidate: 3600, tags: ['posts'] }
 )
 
@@ -153,15 +224,40 @@ export default async function Page() {
 }
 ```
 
-This example caches the result of the database query for 1 hour (3600 seconds). It also adds the cache tag `posts` which can then be invalidated with [Incremental Static Regeneration](https://nextjs.org/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
+```jsx filename="app/page.js" switcher
+import { unstable_cache } from 'next/cache'
+import { db, posts } from '@/lib/db'
+
+const getPosts = unstable_cache(
+  async () => {
+    return await db.select().from(posts)
+  },
+  ['posts'],
+  { revalidate: 3600, tags: ['posts'] }
+)
+
+export default async function Page() {
+  const allPosts = await getPosts()
+
+  return (
+    <ul>
+      {allPosts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+This example caches the result of the database query for 1 hour (3600 seconds). It also adds the cache tag `posts` which can then be invalidated with [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
 
 ### Reusing data across multiple functions
 
 Next.js uses APIs like `generateMetadata` and `generateStaticParams` where you will need to use the same data fetched in the `page`.
 
-If you are using `fetch`, requests are automatically [memoized](https://nextjs.org/docs/app/building-your-application/caching#request-memoization). This means you can safely call the same URL with the same options, and only one request will be made.
+If you are using `fetch`, requests are automatically [memoized](/docs/app/building-your-application/caching#request-memoization). This means you can safely call the same URL with the same options, and only one request will be made.
 
-```jsx
+```tsx filename="app/page.tsx" switcher
 import { notFound } from 'next/navigation'
 
 interface Post {
@@ -178,7 +274,9 @@ async function getPost(id: string) {
 }
 
 export async function generateStaticParams() {
-  const posts = await fetch('https://api.example.com/posts').then(res => res.json())
+  let posts = await fetch('https://api.example.com/posts').then((res) =>
+    res.json()
+  )
 
   return posts.map((post: Post) => ({
     id: post.id,
@@ -189,11 +287,51 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
   let post = await getPost(params.id)
 
   return {
-    title: post.title
+    title: post.title,
   }
 }
 
 export default async function Page({ params }: { params: { id: string } }) {
+  let post = await getPost(params.id)
+
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      <p>{post.content}</p>
+    </article>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { notFound } from 'next/navigation'
+
+async function getPost(id) {
+  let res = await fetch(`https://api.example.com/posts/${id}`)
+  let post = await res.json()
+  if (!post) notFound()
+  return post
+}
+
+export async function generateStaticParams() {
+  let posts = await fetch('https://api.example.com/posts').then((res) =>
+    res.json()
+  )
+
+  return posts.map((post) => ({
+    id: post.id,
+  }))
+}
+
+export async function generateMetadata({ params }) {
+  let post = await getPost(params.id)
+
+  return {
+    title: post.title,
+  }
+}
+
+export default async function Page({ params }) {
   let post = await getPost(params.id)
 
   return (
@@ -212,9 +350,9 @@ import { cache } from 'react'
 import { db, posts, eq } from '@/lib/db' // Example with Drizzle ORM
 import { notFound } from 'next/navigation'
 
-export const getPost = cache(async (id: string) => {
+export const getPost = cache(async (id) => {
   const post = await db.query.posts.findFirst({
-    where: eq(posts.id, parseInt(id))
+    where: eq(posts.id, parseInt(id)),
   })
 
   if (!post) notFound()
@@ -224,7 +362,7 @@ export const getPost = cache(async (id: string) => {
 
 ### Revalidating cached data
 
-Learn more about revalidating cached data with [Incremental Static Regeneration](https://nextjs.org/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
+Learn more about revalidating cached data with [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
 
 ## Patterns
 
