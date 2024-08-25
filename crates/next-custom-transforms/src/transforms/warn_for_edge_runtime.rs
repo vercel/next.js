@@ -183,6 +183,9 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
         if !self.is_in_middleware_layer() || prop.sym == "env" {
             return;
         }
+        if self.in_process_guards.contains(&prop.sym) {
+            return;
+        }
 
         self.emit_unsupported_api_error(span, &format!("process.{}", prop.sym));
     }
