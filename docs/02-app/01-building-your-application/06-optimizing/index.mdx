@@ -12,9 +12,21 @@ Next.js comes with a variety of built-in optimizations designed to improve your 
 
 Built-in components abstract away the complexity of implementing common UI optimizations. These components are:
 
-- **Images**: Built on the native `<img>` element. The Image Component optimizes images for performance by lazy loading and automatically resizing images based on device size.
-- **Link**: Built on the native `<a>` tags. The Link Component prefetches pages in the background, for faster and smoother page transitions.
-- **Scripts**: Built on the native `<script>` tags. The Script Component gives you control over loading and execution of third-party scripts.
+<AppOnly>
+
+- **Images**: Built on the native `<img>` element. The [`<Image>` component](/docs/app/api-reference/components/image) optimizes images for performance by lazy loading and automatically resizing images based on device size.
+- **Link**: Built on the native `<a>` tags. The [`<Link>` component](/docs/app/api-reference/components/link) prefetches pages in the background, for faster and smoother page transitions.
+- **Scripts**: Built on the native `<script>` tags. The [`<Script>` component](/docs/app/api-reference/components/script) gives you control over loading and execution of third-party scripts.
+
+</AppOnly>
+
+<PagesOnly>
+
+- **Images**: Built on the native `<img>` element. The [`<Image>` component](/docs/pages/api-reference/components/image) optimizes images for performance by lazy loading and automatically resizing images based on device size.
+- **Links**: Built on the native `<a>` tags. The [`<Link>` component](/docs/pages/api-reference/components/link) prefetches pages in the background, for faster and smoother page transitions.
+- **Scripts**: Built on the native `<script>` tags. The [`<Script>` component](/docs/pages/api-reference/components/script) gives you control over loading and execution of third-party scripts.
+
+</PagesOnly>
 
 ## Metadata
 
