@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
 use swc_core::{
+    atoms::Atom,
     common::{errors::HANDLER, SourceMap, Span},
     ecma::{
         ast::{
-            CallExpr, Callee, Expr, IdentName, ImportDecl, Lit, MemberExpr, MemberProp, NamedExport,
+            op, CallExpr, Callee, Expr, IdentName, IfStmt, ImportDecl, Lit, MemberExpr, MemberProp,
+            NamedExport, UnaryExpr,
         },
         utils::{ExprCtx, ExprExt},
         visit::{Visit, VisitWith},
@@ -20,6 +22,8 @@ pub fn warn_for_edge_runtime(
         cm,
         ctx,
         should_error_for_node_apis,
+        should_add_guards: false,
+        in_guards: Vec::new(),
     }
 }
 
@@ -27,6 +31,9 @@ struct WarnForEdgeRuntime {
     cm: Arc<SourceMap>,
     ctx: ExprCtx,
     should_error_for_node_apis: bool,
+
+    should_add_guards: bool,
+    in_guards: Vec<Atom>,
 }
 
 const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
@@ -142,6 +149,10 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime",
     }
 
     fn emit_unsupported_api_error(&self, span: Span, api_name: &str) -> Option<()> {
+        if self.in_guards.iter().any(|guarded| guarded == api_name) {
+            return None;
+        }
+
         let loc = self.cm.lookup_line(span.lo).ok()?;
 
         let msg = format!(
@@ -172,6 +183,13 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
         }
 
         self.emit_unsupported_api_error(span, &format!("process.{}", prop.sym));
+    }
+
+    fn add_guards(&mut self, test: &Expr) {
+        let old = self.should_add_guards;
+        self.should_add_guards = true;
+        test.visit_children_with(self);
+        self.should_add_guards = old;
     }
 }
 
@@ -224,5 +242,28 @@ impl Visit for WarnForEdgeRuntime {
         if let Some(module_specifier) = &n.src {
             self.warn_if_nodejs_module(n.span, &module_specifier.value);
         }
+    }
+
+    fn visit_unary_expr(&mut self, node: &UnaryExpr) {
+        if node.op == op!("typeof") {
+            if let Expr::Ident(ident) = &*node.arg {
+                self.in_guards.push(ident.sym.clone());
+                return;
+            }
+        }
+
+        node.visit_children_with(self);
+    }
+
+    fn visit_if_stmt(&mut self, node: &IfStmt) {
+        let orig_len = self.in_guards.len();
+
+        self.add_guards(&node.test);
+
+        node.cons.visit_with(self);
+
+        self.in_guards.truncate(orig_len);
+
+        node.alt.visit_with(self);
     }
 }
