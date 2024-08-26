@@ -14,9 +14,10 @@ describe('styled-jsx', () => {
   }
 
   it('should contain styled-jsx styles during SSR', async () => {
-    const html = await next.render('/')
+    throw new Error('test should fail')
+    /*const html = await next.render('/')
     expect(html).toMatch(/color:.*?red/)
-    expect(html).toMatch(/color:.*?cyan/)
+    expect(html).toMatch(/color:.*?cyan/)*/
   })
 
   it('should render styles during CSR', async () => {
