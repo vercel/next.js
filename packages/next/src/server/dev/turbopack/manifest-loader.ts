@@ -12,6 +12,7 @@ import type { LoadableManifest } from '../../load-components'
 import {
   APP_BUILD_MANIFEST,
   APP_PATHS_MANIFEST,
+  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   BUILD_MANIFEST,
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
@@ -265,6 +266,19 @@ export class TurbopackManifestLoader {
       JSON.stringify(appPathsManifest, null, 2)
     )
   }
+
+    /**
+   * Turbopack doesn't support this functionality, so it writes an empty manifest.
+   */
+    private async writeAutomaticFontOptimizationManifest() {
+      const manifestPath = join(
+        this.distDir,
+        'server',
+        AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
+      )
+  
+      await writeFileAtomic(manifestPath, JSON.stringify([]))
+    }
 
 
   async loadBuildManifest(
@@ -651,6 +665,7 @@ export class TurbopackManifestLoader {
     await this.writeActionManifest()
     await this.writeAppBuildManifest()
     await this.writeAppPathsManifest()
+    await this.writeAutomaticFontOptimizationManifest()
     await this.writeBuildManifest(entrypoints, devRewrites, productionRewrites)
     await this.writeFallbackBuildManifest()
     await this.writeLoadableManifest()
