@@ -1,44 +1,11 @@
-import { createClient } from "@/utils/supabase/server";
-import { headers } from "next/headers";
-import Link from "next/link";
+import { signUp } from "@/app/actions";
+import { FormMessage, Message } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FormMessage, Message } from "@/components/form-message";
-import { encodedRedirect } from "@/utils/utils";
+import Link from "next/link";
 
 export default function Signup({ searchParams }: { searchParams: Message }) {
-  const signUp = async (formData: FormData) => {
-    "use server";
-    const email = formData.get("email")?.toString();
-    const password = formData.get("password")?.toString();
-    const supabase = createClient();
-    const origin = headers().get("origin");
-
-    if (!email || !password) {
-      return { error: "Email and password are required" };
-    }
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${origin}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      console.error(error.code + " " + error.message);
-      return encodedRedirect("error", "/signup", error.message);
-    } else {
-      return encodedRedirect(
-        "success",
-        "/signup",
-        "Thanks for signing up! Please check your email for a verification link.",
-      );
-    }
-  };
-
   if ("message" in searchParams) {
     return (
       <div className="w-full flex-1 flex items-center h-screen sm:max-w-md justify-center gap-2 p-4">
@@ -48,7 +15,7 @@ export default function Signup({ searchParams }: { searchParams: Message }) {
   }
 
   return (
-    <form className="flex flex-col min-w-64 max-w-64 max-w-64">
+    <form className="flex flex-col min-w-64 max-w-64">
       <h1 className="text-2xl font-medium">Sign up</h1>
       <p className="text-sm text text-foreground">
         Already have an account?{" "}
