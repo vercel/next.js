@@ -33,7 +33,6 @@ export default async function AuthButton() {
   };
 
   if (!isSupabaseConnected) {
-    // if (true) {
     return (
       <>
         <div className="flex gap-4 items-center">
