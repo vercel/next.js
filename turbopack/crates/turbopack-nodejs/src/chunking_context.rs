@@ -8,7 +8,7 @@ use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
-        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
+        module_id_strategies::{ModuleIdStrategy, NamedModuleIdStrategy},
         Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext,
         EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
     },
@@ -117,7 +117,7 @@ impl NodeJsChunkingContext {
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
-                module_id_strategy: Vc::upcast(DevModuleIdStrategy::new()),
+                module_id_strategy: Vc::upcast(NamedModuleIdStrategy::new()),
             },
         }
     }

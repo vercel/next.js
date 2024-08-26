@@ -1,7 +1,9 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbopack_core::chunk::module_id_strategies::{GlobalModuleIdStrategy, ModuleIdStrategy};
-use turbopack_ecmascript::global_module_id_strategy::{
+use turbopack_core::chunk::module_id_strategies::{
+    DeterministicModuleIdStrategy, ModuleIdStrategy,
+};
+use turbopack_ecmascript::deterministic_module_id_strategy::{
     children_modules_idents, merge_preprocessed_module_ids, PreprocessedChildrenIdents,
 };
 
@@ -11,13 +13,13 @@ use crate::{
 };
 
 #[turbo_tasks::value]
-pub struct GlobalModuleIdStrategyBuilder;
+pub struct DeterministicModuleIdStrategyBuilder;
 
 // NOTE(LichuAcu) To access all entrypoints, we need to access an instance of `Project`, but
 // `Project` is not available in `turbopack-core`, so we need need this
-// `GlobalModuleIdStrategyBuilder` in `next-api`.
+// `DeterministicModuleIdStrategyBuilder` in `next-api`.
 #[turbo_tasks::value_impl]
-impl GlobalModuleIdStrategyBuilder {
+impl DeterministicModuleIdStrategyBuilder {
     #[turbo_tasks::function]
     pub async fn build(project: Vc<Project>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
         let mut preprocessed_module_ids = Vec::new();
@@ -76,7 +78,7 @@ impl GlobalModuleIdStrategyBuilder {
         let module_id_map = merge_preprocessed_module_ids(preprocessed_module_ids).await?;
 
         Ok(Vc::upcast(
-            GlobalModuleIdStrategy::new(module_id_map).await?,
+            DeterministicModuleIdStrategy::new(module_id_map).await?,
         ))
     }
 }

@@ -13,16 +13,16 @@ pub trait ModuleIdStrategy {
 }
 
 #[turbo_tasks::value]
-pub struct DevModuleIdStrategy;
+pub struct NamedModuleIdStrategy;
 
-impl DevModuleIdStrategy {
+impl NamedModuleIdStrategy {
     pub fn new() -> Vc<Self> {
-        DevModuleIdStrategy {}.cell()
+        NamedModuleIdStrategy {}.cell()
     }
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleIdStrategy for DevModuleIdStrategy {
+impl ModuleIdStrategy for NamedModuleIdStrategy {
     #[turbo_tasks::function]
     async fn get_module_id(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<ModuleId>> {
         Ok(ModuleId::String(ident.to_string().await?.clone_value()).cell())
@@ -30,18 +30,18 @@ impl ModuleIdStrategy for DevModuleIdStrategy {
 }
 
 #[turbo_tasks::value]
-pub struct GlobalModuleIdStrategy {
+pub struct DeterministicModuleIdStrategy {
     module_id_map: HashMap<RcStr, Vc<ModuleId>>,
 }
 
-impl GlobalModuleIdStrategy {
+impl DeterministicModuleIdStrategy {
     pub async fn new(module_id_map: HashMap<RcStr, Vc<ModuleId>>) -> Result<Vc<Self>> {
-        Ok(GlobalModuleIdStrategy { module_id_map }.cell())
+        Ok(DeterministicModuleIdStrategy { module_id_map }.cell())
     }
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleIdStrategy for GlobalModuleIdStrategy {
+impl ModuleIdStrategy for DeterministicModuleIdStrategy {
     #[turbo_tasks::function]
     async fn get_module_id(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<ModuleId>> {
         let ident_string = ident.to_string().await?.clone_value();

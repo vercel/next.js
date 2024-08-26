@@ -35,7 +35,7 @@ use turbopack::{evaluate_context::node_build_environment, ModuleAssetContext};
 use turbopack_core::{
     changed::content_changed,
     chunk::{
-        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
+        module_id_strategies::{ModuleIdStrategy, NamedModuleIdStrategy},
         ChunkingContext,
     },
     compile_time_info::CompileTimeInfo,
@@ -57,8 +57,8 @@ use turbopack_nodejs::NodeJsChunkingContext;
 use crate::{
     app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
     build,
+    deterministic_module_id_strategy::DeterministicModuleIdStrategyBuilder,
     entrypoints::Entrypoints,
-    global_module_id_strategy::GlobalModuleIdStrategyBuilder,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
@@ -1189,13 +1189,15 @@ impl Project {
     pub async fn module_id_strategy(self: Vc<Self>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
         let module_id_strategy = self.next_config().module_id_strategy_config();
         match *module_id_strategy.await? {
-            Some(ModuleIdStrategyConfig::Named) => Ok(Vc::upcast(DevModuleIdStrategy::new())),
-            Some(ModuleIdStrategyConfig::Deterministic) => {
-                Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self)))
-            }
+            Some(ModuleIdStrategyConfig::Named) => Ok(Vc::upcast(NamedModuleIdStrategy::new())),
+            Some(ModuleIdStrategyConfig::Deterministic) => Ok(Vc::upcast(
+                DeterministicModuleIdStrategyBuilder::build(self),
+            )),
             None => match *self.next_mode().await? {
-                NextMode::Development => Ok(Vc::upcast(DevModuleIdStrategy::new())),
-                NextMode::Build => Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self))),
+                NextMode::Development => Ok(Vc::upcast(NamedModuleIdStrategy::new())),
+                NextMode::Build => Ok(Vc::upcast(DeterministicModuleIdStrategyBuilder::build(
+                    self,
+                ))),
             },
         }
     }

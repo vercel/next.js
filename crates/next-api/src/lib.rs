@@ -3,10 +3,10 @@
 #![feature(impl_trait_in_assoc_type)]
 
 mod app;
+pub mod deterministic_module_id_strategy;
 mod dynamic_imports;
 pub mod entrypoints;
 mod font;
-pub mod global_module_id_strategy;
 mod instrumentation;
 mod loadable_manifest;
 mod middleware;
