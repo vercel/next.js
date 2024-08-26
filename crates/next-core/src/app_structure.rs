@@ -474,6 +474,22 @@ impl LoaderTree {
 
         true
     }
+
+    /// Returns the specificity of the page (i.e. the number of segments
+    /// affecting the path)
+    pub fn get_specificity(&self) -> usize {
+        if &*self.segment == "__PAGE__" {
+            return AppPath::from(self.page.clone()).len();
+        }
+
+        let mut specificity = 0;
+
+        for (_, tree) in &self.parallel_routes {
+            specificity = specificity.max(tree.get_specificity());
+        }
+
+        specificity
+    }
 }
 
 #[derive(
@@ -523,10 +539,6 @@ fn is_parallel_route(name: &str) -> bool {
 
 fn is_group_route(name: &str) -> bool {
     name.starts_with('(') && name.ends_with(')')
-}
-
-fn is_catchall_route(name: &str) -> bool {
-    name.starts_with("[...") && name.ends_with(']')
 }
 
 fn match_parallel_route(name: &str) -> Option<&str> {
@@ -909,7 +921,6 @@ fn directory_tree_to_loader_tree_internal(
 
         let mut child_app_page = app_page.clone();
         let mut illegal_path_error = None;
-        let is_current_directory_catchall = is_catchall_route(subdir_name);
 
         // When constructing the app_page fails (e. g. due to limitations of the order),
         // we only want to emit the error when there are actual pages below that
@@ -947,11 +958,12 @@ fn directory_tree_to_loader_tree_internal(
             }
 
             if let Some(current_tree) = tree.parallel_routes.get("children") {
-                if is_current_directory_catchall && subtree.has_only_catchall() {
-                    // there's probably already a more specific page in the
-                    // slot.
-                } else if current_tree.has_only_catchall() {
-                    tree.parallel_routes.insert("children".into(), subtree);
+                if current_tree.has_only_catchall()
+                    && (!subtree.has_only_catchall()
+                        || current_tree.get_specificity() < subtree.get_specificity())
+                {
+                    tree.parallel_routes
+                        .insert("children".into(), subtree.clone());
                 }
             } else {
                 tree.parallel_routes.insert("children".into(), subtree);

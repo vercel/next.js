@@ -652,7 +652,7 @@ async fn get_mock_stylesheet(
         chunking_context,
     } = *execution_context.await?;
     let asset_context =
-        node_evaluate_asset_context(execution_context, None, None, "next_font".into());
+        node_evaluate_asset_context(execution_context, None, None, "next_font".into(), false);
     let loader_path = mock_fs.root().join("loader.js".into());
     let mocked_response_asset = asset_context
         .process(

@@ -5,7 +5,7 @@ use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
-    common::{source_map::Pos, Span, Spanned, GLOBALS},
+    common::{source_map::SmallPos, Span, Spanned, GLOBALS},
     ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
 };
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TryJoinIterExt, ValueDefault, Vc};
@@ -312,7 +312,7 @@ pub async fn parse_segment_config_from_source(
 }
 
 fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
-    IssueSource::from_byte_offset(source, span.lo.to_usize(), span.hi.to_usize())
+    IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
 fn parse_config_value(
