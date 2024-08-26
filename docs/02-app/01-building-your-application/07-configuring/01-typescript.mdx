@@ -302,7 +302,9 @@ If disabled, be sure you are running type checks as part of your build or deploy
 Open `next.config.ts` and enable the `ignoreBuildErrors` option in the `typescript` config:
 
 ```ts filename="next.config.ts"
-export default {
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
   typescript: {
     // !! WARN !!
     // Dangerously allow production builds to successfully complete even if
@@ -311,6 +313,8 @@ export default {
     ignoreBuildErrors: true,
   },
 }
+
+export default nextConfig
 ```
 
 ## Custom Type Declarations

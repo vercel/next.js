@@ -6,6 +6,5 @@ module.exports = {
     flyingShuttle: {
       mode: 'full',
     },
-    instrumentationHook: true,
   },
 }

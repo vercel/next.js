@@ -40,7 +40,7 @@ pub fn minify_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
         },
         |handler| {
             GLOBALS.set(&Default::default(), || {
-                let fm = c.cm.new_source_file(FileName::Anon, s.into());
+                let fm = c.cm.new_source_file(FileName::Anon.into(), s.into());
                 let program = c
                     .minify(fm, handler, &opts)
                     .context("failed to minify file")?;
@@ -84,9 +84,9 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
                     Ok(s) => {
                         let fm = c.cm.new_source_file(
                             if opts.swc.filename.is_empty() {
-                                FileName::Anon
+                                FileName::Anon.into()
                             } else {
-                                FileName::Real(opts.swc.filename.clone().into())
+                                FileName::Real(opts.swc.filename.clone().into()).into()
                             },
                             s.into(),
                         );
@@ -151,7 +151,7 @@ pub fn parse_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
         |handler| {
             c.run(|| {
                 GLOBALS.set(&Default::default(), || {
-                    let fm = c.cm.new_source_file(FileName::Anon, s.into());
+                    let fm = c.cm.new_source_file(FileName::Anon.into(), s.into());
 
                     let cmts = c.comments().clone();
                     let comments = if opts.comments {

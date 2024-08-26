@@ -98,6 +98,7 @@ function getExistingCacheEntry(
     // but lets us arrive there quicker in the param-full case.
     const entryWithoutParams = prefetchCache.get(cacheKeyWithoutParams)
     if (
+      process.env.NODE_ENV !== 'development' &&
       url.search &&
       kind !== PrefetchKind.FULL &&
       entryWithoutParams &&
@@ -114,7 +115,7 @@ function getExistingCacheEntry(
   // We attempt a partial match by checking if there's a cache entry with the same pathname.
   // Regardless of what we find, since it doesn't correspond with the requested URL, we'll mark it "aliased".
   // This will signal to the router that it should only apply the loading state on the prefetched data.
-  if (kind !== PrefetchKind.FULL) {
+  if (process.env.NODE_ENV !== 'development' && kind !== PrefetchKind.FULL) {
     for (const cacheEntry of prefetchCache.values()) {
       if (
         cacheEntry.pathname === url.pathname &&

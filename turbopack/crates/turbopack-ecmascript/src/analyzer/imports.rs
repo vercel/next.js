@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, fmt::Display};
 use indexmap::{IndexMap, IndexSet};
 use once_cell::sync::Lazy;
 use swc_core::{
-    common::{source_map::Pos, Span},
+    common::{source_map::SmallPos, Span},
     ecma::{
         ast::*,
         atoms::{js_word, JsWord},
@@ -128,6 +128,9 @@ pub(crate) struct ImportMap {
     /// Ordered list of imported symbols
     references: IndexSet<ImportMapReference>,
 
+    /// True, when the module has imports
+    has_imports: bool,
+
     /// True, when the module has exports
     has_exports: bool,
 
@@ -153,10 +156,7 @@ pub(crate) struct ImportMapReference {
 
 impl ImportMap {
     pub fn is_esm(&self) -> bool {
-        self.has_exports
-            || self.has_top_level_await
-            || !self.imports.is_empty()
-            || !self.namespace_imports.is_empty()
+        self.has_exports || self.has_imports || self.has_top_level_await
     }
 
     pub fn get_import(&self, id: &Id) -> Option<JsValue> {
@@ -254,6 +254,8 @@ fn to_word(name: &ModuleExportName) -> JsWord {
 
 impl Visit for Analyzer<'_> {
     fn visit_import_decl(&mut self, import: &ImportDecl) {
+        self.data.has_imports = true;
+
         let annotations = ImportAnnotations::parse(import.with.as_deref());
 
         let internal_symbol = parse_with(import.with.as_deref());

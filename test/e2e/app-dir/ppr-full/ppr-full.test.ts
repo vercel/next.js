@@ -186,7 +186,7 @@ describe('ppr-full', () => {
           }
         })
 
-        if (dynamic === true) {
+        if (dynamic === true && !isNextDev) {
           it('should cache the static part', async () => {
             const delay = 500
 

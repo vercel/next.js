@@ -2566,16 +2566,16 @@ function createRenderState(resumableState, generateStaticMarkup) {
       "\x3c/script>"
     );
   bootstrapScriptContent = idPrefix + "P:";
-  var JSCompiler_object_inline_segmentPrefix_1494 = idPrefix + "S:";
+  var JSCompiler_object_inline_segmentPrefix_1497 = idPrefix + "S:";
   idPrefix += "B:";
-  var JSCompiler_object_inline_preconnects_1508 = new Set(),
-    JSCompiler_object_inline_fontPreloads_1509 = new Set(),
-    JSCompiler_object_inline_highImagePreloads_1510 = new Set(),
-    JSCompiler_object_inline_styles_1511 = new Map(),
-    JSCompiler_object_inline_bootstrapScripts_1512 = new Set(),
-    JSCompiler_object_inline_scripts_1513 = new Set(),
-    JSCompiler_object_inline_bulkPreloads_1514 = new Set(),
-    JSCompiler_object_inline_preloads_1515 = {
+  var JSCompiler_object_inline_preconnects_1511 = new Set(),
+    JSCompiler_object_inline_fontPreloads_1512 = new Set(),
+    JSCompiler_object_inline_highImagePreloads_1513 = new Set(),
+    JSCompiler_object_inline_styles_1514 = new Map(),
+    JSCompiler_object_inline_bootstrapScripts_1515 = new Set(),
+    JSCompiler_object_inline_scripts_1516 = new Set(),
+    JSCompiler_object_inline_bulkPreloads_1517 = new Set(),
+    JSCompiler_object_inline_preloads_1518 = {
       images: new Map(),
       stylesheets: new Map(),
       scripts: new Map(),
@@ -2612,7 +2612,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
       scriptConfig.moduleScriptResources[href] = null;
       scriptConfig = [];
       pushLinkImpl(scriptConfig, props);
-      JSCompiler_object_inline_bootstrapScripts_1512.add(scriptConfig);
+      JSCompiler_object_inline_bootstrapScripts_1515.add(scriptConfig);
       bootstrapChunks.push('<script src="', escapeTextForBrowser(src));
       "string" === typeof integrity &&
         bootstrapChunks.push('" integrity="', escapeTextForBrowser(integrity));
@@ -2653,7 +2653,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         (props.moduleScriptResources[scriptConfig] = null),
         (props = []),
         pushLinkImpl(props, integrity),
-        JSCompiler_object_inline_bootstrapScripts_1512.add(props),
+        JSCompiler_object_inline_bootstrapScripts_1515.add(props),
         bootstrapChunks.push(
           '<script type="module" src="',
           escapeTextForBrowser(i)
@@ -2668,7 +2668,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         bootstrapChunks.push('" async="">\x3c/script>');
   return {
     placeholderPrefix: bootstrapScriptContent,
-    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1494,
+    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1497,
     boundaryPrefix: idPrefix,
     startInlineScript: "<script>",
     htmlChunks: null,
@@ -2688,14 +2688,14 @@ function createRenderState(resumableState, generateStaticMarkup) {
     charsetChunks: [],
     viewportChunks: [],
     hoistableChunks: [],
-    preconnects: JSCompiler_object_inline_preconnects_1508,
-    fontPreloads: JSCompiler_object_inline_fontPreloads_1509,
-    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1510,
-    styles: JSCompiler_object_inline_styles_1511,
-    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1512,
-    scripts: JSCompiler_object_inline_scripts_1513,
-    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1514,
-    preloads: JSCompiler_object_inline_preloads_1515,
+    preconnects: JSCompiler_object_inline_preconnects_1511,
+    fontPreloads: JSCompiler_object_inline_fontPreloads_1512,
+    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1513,
+    styles: JSCompiler_object_inline_styles_1514,
+    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1515,
+    scripts: JSCompiler_object_inline_scripts_1516,
+    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1517,
+    preloads: JSCompiler_object_inline_preloads_1518,
     stylesToHoist: !1,
     generateStaticMarkup: generateStaticMarkup
   };
@@ -3538,8 +3538,7 @@ function createRequest(
     formState
   );
 }
-var AbortSigil = {},
-  currentRequest = null;
+var currentRequest = null;
 function pingTask(request, task) {
   request.pingedTasks.push(task);
   1 === request.pingedTasks.length &&
@@ -3860,14 +3859,14 @@ function renderElement(request, task, keyPath, type, props, ref) {
           }
         else defaultProps.queue = null;
       type = newProps.render();
-      if (1 === request.status) throw AbortSigil;
+      if (1 === request.status) throw null;
       props = task.keyPath;
       task.keyPath = keyPath;
       renderNodeDestructive(request, task, type, -1);
       task.keyPath = props;
     } else {
       type = renderWithHooks(request, task, keyPath, type, props, void 0);
-      if (1 === request.status) throw AbortSigil;
+      if (1 === request.status) throw null;
       finishFunctionComponent(
         request,
         task,
@@ -4033,7 +4032,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
                 (boundarySegment.status = 1);
             } catch (thrownValue) {
               throw (
-                ((boundarySegment.status = thrownValue === AbortSigil ? 3 : 4),
+                ((boundarySegment.status = 1 === request.status ? 3 : 4),
                 thrownValue)
               );
             } finally {
@@ -4081,7 +4080,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
               }
             } catch (thrownValue$28) {
               (propName.status = 4),
-                thrownValue$28 === AbortSigil
+                1 === request.status
                   ? ((contentRootSegment.status = 3),
                     (newProps = request.fatalError))
                   : ((contentRootSegment.status = 4),
@@ -4187,7 +4186,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
         case REACT_LAZY_TYPE:
           newProps = type._init;
           type = newProps(type._payload);
-          if (1 === request.status) throw AbortSigil;
+          if (1 === request.status) throw null;
           renderElement(request, task, keyPath, type, props, ref);
           return;
       }
@@ -4412,7 +4411,7 @@ function retryNode(request, task) {
         case REACT_LAZY_TYPE:
           childNodes = node._init;
           node = childNodes(node._payload);
-          if (1 === request.status) throw AbortSigil;
+          if (1 === request.status) throw null;
           renderNodeDestructive(request, task, node, childIndex);
           return;
       }
@@ -4755,10 +4754,11 @@ function abortTask(task, request, error) {
     }
   } else
     boundary.pendingTasks--,
+      (task = getThrownInfo(task.componentStack)),
       4 !== boundary.status &&
         ((boundary.status = 4),
-        (task = getThrownInfo(task.componentStack)),
         (task = logRecoverableError(request, error, task)),
+        (boundary.status = 4),
         (boundary.errorDigest = task),
         untrackBoundary(request, boundary),
         boundary.parentFlushed &&
@@ -4956,7 +4956,9 @@ function performWork(request$jscomp$2) {
                 var request$jscomp$1 = request$jscomp$0,
                   boundary = task.blockedBoundary,
                   error$jscomp$0 =
-                    x === AbortSigil ? request$jscomp$0.fatalError : x,
+                    1 === request$jscomp$0.status
+                      ? request$jscomp$0.fatalError
+                      : x,
                   replayNodes = task.replay.nodes,
                   resumeSlots = task.replay.slots;
                 request = logRecoverableError(
@@ -5009,7 +5011,7 @@ function performWork(request$jscomp$2) {
             var x$jscomp$0 =
               thrownValue === SuspenseException
                 ? getSuspendedThenable()
-                : thrownValue === AbortSigil
+                : 1 === request.status
                   ? request.fatalError
                   : thrownValue;
             if (
@@ -5555,9 +5557,10 @@ function renderToStringImpl(
     void 0
   );
   children.flushScheduled = null !== children.destination;
-  performWork(children);
-  null === children.trackedPostpones &&
-    safelyEmitEarlyPreloads(children, 0 === children.pendingRootTasks);
+  null !== children.trackedPostpones
+    ? performWork(children)
+    : (performWork(children),
+      safelyEmitEarlyPreloads(children, 0 === children.pendingRootTasks));
   abort(children, abortReason);
   startFlowing(children, {
     push: function (chunk) {
@@ -5589,4 +5592,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.0.0-rc-1eaccd82-20240816";
+exports.version = "19.0.0-rc-eb3ad065-20240822";

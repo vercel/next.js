@@ -18,7 +18,6 @@ import fs from 'fs/promises'
 import { loadComponents } from '../server/load-components'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
@@ -70,7 +69,6 @@ async function exportPageImpl(
     buildExport = false,
     serverRuntimeConfig,
     subFolders = false,
-    optimizeFonts,
     optimizeCss,
     disableOptimizedLoading,
     debugOutput = false,
@@ -252,10 +250,8 @@ async function exportPageImpl(
       ...input.renderOpts,
       ampPath: renderAmpPath,
       params,
-      optimizeFonts,
       optimizeCss,
       disableOptimizedLoading,
-      fontManifest: optimizeFonts ? requireFontManifest(distDir) : undefined,
       locale,
       supportsDynamicResponse: false,
       experimental: {
@@ -379,7 +375,6 @@ export async function exportPages(
             serverRuntimeConfig: nextConfig.serverRuntimeConfig,
             subFolders: nextConfig.trailingSlash && !options.buildExport,
             buildExport: options.buildExport,
-            optimizeFonts: nextConfig.optimizeFonts,
             optimizeCss: nextConfig.experimental.optimizeCss,
             disableOptimizedLoading:
               nextConfig.experimental.disableOptimizedLoading,

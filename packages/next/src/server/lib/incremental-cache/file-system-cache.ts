@@ -174,7 +174,7 @@ export default class FileSystemCache implements CacheHandler {
 
   public async get(...args: Parameters<CacheHandler['get']>) {
     const [key, ctx] = args
-    const { tags, softTags, kind, isRoutePPREnabled } = ctx
+    const { tags, softTags, kind, isRoutePPREnabled, isFallback } = ctx
 
     let data = memoryCache?.get(key)
 
@@ -252,24 +252,27 @@ export default class FileSystemCache implements CacheHandler {
           }
         } else if (kind === IncrementalCacheKind.APP_PAGE) {
           let meta: RouteMetadata | undefined
+          let rscData: Buffer | undefined
 
           // We try to load the metadata file, but if it fails, we don't
-          // error.
-          try {
-            meta = JSON.parse(
-              await this.fs.readFile(
-                filePath.replace(/\.html$/, NEXT_META_SUFFIX),
-                'utf8'
+          // error. We also don't load it if this is a fallback.
+          if (!isFallback) {
+            try {
+              meta = JSON.parse(
+                await this.fs.readFile(
+                  filePath.replace(/\.html$/, NEXT_META_SUFFIX),
+                  'utf8'
+                )
+              )
+            } catch {}
+
+            rscData = await this.fs.readFile(
+              this.getFilePath(
+                `${key}${isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
+                IncrementalCacheKind.APP_PAGE
               )
             )
-          } catch {}
-
-          const rscData = await this.fs.readFile(
-            this.getFilePath(
-              `${key}${isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
-              IncrementalCacheKind.APP_PAGE
-            )
-          )
+          }
 
           data = {
             lastModified: mtime.getTime(),
@@ -284,16 +287,19 @@ export default class FileSystemCache implements CacheHandler {
           }
         } else if (kind === IncrementalCacheKind.PAGES) {
           let meta: RouteMetadata | undefined
+          let pageData: string | object = {}
 
-          const pageData = JSON.parse(
-            await this.fs.readFile(
-              this.getFilePath(
-                `${key}${NEXT_DATA_SUFFIX}`,
-                IncrementalCacheKind.PAGES
-              ),
-              'utf8'
+          if (!isFallback) {
+            pageData = JSON.parse(
+              await this.fs.readFile(
+                this.getFilePath(
+                  `${key}${NEXT_DATA_SUFFIX}`,
+                  IncrementalCacheKind.PAGES
+                ),
+                'utf8'
+              )
             )
-          )
+          }
 
           data = {
             lastModified: mtime.getTime(),
@@ -376,6 +382,7 @@ export default class FileSystemCache implements CacheHandler {
 
   public async set(...args: Parameters<CacheHandler['set']>) {
     const [key, data, ctx] = args
+    const { isFallback } = ctx
     memoryCache?.set(key, {
       value: data,
       lastModified: Date.now(),
@@ -417,25 +424,30 @@ export default class FileSystemCache implements CacheHandler {
       await this.fs.mkdir(path.dirname(htmlPath))
       await this.fs.writeFile(htmlPath, data.html)
 
-      await this.fs.writeFile(
-        this.getFilePath(
-          `${key}${
+      // Fallbacks don't generate a data file.
+      if (!isFallback) {
+        await this.fs.writeFile(
+          this.getFilePath(
+            `${key}${
+              isAppPath
+                ? ctx.isRoutePPREnabled
+                  ? RSC_PREFETCH_SUFFIX
+                  : RSC_SUFFIX
+                : NEXT_DATA_SUFFIX
+            }`,
             isAppPath
-              ? ctx.isRoutePPREnabled
-                ? RSC_PREFETCH_SUFFIX
-                : RSC_SUFFIX
-              : NEXT_DATA_SUFFIX
-          }`,
-          isAppPath ? IncrementalCacheKind.APP_PAGE : IncrementalCacheKind.PAGES
-        ),
-        isAppPath ? data.rscData : JSON.stringify(data.pageData)
-      )
+              ? IncrementalCacheKind.APP_PAGE
+              : IncrementalCacheKind.PAGES
+          ),
+          isAppPath ? data.rscData : JSON.stringify(data.pageData)
+        )
+      }
 
-      if (data.headers || data.status || (isAppPath && data.postponed)) {
+      if (data?.kind === CachedRouteKind.APP_PAGE) {
         const meta: RouteMetadata = {
           headers: data.headers,
           status: data.status,
-          postponed: isAppPath ? data.postponed : undefined,
+          postponed: data.postponed,
         }
 
         await this.fs.writeFile(
