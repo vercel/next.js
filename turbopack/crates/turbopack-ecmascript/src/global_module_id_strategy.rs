@@ -3,23 +3,21 @@ use std::collections::{HashMap, HashSet};
 use anyhow::Result;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    ValueToString, Vc,
+    RcStr, ValueToString, Vc,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
-
-use crate::{
+use turbopack_core::{
     chunk::ModuleId,
-    ident::AssetIdent,
     module::{Module, Modules},
     reference::primary_referenced_modules,
 };
 
 #[turbo_tasks::value]
 pub struct PreprocessedChildrenIdents {
-    // module_id -> full hash
+    // ident.to_string() -> full hash
     // We save the full hash to avoid re-hashing in `merge_preprocessed_module_ids`
     // if this endpoint did not change.
-    modules_idents: HashMap<AssetIdent, u64>,
+    modules_idents: HashMap<RcStr, u64>,
 }
 
 pub async fn get_children_modules(
@@ -51,8 +49,9 @@ pub async fn children_modules_idents(
 
     for module in children_modules_iter {
         let module_ident = module.ident();
-        let hash = hash_xxh3_hash64(module_ident.to_string().await?);
-        modules_idents.insert(module_ident.await?.clone_value(), hash);
+        let ident_str = module_ident.to_string().await?.clone_value();
+        let hash = hash_xxh3_hash64(&ident_str);
+        modules_idents.insert(ident_str, hash);
     }
 
     Ok(PreprocessedChildrenIdents { modules_idents }.cell())
@@ -62,8 +61,8 @@ pub async fn children_modules_idents(
 // ids and another that generates the final, optimized module ids. Thoughts?
 pub async fn merge_preprocessed_module_ids(
     prepared_module_ids: Vec<Vc<PreprocessedChildrenIdents>>,
-) -> Result<HashMap<AssetIdent, Vc<ModuleId>>> {
-    let mut module_id_map: HashMap<AssetIdent, Vc<ModuleId>> = HashMap::new();
+) -> Result<HashMap<RcStr, Vc<ModuleId>>> {
+    let mut module_id_map: HashMap<RcStr, Vc<ModuleId>> = HashMap::new();
     let mut used_ids: HashSet<u64> = HashSet::new();
 
     for prepared_module_ids in prepared_module_ids {
@@ -82,12 +81,12 @@ pub async fn merge_preprocessed_module_ids(
 }
 
 pub async fn process_module(
-    module_ident: AssetIdent,
+    ident_str: RcStr,
     full_hash: u64,
-    id_map: &mut HashMap<AssetIdent, Vc<ModuleId>>,
+    id_map: &mut HashMap<RcStr, Vc<ModuleId>>,
     used_ids: &mut HashSet<u64>,
 ) -> Result<()> {
-    if id_map.contains_key(&module_ident) {
+    if id_map.contains_key(&ident_str) {
         return Ok(());
     }
 
@@ -103,7 +102,7 @@ pub async fn process_module(
 
     let hashed_module_id = ModuleId::String(masked_hash.to_string().into());
 
-    id_map.insert(module_ident, hashed_module_id.cell());
+    id_map.insert(ident_str, hashed_module_id.cell());
     used_ids.insert(masked_hash);
 
     Ok(())
