@@ -6,6 +6,7 @@ pub(crate) mod chunking_context;
 pub(crate) mod containment_tree;
 pub(crate) mod data;
 pub(crate) mod evaluate;
+pub mod module_id_strategies;
 pub mod optimize;
 
 use std::{

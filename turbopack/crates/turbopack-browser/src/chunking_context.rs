@@ -6,6 +6,7 @@ use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
+        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext,
         EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
     },
@@ -77,6 +78,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn module_id_strategy(mut self, module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>) -> Self {
+        self.chunking_context.module_id_strategy = module_id_strategy;
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::new(Value::new(self.chunking_context))
     }
@@ -122,6 +128,8 @@ pub struct BrowserChunkingContext {
     minify_type: MinifyType,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
+    /// The module id strategy to use
+    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
 }
 
 impl BrowserChunkingContext {
@@ -151,6 +159,7 @@ impl BrowserChunkingContext {
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
+                module_id_strategy: Vc::upcast(DevModuleIdStrategy::new()),
             },
         }
     }
@@ -474,6 +483,14 @@ impl ChunkingContext for BrowserChunkingContext {
         _availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EntryChunkGroupResult>> {
         bail!("Browser chunking context does not support entry chunk groups")
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_item_id_from_ident(
+        self: Vc<Self>,
+        ident: Vc<AssetIdent>,
+    ) -> Result<Vc<ModuleId>> {
+        Ok(self.await?.module_id_strategy.get_module_id(ident))
     }
 
     #[turbo_tasks::function]

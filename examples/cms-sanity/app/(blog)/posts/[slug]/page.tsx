@@ -1,4 +1,4 @@
-import { defineQuery } from "groq";
+import { defineQuery } from "next-sanity";
 import type { Metadata, ResolvingMetadata } from "next";
 import { type PortableTextBlock } from "next-sanity";
 import Link from "next/link";
