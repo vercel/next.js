@@ -302,6 +302,7 @@ impl Visit for WarnForEdgeRuntime {
     fn visit_unary_expr(&mut self, node: &UnaryExpr) {
         if node.op == op!("typeof") {
             self.add_guard_for_test(&node.arg);
+            return;
         }
 
         node.visit_children_with(self);
