@@ -260,7 +260,7 @@ describe('app dir - middleware with middleware in src dir', () => {
       import { cookies } from 'next/headers'
 
       export async function middleware(request) {
-        const cookie = cookies().get('test-cookie')
+        const cookie = (await cookies()).get('test-cookie')
         return NextResponse.json({ cookie })
       }
     `,

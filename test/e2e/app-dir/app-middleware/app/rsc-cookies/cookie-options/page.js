@@ -1,10 +1,10 @@
 import { cookies } from 'next/headers'
 import Link from 'next/link'
 
-export default function Page() {
+export default async function Page() {
   return (
     <div>
-      <p id="total-cookies">Total Cookie Length: {cookies().size}</p>
+      <p id="total-cookies">Total Cookie Length: {(await cookies()).size}</p>
       <Link href="/rsc-cookies-delete">To Delete Cookies Route</Link>
 
       <form
@@ -12,7 +12,7 @@ export default function Page() {
           'use server'
           console.log(
             '[Cookie From Action]:',
-            cookies().get('rsc-secure-cookie').value
+            (await cookies()).get('rsc-secure-cookie').value
           )
         }}
       >
