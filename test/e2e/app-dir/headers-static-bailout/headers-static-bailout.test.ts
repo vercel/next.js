@@ -50,6 +50,8 @@ describe('headers-static-bailout', () => {
           return new Promise((resolve) =>
             // break out of the expected async context, causing an uncaught build-time error
             setTimeout(() => {
+              // console.log("forcing an error")
+              // throw new Error('boom')
               resolve(cookies().getAll())
             }, 1000)
           )

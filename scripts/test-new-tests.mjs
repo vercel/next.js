@@ -77,7 +77,14 @@ async function main() {
     return
   }
 
-  const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
+  const RUN_TESTS_ARGS = [
+    'run-tests.js',
+    '-c',
+    '1',
+    '--retries',
+    '0',
+    '--debug',
+  ]
 
   // Only override the test version for deploy tests, as they need to run against
   // the artifacts for the pull request. Otherwise, we don't need to specify this property,
