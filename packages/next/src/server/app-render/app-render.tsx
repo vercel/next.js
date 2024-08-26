@@ -845,6 +845,7 @@ async function renderToHTMLOrFlightImpl(
               attributes: {
                 'next.clientComponentLoadCount':
                   metrics.clientComponentLoadCount,
+                'next.span_type': NextNodeServerSpan.clientComponentLoading,
               },
             })
             .end(
