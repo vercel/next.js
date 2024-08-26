@@ -368,6 +368,7 @@ export async function handleRouteType({
 
   hooks?: HandleRouteTypeHooks // dev
 }) {
+  console.log('HANDLE', page, pathname, route, entrypoints)
   switch (route.type) {
     case 'page': {
       const clientKey = getEntryKey('pages', 'client', page)
@@ -383,12 +384,13 @@ export async function handleRouteType({
             currentEntryIssues,
             key,
             writtenEndpoint,
-            false,
+            true,
             logErrors
           )
+
+          await manifestLoader.loadBuildManifest('_app')
+          await manifestLoader.loadPagesManifest('_app')
         }
-        await manifestLoader.loadBuildManifest('_app')
-        await manifestLoader.loadPagesManifest('_app')
 
         if (entrypoints.global.document) {
           const key = getEntryKey('pages', 'server', '_document')
@@ -400,11 +402,11 @@ export async function handleRouteType({
             currentEntryIssues,
             key,
             writtenEndpoint,
-            false,
+            true,
             logErrors
           )
+          await manifestLoader.loadPagesManifest('_document')
         }
-        await manifestLoader.loadPagesManifest('_document')
 
         const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
         hooks?.handleWrittenEndpoint(serverKey, writtenEndpoint)
@@ -418,7 +420,9 @@ export async function handleRouteType({
         } else {
           manifestLoader.deleteMiddlewareManifest(serverKey)
         }
-        await manifestLoader.loadFontManifest('/_app', 'pages')
+        if (entrypoints.global.app) {
+          await manifestLoader.loadFontManifest('/_app', 'pages')
+        }
         await manifestLoader.loadFontManifest(page, 'pages')
         await manifestLoader.loadLoadableManifest(page, 'pages')
 
@@ -432,7 +436,7 @@ export async function handleRouteType({
           currentEntryIssues,
           serverKey,
           writtenEndpoint,
-          false,
+          true,
           logErrors
         )
       } finally {
@@ -532,7 +536,7 @@ export async function handleRouteType({
         entrypoints,
       })
 
-      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
+      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
 
       break
     }
@@ -800,7 +804,7 @@ export async function handleEntrypoints({
 
       const writtenEndpoint = await instrumentation[prop].writeToDisk()
       dev?.hooks.handleWrittenEndpoint(key, writtenEndpoint)
-      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
     }
     await processInstrumentation('instrumentation.nodeJs', 'nodeJs')
     await processInstrumentation('instrumentation.edge', 'edge')
@@ -839,7 +843,7 @@ export async function handleEntrypoints({
     async function processMiddleware() {
       const writtenEndpoint = await endpoint.writeToDisk()
       dev?.hooks.handleWrittenEndpoint(key, writtenEndpoint)
-      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       if (dev) {
         dev.serverFields.middleware = {
@@ -987,11 +991,12 @@ export async function handlePagesErrorRoute({
       // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
       return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
     })
-    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+    processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+
+    await manifestLoader.loadBuildManifest('_app')
+    await manifestLoader.loadPagesManifest('_app')
+    await manifestLoader.loadFontManifest('_app')
   }
-  await manifestLoader.loadBuildManifest('_app')
-  await manifestLoader.loadPagesManifest('_app')
-  await manifestLoader.loadFontManifest('_app')
 
   if (entrypoints.global.document) {
     const key = getEntryKey('pages', 'server', '_document')
@@ -1001,9 +1006,10 @@ export async function handlePagesErrorRoute({
     hooks?.subscribeToChanges(key, false, entrypoints.global.document, () => {
       return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
     })
-    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+    processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+
+    await manifestLoader.loadPagesManifest('_document')
   }
-  await manifestLoader.loadPagesManifest('_document')
 
   if (entrypoints.global.error) {
     const key = getEntryKey('pages', 'server', '_error')
@@ -1015,11 +1021,12 @@ export async function handlePagesErrorRoute({
       // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
       return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
     })
-    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+    processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+
+    await manifestLoader.loadBuildManifest('_error')
+    await manifestLoader.loadPagesManifest('_error')
+    await manifestLoader.loadFontManifest('_error')
   }
-  await manifestLoader.loadBuildManifest('_error')
-  await manifestLoader.loadPagesManifest('_error')
-  await manifestLoader.loadFontManifest('_error')
 
   await manifestLoader.writeManifests({
     devRewrites,
