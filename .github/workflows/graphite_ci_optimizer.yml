@@ -22,7 +22,7 @@ on:
         description: 'The Graphite CI optimization secret'
         required: true
 env:
-  HAS_BYPASS_LABEL: |
+  HAS_BYPASS_LABEL: |-
     ${{
       github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'CI Bypass Graphite Optimization')
