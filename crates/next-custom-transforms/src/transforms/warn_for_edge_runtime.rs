@@ -6,8 +6,8 @@ use swc_core::{
     common::{errors::HANDLER, SourceMap, Span},
     ecma::{
         ast::{
-            op, BinExpr, CallExpr, Callee, Expr, IdentName, IfStmt, ImportDecl, Lit, MemberExpr,
-            MemberProp, NamedExport, UnaryExpr,
+            op, BinExpr, CallExpr, Callee, CondExpr, Expr, IdentName, IfStmt, ImportDecl, Lit,
+            MemberExpr, MemberProp, NamedExport, UnaryExpr,
         },
         utils::{ExprCtx, ExprExt},
         visit::{Visit, VisitWith},
@@ -245,6 +245,13 @@ impl Visit for WarnForEdgeRuntime {
         }
     }
 
+    fn visit_cond_expr(&mut self, node: &CondExpr) {
+        self.add_guards(&node.test);
+
+        node.cons.visit_with(self);
+        node.alt.visit_with(self);
+    }
+
     fn visit_expr(&mut self, n: &Expr) {
         if let Expr::Ident(ident) = n {
             if ident.ctxt == self.ctx.unresolved_ctxt {
@@ -258,6 +265,13 @@ impl Visit for WarnForEdgeRuntime {
         }
 
         n.visit_children_with(self);
+    }
+
+    fn visit_if_stmt(&mut self, node: &IfStmt) {
+        self.add_guards(&node.test);
+
+        node.cons.visit_with(self);
+        node.alt.visit_with(self);
     }
 
     fn visit_import_decl(&mut self, n: &ImportDecl) {
@@ -291,12 +305,5 @@ impl Visit for WarnForEdgeRuntime {
         }
 
         node.visit_children_with(self);
-    }
-
-    fn visit_if_stmt(&mut self, node: &IfStmt) {
-        self.add_guards(&node.test);
-
-        node.cons.visit_with(self);
-        node.alt.visit_with(self);
     }
 }
