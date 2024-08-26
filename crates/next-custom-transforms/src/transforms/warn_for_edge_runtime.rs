@@ -6,8 +6,8 @@ use swc_core::{
     common::{errors::HANDLER, SourceMap, Span},
     ecma::{
         ast::{
-            op, CallExpr, Callee, Expr, IdentName, IfStmt, ImportDecl, Lit, MemberExpr, MemberProp,
-            NamedExport, UnaryExpr,
+            op, BinExpr, CallExpr, Callee, Expr, IdentName, IfStmt, ImportDecl, Lit, MemberExpr,
+            MemberProp, NamedExport, UnaryExpr,
         },
         utils::{ExprCtx, ExprExt},
         visit::{Visit, VisitWith},
@@ -203,6 +203,35 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
         test.visit_children_with(self);
         self.should_add_guards = old;
     }
+
+    fn add_guard_for_test(&mut self, test: &Expr) {
+        if !self.should_add_guards {
+            return;
+        }
+
+        match test {
+            Expr::Ident(ident) => {
+                self.guarded_symbols.insert(ident.sym.clone());
+            }
+            Expr::Member(member) => {
+                if member.obj.is_global_ref_to(&self.ctx, "process") {
+                    if let MemberProp::Ident(prop) = &member.prop {
+                        self.guarded_process_props.insert(prop.sym.clone());
+                    }
+                }
+            }
+            Expr::Bin(BinExpr {
+                left,
+                right,
+                op: op!("===") | op!("==") | op!("!==") | op!("!="),
+                ..
+            }) => {
+                self.add_guard_for_test(left);
+                self.add_guard_for_test(right);
+            }
+            _ => (),
+        }
+    }
 }
 
 impl Visit for WarnForEdgeRuntime {
@@ -258,21 +287,7 @@ impl Visit for WarnForEdgeRuntime {
 
     fn visit_unary_expr(&mut self, node: &UnaryExpr) {
         if node.op == op!("typeof") {
-            match &*node.arg {
-                Expr::Ident(ident) => {
-                    self.guarded_symbols.insert(ident.sym.clone());
-                    return;
-                }
-                Expr::Member(member) => {
-                    if member.obj.is_global_ref_to(&self.ctx, "process") {
-                        if let MemberProp::Ident(prop) = &member.prop {
-                            self.guarded_process_props.insert(prop.sym.clone());
-                        }
-                        return;
-                    }
-                }
-                _ => (),
-            }
+            self.add_guard_for_test(&node.arg);
         }
 
         node.visit_children_with(self);
