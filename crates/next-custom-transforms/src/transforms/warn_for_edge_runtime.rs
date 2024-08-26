@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use rustc_hash::FxHashSet;
 use swc_core::{
     atoms::Atom,
     common::{errors::HANDLER, SourceMap, Span},
@@ -23,8 +24,8 @@ pub fn warn_for_edge_runtime(
         ctx,
         should_error_for_node_apis,
         should_add_guards: false,
-        in_guards: Vec::new(),
-        in_process_guards: Vec::new(),
+        guarded_symbols: Default::default(),
+        guarded_process_props: Default::default(),
     }
 }
 
@@ -34,8 +35,10 @@ struct WarnForEdgeRuntime {
     should_error_for_node_apis: bool,
 
     should_add_guards: bool,
-    in_guards: Vec<Atom>,
-    in_process_guards: Vec<Atom>,
+    /// We don't drop guards because a user may write a code like
+    /// `if(typeof clearImmediate !== "function") clearImmediate();`
+    guarded_symbols: FxHashSet<Atom>,
+    guarded_process_props: FxHashSet<Atom>,
 }
 
 const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
@@ -151,7 +154,11 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime",
     }
 
     fn emit_unsupported_api_error(&self, span: Span, api_name: &str) -> Option<()> {
-        if self.in_guards.iter().any(|guarded| guarded == api_name) {
+        if self
+            .guarded_symbols
+            .iter()
+            .any(|guarded| guarded == api_name)
+        {
             return None;
         }
 
@@ -183,7 +190,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
         if !self.is_in_middleware_layer() || prop.sym == "env" {
             return;
         }
-        if self.in_process_guards.contains(&prop.sym) {
+        if self.guarded_process_props.contains(&prop.sym) {
             return;
         }
 
@@ -253,13 +260,13 @@ impl Visit for WarnForEdgeRuntime {
         if node.op == op!("typeof") {
             match &*node.arg {
                 Expr::Ident(ident) => {
-                    self.in_guards.push(ident.sym.clone());
+                    self.guarded_symbols.insert(ident.sym.clone());
                     return;
                 }
                 Expr::Member(member) => {
                     if member.obj.is_global_ref_to(&self.ctx, "process") {
                         if let MemberProp::Ident(prop) = &member.prop {
-                            self.in_process_guards.push(prop.sym.clone())
+                            self.guarded_process_props.insert(prop.sym.clone());
                         }
                         return;
                     }
@@ -272,14 +279,9 @@ impl Visit for WarnForEdgeRuntime {
     }
 
     fn visit_if_stmt(&mut self, node: &IfStmt) {
-        let orig_len = self.in_guards.len();
-
         self.add_guards(&node.test);
 
         node.cons.visit_with(self);
-
-        self.in_guards.truncate(orig_len);
-
         node.alt.visit_with(self);
     }
 }
