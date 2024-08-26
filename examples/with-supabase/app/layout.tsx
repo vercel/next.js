@@ -1,4 +1,4 @@
-import DeployButton from "@/components/deploy-dropdown";
+import DeployButton from "@/components/deploy-button";
 import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 import AuthButton from "@/components/auth-button";
