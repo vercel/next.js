@@ -321,7 +321,7 @@ For a more precise method of revalidation, use `res.revalidate` to generate a ne
 
 For example, this API Route can be called at `/api/revalidate?secret=<token>` to revalidate a given blog post. Create a secret token only known by your Next.js app. This secret will be used to prevent unauthorized access to the revalidation API Route.
 
-```ts filename="pages/api/revalidate.ts" switcher
+```ts filename="pages/api/revalidate.ts"
 import { NextApiRequest, NextApiResponse } from 'next'
 
 export default async function handler(
