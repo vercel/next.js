@@ -126,6 +126,7 @@ import {
   isReservedPage,
   isAppBuiltinNotFoundPage,
   collectRoutesUsingEdgeRuntime,
+  collectMeta,
 } from './utils'
 import type { PageInfo, PageInfos, AppConfig, PrerenderedRoute } from './utils'
 import { writeBuildId } from './write-build-id'
@@ -241,6 +242,9 @@ export interface DynamicSsgRoute
    * route.
    */
   fallbackRevalidate: Revalidate | undefined
+  fallbackStatus?: number
+  fallbackHeaders?: Record<string, string>
+
   routeRegex: string
   dataRouteRegex: string | null
   prefetchDataRouteRegex: string | null | undefined
@@ -2933,43 +2937,11 @@ export default async function build(
                   )
                 }
 
-                const routeMeta: Partial<SsgRoute> = {}
-
-                if (metadata.status !== 200) {
-                  routeMeta.initialStatus = metadata.status
-                }
-
-                const exportHeaders = metadata.headers
-                const headerKeys = Object.keys(exportHeaders || {})
-
-                if (exportHeaders && headerKeys.length) {
-                  routeMeta.initialHeaders = {}
-
-                  // normalize header values as initialHeaders
-                  // must be Record<string, string>
-                  for (const key of headerKeys) {
-                    // set-cookie is already handled - the middleware cookie setting case
-                    // isn't needed for the prerender manifest since it can't read cookies
-                    if (key === 'x-middleware-set-cookie') continue
-
-                    let value = exportHeaders[key]
-
-                    if (Array.isArray(value)) {
-                      if (key === 'set-cookie') {
-                        value = value.join(',')
-                      } else {
-                        value = value[value.length - 1]
-                      }
-                    }
-
-                    if (typeof value === 'string') {
-                      routeMeta.initialHeaders[key] = value
-                    }
-                  }
-                }
+                const meta = collectMeta(metadata)
 
                 prerenderManifest.routes[route] = {
-                  ...routeMeta,
+                  initialStatus: meta.status,
+                  initialHeaders: meta.headers,
                   experimentalPPR: isRoutePPREnabled,
                   experimentalBypassFor: bypassFor,
                   initialRevalidateSeconds: revalidate,
@@ -3004,6 +2976,9 @@ export default async function build(
               for (const route of dynamicRoutes) {
                 const normalizedRoute = normalizePagePath(route)
 
+                const { metadata, revalidate } =
+                  exportResult.byPath.get(route) ?? {}
+
                 let dataRoute: string | null = null
                 if (!isRouteHandler) {
                   dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
@@ -3037,13 +3012,20 @@ export default async function build(
                 // found, mark that we should keep the shell forever (`false`).
                 let fallbackRevalidate: Revalidate | undefined =
                   isRoutePPREnabled && fallbackMode === FallbackMode.PRERENDER
-                    ? exportResult.byPath.get(route)?.revalidate ?? false
+                    ? revalidate ?? false
                     : undefined
 
                 const fallback: Fallback = fallbackModeToFallbackField(
                   fallbackMode,
                   route
                 )
+
+                const meta =
+                  metadata &&
+                  isRoutePPREnabled &&
+                  fallbackMode === FallbackMode.PRERENDER
+                    ? collectMeta(metadata)
+                    : {}
 
                 prerenderManifest.dynamicRoutes[route] = {
                   experimentalPPR: isRoutePPREnabled,
@@ -3054,6 +3036,8 @@ export default async function build(
                   dataRoute,
                   fallback,
                   fallbackRevalidate,
+                  fallbackStatus: meta.status,
+                  fallbackHeaders: meta.headers,
                   dataRouteRegex: !dataRoute
                     ? null
                     : normalizeRouteRegex(

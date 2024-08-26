@@ -96,6 +96,7 @@ import {
   parseStaticPathsResult,
 } from '../lib/fallback'
 import { getParamKeys } from '../client/components/fallback-params'
+import type { OutgoingHttpHeaders } from 'http'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -2383,4 +2384,52 @@ export function isWebpackBundledLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
+}
+
+export function collectMeta({
+  status,
+  headers,
+}: {
+  status?: number
+  headers?: OutgoingHttpHeaders
+}): {
+  status?: number
+  headers?: Record<string, string>
+} {
+  const meta: {
+    status?: number
+    headers?: Record<string, string>
+  } = {}
+
+  if (status !== 200) {
+    meta.status = status
+  }
+
+  if (headers && Object.keys(headers).length) {
+    meta.headers = {}
+
+    // normalize header values as initialHeaders
+    // must be Record<string, string>
+    for (const key in headers) {
+      // set-cookie is already handled - the middleware cookie setting case
+      // isn't needed for the prerender manifest since it can't read cookies
+      if (key === 'x-middleware-set-cookie') continue
+
+      let value = headers[key]
+
+      if (Array.isArray(value)) {
+        if (key === 'set-cookie') {
+          value = value.join(',')
+        } else {
+          value = value[value.length - 1]
+        }
+      }
+
+      if (typeof value === 'string') {
+        meta.headers[key] = value
+      }
+    }
+  }
+
+  return meta
 }
