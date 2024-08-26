@@ -13,7 +13,7 @@ You can call `fetch` with `async` and `await` directly within Server Components.
 export default async function Page() {
   // This request should be cached until manually invalidated.
   // Similar to `getStaticProps`.
-  // `force-cache` is the default and can be omitted.
+  // Starting with version 15 `force-cache` is no longer the default and must be specified.
   const staticData = await fetch(`https://...`, { cache: 'force-cache' })
 
   // This request should be refetched on every request.
