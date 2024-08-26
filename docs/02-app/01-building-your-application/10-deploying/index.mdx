@@ -122,7 +122,7 @@ export default function Component() {
 
 Next.js can cache responses, generated static pages, build outputs, and other static assets like images, fonts, and scripts.
 
-Caching and revalidating pages (using Incremental Static Regeneration (ISR) or newer functions in the App Router) use the **same shared cache**. By default, this cache is stored to the filesystem (on disk) on your Next.js server. **This works automatically when self-hosting** using both the Pages and App Router.
+Caching and revalidating pages (with [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration)) use the **same shared cache**. By default, this cache is stored to the filesystem (on disk) on your Next.js server. **This works automatically when self-hosting** using both the Pages and App Router.
 
 You can configure the Next.js cache location if you want to persist cached pages and data to durable storage, or share the cache across multiple containers or instances of your Next.js application.
 

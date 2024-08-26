@@ -6,7 +6,6 @@ description: Next.js supports API Routes, which allow you to build your API with
 <details>
   <summary>Examples</summary>
 
-- [Basic API Routes](https://github.com/vercel/next.js/tree/canary/examples/api-routes)
 - [API Routes Request Helpers](https://github.com/vercel/next.js/tree/canary/examples/api-routes-middleware)
 - [API Routes with GraphQL](https://github.com/vercel/next.js/tree/canary/examples/api-routes-graphql)
 - [API Routes with REST](https://github.com/vercel/next.js/tree/canary/examples/api-routes-rest)
@@ -178,7 +177,7 @@ The included helpers are:
 - `res.json(body)` - Sends a JSON response. `body` must be a [serializable object](https://developer.mozilla.org/docs/Glossary/Serialization)
 - `res.send(body)` - Sends the HTTP response. `body` can be a `string`, an `object` or a `Buffer`
 - `res.redirect([status,] path)` - Redirects to a specified path or URL. `status` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes). If not specified, `status` defaults to "307" "Temporary redirect".
-- `res.revalidate(urlPath)` - [Revalidate a page on demand](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation) using `getStaticProps`. `urlPath` must be a `string`.
+- `res.revalidate(urlPath)` - [Revalidate a page on demand](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation-with-revalidatepath) using `getStaticProps`. `urlPath` must be a `string`.
 
 ### Setting the status code of a response
 
