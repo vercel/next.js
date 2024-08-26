@@ -282,11 +282,11 @@ If you are using an ORM or connecting to a database, you can use `unstable_cache
 
 ```jsx
 import { unstable_cache } from 'next/cache'
+import { db, posts } from '@/lib/db'
 
 const getCachedPosts = unstable_cache(
   async () => {
-    let posts = await sql`SELECT * FROM posts WHERE published = true`
-    return posts
+    return await db.select().from(posts)
   },
   ['posts'],
   { revalidate: 3600, tags: ['posts'] }
@@ -397,41 +397,11 @@ When self-hosting, the ISR cache is stored to the filesystem (on disk) on your N
 
 You can configure the Next.js cache location if you want to persist cached pages and data to durable storage, or share the cache across multiple containers or instances of your Next.js application. [Learn more](/docs/app/building-your-application/deploying#caching-and-isr).
 
-## Error handling and revalidation
-
-If there is an error inside `getStaticProps` when handling background regeneration, or you manually throw an error, the last successfully generated page will continue to show. On the next subsequent request, Next.js will retry calling `getStaticProps`.
-
-```jsx
-export async function getStaticProps() {
-  // If this request throws an uncaught error, Next.js will
-  // not invalidate the currently shown page and
-  // retry getStaticProps on the next request.
-  let res = await fetch('https://.../posts')
-  let posts = await res.json()
-
-  if (!res.ok) {
-    // If there is a server error, you might want to
-    // throw an error instead of returning so that the cache is not updated
-    // until the next successful request.
-    throw new Error(`Failed to fetch posts, received status ${res.status}`)
-  }
-
-  // If the request was successful, return the posts
-  // and revalidate every 10 seconds.
-  return {
-    props: {
-      posts,
-    },
-    revalidate: 10,
-  }
-}
-```
-
 ## Troubleshooting
 
 ### Debugging cached data in local development
 
-If you are using the `fetch` API, you can add additional logging to understand which requests are cached or uncached. Learn more about the `logging` option.
+If you are using the `fetch` API, you can add additional logging to understand which requests are cached or uncached. [Learn more about the `logging` option](/docs/app/api-reference/next-config-js/logging).
 
 ```jsx filename="next.config.js"
 module.exports = {
