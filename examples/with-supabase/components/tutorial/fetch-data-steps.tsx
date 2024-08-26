@@ -1,5 +1,5 @@
-import Step from "./Step";
-import Code from "./Code";
+import Step from "./step";
+import Code from "./code";
 
 const create = `
 create table notes (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "../ui/button";
 
 const CopyIcon = () => (
   <svg
@@ -46,12 +47,13 @@ export default function Code({ code }: { code: string }) {
 
   return (
     <pre className="bg-foreground/5 rounded-md p-8 my-8 relative">
-      <button
+      <Button
+        size="icon"
         onClick={copy}
         className="absolute top-4 right-4  p-2 rounded-md bg-foreground/5 hover:bg-foreground/10"
       >
         {icon}
-      </button>
+      </Button>
       <code>{code}</code>
     </pre>
   );
