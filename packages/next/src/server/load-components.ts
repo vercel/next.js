@@ -31,6 +31,7 @@ import { wait } from '../lib/wait'
 import { setReferenceManifestsSingleton } from './app-render/encryption-utils'
 import { createServerModuleMap } from './app-render/action-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
 export type ManifestItem = {
   id: number | string
@@ -163,7 +164,7 @@ async function loadComponentsImpl<N = any>({
             'app',
             page.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
           ),
-          page.replace(/%5F/g, '_')
+          normalizePagePath(page.replace(/%5F/g, '_')) + '_' + CLIENT_REFERENCE_MANIFEST + '.js',
         )
       : undefined,
     isAppPath
