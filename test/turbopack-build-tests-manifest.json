@@ -4517,7 +4517,8 @@
         "Middleware Rewrite should not prefetch non-SSG routes",
         "Middleware Rewrite should resolve dynamic route after rewrite correctly",
         "Middleware Rewrite should rewrite to fallback: true page successfully",
-        "Middleware Rewrite should rewrite without hard navigation"
+        "Middleware Rewrite should rewrite without hard navigation",
+        "Middleware Rewrite should opt out of prefetch caching for dynamic routes"
       ],
       "pending": [
         "Middleware Rewrite includes the locale in rewrites by default"
