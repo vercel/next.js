@@ -324,7 +324,7 @@ Streaming is commonly used in combination with Large Language Models (LLMs), suc
 import { openai } from '@ai-sdk/openai'
 import { StreamingTextResponse, streamText } from 'ai'
 
-export async function POST(req) {
+export async function POST(req: Request) {
   const { messages } = await req.json()
   const result = await streamText({
     model: openai('gpt-4-turbo'),
@@ -339,7 +339,7 @@ export async function POST(req) {
 import { openai } from '@ai-sdk/openai'
 import { StreamingTextResponse, streamText } from 'ai'
 
-export async function POST(req: Request) {
+export async function POST(req) {
   const { messages } = await req.json()
   const result = await streamText({
     model: openai('gpt-4-turbo'),

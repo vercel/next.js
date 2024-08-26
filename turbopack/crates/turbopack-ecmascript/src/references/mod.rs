@@ -55,7 +55,9 @@ use tracing::Instrument;
 use turbo_tasks::{RcStr, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    compile_time_info::{CompileTimeInfo, FreeVarReference},
+    compile_time_info::{
+        CompileTimeInfo, DefineableNameSegment, FreeVarReference, FreeVarReferences,
+    },
     error::PrettyPrintError,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     module::Module,
@@ -369,7 +371,15 @@ impl<'a> AnalysisState<'a> {
             self.var_graph,
             value,
             &early_value_visitor,
-            &|value| value_visitor(self.origin, value, self.compile_time_info, in_try),
+            &|value| {
+                value_visitor(
+                    self.origin,
+                    value,
+                    self.compile_time_info,
+                    self.var_graph,
+                    in_try,
+                )
+            },
             fun_args_values,
         )
         .await
@@ -415,7 +425,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let ty = Value::new(raw_module.ty);
     let transforms = raw_module.transforms;
     let options = raw_module.options;
-    let compile_time_info = raw_module.compile_time_info;
     let options = options.await?;
     let import_externals = options.import_externals;
 
@@ -471,6 +480,40 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     } = &*parsed
     else {
         return analysis.build(false).await;
+    };
+
+    let compile_time_info = if (specified_type == SpecifiedModuleType::CommonJs)
+        || (specified_type == SpecifiedModuleType::Automatic && !eval_context.is_esm())
+    {
+        let compile_time_info = raw_module.compile_time_info.await?;
+        let mut free_var_references = compile_time_info.free_var_references.await?.clone_value();
+        free_var_references
+            .entry(vec![
+                DefineableNameSegment::Name("exports".into()),
+                DefineableNameSegment::TypeOf,
+            ])
+            .or_insert("object".into());
+        free_var_references
+            .entry(vec![
+                DefineableNameSegment::Name("module".into()),
+                DefineableNameSegment::TypeOf,
+            ])
+            .or_insert("object".into());
+        free_var_references
+            .entry(vec![
+                DefineableNameSegment::Name("require".into()),
+                DefineableNameSegment::TypeOf,
+            ])
+            .or_insert("function".into());
+
+        CompileTimeInfo {
+            environment: compile_time_info.environment,
+            defines: compile_time_info.defines,
+            free_var_references: FreeVarReferences(free_var_references).cell(),
+        }
+        .cell()
+    } else {
+        raw_module.compile_time_info
     };
 
     let mut import_references = Vec::new();
@@ -1137,6 +1180,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         analysis.add_binding(EsmBinding::new(*r, export, Vc::cell(ast_path)));
                     }
                 }
+            }
+            Effect::TypeOf {
+                arg,
+                ast_path,
+                span,
+            } => {
+                let arg = analysis_state.link_value(arg, false).await?;
+                handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
             }
             Effect::ImportMeta {
                 ast_path,
@@ -1911,6 +1962,7 @@ async fn handle_member(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
     if let Some(prop) = prop.as_str() {
+        let prop = DefineableNameSegment::Name(prop.into());
         if let Some(def_name_len) = obj.get_defineable_name_len() {
             let compile_time_info = state.compile_time_info.await?;
             let free_var_references = compile_time_info.free_var_references.await?;
@@ -1918,8 +1970,8 @@ async fn handle_member(
                 if name.len() != def_name_len + 1 {
                     continue;
                 }
-                let mut it = name.iter().map(|v| Cow::Borrowed(&**v)).rev();
-                if it.next().unwrap() != Cow::Borrowed(prop) {
+                let mut it = name.iter().map(Cow::Borrowed).rev();
+                if it.next().unwrap().as_ref() != &prop {
                     continue;
                 }
                 if it.eq(obj.iter_defineable_name_rev())
@@ -1947,6 +1999,24 @@ async fn handle_member(
     Ok(())
 }
 
+async fn handle_typeof(
+    ast_path: &[AstParentKind],
+    arg: JsValue,
+    span: Span,
+    state: &AnalysisState<'_>,
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+) -> Result<()> {
+    if let Some(value) = arg.match_free_var_reference(
+        Some(state.var_graph),
+        &*state.compile_time_info.await?.free_var_references.await?,
+        &Some(DefineableNameSegment::TypeOf),
+    ) {
+        handle_free_var_reference(ast_path, value, span, state, analysis).await?;
+    }
+
+    Ok(())
+}
+
 async fn handle_free_var(
     ast_path: &[AstParentKind],
     var: JsValue,
@@ -1964,9 +2034,9 @@ async fn handle_free_var(
 
             if var
                 .iter_defineable_name_rev()
-                .eq(name.iter().map(|v| Cow::Borrowed(&**v)).rev())
-                && handle_free_var_reference(ast_path, value, span, state, analysis).await?
+                .eq(name.iter().map(Cow::Borrowed).rev())
             {
+                handle_free_var_reference(ast_path, value, span, state, analysis).await?;
                 return Ok(());
             }
         }
@@ -2259,9 +2329,11 @@ async fn value_visitor(
     origin: Vc<Box<dyn ResolveOrigin>>,
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
+    var_graph: &VarGraph,
     in_try: bool,
 ) -> Result<(JsValue, bool)> {
-    let (mut v, modified) = value_visitor_inner(origin, v, compile_time_info, in_try).await?;
+    let (mut v, modified) =
+        value_visitor_inner(origin, v, compile_time_info, var_graph, in_try).await?;
     v.normalize_shallow();
     Ok((v, modified))
 }
@@ -2270,20 +2342,24 @@ async fn value_visitor_inner(
     origin: Vc<Box<dyn ResolveOrigin>>,
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
+    var_graph: &VarGraph,
     in_try: bool,
 ) -> Result<(JsValue, bool)> {
-    if let Some(def_name_len) = v.get_defineable_name_len() {
+    // This check is just an optimization
+    if v.get_defineable_name_len().is_some() {
         let compile_time_info = compile_time_info.await?;
-        let defines = compile_time_info.defines.await?;
-        for (name, value) in defines.iter() {
-            if name.len() != def_name_len {
-                continue;
-            }
-            if v.iter_defineable_name_rev()
-                .eq(name.iter().map(|v| Cow::Borrowed(&**v)).rev())
-            {
+        if let JsValue::TypeOf(..) = v {
+            if let Some(value) = v.match_free_var_reference(
+                Some(var_graph),
+                &*compile_time_info.free_var_references.await?,
+                &None,
+            ) {
                 return Ok((value.into(), true));
             }
+        }
+
+        if let Some(value) = v.match_define(&*compile_time_info.defines.await?) {
+            return Ok((value.into(), true));
         }
     }
     let value = match v {
