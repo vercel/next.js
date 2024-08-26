@@ -379,10 +379,9 @@ export async function getStaticProps({ params }) {
 
   return {
     props: { post },
-    // Next.js will attempt to regenerate the page:
-    // - When a request comes in
-    // - At most once every 60 seconds
-    revalidate: 60, // In seconds
+    // Next.js will invalidate the cache when a
+    // request comes in, at most once every 60 seconds.
+    revalidate: 60,
   }
 }
 ```
