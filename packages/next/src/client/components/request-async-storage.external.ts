@@ -6,7 +6,7 @@ import type { ReadonlyRequestCookies } from '../../server/web/spec-extension/ada
 
 // Share the instance module in the next-shared layer
 // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-;('TURBOPACK { transition: next-shared }')
+;('TURBOPACK { turbopack-transition: next-shared }')
 import { requestAsyncStorage } from './request-async-storage-instance'
 
 export interface RequestStore {
