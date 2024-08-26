@@ -1,7 +1,6 @@
 import type { BuildManifest } from '../../server/get-page-files'
 import type { ServerRuntime } from '../../types'
 import type { NEXT_DATA } from './utils'
-import type { FontConfig } from '../../server/font-utils'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { DeepReadonly } from './deep-readonly'
 
@@ -40,7 +39,6 @@ export type HtmlProps = {
   head?: Array<JSX.Element | null>
   crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   optimizeCss?: any
-  optimizeFonts?: FontConfig
   nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers?: boolean
   runtime?: ServerRuntime

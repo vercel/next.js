@@ -244,7 +244,7 @@ fn transform_amd_factory(
                 args: deps,
                 callee: Callee::Expr(Box::new(Expr::Ident(f.clone()))),
                 span: DUMMY_SP,
-                type_args: None,
+                ..Default::default()
             });
             *callee = Callee::Expr(quote_expr!(
                 "($f1, r = typeof $f2 !== \"function\" ? $f3 : $call_f) => r !== undefined && \
@@ -268,8 +268,7 @@ fn transform_amd_factory(
                 expr: Box::new(Expr::Call(CallExpr {
                     args: deps,
                     callee: Callee::Expr(factory),
-                    span: DUMMY_SP,
-                    type_args: None,
+                    ..Default::default()
                 })),
                 spread: None,
             });

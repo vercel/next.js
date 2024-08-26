@@ -1,12 +1,13 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     resolve::{
-        options::{ImportMapResult, ImportMapping, ImportMappingReplacement},
+        options::{ImportMapResult, ImportMappingReplacement, ReplacedImportMapping},
         parse::Request,
+        pattern::Pattern,
         ResolveResult,
     },
     virtual_source::VirtualSource,
@@ -41,8 +42,8 @@ impl NextEdgeUnsupportedModuleReplacer {
 #[turbo_tasks::value_impl]
 impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: RcStr) -> Vc<ImportMapping> {
-        ImportMapping::Ignore.into()
+    fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
+        ReplacedImportMapping::Ignore.into()
     }
 
     #[turbo_tasks::function]

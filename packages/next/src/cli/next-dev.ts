@@ -36,6 +36,7 @@ import {
 import os from 'os'
 import { once } from 'node:events'
 import { clearTimeout } from 'timers'
+import { flushAllTraces, trace } from '../trace'
 
 export type NextDevOptions = {
   turbo?: boolean
@@ -57,6 +58,7 @@ let isTurboSession = false
 let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
+let sessionSpan = trace('next-dev')
 
 // How long should we wait for the child to cleanly exit after sending
 // SIGINT/SIGTERM to the child process before sending SIGKILL?
@@ -82,6 +84,9 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
     await once(child, 'exit').catch(() => {})
     clearTimeout(exitTimeout)
   }
+
+  sessionSpan.stop()
+  await flushAllTraces()
 
   try {
     const { eventCliSessionStopped } =
