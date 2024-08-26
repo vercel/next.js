@@ -92,7 +92,7 @@ If you are not using any [dynamic functions](/docs/app/building-your-application
 If you do _not_ want to cache the response from `fetch`, you can do the following:
 
 ```js
-let data = await fetch('https://api.vercel.app/blog', { cache: 'force-cache' })
+let data = await fetch('https://api.vercel.app/blog', { cache: 'no-store' })
 ```
 
 ### Fetching data on the server with an ORM or database
