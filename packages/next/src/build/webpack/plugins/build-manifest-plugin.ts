@@ -106,7 +106,7 @@ export function getEntrypointFiles(entrypoint: any): string[] {
   )
 }
 
-export const processRoute = (r: Rewrite) => {
+const processRoute = (r: Rewrite) => {
   const rewrite = { ...r }
 
   // omit external rewrite destinations since these aren't

@@ -22,7 +22,6 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   TURBOPACK_MESSAGE = 'turbopack-message',
   SERVER_ERROR = 'serverError',
   TURBOPACK_CONNECTED = 'turbopack-connected',
-  APP_ISR_MANIFEST = 'appIsrManifest',
 }
 
 interface ServerErrorAction {
@@ -104,12 +103,6 @@ interface DevPagesManifestUpdateAction {
 
 export interface TurbopackConnectedAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
-  data: { sessionId: number }
-}
-
-export interface AppIsrManifestAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST
-  data: Record<string, false | number>
 }
 
 export type HMR_ACTION_TYPES =
@@ -127,14 +120,10 @@ export type HMR_ACTION_TYPES =
   | ServerOnlyChangesAction
   | DevPagesManifestUpdateAction
   | ServerErrorAction
-  | AppIsrManifestAction
 
 export type TurbopackMsgToBrowser =
   | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE; data: any }
-  | {
-      type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
-      data: { sessionId: number }
-    }
+  | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED }
 
 export interface NextJsHotReloaderInterface {
   turbopackProject?: Project
@@ -153,12 +142,7 @@ export interface NextJsHotReloaderInterface {
   stop(): Promise<void>
   send(action: HMR_ACTION_TYPES): void
   getCompilationErrors(page: string): Promise<any[]>
-  onHMR(
-    req: IncomingMessage,
-    _socket: Duplex,
-    head: Buffer,
-    onUpgrade: (client: { send(data: string): void }) => void
-  ): void
+  onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer): void
   invalidate({
     reloadAfterInvalidation,
   }: {

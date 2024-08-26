@@ -369,7 +369,6 @@ function processMessage(
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED: {
       processTurbopackMessage({
         type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
-        data: { sessionId: obj.data.sessionId },
       })
       break
     }

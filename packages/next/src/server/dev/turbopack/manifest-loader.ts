@@ -12,6 +12,7 @@ import type { LoadableManifest } from '../../load-components'
 import {
   APP_BUILD_MANIFEST,
   APP_PATHS_MANIFEST,
+  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   BUILD_MANIFEST,
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
@@ -21,27 +22,21 @@ import {
   PAGES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
-  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../../../shared/lib/constants'
 import { join, posix } from 'path'
-import { readFile } from 'fs/promises'
-import { deleteCache } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
+import { readFile, writeFile } from 'fs/promises'
 import type { SetupOpts } from '../../lib/router-utils/setup-dev-bundler'
+import { deleteCache } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import {
   type ClientBuildManifest,
   normalizeRewritesForBuildManifest,
   srcEmptySsgManifest,
-  processRoute,
 } from '../../../build/webpack/plugins/build-manifest-plugin'
-import type { Entrypoints } from './types'
+import type { PageEntrypoints } from './types'
 import getAssetPathFromRoute from '../../../shared/lib/router/utils/get-asset-path-from-route'
 import { getEntryKey, type EntryKey } from './entry-key'
-import type { CustomRoutes } from '../../../lib/load-custom-routes'
-import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import { existsSync } from 'fs'
-import { addMetadataIdToRoute, addRouteSuffix, removeRouteSuffix } from '../turbopack-utils'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -66,35 +61,17 @@ async function readPartialManifest<T>(
   pageName: string,
   type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
 ): Promise<T> {
-  const page = pageName.replace(/\/sitemap\/route$/, '/sitemap.xml/route')
-
-  let manifestPath = posix.join(
+  const manifestPath = posix.join(
     distDir,
     `server`,
     type,
     type === 'middleware' || type === 'instrumentation'
       ? ''
       : type === 'app'
-        ? page
-        : getAssetPathFromRoute(page),
+      ? pageName
+      : getAssetPathFromRoute(pageName),
     name
   )
-  // existsSync is faster than using the async version
-  if(!existsSync(manifestPath) && page.endsWith('/route')) {
-    // TODO: Improve implementation of metadata routes, currently it requires this extra check for the variants of the files that can be written.
-    const metadataPage = addRouteSuffix(addMetadataIdToRoute(removeRouteSuffix(page.replace(/\/sitemap\.xml\/route$/, '/sitemap/route'))))
-    manifestPath = posix.join(
-      distDir,
-      `server`,
-      type,
-      type === 'middleware' || type === 'instrumentation'
-        ? ''
-        : type === 'app'
-          ? metadataPage
-          : getAssetPathFromRoute(metadataPage),
-      name
-    )
-  }
   return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
 }
 
@@ -197,10 +174,11 @@ export class TurbopackManifestLoader {
     const json = JSON.stringify(actionManifest, null, 2)
     deleteCache(actionManifestJsonPath)
     deleteCache(actionManifestJsPath)
-    await writeFileAtomic(actionManifestJsonPath, json)
-    await writeFileAtomic(
+    await writeFile(actionManifestJsonPath, json, 'utf-8')
+    await writeFile(
       actionManifestJsPath,
-      `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`
+      `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`,
+      'utf-8'
     )
   }
 
@@ -266,6 +244,18 @@ export class TurbopackManifestLoader {
     )
   }
 
+  /**
+   * Turbopack doesn't support this functionality, so it writes an empty manifest.
+   */
+  private async writeAutomaticFontOptimizationManifest() {
+    const manifestPath = join(
+      this.distDir,
+      'server',
+      AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
+    )
+
+    await writeFileAtomic(manifestPath, JSON.stringify([]))
+  }
 
   async loadBuildManifest(
     pageName: string,
@@ -287,8 +277,8 @@ export class TurbopackManifestLoader {
       ampDevFiles: [],
       polyfillFiles: [],
       lowPriorityFiles: [
-        `static/${this.buildId}/_ssgManifest.js`,
-        `static/${this.buildId}/_buildManifest.js`,
+        'static/development/_ssgManifest.js',
+        'static/development/_buildManifest.js',
       ],
       rootMainFiles: [],
       ampFirstPages: [],
@@ -296,23 +286,14 @@ export class TurbopackManifestLoader {
     for (const m of manifests) {
       Object.assign(manifest.pages, m.pages)
       if (m.rootMainFiles.length) manifest.rootMainFiles = m.rootMainFiles
-      // polyfillFiles should always be the same, so we can overwrite instead of actually merging
-      if (m.polyfillFiles.length) manifest.polyfillFiles = m.polyfillFiles
     }
     return manifest
   }
 
   private async writeBuildManifest(
-    entrypoints: Entrypoints,
-    devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined,
-    productionRewrites: CustomRoutes['rewrites'] | undefined
+    pageEntrypoints: PageEntrypoints,
+    rewrites: SetupOpts['fsChecker']['rewrites']
   ): Promise<void> {
-    const rewrites = productionRewrites ?? {
-      ...devRewrites,
-      beforeFiles: (devRewrites?.beforeFiles ?? []).map(processRoute),
-      afterFiles: (devRewrites?.afterFiles ?? []).map(processRoute),
-      fallback: (devRewrites?.fallback ?? []).map(processRoute),
-    }
     const buildManifest = this.mergeBuildManifests(this.buildManifests.values())
     const buildManifestPath = join(this.distDir, BUILD_MANIFEST)
     const middlewareBuildManifestPath = join(
@@ -348,24 +329,17 @@ export class TurbopackManifestLoader {
       )};`
     )
 
-    const pagesKeys = [...entrypoints.page.keys()]
-    if (entrypoints.global.app) {
-      pagesKeys.push('/_app')
-    }
-    if (entrypoints.global.error) {
-      pagesKeys.push('/_error')
-    }
-
-    const sortedPageKeys = getSortedRoutes(pagesKeys)
     const content: ClientBuildManifest = {
-      __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
+      __rewrites: rewrites
+        ? (normalizeRewritesForBuildManifest(rewrites) as any)
+        : { afterFiles: [], beforeFiles: [], fallback: [] },
       ...Object.fromEntries(
-        sortedPageKeys.map((pathname) => [
+        [...pageEntrypoints.keys()].map((pathname) => [
           pathname,
-          [`static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`],
+          `static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`,
         ])
       ),
-      sortedPages: sortedPageKeys,
+      sortedPages: [...pageEntrypoints.keys()],
     }
     const buildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
       content
@@ -377,26 +351,6 @@ export class TurbopackManifestLoader {
     await writeFileAtomic(
       join(this.distDir, 'static', this.buildId, '_ssgManifest.js'),
       srcEmptySsgManifest
-    )
-  }
-
-  private async writeClientMiddlewareManifest(): Promise<void> {
-    const middlewareManifest = this.mergeMiddlewareManifests(
-      this.middlewareManifests.values()
-    )
-
-    const matchers = middlewareManifest?.middleware['/']?.matchers || []
-
-    const clientMiddlewareManifestPath = join(
-      this.distDir,
-      'static',
-      this.buildId,
-      `${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
-    )
-    deleteCache(clientMiddlewareManifestPath)
-    await writeFileAtomic(
-      clientMiddlewareManifestPath,
-      JSON.stringify(matchers, null, 2)
     )
   }
 
@@ -640,22 +594,20 @@ export class TurbopackManifestLoader {
   }
 
   async writeManifests({
-    devRewrites,
-    productionRewrites,
-    entrypoints,
+    rewrites,
+    pageEntrypoints,
   }: {
-    devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined
-    productionRewrites: CustomRoutes['rewrites'] | undefined
-    entrypoints: Entrypoints
+    rewrites: SetupOpts['fsChecker']['rewrites']
+    pageEntrypoints: PageEntrypoints
   }) {
     await this.writeActionManifest()
     await this.writeAppBuildManifest()
     await this.writeAppPathsManifest()
-    await this.writeBuildManifest(entrypoints, devRewrites, productionRewrites)
+    await this.writeAutomaticFontOptimizationManifest()
+    await this.writeBuildManifest(pageEntrypoints, rewrites)
     await this.writeFallbackBuildManifest()
     await this.writeLoadableManifest()
     await this.writeMiddlewareManifest()
-    await this.writeClientMiddlewareManifest()
     await this.writeNextFontManifest()
     await this.writePagesManifest()
   }
