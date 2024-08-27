@@ -306,7 +306,9 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
         route += ".txt"
     } else if route == "/manifest" {
         route += ".webmanifest"
-    } else if !route.ends_with("/sitemap") {
+    } else if route.ends_with("/sitemap") {
+        route += ".xml"
+    } else {
         // Remove the file extension, e.g. /route-path/robots.txt -> /route-path
         let pathname_prefix = split_directory(&route).0.unwrap_or_default();
         suffix = get_metadata_route_suffix(pathname_prefix);

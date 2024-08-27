@@ -219,7 +219,7 @@ async fn dynamic_site_map_route_source(
                     const params = []
 
                     for (const item of sitemaps) {
-                        params.push({ __metadata_id__: item.id.toString() })
+                        params.push({ __metadata_id__: item.id.toString() + '.xml' })
                     }
                     return params
                 }
