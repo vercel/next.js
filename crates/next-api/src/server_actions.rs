@@ -297,7 +297,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
         comments, program, ..
     } = &*parsed.await?
     else {
-        // The file might be be parse-able, but this is reported separately.
+        // The file might be parse-able, but this is reported separately.
         return Ok(OptionActionMap::none());
     };
 
