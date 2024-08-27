@@ -2,6 +2,7 @@ import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
 
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
+import { getExpectedRequestStore } from '../../client/components/request-async-storage.external'
 
 export class DraftMode {
   /**
@@ -33,4 +34,11 @@ export class DraftMode {
     }
     return this._provider.disable()
   }
+}
+
+export function draftMode() {
+  const callingExpression = 'draftMode'
+  const requestStore = getExpectedRequestStore(callingExpression)
+
+  return new DraftMode(requestStore.draftMode)
 }
