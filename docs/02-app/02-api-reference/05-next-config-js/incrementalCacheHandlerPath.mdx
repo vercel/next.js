@@ -4,7 +4,11 @@ nav_title: cacheHandler
 description: Configure the Next.js cache used for storing and revalidating data to use any external service like Redis, Memcached, or others.
 ---
 
-In Next.js, the [default cache handler](/docs/app/building-your-application/data-fetching/caching-and-revalidating) for the Pages and App Router uses the filesystem cache. This requires no configuration, however, you can customize the cache handler by using the `cacheHandler` field in `next.config.js`.
+Caching and revalidating pages (with Incremental Static Regeneration) use the same shared cache. When [deploying to Vercel](https://vercel.com/docs/incremental-static-regeneration?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), the ISR cache is automatically persisted to durable storage.
+
+When self-hosting, the ISR cache is stored to the filesystem (on disk) on your Next.js server. This works automatically when self-hosting using both the Pages and App Router.
+
+You can configure the Next.js cache location if you want to persist cached pages and data to durable storage, or share the cache across multiple containers or instances of your Next.js application.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -43,7 +47,7 @@ Returns `Promise<void>`.
 | --------- | -------- | ---------------------------- |
 | `tag`     | `string` | The cache tag to revalidate. |
 
-Returns `Promise<void>`. Learn more about [revalidating data](/docs/app/building-your-application/data-fetching/caching-and-revalidating) or the [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) function.
+Returns `Promise<void>`. Learn more about [revalidating data](/docs/app/building-your-application/data-fetching/incremental-static-regeneration) or the [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) function.
 
 **Good to know:**
 
