@@ -55,6 +55,7 @@ export class Worker {
             NODE_OPTIONS: formatNodeOptions(nodeOptions),
           } as any,
         },
+        maxRetries: 0,
       }) as JestWorker
       restartPromise = new Promise(
         (resolve) => (resolveRestartPromise = resolve)
