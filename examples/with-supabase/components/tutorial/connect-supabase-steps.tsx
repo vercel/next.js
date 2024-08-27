@@ -1,9 +1,9 @@
-import Step from "./step";
+import { TutorialStep } from "./tutorial-step";
 
 export default function ConnectSupabaseSteps() {
   return (
     <ol className="flex flex-col gap-6">
-      <Step title="Create Supabase project">
+      <TutorialStep title="Create Supabase project">
         <p>
           Head over to{" "}
           <a
@@ -16,9 +16,9 @@ export default function ConnectSupabaseSteps() {
           </a>{" "}
           and create a new Supabase project.
         </p>
-      </Step>
+      </TutorialStep>
 
-      <Step title="Declare environment variables">
+      <TutorialStep title="Declare environment variables">
         <p>
           Rename the{" "}
           <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
@@ -39,9 +39,9 @@ export default function ConnectSupabaseSteps() {
           </a>
           .
         </p>
-      </Step>
+      </TutorialStep>
 
-      <Step title="Restart your Next.js development server">
+      <TutorialStep title="Restart your Next.js development server">
         <p>
           You may need to quit your Next.js development server and run{" "}
           <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
@@ -49,14 +49,14 @@ export default function ConnectSupabaseSteps() {
           </span>{" "}
           again to load the new environment variables.
         </p>
-      </Step>
+      </TutorialStep>
 
-      <Step title="Refresh the page">
+      <TutorialStep title="Refresh the page">
         <p>
           You may need to refresh the page for Next.js to load the new
           environment variables.
         </p>
-      </Step>
+      </TutorialStep>
     </ol>
   );
 }

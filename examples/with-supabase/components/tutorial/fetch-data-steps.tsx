@@ -1,5 +1,5 @@
-import Step from "./Step";
-import { Code } from "./Code";
+import { TutorialStep } from "./tutorial-step";
+import { Code } from "./code";
 
 const create = `create table notes (
   id bigserial primary key,
@@ -47,7 +47,7 @@ export default function Page() {
 export default function FetchDataSteps() {
   return (
     <ol className="flex flex-col gap-6">
-      <Step title="Create some tables and insert some data">
+      <TutorialStep title="Create some tables and insert some data">
         <p>
           Head over to the{" "}
           <a
@@ -72,9 +72,9 @@ export default function FetchDataSteps() {
           and click RUN!
         </p>
         <Code code={create} />
-      </Step>
+      </TutorialStep>
 
-      <Step title="Query Supabase data from Next.js">
+      <TutorialStep title="Query Supabase data from Next.js">
         <p>
           To create a Supabase client and query data from an Async Server
           Component, create a new page.tsx file at{" "}
@@ -86,11 +86,11 @@ export default function FetchDataSteps() {
         <Code code={server} />
         <p>Alternatively, you can use a Client Component.</p>
         <Code code={client} />
-      </Step>
+      </TutorialStep>
 
-      <Step title="Build in a weekend and scale to millions!">
+      <TutorialStep title="Build in a weekend and scale to millions!">
         <p>You're ready to launch your product to the world! 🚀</p>
-      </Step>
+      </TutorialStep>
     </ol>
   );
 }

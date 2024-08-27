@@ -1,6 +1,6 @@
 import { Checkbox } from "../ui/checkbox";
 
-export default function Step({
+export function TutorialStep({
   title,
   children,
 }: {
