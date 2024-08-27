@@ -398,9 +398,9 @@ importers:
       node-plop:
         specifier: 0.31.1
         version: 0.31.1
-      npm-run-all:
-        specifier: 4.1.5
-        version: 4.1.5
+      npm-run-all2:
+        specifier: ^6.2.2
+        version: 6.2.2
       nprogress:
         specifier: 0.2.0
         version: 0.2.0
@@ -857,7 +857,7 @@ importers:
         version: 0.5.12
       babel-plugin-react-compiler:
         specifier: '*'
-        version: 0.0.0-experimental-9e9694c-20240826
+        version: 0.0.0-experimental-9e9694c-20240827
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -1631,9 +1631,9 @@ importers:
       '@next/react-refresh-utils':
         specifier: workspace:*
         version: link:../../../../packages/react-refresh-utils
-      npm-run-all:
-        specifier: ^4.1.5
-        version: 4.1.5
+      npm-run-all2:
+        specifier: ^6.2.2
+        version: 6.2.2
 
   turbopack/crates/turbopack-node/js:
     dependencies:
@@ -5990,8 +5990,8 @@ packages:
     peerDependencies:
       '@babel/core': 7.22.5
 
-  babel-plugin-react-compiler@0.0.0-experimental-9e9694c-20240826:
-    resolution: {integrity: sha512-JvR3ixeURr18emkgEAxFAiocF2fbXinRdiEonqMcS+6aCBiRO0itjkfJ9PeLiFhKu+LJ2QG0++MgKURkgp+m6g==}
+  babel-plugin-react-compiler@0.0.0-experimental-9e9694c-20240827:
+    resolution: {integrity: sha512-QjUkS9KM9nepXi6m/ktXrN9w799h50UAq67Oe4iXTzMfP1dK+ycwrWmho2sLkLZB6W9rNFmIdcbsh3s8n6qnLA==}
 
   babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
     resolution: {integrity: sha512-0XN2gmpT55QtAz5n7d5g91y1AuO9tRhWBaLgCRyc4ExHrlr7+LfxW+YTb3mOwxngkkiggwM8HyYsaEK9MqhnlQ==}
@@ -9990,6 +9990,10 @@ packages:
   json-parse-even-better-errors@2.3.1:
     resolution: {integrity: sha512-xyFwyhro/JEof6Ghe2iz2NcXoj2sloNsWr/XsERDK/oiPCfaNhl5ONfp+jQdAZRQQ0IJWNzH9zIZF7li91kh2w==}
 
+  json-parse-even-better-errors@3.0.2:
+    resolution: {integrity: sha512-fi0NG4bPjCHunUJffmLd0gxssIgkNmArMvis4iNah6Owg1MCJjWhEcDLmsK6iGkJq3tHwbDkTlce70/tmXN4cQ==}
+    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+
   json-schema-traverse@0.4.1:
     resolution: {integrity: sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg==}
 
@@ -11146,6 +11150,10 @@ packages:
   npm-normalize-package-bin@1.0.1:
     resolution: {integrity: sha512-EPfafl6JL5/rU+ot6P3gRSCpPDW5VmIzX959Ob1+ySFUuuYHWHekXpwdUZcKP5C+DS4GEtdJluwBjnsNDl+fSA==}
 
+  npm-normalize-package-bin@3.0.1:
+    resolution: {integrity: sha512-dMxCf+zZ+3zeQZXKxmyuCKlIDPGuv8EF940xbkC4kQVDTtqoh6rJFO+JTKSA6/Rwi0getWmtuy4Itup0AMcaDQ==}
+    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+
   npm-package-arg@8.1.0:
     resolution: {integrity: sha512-/ep6QDxBkm9HvOhOg0heitSd7JHA1U7y1qhhlRlteYYAi9Pdb/ZV7FW5aHpkrpM8+P+4p/jjR8zCyKPBMBjSig==}
     engines: {node: '>=10'}
@@ -11162,9 +11170,9 @@ packages:
     resolution: {integrity: sha512-PuFYYtnQ8IyVl6ib9d3PepeehcUeHN9IO5N/iCRhyg9tStQcqGQBRVHmfmMWPDERU3KwZoHFvbJ4FPXPspvzbA==}
     engines: {node: '>=10'}
 
-  npm-run-all@4.1.5:
-    resolution: {integrity: sha512-Oo82gJDAVcaMdi3nuoKFavkIHBRVqQ1qvMb+9LHk/cF4P6B2m8aP04hGf7oL6wZ9BuGwX1onlLhpuoofSyoQDQ==}
-    engines: {node: '>= 4'}
+  npm-run-all2@6.2.2:
+    resolution: {integrity: sha512-Q+alQAGIW7ZhKcxLt8GcSi3h3ryheD6xnmXahkMRVM5LYmajcUrSITm8h+OPC9RYWMV2GR0Q1ntTUCfxaNoOJw==}
+    engines: {node: ^14.18.0 || ^16.13.0 || >=18.0.0, npm: '>= 8'}
     hasBin: true
 
   npm-run-path@1.0.0:
@@ -12815,6 +12823,10 @@ packages:
     resolution: {integrity: sha512-bp6z0tdgLy9KzdfENDIw/53HWAolOVoQTRWXv7PUiqAo3YvvoUVeLr7RWPWq+mu7KUOu9kiT4DvxhUgNUBsvug==}
     engines: {node: '>=10'}
 
+  read-package-json-fast@3.0.2:
+    resolution: {integrity: sha512-0J+Msgym3vrLOUB3hzQCuZHII0xkNGCtz/HJH9xZshwv9DbDwkw1KaE3gx/e2J5rpEY5rtOy6cyhKOPrkP7FZw==}
+    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+
   read-package-json@2.1.1:
     resolution: {integrity: sha512-dAiqGtVc/q5doFz6096CcnXhpYk0ZN8dEKVkGLU0CsASt8SrgF6SF7OTKAYubfvFhWaqofl+Y8HK19GR8jwW+A==}
     deprecated: This package is no longer supported. Please use @npmcli/package-json instead.
@@ -13777,10 +13789,6 @@ packages:
 
   string.prototype.matchall@4.0.8:
     resolution: {integrity: sha512-6zOCOcJ+RJAQshcTvXPHoxoQGONa3e/Lqx90wUA+wEzX78sg5Bo+1tQo4N0pohS0erG9qtCqJDjNCQBjeWVxyg==}
-
-  string.prototype.padend@3.1.0:
-    resolution: {integrity: sha512-3aIv8Ffdp8EZj8iLwREGpQaUZiPyrWrpzMBHvkiSW/bK/EGve9np07Vwy7IJ5waydpGXzQZu/F8Oze2/IWkBaA==}
-    engines: {node: '>= 0.4'}
 
   string.prototype.trim@1.2.7:
     resolution: {integrity: sha512-p6TmeT1T3411M8Cgg9wBTMRtY2q9+PNy9EV1i2lIXUN/btt763oIfxwN3RR8VU6wHX8j/1CFy0L+YuThm6bgOg==}
@@ -20708,7 +20716,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  babel-plugin-react-compiler@0.0.0-experimental-9e9694c-20240826:
+  babel-plugin-react-compiler@0.0.0-experimental-9e9694c-20240827:
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
@@ -25917,6 +25925,8 @@ snapshots:
 
   json-parse-even-better-errors@2.3.1: {}
 
+  json-parse-even-better-errors@3.0.2: {}
+
   json-schema-traverse@0.4.1: {}
 
   json-schema-traverse@1.0.0: {}
@@ -27456,6 +27466,8 @@ snapshots:
 
   npm-normalize-package-bin@1.0.1: {}
 
+  npm-normalize-package-bin@3.0.1: {}
+
   npm-package-arg@8.1.0:
     dependencies:
       hosted-git-info: 3.0.8
@@ -27489,17 +27501,15 @@ snapshots:
       - bluebird
       - supports-color
 
-  npm-run-all@4.1.5:
+  npm-run-all2@6.2.2:
     dependencies:
-      ansi-styles: 3.2.1
-      chalk: 2.4.2
-      cross-spawn: 6.0.5
+      ansi-styles: 6.2.1
+      cross-spawn: 7.0.3
       memorystream: 0.3.1
-      minimatch: 3.1.2
-      pidtree: 0.3.0
-      read-pkg: 3.0.0
+      minimatch: 9.0.5
+      pidtree: 0.6.0
+      read-package-json-fast: 3.0.2
       shell-quote: 1.7.3
-      string.prototype.padend: 3.1.0
 
   npm-run-path@1.0.0:
     dependencies:
@@ -29231,6 +29241,11 @@ snapshots:
       json-parse-even-better-errors: 2.3.1
       npm-normalize-package-bin: 1.0.1
 
+  read-package-json-fast@3.0.2:
+    dependencies:
+      json-parse-even-better-errors: 3.0.2
+      npm-normalize-package-bin: 3.0.1
+
   read-package-json@2.1.1:
     dependencies:
       glob: 7.1.7
@@ -30436,11 +30451,6 @@ snapshots:
       internal-slot: 1.0.3
       regexp.prototype.flags: 1.4.3
       side-channel: 1.0.4
-
-  string.prototype.padend@3.1.0:
-    dependencies:
-      define-properties: 1.1.4
-      es-abstract: 1.20.2
 
   string.prototype.trim@1.2.7:
     dependencies:
