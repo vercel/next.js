@@ -9,24 +9,22 @@ export default function Step({
 }) {
   return (
     <li className="relative">
-      <form>
-        <Checkbox
-          id={title}
-          name={title}
-          className={`absolute top-[3px] mr-2 peer`}
-        />
-        <label
-          htmlFor={title}
-          className={`relative text-base text-foreground peer-checked:line-through font-medium`}
+      <Checkbox
+        id={title}
+        name={title}
+        className={`absolute top-[3px] mr-2 peer`}
+      />
+      <label
+        htmlFor={title}
+        className={`relative text-base text-foreground peer-checked:line-through font-medium`}
+      >
+        <span className="ml-8">{title}</span>
+        <div
+          className={`ml-8 text-sm peer-checked:line-through font-normal text-muted-foreground`}
         >
-          <span className="ml-8">{title}</span>
-          <div
-            className={`ml-8 text-sm peer-checked:line-through font-normal text-muted-foreground`}
-          >
-            {children}
-          </div>
-        </label>
-      </form>
+          {children}
+        </div>
+      </label>
     </li>
   );
 }
