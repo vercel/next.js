@@ -8,7 +8,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn all_in_one() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let a: Vc<u32> = Vc::cell(4242);
         assert_eq!(*a.await?, 4242);
 

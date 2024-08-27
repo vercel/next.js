@@ -9,11 +9,13 @@
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
     "autoprefixer": "10.4.17",
+    "clsx": "^2.1.1",
     "geist": "^1.2.1",
     "next": "latest",
     "postcss": "8.4.33",
     "react": "18.2.0",
     "react-dom": "18.2.0",
+    "tailwind-merge": "^2.5.2",
     "tailwindcss": "3.4.1",
     "typescript": "5.3.3"
   },

@@ -22,6 +22,8 @@ description: Optimized pages include an indicator to let you know if it's being 
 
 ## `appIsrStatus` (Static Indicator)
 
+> This option is available in Next.js canary.
+
 Next.js displays a static indicator in the bottom corner of the screen that signals if a route will be prerendered at build time. This makes it easier to understand whether a route is static or dynamic, and for you to identify if a route [opts out of static rendering](#static-route-not-showing-the-indicator).
 
 <Image
@@ -103,7 +105,7 @@ Route (app)                              Size     First Load JS
 There are two reasons a route might opt out of static rendering:
 
 - The presence of [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-functions) which rely on runtime information.
-- An [uncached data request](/docs/app/building-your-application/data-fetching/fetching#fetch-api).
+- An [uncached data request](/docs/app/building-your-application/data-fetching/fetching), like a call to an ORM or database driver.
 
 Check your route for any of these conditions, and if you are not able to statically render the route, then consider using [`loading.js`](/docs/app/api-reference/file-conventions/loading) or [`<Suspense />`](https://react.dev/reference/react/Suspense) to leverage [streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming#what-is-streaming).
 

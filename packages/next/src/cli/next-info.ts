@@ -360,7 +360,7 @@ async function printVerboseInfo() {
             const bindings = await loadBindings(
               nextConfig.experimental?.useWasmBinary
             )
-            // Run arbitary function to verify the bindings are loaded correctly.
+            // Run arbitrary function to verify the bindings are loaded correctly.
             const target = bindings.getTargetTriple()
 
             // We think next-swc is installed correctly if getTargetTriple returns.

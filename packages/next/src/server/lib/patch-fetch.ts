@@ -18,7 +18,11 @@ import type {
   RequestAsyncStorage,
   RequestStore,
 } from '../../client/components/request-async-storage.external'
-import type { CachedFetchData } from '../response-cache'
+import {
+  CachedRouteKind,
+  IncrementalCacheKind,
+  type CachedFetchData,
+} from '../response-cache'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -30,10 +34,10 @@ type PatchedFetcher = Fetcher & {
   readonly _nextOriginalFetch: Fetcher
 }
 
-function isPatchedFetch(
-  fetch: Fetcher | PatchedFetcher
-): fetch is PatchedFetcher {
-  return '__nextPatched' in fetch && fetch.__nextPatched === true
+export const NEXT_PATCH_SYMBOL = Symbol.for('next-patch')
+
+function isFetchPatched() {
+  return (globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] === true
 }
 
 export function validateRevalidate(
@@ -615,7 +619,7 @@ export function createPatchedFetcher(
                     await incrementalCache.set(
                       cacheKey,
                       {
-                        kind: 'FETCH',
+                        kind: CachedRouteKind.FETCH,
                         data: fetchedData,
                         revalidate: normalizedRevalidate,
                       },
@@ -666,12 +670,13 @@ export function createPatchedFetcher(
             const entry = staticGenerationStore.isOnDemandRevalidate
               ? null
               : await incrementalCache.get(cacheKey, {
-                  kindHint: 'fetch',
+                  kind: IncrementalCacheKind.FETCH,
                   revalidate: finalRevalidate,
                   fetchUrl,
                   fetchIdx,
                   tags,
                   softTags: implicitTags,
+                  isFallback: false,
                 })
 
             if (entry) {
@@ -681,7 +686,7 @@ export function createPatchedFetcher(
               cacheReasonOverride = 'cache-control: no-cache (hard refresh)'
             }
 
-            if (entry?.value && entry.value.kind === 'FETCH') {
+            if (entry?.value && entry.value.kind === CachedRouteKind.FETCH) {
               // when stale and is revalidating we wait for fresh data
               // so the revalidated entry has the updated data
               if (staticGenerationStore.isRevalidate && entry.isStale) {
@@ -800,18 +805,21 @@ export function createPatchedFetcher(
   }
 
   // Attach the necessary properties to the patched fetch function.
+  // We don't use this to determine if the fetch function has been patched,
+  // but for external consumers to determine if the fetch function has been
+  // patched.
   patched.__nextPatched = true as const
   patched.__nextGetStaticStore = () => staticGenerationAsyncStorage
   patched._nextOriginalFetch = originFetch
+  ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = true
 
   return patched
 }
-
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 export function patchFetch(options: PatchableModule) {
   // If we've already patched fetch, we should not patch it again.
-  if (isPatchedFetch(globalThis.fetch)) return
+  if (isFetchPatched()) return
 
   // Grab the original fetch function. We'll attach this so we can use it in
   // the patched fetch function.

@@ -25,6 +25,7 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
   NEXT_IS_PRERENDER_HEADER,
+  NEXT_DID_POSTPONE_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
@@ -57,10 +58,11 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
   return {
-    f: urlToUrlWithoutFlightMarker(url).toString(),
-    c: undefined,
-    i: false,
-    p: false,
+    flightData: urlToUrlWithoutFlightMarker(url).toString(),
+    canonicalUrl: undefined,
+    couldBeIntercepted: false,
+    isPrerender: false,
+    postponed: false,
   }
 }
 
@@ -164,6 +166,7 @@ export async function fetchServerResponse(
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
+    const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
     let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
 
     if (process.env.NODE_ENV === 'production') {
@@ -206,10 +209,11 @@ export async function fetchServerResponse(
     }
 
     return {
-      f: response.f,
-      c: canonicalUrl,
-      i: interception,
-      p: isPrerender,
+      flightData: response.f,
+      canonicalUrl: canonicalUrl,
+      couldBeIntercepted: interception,
+      isPrerender: isPrerender,
+      postponed,
     }
   } catch (err) {
     console.error(
@@ -220,10 +224,11 @@ export async function fetchServerResponse(
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
     return {
-      f: url.toString(),
-      c: undefined,
-      i: false,
-      p: false,
+      flightData: url.toString(),
+      canonicalUrl: undefined,
+      couldBeIntercepted: false,
+      isPrerender: false,
+      postponed: false,
     }
   }
 }

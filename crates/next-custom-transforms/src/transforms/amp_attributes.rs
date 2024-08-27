@@ -1,5 +1,7 @@
 use swc_core::ecma::{
-    ast::{Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXElementName, JSXOpeningElement},
+    ast::{
+        Ident, IdentName, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXElementName, JSXOpeningElement,
+    },
     atoms::JsWord,
     visit::Fold,
 };
@@ -26,22 +28,16 @@ impl Fold for AmpAttributePatcher {
             if sym.starts_with("amp-") {
                 for i in &mut attrs {
                     if let JSXAttrOrSpread::JSXAttr(JSXAttr {
-                        name:
-                            JSXAttrName::Ident(Ident {
-                                sym,
-                                span: s,
-                                optional: o,
-                            }),
+                        name: JSXAttrName::Ident(IdentName { sym, span: s }),
                         span,
                         value,
                     }) = &i
                     {
                         if sym as &str == "className" {
                             *i = JSXAttrOrSpread::JSXAttr(JSXAttr {
-                                name: JSXAttrName::Ident(Ident {
+                                name: JSXAttrName::Ident(IdentName {
                                     sym: JsWord::from("class"),
                                     span: *s,
-                                    optional: *o,
                                 }),
                                 span: *span,
                                 value: value.clone(),
