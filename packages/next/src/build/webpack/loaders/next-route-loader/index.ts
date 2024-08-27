@@ -6,10 +6,10 @@ import {
   type ModuleBuildInfo,
   getModuleBuildInfo,
 } from '../get-module-build-info'
-import { RouteKind } from '../../../../server/future/route-kind'
+import { RouteKind } from '../../../../server/route-kind'
 import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 import { decodeFromBase64, encodeToBase64 } from '../utils'
-import { isInstrumentationHookFile } from '../../../worker'
+import { isInstrumentationHookFile } from '../../../utils'
 import { loadEntrypoint } from '../../../load-entrypoint'
 import type { MappedPages } from '../../../build-context'
 

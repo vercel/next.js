@@ -11,6 +11,10 @@ import pkg from "../package.json";
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
+// Do not rename or format. sync-react script relies on this line.
+// prettier-ignore
+const nextjsReactPeerVersion = "19.0.0-rc-eb3ad065-20240822";
+
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
  */
@@ -38,6 +42,8 @@ export const installTemplate = async ({
   eslint,
   srcDir,
   importAlias,
+  skipInstall,
+  turbo,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -51,7 +57,7 @@ export const installTemplate = async ({
   if (!tailwind)
     copySource.push(
       mode == "ts" ? "tailwind.config.ts" : "!tailwind.config.js",
-      "!postcss.config.js",
+      "!postcss.config.mjs",
     );
 
   await copy(copySource, root, {
@@ -95,23 +101,25 @@ export const installTemplate = async ({
       cwd: root,
       dot: true,
       stats: false,
+      // We don't want to modify compiler options in [ts/js]config.json
+      // and none of the files in the .git folder
+      ignore: ["tsconfig.json", "jsconfig.json", ".git/**/*"],
     });
     const writeSema = new Sema(8, { capacity: files.length });
     await Promise.all(
       files.map(async (file) => {
-        // We don't want to modify compiler options in [ts/js]config.json
-        if (file === "tsconfig.json" || file === "jsconfig.json") return;
         await writeSema.acquire();
         const filePath = path.join(root, file);
         if ((await fs.stat(filePath)).isFile()) {
           await fs.writeFile(
             filePath,
-            (
-              await fs.readFile(filePath, "utf8")
-            ).replace(`@/`, `${importAlias.replace(/\*/g, "")}`),
+            (await fs.readFile(filePath, "utf8")).replace(
+              `@/`,
+              `${importAlias.replace(/\*/g, "")}`,
+            ),
           );
         }
-        await writeSema.release();
+        writeSema.release();
       }),
     );
   }
@@ -141,9 +149,7 @@ export const installTemplate = async ({
 
     await fs.writeFile(
       indexPageFile,
-      (
-        await fs.readFile(indexPageFile, "utf8")
-      ).replace(
+      (await fs.readFile(indexPageFile, "utf8")).replace(
         isAppTemplate ? "app/page" : "pages/index",
         isAppTemplate ? "src/app/page" : "src/pages/index",
       ),
@@ -156,9 +162,7 @@ export const installTemplate = async ({
       );
       await fs.writeFile(
         tailwindConfigFile,
-        (
-          await fs.readFile(tailwindConfigFile, "utf8")
-        ).replace(
+        (await fs.readFile(tailwindConfigFile, "utf8")).replace(
           /\.\/(\w+)\/\*\*\/\*\.\{js,ts,jsx,tsx,mdx\}/g,
           "./src/$1/**/*.{js,ts,jsx,tsx,mdx}",
         ),
@@ -175,7 +179,7 @@ export const installTemplate = async ({
     version: "0.1.0",
     private: true,
     scripts: {
-      dev: "next dev",
+      dev: `next dev${turbo ? " --turbo" : ""}`,
       build: "next build",
       start: "next start",
       lint: "next lint",
@@ -184,8 +188,8 @@ export const installTemplate = async ({
      * Default dependencies.
      */
     dependencies: {
-      react: "^18",
-      "react-dom": "^18",
+      react: nextjsReactPeerVersion,
+      "react-dom": nextjsReactPeerVersion,
       next: version,
     },
     devDependencies: {},
@@ -208,9 +212,8 @@ export const installTemplate = async ({
   if (tailwind) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      autoprefixer: "^10.0.1",
       postcss: "^8",
-      tailwindcss: "^3.3.0",
+      tailwindcss: "^3.4.1",
     };
   }
 
@@ -230,6 +233,8 @@ export const installTemplate = async ({
     path.join(root, "package.json"),
     JSON.stringify(packageJson, null, 2) + os.EOL,
   );
+
+  if (skipInstall) return;
 
   console.log("\nInstalling dependencies:");
   for (const dependency in packageJson.dependencies)

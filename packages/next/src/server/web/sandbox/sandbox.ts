@@ -1,9 +1,10 @@
 import type { NodejsRequestData, FetchEventResult, RequestData } from '../types'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
-import { getModuleContext } from './context'
+import { getModuleContext, requestStore } from './context'
 import { requestToBodyStream } from '../../body-streams'
 import { NEXT_RSC_UNION_QUERY } from '../../../client/components/app-router-headers'
+import type { ServerComponentsHmrCache } from '../../response-cache'
 
 export const ErrorSource = Symbol('SandboxError')
 
@@ -13,16 +14,20 @@ const FORBIDDEN_HEADERS = [
   'transfer-encoding',
 ]
 
-type RunnerFn = (params: {
+interface RunnerFnParams {
   name: string
+  onError?: (err: unknown) => void
   onWarning?: (warn: Error) => void
   paths: string[]
   request: NodejsRequestData
   useCache: boolean
-  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'wasm' | 'assets'>
+  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm' | 'env'>
   distDir: string
   incrementalCache?: any
-}) => Promise<FetchEventResult>
+  serverComponentsHmrCache?: ServerComponentsHmrCache
+}
+
+type RunnerFn = (params: RunnerFnParams) => Promise<FetchEventResult>
 
 /**
  * Decorates the runner function making sure all errors it can produce are
@@ -31,7 +36,7 @@ type RunnerFn = (params: {
 function withTaggedErrors(fn: RunnerFn): RunnerFn {
   if (process.env.NODE_ENV === 'development') {
     const { getServerError } =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware') as typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
+      require('../../../client/components/react-dev-overlay/server/middleware') as typeof import('../../../client/components/react-dev-overlay/server/middleware')
 
     return (params) =>
       fn(params)
@@ -51,18 +56,13 @@ function withTaggedErrors(fn: RunnerFn): RunnerFn {
   return fn
 }
 
-export async function getRuntimeContext(params: {
-  name: string
-  onWarning?: any
-  useCache: boolean
-  edgeFunctionEntry: any
-  distDir: string
-  paths: string[]
-  incrementalCache?: any
-}): Promise<EdgeRuntime<any>> {
+export async function getRuntimeContext(
+  params: Omit<RunnerFnParams, 'request'>
+): Promise<EdgeRuntime<any>> {
   const { runtime, evaluateInContext } = await getModuleContext({
     moduleName: params.name,
     onWarning: params.onWarning ?? (() => {}),
+    onError: params.onError ?? (() => {}),
     useCache: params.useCache !== false,
     edgeFunctionEntry: params.edgeFunctionEntry,
     distDir: params.distDir,
@@ -70,6 +70,11 @@ export async function getRuntimeContext(params: {
 
   if (params.incrementalCache) {
     runtime.context.globalThis.__incrementalCache = params.incrementalCache
+  }
+
+  if (params.serverComponentsHmrCache) {
+    runtime.context.globalThis.__serverComponentsHmrCache =
+      params.serverComponentsHmrCache
   }
 
   for (const paramPath of params.paths) {
@@ -82,7 +87,14 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
   const runtime = await getRuntimeContext(params)
   const subreq = params.request.headers[`x-middleware-subrequest`]
   const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
-  if (subrequests.includes(params.name)) {
+
+  const MAX_RECURSION_DEPTH = 5
+  const depth = subrequests.reduce(
+    (acc, curr) => (curr === params.name ? acc + 1 : acc),
+    0
+  )
+
+  if (depth >= MAX_RECURSION_DEPTH) {
     return {
       waitUntil: Promise.resolve(),
       response: new runtime.context.Response(null, {
@@ -95,8 +107,9 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
 
   const edgeFunction: (args: {
     request: RequestData
-  }) => Promise<FetchEventResult> =
-    runtime.context._ENTRIES[`middleware_${params.name}`].default
+  }) => Promise<FetchEventResult> = (
+    await runtime.context._ENTRIES[`middleware_${params.name}`]
+  ).default
 
   const cloned = !['HEAD', 'GET'].includes(params.request.method)
     ? params.request.body?.cloneBodyStream()
@@ -108,17 +121,26 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
 
   params.request.url = urlInstance.toString()
 
+  const headers = new Headers()
+  for (const [key, value] of Object.entries(params.request.headers)) {
+    headers.set(key, value?.toString() ?? '')
+  }
+
   try {
-    const result = await edgeFunction({
-      request: {
-        ...params.request,
-        body:
-          cloned && requestToBodyStream(runtime.context, KUint8Array, cloned),
-      },
+    let result: FetchEventResult | undefined = undefined
+    await requestStore.run({ headers }, async () => {
+      result = await edgeFunction({
+        request: {
+          ...params.request,
+          body:
+            cloned && requestToBodyStream(runtime.context, KUint8Array, cloned),
+        },
+      })
+      for (const headerName of FORBIDDEN_HEADERS) {
+        result.response.headers.delete(headerName)
+      }
     })
-    for (const headerName of FORBIDDEN_HEADERS) {
-      result.response.headers.delete(headerName)
-    }
+    if (!result) throw new Error('Edge function did not return a response')
     return result
   } finally {
     await params.request.body?.finalize()

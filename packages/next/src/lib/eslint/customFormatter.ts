@@ -94,16 +94,16 @@ function formatMessage(
   return output
 }
 
-export function formatResults(
+export async function formatResults(
   baseDir: string,
   results: LintResult[],
-  format: (r: LintResult[]) => string
-): {
+  format: (r: LintResult[]) => string | Promise<string>
+): Promise<{
   output: string
   outputWithMessages: string
   totalNextPluginErrorCount: number
   totalNextPluginWarningCount: number
-} {
+}> {
   let totalNextPluginErrorCount = 0
   let totalNextPluginWarningCount = 0
   let resultsWithMessages = results.filter(({ messages }) => messages?.length)
@@ -117,7 +117,7 @@ export function formatResults(
 
   // Use user defined formatter or Next.js's built-in custom formatter
   const output = format
-    ? format(resultsWithMessages)
+    ? await format(resultsWithMessages)
     : resultsWithMessages
         .map(({ messages, filePath }) =>
           formatMessage(baseDir, messages, filePath)

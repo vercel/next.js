@@ -42,6 +42,8 @@ export default function Page({ repo }) {
 
 > Note that irrespective of rendering type, any `props` will be passed to the page component and can be viewed on the client-side in the initial HTML. This is to allow the page to be [hydrated](https://react.dev/reference/react-dom/hydrate) correctly. Make sure that you don't pass any sensitive information that shouldn't be available on the client in `props`.
 
+The [`getStaticProps` API reference](/docs/pages/api-reference/functions/get-static-props) covers all parameters and props that can be used with `getStaticProps`.
+
 ## When should I use getStaticProps?
 
 You should use `getStaticProps` if:
@@ -59,7 +61,7 @@ You should use `getStaticProps` if:
 - `getStaticProps` runs in the background when using [`fallback: true`](/docs/pages/api-reference/functions/get-static-paths#fallback-true)
 - `getStaticProps` is called before initial render when using [`fallback: blocking`](/docs/pages/api-reference/functions/get-static-paths#fallback-blocking)
 - `getStaticProps` runs in the background when using `revalidate`
-- `getStaticProps` runs on-demand in the background when using [`revalidate()`](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation)
+- `getStaticProps` runs on-demand in the background when using [`revalidate()`](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation-with-revalidatepath)
 
 When combined with [Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration), `getStaticProps` will run in the background while the stale page is being revalidated, and the fresh page served to the browser.
 

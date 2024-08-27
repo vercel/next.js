@@ -1,18 +1,25 @@
-import type {
-  StaticGenerationAsyncStorage,
-  StaticGenerationStore,
-} from '../../../client/components/static-generation-async-storage.external'
 import { trackDynamicDataAccessed } from '../../app-render/dynamic-rendering'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import {
   NEXT_CACHE_IMPLICIT_TAG_ID,
   NEXT_CACHE_SOFT_TAG_MAX_LENGTH,
 } from '../../../lib/constants'
+import { staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 
+/**
+ * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
+ *
+ * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
+ */
 export function revalidateTag(tag: string) {
   return revalidate(tag, `revalidateTag ${tag}`)
 }
 
+/**
+ * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific path.
+ *
+ * Read more: [Next.js Docs: `revalidatePath`](https://nextjs.org/docs/app/api-reference/functions/revalidatePath)
+ */
 export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
   if (originalPath.length > NEXT_CACHE_SOFT_TAG_MAX_LENGTH) {
     console.warn(
@@ -27,20 +34,14 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
     normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
   } else if (isDynamicRoute(originalPath)) {
     console.warn(
-      `Warning: a dynamic page path "${originalPath}" was passed to "revalidatePath" without the "page" argument. This has no affect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
+      `Warning: a dynamic page path "${originalPath}" was passed to "revalidatePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
     )
   }
   return revalidate(normalizedPath, `revalidatePath ${originalPath}`)
 }
 
 function revalidate(tag: string, expression: string) {
-  const staticGenerationAsyncStorage = (
-    fetch as any
-  ).__nextGetStaticStore?.() as undefined | StaticGenerationAsyncStorage
-
-  const store: undefined | StaticGenerationStore =
-    staticGenerationAsyncStorage?.getStore()
-
+  const store = staticGenerationAsyncStorage.getStore()
   if (!store || !store.incrementalCache) {
     throw new Error(
       `Invariant: static generation store missing in ${expression}`
@@ -49,7 +50,7 @@ function revalidate(tag: string, expression: string) {
 
   if (store.isUnstableCacheCallback) {
     throw new Error(
-      `used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+      `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
     )
   }
 
@@ -63,15 +64,6 @@ function revalidate(tag: string, expression: string) {
   if (!store.revalidatedTags.includes(tag)) {
     store.revalidatedTags.push(tag)
   }
-
-  if (!store.pendingRevalidates) {
-    store.pendingRevalidates = {}
-  }
-  store.pendingRevalidates[tag] = store.incrementalCache
-    .revalidateTag?.(tag)
-    .catch((err) => {
-      console.error(`revalidate failed for ${tag}`, err)
-    })
 
   // TODO: only revalidate if the path matches
   store.pathWasRevalidated = true

@@ -123,7 +123,7 @@ Although the default behavior of `next/script` allows you to load third-party sc
 
 Refer to the [`next/script`](/docs/app/api-reference/components/script#strategy) API reference documentation to learn more about each strategy and their use cases.
 
-### Offloading Scripts To A Web Worker (Experimental)
+### Offloading Scripts To A Web Worker (experimental)
 
 > **Warning:** The `worker` strategy is not yet stable and does not yet work with the [`app`](/docs/app/building-your-application/routing/defining-routes) directory. Use with caution.
 
@@ -174,6 +174,53 @@ export default function Home() {
 ```
 
 There are a number of trade-offs that need to be considered when loading a third-party script in a web worker. Please see Partytown's [tradeoffs](https://partytown.builder.io/trade-offs) documentation for more information.
+
+<PagesOnly>
+
+#### Using custom Partytown configuration
+
+Although the `worker` strategy does not require any additional configuration to work, Partytown supports the use of a config object to modify some of its settings, including enabling `debug` mode and forwarding events and triggers.
+
+If you would like to add additonal configuration options, you can include it within the `<Head />` component used in a [custom `_document.js`](/docs/pages/building-your-application/routing/custom-document):
+
+```jsx filename="_pages/document.jsx"
+import { Html, Head, Main, NextScript } from 'next/document'
+
+export default function Document() {
+  return (
+    <Html>
+      <Head>
+        <script
+          data-partytown-config
+          dangerouslySetInnerHTML={{
+            __html: `
+              partytown = {
+                lib: "/_next/static/~partytown/",
+                debug: true
+              };
+            `,
+          }}
+        />
+      </Head>
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
+}
+```
+
+In order to modify Partytown's configuration, the following conditions must be met:
+
+1. The `data-partytown-config` attribute must be used in order to overwrite the default configuration used by Next.js
+2. Unless you decide to save Partytown's library files in a separate directory, the `lib: "/_next/static/~partytown/"` property and value must be included in the configuration object in order to let Partytown know where Next.js stores the necessary static files.
+
+> **Note**: If you are using an [asset prefix](/docs/pages/api-reference/next-config-js/assetPrefix) and would like to modify Partytown's default configuration, you must include it as part of the `lib` path.
+
+Take a look at Partytown's [configuration options](https://partytown.builder.io/configuration) to see the full list of other properties that can be added.
+
+</PagesOnly>
 
 ### Inline Scripts
 

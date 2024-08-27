@@ -1,10 +1,10 @@
 import type { BuildManifest } from '../../server/get-page-files'
-import type { ServerRuntime } from 'next/types'
+import type { ServerRuntime } from '../../types'
 import type { NEXT_DATA } from './utils'
-import type { FontConfig } from '../../server/font-utils'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import type { DeepReadonly } from './deep-readonly'
 
-import { createContext, useContext } from 'react'
+import { createContext, useContext, type JSX } from 'react'
 
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
@@ -35,17 +35,16 @@ export type HtmlProps = {
   }
   locale?: string
   disableOptimizedLoading?: boolean
-  styles?: React.ReactElement[] | React.ReactFragment
+  styles?: React.ReactElement[] | Iterable<React.ReactNode>
   head?: Array<JSX.Element | null>
   crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   optimizeCss?: any
-  optimizeFonts?: FontConfig
   nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers?: boolean
   runtime?: ServerRuntime
   hasConcurrentFeatures?: boolean
   largePageDataBytes?: number
-  nextFontManifest?: NextFontManifest
+  nextFontManifest?: DeepReadonly<NextFontManifest>
 }
 
 export const HtmlContext = createContext<HtmlProps | undefined>(undefined)

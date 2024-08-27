@@ -30,13 +30,18 @@ export function getRedirectError(
 }
 
 /**
- * When used in a streaming context, this will insert a meta tag to
- * redirect the user to the target page. When used in a custom app route, it
- * will serve a 307/303 to the caller.
+ * This function allows you to redirect the user to another URL. It can be used in
+ * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
+ * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
+ * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
  *
- * @param url the url to redirect to
+ * - In a Server Component, this will insert a meta tag to redirect the user to the target page.
+ * - In a Route Handler or Server Action, it will serve a 307/303 to the caller.
+ *
+ * Read more: [Next.js Docs: `redirect`](https://nextjs.org/docs/app/api-reference/functions/redirect)
  */
 export function redirect(
+  /** The URL to redirect to */
   url: string,
   type: RedirectType = RedirectType.replace
 ): never {
@@ -54,13 +59,18 @@ export function redirect(
 }
 
 /**
- * When used in a streaming context, this will insert a meta tag to
- * redirect the user to the target page. When used in a custom app route, it
- * will serve a 308/303 to the caller.
+ * This function allows you to redirect the user to another URL. It can be used in
+ * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
+ * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
+ * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
  *
- * @param url the url to redirect to
+ * - In a Server Component, this will insert a meta tag to redirect the user to the target page.
+ * - In a Route Handler or Server Action, it will serve a 308/303 to the caller.
+ *
+ * Read more: [Next.js Docs: `redirect`](https://nextjs.org/docs/app/api-reference/functions/redirect)
  */
 export function permanentRedirect(
+  /** The URL to redirect to */
   url: string,
   type: RedirectType = RedirectType.replace
 ): never {
@@ -96,7 +106,10 @@ export function isRedirectError<U extends string>(
     return false
   }
 
-  const [errorCode, type, destination, status] = error.digest.split(';', 4)
+  const digest = error.digest.split(';')
+  const [errorCode, type] = digest
+  const destination = digest.slice(2, -2).join(';')
+  const status = digest.at(-2)
 
   const statusCode = Number(status)
 
@@ -119,12 +132,12 @@ export function isRedirectError<U extends string>(
 export function getURLFromRedirectError<U extends string>(
   error: RedirectError<U>
 ): U
-export function getURLFromRedirectError(error: any): string | null {
+export function getURLFromRedirectError(error: unknown): string | null {
   if (!isRedirectError(error)) return null
 
   // Slices off the beginning of the digest that contains the code and the
   // separating ';'.
-  return error.digest.split(';', 3)[2]
+  return error.digest.split(';').slice(2, -2).join(';')
 }
 
 export function getRedirectTypeFromError<U extends string>(
@@ -144,5 +157,5 @@ export function getRedirectStatusCodeFromError<U extends string>(
     throw new Error('Not a redirect error')
   }
 
-  return Number(error.digest.split(';', 4)[3])
+  return Number(error.digest.split(';').at(-2))
 }

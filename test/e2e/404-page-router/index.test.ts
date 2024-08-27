@@ -1,9 +1,8 @@
 import path from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, type NextInstance } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import { type NextInstance } from 'test/lib/next-modes/base'
 
 const pathnames = {
   '/404': ['/not/a/real/page?with=query', '/not/a/real/page'],

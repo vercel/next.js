@@ -1,4 +1,4 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -14,12 +14,10 @@ export function runTest({ next, isNextDev }) {
   })
 }
 
-createNextDescribe(
-  'app dir - taint',
-  {
+describe('app dir - taint', () => {
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-  },
-  ({ next, isNextDev }) => {
-    runTest({ next, isNextDev })
-  }
-)
+  })
+
+  runTest({ next, isNextDev })
+})

@@ -12,7 +12,10 @@ When used in a [streaming context](/docs/app/building-your-application/routing/l
 
 If a resource doesn't exist, you can use the [`notFound` function](/docs/app/api-reference/functions/not-found) instead.
 
-> **Good to know**: If you prefer to return a 308 (Permanent) HTTP redirect instead of 307 (Temporary), you can use the [`permanentRedirect` function](/docs/app/api-reference/functions/permanentRedirect) instead.
+> **Good to know**:
+>
+> - In Server Actions and Route Handlers, `redirect` should be called after the `try/catch` block.
+> - If you prefer to return a 308 (Permanent) HTTP redirect instead of 307 (Temporary), you can use the [`permanentRedirect` function](/docs/app/api-reference/functions/permanentRedirect) instead.
 
 ## Parameters
 
@@ -33,7 +36,7 @@ The `type` parameter has no effect when used in Server Components.
 
 ## Returns
 
-`redirect` does not return any value.
+`redirect` does not return a value.
 
 ## Example
 

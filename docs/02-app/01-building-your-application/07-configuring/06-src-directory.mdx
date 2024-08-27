@@ -22,7 +22,7 @@ To use the `src` directory, move the `app` Router folder or `pages` Router folde
   height="687"
 />
 
-> **Good to know**
+> **Good to know**:
 >
 > - The `/public` directory should remain in the root of your project.
 > - Config files like `package.json`, `next.config.js` and `tsconfig.json` should remain in the root of your project.
@@ -31,3 +31,4 @@ To use the `src` directory, move the `app` Router folder or `pages` Router folde
 > - If you're using `src`, you'll probably also move other application folders such as `/components` or `/lib`.
 > - If you're using Middleware, ensure it is placed inside the `src` directory.
 > - If you're using Tailwind CSS, you'll need to add the `/src` prefix to the `tailwind.config.js` file in the [content section](https://tailwindcss.com/docs/content-configuration).
+> - If you are using TypeScript paths for imports such as `@/*`, you should update the `paths` object in `tsconfig.json` to include `src/`.

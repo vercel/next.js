@@ -20,21 +20,17 @@ This documentation uses terms like _Span_, _Trace_ or _Exporter_ throughout this
 Next.js supports OpenTelemetry instrumentation out of the box, which means that we already instrumented Next.js itself.
 When you enable OpenTelemetry we will automatically wrap all your code like `getStaticProps` in _spans_ with helpful attributes.
 
-> **Good to know**: We currently support OpenTelemetry bindings only in serverless functions.
-> We don't provide any for `edge` or client side code.
-
 ## Getting Started
 
 OpenTelemetry is extensible but setting it up properly can be quite verbose.
 That's why we prepared a package `@vercel/otel` that helps you get started quickly.
-It's not extensible and you should configure OpenTelemetry manually if you need to customize your setup.
 
 ### Using `@vercel/otel`
 
-To get started, you must install `@vercel/otel`:
+To get started, install the following packages:
 
 ```bash filename="Terminal"
-npm install @vercel/otel
+npm install @vercel/otel @opentelemetry/sdk-logs @opentelemetry/api-logs @opentelemetry/instrumentation
 ```
 
 <AppOnly>
@@ -53,7 +49,7 @@ Next, create a custom [`instrumentation.ts`](/docs/pages/building-your-applicati
 import { registerOTel } from '@vercel/otel'
 
 export function register() {
-  registerOTel('next-app')
+  registerOTel({ serviceName: 'next-app' })
 }
 ```
 
@@ -61,13 +57,15 @@ export function register() {
 import { registerOTel } from '@vercel/otel'
 
 export function register() {
-  registerOTel('next-app')
+  registerOTel({ serviceName: 'next-app' })
 }
 ```
 
+See the [`@vercel/otel` documentation](https://www.npmjs.com/package/@vercel/otel) for additional configuration options.
+
 <AppOnly>
 
-> **Good to know**
+> **Good to know**:
 >
 > - The `instrumentation` file should be in the root of your project and not inside the `app` or `pages` directory. If you're using the `src` folder, then place the file inside `src` alongside `pages` and `app`.
 > - If you use the [`pageExtensions` config option](/docs/app/api-reference/next-config-js/pageExtensions) to add a suffix, you will also need to update the `instrumentation` filename to match.
@@ -77,7 +75,7 @@ export function register() {
 
 <PagesOnly>
 
-> **Good to know**
+> **Good to know**:
 >
 > - The `instrumentation` file should be in the root of your project and not inside the `app` or `pages` directory. If you're using the `src` folder, then place the file inside `src` alongside `pages` and `app`.
 > - If you use the [`pageExtensions` config option](/docs/pages/api-reference/next-config-js/pageExtensions) to add a suffix, you will also need to update the `instrumentation` filename to match.
@@ -87,7 +85,7 @@ export function register() {
 
 ### Manual OpenTelemetry configuration
 
-If our wrapper `@vercel/otel` doesn't suit your needs, you can configure OpenTelemetry manually.
+The `@vercel/otel` package provides many configuration options and should serve most of common use cases. But if it doesn't suit your needs, you can configure OpenTelemetry manually.
 
 Firstly you need to install OpenTelemetry packages:
 
@@ -96,7 +94,7 @@ npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/sema
 ```
 
 Now you can initialize `NodeSDK` in your `instrumentation.ts`.
-OpenTelemetry APIs are not compatible with edge runtime, so you need to make sure that you are importing them only when `process.env.NEXT_RUNTIME === 'nodejs'`. We recommend creating a new file `instrumentation.node.ts` which you conditionally import only when using node:
+Unlike `@vercel/otel`, `NodeSDK` is not compatible with edge runtime, so you need to make sure that you are importing them only when `process.env.NEXT_RUNTIME === 'nodejs'`. We recommend creating a new file `instrumentation.node.ts` which you conditionally import only when using node:
 
 ```ts filename="instrumentation.ts" switcher
 export async function register() {
@@ -118,12 +116,12 @@ export async function register() {
 import { NodeSDK } from '@opentelemetry/sdk-node'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { Resource } from '@opentelemetry/resources'
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
+import { SEMRESATTRS_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-node'
 
 const sdk = new NodeSDK({
   resource: new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: 'next-app',
+    [SEMRESATTRS_SERVICE_NAME]: 'next-app',
   }),
   spanProcessor: new SimpleSpanProcessor(new OTLPTraceExporter()),
 })
@@ -134,20 +132,19 @@ sdk.start()
 import { NodeSDK } from '@opentelemetry/sdk-node'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { Resource } from '@opentelemetry/resources'
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
+import { SEMRESATTRS_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-node'
 
 const sdk = new NodeSDK({
   resource: new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: 'next-app',
+    [SEMRESATTRS_SERVICE_NAME]: 'next-app',
   }),
   spanProcessor: new SimpleSpanProcessor(new OTLPTraceExporter()),
 })
 sdk.start()
 ```
 
-Doing this is equivalent to using `@vercel/otel`, but it's possible to modify and extend.
-For example, you could use `@opentelemetry/exporter-trace-otlp-grpc` instead of `@opentelemetry/exporter-trace-otlp-http` or you can specify more resource attributes.
+Doing this is equivalent to using `@vercel/otel`, but it's possible to modify and extend some features that are not exposed by the `@vercel/otel`. If edge runtime support is necessary, you will have to use `@vercel/otel`.
 
 ## Testing your instrumentation
 
@@ -183,8 +180,7 @@ Once you have your collector up and running, you can deploy your Next.js app to 
 
 ### Custom Exporters
 
-We recommend using OpenTelemetry Collector.
-If that is not possible on your platform, you can use a custom OpenTelemetry exporter with [manual OpenTelemetry configuration](/docs/pages/building-your-application/optimizing/open-telemetry#manual-opentelemetry-configuration)
+OpenTelemetry Collector is not necessary. You can use a custom OpenTelemetry exporter with [`@vercel/otel`](#using-vercelotel) or [manual OpenTelemetry configuration](#manual-opentelemetry-configuration).
 
 ## Custom Spans
 
@@ -224,6 +220,7 @@ Attributes on spans follow [OpenTelemetry semantic conventions](https://opentele
 - `next.span_name` - duplicates span name
 - `next.span_type` - each span type has a unique identifier
 - `next.route` - The route pattern of the request (e.g., `/[param]/user`).
+- `next.rsc` (true/false) - Whether the request is an RSC request, such as prefetch.
 - `next.page`
   - This is an internal value used by an app router.
   - You can think about it as a route to a special file (like `page.ts`, `layout.ts`, `loading.ts` and others)
@@ -361,3 +358,9 @@ Attributes:
 - `next.span_name`
 - `next.span_type`
 - `next.segment`
+
+### `start response`
+
+- `next.span_type`: `NextNodeServer.startResponse`.
+
+This zero-length span represents the time when the first byte has been sent in the response.

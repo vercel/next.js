@@ -1,20 +1,19 @@
 import Link from "next/link";
-import { headers, cookies } from "next/headers";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { SubmitButton } from "../../components/forms/submit-button";
+import { Label } from "@/components/forms/label";
+import { Input } from "@/components/forms/input";
+import { FormMessage, Message } from "@/components/forms/form-message";
+import { encodedRedirect } from "@/utils/utils";
 
-export default function Login({
-  searchParams,
-}: {
-  searchParams: { message: string };
-}) {
+export default function Login({ searchParams }: { searchParams: Message }) {
   const signIn = async (formData: FormData) => {
     "use server";
 
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
-    const cookieStore = cookies();
-    const supabase = createClient(cookieStore);
+    const supabase = createClient();
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -22,38 +21,14 @@ export default function Login({
     });
 
     if (error) {
-      return redirect("/login?message=Could not authenticate user");
+      return encodedRedirect("error", "/login", "Could not authenticate user");
     }
 
-    return redirect("/");
-  };
-
-  const signUp = async (formData: FormData) => {
-    "use server";
-
-    const origin = headers().get("origin");
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-    const cookieStore = cookies();
-    const supabase = createClient(cookieStore);
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${origin}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      return redirect("/login?message=Could not authenticate user");
-    }
-
-    return redirect("/login?message=Check email to continue sign in process");
+    return redirect("/protected");
   };
 
   return (
-    <div className="flex-1 flex flex-col w-full px-8 sm:max-w-md justify-center gap-2">
+    <div className="flex flex-col flex-1 p-4 w-full items-center">
       <Link
         href="/"
         className="absolute left-8 top-8 py-2 px-4 rounded-md no-underline text-foreground bg-btn-background hover:bg-btn-background-hover flex items-center group text-sm"
@@ -75,43 +50,38 @@ export default function Login({
         Back
       </Link>
 
-      <form
-        className="animate-in flex-1 flex flex-col w-full justify-center gap-2 text-foreground"
-        action={signIn}
-      >
-        <label className="text-md" htmlFor="email">
-          Email
-        </label>
-        <input
-          className="rounded-md px-4 py-2 bg-inherit border mb-6"
-          name="email"
-          placeholder="you@example.com"
-          required
-        />
-        <label className="text-md" htmlFor="password">
-          Password
-        </label>
-        <input
-          className="rounded-md px-4 py-2 bg-inherit border mb-6"
-          type="password"
-          name="password"
-          placeholder="••••••••"
-          required
-        />
-        <button className="bg-green-700 rounded-md px-4 py-2 text-foreground mb-2">
-          Sign In
-        </button>
-        <button
-          formAction={signUp}
-          className="border border-foreground/20 rounded-md px-4 py-2 text-foreground mb-2"
-        >
-          Sign Up
-        </button>
-        {searchParams?.message && (
-          <p className="mt-4 p-4 bg-foreground/10 text-foreground text-center">
-            {searchParams.message}
-          </p>
-        )}
+      <form className="flex-1 flex flex-col w-full justify-center gap-2 text-foreground [&>input]:mb-6 max-w-md p-4">
+        <h1 className="text-2xl font-medium">Log in</h1>
+        <p className="text-sm text-foreground/60">
+          Don't have an account?{" "}
+          <Link className="text-blue-600 font-medium underline" href="/signup">
+            Sign up
+          </Link>
+        </p>
+        <div className="flex flex-col gap-2 [&>input]:mb-3 mt-8">
+          <Label htmlFor="email">Email</Label>
+          <Input name="email" placeholder="you@example.com" required />
+          <div className="flex justify-between items-center">
+            <Label htmlFor="password">Password</Label>
+
+            <Link
+              className="text-sm text-blue-600 underline"
+              href="/forgot-password"
+            >
+              Forgot Password?
+            </Link>
+          </div>
+          <Input
+            type="password"
+            name="password"
+            placeholder="••••••••"
+            required
+          />
+          <SubmitButton formAction={signIn} pendingText="Signing In...">
+            Log in
+          </SubmitButton>
+          <FormMessage message={searchParams} />
+        </div>
       </form>
     </div>
   );

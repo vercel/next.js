@@ -51,7 +51,7 @@ export default function RootLayout({ children }) {
 
 ### `children` (required)
 
-Layout components should accept and use a `children` prop. During rendering, `children` will be populated with the route segments the layout is wrapping. These will primarily be the component of a child [Layout](/docs/app/building-your-application/routing/pages-and-layouts#pages) (if it exists) or [Page](/docs/app/building-your-application/routing/pages-and-layouts#pages), but could also be other special files like [Loading](/docs/app/building-your-application/routing/loading-ui-and-streaming) or [Error](/docs/app/building-your-application/routing/error-handling) when applicable.
+Layout components should accept and use a `children` prop. During rendering, `children` will be populated with the route segments the layout is wrapping. These will primarily be the component of a child [Layout](/docs/app/building-your-application/routing/pages) (if it exists) or [Page](/docs/app/building-your-application/routing/pages), but could also be other special files like [Loading](/docs/app/building-your-application/routing/loading-ui-and-streaming) or [Error](/docs/app/building-your-application/routing/error-handling) when applicable.
 
 ### `params` (optional)
 
@@ -92,6 +92,14 @@ export default function ShopLayout({ children, params }) {
 
 ## Good to know
 
+### Root Layouts
+
+- The `app` directory **must** include a root `app/layout.js`.
+- The root layout **must** define `<html>` and `<body>` tags.
+  - You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/api-reference/functions/generate-metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
+- You can use [route groups](/docs/app/building-your-application/routing/route-groups) to create multiple root layouts.
+  - Navigating **across multiple root layouts** will cause a **full page load** (as opposed to a client-side navigation). For example, navigating from `/cart` that uses `app/(shop)/layout.js` to `/blog` that uses `app/(marketing)/layout.js` will cause a full page load. This **only** applies to multiple root layouts.
+
 ### Layouts do not receive `searchParams`
 
 Unlike [Pages](/docs/app/api-reference/file-conventions/page), Layout components **do not** receive the `searchParams` prop. This is because a shared layout is [not re-rendered during navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) which could lead to stale `searchParams` between navigations.
@@ -114,15 +122,45 @@ This performance optimization allows navigation between pages that share a layou
 
 Because `dashboard/layout.tsx` doesn't re-render, the `searchParams` prop in the layout Server Component might become **stale** after navigation.
 
-- Instead, use the Page [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop or the [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) hook in a Client Component, which is re-rendered on the client with the latest `searchParams`.
+Instead, use the Page [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop or the [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) hook in a Client Component, which is re-rendered on the client with the latest `searchParams`.
 
-### Root Layouts
+### Layouts cannot access `pathname`
 
-- The `app` directory **must** include a root `app/layout.js`.
-- The root layout **must** define `<html>` and `<body>` tags.
-  - You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/api-reference/functions/generate-metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
-- You can use [route groups](/docs/app/building-your-application/routing/route-groups) to create multiple root layouts.
-  - Navigating **across multiple root layouts** will cause a **full page load** (as opposed to a client-side navigation). For example, navigating from `/cart` that uses `app/(shop)/layout.js` to `/blog` that uses `app/(marketing)/layout.js` will cause a full page load. This **only** applies to multiple root layouts.
+Layouts cannot access `pathname`. This is because layouts are Server Components by default, and [don't rerender during client-side navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), which could lead to `pathname` becoming stale between navigations. To prevent staleness, Next.js would need to refetch all segments of a route, losing the benefits of caching and increasing the [RSC payload](/docs/app/building-your-application/rendering/server-components#what-is-the-react-server-component-payload-rsc) size on navigation.
+
+Instead, you can extract the logic that depends on pathname into a Client Component and import it into your layouts. Since Client Components rerender (but are not refetched) during navigation, you can use Next.js hooks such as [`usePathname`](https://nextjs.org/docs/app/api-reference/functions/use-pathname) to access the current pathname and prevent staleness.
+
+```tsx filename="app/dashboard/layout.tsx" switcher
+import { ClientComponent } from '@/app/ui/ClientComponent'
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <ClientComponent />
+      {/* Other Layout UI */}
+      <main>{children}</main>
+    <>
+  )
+}
+```
+
+```jsx filename="app/dashboard/layout.js" switcher
+import { ClientComponent } from '@/app/ui/ClientComponent'
+
+export default function Layout({ children }) {
+  return (
+    <>
+      <ClientComponent />
+      {/* Other Layout UI */}
+      <main>{children}</main>
+    <>
+  )
+}
+```
+
+Common `pathname` patterns can also be implemented with [`params`](#params-optional) prop.
+
+See the [examples](/docs/app/building-your-application/routing/layouts-and-templates#examples) section for more information.
 
 ## Version History
 
