@@ -105,12 +105,15 @@ var FunctionBind = Function.prototype.bind,
 function bind() {
   var newFn = FunctionBind.apply(this, arguments);
   if (this.$$typeof === SERVER_REFERENCE_TAG) {
-    var args = ArraySlice.call(arguments, 1);
+    var args = ArraySlice.call(arguments, 1),
+      $$typeof = { value: SERVER_REFERENCE_TAG },
+      $$id = { value: this.$$id };
+    args = { value: this.$$bound ? this.$$bound.concat(args) : args };
     return Object.defineProperties(newFn, {
-      $$typeof: { value: SERVER_REFERENCE_TAG },
-      $$id: { value: this.$$id },
-      $$bound: { value: this.$$bound ? this.$$bound.concat(args) : args },
-      bind: { value: bind }
+      $$typeof: $$typeof,
+      $$id: $$id,
+      $$bound: args,
+      bind: { value: bind, configurable: !0 }
     });
   }
   return newFn;
