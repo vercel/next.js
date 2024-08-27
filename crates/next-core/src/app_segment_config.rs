@@ -69,9 +69,6 @@ pub struct NextSegmentConfig {
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<Vec<RcStr>>,
-    /// Wether these metadata exports are defined in the source file.
-    pub generate_image_metadata: bool,
-    pub generate_sitemaps: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -436,14 +433,6 @@ fn parse_config_value(
             };
 
             config.preferred_region = Some(preferred_region);
-        }
-        // Match exported generateImageMetadata function and generateSitemaps function, and pass
-        // them to config.
-        "generateImageMetadata" => {
-            config.generate_image_metadata = true;
-        }
-        "generateSitemaps" => {
-            config.generate_sitemaps = true;
         }
         _ => {}
     }
