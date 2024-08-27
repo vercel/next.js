@@ -4,6 +4,8 @@ import "./globals.css";
 import AuthButton from "@/components/auth-button";
 import { ThemeProvider } from "next-themes";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { verifySupabase } from "@/utils/supabase/verify-supabase";
+import { EnvVarWarning } from "@/components/env-var-warning";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -36,7 +38,7 @@ export default function RootLayout({
                   <div className="flex items-center gap-2">
                     <DeployButton />
                   </div>
-                  <AuthButton />
+                  {!verifySupabase ? <EnvVarWarning /> : <AuthButton />}
                 </div>
               </nav>
               <div className="flex flex-col gap-20 max-w-7xl">{children}</div>
