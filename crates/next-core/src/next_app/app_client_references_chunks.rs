@@ -18,12 +18,12 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-fn client_modules_modifier() -> Vc<RcStr> {
+pub fn client_modules_modifier() -> Vc<RcStr> {
     Vc::cell("client modules".into())
 }
 
 #[turbo_tasks::function]
-fn client_modules_ssr_modifier() -> Vc<RcStr> {
+pub fn client_modules_ssr_modifier() -> Vc<RcStr> {
     Vc::cell("client modules ssr".into())
 }
 
