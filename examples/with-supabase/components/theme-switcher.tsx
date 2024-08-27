@@ -4,10 +4,8 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Laptop, Moon, Sun } from "lucide-react";
@@ -39,21 +37,24 @@ const ThemeSwitcher = () => {
             value="top"
             onClick={() => setTheme("light")}
           >
-            <Sun size={ICON_SIZE} className="text-muted-foreground" /> Light
+            <Sun size={ICON_SIZE} className="text-muted-foreground" />{" "}
+            <span>Light</span>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem
             className="flex gap-2"
             value="bottom"
             onClick={() => setTheme("dark")}
           >
-            <Moon size={ICON_SIZE} className="text-muted-foreground" /> Dark
+            <Moon size={ICON_SIZE} className="text-muted-foreground" />{" "}
+            <span>Dark</span>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem
             className="flex gap-2"
             value="right"
             onClick={() => setTheme("system")}
           >
-            <Laptop size={ICON_SIZE} className="text-muted-foreground" /> System
+            <Laptop size={ICON_SIZE} className="text-muted-foreground" />{" "}
+            <span>System</span>
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
