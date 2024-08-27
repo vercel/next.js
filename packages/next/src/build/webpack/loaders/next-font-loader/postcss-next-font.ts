@@ -20,7 +20,6 @@ import postcss from 'postcss'
  */
 const postcssNextFontPlugin = ({
   exports,
-  fontFamilyHash,
   fallbackFonts = [],
   adjustFontFallback,
   variable,
@@ -46,7 +45,7 @@ const postcssNextFontPlugin = ({
 
       const formatFamily = (family: string) => {
         // Turn the font family unguessable to make it locally scoped
-        return `'__${family.replace(/ /g, '_')}_${fontFamilyHash}'`
+        return `'${family}'`
       }
 
       // Hash font-family names
