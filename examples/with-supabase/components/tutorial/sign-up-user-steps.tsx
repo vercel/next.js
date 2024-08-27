@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Step from "./step";
+import Step from "./Step";
 
 export default function SignUpUserSteps() {
   return (
