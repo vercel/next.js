@@ -26,7 +26,6 @@ export async function middleware(request: NextRequest) {
   const data = await response.json();
 
   if (data?.items?.length > 0) {
-    // Loop through the items and find the one with the exact url
     const redirect = data.items.find(
       (item: any) => item.url === pathNameWithoutTrailingSlash,
     );

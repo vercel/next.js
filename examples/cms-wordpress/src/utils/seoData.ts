@@ -1,8 +1,6 @@
 import { Page } from "@/gql/graphql";
 
-// Take incoming seoData and return it in a format that we can use
 export const setSeoData = ({ seo }: { seo: Page["seo"] }) => {
-  // If no seo data is present, return empty object
   if (!seo) return {};
 
   return {

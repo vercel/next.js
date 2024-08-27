@@ -1,33 +1,23 @@
-// Package imports
 import type { Metadata } from "next";
 import { print } from "graphql/language/printer";
 
-// Utils imports
 import { setSeoData } from "@/utils/seoData";
 
-// Query imports
-
-// Component imports
 import { fetchGraphQL } from "@/utils/fetchGraphQL";
 import { ContentNode, Page } from "@/gql/graphql";
 import { PageQuery } from "@/components/Templates/Page/PageQuery";
 import { SeoQuery } from "@/queries/general/SeoQuery";
 
-// adjust the id to the 404 page id in WordPress
-const notFoundId = 7;
+const notFoundPageWordPressId = 501;
 
-// Setup metadata
 export async function generateMetadata(): Promise<Metadata> {
-  // fetch data
   const { contentNode } = await fetchGraphQL<{ contentNode: ContentNode }>(
     print(SeoQuery),
-    { slug: notFoundId, idType: "DATABASE_ID" },
+    { slug: notFoundPageWordPressId, idType: "DATABASE_ID" },
   );
 
-  // Setup metadata
   const metadata = setSeoData({ seo: contentNode.seo });
 
-  // Return metadata with canonical url
   return {
     ...metadata,
     alternates: {
@@ -38,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function NotFound() {
   const { page } = await fetchGraphQL<{ page: Page }>(print(PageQuery), {
-    id: notFoundId,
+    id: notFoundPageWordPressId,
   });
 
   return <div dangerouslySetInnerHTML={{ __html: page.content || " " }} />;

@@ -1,12 +1,9 @@
-// Package imports
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { print } from "graphql/language/printer";
 
-// Utils imports
 import { setSeoData } from "@/utils/seoData";
 
-// Query imports
 import { fetchGraphQL } from "@/utils/fetchGraphQL";
 import { ContentInfoQuery } from "@/queries/general/ContentInfoQuery";
 import { ContentNode } from "@/gql/graphql";
@@ -15,7 +12,6 @@ import { nextSlugToWpSlug } from "@/utils/nextSlugToWpSlug";
 import PostTemplate from "@/components/Templates/Post/PostTemplate";
 import { SeoQuery } from "@/queries/general/SeoQuery";
 
-// Type definition
 type Props = {
   params: { slug: string };
 };
@@ -32,15 +28,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
   );
 
-  // If seo is null, trigger the 404
   if (!contentNode) {
     return notFound();
   }
 
-  // Setup metadata
   const metadata = setSeoData({ seo: contentNode.seo });
 
-  // Return metadata with canonical url
   return {
     ...metadata,
     alternates: {

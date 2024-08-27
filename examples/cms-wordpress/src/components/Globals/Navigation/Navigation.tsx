@@ -1,17 +1,13 @@
-// Package imports
 import Link from "next/link";
 import { print } from "graphql/language/printer";
 
-// Layout imports
 import styles from "./Navigation.module.css";
 
-// Type imports
 import { MenuItem, RootQueryToMenuItemConnection } from "@/gql/graphql";
 import { fetchGraphQL } from "@/utils/fetchGraphQL";
 import gql from "graphql-tag";
 
 async function getData() {
-  // Fetch navigation data from API
   const menuQuery = gql`
     query MenuQuery {
       menuItems(where: { location: PRIMARY_MENU }) {

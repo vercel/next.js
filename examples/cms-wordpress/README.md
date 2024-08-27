@@ -104,7 +104,22 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 
 ## GraphQL and typescript types
 
-We are generating typescript types from the provided schema with Codegen. We are also downloading the schema, and providing it in the `apollo.config.js` which gives you autocomplete and validation when writing queries directly in VS Code (install Apollo GraphQL extension, to make this work).
+We are generating typescript types from the provided schema with Codegen.
+
+### Enabling Auto Completion for graphql queries
+
+If you want to add auto completion for your queries, you can do this by installing the "Apollo GraphQL" extension in VS Code and adding an `apollo.config.js` file, next to the `next.config.js`, and add the following to it:
+
+```javascript
+module.exports = {
+  client: {
+    service: {
+      name: "WordPress",
+      localSchemaFile: "./src/gql/schema.gql",
+    },
+  },
+};
+```
 
 ## Advanced Custom Fields PRO (optional, but recommended)
 

@@ -24,7 +24,6 @@ export async function fetchGraphQL<T = any>(
       },
     });
 
-    // Fetch data from external API.
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_WORDPRESS_API_URL}/graphql`,
       {
@@ -42,22 +41,18 @@ export async function fetchGraphQL<T = any>(
       },
     );
 
-    // If the response status is not 200, throw an error.
     if (!response.ok) {
       console.error("Response Status:", response);
       throw new Error(response.statusText);
     }
 
-    // Read the response as JSON.
     const data = await response.json();
 
-    // Throw an error if there was a GraphQL error.
     if (data.errors) {
       console.error("GraphQL Errors:", data.errors);
       throw new Error("Error executing GraphQL query");
     }
 
-    // Finally, return the data.
     return data.data;
   } catch (error) {
     console.error(error);
