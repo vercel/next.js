@@ -115,34 +115,26 @@ The following examples show how to combine Route Handlers with other Next.js API
 
 ### Revalidating Cached Data
 
-You can [revalidate cached data](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating-data) using the [`next.revalidate`](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating-data) option:
+You can [revalidate cached data](/docs/app/building-your-application/data-fetching/incremental-static-regeneration) using Incremental Static Regeneration (ISR):
 
-```ts filename="app/items/route.ts" switcher
-export async function GET() {
-  const res = await fetch('https://data.mongodb-api.com/...', {
-    next: { revalidate: 60 }, // Revalidate every 60 seconds
-  })
-  const data = await res.json()
-
-  return Response.json(data)
-}
-```
-
-```js filename="app/items/route.js" switcher
-export async function GET() {
-  const res = await fetch('https://data.mongodb-api.com/...', {
-    next: { revalidate: 60 }, // Revalidate every 60 seconds
-  })
-  const data = await res.json()
-
-  return Response.json(data)
-}
-```
-
-Alternatively, you can use the [`revalidate` segment config option](/docs/app/api-reference/file-conventions/route-segment-config#revalidate):
-
-```ts
+```ts filename="app/posts/route.ts" switcher
 export const revalidate = 60
+
+export async function GET() {
+  let data = await fetch('https://api.vercel.app/blog')
+  let posts = await data.json()
+
+  return Response.json(posts)
+}
+```
+
+```js filename="app/posts/route.js" switcher
+export async function GET() {
+  let data = await fetch('https://api.vercel.app/blog')
+  let posts = await data.json()
+
+  return Response.json(data)
+}
 ```
 
 ### Dynamic Functions
