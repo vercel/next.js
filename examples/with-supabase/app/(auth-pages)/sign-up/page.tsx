@@ -21,8 +21,8 @@ export default function Signup({ searchParams }: { searchParams: Message }) {
         <h1 className="text-2xl font-medium">Sign up</h1>
         <p className="text-sm text text-foreground">
           Already have an account?{" "}
-          <Link className="text-primary font-medium underline" href="/login">
-            Log in
+          <Link className="text-primary font-medium underline" href="/sign-in">
+            Sign in
           </Link>
         </p>
         <div className="flex flex-col gap-2 [&>input]:mb-3 mt-8">
