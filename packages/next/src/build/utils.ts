@@ -1382,14 +1382,6 @@ export async function buildAppStaticPaths({
   isRoutePPREnabled: boolean | undefined
   isAppPPRFallbacksEnabled: boolean | undefined
 }): Promise<PartialStaticPathsResult> {
-  // If this page isn't dynamic, then we don't need to do anything.
-  if (!isDynamicRoute(page)) {
-    return {
-      fallbackMode: undefined,
-      prerenderedRoutes: undefined,
-    }
-  }
-
   ComponentMod.patchFetch()
 
   let CacheHandler: any

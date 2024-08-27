@@ -274,7 +274,7 @@ function makeGetDynamicParamFromSegment(
     let value = params[key]
 
     if (fallbackRouteParams && fallbackRouteParams.has(segmentParam.param)) {
-      value = fallbackRouteParams.get(segmentParam.param)!
+      value = fallbackRouteParams.get(segmentParam.param)
     } else if (Array.isArray(value)) {
       value = value.map((i) => encodeURIComponent(i))
     } else if (typeof value === 'string') {

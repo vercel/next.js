@@ -105,8 +105,6 @@ function trackParamsAccessed(expression: string) {
  */
 // Client components API
 export function usePathname(): string {
-  // If there are any unknown route parameters, then we should track this as
-  // a dynamic access.
   trackParamsAccessed('usePathname()')
 
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
@@ -167,8 +165,6 @@ export function useRouter(): AppRouterInstance {
  */
 // Client components API
 export function useParams<T extends Params = Params>(): T {
-  // If there are any unknown route parameters, then we should track this as
-  // a dynamic access.
   trackParamsAccessed('useParams()')
 
   return useContext(PathParamsContext) as T
@@ -182,9 +178,6 @@ export function getSelectedLayoutSegmentPath(
   first = true,
   segmentPath: string[] = []
 ): string[] {
-  // If there are any unknown route parameters, then we should track this as
-  // a dynamic access.
-  // TODO: track only if one of the segments is unknown
   trackParamsAccessed('getSelectedLayoutSegmentPath()')
 
   let node: FlightRouterState
@@ -245,9 +238,6 @@ export function getSelectedLayoutSegmentPath(
 export function useSelectedLayoutSegments(
   parallelRouteKey: string = 'children'
 ): string[] {
-  // If there are any unknown route parameters, then we should track this as
-  // a dynamic access.
-  // TODO: track only if one of the segments is unknown
   trackParamsAccessed('useSelectedLayoutSegments()')
 
   const context = useContext(LayoutRouterContext)
@@ -279,9 +269,6 @@ export function useSelectedLayoutSegments(
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
 ): string | null {
-  // If there are any unknown route parameters, then we should track this as
-  // a dynamic access.
-  // TODO: track only if one of the segments is unknown
   trackParamsAccessed('useSelectedLayoutSegment()')
 
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)

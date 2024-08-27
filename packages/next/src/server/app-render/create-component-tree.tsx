@@ -552,7 +552,6 @@ async function createComponentTreeInternal({
       `"params" is a reserved prop in Layouts and Pages and cannot be used as the name of a parallel route in ${segment}`
     )
   }
-  props.params = currentParams
 
   let segmentElement: React.ReactNode
   if (isPage) {
@@ -564,6 +563,7 @@ async function createComponentTreeInternal({
       // which can among other things adds the dynamic tracking before rendering the page.
       // @TODO make the root wrapper part of next-app-loader so we don't need the extra client component
       props.searchParams = createUntrackedSearchParams(query)
+      props.params = currentParams
       segmentElement = (
         <>
           <MetadataOutlet getReady={getMetadataReady} />
@@ -575,7 +575,7 @@ async function createComponentTreeInternal({
       // If we are passing searchParams to a server component Page we need to track their usage in case
       // the current render mode tracks dynamic API usage.
       props.searchParams = createDynamicallyTrackedSearchParams(query)
-      props.params = createDynamicallyTrackedParams(props.params)
+      props.params = createDynamicallyTrackedParams(currentParams)
       segmentElement = (
         <>
           <MetadataOutlet getReady={getMetadataReady} />
