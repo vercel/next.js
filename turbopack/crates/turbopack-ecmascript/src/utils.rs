@@ -8,7 +8,9 @@ use swc_core::{
 };
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
-use crate::analyzer::{ConstantNumber, ConstantValue, JsValue};
+use crate::analyzer::{
+    ConstantNumber, ConstantValue, JsValue, ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
+};
 
 pub fn unparen(expr: &Expr) -> &Expr {
     if let Some(expr) = expr.as_paren() {
@@ -138,4 +140,33 @@ pub enum AstPathRange {
     /// The ast path to a expression just before the range in the parent of the
     /// specific ast path.
     StartAfter(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>),
+}
+
+/// Converts a module value (ie an import) to a well known object,
+/// which we specifically handle.
+pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<JsValue> {
+    Some(match &*module_value.module {
+        "node:path" | "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
+        "node:fs/promises" | "fs/promises" => {
+            JsValue::WellKnownObject(WellKnownObjectKind::FsModule)
+        }
+        "node:fs" | "fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
+        "node:child_process" | "child_process" => {
+            JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess)
+        }
+        "node:os" | "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
+        "node:process" | "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+        "@mapbox/node-pre-gyp" => JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
+        "node-gyp-build" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild),
+        "node:bindings" | "bindings" => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings)
+        }
+        "express" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpress),
+        "strong-globalize" => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalize)
+        }
+        "resolve-from" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom),
+        "@grpc/proto-loader" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader),
+        _ => return None,
+    })
 }
