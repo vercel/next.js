@@ -160,6 +160,54 @@ Output:
 </urlset>
 ```
 
+### Video Sitemaps
+
+You can use `videos` property to create video sitemaps. Learn more details in the [Google Developer Docs](https://developers.google.com/search/docs/crawling-indexing/sitemaps/video-sitemaps).
+
+```ts filename="app/sitemap.ts" switcher
+import type { MetadataRoute } from 'next'
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  return [
+    {
+      url: 'https://example.com',
+      lastModified: '2021-01-01',
+      changeFrequency: 'weekly',
+      priority: 0.5,
+      videos: [
+        {
+          title: 'example',
+          thumbnail_loc: 'https://example.com/image.jpg',
+          description: 'this is the description',
+        },
+      ],
+    },
+  ]
+}
+```
+
+Output:
+
+```xml filename="acme.com/sitemap.xml"
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+>
+  <url>
+    <loc>https://example.com</loc>
+    <video:video>
+      <video:title>example</video:title>
+      <video:thumbnail_loc>https://example.com/image.jpg</video:thumbnail_loc>
+      <video:description>this is the description</video:description>
+    </video:video>
+    <lastmod>2021-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>
+```
+
 ### Generate a localized Sitemap
 
 ```ts filename="app/sitemap.ts" switcher
