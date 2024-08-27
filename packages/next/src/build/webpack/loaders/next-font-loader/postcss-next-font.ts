@@ -27,7 +27,6 @@ const postcssNextFontPlugin = ({
   style,
 }: {
   exports: { name: any; value: any }[]
-  fontFamilyHash: string
   fallbackFonts?: string[]
   adjustFontFallback?: AdjustFontFallback
   variable?: string
