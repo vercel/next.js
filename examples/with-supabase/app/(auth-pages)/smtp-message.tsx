@@ -7,8 +7,8 @@ export function SmtpMessage() {
       <InfoIcon size={16} className="mt-0.5" />
       <div className="flex flex-col gap-1">
         <small className="text-sm text-secondary-foreground">
-          Please note, without Custom SMTP configured, Auth emails are limited
-          to 4 an hour.
+          <strong> Note:</strong> Emails are limited to 4 per hour. Enable a
+          custom SMTP endpoint to increase the rate limit.
         </small>
         <div>
           <Link
