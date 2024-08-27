@@ -6,11 +6,6 @@ description: Learn how to set up Playwright with Next.js for End-to-End (E2E) te
 
 [Playwright](https://playwright.dev/) is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** testing and **Component Testing**. This guide will show you how to set up Playwright with Next.js and write your first tests.
 
-> **Warning:**
-> - Playwright component testing is experimental.
-> - Playwright currently doesn't support component testing for `async` Server Components.
-> - Since component tests do not require a Next.js server, features like `<Image />` that rely on a server being available may not function out-of-the-box.
-
 ## Quickstart
 
 The fastest way to get started is to use `create-next-app` with the [with-playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright). This will create a Next.js project complete with Playwright configured.
@@ -184,6 +179,15 @@ test('display expected content', async ({ mount }) => {
 ```
 
 </PagesOnly>
+
+> **Warning:**
+> - Playwright component testing is experimental.
+> - Playwright currently doesn't support component testing for `async` Server Components.
+> - Since component tests do not require a Next.js server, features like `<Image />` that rely on a server being available may not function out-of-the-box.
+
+### Running Component Tests
+
+Run `npm run test-ct` in your terminal to start Playwright and run your component testing suite.
 
 ## Continuous Integration (CI)
 
