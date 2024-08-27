@@ -1228,15 +1228,6 @@ export async function toggleCollapseComponentStack(
     .click()
 }
 
-export async function expandCallStack(
-  browser: BrowserInterface
-): Promise<void> {
-  // Open full Call Stack
-  await browser
-    .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
-    .click()
-}
-
 export async function getRedboxCallStack(
   browser: BrowserInterface
 ): Promise<string> {

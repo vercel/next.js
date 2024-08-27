@@ -557,6 +557,7 @@ pub struct ExperimentalConfig {
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
+    react_owner_stack: Option<bool>,
     #[serde(rename = "dynamicIO")]
     dynamic_io: Option<bool>,
     proxy_timeout: Option<f64>,
@@ -1094,6 +1095,13 @@ impl NextConfig {
     pub async fn enable_dynamic_io(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(
             self.await?.experimental.dynamic_io.unwrap_or(false),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn enable_react_owner_stack(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.await?.experimental.react_owner_stack.unwrap_or(false),
         ))
     }
 

@@ -1,29 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertHasRedbox,
-  shouldRunTurboDevTest,
-  getRedboxSource,
-} from 'next-test-utils'
+import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
 import { outdent } from 'outdent'
 
 const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
+function normalizeStackTrace(trace) {
+  return trace.replace(/ \(.*\)/g, '')
+}
+
 describe('app dir - dynamic error trace', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      swr: 'latest',
-    },
-    packageJson: {
-      scripts: {
-        build: 'next build',
-        dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
-        start: 'next start',
-      },
-    },
-    installCommand: 'pnpm install',
-    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
-    buildCommand: 'pnpm build',
     skipDeployment: true,
   })
   if (skipped) return
@@ -42,10 +29,27 @@ describe('app dir - dynamic error trace', () => {
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
-    const stackFrames = await Promise.all(
-      stackFrameElements.map((f) => f.innerText())
+    const stackFramesContent = (
+      await Promise.all(stackFrameElements.map((f) => f.innerText()))
     )
-    expect(stackFrames).toEqual(isReactExperimental ? ['', ''] : [])
+      // Filter out the frames having code snippet but without methodName and source
+      .filter(Boolean)
+      .join('\n')
+
+    expect(normalizeStackTrace(stackFramesContent)).toMatchInlineSnapshot(
+      isReactExperimental
+        ? `
+      "ReactDevOverlay
+      ../src/client/components/react-dev-overlay/app/hot-reloader-client.tsx
+      assetPrefix
+      ../src/client/components/app-router.tsx
+      actionQueue
+      ../src/client/components/app-router.tsx
+      AppRouter
+      ../src/client/app-index.tsx"
+    `
+        : `""`
+    )
 
     const codeframe = await getRedboxSource(browser)
     // TODO(NDX-115): column for "^"" marker is inconsistent between native, Webpack, and Turbopack

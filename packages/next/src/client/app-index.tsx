@@ -1,43 +1,33 @@
 // imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
+import { patchConsoleError } from './components/react-dev-overlay/patch-console'
+
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
-import { onRecoverableError } from './on-recoverable-error'
+import {
+  onRecoverableError,
+  onCaughtError,
+  onUncaughtError,
+} from './react-client-callbacks'
 import { callServer } from './app-call-server'
 import {
   type AppRouterActionQueue,
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
-import { isNextRouterError } from './components/is-next-router-error'
-import { handleClientError } from './components/react-dev-overlay/internal/helpers/use-error-handler'
 import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 
-// Patch console.error to collect information about hydration errors
-const origConsoleError = window.console.error
-window.console.error = (...args) => {
-  // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
-  const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
-  if (!isNextRouterError(error)) {
-    if (process.env.NODE_ENV !== 'production') {
-      const { storeHydrationErrorStateFromConsoleArgs } =
-        require('./components/react-dev-overlay/internal/helpers/hydration-error-info') as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info')
-
-      storeHydrationErrorStateFromConsoleArgs(...args)
-      handleClientError(error)
-    }
-
-    origConsoleError.apply(window.console, args)
-  }
-}
-
 /// <reference types="react-dom/experimental" />
+
+patchConsoleError()
+
+const isReactOwnerStackEnabled = !!process.env.__NEXT_REACT_OWNER_STACK
 
 const appElement: HTMLElement | Document | null = document
 
@@ -243,6 +233,12 @@ export function hydrate() {
 
   const options = {
     onRecoverableError,
+    ...(isReactOwnerStackEnabled && process.env.NODE_ENV !== 'production'
+      ? {
+          onCaughtError,
+          onUncaughtError,
+        }
+      : undefined),
   } satisfies ReactDOMClient.RootOptions
   const isError =
     document.documentElement.id === '__next_error__' || hasMissingTags

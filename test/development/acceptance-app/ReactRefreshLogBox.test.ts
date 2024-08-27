@@ -1,12 +1,7 @@
 /* eslint-env jest */
 import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import {
-  check,
-  describeVariants as describe,
-  expandCallStack,
-  retry,
-} from 'next-test-utils'
+import { check, describeVariants as describe, retry } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
@@ -777,7 +772,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await cleanup()
   })
 
-  test('Call stack count for client error', async () => {
+  test('Call stack for client error', async () => {
     const { session, browser, cleanup } = await sandbox(
       next,
       new Map([
@@ -796,25 +791,30 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       ])
     )
 
-    await session.assertHasRedbox()
+    try {
+      await session.assertHasRedbox()
 
-    await expandCallStack(browser)
+      // Should still show the errored line in source code
+      const source = await session.getRedboxSource()
+      expect(source).toContain('app/page.js')
+      expect(source).toContain(`throw new Error('Client error')`)
 
-    // Expect more than the default amount of frames
-    // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
-    const callStackFrames = await browser.elementsByCss(
-      '[data-nextjs-call-stack-frame]'
-    )
+      await expect(
+        browser.hasElementByCssSelector(
+          '[data-nextjs-data-runtime-error-collapsed-action]'
+        )
+      ).resolves.toEqual(false)
 
-    expect(callStackFrames.length).toBeGreaterThan(9)
-
-    const moduleGroup = await browser.elementsByCss(
-      '[data-nextjs-collapsed-call-stack-details]'
-    )
-    // Expect some of the call stack frames to be grouped (by React or Next.js)
-    expect(moduleGroup.length).toBeGreaterThan(0)
-
-    await cleanup()
+      const stackFrameElements = await browser.elementsByCss(
+        '[data-nextjs-call-stack-frame]'
+      )
+      const stackFrames = await Promise.all(
+        stackFrameElements.map((f) => f.innerText())
+      )
+      expect(stackFrames).toEqual([])
+    } finally {
+      await cleanup()
+    }
   })
 
   test('Call stack for server error', async () => {

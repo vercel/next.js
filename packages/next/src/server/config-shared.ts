@@ -441,6 +441,12 @@ export interface ExperimentalConfig {
    */
   taint?: boolean
 
+  /**
+   * Enables leveraging experimental captureOwnerStack API in React,
+   * to create a better stack trace for React errors.
+   */
+  reactOwnerStack?: boolean
+
   serverActions?: {
     /**
      * Allows adjusting body parser size limit for server actions.
@@ -1070,6 +1076,11 @@ export const defaultConfig: NextConfig = {
         process.env.__NEXT_TEST_MODE &&
         process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ),
+    // When PPR is enabled, automatically enables reactOwnerStack.
+    reactOwnerStack: !!(
+      process.env.__NEXT_TEST_MODE &&
+      process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+    ),
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
