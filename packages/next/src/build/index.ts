@@ -2808,12 +2808,12 @@ export default async function build(
               })
             }
 
-            const isRouteHandler = isAppRouteRoute(originalAppPath)
+            const isAppRouteHandler = isAppRouteRoute(originalAppPath)
 
             // When this is an app page and PPR is enabled, the route supports
             // partial pre-rendering.
             const isRoutePPREnabled: true | undefined =
-              !isRouteHandler &&
+              !isAppRouteHandler &&
               checkIsRoutePPREnabled(config.experimental.ppr, appConfig)
                 ? true
                 : undefined
@@ -2920,7 +2920,7 @@ export default async function build(
                 const normalizedRoute = normalizePagePath(route)
 
                 let dataRoute: string | null
-                if (isRouteHandler) {
+                if (isAppRouteHandler) {
                   dataRoute = null
                 } else {
                   dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
@@ -2931,7 +2931,7 @@ export default async function build(
                 // have PPR enabled, we still want to generate the route when
                 // deployed so it doesn't 404. If the app has PPR enabled, we
                 // should add this key.
-                if (!isRouteHandler && isAppPPREnabled) {
+                if (!isAppRouteHandler && isAppPPREnabled) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                   )
@@ -2961,15 +2961,11 @@ export default async function build(
               }
             }
 
-            const shouldUsePPRFallback =
-              isRoutePPREnabled === true &&
-              config.experimental.pprFallbacks === true
-
-            if (!hasRevalidateZero && isDynamicRoute(originalAppPath)) {
+            if (!hasRevalidateZero && isDynamicRoute(page)) {
               // When PPR fallbacks aren't used, we need to include it here. If
               // they are enabled, then it'll already be included in the
               // prerendered routes.
-              if (!shouldUsePPRFallback) {
+              if (!isRoutePPREnabled || !config.experimental.pprFallbacks) {
                 dynamicRoutes.push(page)
               }
 
@@ -2980,17 +2976,12 @@ export default async function build(
                   exportResult.byPath.get(route) ?? {}
 
                 let dataRoute: string | null = null
-                if (!isRouteHandler) {
+                if (!isAppRouteHandler) {
                   dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
                 }
 
                 let prefetchDataRoute: string | undefined
-
-                // While we may only write the `.rsc` when the route does not
-                // have PPR enabled, we still want to generate the route when
-                // deployed so it doesn't 404. If the app has PPR enabled, we
-                // should add this key.
-                if (!isRouteHandler && isAppPPREnabled) {
+                if (!isAppRouteHandler && isAppPPREnabled) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                   )

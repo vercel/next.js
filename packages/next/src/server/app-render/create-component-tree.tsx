@@ -562,8 +562,8 @@ async function createComponentTreeInternal({
       // Instead we pass the searchParams untracked but we wrap the Page in a root client component
       // which can among other things adds the dynamic tracking before rendering the page.
       // @TODO make the root wrapper part of next-app-loader so we don't need the extra client component
-      props.searchParams = createUntrackedSearchParams(query)
       props.params = currentParams
+      props.searchParams = createUntrackedSearchParams(query)
       segmentElement = (
         <>
           <MetadataOutlet getReady={getMetadataReady} />
@@ -574,8 +574,8 @@ async function createComponentTreeInternal({
     } else {
       // If we are passing searchParams to a server component Page we need to track their usage in case
       // the current render mode tracks dynamic API usage.
-      props.searchParams = createDynamicallyTrackedSearchParams(query)
       props.params = createDynamicallyTrackedParams(currentParams)
+      props.searchParams = createDynamicallyTrackedSearchParams(query)
       segmentElement = (
         <>
           <MetadataOutlet getReady={getMetadataReady} />
@@ -585,7 +585,7 @@ async function createComponentTreeInternal({
       )
     }
   } else {
-    props.params = createDynamicallyTrackedParams(props.params)
+    props.params = createDynamicallyTrackedParams(currentParams)
 
     // For layouts we just render the component
     segmentElement = (
