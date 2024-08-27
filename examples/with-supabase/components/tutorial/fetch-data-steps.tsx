@@ -1,8 +1,7 @@
 import Step from "./step";
 import Code from "./code";
 
-const create = `
-create table notes (
+const create = `create table notes (
   id bigserial primary key,
   title text
 );
@@ -14,8 +13,7 @@ values
   ('It was awesome!');
 `.trim();
 
-const server = `
-import { createClient } from '@/utils/supabase/server'
+const server = `import { createClient } from '@/utils/supabase/server'
 
 export default async function Page() {
   const supabase = createClient()
@@ -25,8 +23,7 @@ export default async function Page() {
 }
 `.trim();
 
-const client = `
-'use client'
+const client = `'use client'
 
 import { createClient } from '@/utils/supabase/client'
 import { useEffect, useState } from 'react'
@@ -81,7 +78,7 @@ export default function FetchDataSteps() {
         <p>
           To create a Supabase client and query data from an Async Server
           Component, create a new page.tsx file at{" "}
-          <span className="px-2 py-1 rounded-md bg-foreground/20 text-foreground/80">
+          <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
             /app/notes/page.tsx
           </span>{" "}
           and add the following.

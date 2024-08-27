@@ -21,11 +21,11 @@ export default function ConnectSupabaseSteps() {
       <Step title="Declare environment variables">
         <p>
           Rename the{" "}
-          <span className="px-2 py-1 rounded-md bg-foreground/20 text-foreground/80">
+          <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
             .env.example
           </span>{" "}
           file in your Next.js app to{" "}
-          <span className="px-2 py-1 rounded-md bg-foreground/20 text-foreground/80">
+          <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
             .env.local
           </span>{" "}
           and populate with values from{" "}
@@ -44,7 +44,7 @@ export default function ConnectSupabaseSteps() {
       <Step title="Restart your Next.js development server">
         <p>
           You may need to quit your Next.js development server and run{" "}
-          <span className="px-2 py-1 rounded-md bg-foreground/20 text-foreground/80">
+          <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
             npm run dev
           </span>{" "}
           again to load the new environment variables.
