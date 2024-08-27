@@ -84,12 +84,16 @@
           console.error(
             'Cannot bind "this" of a Server Action. Pass null or undefined as the first argument to .bind().'
           );
-        var args = ArraySlice.call(arguments, 1);
+        var args = ArraySlice.call(arguments, 1),
+          $$typeof = { value: SERVER_REFERENCE_TAG },
+          $$id = { value: this.$$id };
+        args = { value: this.$$bound ? this.$$bound.concat(args) : args };
         return Object.defineProperties(newFn, {
-          $$typeof: { value: SERVER_REFERENCE_TAG },
-          $$id: { value: this.$$id },
-          $$bound: { value: this.$$bound ? this.$$bound.concat(args) : args },
-          bind: { value: bind }
+          $$typeof: $$typeof,
+          $$id: $$id,
+          $$bound: args,
+          $$location: { value: this.$$location, configurable: !0 },
+          bind: { value: bind, configurable: !0 }
         });
       }
       return newFn;
