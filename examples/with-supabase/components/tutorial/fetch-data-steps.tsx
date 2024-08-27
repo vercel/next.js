@@ -1,5 +1,5 @@
 import Step from "./step";
-import Code from "./code";
+import { Code } from "./code";
 
 const create = `create table notes (
   id bigserial primary key,
