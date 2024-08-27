@@ -482,6 +482,16 @@ async function generateDynamicFlightRenderResult(
   })
 }
 
+/**
+ * Crawlers will inadvertently think the canonicalUrl in the RSC payload should be crawled
+ * when our intention is to just seed the router state with the current URL.
+ * This function splits up the pathname so that we can later join it on
+ * when we're ready to consume the path.
+ */
+function prepareInitialCanonicalUrl(url: RequestStore['url']) {
+  return (url.pathname + url.search).split('/')
+}
+
 // This is the data necessary to render <AppRouter /> when no SSR errors are encountered
 async function getRSCPayload(
   tree: LoaderTree,
@@ -558,7 +568,7 @@ async function getRSCPayload(
     P: <Preloads preloadCallbacks={preloadCallbacks} />,
     b: ctx.renderOpts.buildId,
     p: ctx.assetPrefix,
-    c: url.pathname + url.search,
+    c: prepareInitialCanonicalUrl(url),
     i: !!couldBeIntercepted,
     f: [[initialTree, seedData, initialHead]],
     m: missingSlots,
@@ -635,7 +645,7 @@ async function getErrorRSCPayload(
   return {
     b: ctx.renderOpts.buildId,
     p: ctx.assetPrefix,
-    c: url.pathname + url.search,
+    c: prepareInitialCanonicalUrl(url),
     m: undefined,
     i: false,
     f: [[initialTree, initialSeedData, initialHead]],
@@ -669,7 +679,7 @@ function App<T>({
   const initialState = createInitialRouterState({
     buildId: response.b,
     initialFlightData: response.f,
-    initialCanonicalUrl: response.c,
+    initialCanonicalUrlParts: response.c,
     // location and initialParallelRoutes are not initialized in the SSR render
     // they are set to an empty map and window.location, respectively during hydration
     initialParallelRoutes: null!,
@@ -727,7 +737,7 @@ function AppWithoutContext<T>({
   const initialState = createInitialRouterState({
     buildId: response.b,
     initialFlightData: response.f,
-    initialCanonicalUrl: response.c,
+    initialCanonicalUrlParts: response.c,
     // location and initialParallelRoutes are not initialized in the SSR render
     // they are set to an empty map and window.location, respectively during hydration
     initialParallelRoutes: null!,
