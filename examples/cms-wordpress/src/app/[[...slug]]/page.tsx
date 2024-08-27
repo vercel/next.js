@@ -42,6 +42,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   } as Metadata;
 }
 
+export function generateStaticParams() {
+  return [];
+}
+
 export default async function Page({ params }: Props) {
   const slug = nextSlugToWpSlug(params.slug);
   const isPreview = slug.includes("preview");
