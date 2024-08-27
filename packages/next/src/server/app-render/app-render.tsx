@@ -97,7 +97,7 @@ import { setReferenceManifestsSingleton } from './encryption-utils'
 import {
   DynamicState,
   type PostponedState,
-  type DynamicHTMLPostponedState,
+  parsePostponedState,
 } from './postponed-state'
 import {
   getDynamicDataPostponedState,
@@ -1201,42 +1201,19 @@ export const renderToHTMLOrFlight: AppPageRender = (
   const requestEndedState = { ended: false }
   let postponedState: PostponedState | null = null
 
-  // If provided, the postpone state should be parsed as JSON so it can be
-  // provided to React.
+  // If provided, the postpone state should be parsed so it can be provided to
+  // React.
   if (typeof renderOpts.postponed === 'string') {
-    try {
-      postponedState = JSON.parse(renderOpts.postponed) as PostponedState
-    } catch {
-      // If we failed to parse the postponed state, we should default to
-      // performing a dynamic data render.
-      postponedState = getDynamicDataPostponedState(fallbackRouteParams)
+    if (fallbackRouteParams && fallbackRouteParams.size > 0) {
+      throw new Error(
+        'Invariant: postponed state should not be provided when fallback params are provided'
+      )
     }
 
-    // If the postponed state is for a HTML render, then we need to replace the
-    // data in the postponed state. If we don't have any fallback route params
-    // though, or params, we don't have to do anything.
-    if (
-      postponedState.t === DynamicState.HTML &&
-      postponedState.f &&
-      postponedState.f.length > 0 &&
+    postponedState = parsePostponedState(
+      renderOpts.postponed,
       renderOpts.params
-    ) {
-      // Perform the replacements in the postponedState string.
-      if (postponedState.t === DynamicState.HTML) {
-        let postponed = renderOpts.postponed
-        for (const [key, searchValue] of postponedState.f) {
-          const value = renderOpts.params[key] ?? ''
-          const replaceValue = Array.isArray(value) ? value.join('/') : value
-          postponed = postponed.replaceAll(searchValue, replaceValue)
-        }
-
-        // Re-parse the postponed state after we've completed the replacements.
-        postponedState = JSON.parse(postponed) as DynamicHTMLPostponedState
-      }
-    }
-
-    // Unset the fallback route params.
-    fallbackRouteParams = null
+    )
   }
 
   return withRequestStore(
@@ -1380,7 +1357,7 @@ async function renderToStream(
     // If provided, the postpone state should be parsed as JSON so it can be
     // provided to React.
     if (typeof renderOpts.postponed === 'string') {
-      if (postponedState?.t === DynamicState.DATA) {
+      if (postponedState?.type === DynamicState.DATA) {
         // We have a complete HTML Document in the prerender but we need to
         // still include the new server component render because it was not included
         // in the static prelude.
@@ -1890,14 +1867,13 @@ async function prerenderToStream(
       if (usedDynamicAPIs(dynamicTracking)) {
         if (postponed != null) {
           // Dynamic HTML case.
-          metadata.postponed = JSON.stringify(
-            getDynamicHTMLPostponedState(postponed, fallbackRouteParams)
+          metadata.postponed = getDynamicHTMLPostponedState(
+            postponed,
+            fallbackRouteParams
           )
         } else {
           // Dynamic Data case.
-          metadata.postponed = JSON.stringify(
-            getDynamicDataPostponedState(fallbackRouteParams)
-          )
+          metadata.postponed = getDynamicDataPostponedState()
         }
         // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
         // server inserted html in the static response because the html that is part of the prerender may depend on it
@@ -1913,9 +1889,7 @@ async function prerenderToStream(
         }
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
         // Rendering the fallback case.
-        metadata.postponed = JSON.stringify(
-          getDynamicDataPostponedState(fallbackRouteParams)
-        )
+        metadata.postponed = getDynamicDataPostponedState()
 
         return {
           digestErrorsMap: reactServerErrorsByDigest,
