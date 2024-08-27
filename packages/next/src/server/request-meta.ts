@@ -99,6 +99,36 @@ export interface RequestMeta {
    * The previous revalidate before rendering 404 page for notFound: true
    */
   notFoundRevalidate?: number | false
+
+  /**
+   * The path we routed to and should be invoked
+   */
+  invokePath?: string
+
+  /**
+   * The specific page output we should be matching
+   */
+  invokeOutput?: string
+
+  /**
+   * The status we are invoking the request with from routing
+   */
+  invokeStatus?: number
+
+  /**
+   * The routing error we are invoking with
+   */
+  invokeError?: Error
+
+  /**
+   * The query parsed for the invocation
+   */
+  invokeQuery?: Record<string, undefined | string | string[]>
+
+  /**
+   * Whether the request is a middleware invocation
+   */
+  middlewareInvoke?: boolean
 }
 
 /**

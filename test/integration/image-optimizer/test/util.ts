@@ -8,6 +8,7 @@ import {
   fetchViaHTTP,
   File,
   findPort,
+  getFetchUrl,
   killApp,
   launchApp,
   nextBuild,
@@ -879,11 +880,46 @@ export function runTests(ctx) {
     )
   })
 
-  it('should fail when url is recursive', async () => {
-    const query = { url: `/_next/image?url=test.pngw=1&q=1`, w: ctx.w, q: 1 }
-    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
-    expect(res.status).toBe(400)
-    expect(await res.text()).toBe(`"url" parameter cannot be recursive`)
+  describe('recursive url is not allowed', () => {
+    it('should fail with relative next image url', async () => {
+      const query = { url: `/_next/image?url=test.pngw=1&q=1`, w: ctx.w, q: 1 }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+      expect(res.status).toBe(400)
+      expect(await res.text()).toBe(`"url" parameter cannot be recursive`)
+    })
+
+    it('should fail with encoded relative image url', async () => {
+      const query = {
+        url: '%2F_next%2Fimage%3Furl%3Dtest.pngw%3D1%26q%3D1',
+        w: ctx.w,
+        q: 1,
+      }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+      expect(res.status).toBe(400)
+      expect(await res.text()).toBe(`"url" parameter is invalid`)
+    })
+
+    it('should fail with absolute next image url', async () => {
+      const fullUrl = getFetchUrl(
+        ctx.appPort,
+        '/_next/image?url=test.pngw=1&q=1'
+      )
+      const query = { url: fullUrl, w: ctx.w, q: 1 }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+      expect(res.status).toBe(400)
+      expect(await res.text()).toBe(`"url" parameter cannot be recursive`)
+    })
+
+    it('should fail with relative image url with assetPrefix', async () => {
+      const fullUrl = getFetchUrl(
+        ctx.appPort,
+        `/assets/_next/image?url=test.pngw=1&q=1`
+      )
+      const query = { url: fullUrl, w: ctx.w, q: 1 }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+      expect(res.status).toBe(400)
+      expect(await res.text()).toBe(`"url" parameter cannot be recursive`)
+    })
   })
 
   it('should fail when internal url is not an image', async () => {

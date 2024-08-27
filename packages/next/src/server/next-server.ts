@@ -1133,7 +1133,7 @@ export default class NextNodeServer extends BaseServer {
           'originalResponse' in _res ? _res.originalResponse : _res
 
         const reqStart = Date.now()
-        const isMiddlewareRequest = req.headers['x-middleware-invoke']
+        const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
 
         const reqCallback = () => {
           // we don't log for non-route requests
@@ -1619,16 +1619,20 @@ export default class NextNodeServer extends BaseServer {
       return { finished: true }
     }
 
-    for (let [key, value] of result.response.headers) {
-      if (key.toLowerCase() !== 'set-cookie') continue
+    // Split compound (comma-separated) set-cookie headers
+    if (result.response.headers.has('set-cookie')) {
+      const cookies = result.response.headers
+        .getSetCookie()
+        .flatMap((maybeCompoundCookie) =>
+          splitCookiesString(maybeCompoundCookie)
+        )
 
-      // Clear existing header.
-      result.response.headers.delete(key)
+      // Clear existing header(s)
+      result.response.headers.delete('set-cookie')
 
       // Append each cookie individually.
-      const cookies = splitCookiesString(value)
       for (const cookie of cookies) {
-        result.response.headers.append(key, cookie)
+        result.response.headers.append('set-cookie', cookie)
       }
 
       // Add cookies to request meta.
@@ -1643,14 +1647,14 @@ export default class NextNodeServer extends BaseServer {
     res: BaseNextResponse,
     parsed: NextUrlWithParsedQuery
   ) => {
-    const isMiddlewareInvoke = req.headers['x-middleware-invoke']
+    const isMiddlewareInvoke = getRequestMeta(req, 'middlewareInvoke')
 
     if (!isMiddlewareInvoke) {
       return false
     }
 
     const handleFinished = () => {
-      res.setHeader('x-middleware-invoke', '1')
+      addRequestMeta(req, 'middlewareInvoke', true)
       res.body('').send()
       return true
     }
@@ -1677,9 +1681,6 @@ export default class NextNodeServer extends BaseServer {
       ReturnType<typeof NextNodeServer.prototype.runMiddleware>
     >
     let bubblingResult = false
-
-    // Strip the internal headers.
-    this.stripInternalHeaders(req)
 
     try {
       await this.ensureMiddleware(req.url)

@@ -73,7 +73,7 @@
     "@babel/plugin-proposal-object-rest-spread": "7.20.7",
     "@babel/preset-flow": "7.22.5",
     "@babel/preset-react": "7.22.5",
-    "@edge-runtime/jest-environment": "2.3.10",
+    "@edge-runtime/jest-environment": "3.0.0",
     "@emotion/cache": "11.11.0",
     "@emotion/react": "11.11.1",
     "@fullhuman/postcss-purgecss": "1.3.0",

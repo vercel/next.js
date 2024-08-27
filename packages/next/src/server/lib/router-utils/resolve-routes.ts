@@ -391,6 +391,17 @@ export function getResolveRoutes(
               normalized = normalizers.postponed.normalize(normalized, true)
             }
 
+            if (config.i18n) {
+              const curLocaleResult = normalizeLocalePath(
+                normalized,
+                config.i18n.locales
+              )
+
+              if (curLocaleResult.detectedLocale) {
+                parsedUrl.query.__nextLocale = curLocaleResult.detectedLocale
+              }
+            }
+
             // If we updated the pathname, and it had a base path, re-add the
             // base path.
             if (updated) {
@@ -460,15 +471,8 @@ export function getResolveRoutes(
               throw new Error(`Failed to initialize render server "middleware"`)
             }
 
-            const invokeHeaders: typeof req.headers = {
-              'x-invoke-path': '',
-              'x-invoke-query': '',
-              'x-invoke-output': '',
-              'x-middleware-invoke': '1',
-            }
-            Object.assign(req.headers, invokeHeaders)
-
-            debug('invoking middleware', req.url, invokeHeaders)
+            addRequestMeta(req, 'middlewareInvoke', true)
+            debug('invoking middleware', req.url, req.headers)
 
             let middlewareRes: Response | undefined = undefined
             let bodyStream: ReadableStream | undefined = undefined
@@ -573,9 +577,6 @@ export function getResolveRoutes(
                   'x-middleware-rewrite',
                   'x-middleware-redirect',
                   'x-middleware-refresh',
-                  'x-middleware-invoke',
-                  'x-invoke-path',
-                  'x-invoke-query',
                 ].includes(key)
               ) {
                 continue

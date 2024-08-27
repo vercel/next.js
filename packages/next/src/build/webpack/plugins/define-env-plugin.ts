@@ -62,7 +62,7 @@ function getNextPublicEnvironmentVariables(): DefineEnv {
   for (const key in process.env) {
     if (key.startsWith('NEXT_PUBLIC_')) {
       const value = process.env[key]
-      if (value) {
+      if (value != null) {
         defineEnv[`process.env.${key}`] = value
       }
     }
@@ -79,7 +79,7 @@ function getNextConfigEnv(config: NextConfigComplete): DefineEnv {
   const env = config.env
   for (const key in env) {
     const value = env[key]
-    if (value) {
+    if (value != null) {
       errorIfEnvConflicted(config, key)
       defineEnv[`process.env.${key}`] = value
     }
