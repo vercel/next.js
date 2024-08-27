@@ -28,7 +28,7 @@ use super::base::ReferencedAsset;
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGenerateable, CodeGeneration},
-    create_visitor,
+    create_visitor, magic_identifier,
     references::esm::base::insert_hoisted_stmt,
 };
 
@@ -497,10 +497,15 @@ impl CodeGenerateable for EsmExports {
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
                 )),
                 EsmExport::LocalBinding(name, mutable) => {
+                    let local = if name == "default" {
+                        magic_identifier::mangle("default export").into()
+                    } else {
+                        name.clone()
+                    };
                     if *mutable {
                         Some(quote!(
                             "([() => $local, ($new) => $local = $new])" as Expr,
-                            local = Ident::new((name as &str).into(), DUMMY_SP, Default::default()),
+                            local = Ident::new(local.as_str().into(), DUMMY_SP, Default::default()),
                             new = Ident::new(
                                 format!("{name}_new_value").into(),
                                 DUMMY_SP,

@@ -849,7 +849,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
-"module evaluation";
 
 ```
 ## Part 15
@@ -892,7 +891,7 @@ import "__TURBOPACK_PART__" assert {
 import { o as SpanKind } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
 };
-export { SpanKind as SpanKind };
+export { SpanKind };
 
 ```
 ## Part 17
@@ -959,7 +958,7 @@ import "__TURBOPACK_PART__" assert {
 import { n as SpanStatusCode } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
 };
-export { SpanStatusCode as SpanStatusCode };
+export { SpanStatusCode };
 
 ```
 ## Part 20
@@ -1195,7 +1194,7 @@ import "__TURBOPACK_PART__" assert {
 import { t as getTracer } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 21
 };
-export { getTracer as getTracer };
+export { getTracer };
 
 ```
 ## Part 23
@@ -1228,7 +1227,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
-"module evaluation";
 
 ```
 # Entrypoints
@@ -1450,7 +1448,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 10
 };
-"module evaluation";
 
 ```
 ## Part 16
@@ -1493,7 +1490,7 @@ import "__TURBOPACK_PART__" assert {
 import { p as SpanKind } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 16
 };
-export { SpanKind as SpanKind };
+export { SpanKind };
 
 ```
 ## Part 18
@@ -1540,7 +1537,7 @@ import "__TURBOPACK_PART__" assert {
 import { o as SpanStatusCode } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 16
 };
-export { SpanStatusCode as SpanStatusCode };
+export { SpanStatusCode };
 
 ```
 ## Part 20
@@ -1776,7 +1773,7 @@ import "__TURBOPACK_PART__" assert {
 import { t as getTracer } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 21
 };
-export { getTracer as getTracer };
+export { getTracer };
 
 ```
 ## Part 23
@@ -1809,6 +1806,5 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 10
 };
-"module evaluation";
 
 ```

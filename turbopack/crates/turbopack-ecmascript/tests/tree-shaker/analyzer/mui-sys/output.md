@@ -2183,7 +2183,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 42
 };
-"module evaluation";
 
 ```
 ## Part 44
@@ -2235,7 +2234,7 @@ export { columnGap } from "__TURBOPACK_PART__" assert {
 export { gap } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export gap"
 };
-export { default } from "__TURBOPACK_PART__" assert {
+export { __TURBOPACK__default__export__ as default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
 };
 
@@ -2278,7 +2277,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 42
 };
-"module evaluation";
 
 ```
 # Entrypoints
@@ -3235,7 +3233,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 42
 };
-"module evaluation";
 
 ```
 ## Part 44
@@ -3287,7 +3284,7 @@ export { columnGap } from "__TURBOPACK_PART__" assert {
 export { gap } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export gap"
 };
-export { default } from "__TURBOPACK_PART__" assert {
+export { __TURBOPACK__default__export__ as default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
 };
 
@@ -3330,6 +3327,5 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 42
 };
-"module evaluation";
 
 ```

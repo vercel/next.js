@@ -120,7 +120,6 @@ console.log(a);
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
-"module evaluation";
 
 ```
 ## Part 3
@@ -143,7 +142,6 @@ a = 1;
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
-"module evaluation";
 
 ```
 # Entrypoints
@@ -181,7 +179,6 @@ console.log(a);
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
-"module evaluation";
 
 ```
 ## Part 3
@@ -204,6 +201,5 @@ a = 1;
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
-"module evaluation";
 
 ```

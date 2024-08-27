@@ -420,7 +420,6 @@ export { addMessageListener };
 ```
 ## Part 9
 ```js
-"module evaluation";
 
 ```
 ## Part 10
@@ -438,7 +437,6 @@ export { addMessageListener } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-"module evaluation";
 
 ```
 # Entrypoints
@@ -625,7 +623,6 @@ export { addMessageListener };
 ```
 ## Part 9
 ```js
-"module evaluation";
 
 ```
 ## Part 10
@@ -643,6 +640,5 @@ export { addMessageListener } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-"module evaluation";
 
 ```

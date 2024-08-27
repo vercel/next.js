@@ -681,7 +681,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
 };
-"module evaluation";
 
 ```
 ## Part 17
@@ -722,7 +721,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
 };
-"module evaluation";
 
 ```
 # Entrypoints
@@ -960,7 +958,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
-"module evaluation";
 
 ```
 ## Part 16
@@ -1012,7 +1009,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
-"module evaluation";
 
 ```
 # Entrypoints

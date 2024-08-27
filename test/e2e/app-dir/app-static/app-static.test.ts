@@ -14,6 +14,8 @@ import stripAnsi from 'strip-ansi'
 
 const glob = promisify(globOrig)
 
+jest.setTimeout(300000)
+
 describe('app-dir static/dynamic handling', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,

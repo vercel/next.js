@@ -351,7 +351,6 @@ export { wrapClientComponentLoader };
 ```
 ## Part 7
 ```js
-"module evaluation";
 
 ```
 ## Part 8
@@ -366,7 +365,6 @@ export { wrapClientComponentLoader } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-"module evaluation";
 
 ```
 # Entrypoints
@@ -525,7 +523,6 @@ export { wrapClientComponentLoader };
 ```
 ## Part 7
 ```js
-"module evaluation";
 
 ```
 ## Part 8
@@ -540,6 +537,5 @@ export { wrapClientComponentLoader } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-"module evaluation";
 
 ```

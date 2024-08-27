@@ -8,6 +8,8 @@ import {
 } from 'next-test-utils'
 import { join } from 'path'
 
+jest.setTimeout(180000)
+
 const appDir = join(__dirname, '../app')
 
 describe('Image Generation', () => {

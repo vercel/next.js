@@ -1379,7 +1379,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 32
 };
-"module evaluation";
 
 ```
 ## Part 34
@@ -1520,7 +1519,7 @@ export { getStaticPaths } from "__TURBOPACK_PART__" assert {
 export { getStaticProps } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export getStaticProps"
 };
-export { default } from "__TURBOPACK_PART__" assert {
+export { __TURBOPACK__default__export__ as default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
 };
 export { routeModule } from "__TURBOPACK_PART__" assert {
@@ -1551,7 +1550,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 32
 };
-"module evaluation";
 
 ```
 # Entrypoints
@@ -2168,7 +2166,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 28
 };
-"module evaluation";
 
 ```
 ## Part 37
@@ -2206,7 +2203,7 @@ export { getStaticPaths } from "__TURBOPACK_PART__" assert {
 export { getStaticProps } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export getStaticProps"
 };
-export { default } from "__TURBOPACK_PART__" assert {
+export { __TURBOPACK__default__export__ as default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
 };
 
@@ -2234,6 +2231,5 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 28
 };
-"module evaluation";
 
 ```

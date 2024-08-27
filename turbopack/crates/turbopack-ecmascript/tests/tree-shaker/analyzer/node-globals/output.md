@@ -68,7 +68,6 @@ process.turbopack = {};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-"module evaluation";
 
 ```
 ## Part 2
@@ -80,7 +79,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-"module evaluation";
 
 ```
 # Entrypoints
@@ -104,7 +102,6 @@ process.turbopack = {};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-"module evaluation";
 
 ```
 ## Part 2
@@ -116,6 +113,5 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-"module evaluation";
 
 ```

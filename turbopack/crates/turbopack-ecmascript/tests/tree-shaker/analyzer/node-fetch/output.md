@@ -191,7 +191,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-"module evaluation";
 
 ```
 ## Part 4
@@ -229,7 +228,7 @@ export { streamDestructionSupported as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 7
 ```js
-export { default } from "__TURBOPACK_PART__" assert {
+export { __TURBOPACK__default__export__ as default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
 };
 
@@ -242,7 +241,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-"module evaluation";
 
 ```
 # Entrypoints
@@ -297,7 +295,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-"module evaluation";
 
 ```
 ## Part 4
@@ -335,7 +332,7 @@ export { streamDestructionSupported as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 7
 ```js
-export { default } from "__TURBOPACK_PART__" assert {
+export { __TURBOPACK__default__export__ as default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
 };
 
@@ -348,6 +345,5 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-"module evaluation";
 
 ```

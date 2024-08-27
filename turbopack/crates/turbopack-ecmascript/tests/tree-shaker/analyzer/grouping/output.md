@@ -372,7 +372,6 @@ console.log(x);
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-"module evaluation";
 
 ```
 ## Part 4
@@ -471,7 +470,7 @@ import "__TURBOPACK_PART__" assert {
 import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-export { x as x };
+export { x };
 
 ```
 ## Part 10
@@ -542,7 +541,6 @@ export { y } from "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-"module evaluation";
 
 ```
 # Entrypoints
@@ -701,7 +699,7 @@ import "__TURBOPACK_PART__" assert {
 import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-export { x as x };
+export { x };
 
 ```
 ## Part 11
@@ -723,7 +721,6 @@ console.log(x);
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
-"module evaluation";
 
 ```
 ## Part 13
@@ -752,6 +749,5 @@ export { x } from "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
-"module evaluation";
 
 ```

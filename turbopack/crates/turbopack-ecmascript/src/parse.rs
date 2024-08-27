@@ -57,6 +57,8 @@ pub enum ParseResult {
         globals: Arc<Globals>,
         #[turbo_tasks(debug_ignore, trace_ignore)]
         source_map: Arc<swc_core::common::SourceMap>,
+        #[turbo_tasks(debug_ignore, trace_ignore)]
+        top_level_mark: Mark,
     },
     Unparseable {
         messages: Option<Vec<RcStr>>,
@@ -445,6 +447,7 @@ async fn parse_file_content(
                 // borrowed
                 globals: Arc::new(Globals::new()),
                 source_map,
+                top_level_mark,
             })
         },
         |f, cx| {

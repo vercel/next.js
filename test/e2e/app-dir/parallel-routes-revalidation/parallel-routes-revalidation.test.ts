@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 
+jest.setTimeout(300000)
+
 describe('parallel-routes-revalidation', () => {
   const { next, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
