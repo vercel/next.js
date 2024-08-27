@@ -1,8 +1,7 @@
 import Step from "./step";
 import Code from "./code";
 
-const create = `
-create table notes (
+const create = `create table notes (
   id bigserial primary key,
   title text
 );
@@ -14,8 +13,7 @@ values
   ('It was awesome!');
 `.trim();
 
-const server = `
-import { createClient } from '@/utils/supabase/server'
+const server = `import { createClient } from '@/utils/supabase/server'
 
 export default async function Page() {
   const supabase = createClient()
@@ -25,8 +23,7 @@ export default async function Page() {
 }
 `.trim();
 
-const client = `
-'use client'
+const client = `'use client'
 
 import { createClient } from '@/utils/supabase/client'
 import { useEffect, useState } from 'react'

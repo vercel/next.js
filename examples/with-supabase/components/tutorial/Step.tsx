@@ -10,7 +10,11 @@ export default function Step({
   return (
     <li className="relative">
       <form>
-        <Checkbox id={title} className={`absolute top-1.5 mr-2 peer`} />
+        <Checkbox
+          id={title}
+          name={title}
+          className={`absolute top-[3px] mr-2 peer`}
+        />
         <label
           htmlFor={title}
           className={`relative text-base text-foreground peer-checked:line-through font-medium`}
