@@ -53,8 +53,8 @@ export function getDynamicHTMLPostponedState(
   const replacements: Array<[string, string]> = Array.from(fallbackRouteParams)
   const replacementsString = JSON.stringify(replacements)
 
-  // Serialized as `F:<length>:<replacements>:<data>`
-  return `F:${replacementsString.length}:${replacementsString}:${JSON.stringify(data)}`
+  // Serialized as `<length><replacements><data>`
+  return `${replacementsString.length}${replacementsString}${JSON.stringify(data)}`
 }
 
 export function getDynamicDataPostponedState(): string {
@@ -70,8 +70,8 @@ export function parsePostponedState(
       return { type: DynamicState.DATA }
     }
 
-    if (state.startsWith('F')) {
-      const match = state.match(/^F:([0-9]*):/)?.[1]
+    if (/^[0-9]/.test(state)) {
+      const match = state.match(/^([0-9]*)/)?.[1]
       if (!match) {
         throw new Error(`Invariant: invalid postponed state ${state}`)
       }
@@ -80,20 +80,13 @@ export function parsePostponedState(
       const length = parseInt(match)
       const replacements = JSON.parse(
         state.slice(
-          // We skip the length of the prefix and the extra characters added for
-          // serialization. See the above `getDynamicHTMLPostponedState`
-          // function.
-          match.length + 3,
+          match.length,
           // We then go to the end of the string.
-          match.length + 3 + length
+          match.length + length
         )
       ) as ReadonlyArray<[string, string]>
 
-      let postponed = state.slice(
-        // We add 4 for each of the colons and `F` in the prefix. See the above
-        // `getDynamicHTMLPostponedState` function.
-        match.length + 4 + length
-      )
+      let postponed = state.slice(match.length + length)
       for (const [key, searchValue] of replacements) {
         const value = params?.[key] ?? ''
         const replaceValue = Array.isArray(value) ? value.join('/') : value
