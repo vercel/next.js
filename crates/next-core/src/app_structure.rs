@@ -10,8 +10,8 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, RcStr, TaskInput,
-    TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TaskInput, TryJoinIterExt, ValueToString,
+    Vc,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -26,7 +26,6 @@ use crate::{
         },
         AppPage, AppPath, PageSegment, PageType,
     },
-    next_config::NextConfig,
     next_import_map::get_next_package,
 };
 
@@ -218,18 +217,6 @@ struct PlainDirectoryTree {
 
 #[turbo_tasks::value_impl]
 impl DirectoryTree {
-    /// Returns a completion that changes when any route in the whole tree
-    /// changes.
-    #[turbo_tasks::function]
-    pub async fn routes_changed(&self) -> Result<Vc<Completion>> {
-        let mut children = Vec::new();
-        children.push(Completion::new());
-        for child in self.subdirectories.values() {
-            children.push(child.routes_changed());
-        }
-        Ok(Vc::<Completions>::cell(children).completed())
-    }
-
     #[turbo_tasks::function]
     pub async fn into_plain(&self) -> Result<Vc<PlainDirectoryTree>> {
         let mut subdirectories = BTreeMap::new();
@@ -249,23 +236,6 @@ impl DirectoryTree {
 #[turbo_tasks::value(transparent)]
 pub struct OptionAppDir(Option<Vc<FileSystemPath>>);
 
-#[turbo_tasks::value_impl]
-impl OptionAppDir {
-    /// Returns a completion that changes when any route in the whole tree
-    /// changes.
-    #[turbo_tasks::function]
-    pub async fn routes_changed(
-        self: Vc<Self>,
-        next_config: Vc<NextConfig>,
-    ) -> Result<Vc<Completion>> {
-        if let Some(app_dir) = *self.await? {
-            let directory_tree = get_directory_tree(app_dir, next_config.page_extensions());
-            directory_tree.routes_changed().await?;
-        }
-        Ok(Completion::new())
-    }
-}
-
 /// Finds and returns the [DirectoryTree] of the app directory if existing.
 #[turbo_tasks::function]
 pub async fn find_app_dir(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionAppDir>> {
@@ -282,13 +252,6 @@ pub async fn find_app_dir(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionA
     .await?;
 
     Ok(Vc::cell(Some(app_dir)))
-}
-
-/// Finds and returns the [DirectoryTree] of the app directory if enabled and
-/// existing.
-#[turbo_tasks::function]
-pub async fn find_app_dir_if_enabled(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionAppDir>> {
-    Ok(find_app_dir(project_path))
 }
 
 #[turbo_tasks::function]
