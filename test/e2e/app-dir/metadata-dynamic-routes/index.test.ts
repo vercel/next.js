@@ -115,6 +115,17 @@ describe('app dir - metadata dynamic routes', () => {
       )
     })
 
+    it('should support videos in sitemap', async () => {
+      const xml = await (await next.fetch('/sitemap-video/sitemap.xml')).text()
+
+      expect(xml).toContain(
+        `<video:video>\n<video:title>example</video:title>\n<video:thumbnail_loc>https://example.com/image.jpg</video:thumbnail_loc>\n<video:description>this is the description</video:description>\n</video:video>`
+      )
+      expect(xml).toContain(
+        `<video:video>\n<video:title>example</video:title>\n<video:thumbnail_loc>https://example.com/image.jpg</video:thumbnail_loc>\n<video:description>this is the description</video:description>\n</video:video>`
+      )
+    })
+
     if (isNextStart) {
       it('should optimize routes without multiple generation API as static routes', async () => {
         const appPathsManifest = JSON.parse(

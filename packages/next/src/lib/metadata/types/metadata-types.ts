@@ -156,3 +156,31 @@ export type ThemeColorDescriptor = {
   color: string
   media?: string
 }
+
+export type Restriction = {
+  relationship: 'allow' | 'deny'
+  content: string
+}
+
+export type Videos = {
+  title: string
+  thumbnail_loc: string
+  description: string
+  content_loc?: string
+  player_loc?: string
+  duration?: number
+  expiration_date?: Date | string
+  rating?: number
+  view_count?: number
+  publication_date?: Date | string
+  family_friendly?: string
+  restriction?: Restriction
+  platform?: Restriction
+  requires_subscription?: string
+  uploader?: {
+    info?: string
+    content?: string
+  }
+  live?: string
+  tag?: string
+}

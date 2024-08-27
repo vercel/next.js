@@ -153,5 +153,40 @@ describe('resolveRouteData', () => {
         "
       `)
     })
+    it('should resolve sitemap.xml with videos', () => {
+      expect(
+        resolveSitemap([
+          {
+            url: 'https://example.com',
+            lastModified: '2021-01-01',
+            changeFrequency: 'weekly',
+            priority: 0.5,
+            videos: [
+              {
+                title: 'example',
+                thumbnail_loc: 'https://example.com/image.jpg',
+                description: 'this is the description',
+              },
+            ],
+          },
+        ])
+      ).toMatchInlineSnapshot(`
+        "<?xml version="1.0" encoding="UTF-8"?>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+        <url>
+        <loc>https://example.com</loc>
+        <video:video>
+        <video:title>example</video:title>
+        <video:thumbnail_loc>https://example.com/image.jpg</video:thumbnail_loc>
+        <video:description>this is the description</video:description>
+        </video:video>
+        <lastmod>2021-01-01</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.5</priority>
+        </url>
+        </urlset>
+        "
+      `)
+    })
   })
 })

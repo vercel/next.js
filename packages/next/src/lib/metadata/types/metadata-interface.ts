@@ -30,6 +30,7 @@ import type {
   TemplateString,
   Verification,
   ThemeColorDescriptor,
+  Videos,
 } from './metadata-types'
 import type { Manifest as ManifestFile } from './manifest-types'
 import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
@@ -608,6 +609,7 @@ type SitemapFile = Array<{
     languages?: Languages<string>
   }
   images?: string[]
+  videos?: Videos[]
 }>
 
 type ResolvingMetadata = Promise<ResolvedMetadata>
