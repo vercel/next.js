@@ -36,13 +36,18 @@ exports = {}
 
 handler = (...) => undefined
 
-hello = module<fs/promises, {}>["readFile"]("./hello.txt", "utf-8")
+hello = ???*0*
+- *0* fs.readFile*1*("./hello.txt", "utf-8")
+  ⚠️  unsupported function
+  ⚠️  This value might have side effects
+- *1* fs.readFile: A file reading method from the Node.js fs module: https://nodejs.org/api/fs.html
 
 moduleId = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-promises_namespaceObject = module<fs/promises, {}>
+promises_namespaceObject = fs*0*
+- *0* fs: The Node.js fs module: https://nodejs.org/api/fs.html
 
 res = ???*0*
 - *0* arguments[1]
