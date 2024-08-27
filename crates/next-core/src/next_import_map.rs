@@ -740,13 +740,15 @@ async fn rsc_aliases(
 
     if runtime == NextRuntime::Edge {
         if ty.supports_react_server() {
-            alias["react"] = format!("next/dist/compiled/react{react_channel}/react.react-server");
-            alias["react-dom"] =
-                format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server");
+            alias.extend(indexmap! {
+                "react" => format!("next/dist/compiled/react{react_channel}/react.react-server"),
+                "react-dom" => format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server"),
+            });
         } else {
             // x-ref: https://github.com/facebook/react/pull/25436
-            alias["react-dom"] =
-                format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
+            alias.extend(indexmap! {
+                "react-dom" => format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub"),
+            });
         }
     }
 
