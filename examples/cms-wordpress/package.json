@@ -2,7 +2,7 @@
   "private": true,
   "scripts": {
     "dev": "graphql-codegen --config codegen.ts && node ./add-ts-nocheck.js && next dev",
-    "build": "next build",
+    "build": "graphql-codegen --config codegen.ts && node ./add-ts-nocheck.js && next build",
     "start": "next start",
     "lint": "next lint",
     "codegen": "graphql-codegen --config codegen.ts && node ./add-ts-nocheck.js"
