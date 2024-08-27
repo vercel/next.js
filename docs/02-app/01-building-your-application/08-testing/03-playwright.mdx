@@ -4,7 +4,12 @@ nav_title: Playwright
 description: Learn how to set up Playwright with Next.js for End-to-End (E2E) testing.
 ---
 
-Playwright is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** testing. This guide will show you how to set up Playwright with Next.js and write your first tests.
+[Playwright](https://playwright.dev/) is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** testing and **Component Testing**. This guide will show you how to set up Playwright with Next.js and write your first tests.
+
+> **Warning:**
+> - Playwright component testing is experimental.
+> - Playwright currently doesn't support component testing for `async` Server Components.
+> - Since component tests do not require a Next.js server, features like `<Image />` that rely on a server being available may not function out-of-the-box.
 
 ## Quickstart
 
@@ -19,7 +24,7 @@ npx create-next-app@latest --example with-playwright with-playwright-app
 To install Playwright, run the following command:
 
 ```bash filename="Terminal"
-npm init playwright
+npm init playwright@latest
 # or
 yarn create playwright
 # or
@@ -64,7 +69,7 @@ export default function Page() {
 
 <PagesOnly>
 
-```tsx filename="pages/index.ts"
+```tsx filename="pages/index.tsx"
 import Link from 'next/link'
 
 export default function Home() {
@@ -77,7 +82,7 @@ export default function Home() {
 }
 ```
 
-```tsx filename="pages/about.ts"
+```tsx filename="pages/about.tsx"
 import Link from 'next/link'
 
 export default function About() {
@@ -97,15 +102,15 @@ Then, add a test to verify that your navigation is working correctly:
 ```ts filename="tests/example.spec.ts"
 import { test, expect } from '@playwright/test'
 
-test('should navigate to the about page', async ({ page }) => {
+test('navigate to the about page', async ({ page }) => {
   // Start from the index page (the baseURL is set via the webServer in the playwright.config.ts)
   await page.goto('http://localhost:3000/')
   // Find an element with the text 'About' and click on it
-  await page.click('text=About')
+  await page.getByText('About').click()
   // The new URL should be "/about" (baseURL is used there)
   await expect(page).toHaveURL('http://localhost:3000/about')
   // The new page should contain an h1 with "About"
-  await expect(page.locator('h1')).toContainText('About')
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('About')
 })
 ```
 
@@ -121,7 +126,66 @@ Run `npm run build` and `npm run start`, then run `npx playwright test` in anoth
 
 > **Good to know**: Alternatively, you can use the [`webServer`](https://playwright.dev/docs/test-webserver/) feature to let Playwright start the development server and wait until it's fully available.
 
-### Running Playwright on Continuous Integration (CI)
+## Creating your first Playwright component test
+
+Component tests build and mount a specific component without having to bundle your whole application or start a server.
+
+To install Playwright component testing, run the following command:
+
+```bash filename="Terminal"
+npm init playwright@latest -- --ct
+# or
+yarn create playwright --ct
+# or
+pnpm create playwright --ct
+```
+
+Select **React** as your front-end framework. A `playwright` folder will be created in your project, and a `playwright-ct.config.ts` file to enable component testing.
+
+Assuming the same components from the previous section, add a test to validate a component is rendering the expected output:
+
+<AppOnly>
+
+```tsx filename="app/page.test.tsx"
+import { test, expect } from '@playwright/experimental-ct-react'
+import HomePage from './page'
+
+test('display expected content', async ({ mount }) => {
+  // Mount the home page React component
+  const component = await mount(<HomePage />)
+
+  // The home page should have an h1 with "Home"
+  await expect(component.getByRole('heading', { level: 1 })).toHaveText('Home')
+
+  // Validate that a link with the expected URL is present
+  // Following the link is better suited to an E2E test
+  await expect(component.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about')
+})
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+```jsx filename="pages/index.test.tsx"
+import HomePage from './home'
+
+test('display expected content', async ({ mount }) => {
+  // Mount the home page React component
+  const component = await mount(<HomePage />)
+
+  // The home page should have an h1 with "Home"
+  await expect(component.getByRole('heading', { level: 1 })).toHaveText('Home')
+
+  // Validate that a link with the expected URL is present
+  // *Following* the link is better suited to an E2E test
+  await expect(component.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about')
+})
+```
+
+</PagesOnly>
+
+## Continuous Integration (CI)
 
 Playwright will by default run your tests in the [headless mode](https://playwright.dev/docs/ci#running-headed). To install all the Playwright dependencies, run `npx playwright install-deps`.
 
