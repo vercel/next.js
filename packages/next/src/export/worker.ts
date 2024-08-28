@@ -548,3 +548,17 @@ process.on('rejectionHandled', () => {
   // prefetching patterns to avoid waterfalls. We ignore logging these.
   // We should've already errored in anyway unhandledRejection.
 })
+
+const FATAL_UNHANDLED_NEXT_API_EXIT_CODE = 78
+
+process.on('uncaughtException', (err) => {
+  if (isDynamicUsageError(err)) {
+    console.error(
+      'A Next.js API that uses exceptions to signal framework behavior was uncaught. This suggests improper usage of a Next.js API. The original error is printed below and the build will now exit.'
+    )
+    console.error(err)
+    process.exit(FATAL_UNHANDLED_NEXT_API_EXIT_CODE)
+  } else {
+    console.error(err)
+  }
+})

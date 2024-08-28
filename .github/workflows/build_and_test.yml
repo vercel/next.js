@@ -413,7 +413,11 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: pnpm playwright install && BROWSER_NAME=firefox node run-tests.js test/production/pages-dir/production/test/index.test.ts && BROWSER_NAME=safari NEXT_TEST_MODE=start node run-tests.js -c 1 test/production/pages-dir/production/test/index.test.ts test/e2e/basepath.test.ts && BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
+      afterBuild: pnpm playwright install &&
+        NEXT_TEST_MODE=start BROWSER_NAME=firefox node run-tests.js test/production/pages-dir/production/test/index.test.ts &&
+        NEXT_TEST_MODE=start BROWSER_NAME=safari node run-tests.js -c 1 test/production/pages-dir/production/test/index.test.ts test/e2e/basepath.test.ts &&
+        NEXT_TEST_MODE=start BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
+
       stepName: 'test-firefox-safari'
     secrets: inherit
 

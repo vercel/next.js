@@ -10,7 +10,7 @@ import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-par
 
 export interface InitialRouterStateParameters {
   buildId: string
-  initialCanonicalUrl: string
+  initialCanonicalUrlParts: string[]
   initialParallelRoutes: CacheNode['parallelRoutes']
   initialFlightData: FlightDataPath[]
   location: Location | null
@@ -21,12 +21,16 @@ export interface InitialRouterStateParameters {
 export function createInitialRouterState({
   buildId,
   initialFlightData,
-  initialCanonicalUrl,
+  initialCanonicalUrlParts,
   initialParallelRoutes,
   location,
   couldBeIntercepted,
   postponed,
 }: InitialRouterStateParameters) {
+  // When initialized on the server, the canonical URL is provided as an array of parts.
+  // This is to ensure that when the RSC payload streamed to the client, crawlers don't interpret it
+  // as a URL that should be crawled.
+  const initialCanonicalUrl = initialCanonicalUrlParts.join('/')
   // The initialFlightData is an array of FlightDataPath arrays.
   // For the root render, there'll only be a top-level FlightDataPath array.
   const [initialTree, initialSeedData, initialHead] = initialFlightData[0]
