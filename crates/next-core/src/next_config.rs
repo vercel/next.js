@@ -315,7 +315,7 @@ pub struct ImageConfig {
     pub domains: Vec<String>,
     pub disable_static_images: bool,
     #[serde(rename(deserialize = "minimumCacheTTL"))]
-    pub minimum_cache_ttl: u32,
+    pub minimum_cache_ttl: u64,
     pub formats: Vec<ImageFormat>,
     #[serde(rename(deserialize = "dangerouslyAllowSVG"))]
     pub dangerously_allow_svg: bool,

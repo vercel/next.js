@@ -6,7 +6,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, Modules},
     reference::ModuleReferences,
 };
 use turbopack_ecmascript::{
@@ -14,11 +14,14 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
-    references::esm::EsmExports,
+    references::{esm::EsmExports, external_module::IncludeIdentModule},
     utils::StringifyJs,
 };
 
 use super::server_component_reference::NextServerComponentModuleReference;
+use crate::next_app::app_client_references_chunks::{
+    client_modules_modifier, client_modules_ssr_modifier,
+};
 
 #[turbo_tasks::function]
 fn modifier() -> Vc<RcStr> {
@@ -56,6 +59,18 @@ impl Module for NextServerComponentModule {
         Vc::cell(vec![Vc::upcast(NextServerComponentModuleReference::new(
             Vc::upcast(self.module),
         ))])
+    }
+
+    #[turbo_tasks::function]
+    fn additional_layers_modules(self: Vc<Self>) -> Vc<Modules> {
+        let base_ident = self.ident();
+        let ssr_entry_module = Vc::upcast(IncludeIdentModule::new(
+            base_ident.with_modifier(client_modules_ssr_modifier()),
+        ));
+        let client_entry_module = Vc::upcast(IncludeIdentModule::new(
+            base_ident.with_modifier(client_modules_modifier()),
+        ));
+        Vc::cell(vec![ssr_entry_module, client_entry_module])
     }
 }
 

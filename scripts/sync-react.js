@@ -153,9 +153,11 @@ async function getChangelogFromGitHub(baseSha, newSha) {
 async function main() {
   const cwd = process.cwd()
   const errors = []
-  const { noInstall, version } = await yargs(process.argv.slice(2))
-    .options('version', { default: null, type: 'string' })
-    .options('no-install', { default: false, type: 'boolean' }).argv
+  const argv = await yargs(process.argv.slice(2))
+    .version(false)
+    .options('install', { default: true, type: 'boolean' })
+    .options('version', { default: null, type: 'string' }).argv
+  const { install, version } = argv
 
   let newVersionStr = version
   if (newVersionStr === null) {
@@ -198,14 +200,14 @@ Or, run this command with no arguments to use the most recently published versio
     newDateString,
     newSha,
     newVersionStr,
-    noInstall,
+    noInstall: !install,
     channel: 'experimental',
   })
   await sync({
     newDateString,
     newSha,
     newVersionStr,
-    noInstall,
+    noInstall: !install,
     channel: 'rc',
   })
 
@@ -268,7 +270,7 @@ Or, run this command with no arguments to use the most recently published versio
   }
 
   // Install the updated dependencies and build the vendored React files.
-  if (noInstall) {
+  if (!install) {
     console.log('Skipping install step because --no-install flag was passed.\n')
   } else {
     console.log('Installing dependencies...\n')
@@ -328,7 +330,7 @@ Or, run this command with no arguments to use the most recently published versio
     )
   }
 
-  if (noInstall) {
+  if (!install) {
     console.log(
       `
 To finish upgrading, complete the following steps:

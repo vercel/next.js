@@ -118,6 +118,24 @@ export function markCurrentScopeAsDynamic(
 }
 
 /**
+ * This function communicates that some dynamic path parameter was read. This
+ * differs from the more general `trackDynamicDataAccessed` in that it is will
+ * not error when `dynamic = "error"` is set.
+ *
+ * @param store The static generation store
+ * @param expression The expression that was accessed dynamically
+ */
+export function trackFallbackParamAccessed(
+  store: StaticGenerationStore,
+  expression: string
+): void {
+  const prerenderStore = prerenderAsyncStorage.getStore()
+  if (!prerenderStore) return
+
+  postponeWithTracking(prerenderStore.dynamicTracking, expression, store.route)
+}
+
+/**
  * This function communicates that some dynamic data was read. This typically would refer to accessing
  * a Request specific data store such as cookies or headers. This function is not how end-users will
  * describe reading from dynamic data sources which are valid to cache and up to the author to make
@@ -192,12 +210,45 @@ function postponeWithTracking(
       expression,
     })
   }
-  const reason =
+
+  React.unstable_postpone(createPostponeReason(route, expression))
+}
+
+function createPostponeReason(route: string, expression: string) {
+  return (
     `Route ${route} needs to bail out of prerendering at this point because it used ${expression}. ` +
     `React throws this special object to indicate where. It should not be caught by ` +
     `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
+  )
+}
 
-  React.unstable_postpone(reason)
+export function isDynamicPostpone(err: unknown) {
+  console.log(err)
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    typeof (err as any).message === 'string'
+  ) {
+    return isDynamicPostponeReason((err as any).message)
+  }
+  return false
+}
+
+function isDynamicPostponeReason(reason: string) {
+  return (
+    reason.includes(
+      'needs to bail out of prerendering at this point because it used'
+    ) &&
+    reason.includes(
+      'Learn more: https://nextjs.org/docs/messages/ppr-caught-error'
+    )
+  )
+}
+
+if (isDynamicPostponeReason(createPostponeReason('%%%', '^^^')) === false) {
+  throw new Error(
+    'Invariant: isDynamicPostpone misidentified a postpone reason. This is a bug in Next.js'
+  )
 }
 
 export function usedDynamicAPIs(
