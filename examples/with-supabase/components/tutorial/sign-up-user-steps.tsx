@@ -58,7 +58,7 @@ export default function SignUpUserSteps() {
               >
                 Vercel Team settings
               </Link>
-              . )
+              )
             </li>
           </ul>
           <Link
