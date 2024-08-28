@@ -110,7 +110,7 @@ pub async fn get_metadata_route_name(meta: MetadataItem) -> Result<Vc<RcStr>> {
             };
 
             match stem.as_str() {
-                "manifest" => Vc::cell("manifest.webmanifest".into()),
+                // "manifest" => Vc::cell("manifest.webmanifest".into()),
                 _ => Vc::cell(stem.clone()),
             }
         }
