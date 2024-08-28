@@ -562,7 +562,16 @@ export default class NextNodeServer extends BaseServer<
       renderOpts.nextFontManifest = this.nextFontManifest
 
       if (this.enabledDirectories.app && renderOpts.isAppPath) {
-        return lazyRenderAppPage(req, res, pathname, query, renderOpts)
+        return lazyRenderAppPage(
+          req,
+          res,
+          pathname,
+          query,
+          // This code path does not service revalidations for unknown param
+          // shells. As a result, we don't need to pass in the unknown params.
+          null,
+          renderOpts
+        )
       }
 
       // TODO: re-enable this once we've refactored to use implicit matches
