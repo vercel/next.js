@@ -6,6 +6,17 @@ const UMBRACO_SERVER_URL = process.env.UMBRACO_SERVER_URL;
 const UMBRACO_DELIVERY_API_KEY = process.env.UMBRACO_DELIVERY_API_KEY;
 const UMBRACO_API_URL = `${UMBRACO_SERVER_URL}/umbraco/delivery/api/v2/content`;
 
+const performFetch = async (url: string, options: RequestInit) => {
+  const response = await fetch(url, options);
+
+  if (!response.ok) {
+    const message = `Could not fetch data for URL: ${url} - response status was: ${response.status}`;
+    throw new Error(message);
+  }
+
+  return await response.json();
+};
+
 const fetchSingle = async (slug: string, startItem: string, preview: boolean) =>
   await performFetch(`${UMBRACO_API_URL}/item/${slug}`, {
     method: "GET",
@@ -30,18 +41,17 @@ const fetchMultiple = async (
     },
   });
 
-const performFetch = async (url: string, options: RequestInit) => {
-  const response = await fetch(url, options);
-
-  if (!response.ok) {
-    const message = `Could not fetch data for URL: ${url} - response status was: ${response.status}`;
-    throw new Error(message);
-  }
-
-  return await response.json();
-};
-
 const extractSlug = (item: any): string => item.route.path;
+
+const extractAuthor = (author: any): Author => {
+  return {
+    id: author.id,
+    name: author.name,
+    picture: {
+      url: `${UMBRACO_SERVER_URL}${author.properties.picture[0].url}`,
+    },
+  };
+};
 
 const extractPost = (post: any): Post => {
   // NOTE: author is an expanded property on the post
@@ -58,16 +68,6 @@ const extractPost = (post: any): Post => {
     excerpt: post.properties.excerpt,
     content: post.properties.content.markup,
     tags: post.properties.tags,
-  };
-};
-
-const extractAuthor = (author: any): Author => {
-  return {
-    id: author.id,
-    name: author.name,
-    picture: {
-      url: `${UMBRACO_SERVER_URL}${author.properties.picture[0].url}`,
-    },
   };
 };
 

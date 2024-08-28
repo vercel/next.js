@@ -20,7 +20,7 @@ type Props = {
   preview: boolean;
 };
 
-export default function Post({ post, morePosts, preview }: Props) {
+export default function PostDetails({ post, morePosts, preview }: Props) {
   const router = useRouter();
 
   if (!router.isFallback && !post?.slug) {

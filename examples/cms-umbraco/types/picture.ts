@@ -1,4 +1,4 @@
-﻿type Picture = {
+type Picture = {
   url: string;
 };
 
