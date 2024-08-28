@@ -3,6 +3,7 @@ import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import type { DynamicServerError } from './hooks-server-context'
 import type { FetchMetrics } from '../../server/base-http'
 import type { Revalidate } from '../../server/lib/revalidate'
+import type { FallbackRouteParams } from './fallback-params'
 
 // Share the instance module in the next-shared layer
 import { staticGenerationAsyncStorage } from './static-generation-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -20,6 +21,12 @@ export interface StaticGenerationStore {
    * trailing `/page` or `/route` suffix.
    */
   readonly route: string
+
+  /**
+   * The set of unknown route parameters. Accessing these will be tracked as
+   * a dynamic access.
+   */
+  readonly fallbackRouteParams: FallbackRouteParams | null
 
   readonly incrementalCache?: IncrementalCache
   readonly isOnDemandRevalidate?: boolean

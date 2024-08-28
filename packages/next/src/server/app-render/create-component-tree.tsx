@@ -92,6 +92,7 @@ async function createComponentTreeInternal({
       ClientPageRoot,
       createUntrackedSearchParams,
       createDynamicallyTrackedSearchParams,
+      createDynamicallyTrackedParams,
       serverHooks: { DynamicServerError },
       Postpone,
     },
@@ -337,9 +338,8 @@ async function createComponentTreeInternal({
 
   // Handle dynamic segment params.
   const segmentParam = getDynamicParamFromSegment(segment)
-  /**
-   * Create object holding the parent params and current params
-   */
+
+  // Create object holding the parent params and current params
   const currentParams =
     // Handle null case where dynamic param is optional
     segmentParam && segmentParam.value !== null
@@ -349,6 +349,7 @@ async function createComponentTreeInternal({
         }
       : // Pass through parent params to children
         parentParams
+
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
@@ -551,7 +552,6 @@ async function createComponentTreeInternal({
       `"params" is a reserved prop in Layouts and Pages and cannot be used as the name of a parallel route in ${segment}`
     )
   }
-  props.params = currentParams
 
   let segmentElement: React.ReactNode
   if (isPage) {
@@ -562,6 +562,7 @@ async function createComponentTreeInternal({
       // Instead we pass the searchParams untracked but we wrap the Page in a root client component
       // which can among other things adds the dynamic tracking before rendering the page.
       // @TODO make the root wrapper part of next-app-loader so we don't need the extra client component
+      props.params = currentParams
       props.searchParams = createUntrackedSearchParams(query)
       segmentElement = (
         <>
@@ -573,6 +574,7 @@ async function createComponentTreeInternal({
     } else {
       // If we are passing searchParams to a server component Page we need to track their usage in case
       // the current render mode tracks dynamic API usage.
+      props.params = createDynamicallyTrackedParams(currentParams)
       props.searchParams = createDynamicallyTrackedSearchParams(query)
       segmentElement = (
         <>
@@ -583,6 +585,8 @@ async function createComponentTreeInternal({
       )
     }
   } else {
+    props.params = createDynamicallyTrackedParams(currentParams)
+
     // For layouts we just render the component
     segmentElement = (
       <>

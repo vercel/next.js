@@ -5,6 +5,7 @@ import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOptsPartial } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
+import type { FallbackRouteParams } from '../../client/components/fallback-params'
 
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
@@ -13,6 +14,11 @@ export type StaticGenerationContext = {
    * The page that is being rendered. This relates to the path to the page file.
    */
   page: string
+
+  /**
+   * The route parameters that are currently unknown.
+   */
+  fallbackRouteParams: FallbackRouteParams | null
 
   requestEndedState?: { ended?: boolean }
   renderOpts: {
@@ -58,7 +64,12 @@ export const withStaticGenerationStore: WithStore<
   StaticGenerationContext
 > = <Result>(
   storage: AsyncLocalStorage<StaticGenerationStore>,
-  { page, renderOpts, requestEndedState }: StaticGenerationContext,
+  {
+    page,
+    fallbackRouteParams,
+    renderOpts,
+    requestEndedState,
+  }: StaticGenerationContext,
   callback: (store: StaticGenerationStore) => Result
 ): Result => {
   /**
@@ -86,6 +97,7 @@ export const withStaticGenerationStore: WithStore<
   const store: StaticGenerationStore = {
     isStaticGeneration,
     page,
+    fallbackRouteParams,
     route: normalizeAppPath(page),
     incrementalCache:
       // we fallback to a global incremental cache for edge-runtime locally

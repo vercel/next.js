@@ -244,3 +244,34 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
         ))
     }
 }
+
+/// A module that only has an ident and no content nor references. It is used
+/// to include a module's ident in the module graph before the module
+/// itself is resolved, as is the case with NextServerComponentModule's
+/// "client modules" and "client modules ssr".
+#[turbo_tasks::value]
+pub struct IncludeIdentModule {
+    ident: Vc<AssetIdent>,
+}
+
+#[turbo_tasks::value_impl]
+impl IncludeIdentModule {
+    #[turbo_tasks::function]
+    pub fn new(ident: Vc<AssetIdent>) -> Vc<Self> {
+        Self { ident }.cell()
+    }
+}
+
+impl Asset for IncludeIdentModule {
+    fn content(self: Vc<Self>) -> Vc<AssetContent> {
+        todo!("IncludeIdentModule doesn't implement content()")
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Module for IncludeIdentModule {
+    #[turbo_tasks::function]
+    fn ident(&self) -> Vc<AssetIdent> {
+        self.ident
+    }
+}

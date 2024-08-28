@@ -351,6 +351,7 @@ export function unstable_cache<T extends Callback>(
           route: '/',
           page: '/',
           isStaticGeneration: false,
+          fallbackRouteParams: null,
         },
         cb,
         ...args

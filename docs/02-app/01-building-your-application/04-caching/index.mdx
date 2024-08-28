@@ -6,7 +6,7 @@ description: An overview of caching mechanisms in Next.js.
 
 Next.js improves your application's performance and reduces costs by caching rendering work and data requests. This page provides an in-depth look at Next.js caching mechanisms, the APIs you can use to configure them, and how they interact with each other.
 
-> **Good to know**: This page helps you understand how Next.js works under the hood but is **not** essential knowledge to be productive with Next.js. Most of Next.js' caching heuristics are determined by your API usage and have defaults for the best performance with zero or minimal configuration.
+> **Good to know**: This page helps you understand how Next.js works under the hood but is **not** essential knowledge to be productive with Next.js. Most of Next.js' caching heuristics are determined by your API usage and have defaults for the best performance with zero or minimal configuration. If you instead want to jump to examples, [start here](/docs/app/building-your-application/data-fetching/fetching).
 
 ## Overview
 
@@ -124,7 +124,7 @@ Next.js has a built-in Data Cache that **persists** the result of data fetches a
 
 > **Good to know**: In the browser, the `cache` option of `fetch` indicates how a request will interact with the browser's HTTP cache, in Next.js, the `cache` option indicates how a server-side request will interact with the server's Data Cache.
 
-By default, data requests that use `fetch` are not **cached**. You can use the [`cache`](#fetch-optionscache) and [`next.revalidate`](#fetch-optionsnextrevalidate) options of `fetch` to configure the caching behavior.
+You can use the [`cache`](#fetch-optionscache) and [`next.revalidate`](#fetch-optionsnextrevalidate) options of `fetch` to configure the caching behavior.
 
 **How the Data Cache Works**
 
@@ -145,8 +145,6 @@ By default, data requests that use `fetch` are not **cached**. You can use the [
 > **Differences between the Data Cache and Request Memoization**
 >
 > While both caching mechanisms help improve performance by re-using cached data, the Data Cache is persistent across incoming requests and deployments, whereas memoization only lasts the lifetime of a request.
->
-> With memoization, we reduce the number of **duplicate** requests in the same render pass that have to cross the network boundary from the rendering server to the Data Cache server (e.g. a CDN or Edge Network) or data source (e.g. a database or CMS). With the Data Cache, we reduce the number of requests made to our origin data source.
 
 ### Duration
 
@@ -210,13 +208,11 @@ Data can be revalidated on-demand by path ([`revalidatePath`](#revalidatepath)) 
 
 ### Opting out
 
-Since `fetch` requests are not cached by default, you don't need to opt out of caching. This means data will be fetched from your data source whenever `fetch` is called.
+If you do _not_ want to cache the response from `fetch`, you can do the following:
 
-> **Note**: Data Cache is currently only available in Layout, Pages, and Route Handlers, not Middleware. Any fetches done inside of your middleware will not be cached by default.
-
-> **Vercel Data Cache**
->
-> If your Next.js application is deployed to Vercel, we recommend reading the [Vercel Data Cache](https://vercel.com/docs/infrastructure/data-cache) documentation for a better understanding of Vercel specific features.
+```js
+let data = await fetch('https://api.vercel.app/blog', { cache: 'no-store' })
+```
 
 ## Full Route Cache
 
@@ -419,14 +415,13 @@ See the [`useRouter` hook](/docs/app/api-reference/functions/use-router) API ref
 
 ### `fetch`
 
-Data returned from `fetch` is **not** automatically cached in the Data Cache.
+Data returned from `fetch` is automatically cached in the Data Cache.
 
-```jsx
-// Cached by default. `no-store` is the default option and can be omitted.
-fetch(`https://...`, { cache: 'no-store' })
+If you do _not_ want to cache the response from `fetch`, you can do the following:
+
+```js
+let data = await fetch('https://api.vercel.app/blog', { cache: 'no-store' })
 ```
-
-Since the render output depends on data, using `cache: 'no-store'` will also skip the Full Route Cache for the route where the `fetch` request is used. That is, the route will be dynamically rendered on every request, but you can still have other cached data requests in the same route.
 
 See the [`fetch` API Reference](/docs/app/api-reference/functions/fetch) for more options.
 

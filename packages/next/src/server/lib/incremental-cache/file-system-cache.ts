@@ -251,21 +251,20 @@ export default class FileSystemCache implements CacheHandler {
             }
           }
         } else if (kind === IncrementalCacheKind.APP_PAGE) {
-          let meta: RouteMetadata | undefined
-          let rscData: Buffer | undefined
-
           // We try to load the metadata file, but if it fails, we don't
           // error. We also don't load it if this is a fallback.
-          if (!isFallback) {
-            try {
-              meta = JSON.parse(
-                await this.fs.readFile(
-                  filePath.replace(/\.html$/, NEXT_META_SUFFIX),
-                  'utf8'
-                )
+          let meta: RouteMetadata | undefined
+          try {
+            meta = JSON.parse(
+              await this.fs.readFile(
+                filePath.replace(/\.html$/, NEXT_META_SUFFIX),
+                'utf8'
               )
-            } catch {}
+            )
+          } catch {}
 
+          let rscData: Buffer | undefined
+          if (!isFallback) {
             rscData = await this.fs.readFile(
               this.getFilePath(
                 `${key}${isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
@@ -464,10 +463,6 @@ export default class FileSystemCache implements CacheHandler {
           ...data,
           tags: ctx.tags,
         })
-      )
-    } else {
-      throw new Error(
-        `Invariant: Unexpected route kind ${data.kind} in file system cache.`
       )
     }
   }
