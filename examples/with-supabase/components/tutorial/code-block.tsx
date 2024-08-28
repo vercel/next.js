@@ -36,7 +36,7 @@ const CheckIcon = () => (
   </svg>
 );
 
-export function Code({ code }: { code: string }) {
+export function CodeBlock({ code }: { code: string }) {
   const [icon, setIcon] = useState(CopyIcon);
 
   const copy = async () => {
