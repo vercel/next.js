@@ -4,7 +4,7 @@ import "./globals.css";
 import HeaderAuth from "@/components/header-auth";
 import { ThemeProvider } from "next-themes";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { verifySupabase } from "@/utils/supabase/verify-supabase";
+import { hasEnvVars } from "@/utils/supabase/check-env-vars";
 import { EnvVarWarning } from "@/components/env-var-warning";
 import Link from "next/link";
 
@@ -42,7 +42,7 @@ export default function RootLayout({
                       <DeployButton />
                     </div>
                   </div>
-                  {!verifySupabase ? <EnvVarWarning /> : <HeaderAuth />}
+                  {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
                 </div>
               </nav>
               <div className="flex flex-col gap-20 max-w-5xl p-5">
