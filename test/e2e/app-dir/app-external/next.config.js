@@ -5,6 +5,7 @@ module.exports = {
     serverComponentsExternalPackages: [
       'conditional-exports-optout',
       'dual-pkg-optout',
+      'transitive-external',
     ],
   },
 }
