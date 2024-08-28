@@ -19,7 +19,7 @@ export default function SignUpUserSteps() {
               {process.env.VERCEL_URL}
             </span>
           </p>
-          <p className="mt-3">
+          <p className="mt-4">
             You will need to{" "}
             <Link
               className="text-primary hover:text-foreground"
@@ -31,7 +31,7 @@ export default function SignUpUserSteps() {
             </Link>{" "}
             with the correct redirect URLs.
           </p>
-          <ul className="mt-3">
+          <ul className="mt-4">
             <li>
               -{" "}
               <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
@@ -54,7 +54,7 @@ export default function SignUpUserSteps() {
           <Link
             href="https://supabase.com/docs/guides/auth/redirect-urls#vercel-preview-urls"
             target="_blank"
-            className="text-primary/50 hover:text-primary flex items-center text-sm gap-1 mt-3"
+            className="text-primary/50 hover:text-primary flex items-center text-sm gap-1 mt-4"
           >
             Redirect URLs Docs <ArrowUpRight size={14} />
           </Link>
