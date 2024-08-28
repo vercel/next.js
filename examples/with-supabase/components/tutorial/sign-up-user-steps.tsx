@@ -7,9 +7,9 @@ export default function SignUpUserSteps() {
       {process.env.VERCEL_ENV === "preview" ||
       process.env.VERCEL_ENV === "production" ? (
         <TutorialStep title="Set up redirect urls">
-          <p>It looks like this App is hosted on Vercel.</p>
           <p>
-            This particular deployment is{" "}
+            It looks like this App is hosted on Vercel. This particular
+            deployment is{" "}
             <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
               {process.env.VERCEL_ENV}
             </span>{" "}
@@ -18,9 +18,10 @@ export default function SignUpUserSteps() {
               {process.env.VERCEL_URL}
             </span>
           </p>
-          <p>
+          <p className="mt-3">
             You will need to{" "}
             <Link
+              className="text-primary hover:text-foreground"
               href={
                 "https://supabase.com/dashboard/project/_/auth/url-configuration"
               }
@@ -29,7 +30,7 @@ export default function SignUpUserSteps() {
             </Link>{" "}
             with the correct redirect URLs.
           </p>
-          <ul className="my-4">
+          <ul className="mt-3">
             <li>
               -{" "}
               <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
