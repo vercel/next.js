@@ -821,6 +821,22 @@ export async function retry<T>(
   }
 }
 
+export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
+  await waitFor(5000)
+  const result = await evaluate(browser, () => {
+    return Boolean(
+      [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) =>
+          p.shadowRoot.querySelector(
+            '#nextjs__container_errors_label, #nextjs__container_errors_label'
+          )
+        )
+    )
+  })
+  return result
+}
+
 export async function assertHasRedbox(browser: BrowserInterface) {
   try {
     await retry(
