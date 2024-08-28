@@ -915,6 +915,63 @@ export async function getRedboxHeader(browser: BrowserInterface) {
   )
 }
 
+export async function getRedboxCategory(browser: BrowserInterface) {
+  return retry(
+    () => {
+      return evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('#nextjs__container_errors_label')
+          )
+        const root = portal?.shadowRoot
+        return root?.querySelector('#nextjs__container_errors_label')?.innerText
+      })
+    },
+    10000,
+    500,
+    'getRedboxCategory'
+  )
+}
+
+export async function getRedboxLocation(browser: BrowserInterface) {
+  return retry(
+    () => {
+      return evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-error-location]')
+          )
+        const root = portal?.shadowRoot
+        return root?.querySelector('[data-nextjs-error-location]')?.innerText
+      })
+    },
+    10000,
+    500,
+    'getRedboxLocation'
+  )
+}
+
+export async function getRedboxCodeFrame(browser: BrowserInterface) {
+  return retry(
+    () => {
+      return evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-codeframe-code]')
+          )
+        const root = portal?.shadowRoot
+        return root?.querySelector('[data-nextjs-codeframe-code]')?.innerText
+      })
+    },
+    10000,
+    500,
+    'getRedboxCodeFrame'
+  )
+}
+
 export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
   return parseInt(
     (await getRedboxHeader(browser)).match(/\d+ of (\d+) error/)?.[1],

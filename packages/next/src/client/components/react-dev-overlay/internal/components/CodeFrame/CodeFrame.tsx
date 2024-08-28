@@ -59,7 +59,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   // TODO: make the caret absolute
   return (
     <div data-nextjs-codeframe>
-      <div>
+      <div data-nextjs-error-location>
         <p
           role="link"
           onClick={open}
@@ -85,7 +85,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
           </svg>
         </p>
       </div>
-      <pre>
+      <pre data-nextjs-codeframe-code>
         {decoded.map((entry, index) => (
           <span
             key={`frame-${index}`}
