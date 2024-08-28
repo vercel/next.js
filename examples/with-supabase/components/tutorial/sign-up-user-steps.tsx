@@ -29,7 +29,7 @@ export default function SignUpUserSteps() {
             >
               update your Supabase project
             </Link>{" "}
-            with the correct redirect URLs.
+            with redirect URLs based on your Vercel deployment URLs.
           </p>
           <ul className="mt-4">
             <li>
@@ -41,7 +41,7 @@ export default function SignUpUserSteps() {
             <li>
               -{" "}
               <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
-                http://[your-domain]/**
+                https://[your-domain]/**
               </span>
             </li>
             <li>
