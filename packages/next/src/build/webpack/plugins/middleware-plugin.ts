@@ -300,7 +300,9 @@ function isDynamicCodeEvaluationAllowed(
 
   const name = fileName.replace(rootDir ?? '', '')
 
-  return picomatch(middlewareConfig?.unstable_allowDynamicGlobs ?? [])(name)
+  // By providing empty opts, allow picomatch to automatically set
+  // Windows options; otherwise, it does not work properly on Windows.
+  return picomatch(middlewareConfig?.unstable_allowDynamicGlobs ?? [], {})(name)
 }
 
 function buildUnsupportedApiError({
