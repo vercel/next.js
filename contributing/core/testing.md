@@ -148,10 +148,10 @@ pnpm pack-next --project ~/shadcn-ui/apps/www/
 This will find and modify parent workspaces when relevant. These automatic overrides should work
 with `npm` and `pnpm`. There are known issues preventing it from working with `bun` and `yarn`.
 
-On some platforms, this generates stripped `@next/swc` binaries to avoid exceeding 2 GiB, which is
-known to cause problems with `pnpm`. That behavior can be overridden with
-`PACK_NEXT_COMPRESS=objcopy-zstd` on Linux (which is slower, but retains debuginfo), or with
-`PACK_NEXT_COMPRESS=none` on other platforms.
+On some platforms, this generates stripped `@next/swc` binaries to avoid exceeding 2 GiB, [which is
+known to cause problems with `pnpm`](https://github.com/libuv/libuv/pull/1501). That behavior can be
+overridden with `PACK_NEXT_COMPRESS=objcopy-zstd` on Linux (which is slower, but retains debuginfo),
+or with `PACK_NEXT_COMPRESS=none` on all platforms (which disables stripping entirely).
 
 These tarballs can be extracted directly into a project's `node_modules` directory (bypassing the
 package manager) by using:
