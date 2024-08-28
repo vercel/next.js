@@ -1109,7 +1109,7 @@ While Middleware can be useful for initial checks, it should not be your only li
 
 > **Tips**:
 >
-> - In Middleware, you can also read cookies using `req.cookies.get('session).value`.
+> - In Middleware, you can also read cookies using `req.cookies.get('session').value`.
 > - Middleware uses the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes), check if your Auth library and session management library are compatible.
 > - You can use the `matcher` property in the Middleware to specify which routes Middleware should run on. Although, for auth, it's recommended Middleware runs on all routes.
 
