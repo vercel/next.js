@@ -57,11 +57,13 @@
     "RUST_BACKTRACE": "0"
   },
   "cSpell.words": [
+    "callstack",
     "Entrypoints",
     "napi",
     "nextjs",
     "opentelemetry",
     "prerendered",
+    "Redbox",
     "Threadsafe",
     "Turbopack",
     "zipkin"

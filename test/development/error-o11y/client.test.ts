@@ -9,7 +9,7 @@ import {
 } from 'next-test-utils'
 
 describe('error o11y in client component', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -18,7 +18,7 @@ describe('error o11y in client component', () => {
     return
   }
 
-  it('should show error o11y in client component app code', async () => {
+  it('should display error o11y for client component app code in Turbopack', async () => {
     const browser = await next.browser('/client/app-code')
 
     await assertHasRedbox(browser)
@@ -31,17 +31,15 @@ describe('error o11y in client component', () => {
       callStack: await getRedboxCallStack(browser),
     }
 
-    expect(redbox.category).toMatchInlineSnapshot(`"Unhandled Runtime Error"`)
-
-    expect(redbox.description).toMatchInlineSnapshot(
-      `"Error: runtime error in client component app code"`
-    )
-
-    expect(redbox.location).toMatchInlineSnapshot(
-      `"app/client/app-code/page.tsx (4:9) @ Error"`
-    )
-
-    expect(redbox.codeFrame).toMatchInlineSnapshot(`
+    if (isTurbopack) {
+      expect(redbox.category).toMatchInlineSnapshot(`"Unhandled Runtime Error"`)
+      expect(redbox.description).toMatchInlineSnapshot(
+        `"Error: runtime error in client component app code"`
+      )
+      expect(redbox.location).toMatchInlineSnapshot(
+        `"app/client/app-code/page.tsx (4:9) @ Error"`
+      )
+      expect(redbox.codeFrame).toMatchInlineSnapshot(`
       "  2 |
         3 | if ('window' in global) {
       > 4 |   throw Error('runtime error in client component app code')
@@ -50,16 +48,27 @@ describe('error o11y in client component', () => {
         6 |
         7 | export default function Page() {"
     `)
-
-    // TODO: The callstack file path may vary.
-    // expect(redbox.callStack).toMatchInlineSnapshot(`
-    //   "(app-pages-browser)/./app/client/app-code/page.tsx
-    //   file:///private/var/folders/cm/328vyfy92k194zkm0jpl5sqw0000gn/T/next-install-142db730f4a6eb59d36e7f6096d3d4d65a2b9dddcaf5dac2bac1cbad0f3ff5b4/.next/static/chunks/app/client/app-code/page.js (28:1)
-    //   options.factory
-    //   file:///private/var/folders/cm/328vyfy92k194zkm0jpl5sqw0000gn/T/next-install-142db730f4a6eb59d36e7f6096d3d4d65a2b9dddcaf5dac2bac1cbad0f3ff5b4/.next/static/chunks/webpack.js (701:31)
-
-    //   fn
-    //   file:///private/var/folders/cm/328vyfy92k194zkm0jpl5sqw0000gn/T/next-install-142db730f4a6eb59d36e7f6096d3d4d65a2b9dddcaf5dac2bac1cbad0f3ff5b4/.next/static/chunks/webpack.js (357:21)"
-    // `)
+      // TODO: The callstack file path may vary.
+      // expect(redbox.callStack).toMatchInlineSnapshot(``)
+    } else {
+      expect(redbox.category).toMatchInlineSnapshot(`"Unhandled Runtime Error"`)
+      expect(redbox.description).toMatchInlineSnapshot(
+        `"Error: runtime error in client component app code"`
+      )
+      expect(redbox.location).toMatchInlineSnapshot(
+        `"app/client/app-code/page.tsx (4:9) @ Error"`
+      )
+      expect(redbox.codeFrame).toMatchInlineSnapshot(`
+      "  2 |
+        3 | if ('window' in global) {
+      > 4 |   throw Error('runtime error in client component app code')
+          |         ^
+        5 | }
+        6 |
+        7 | export default function Page() {"
+    `)
+      // TODO: The callstack file path may vary.
+      // expect(redbox.callStack).toMatchInlineSnapshot(``)
+    }
   })
 })
