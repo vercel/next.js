@@ -82,7 +82,7 @@ async function extractBinary(
       )
     })
 
-    await fs.promises.access(tempFile, fs.constants.F_OK) // ensure the temp file existed
+    await fs.promises.access(tempFile) // ensure the temp file existed
     await fs.promises.rename(tempFile, path.join(cacheDirectory, tarFileName))
   } else {
     Log.info(`Using cached swc package ${pkgName}...`)
