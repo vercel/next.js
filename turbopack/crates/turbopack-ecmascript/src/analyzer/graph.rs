@@ -6,7 +6,7 @@ use std::{
 
 use swc_core::{
     atoms::Atom,
-    common::{pass::AstNodePath, Mark, Span, Spanned, SyntaxContext, GLOBALS},
+    common::{comments::Comments, pass::AstNodePath, Mark, Span, Spanned, SyntaxContext, GLOBALS},
     ecma::{
         ast::*,
         atoms::js_word,
@@ -294,6 +294,8 @@ pub fn create_graph(m: &Program, eval_context: &EvalContext) -> VarGraph {
     graph
 }
 
+/// A context used for assembling the evaluation graph.
+#[derive(Debug)]
 pub struct EvalContext {
     pub(crate) unresolved_mark: Mark,
     pub(crate) top_level_mark: Mark,
@@ -301,16 +303,20 @@ pub struct EvalContext {
 }
 
 impl EvalContext {
+    /// Produce a new [EvalContext] from a [Program]. If you wish to support
+    /// webpackIgnore or turbopackIgnore comments, you must pass those in,
+    /// since the AST does not include comments by default.
     pub fn new(
         module: &Program,
         unresolved_mark: Mark,
         top_level_mark: Mark,
+        comments: Option<&dyn Comments>,
         source: Option<Vc<Box<dyn Source>>>,
     ) -> Self {
         Self {
             unresolved_mark,
             top_level_mark,
-            imports: ImportMap::analyze(module, source),
+            imports: ImportMap::analyze(module, source, comments),
         }
     }
 

@@ -366,7 +366,7 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
 impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyse_ecmascript_module(self, None)
+        analyse_ecmascript_module(self, None, None)
     }
 
     /// Generates module contents without an analysis pass. This is useful for
