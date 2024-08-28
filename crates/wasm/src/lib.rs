@@ -42,7 +42,7 @@ pub fn minify_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
             GLOBALS.set(&Default::default(), || {
                 let fm = c.cm.new_source_file(FileName::Anon.into(), s.into());
                 let program = c
-                    .minify(fm, handler, &opts)
+                    .minify(fm, handler, &opts, Default::default())
                     .context("failed to minify file")?;
 
                 Ok(program)

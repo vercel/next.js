@@ -92,6 +92,7 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
                     &ExtraOptions {
                         top_level_mark,
                         unresolved_mark,
+                        mangle_name_cache: Default::default(),
                     },
                 );
 
