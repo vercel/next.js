@@ -20,7 +20,7 @@ export class SharedRevalidateTimings {
      * routes.
      */
     private readonly prerenderManifest: DeepReadonly<
-      Pick<PrerenderManifest, 'routes'>
+      Pick<PrerenderManifest, 'routes' | 'dynamicRoutes'>
     >
   ) {}
 
@@ -42,6 +42,9 @@ export class SharedRevalidateTimings {
     if (typeof revalidate !== 'undefined') return revalidate
 
     revalidate = this.prerenderManifest.routes[route]?.initialRevalidateSeconds
+    if (typeof revalidate !== 'undefined') return revalidate
+
+    revalidate = this.prerenderManifest.dynamicRoutes[route]?.fallbackRevalidate
     if (typeof revalidate !== 'undefined') return revalidate
 
     return undefined

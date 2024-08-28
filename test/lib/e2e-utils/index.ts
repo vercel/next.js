@@ -2,11 +2,11 @@ import path from 'path'
 import assert from 'assert'
 import { flushAllTraces, setGlobal, trace } from 'next/dist/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
-import { NextInstance, NextInstanceOpts } from './next-modes/base'
-import { NextDevInstance } from './next-modes/next-dev'
-import { NextStartInstance } from './next-modes/next-start'
-import { NextDeployInstance } from './next-modes/next-deploy'
-import { shouldRunTurboDevTest } from './next-test-utils'
+import { NextInstance, NextInstanceOpts } from '../next-modes/base'
+import { NextDevInstance } from '../next-modes/next-dev'
+import { NextStartInstance } from '../next-modes/next-start'
+import { NextDeployInstance } from '../next-modes/next-deploy'
+import { shouldRunTurboDevTest } from '../next-test-utils'
 
 export type { NextInstance }
 
@@ -28,7 +28,7 @@ if (process.env.NEXT_E2E_TEST_TIMEOUT) {
 
 jest.setTimeout(testTimeout)
 
-const testsFolder = path.join(__dirname, '..')
+const testsFolder = path.join(__dirname, '..', '..')
 
 let testFile
 const testFileRegex = /\.test\.(js|tsx?)/
