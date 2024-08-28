@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const {
+  NEXT_DIR,
   booleanArg,
   exec,
   execAsyncWithOutput,
@@ -12,9 +13,8 @@ const fsPromises = require('fs/promises')
 
 const args = process.argv.slice(2)
 
-const CWD = process.cwd()
-const TARBALLS = `${CWD}/tarballs`
-const NEXT_PACKAGES = `${CWD}/packages`
+const TARBALLS = `${NEXT_DIR}/tarballs`
+const NEXT_PACKAGES = `${NEXT_DIR}/packages`
 const noBuild = booleanArg(args, '--no-build')
 
 ;(async () => {
@@ -37,7 +37,7 @@ const noBuild = booleanArg(args, '--no-build')
     await Promise.all(binaries.map((bin) => fsPromises.rm(bin)))
   }
 
-  exec('Build native modules', 'pnpm run swc-build-native')
+  await require('./build-native.cjs')
 
   const NEXT_TARBALL = `${TARBALLS}/next.tar`
   const NEXT_SWC_TARBALL = `${TARBALLS}/next-swc.tar`

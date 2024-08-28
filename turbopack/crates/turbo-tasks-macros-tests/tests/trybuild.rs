@@ -6,6 +6,13 @@ fn derive_resolved_value() {
 }
 
 #[test]
+fn function() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/function/pass_*.rs");
+    t.compile_fail("tests/function/fail_*.rs");
+}
+
+#[test]
 fn value() {
     let t = trybuild::TestCases::new();
     t.pass("tests/value/pass_*.rs");

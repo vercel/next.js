@@ -10,7 +10,7 @@ use turbo_tasks_macros_shared::{
     get_trait_type_id_ident, get_trait_type_ident, ValueTraitArguments,
 };
 
-use crate::func::{DefinitionContext, NativeFn, TurboFn};
+use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let ValueTraitArguments { debug, resolved } = parse_macro_input!(args as ValueTraitArguments);
@@ -85,7 +85,14 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
         let ident = &sig.ident;
 
-        let Some(turbo_fn) = TurboFn::new(sig, DefinitionContext::ValueTrait) else {
+        // Value trait method declarations don't have `#[turbo_tasks::function]`
+        // annotations on them, though their `impl`s do. It may make sense to require it
+        // in the future when defining a default implementation.
+        let Some(turbo_fn) = TurboFn::new(
+            sig,
+            DefinitionContext::ValueTrait,
+            FunctionArguments::default(),
+        ) else {
             return quote! {
                 // An error occurred while parsing the function signature.
             }
@@ -113,6 +120,11 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 &format!("{trait_ident}::{ident}"),
                 &inline_function_path,
                 turbo_fn.is_method(),
+                // `inline_cells` is currently unsupported here because:
+                // - The `#[turbo_tasks::function]` macro needs to be present for us to read this
+                //   argument.
+                // - This only makes sense when a default implementation is present.
+                false,
             );
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
@@ -126,7 +138,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             });
 
             trait_methods.push(quote! {
-                trait_type.register_default_trait_method::<(#(#arg_types),*)>(stringify!(#ident).into(), *#native_function_id_ident);
+                trait_type.register_default_trait_method::<(#(#arg_types,)*)>(stringify!(#ident).into(), *#native_function_id_ident);
             });
 
             native_functions.push(quote! {
@@ -164,7 +176,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             Some(turbo_fn.static_block(&native_function_id_ident))
         } else {
             trait_methods.push(quote! {
-                trait_type.register_trait_method::<(#(#arg_types),*)>(stringify!(#ident).into());
+                trait_type.register_trait_method::<(#(#arg_types,)*)>(stringify!(#ident).into());
             });
             None
         };

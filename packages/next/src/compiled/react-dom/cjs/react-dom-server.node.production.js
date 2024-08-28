@@ -33,7 +33,8 @@ var util = require("util"),
   REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
   REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
-  isArrayImpl = Array.isArray;
+  isArrayImpl = Array.isArray,
+  scheduleMicrotask = queueMicrotask;
 function flushBuffered(destination) {
   "function" === typeof destination.flush && destination.flush();
 }
@@ -3594,8 +3595,7 @@ function RequestInstance(
   pushComponentStack(children);
   pingedTasks.push(children);
 }
-var AbortSigil = {},
-  currentRequest = null;
+var currentRequest = null;
 function resolveRequest() {
   if (currentRequest) return currentRequest;
   var store = requestStorage.getStore();
@@ -3605,9 +3605,13 @@ function pingTask(request, task) {
   request.pingedTasks.push(task);
   1 === request.pingedTasks.length &&
     ((request.flushScheduled = null !== request.destination),
-    setImmediate(function () {
-      return performWork(request);
-    }));
+    null !== request.trackedPostpones
+      ? scheduleMicrotask(function () {
+          return performWork(request);
+        })
+      : setImmediate(function () {
+          return performWork(request);
+        }));
 }
 function createSuspenseBoundary(request, fallbackAbortableTasks) {
   return {
@@ -3923,14 +3927,14 @@ function renderElement(request, task, keyPath, type, props, ref) {
           }
         else defaultProps.queue = null;
       type = newProps.render();
-      if (1 === request.status) throw AbortSigil;
+      if (1 === request.status) throw null;
       props = task.keyPath;
       task.keyPath = keyPath;
       renderNodeDestructive(request, task, type, -1);
       task.keyPath = props;
     } else {
       type = renderWithHooks(request, task, keyPath, type, props, void 0);
-      if (1 === request.status) throw AbortSigil;
+      if (1 === request.status) throw null;
       finishFunctionComponent(
         request,
         task,
@@ -4093,7 +4097,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
                 (boundarySegment.status = 1);
             } catch (thrownValue) {
               throw (
-                ((boundarySegment.status = thrownValue === AbortSigil ? 3 : 4),
+                ((boundarySegment.status = 1 === request.status ? 3 : 4),
                 thrownValue)
               );
             } finally {
@@ -4138,7 +4142,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
               }
             } catch (thrownValue$28) {
               (propName.status = 4),
-                thrownValue$28 === AbortSigil
+                1 === request.status
                   ? ((contentRootSegment.status = 3),
                     (newProps = request.fatalError))
                   : ((contentRootSegment.status = 4),
@@ -4247,7 +4251,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
         case REACT_LAZY_TYPE:
           newProps = type._init;
           type = newProps(type._payload);
-          if (1 === request.status) throw AbortSigil;
+          if (1 === request.status) throw null;
           renderElement(request, task, keyPath, type, props, ref);
           return;
       }
@@ -4481,7 +4485,7 @@ function retryNode(request, task) {
         case REACT_LAZY_TYPE:
           childNodes = node._init;
           node = childNodes(node._payload);
-          if (1 === request.status) throw AbortSigil;
+          if (1 === request.status) throw null;
           renderNodeDestructive(request, task, node, childIndex);
           return;
       }
@@ -4828,10 +4832,11 @@ function abortTask(task, request, error) {
     }
   } else
     boundary.pendingTasks--,
+      (task = getThrownInfo(task.componentStack)),
       4 !== boundary.status &&
         ((boundary.status = 4),
-        (task = getThrownInfo(task.componentStack)),
         (task = logRecoverableError(request, error, task)),
+        (boundary.status = 4),
         (boundary.errorDigest = task),
         untrackBoundary(request, boundary),
         boundary.parentFlushed &&
@@ -5033,7 +5038,9 @@ function performWork(request$jscomp$2) {
                 var request$jscomp$1 = request$jscomp$0,
                   boundary = task.blockedBoundary,
                   error$jscomp$0 =
-                    x === AbortSigil ? request$jscomp$0.fatalError : x,
+                    1 === request$jscomp$0.status
+                      ? request$jscomp$0.fatalError
+                      : x,
                   replayNodes = task.replay.nodes,
                   resumeSlots = task.replay.slots;
                 request = logRecoverableError(
@@ -5083,7 +5090,7 @@ function performWork(request$jscomp$2) {
             var x$jscomp$0 =
               thrownValue === SuspenseException
                 ? getSuspendedThenable()
-                : thrownValue === AbortSigil
+                : 1 === request.status
                   ? request.fatalError
                   : thrownValue;
             if (
@@ -5548,17 +5555,20 @@ function flushCompletedQueues(request, destination) {
 }
 function startWork(request) {
   request.flushScheduled = null !== request.destination;
-  setImmediate(function () {
-    return requestStorage.run(request, performWork, request);
-  });
-  null === request.trackedPostpones &&
-    setImmediate(function () {
-      return requestStorage.run(
-        request,
-        enqueueEarlyPreloadsAfterInitialWork,
-        request
-      );
-    });
+  null !== request.trackedPostpones
+    ? scheduleMicrotask(function () {
+        return requestStorage.run(request, performWork, request);
+      })
+    : (setImmediate(function () {
+        return requestStorage.run(request, performWork, request);
+      }),
+      setImmediate(function () {
+        return requestStorage.run(
+          request,
+          enqueueEarlyPreloadsAfterInitialWork,
+          request
+        );
+      }));
 }
 function enqueueEarlyPreloadsAfterInitialWork(request) {
   safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
@@ -5614,13 +5624,13 @@ function abort(request, reason) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_773 = React.version;
 if (
-  "19.0.0-rc-06d0b89e-20240801" !==
+  "19.0.0-rc-eb3ad065-20240822" !==
   isomorphicReactPackageVersion$jscomp$inline_773
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_773 +
-        "\n  - react-dom:  19.0.0-rc-06d0b89e-20240801\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.0.0-rc-eb3ad065-20240822\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 function createDrainHandler(destination, request) {
   return function () {
@@ -5895,4 +5905,4 @@ exports.renderToPipeableStream = function (children, options) {
     }
   };
 };
-exports.version = "19.0.0-rc-06d0b89e-20240801";
+exports.version = "19.0.0-rc-eb3ad065-20240822";

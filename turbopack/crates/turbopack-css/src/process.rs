@@ -634,7 +634,7 @@ async fn process_content(
             )),
         );
 
-        let fm = cm.new_source_file(FileName::Custom(filename.to_string()), code.clone());
+        let fm = cm.new_source_file(FileName::Custom(filename.to_string()).into(), code.clone());
         let mut errors = vec![];
 
         let ss = swc_core::css::parser::parse_file(
@@ -1144,7 +1144,10 @@ mod tests {
     fn lint_swc(code: &str) -> Vec<CssError> {
         let cm = swc_core::common::SourceMap::new(FilePathMapping::empty());
 
-        let fm = cm.new_source_file(FileName::Custom("test.css".to_string()), code.to_string());
+        let fm = cm.new_source_file(
+            FileName::Custom("test.css".to_string()).into(),
+            code.to_string(),
+        );
 
         let ss: Stylesheet = swc_core::css::parser::parse_file(
             &fm,

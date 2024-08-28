@@ -29,8 +29,6 @@ const unsupportedTurbopackNextConfigOptions = [
   // 'experimental.serverMinification',
   // 'experimental.serverSourceMaps',
 
-  'experimental.adjustFontFallbacks',
-  'experimental.adjustFontFallbacksWithSizeAdjust',
   'experimental.allowedRevalidateHeaderKeys',
   'experimental.extensionAlias',
   'experimental.fallbackNodePolyfills',

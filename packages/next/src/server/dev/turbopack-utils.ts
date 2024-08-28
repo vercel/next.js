@@ -471,7 +471,7 @@ export async function handleRouteType({
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint)
 
-      const type = writtenEndpoint?.type
+      const type = writtenEndpoint.type
 
       await manifestLoader.loadPagesManifest(page)
       if (type === 'edge') {
@@ -512,7 +512,7 @@ export async function handleRouteType({
         }
       })
 
-      const type = writtenEndpoint?.type
+      const type = writtenEndpoint.type
 
       if (type === 'edge') {
         await manifestLoader.loadMiddlewareManifest(page, 'app')
@@ -542,7 +542,7 @@ export async function handleRouteType({
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint)
 
-      const type = writtenEndpoint?.type
+      const type = writtenEndpoint.type
 
       await manifestLoader.loadAppPathsManifest(page)
 
@@ -709,7 +709,6 @@ export async function handleEntrypoints({
 
   currentEntryIssues,
   manifestLoader,
-  nextConfig,
   devRewrites,
   productionRewrites,
   logErrors,
@@ -721,7 +720,6 @@ export async function handleEntrypoints({
 
   currentEntryIssues: EntryIssuesMap
   manifestLoader: TurbopackManifestLoader
-  nextConfig: NextConfigComplete
   devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined
   productionRewrites: CustomRoutes['rewrites'] | undefined
   logErrors: boolean
@@ -793,7 +791,7 @@ export async function handleEntrypoints({
 
   currentEntrypoints.global.middleware = middleware
 
-  if (nextConfig.experimental.instrumentationHook && instrumentation) {
+  if (instrumentation) {
     const processInstrumentation = async (
       name: string,
       prop: 'nodeJs' | 'edge'
@@ -1028,6 +1026,18 @@ export async function handlePagesErrorRoute({
     productionRewrites,
     entrypoints,
   })
+}
+
+export function removeRouteSuffix(route: string): string {
+  return route.replace(/\/route$/, '')
+}
+
+export function addRouteSuffix(route: string): string {
+  return route + '/route'
+}
+
+export function addMetadataIdToRoute(route: string): string {
+  return route + '/[__metadata_id__]'
 }
 
 // Since turbopack will create app pages/route entries based on the structure,

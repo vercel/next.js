@@ -1,8 +1,11 @@
+use std::collections::HashSet;
+
 use anyhow::{Context, Result};
+use swc_core::common::Span;
 use turbo_tasks::Vc;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
     module::Module,
     reference::{ModuleReferences, SingleModuleReference},
@@ -10,12 +13,15 @@ use turbopack_core::{
 };
 
 use super::{
-    chunk_item::EcmascriptModulePartChunkItem, get_part_id, split_module, Key, SplitResult,
+    chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module, split, split_module,
+    Key, SplitResult,
 };
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    parse::ParseResult,
     references::analyse_ecmascript_module,
-    AnalyzeEcmascriptModuleResult, EcmascriptModuleAsset,
+    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
+    EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptParsable,
 };
 
 /// A reference to part of an ES module.
@@ -26,6 +32,61 @@ pub struct EcmascriptModulePartAsset {
     pub full_module: Vc<EcmascriptModuleAsset>,
     pub(crate) part: Vc<ModulePart>,
     pub(crate) import_externals: bool,
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptParsable for EcmascriptModulePartAsset {
+    #[turbo_tasks::function]
+    async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
+        let this = self.await?;
+
+        let parsed = this.full_module.failsafe_parse();
+        let split_data = split(this.full_module.ident(), this.full_module.source(), parsed);
+        Ok(part_of_module(split_data, this.part))
+    }
+
+    #[turbo_tasks::function]
+    async fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>> {
+        Ok(self.await?.full_module.parse_original())
+    }
+
+    #[turbo_tasks::function]
+    async fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>> {
+        Ok(self.await?.full_module.ty())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
+    #[turbo_tasks::function]
+    async fn analyze(self: Vc<Self>) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
+        let this = self.await?;
+        let part = this.part;
+        Ok(analyse_ecmascript_module(
+            this.full_module,
+            Some(part),
+            None,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn module_content_without_analysis(
+        self: Vc<Self>,
+    ) -> Result<Vc<EcmascriptModuleContent>> {
+        Ok(self.await?.full_module.module_content_without_analysis())
+    }
+
+    #[turbo_tasks::function]
+    async fn module_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Result<Vc<EcmascriptModuleContent>> {
+        Ok(self
+            .await?
+            .full_module
+            .module_content(chunking_context, async_module_info))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -77,7 +138,7 @@ impl Module for EcmascriptModulePartAsset {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let split_data = split_module(self.full_module).await?;
 
-        let analyze = analyze(self.full_module, self.part).await?;
+        let analyze = analyze(self.full_module, self.part, None).await?;
 
         let (deps, entrypoints) = match &*split_data {
             SplitResult::Ok {
@@ -210,16 +271,17 @@ impl EcmascriptModulePartAsset {
     pub(super) async fn analyze(self: Vc<Self>) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
         let this = self.await?;
 
-        Ok(analyze(this.full_module, this.part))
+        Ok(analyze(this.full_module, this.part, None))
     }
 }
 
 #[turbo_tasks::function]
-async fn analyze(
+fn analyze(
     module: Vc<EcmascriptModuleAsset>,
     part: Vc<ModulePart>,
+    ignored_spans: Option<Vc<HashSet<Span>>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-    Ok(analyse_ecmascript_module(module, Some(part)))
+    Ok(analyse_ecmascript_module(module, Some(part), ignored_spans))
 }
 
 #[turbo_tasks::value_impl]

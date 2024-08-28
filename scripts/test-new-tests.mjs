@@ -102,6 +102,13 @@ async function main() {
           )
           await new Promise((resolve) => setTimeout(resolve, timeout))
         } else {
+          if (res.status === 404) {
+            throw new Error(
+              `Artifacts not found for commit ${commitSha}. ` +
+                `This can happen if the preview builds either failed or didn't succeed yet. ` +
+                `Once the "Deploy Preview tarball" job has finished, a retry should fix this error.`
+            )
+          }
           throw new Error(
             `Failed to verify artifacts for commit ${commitSha}: ${res.status}`
           )

@@ -14,7 +14,7 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
     context::AssetContext,
-    module::Module,
+    module::{Module, Modules},
     output::OutputAssets,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
@@ -34,7 +34,7 @@ use crate::{
 #[turbo_tasks::value]
 pub struct MiddlewareEndpoint {
     project: Vc<Project>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
     app_dir: Option<Vc<FileSystemPath>>,
     ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
@@ -45,14 +45,14 @@ impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     pub fn new(
         project: Vc<Project>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
         source: Vc<Box<dyn Source>>,
         app_dir: Option<Vc<FileSystemPath>>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     ) -> Vc<Self> {
         Self {
             project,
-            context,
+            asset_context,
             source,
             app_dir,
             ecmascript_client_reference_transition_name,
@@ -63,18 +63,21 @@ impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     async fn edge_files(&self) -> Result<Vc<OutputAssets>> {
         let userland_module = self
-            .context
+            .asset_context
             .process(
                 self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
             )
             .module();
 
-        let module =
-            get_middleware_module(self.context, self.project.project_path(), userland_module);
+        let module = get_middleware_module(
+            self.asset_context,
+            self.project.project_path(),
+            userland_module,
+        );
 
         let module = wrap_edge_entry(
-            self.context,
+            self.asset_context,
             self.project.project_path(),
             module,
             "middleware".into(),
@@ -88,7 +91,7 @@ impl MiddlewareEndpoint {
             }),
             self.project.next_mode(),
         )
-        .resolve_entries(self.context)
+        .resolve_entries(self.asset_context)
         .await?
         .clone_value();
 
@@ -118,13 +121,7 @@ impl MiddlewareEndpoint {
     async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
 
-        let userland_module = this
-            .context
-            .process(
-                this.source,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
-            )
-            .module();
+        let userland_module = self.userland_module();
 
         let config = parse_config_from_source(userland_module);
 
@@ -189,6 +186,19 @@ impl MiddlewareEndpoint {
 
         Ok(Vc::cell(output_assets))
     }
+
+    #[turbo_tasks::function]
+    async fn userland_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        let this = self.await?;
+
+        Ok(this
+            .asset_context
+            .process(
+                this.source,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
+            )
+            .module())
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -233,5 +243,10 @@ impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
     fn client_changed(self: Vc<Self>) -> Vc<Completion> {
         Completion::immutable()
+    }
+
+    #[turbo_tasks::function]
+    fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        Ok(Vc::cell(vec![self.userland_module()]))
     }
 }

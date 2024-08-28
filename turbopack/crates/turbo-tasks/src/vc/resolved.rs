@@ -17,9 +17,16 @@ use std::{
 
 use auto_hash_map::{AutoMap, AutoSet};
 use indexmap::{IndexMap, IndexSet};
+use serde::{Deserialize, Serialize};
 
-use crate::{vc::Vc, RcStr};
+use crate::{
+    trace::{TraceRawVcs, TraceRawVcsContext},
+    vc::Vc,
+    RcStr,
+};
 
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct ResolvedVc<T>
 where
     T: ?Sized + Send,
@@ -77,6 +84,15 @@ where
         f.debug_struct("ResolvedVc")
             .field("node", &self.node.node)
             .finish()
+    }
+}
+
+impl<T> TraceRawVcs for ResolvedVc<T>
+where
+    T: ?Sized + Send,
+{
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        TraceRawVcs::trace_raw_vcs(&self.node, trace_context);
     }
 }
 

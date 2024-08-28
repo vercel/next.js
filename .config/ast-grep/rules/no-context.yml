@@ -20,8 +20,3 @@ rule:
         - kind: field_identifier
         - inside:
             kind: field_declaration
-ignores:
-  # These are ignored so we can fix these cases incrementally. They will
-  # gradually be fixed and removed from this list.
-  - 'crates/next-api/**/*.rs'
-  - 'crates/next-core/**/*.rs'

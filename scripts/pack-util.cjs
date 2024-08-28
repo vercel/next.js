@@ -7,17 +7,29 @@ const { promisify } = require('util')
 const glob = promisify(globOrig)
 exports.glob = glob
 
+const NEXT_DIR = join(__dirname, '..')
+
+exports.NEXT_DIR = NEXT_DIR
+
+/**
+ * @param {string} title
+ * @param {string | string[]} command
+ * @param {ExecSyncOptions} [opts]
+ * @returns {string}
+ */
 function exec(title, command, opts) {
   if (Array.isArray(command)) {
     logCommand(title, command)
     return execFileSync(command[0], command.slice(1), {
       stdio: 'inherit',
+      cwd: NEXT_DIR,
       ...opts,
     })
   } else {
     logCommand(title, command)
     return execSync(command, {
       stdio: 'inherit',
+      cwd: NEXT_DIR,
       ...opts,
     })
   }
@@ -25,11 +37,17 @@ function exec(title, command, opts) {
 
 exports.exec = exec
 
+/**
+ * @param {string} title
+ * @param {string | string[]} command
+ * @param {SpawnOptions} [opts]
+ */
 function execAsyncWithOutput(title, command, opts) {
   logCommand(title, command)
   const proc = spawn(command[0], command.slice(1), {
     encoding: 'utf8',
     stdio: ['inherit', 'pipe', 'pipe'],
+    cwd: NEXT_DIR,
     ...opts,
   })
   const stdout = []
@@ -63,11 +81,18 @@ function execAsyncWithOutput(title, command, opts) {
 
 exports.execAsyncWithOutput = execAsyncWithOutput
 
+/**
+ * @param {string | string[]} command
+ */
 function prettyCommand(command) {
   if (Array.isArray(command)) command = command.join(' ')
   return command.replace(/ -- .*/, ' -- …')
 }
 
+/**
+ * @param {string} title
+ * @param {string | string[]} [command]
+ */
 function logCommand(title, command) {
   if (command) {
     const pretty = prettyCommand(command)
@@ -79,6 +104,11 @@ function logCommand(title, command) {
 
 exports.logCommand = logCommand
 
+/**
+ * @param {string[]} args
+ * @param {string} name
+ * @returns {boolean}
+ */
 function booleanArg(args, name) {
   const index = args.indexOf(name)
   if (index === -1) return false
@@ -90,6 +120,11 @@ exports.booleanArg = booleanArg
 
 const DEFAULT_GLOBS = ['**', '!target', '!node_modules', '!crates', '!.turbo']
 const FORCED_GLOBS = ['package.json', 'README*', 'LICENSE*', 'LICENCE*']
+
+/**
+ * @param {string} path
+ * @returns {Promise<string[]>}
+ */
 async function packageFiles(path) {
   const { files = DEFAULT_GLOBS, main, bin } = require(`${path}/package.json`)
 
@@ -119,4 +154,5 @@ async function packageFiles(path) {
     return true
   })
 }
+
 exports.packageFiles = packageFiles

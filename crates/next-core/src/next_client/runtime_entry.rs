@@ -23,18 +23,18 @@ impl RuntimeEntry {
     #[turbo_tasks::function]
     pub async fn resolve_entry(
         self: Vc<Self>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<EvaluatableAssets>> {
         let (request, path) = match *self.await? {
             RuntimeEntry::Evaluatable(e) => return Ok(EvaluatableAssets::one(e)),
             RuntimeEntry::Source(source) => {
-                return Ok(EvaluatableAssets::one(source.to_evaluatable(context)));
+                return Ok(EvaluatableAssets::one(source.to_evaluatable(asset_context)));
             }
             RuntimeEntry::Request(r, path) => (r, path),
         };
 
         let modules = cjs_resolve(
-            Vc::upcast(PlainResolveOrigin::new(context, path)),
+            Vc::upcast(PlainResolveOrigin::new(asset_context, path)),
             request,
             None,
             IssueSeverity::Error.cell(),
@@ -70,12 +70,12 @@ impl RuntimeEntries {
     #[turbo_tasks::function]
     pub async fn resolve_entries(
         self: Vc<Self>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<EvaluatableAssets>> {
         let mut runtime_entries = Vec::new();
 
         for reference in &self.await? {
-            let resolved_entries = reference.resolve_entry(context).await?;
+            let resolved_entries = reference.resolve_entry(asset_context).await?;
             runtime_entries.extend(&resolved_entries);
         }
 

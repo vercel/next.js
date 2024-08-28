@@ -27,7 +27,7 @@ use turbopack_core::{
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
 };
-use turbopack_ecmascript::{parse::ParseResult, resolve::esm_resolve, EcmascriptModuleAsset};
+use turbopack_ecmascript::{parse::ParseResult, resolve::esm_resolve, EcmascriptParsable};
 
 async fn collect_chunk_group_inner<F, Fu>(
     dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
@@ -56,8 +56,8 @@ where
                 // [Note]: this seems to create duplicated chunks for the same module to the original import() call
                 // and the explicit chunk we ask in here. So there'll be at least 2
                 // chunks for the same module, relying on
-                // naive hash to have additonal
-                // chunks in case if there are same modules being imported in differnt
+                // naive hash to have additional
+                // chunks in case if there are same modules being imported in different
                 // origins.
                 let chunk_group = build_chunk(module).await?;
                 chunks_hash.insert(imported_raw_str.clone(), chunk_group);
@@ -259,7 +259,7 @@ async fn build_dynamic_imports_map_for_module(
     server_module: Vc<Box<dyn Module>>,
 ) -> Result<Vc<OptionDynamicImportsMap>> {
     let Some(ecmascript_asset) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(server_module).await?
+        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(server_module).await?
     else {
         return Ok(Vc::cell(None));
     };

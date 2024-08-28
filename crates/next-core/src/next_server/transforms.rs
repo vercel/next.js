@@ -14,6 +14,7 @@ use crate::{
         get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
+        next_edge_node_api_assert::next_edge_node_api_assert,
         next_middleware_dynamic_assert::get_middleware_dynamic_assert_rule,
         next_page_static_info::get_next_page_static_info_assert_rule,
         next_pure::get_next_pure_rule, server_actions::ActionsTransform,
@@ -133,6 +134,12 @@ pub async fn get_next_server_transforms_rules(
 
         if let NextRuntime::Edge = next_runtime {
             rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
+
+            rules.push(next_edge_node_api_assert(
+                mdx_rs,
+                matches!(context_ty, ServerContextType::Middleware { .. })
+                    && matches!(*mode.await?, NextMode::Build),
+            ));
         }
     }
 

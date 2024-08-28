@@ -253,15 +253,22 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
 #[turbo_tasks::value]
 pub(crate) struct NextNodeSharedRuntimeResolvePlugin {
     root: Vc<FileSystemPath>,
-    context: ServerContextType,
+    server_context_type: ServerContextType,
 }
 
 #[turbo_tasks::value_impl]
 impl NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>, context: Value<ServerContextType>) -> Vc<Self> {
-        let context = context.into_value();
-        NextNodeSharedRuntimeResolvePlugin { root, context }.cell()
+    pub fn new(
+        root: Vc<FileSystemPath>,
+        server_context_type: Value<ServerContextType>,
+    ) -> Vc<Self> {
+        let server_context_type = server_context_type.into_value();
+        NextNodeSharedRuntimeResolvePlugin {
+            root,
+            server_context_type,
+        }
+        .cell()
     }
 }
 
@@ -289,7 +296,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
 
         let resource_request = format!(
             "next/dist/server/route-modules/{}/vendored/contexts/{}.js",
-            match self.context {
+            match self.server_context_type {
                 ServerContextType::AppRoute { .. } => "app-route",
                 ServerContextType::AppSSR { .. } | ServerContextType::AppRSC { .. } => "app-page",
                 // Use default pages context for all other contexts.

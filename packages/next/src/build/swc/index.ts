@@ -770,6 +770,12 @@ export type WrittenEndpoint =
       serverPaths: ServerPath[]
       config: EndpointConfig
     }
+  | {
+      type: 'none'
+      clientPaths: []
+      serverPaths: []
+      config: EndpointConfig
+    }
 
 function rustifyEnv(env: Record<string, string>): RustifiedEnv {
   return Object.entries(env)

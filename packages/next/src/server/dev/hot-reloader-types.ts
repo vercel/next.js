@@ -104,6 +104,7 @@ interface DevPagesManifestUpdateAction {
 
 export interface TurbopackConnectedAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+  data: { sessionId: number }
 }
 
 export interface AppIsrManifestAction {
@@ -130,7 +131,10 @@ export type HMR_ACTION_TYPES =
 
 export type TurbopackMsgToBrowser =
   | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE; data: any }
-  | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED }
+  | {
+      type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+      data: { sessionId: number }
+    }
 
 export interface NextJsHotReloaderInterface {
   turbopackProject?: Project

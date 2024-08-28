@@ -33,7 +33,6 @@ export function createComponentTree(props: {
   injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
-  asNotFound?: boolean
   getMetadataReady: () => Promise<void>
   ctx: AppRenderContext
   missingSlots?: Set<string>
@@ -54,6 +53,8 @@ function errorMissingDefaultExport(pagePath: string, convention: string) {
   )
 }
 
+const cacheNodeKey = 'c'
+
 async function createComponentTreeInternal({
   createSegmentPath,
   loaderTree: tree,
@@ -63,7 +64,6 @@ async function createComponentTreeInternal({
   injectedCSS,
   injectedJS,
   injectedFontPreloadTags,
-  asNotFound,
   getMetadataReady,
   ctx,
   missingSlots,
@@ -77,7 +77,6 @@ async function createComponentTreeInternal({
   injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
-  asNotFound?: boolean
   getMetadataReady: () => Promise<void>
   ctx: AppRenderContext
   missingSlots?: Set<string>
@@ -93,6 +92,7 @@ async function createComponentTreeInternal({
       ClientPageRoot,
       createUntrackedSearchParams,
       createDynamicallyTrackedSearchParams,
+      createDynamicallyTrackedParams,
       serverHooks: { DynamicServerError },
       Postpone,
     },
@@ -211,7 +211,7 @@ async function createComponentTreeInternal({
       // TODO: (PPR) remove this bailout once PPR is the default
       if (
         staticGenerationStore.isStaticGeneration &&
-        !staticGenerationStore.prerenderState
+        !experimental.isRoutePPREnabled
       ) {
         // If the postpone API isn't available, we can't postpone the render and
         // therefore we can't use the dynamic API.
@@ -253,7 +253,7 @@ async function createComponentTreeInternal({
       ctx.defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
-      !staticGenerationStore.prerenderState
+      !experimental.isRoutePPREnabled
     ) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
       staticGenerationStore.dynamicUsageDescription = dynamicUsageDescription
@@ -338,9 +338,8 @@ async function createComponentTreeInternal({
 
   // Handle dynamic segment params.
   const segmentParam = getDynamicParamFromSegment(segment)
-  /**
-   * Create object holding the parent params and current params
-   */
+
+  // Create object holding the parent params and current params
   const currentParams =
     // Handle null case where dynamic param is optional
     segmentParam && segmentParam.value !== null
@@ -350,6 +349,7 @@ async function createComponentTreeInternal({
         }
       : // Pass through parent params to children
         parentParams
+
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
@@ -435,7 +435,6 @@ async function createComponentTreeInternal({
             injectedCSS: injectedCSSWithCurrentLayout,
             injectedJS: injectedJSWithCurrentLayout,
             injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-            asNotFound,
             // getMetadataReady is used to conditionally throw. In the case of parallel routes we will have more than one page
             // but we only want to throw on the first one.
             getMetadataReady: isChildrenRouteKey
@@ -494,16 +493,16 @@ async function createComponentTreeInternal({
   if (!Component) {
     return [
       actualSegment,
-      parallelRouteCacheNodeSeedData,
       // TODO: I don't think the extra fragment is necessary. React treats top
       // level fragments as transparent, i.e. the runtime behavior should be
       // identical even without it. But maybe there's some findDOMNode-related
       // reason that I'm not aware of, so I'm leaving it as-is out of extreme
       // caution, for now.
-      <>
+      <React.Fragment key={cacheNodeKey}>
         {layerAssets}
         {parallelRouteProps.children}
-      </>,
+      </React.Fragment>,
+      parallelRouteCacheNodeSeedData,
       loadingData,
     ]
   }
@@ -520,20 +519,20 @@ async function createComponentTreeInternal({
   // render force-dynamic. We should refactor this function so that we can correctly track which segments
   // need to be dynamic
   if (
+    staticGenerationStore.isStaticGeneration &&
     staticGenerationStore.forceDynamic &&
-    staticGenerationStore.prerenderState
+    experimental.isRoutePPREnabled
   ) {
     return [
       actualSegment,
-      parallelRouteCacheNodeSeedData,
-      <>
+      <React.Fragment key={cacheNodeKey}>
         <Postpone
-          prerenderState={staticGenerationStore.prerenderState}
           reason='dynamic = "force-dynamic" was used'
           route={staticGenerationStore.route}
         />
         {layerAssets}
-      </>,
+      </React.Fragment>,
+      parallelRouteCacheNodeSeedData,
       loadingData,
     ]
   }
@@ -542,27 +541,6 @@ async function createComponentTreeInternal({
 
   // We avoid cloning this object because it gets consumed here exclusively.
   const props: { [prop: string]: any } = parallelRouteProps
-
-  // If it's a not found route, and we don't have any matched parallel
-  // routes, we try to render the not found component if it exists.
-  if (
-    NotFound &&
-    asNotFound &&
-    // In development, it could hit the parallel-route-default not found, so we only need to check the segment.
-    // Or if there's no parallel routes means it reaches the end.
-    !parallelRouteMap.length
-  ) {
-    props.children = (
-      <>
-        <meta name="robots" content="noindex" />
-        {process.env.NODE_ENV === 'development' && (
-          <meta name="next-error" content="not-found" />
-        )}
-        {notFoundStyles}
-        <NotFound />
-      </>
-    )
-  }
 
   // Assign params to props
   if (
@@ -574,7 +552,6 @@ async function createComponentTreeInternal({
       `"params" is a reserved prop in Layouts and Pages and cannot be used as the name of a parallel route in ${segment}`
     )
   }
-  props.params = currentParams
 
   let segmentElement: React.ReactNode
   if (isPage) {
@@ -585,6 +562,7 @@ async function createComponentTreeInternal({
       // Instead we pass the searchParams untracked but we wrap the Page in a root client component
       // which can among other things adds the dynamic tracking before rendering the page.
       // @TODO make the root wrapper part of next-app-loader so we don't need the extra client component
+      props.params = currentParams
       props.searchParams = createUntrackedSearchParams(query)
       segmentElement = (
         <>
@@ -596,6 +574,7 @@ async function createComponentTreeInternal({
     } else {
       // If we are passing searchParams to a server component Page we need to track their usage in case
       // the current render mode tracks dynamic API usage.
+      props.params = createDynamicallyTrackedParams(currentParams)
       props.searchParams = createDynamicallyTrackedSearchParams(query)
       segmentElement = (
         <>
@@ -606,6 +585,8 @@ async function createComponentTreeInternal({
       )
     }
   } else {
+    props.params = createDynamicallyTrackedParams(currentParams)
+
     // For layouts we just render the component
     segmentElement = (
       <>
@@ -617,8 +598,7 @@ async function createComponentTreeInternal({
 
   return [
     actualSegment,
-    parallelRouteCacheNodeSeedData,
-    <>
+    <React.Fragment key={cacheNodeKey}>
       {segmentElement}
       {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
             surrounding it this would look like a pending tree data state on the client which will cause an error
@@ -629,7 +609,8 @@ async function createComponentTreeInternal({
             null it will look like `null` (the array is elided) and this is what confuses the client router.
             TODO-APP update router to use a Symbol for partial tree detection */}
       {null}
-    </>,
+    </React.Fragment>,
+    parallelRouteCacheNodeSeedData,
     loadingData,
   ]
 }

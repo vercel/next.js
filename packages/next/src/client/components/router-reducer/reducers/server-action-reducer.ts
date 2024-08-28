@@ -256,7 +256,7 @@ export function serverActionReducer(
 
         // The one before last item is the router state tree patch
         const [cacheNodeSeedData, head] = flightDataPath.slice(-2)
-        const rsc = cacheNodeSeedData !== null ? cacheNodeSeedData[2] : null
+        const rsc = cacheNodeSeedData !== null ? cacheNodeSeedData[1] : null
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (rsc !== null) {
