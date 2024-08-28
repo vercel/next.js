@@ -6,7 +6,7 @@ use std::{
 
 use swc_core::{
     atoms::Atom,
-    common::{pass::AstNodePath, Mark, Span, Spanned, SyntaxContext, GLOBALS},
+    common::{comments::Comments, pass::AstNodePath, Mark, Span, Spanned, SyntaxContext, GLOBALS},
     ecma::{
         ast::*,
         atoms::js_word,
@@ -294,6 +294,8 @@ pub fn create_graph(m: &Program, eval_context: &EvalContext) -> VarGraph {
     graph
 }
 
+/// A context used for assembling the evaluation graph.
+#[derive(Debug)]
 pub struct EvalContext {
     pub(crate) unresolved_mark: Mark,
     pub(crate) top_level_mark: Mark,
@@ -301,16 +303,20 @@ pub struct EvalContext {
 }
 
 impl EvalContext {
+    /// Produce a new [EvalContext] from a [Program]. If you wish to support
+    /// webpackIgnore or turbopackIgnore comments, you must pass those in,
+    /// since the AST does not include comments by default.
     pub fn new(
         module: &Program,
         unresolved_mark: Mark,
         top_level_mark: Mark,
+        comments: Option<&dyn Comments>,
         source: Option<Vc<Box<dyn Source>>>,
     ) -> Self {
         Self {
             unresolved_mark,
             top_level_mark,
-            imports: ImportMap::analyze(module, source),
+            imports: ImportMap::analyze(module, source, comments),
         }
     }
 
@@ -1242,83 +1248,84 @@ impl VisitAstPath for Analyzer<'_> {
             }
         }
 
-        // special behavior of IIFEs
-        if !self.check_iife(n, ast_path) {
-            {
-                let mut ast_path =
-                    ast_path.with_guard(AstParentNodeRef::CallExpr(n, CallExprField::Callee));
-                n.callee.visit_with_ast_path(self, &mut ast_path);
-            }
-            let args = n
-                .args
-                .iter()
-                .enumerate()
-                .map(|(i, arg)| {
-                    let mut ast_path =
-                        ast_path.with_guard(AstParentNodeRef::CallExpr(n, CallExprField::Args(i)));
-                    if arg.spread.is_none() {
-                        let value = self.eval_context.eval(&arg.expr);
+        if self.check_iife(n, ast_path) {
+            return;
+        }
 
-                        let block_path = match &*arg.expr {
-                            Expr::Fn(FnExpr { .. }) => {
-                                let mut path = as_parent_path(&ast_path);
-                                path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
-                                path.push(AstParentKind::Expr(ExprField::Fn));
-                                path.push(AstParentKind::FnExpr(FnExprField::Function));
-                                path.push(AstParentKind::Function(FunctionField::Body));
-                                Some(path)
-                            }
-                            Expr::Arrow(ArrowExpr {
-                                body: box BlockStmtOrExpr::BlockStmt(_),
-                                ..
-                            }) => {
-                                let mut path = as_parent_path(&ast_path);
-                                path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
-                                path.push(AstParentKind::Expr(ExprField::Arrow));
-                                path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
-                                path.push(AstParentKind::BlockStmtOrExpr(
-                                    BlockStmtOrExprField::BlockStmt,
-                                ));
-                                Some(path)
-                            }
-                            Expr::Arrow(ArrowExpr {
-                                body: box BlockStmtOrExpr::Expr(_),
-                                ..
-                            }) => {
-                                let mut path = as_parent_path(&ast_path);
-                                path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
-                                path.push(AstParentKind::Expr(ExprField::Arrow));
-                                path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
-                                path.push(AstParentKind::BlockStmtOrExpr(
-                                    BlockStmtOrExprField::Expr,
-                                ));
-                                Some(path)
-                            }
-                            _ => None,
-                        };
-                        if let Some(path) = block_path {
-                            let old_effects = take(&mut self.effects);
-                            arg.visit_with_ast_path(self, &mut ast_path);
-                            let effects = replace(&mut self.effects, old_effects);
-                            EffectArg::Closure(
-                                value,
-                                EffectsBlock {
-                                    effects,
-                                    range: AstPathRange::Exact(path),
-                                },
-                            )
-                        } else {
-                            arg.visit_with_ast_path(self, &mut ast_path);
-                            EffectArg::Value(value)
+        // special behavior of IIFEs
+        {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::CallExpr(n, CallExprField::Callee));
+            n.callee.visit_with_ast_path(self, &mut ast_path);
+        }
+
+        let args = n
+            .args
+            .iter()
+            .enumerate()
+            .map(|(i, arg)| {
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::CallExpr(n, CallExprField::Args(i)));
+                if arg.spread.is_none() {
+                    let value = self.eval_context.eval(&arg.expr);
+
+                    let block_path = match &*arg.expr {
+                        Expr::Fn(FnExpr { .. }) => {
+                            let mut path = as_parent_path(&ast_path);
+                            path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
+                            path.push(AstParentKind::Expr(ExprField::Fn));
+                            path.push(AstParentKind::FnExpr(FnExprField::Function));
+                            path.push(AstParentKind::Function(FunctionField::Body));
+                            Some(path)
                         }
+                        Expr::Arrow(ArrowExpr {
+                            body: box BlockStmtOrExpr::BlockStmt(_),
+                            ..
+                        }) => {
+                            let mut path = as_parent_path(&ast_path);
+                            path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
+                            path.push(AstParentKind::Expr(ExprField::Arrow));
+                            path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
+                            path.push(AstParentKind::BlockStmtOrExpr(
+                                BlockStmtOrExprField::BlockStmt,
+                            ));
+                            Some(path)
+                        }
+                        Expr::Arrow(ArrowExpr {
+                            body: box BlockStmtOrExpr::Expr(_),
+                            ..
+                        }) => {
+                            let mut path = as_parent_path(&ast_path);
+                            path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
+                            path.push(AstParentKind::Expr(ExprField::Arrow));
+                            path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
+                            path.push(AstParentKind::BlockStmtOrExpr(BlockStmtOrExprField::Expr));
+                            Some(path)
+                        }
+                        _ => None,
+                    };
+                    if let Some(path) = block_path {
+                        let old_effects = take(&mut self.effects);
+                        arg.visit_with_ast_path(self, &mut ast_path);
+                        let effects = replace(&mut self.effects, old_effects);
+                        EffectArg::Closure(
+                            value,
+                            EffectsBlock {
+                                effects,
+                                range: AstPathRange::Exact(path),
+                            },
+                        )
                     } else {
                         arg.visit_with_ast_path(self, &mut ast_path);
-                        EffectArg::Spread
+                        EffectArg::Value(value)
                     }
-                })
-                .collect();
-            self.check_call_expr_for_effects(n, args, ast_path);
-        }
+                } else {
+                    arg.visit_with_ast_path(self, &mut ast_path);
+                    EffectArg::Spread
+                }
+            })
+            .collect();
+        self.check_call_expr_for_effects(n, args, ast_path);
     }
 
     fn visit_new_expr<'ast: 'r, 'r>(
