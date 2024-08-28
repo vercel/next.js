@@ -13,7 +13,7 @@ function NodeJsIcon(props: any) {
       xmlns="http://www.w3.org/2000/svg"
       {...props}
     >
-      <g clip-path="url(#clip0_1546_2)">
+      <g clipPath="url(#clip0_1546_2)">
         <path
           d="M22 0L41.0526 11V33L22 44L2.94744 33V11L22 0Z"
           fill="#71BD55"
@@ -46,14 +46,14 @@ function NodeJsDisabledIcon(props: any) {
         d="M4.44744 11.866L22 1.73205L39.5526 11.866V32.134L22 42.2679L4.44744 32.134V11.866Z"
         fill="white"
         stroke="black"
-        stroke-width="3"
-        stroke-linejoin="round"
+        strokeWidth="3"
+        strokeLinejoin="round"
       />
       <path
         d="M22 2L39 32"
         stroke="black"
-        stroke-width="3"
-        stroke-linecap="round"
+        strokeWidth="3"
+        strokeLinecap="round"
       />
     </svg>
   )
