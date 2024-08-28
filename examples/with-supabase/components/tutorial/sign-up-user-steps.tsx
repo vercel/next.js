@@ -18,6 +18,7 @@ export default function SignUpUserSteps() {
             <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
               https://{process.env.VERCEL_URL}
             </span>
+            .
           </p>
           <p className="mt-4">
             You will need to{" "}
@@ -48,7 +49,16 @@ export default function SignUpUserSteps() {
               -{" "}
               <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
                 https://*-[vercel-team-url].vercel.app/**
-              </span>
+              </span>{" "}
+              (Vercel Team URL can be found in{" "}
+              <Link
+                className="text-primary hover:text-foreground"
+                href="https://vercel.com/docs/accounts/create-a-team#find-your-team-id"
+                target="_blank"
+              >
+                Vercel Team settings
+              </Link>
+              . )
             </li>
           </ul>
           <Link
