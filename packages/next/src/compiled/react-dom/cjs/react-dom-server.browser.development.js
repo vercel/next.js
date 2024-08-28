@@ -6031,6 +6031,53 @@
           void 0 !== boundary &&
             ((boundary.length = 4), (boundary[2] = []), (boundary[3] = null))));
     }
+    function spawnNewSuspendedReplayTask(request, task, thenableState) {
+      return createReplayTask(
+        request,
+        thenableState,
+        task.replay,
+        task.node,
+        task.childIndex,
+        task.blockedBoundary,
+        task.hoistableState,
+        task.abortSet,
+        task.keyPath,
+        task.formatContext,
+        task.context,
+        task.treeContext,
+        task.componentStack,
+        task.isFallback
+      );
+    }
+    function spawnNewSuspendedRenderTask(request, task, thenableState) {
+      var segment = task.blockedSegment,
+        newSegment = createPendingSegment(
+          request,
+          segment.chunks.length,
+          null,
+          task.formatContext,
+          segment.lastPushedText,
+          !0
+        );
+      segment.children.push(newSegment);
+      segment.lastPushedText = !1;
+      return createRenderTask(
+        request,
+        thenableState,
+        task.node,
+        task.childIndex,
+        task.blockedBoundary,
+        newSegment,
+        task.hoistableState,
+        task.abortSet,
+        task.keyPath,
+        task.formatContext,
+        task.context,
+        task.treeContext,
+        task.componentStack,
+        task.isFallback
+      );
+    }
     function renderNode(request, task, node, childIndex) {
       var previousFormatContext = task.formatContext,
         previousContext = task.context,
@@ -6048,35 +6095,36 @@
               thrownValue === SuspenseException
                 ? getSuspendedThenable()
                 : thrownValue),
-            "object" === typeof node &&
-              null !== node &&
-              "function" === typeof node.then)
+            "object" === typeof node && null !== node)
           ) {
-            childIndex = getThenableStateAfterSuspending();
-            request = createReplayTask(
-              request,
-              childIndex,
-              task.replay,
-              task.node,
-              task.childIndex,
-              task.blockedBoundary,
-              task.hoistableState,
-              task.abortSet,
-              task.keyPath,
-              task.formatContext,
-              task.context,
-              task.treeContext,
-              task.componentStack,
-              task.isFallback
-            ).ping;
-            node.then(request, request);
-            task.formatContext = previousFormatContext;
-            task.context = previousContext;
-            task.keyPath = previousKeyPath;
-            task.treeContext = previousTreeContext;
-            task.componentStack = previousComponentStack;
-            switchContext(previousContext);
-            return;
+            if ("function" === typeof node.then) {
+              childIndex = getThenableStateAfterSuspending();
+              request = spawnNewSuspendedReplayTask(
+                request,
+                task,
+                childIndex
+              ).ping;
+              node.then(request, request);
+              task.formatContext = previousFormatContext;
+              task.context = previousContext;
+              task.keyPath = previousKeyPath;
+              task.treeContext = previousTreeContext;
+              task.componentStack = previousComponentStack;
+              switchContext(previousContext);
+              return;
+            }
+            if ("Maximum call stack size exceeded" === node.message) {
+              node = getThenableStateAfterSuspending();
+              node = spawnNewSuspendedReplayTask(request, task, node);
+              request.pingedTasks.push(node);
+              task.formatContext = previousFormatContext;
+              task.context = previousContext;
+              task.keyPath = previousKeyPath;
+              task.treeContext = previousTreeContext;
+              task.componentStack = previousComponentStack;
+              switchContext(previousContext);
+              return;
+            }
           }
         }
       else {
@@ -6093,46 +6141,36 @@
               thrownValue$3 === SuspenseException
                 ? getSuspendedThenable()
                 : thrownValue$3),
-            "object" === typeof node &&
-              null !== node &&
-              "function" === typeof node.then)
+            "object" === typeof node && null !== node)
           ) {
-            childIndex = getThenableStateAfterSuspending();
-            segment = task.blockedSegment;
-            childrenLength = createPendingSegment(
-              request,
-              segment.chunks.length,
-              null,
-              task.formatContext,
-              segment.lastPushedText,
-              !0
-            );
-            segment.children.push(childrenLength);
-            segment.lastPushedText = !1;
-            request = createRenderTask(
-              request,
-              childIndex,
-              task.node,
-              task.childIndex,
-              task.blockedBoundary,
-              childrenLength,
-              task.hoistableState,
-              task.abortSet,
-              task.keyPath,
-              task.formatContext,
-              task.context,
-              task.treeContext,
-              task.componentStack,
-              task.isFallback
-            ).ping;
-            node.then(request, request);
-            task.formatContext = previousFormatContext;
-            task.context = previousContext;
-            task.keyPath = previousKeyPath;
-            task.treeContext = previousTreeContext;
-            task.componentStack = previousComponentStack;
-            switchContext(previousContext);
-            return;
+            if ("function" === typeof node.then) {
+              childIndex = getThenableStateAfterSuspending();
+              request = spawnNewSuspendedRenderTask(
+                request,
+                task,
+                childIndex
+              ).ping;
+              node.then(request, request);
+              task.formatContext = previousFormatContext;
+              task.context = previousContext;
+              task.keyPath = previousKeyPath;
+              task.treeContext = previousTreeContext;
+              task.componentStack = previousComponentStack;
+              switchContext(previousContext);
+              return;
+            }
+            if ("Maximum call stack size exceeded" === node.message) {
+              node = getThenableStateAfterSuspending();
+              node = spawnNewSuspendedRenderTask(request, task, node);
+              request.pingedTasks.push(node);
+              task.formatContext = previousFormatContext;
+              task.context = previousContext;
+              task.keyPath = previousKeyPath;
+              task.treeContext = previousTreeContext;
+              task.componentStack = previousComponentStack;
+              switchContext(previousContext);
+              return;
+            }
           }
         }
       }
@@ -8715,11 +8753,11 @@
       didWarnAboutMaps = !1;
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-rc-f90a6bcc-20240827" !== isomorphicReactPackageVersion)
+      if ("19.0.0-rc-7771d3a7-20240827" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-rc-f90a6bcc-20240827\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-rc-7771d3a7-20240827\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     exports.renderToReadableStream = function (children, options) {
@@ -8812,5 +8850,5 @@
         startWork(request$jscomp$0);
       });
     };
-    exports.version = "19.0.0-rc-f90a6bcc-20240827";
+    exports.version = "19.0.0-rc-7771d3a7-20240827";
   })();
