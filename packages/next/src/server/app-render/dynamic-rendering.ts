@@ -118,6 +118,24 @@ export function markCurrentScopeAsDynamic(
 }
 
 /**
+ * This function communicates that some dynamic path parameter was read. This
+ * differs from the more general `trackDynamicDataAccessed` in that it is will
+ * not error when `dynamic = "error"` is set.
+ *
+ * @param store The static generation store
+ * @param expression The expression that was accessed dynamically
+ */
+export function trackFallbackParamAccessed(
+  store: StaticGenerationStore,
+  expression: string
+): void {
+  const prerenderStore = prerenderAsyncStorage.getStore()
+  if (!prerenderStore) return
+
+  postponeWithTracking(prerenderStore.dynamicTracking, expression, store.route)
+}
+
+/**
  * This function communicates that some dynamic data was read. This typically would refer to accessing
  * a Request specific data store such as cookies or headers. This function is not how end-users will
  * describe reading from dynamic data sources which are valid to cache and up to the author to make

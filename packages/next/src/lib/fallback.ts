@@ -14,7 +14,7 @@ export const enum FallbackMode {
    * forcing them to wait for the page to be generated. This allows the user to
    * see a rendered page earlier.
    */
-  STATIC_PRERENDER = 'STATIC_PRERENDER',
+  PRERENDER = 'PRERENDER',
 
   /**
    * When set to NOT_FOUND, pages that are not already prerendered will result
@@ -35,10 +35,10 @@ export type GetStaticPathsFallback = boolean | 'blocking'
  * @returns The fallback mode.
  */
 export function parseFallbackField(
-  fallbackField: string | false | null | undefined
+  fallbackField: string | boolean | null | undefined
 ): FallbackMode | undefined {
   if (typeof fallbackField === 'string') {
-    return FallbackMode.STATIC_PRERENDER
+    return FallbackMode.PRERENDER
   } else if (fallbackField === null) {
     return FallbackMode.BLOCKING_STATIC_RENDER
   } else if (fallbackField === false) {
@@ -52,17 +52,39 @@ export function parseFallbackField(
   }
 }
 
+export function fallbackModeToFallbackField(
+  fallback: FallbackMode,
+  page: string | undefined
+): string | false | null {
+  switch (fallback) {
+    case FallbackMode.BLOCKING_STATIC_RENDER:
+      return null
+    case FallbackMode.NOT_FOUND:
+      return false
+    case FallbackMode.PRERENDER:
+      if (!page) {
+        throw new Error(
+          `Invariant: expected a page to be provided when fallback mode is "${fallback}"`
+        )
+      }
+
+      return page
+    default:
+      throw new Error(`Invalid fallback mode: ${fallback}`)
+  }
+}
+
 /**
  * Parses the fallback from the static paths result.
  *
  * @param result The result from the static paths function.
  * @returns The fallback mode.
  */
-export function parseFallbackStaticPathsResult(
+export function parseStaticPathsResult(
   result: GetStaticPathsFallback
 ): FallbackMode {
   if (result === true) {
-    return FallbackMode.STATIC_PRERENDER
+    return FallbackMode.PRERENDER
   } else if (result === 'blocking') {
     return FallbackMode.BLOCKING_STATIC_RENDER
   } else {
@@ -76,11 +98,11 @@ export function parseFallbackStaticPathsResult(
  * @param fallback The fallback mode.
  * @returns The static paths fallback result.
  */
-export function fallbackToStaticPathsResult(
+export function fallbackModeToStaticPathsResult(
   fallback: FallbackMode
 ): GetStaticPathsFallback {
   switch (fallback) {
-    case FallbackMode.STATIC_PRERENDER:
+    case FallbackMode.PRERENDER:
       return true
     case FallbackMode.BLOCKING_STATIC_RENDER:
       return 'blocking'

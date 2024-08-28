@@ -140,7 +140,9 @@ export function addImplicitTags(
   requestStore: RequestStore | undefined
 ) {
   const newTags: string[] = []
-  const { page } = staticGenerationStore
+  const { page, fallbackRouteParams } = staticGenerationStore
+  const hasFallbackRouteParams =
+    fallbackRouteParams && fallbackRouteParams.size > 0
 
   // Ini the tags array if it doesn't exist.
   staticGenerationStore.tags ??= []
@@ -155,8 +157,9 @@ export function addImplicitTags(
     newTags.push(tag)
   }
 
-  // Add the tags from the pathname.
-  if (requestStore?.url.pathname) {
+  // Add the tags from the pathname. If the route has unknown params, we don't
+  // want to add the pathname as a tag, as it will be invalid.
+  if (requestStore?.url.pathname && !hasFallbackRouteParams) {
     const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${requestStore.url.pathname}`
     if (!staticGenerationStore.tags?.includes(tag)) {
       staticGenerationStore.tags.push(tag)
