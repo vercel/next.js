@@ -38,7 +38,7 @@ describe('createInitialRouterState', () => {
       initialFlightData: [
         [initialTree, ['', children, {}, null], <title>Test</title>],
       ],
-      initialCanonicalUrl,
+      initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
       couldBeIntercepted: false,
@@ -50,7 +50,7 @@ describe('createInitialRouterState', () => {
       initialFlightData: [
         [initialTree, ['', children, {}, null], <title>Test</title>],
       ],
-      initialCanonicalUrl,
+      initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
       couldBeIntercepted: false,
