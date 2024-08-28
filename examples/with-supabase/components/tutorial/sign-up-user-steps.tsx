@@ -4,6 +4,53 @@ import { TutorialStep } from "./tutorial-step";
 export default function SignUpUserSteps() {
   return (
     <ol className="flex flex-col gap-6">
+      {process.env.VERCEL_ENV === "preview" ||
+      process.env.VERCEL_ENV === "production" ? (
+        <TutorialStep title="Set up redirect urls">
+          <p>It looks like this App is hosted on Vercel.</p>
+          <p>
+            This particular deployment is{" "}
+            <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
+              {process.env.VERCEL_ENV}
+            </span>{" "}
+            on
+            <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
+              {process.env.VERCEL_URL}
+            </span>
+          </p>
+          <p>
+            You will need to{" "}
+            <Link
+              href={
+                "https://supabase.com/dashboard/project/_/auth/url-configuration"
+              }
+            >
+              update your Supabase project
+            </Link>{" "}
+            with the correct redirect URLs.
+          </p>
+          <ul className="my-4">
+            <li>
+              -{" "}
+              <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
+                http://localhost:3000/**
+              </span>
+            </li>
+            <li>
+              -{" "}
+              <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
+                http://[your-domain]/**
+              </span>
+            </li>
+            <li>
+              -{" "}
+              <span className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs font-medium text-secondary-foreground border">
+                https://*-[vercel-team-url].vercel.app/**
+              </span>
+            </li>
+          </ul>
+        </TutorialStep>
+      ) : null}
       <TutorialStep title="Sign up your first user">
         <p>
           Head over to the{" "}
