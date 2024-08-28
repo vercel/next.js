@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import { headers, cookies } from 'next/headers'
 
 export async function getHeaders() {
-  console.log('accept header:', headers().get('accept'))
+  console.log('accept header:', (await headers()).get('accept'))
   ;(await cookies()).set('test-cookie', Date.now())
 }
 

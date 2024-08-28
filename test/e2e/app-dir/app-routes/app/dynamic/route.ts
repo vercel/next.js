@@ -15,7 +15,7 @@ export async function GET(req: Request) {
       url: req.url,
       headers: req.headers.get('accept'),
     },
-    headers: headers().get('accept'),
+    headers: (await headers()).get('accept'),
     cookies: (await cookies()).get('session')?.value ?? null,
   })
 }
