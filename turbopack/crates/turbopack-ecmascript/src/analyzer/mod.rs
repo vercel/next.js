@@ -1842,28 +1842,28 @@ impl JsValue {
                 if name.len() != def_name_len + (prefix_self.is_some() as usize) {
                     continue;
                 }
-                let mut it = name.iter().map(Cow::Borrowed).rev();
+                let mut name_rev_it = name.iter().map(Cow::Borrowed).rev();
                 if let Some(prefix_self) = prefix_self {
-                    if it.next().unwrap().as_ref() != prefix_self {
+                    if name_rev_it.next().unwrap().as_ref() != prefix_self {
                         continue;
                     }
                 }
 
-                if let Some(var_graph) = var_graph {
-                    if let DefineableNameSegment::Name(first_str) = name.first().unwrap() {
-                        let first_str: &str = first_str;
-                        if var_graph
-                            .free_var_ids
-                            .get(&first_str.into())
-                            .map_or(false, |id| var_graph.values.contains_key(id))
-                        {
-                            // `typeof foo...` but `foo` was reassigned
-                            return None;
+                if name_rev_it.eq(self.iter_defineable_name_rev()) {
+                    if let Some(var_graph) = var_graph {
+                        if let DefineableNameSegment::Name(first_str) = name.first().unwrap() {
+                            let first_str: &str = first_str;
+                            if var_graph
+                                .free_var_ids
+                                .get(&first_str.into())
+                                .map_or(false, |id| var_graph.values.contains_key(id))
+                            {
+                                // `typeof foo...` but `foo` was reassigned
+                                return None;
+                            }
                         }
                     }
-                }
 
-                if it.eq(self.iter_defineable_name_rev()) {
                     return Some(value);
                 }
             }
@@ -3667,7 +3667,7 @@ impl WellKnownFunctionKind {
 }
 
 fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
-    i.span.ctxt.outer() == unresolved_mark
+    i.ctxt.outer() == unresolved_mark
 }
 
 fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
@@ -3685,8 +3685,9 @@ pub mod test_utils {
         builtin::early_replace_builtin, well_known::replace_well_known, JsValue, ModuleValue,
         WellKnownFunctionKind, WellKnownObjectKind,
     };
-    use crate::analyzer::{
-        builtin::replace_builtin, imports::ImportAnnotations, parse_require_context,
+    use crate::{
+        analyzer::{builtin::replace_builtin, imports::ImportAnnotations, parse_require_context},
+        utils::module_value_to_well_known_object,
     };
 
     pub async fn early_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
@@ -3694,6 +3695,8 @@ pub mod test_utils {
         Ok((v, m))
     }
 
+    /// Visitor that replaces well known functions and objects with their
+    /// corresponding values. Returns the new value and whether it was modified.
     pub async fn visitor(
         v: JsValue,
         compile_time_info: Vc<CompileTimeInfo>,
@@ -3745,16 +3748,13 @@ pub mod test_utils {
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
                 _ => v.into_unknown(true, "unknown global"),
             },
-            JsValue::Module(ModuleValue {
-                module: ref name, ..
-            }) => match name.as_ref() {
-                "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
-                "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
-                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
-                "@mapbox/node-pre-gyp" => JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
-                "node-pre-gyp" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild),
-                _ => return Ok((v, false)),
-            },
+            JsValue::Module(ref mv) => {
+                if let Some(wko) = module_value_to_well_known_object(mv) {
+                    wko
+                } else {
+                    return Ok((v, false));
+                }
+            }
             _ => {
                 let (mut v, m1) = replace_well_known(v, compile_time_info).await?;
                 let m2 = replace_builtin(&mut v);
@@ -3822,7 +3822,8 @@ mod tests {
                 let top_level_mark = Mark::new();
                 m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
-                let eval_context = EvalContext::new(&m, unresolved_mark, top_level_mark, None);
+                let eval_context =
+                    EvalContext::new(&m, unresolved_mark, top_level_mark, None, None);
 
                 let mut var_graph = create_graph(&m, &eval_context);
 

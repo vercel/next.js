@@ -315,7 +315,7 @@ pub struct ImageConfig {
     pub domains: Vec<String>,
     pub disable_static_images: bool,
     #[serde(rename(deserialize = "minimumCacheTTL"))]
-    pub minimum_cache_ttl: u32,
+    pub minimum_cache_ttl: u64,
     pub formats: Vec<ImageFormat>,
     #[serde(rename(deserialize = "dangerouslyAllowSVG"))]
     pub dangerously_allow_svg: bool,
@@ -399,6 +399,7 @@ pub struct ExperimentalTurboConfig {
     pub resolve_alias: Option<IndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub use_swc_css: Option<bool>,
+    pub tree_shaking: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -561,8 +562,6 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
-
-    tree_shaking: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -1105,7 +1104,12 @@ impl NextConfig {
         self: Vc<Self>,
         is_development: bool,
     ) -> Result<Vc<OptionTreeShaking>> {
-        let tree_shaking = self.await?.experimental.tree_shaking;
+        let tree_shaking = self
+            .await?
+            .experimental
+            .turbo
+            .as_ref()
+            .and_then(|v| v.tree_shaking);
 
         Ok(OptionTreeShaking(match tree_shaking {
             Some(false) => Some(TreeShakingMode::ReexportsOnly),

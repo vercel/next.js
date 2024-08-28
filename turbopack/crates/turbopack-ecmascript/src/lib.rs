@@ -14,6 +14,7 @@ pub mod chunk;
 pub mod chunk_group_files_asset;
 pub mod code_gen;
 mod errors;
+pub mod global_module_id_strategy;
 pub mod magic_identifier;
 pub mod manifest;
 pub mod minify;
@@ -47,7 +48,7 @@ use swc_core::{
     common::GLOBALS,
     ecma::{
         codegen::{text_writer::JsWriter, Emitter},
-        visit::{VisitMutWith, VisitMutWithPath},
+        visit::{VisitMutWith, VisitMutWithAstPath},
     },
 };
 pub use transform::{
@@ -365,7 +366,7 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
 impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyse_ecmascript_module(self, None)
+        analyse_ecmascript_module(self, None, None)
     }
 
     /// Generates module contents without an analysis pass. This is useful for
@@ -831,7 +832,7 @@ async fn gen_content_with_visitors(
 
             GLOBALS.set(globals, || {
                 if !visitors.is_empty() {
-                    program.visit_mut_with_path(
+                    program.visit_mut_with_ast_path(
                         &mut ApplyVisitors::new(visitors),
                         &mut Default::default(),
                     );

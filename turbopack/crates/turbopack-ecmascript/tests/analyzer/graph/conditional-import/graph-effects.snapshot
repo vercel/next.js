@@ -147,7 +147,7 @@
                 Test,
             ),
         ],
-        span: 18..34#0,
+        span: 18..34,
         in_try: false,
     },
     Call {
@@ -195,7 +195,7 @@
                 Call,
             ),
         ],
-        span: 11..35#0,
+        span: 11..35,
         in_try: false,
     },
     Member {
@@ -272,7 +272,7 @@
                 Member,
             ),
         ],
-        span: 57..81#0,
+        span: 57..81,
         in_try: false,
     },
     Member {
@@ -345,7 +345,7 @@
                 Member,
             ),
         ],
-        span: 57..68#0,
+        span: 57..68,
         in_try: false,
     },
     FreeVar {
@@ -417,7 +417,7 @@
                 Ident,
             ),
         ],
-        span: 57..64#1,
+        span: 57..64,
         in_try: false,
     },
     Conditional {
@@ -599,7 +599,7 @@
                 Test,
             ),
         ],
-        span: 57..196#0,
+        span: 57..196,
         in_try: false,
     },
     Call {
@@ -691,7 +691,7 @@
                 Call,
             ),
         ],
-        span: 47..198#0,
+        span: 47..198,
         in_try: false,
     },
     Conditional {
@@ -758,7 +758,7 @@
                                 Call,
                             ),
                         ],
-                        span: 226..237#0,
+                        span: 226..237,
                         in_try: false,
                     },
                 ],
@@ -843,7 +843,7 @@
                                 Call,
                             ),
                         ],
-                        span: 254..265#0,
+                        span: 254..265,
                         in_try: false,
                     },
                 ],
@@ -889,7 +889,7 @@
                 Test,
             ),
         ],
-        span: 208..268#0,
+        span: 208..268,
         in_try: false,
     },
     Conditional {
@@ -940,7 +940,7 @@
                                 Ident,
                             ),
                         ],
-                        span: 354..355#2,
+                        span: 354..355,
                         in_try: false,
                     },
                 ],
@@ -1009,7 +1009,7 @@
                                 Ident,
                             ),
                         ],
-                        span: 368..369#2,
+                        span: 368..369,
                         in_try: false,
                     },
                 ],
@@ -1055,7 +1055,7 @@
                 Test,
             ),
         ],
-        span: 340..372#0,
+        span: 340..372,
         in_try: false,
     },
     Conditional {
@@ -1229,7 +1229,7 @@
                 Test,
             ),
         ],
-        span: 399..434#0,
+        span: 399..434,
         in_try: false,
     },
     Call {
@@ -1286,7 +1286,7 @@
                 Call,
             ),
         ],
-        span: 438..449#0,
+        span: 438..449,
         in_try: false,
     },
     ImportedBinding {
@@ -1333,7 +1333,7 @@
                 Ident,
             ),
         ],
-        span: 453..454#2,
+        span: 453..454,
         in_try: false,
     },
 ]

@@ -505,6 +505,7 @@ pub(super) async fn split(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
+                        None,
                         Some(source),
                     );
 
@@ -597,6 +598,7 @@ pub(super) async fn part_of_module(
                                 orig: ModuleExportName::Ident(Ident::new(
                                     export_name.as_str().into(),
                                     DUMMY_SP,
+                                    Default::default(),
                                 )),
                                 exported: None,
                                 is_type_only: false,
@@ -627,6 +629,7 @@ pub(super) async fn part_of_module(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
+                        None,
                         None,
                     );
 
@@ -677,6 +680,7 @@ pub(super) async fn part_of_module(
                                 orig: ModuleExportName::Ident(Ident::new(
                                     export_name.as_str().into(),
                                     DUMMY_SP,
+                                    Default::default(),
                                 )),
                                 exported: None,
                                 is_type_only: false,
@@ -703,6 +707,7 @@ pub(super) async fn part_of_module(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
+                        None,
                         None,
                     );
                     return Ok(ParseResult::Ok {

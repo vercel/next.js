@@ -337,26 +337,6 @@ export default class FetchCache implements CacheHandler {
   public async set(...args: Parameters<CacheHandler['set']>) {
     const [key, data, ctx] = args
 
-    const newValue =
-      data?.kind === CachedRouteKind.FETCH ? data.data : undefined
-    const existingCache = memoryCache?.get(key)
-    const existingValue = existingCache?.value
-    if (
-      existingValue?.kind === CachedRouteKind.FETCH &&
-      Object.keys(existingValue.data).every(
-        (field) =>
-          JSON.stringify(
-            (existingValue.data as Record<string, string | Object>)[field]
-          ) ===
-          JSON.stringify((newValue as Record<string, string | Object>)[field])
-      )
-    ) {
-      if (DEBUG) {
-        console.log(`skipping cache set for ${key} as not modified`)
-      }
-      return
-    }
-
     const { fetchCache, fetchIdx, fetchUrl, tags } = ctx
     if (!fetchCache) return
 

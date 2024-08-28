@@ -30,6 +30,9 @@ import type {
 } from './types/metadata-interface'
 import { isNotFoundError } from '../../client/components/not-found'
 import type { MetadataContext } from './types/resolvers'
+import type { CreateDynamicallyTrackedParams } from '../../client/components/fallback-params'
+import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
 
 export function createMetadataContext(
   pathname: string,
@@ -39,6 +42,37 @@ export function createMetadataContext(
     pathname,
     trailingSlash: renderOpts.trailingSlash,
     isStandaloneMode: renderOpts.nextConfigOutput === 'standalone',
+  }
+}
+
+export function createTrackedMetadataContext(
+  pathname: string,
+  renderOpts: AppRenderContext['renderOpts'],
+  staticGenerationStore: StaticGenerationStore | null
+): MetadataContext {
+  return {
+    // Use the regular metadata context, but we trap the pathname access.
+    ...createMetadataContext(pathname, renderOpts),
+
+    // Setup the trap around the pathname access so we can track when the
+    // pathname is accessed while resolving metadata which would indicate it's
+    // being used to resolve a relative URL. If that's the case, we don't want
+    // to provide it, and instead we should error.
+    get pathname() {
+      if (
+        staticGenerationStore &&
+        staticGenerationStore.isStaticGeneration &&
+        staticGenerationStore.fallbackRouteParams &&
+        staticGenerationStore.fallbackRouteParams.size > 0
+      ) {
+        trackFallbackParamAccessed(
+          staticGenerationStore,
+          'metadata relative url resolving'
+        )
+      }
+
+      return pathname
+    },
   }
 }
 
@@ -56,6 +90,7 @@ export function createMetadataComponents({
   appUsingSizeAdjustment,
   errorType,
   createDynamicallyTrackedSearchParams,
+  createDynamicallyTrackedParams,
 }: {
   tree: LoaderTree
   query: ParsedUrlQuery
@@ -63,6 +98,7 @@ export function createMetadataComponents({
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
   errorType?: 'not-found' | 'redirect'
+  createDynamicallyTrackedParams: CreateDynamicallyTrackedParams
   createDynamicallyTrackedSearchParams: (
     searchParams: ParsedUrlQuery
   ) => ParsedUrlQuery
@@ -81,6 +117,7 @@ export function createMetadataComponents({
       getDynamicParamFromSegment,
       metadataContext,
       createDynamicallyTrackedSearchParams,
+      createDynamicallyTrackedParams,
       errorType
     )
 
@@ -145,6 +182,7 @@ async function getResolvedMetadata(
   createDynamicallyTrackedSearchParams: (
     searchParams: ParsedUrlQuery
   ) => ParsedUrlQuery,
+  createDynamicallyTrackedParams: CreateDynamicallyTrackedParams,
   errorType?: 'not-found' | 'redirect'
 ): Promise<[any, Array<React.ReactNode>]> {
   const errorMetadataItem: [null, null, null] = [null, null, null]
@@ -160,6 +198,7 @@ async function getResolvedMetadata(
     getDynamicParamFromSegment,
     errorConvention,
     metadataContext,
+    createDynamicallyTrackedParams,
   })
   if (!error) {
     return [null, createMetadataElements(metadata, viewport)]
@@ -179,6 +218,7 @@ async function getResolvedMetadata(
           getDynamicParamFromSegment,
           errorConvention: 'not-found',
           metadataContext,
+          createDynamicallyTrackedParams,
         })
       return [
         notFoundMetadataError || error,

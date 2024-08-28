@@ -898,7 +898,6 @@ export async function handleAction({
           result: await generateFlight(req, ctx, {
             skipFlight: false,
             actionResult: promise,
-            asNotFound: true,
           }),
         }
       }

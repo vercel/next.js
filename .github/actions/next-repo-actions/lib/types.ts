@@ -166,14 +166,14 @@ const performedViaGitHubAppSchema = z
 
 const reactionSchema = z
   .object({
-    '+1': z.number(),
-    '-1': z.number(),
-    confused: z.number(),
-    eyes: z.number(),
-    heart: z.number(),
-    hooray: z.number(),
-    laugh: z.number(),
-    rocket: z.number(),
+    '+1': z.number().optional(),
+    '-1': z.number().optional(),
+    confused: z.number().optional(),
+    eyes: z.number().optional(),
+    heart: z.number().optional(),
+    hooray: z.number().optional(),
+    laugh: z.number().optional(),
+    rocket: z.number().optional(),
     total_count: z.number(),
     url: z.string(),
   })

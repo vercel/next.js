@@ -190,16 +190,17 @@ export class IncrementalCache implements IncrementalCacheType {
   private calculateRevalidate(
     pathname: string,
     fromTime: number,
-    dev?: boolean
+    dev: boolean,
+    isFallback: boolean | undefined
   ): Revalidate {
     // in development we don't have a prerender-manifest
     // and default to always revalidating to allow easier debugging
     if (dev) return new Date().getTime() - 1000
 
     // if an entry isn't present in routes we fallback to a default
-    // of revalidating after 1 second.
+    // of revalidating after 1 second unless it's a fallback request.
     const initialRevalidateSeconds =
-      this.revalidateTimings.get(toRoute(pathname)) ?? 1
+      this.revalidateTimings.get(toRoute(pathname)) ?? (isFallback ? false : 1)
 
     const revalidateAfter =
       typeof initialRevalidateSeconds === 'number'
@@ -384,6 +385,7 @@ export class IncrementalCache implements IncrementalCacheType {
       tags?: string[]
       softTags?: string[]
       isRoutePPREnabled?: boolean
+      isFallback: boolean | undefined
     }
   ): Promise<IncrementalCacheEntry | null> {
     // we don't leverage the prerender cache in dev mode
@@ -446,7 +448,8 @@ export class IncrementalCache implements IncrementalCacheType {
       revalidateAfter = this.calculateRevalidate(
         cacheKey,
         cacheData?.lastModified || Date.now(),
-        this.dev && ctx.kind !== IncrementalCacheKind.FETCH
+        this.dev ? ctx.kind !== IncrementalCacheKind.FETCH : false,
+        ctx.isFallback
       )
       isStale =
         revalidateAfter !== false && revalidateAfter < Date.now()
@@ -494,6 +497,7 @@ export class IncrementalCache implements IncrementalCacheType {
       fetchIdx?: number
       tags?: string[]
       isRoutePPREnabled?: boolean
+      isFallback?: boolean
     }
   ) {
     if (this.disableForTestmode || (this.dev && !ctx.fetchCache)) return

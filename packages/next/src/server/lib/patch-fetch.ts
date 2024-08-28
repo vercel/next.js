@@ -34,10 +34,10 @@ type PatchedFetcher = Fetcher & {
   readonly _nextOriginalFetch: Fetcher
 }
 
-function isPatchedFetch(
-  fetch: Fetcher | PatchedFetcher
-): fetch is PatchedFetcher {
-  return '__nextPatched' in fetch && fetch.__nextPatched === true
+export const NEXT_PATCH_SYMBOL = Symbol.for('next-patch')
+
+function isFetchPatched() {
+  return (globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] === true
 }
 
 export function validateRevalidate(
@@ -140,7 +140,9 @@ export function addImplicitTags(
   requestStore: RequestStore | undefined
 ) {
   const newTags: string[] = []
-  const { page } = staticGenerationStore
+  const { page, fallbackRouteParams } = staticGenerationStore
+  const hasFallbackRouteParams =
+    fallbackRouteParams && fallbackRouteParams.size > 0
 
   // Ini the tags array if it doesn't exist.
   staticGenerationStore.tags ??= []
@@ -155,8 +157,9 @@ export function addImplicitTags(
     newTags.push(tag)
   }
 
-  // Add the tags from the pathname.
-  if (requestStore?.url.pathname) {
+  // Add the tags from the pathname. If the route has unknown params, we don't
+  // want to add the pathname as a tag, as it will be invalid.
+  if (requestStore?.url.pathname && !hasFallbackRouteParams) {
     const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${requestStore.url.pathname}`
     if (!staticGenerationStore.tags?.includes(tag)) {
       staticGenerationStore.tags.push(tag)
@@ -676,6 +679,7 @@ export function createPatchedFetcher(
                   fetchIdx,
                   tags,
                   softTags: implicitTags,
+                  isFallback: false,
                 })
 
             if (entry) {
@@ -804,18 +808,21 @@ export function createPatchedFetcher(
   }
 
   // Attach the necessary properties to the patched fetch function.
+  // We don't use this to determine if the fetch function has been patched,
+  // but for external consumers to determine if the fetch function has been
+  // patched.
   patched.__nextPatched = true as const
   patched.__nextGetStaticStore = () => staticGenerationAsyncStorage
   patched._nextOriginalFetch = originFetch
+  ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = true
 
   return patched
 }
-
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 export function patchFetch(options: PatchableModule) {
   // If we've already patched fetch, we should not patch it again.
-  if (isPatchedFetch(globalThis.fetch)) return
+  if (isFetchPatched()) return
 
   // Grab the original fetch function. We'll attach this so we can use it in
   // the patched fetch function.

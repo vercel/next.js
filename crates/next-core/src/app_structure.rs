@@ -10,8 +10,8 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, RcStr, TaskInput,
-    TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TaskInput, TryJoinIterExt, ValueToString,
+    Vc,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -26,7 +26,6 @@ use crate::{
         },
         AppPage, AppPath, PageSegment, PageType,
     },
-    next_config::NextConfig,
     next_import_map::get_next_package,
 };
 
@@ -218,18 +217,6 @@ struct PlainDirectoryTree {
 
 #[turbo_tasks::value_impl]
 impl DirectoryTree {
-    /// Returns a completion that changes when any route in the whole tree
-    /// changes.
-    #[turbo_tasks::function]
-    pub async fn routes_changed(&self) -> Result<Vc<Completion>> {
-        let mut children = Vec::new();
-        children.push(Completion::new());
-        for child in self.subdirectories.values() {
-            children.push(child.routes_changed());
-        }
-        Ok(Vc::<Completions>::cell(children).completed())
-    }
-
     #[turbo_tasks::function]
     pub async fn into_plain(&self) -> Result<Vc<PlainDirectoryTree>> {
         let mut subdirectories = BTreeMap::new();
@@ -249,23 +236,6 @@ impl DirectoryTree {
 #[turbo_tasks::value(transparent)]
 pub struct OptionAppDir(Option<Vc<FileSystemPath>>);
 
-#[turbo_tasks::value_impl]
-impl OptionAppDir {
-    /// Returns a completion that changes when any route in the whole tree
-    /// changes.
-    #[turbo_tasks::function]
-    pub async fn routes_changed(
-        self: Vc<Self>,
-        next_config: Vc<NextConfig>,
-    ) -> Result<Vc<Completion>> {
-        if let Some(app_dir) = *self.await? {
-            let directory_tree = get_directory_tree(app_dir, next_config.page_extensions());
-            directory_tree.routes_changed().await?;
-        }
-        Ok(Completion::new())
-    }
-}
-
 /// Finds and returns the [DirectoryTree] of the app directory if existing.
 #[turbo_tasks::function]
 pub async fn find_app_dir(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionAppDir>> {
@@ -282,13 +252,6 @@ pub async fn find_app_dir(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionA
     .await?;
 
     Ok(Vc::cell(Some(app_dir)))
-}
-
-/// Finds and returns the [DirectoryTree] of the app directory if enabled and
-/// existing.
-#[turbo_tasks::function]
-pub async fn find_app_dir_if_enabled(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionAppDir>> {
-    Ok(find_app_dir(project_path))
 }
 
 #[turbo_tasks::function]
@@ -474,6 +437,22 @@ impl LoaderTree {
 
         true
     }
+
+    /// Returns the specificity of the page (i.e. the number of segments
+    /// affecting the path)
+    pub fn get_specificity(&self) -> usize {
+        if &*self.segment == "__PAGE__" {
+            return AppPath::from(self.page.clone()).len();
+        }
+
+        let mut specificity = 0;
+
+        for (_, tree) in &self.parallel_routes {
+            specificity = specificity.max(tree.get_specificity());
+        }
+
+        specificity
+    }
 }
 
 #[derive(
@@ -523,10 +502,6 @@ fn is_parallel_route(name: &str) -> bool {
 
 fn is_group_route(name: &str) -> bool {
     name.starts_with('(') && name.ends_with(')')
-}
-
-fn is_catchall_route(name: &str) -> bool {
-    name.starts_with("[...") && name.ends_with(']')
 }
 
 fn match_parallel_route(name: &str) -> Option<&str> {
@@ -909,7 +884,6 @@ fn directory_tree_to_loader_tree_internal(
 
         let mut child_app_page = app_page.clone();
         let mut illegal_path_error = None;
-        let is_current_directory_catchall = is_catchall_route(subdir_name);
 
         // When constructing the app_page fails (e. g. due to limitations of the order),
         // we only want to emit the error when there are actual pages below that
@@ -947,11 +921,12 @@ fn directory_tree_to_loader_tree_internal(
             }
 
             if let Some(current_tree) = tree.parallel_routes.get("children") {
-                if is_current_directory_catchall && subtree.has_only_catchall() {
-                    // there's probably already a more specific page in the
-                    // slot.
-                } else if current_tree.has_only_catchall() {
-                    tree.parallel_routes.insert("children".into(), subtree);
+                if current_tree.has_only_catchall()
+                    && (!subtree.has_only_catchall()
+                        || current_tree.get_specificity() < subtree.get_specificity())
+                {
+                    tree.parallel_routes
+                        .insert("children".into(), subtree.clone());
                 }
             } else {
                 tree.parallel_routes.insert("children".into(), subtree);

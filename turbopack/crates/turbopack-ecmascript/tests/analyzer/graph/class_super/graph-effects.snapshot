@@ -113,7 +113,7 @@
                                     Ident,
                                 ),
                             ],
-                            span: 152..157#2,
+                            span: 152..157,
                             in_try: false,
                         },
                         Call {
@@ -214,7 +214,7 @@
                                     Call,
                                 ),
                             ],
-                            span: 152..159#0,
+                            span: 152..159,
                             in_try: false,
                         },
                     ],
@@ -334,7 +334,7 @@
                 Call,
             ),
         ],
-        span: 132..167#0,
+        span: 132..167,
         in_try: false,
     },
 ]

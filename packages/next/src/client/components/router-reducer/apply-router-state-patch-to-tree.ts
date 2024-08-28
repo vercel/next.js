@@ -11,8 +11,7 @@ import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-par
  */
 function applyPatch(
   initialTree: FlightRouterState,
-  patchTree: FlightRouterState,
-  flightSegmentPath: FlightSegmentPath
+  patchTree: FlightRouterState
 ): FlightRouterState {
   const [initialSegment, initialParallelRoutes] = initialTree
   const [patchSegment, patchParallelRoutes] = patchTree
@@ -34,8 +33,7 @@ function applyPatch(
       if (isInPatchTreeParallelRoutes) {
         newParallelRoutes[key] = applyPatch(
           initialParallelRoutes[key],
-          patchParallelRoutes[key],
-          flightSegmentPath
+          patchParallelRoutes[key]
         )
       } else {
         newParallelRoutes[key] = initialParallelRoutes[key]
@@ -87,11 +85,7 @@ export function applyRouterStatePatchToTree(
 
   // Root refresh
   if (flightSegmentPath.length === 1) {
-    const tree: FlightRouterState = applyPatch(
-      flightRouterState,
-      treePatch,
-      flightSegmentPath
-    )
+    const tree: FlightRouterState = applyPatch(flightRouterState, treePatch)
 
     addRefreshMarkerToActiveParallelSegments(tree, path)
 
@@ -109,11 +103,7 @@ export function applyRouterStatePatchToTree(
 
   let parallelRoutePatch
   if (lastSegment) {
-    parallelRoutePatch = applyPatch(
-      parallelRoutes[parallelRouteKey],
-      treePatch,
-      flightSegmentPath
-    )
+    parallelRoutePatch = applyPatch(parallelRoutes[parallelRouteKey], treePatch)
   } else {
     parallelRoutePatch = applyRouterStatePatchToTree(
       flightSegmentPath.slice(2),

@@ -38,7 +38,7 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
     let compiler = Arc::new(Compiler::new(cm.clone()));
     let fm = compiler.cm.new_source_file(
-        FileName::Custom(path.path.to_string()),
+        FileName::Custom(path.path.to_string()).into(),
         code.source_code().to_str()?.to_string(),
     );
 

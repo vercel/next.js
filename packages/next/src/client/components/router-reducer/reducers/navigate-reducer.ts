@@ -148,9 +148,15 @@ export function navigateReducer(
         return handleExternalUrl(state, mutable, href, pendingPush)
       }
 
-      const updatedCanonicalUrl = canonicalUrlOverride
-        ? createHrefFromUrl(canonicalUrlOverride)
-        : href
+      // When the server indicates an override for the canonical URL (such as a redirect in middleware)
+      // we only want to use that if we're not using an aliased entry as the redirect will correspond with
+      // the aliased prefetch which might have different search params. Since we're only using the aliased entry
+      // for the loading state, the proper override will happen in the server patch action when the dynamic
+      // data is loaded.
+      const updatedCanonicalUrl =
+        canonicalUrlOverride && !prefetchValues.aliased
+          ? createHrefFromUrl(canonicalUrlOverride)
+          : href
 
       // Track if the navigation was only an update to the hash fragment
       mutable.onlyHashChange =

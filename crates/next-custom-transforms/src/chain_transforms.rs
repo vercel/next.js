@@ -132,7 +132,7 @@ where
         if let Some(config) = &opts.relay {
             Either::Left(swc_relay::relay(
                 Arc::new(config.clone()),
-                file.name.clone(),
+                (*file.name).clone(),
                 std::env::current_dir().unwrap(),
                 opts.pages_dir.clone(),
                 None,
@@ -160,7 +160,7 @@ where
     let styled_jsx = if let Some(config) = opts.styled_jsx.to_option() {
         Either::Left(styled_jsx::visitor::styled_jsx(
             cm.clone(),
-            file.name.clone(),
+            (*file.name).clone(),
             styled_jsx::visitor::Config {
                 use_lightningcss: config.use_lightningcss,
                 browsers: target_browsers,
@@ -266,7 +266,7 @@ where
                 if !config.enabled.unwrap_or(false) {
                     return None;
                 }
-                if let FileName::Real(path) = &file.name {
+                if let FileName::Real(path) = &*file.name {
                     path.to_str().map(|_| {
                         Either::Left(swc_emotion::EmotionTransformer::new(
                             config.clone(),
