@@ -144,12 +144,19 @@ pub async fn children_modules_idents(
                 modules_idents.insert(ident_str, hash);
             }
             ReferencedModule::AsyncLoaderModule(async_loader_module) => {
-                let async_loader_ident = async_loader_module
+                let loader_ident = async_loader_module
                     .ident()
                     .with_modifier(Vc::cell("async loader".into()));
-                let ident_str = async_loader_ident.to_string().await?.clone_value();
-                let hash = hash_xxh3_hash64(&ident_str);
-                modules_idents.insert(ident_str, hash);
+                let loader_ident_str = loader_ident.to_string().await?.clone_value();
+                let loader_hash = hash_xxh3_hash64(&loader_ident_str);
+                modules_idents.insert(loader_ident_str, loader_hash);
+
+                let loaded_client_ident = async_loader_module
+                    .ident()
+                    .with_layer(Vc::cell("app-client".into()));
+                let loaded_client_ident_str = loaded_client_ident.to_string().await?.clone_value();
+                let loaded_client_hash = hash_xxh3_hash64(&loaded_client_ident_str);
+                modules_idents.insert(loaded_client_ident_str, loaded_client_hash);
             }
         }
     }
@@ -190,20 +197,25 @@ pub async fn process_module(
         return Ok(());
     }
 
-    let mut masked_hash = full_hash & 0xF;
-    let mut mask = 0xF;
-    while used_ids.contains(&masked_hash) {
-        if mask == 0xFFFFFFFFFFFFFFFF {
-            return Err(anyhow::anyhow!("This is a... 64-bit hash collision?"));
+    let mut trimmed_hash = full_hash % 10;
+    let mut power = 10;
+    while used_ids.contains(&trimmed_hash) {
+        if power >= u64::MAX / 10 {
+            // We don't want to take the next power as it would overflow
+            if used_ids.contains(&full_hash) {
+                return Err(anyhow::anyhow!("This is a... 64-bit hash collision?"));
+            }
+            trimmed_hash = full_hash;
+            break;
         }
-        mask = (mask << 4) | 0xF;
-        masked_hash = full_hash & mask;
+        power *= 10;
+        trimmed_hash = full_hash % power;
     }
 
-    let hashed_module_id = ModuleId::String(masked_hash.to_string().into());
+    let hashed_module_id = ModuleId::String(trimmed_hash.to_string().into());
 
     id_map.insert(ident_str, hashed_module_id.cell());
-    used_ids.insert(masked_hash);
+    used_ids.insert(trimmed_hash);
 
     Ok(())
 }

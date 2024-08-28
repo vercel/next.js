@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "../ui/button";
 
 const CopyIcon = () => (
   <svg
@@ -35,7 +36,7 @@ const CheckIcon = () => (
   </svg>
 );
 
-export default function Code({ code }: { code: string }) {
+export function Code({ code }: { code: string }) {
   const [icon, setIcon] = useState(CopyIcon);
 
   const copy = async () => {
@@ -45,14 +46,16 @@ export default function Code({ code }: { code: string }) {
   };
 
   return (
-    <pre className="bg-foreground/5 rounded-md p-8 my-8 relative">
-      <button
+    <pre className="bg-muted rounded-md p-6 my-6 relative">
+      <Button
+        size="icon"
         onClick={copy}
-        className="absolute top-4 right-4  p-2 rounded-md bg-foreground/5 hover:bg-foreground/10"
+        variant={"outline"}
+        className="absolute right-2 top-2"
       >
         {icon}
-      </button>
-      <code>{code}</code>
+      </Button>
+      <code className="text-xs p-3">{code}</code>
     </pre>
   );
 }
