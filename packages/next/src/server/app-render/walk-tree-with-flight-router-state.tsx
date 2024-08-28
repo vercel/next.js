@@ -184,55 +184,51 @@ export async function walkTreeWithFlightRouterState({
     )
   }
 
+  const paths: FlightDataPath[] = []
+
   // Walk through all parallel routes.
-  const paths: FlightDataPath[] = (
-    await Promise.all(
-      parallelRoutesKeys.map(async (parallelRouteKey) => {
-        // for (const parallelRouteKey of parallelRoutesKeys) {
-        const parallelRoute = parallelRoutes[parallelRouteKey]
+  for (const parallelRouteKey of parallelRoutesKeys) {
+    const parallelRoute = parallelRoutes[parallelRouteKey]
 
-        const currentSegmentPath: FlightSegmentPath = isFirst
-          ? [parallelRouteKey]
-          : [actualSegment, parallelRouteKey]
+    const currentSegmentPath: FlightSegmentPath = isFirst
+      ? [parallelRouteKey]
+      : [actualSegment, parallelRouteKey]
 
-        const path = await walkTreeWithFlightRouterState({
-          ctx,
-          createSegmentPath: (child) => {
-            return createSegmentPath([...currentSegmentPath, ...child])
-          },
-          loaderTreeToFilter: parallelRoute,
-          parentParams: currentParams,
-          flightRouterState:
-            flightRouterState && flightRouterState[1][parallelRouteKey],
-          parentRendered: parentRendered || renderComponentsOnThisLevel,
-          isFirst: false,
-          rscPayloadHead,
-          injectedCSS: injectedCSSWithCurrentLayout,
-          injectedJS: injectedJSWithCurrentLayout,
-          injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-          rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-          getMetadataReady,
-          preloadCallbacks,
-        })
+    const subPaths = await walkTreeWithFlightRouterState({
+      ctx,
+      createSegmentPath: (child) => {
+        return createSegmentPath([...currentSegmentPath, ...child])
+      },
+      loaderTreeToFilter: parallelRoute,
+      parentParams: currentParams,
+      flightRouterState:
+        flightRouterState && flightRouterState[1][parallelRouteKey],
+      parentRendered: parentRendered || renderComponentsOnThisLevel,
+      isFirst: false,
+      rscPayloadHead,
+      injectedCSS: injectedCSSWithCurrentLayout,
+      injectedJS: injectedJSWithCurrentLayout,
+      injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+      rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+      getMetadataReady,
+      preloadCallbacks,
+    })
 
-        return path
-          .map((item) => {
-            // we don't need to send over default routes in the flight data
-            // because they are always ignored by the client, unless it's a refetch
-            if (
-              item[0] === DEFAULT_SEGMENT_KEY &&
-              flightRouterState &&
-              !!flightRouterState[1][parallelRouteKey][0] &&
-              flightRouterState[1][parallelRouteKey][3] !== 'refetch'
-            ) {
-              return null
-            }
-            return [actualSegment, parallelRouteKey, ...item]
-          })
-          .filter(Boolean) as FlightDataPath[]
-      })
-    )
-  ).flat()
+    for (const subPath of subPaths) {
+      // we don't need to send over default routes in the flight data
+      // because they are always ignored by the client, unless it's a refetch
+      if (
+        subPath[0] === DEFAULT_SEGMENT_KEY &&
+        flightRouterState &&
+        !!flightRouterState[1][parallelRouteKey][0] &&
+        flightRouterState[1][parallelRouteKey][3] !== 'refetch'
+      ) {
+        continue
+      }
+
+      paths.push([actualSegment, parallelRouteKey, ...subPath])
+    }
+  }
 
   return paths
 }
