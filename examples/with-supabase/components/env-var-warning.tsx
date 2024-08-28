@@ -5,13 +5,9 @@ import { Button } from "./ui/button";
 export function EnvVarWarning() {
   return (
     <div className="flex gap-4 items-center">
-      <div>
-        <Badge variant={"outline"} className="font-normal pointer-events-none">
-          Missing .env file with{" "}
-          <code className="mx-1 text-[11px]">NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
-          <code className="mx-1 text-[11px]">
-            NEXT_PUBLIC_SUPABASE_ANON_KEY
-          </code>
+      <div className="block">
+        <Badge variant={"outline"} className="font-normal">
+          Supabase environment variables required
         </Badge>
       </div>
       <div className="flex gap-2">
