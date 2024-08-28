@@ -25,8 +25,8 @@ pnpm create next-app --example cms-umbraco umbraco-app
 Use the .NET CLI to create a project locally.
 
 1. Create an empty folder and open a terminal there.
-2. If you haven't already, install the Umbraco .NET CLI templates for version 12.0 or above by running: `dotnet new install Umbraco.Templates`.
-3. Create the Umbraco project by running: `dotnet new Umbraco`
+2. If you haven't already, install the Umbraco .NET CLI templates for version 12.0 or above by running: `dotnet new install Umbraco.Templates::13.*`.
+3. Create the Umbraco project by running: `dotnet new umbraco`
 
 For more information on the Umbraco .NET CLI templates, visit [this page](https://docs.umbraco.com/umbraco-cms/fundamentals/setup/install/install-umbraco-with-templates).
 
@@ -34,7 +34,7 @@ For more information on the Umbraco .NET CLI templates, visit [this page](https:
 
 To avoid having to create the entire blog dataset in hand, we have created a [NuGet package](https://www.nuget.org/packages/Umbraco.Sample.Headless.Blog) with everything you need to get started.
 
-Install the NuGet package with the following command in the terminal window: `dotnet add Umbraco.Sample.Headless.Blog`.
+Install the NuGet package with the following command in the terminal window: `dotnet add package Umbraco.Sample.Headless.Blog`.
 
 ### Step 3. Configure the Umbraco Delivery API
 
