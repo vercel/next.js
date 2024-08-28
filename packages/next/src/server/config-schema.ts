@@ -34,6 +34,7 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     page: z.string(),
     query: z.any(), // NextParsedUrlQuery
     // private optional properties
+    _fallbackRouteParams: z.array(z.string()).optional(),
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
     _isRoutePPREnabled: z.boolean().optional(),
@@ -318,6 +319,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .union([z.boolean(), z.literal('incremental')])
           .readonly()
           .optional(),
+        pprFallbacks: z.boolean().optional(),
         taint: z.boolean().optional(),
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
