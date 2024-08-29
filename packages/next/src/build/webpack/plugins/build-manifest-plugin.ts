@@ -178,10 +178,10 @@ const addDynamicCSSToBuildManifest = ({
   block: webpack.AsyncDependenciesBlock
   assetMap: DeepMutable<BuildManifest>
 }) => {
-  block.blocks.forEach((_block) =>
+  block.blocks.forEach((recursiveBlock) =>
     addDynamicCSSToBuildManifest({
       compilation,
-      block: _block,
+      block: recursiveBlock,
       assetMap,
     })
   )
