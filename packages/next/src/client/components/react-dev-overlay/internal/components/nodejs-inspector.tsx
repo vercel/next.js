@@ -87,7 +87,6 @@ export function NodejsInspectorCopyButton({
       <a
         title={label}
         aria-label={label}
-        aria-role="link"
         className="nextjs-data-runtime-error-inspect-link"
         href={`https://nextjs.org/docs/app/building-your-application/configuring/debugging#debugging-with-chrome-devtools`}
         target="_blank"
