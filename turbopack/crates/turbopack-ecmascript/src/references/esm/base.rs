@@ -9,7 +9,7 @@ use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
-        ChunkingTypeOption, ModuleId,
+        ChunkingTypeOption,
     },
     issue::{IssueSeverity, IssueSource},
     module::Module,
@@ -30,6 +30,7 @@ use crate::{
     create_visitor, magic_identifier,
     references::util::{request_to_string, throw_module_not_found_expr},
     tree_shake::{asset::EcmascriptModulePartAsset, TURBOPACK_PART_IMPORT_SOURCE},
+    utils::module_id_to_lit,
 };
 
 #[turbo_tasks::value]
@@ -256,10 +257,7 @@ impl CodeGenerateable for EsmAssetReference {
                             let stmt = quote!(
                                 "var $name = __turbopack_import__($id);" as Stmt,
                                 name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
-                                id: Expr = Expr::Lit(match &*id {
-                                    ModuleId::String(s) => s.clone().as_str().into(),
-                                    ModuleId::Number(n) => (*n as f64).into(),
-                                })
+                                id: Expr = module_id_to_lit(&id),
                             );
                             insert_hoisted_stmt(program, stmt);
                         }));
