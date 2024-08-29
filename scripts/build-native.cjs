@@ -1,13 +1,19 @@
 #!/usr/bin/env node
 
-const { NEXT_DIR, booleanArg, execAsyncWithOutput } = require('./pack-util.cjs')
+const {
+  NEXT_DIR,
+  booleanArg,
+  execAsyncWithOutput,
+  namedValueArg,
+} = require('./pack-util.cjs')
 const { rmSync } = require('fs')
 const path = require('path')
 
 const args = process.argv.slice(2)
 
-// strip --no-build when called from pack-next.cjs
+// strip --no-build and --project when called from pack-next.cjs
 booleanArg(args, '--no-build')
+namedValueArg(args, '--project')
 
 const targetDir = path.join(NEXT_DIR, 'target')
 
