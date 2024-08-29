@@ -7,7 +7,7 @@ describe('css-module-with-next-dynamic-and-static-import', () => {
 
   it('should be able to load the same css module with both next/dynamic and static import', async () => {
     const browser = await next.browser('/')
-    await browser.elementById('dynamic-import').click()
+    await browser.elementById('next-dynamic').click()
 
     expect(await browser.elementByCss('button').text()).toBe(
       'My background should be red!'
@@ -29,7 +29,7 @@ describe('css-module-with-next-dynamic-and-static-import', () => {
 
   it('should be able to load the same css module with both next/dynamic (variable-inserted path) and static import', async () => {
     const browser = await next.browser('/')
-    await browser.elementById('variable-inserted-dynamic-import').click()
+    await browser.elementById('variable-inserted-next-dynamic').click()
 
     expect(await browser.elementByCss('button').text()).toBe(
       'My background should be red!'

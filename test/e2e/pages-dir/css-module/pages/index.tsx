@@ -13,6 +13,15 @@ export default function Home() {
       >
         /variable-inserted-dynamic-import
       </Link>
+      <Link id="next-dynamic" href="/next-dynamic">
+        /next-dynamic
+      </Link>
+      <Link
+        id="variable-inserted-next-dynamic"
+        href="/variable-inserted-next-dynamic"
+      >
+        /variable-inserted-next-dynamic
+      </Link>
       {/* RedButton should be imported to be reproduced */}
       <RedButton />
     </>
