@@ -1,5 +1,5 @@
 import { defineRule } from '../utils/define-rule'
-import type { Node, BlockStatement } from 'estree'
+import type { Node, BlockStatement, ImportDeclaration } from 'estree'
 
 const url = 'https://nextjs.org/docs/messages/no-redirect-in-try-catch'
 
@@ -15,13 +15,30 @@ export = defineRule({
     schema: [],
   },
   create(context) {
+    let redirectName = 'redirect'
+    let rethrowName = 'unstable_rethrow'
+
+    function checkImport(node: ImportDeclaration) {
+      if (node.source.value === 'next/navigation') {
+        node.specifiers.forEach((specifier) => {
+          if (specifier.type === 'ImportSpecifier') {
+            if (specifier.imported.name === 'redirect') {
+              redirectName = specifier.local.name
+            } else if (specifier.imported.name === 'unstable_rethrow') {
+              rethrowName = specifier.local.name
+            }
+          }
+        })
+      }
+    }
+
     function isRethrowFirstStatement(blockStatement: BlockStatement): boolean {
       const firstStatement = blockStatement.body[0]
       return (
         firstStatement?.type === 'ExpressionStatement' &&
         firstStatement.expression.type === 'CallExpression' &&
         firstStatement.expression.callee.type === 'Identifier' &&
-        firstStatement.expression.callee.name === 'unstable_rethrow'
+        firstStatement.expression.callee.name === rethrowName
       )
     }
 
@@ -31,7 +48,7 @@ export = defineRule({
           return (
             node.expression.type === 'CallExpression' &&
             node.expression.callee.type === 'Identifier' &&
-            node.expression.callee.name === 'redirect'
+            node.expression.callee.name === redirectName
           )
         case 'BlockStatement':
           return node.body.some(containsRedirectCall)
@@ -46,6 +63,7 @@ export = defineRule({
     }
 
     return {
+      ImportDeclaration: checkImport,
       TryStatement(node) {
         const tryBlock = node.block
         const catchBlock = node.handler.body
