@@ -100,6 +100,21 @@ Once the server starts, open a new tab in Chrome and visit `chrome://inspect`, w
 
 Debugging server-side code here works much like debugging client-side code with Chrome DevTools, except that when you search for files here with `Ctrl+P` or `⌘+P`, your source files will have paths starting with `webpack://{application-name}/./` (where `{application-name}` will be replaced with the name of your application according to your `package.json` file).
 
+### Inspect Server Errors with Chrome DevTools
+
+When you encounter an error, inspecting the source code can help trace the root cause of errors.
+
+Next.js will display a Node.js logo like green button on dev overlay with Node.js inspector. By clicking that button you can copy the Chrome DevTool url into clipboard, and you can open a new browser tab with that url to inspect the Next.js server process with Chrome DevTool.
+This feature is released on latest Next.js canary release.
+
+<Image
+  alt="Copy Chrome DevTool url example"
+  srcLight="/docs/dark/copy-devtool-url-example.png"
+  srcDark="/docs/dark/copy-devtool-url-example.png"
+  width="1600"
+  height="594"
+/>
+
 ### Debugging on Windows
 
 Windows users may run into an issue when using `NODE_OPTIONS='--inspect'` as that syntax is not supported on Windows platforms. To get around this, install the [`cross-env`](https://www.npmjs.com/package/cross-env) package as a development dependency (`-D` with `npm` and `yarn`) and replace the `dev` script with the following.
