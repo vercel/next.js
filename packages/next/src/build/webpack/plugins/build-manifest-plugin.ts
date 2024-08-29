@@ -168,6 +168,73 @@ export const processRoute = (r: Rewrite) => {
   return rewrite
 }
 
+/* Inspired by `next/src/build/webpack/react-loadable-plugin.ts` */
+const addDynamicCSSToBuildManifest = ({
+  compilation,
+  block,
+  assetMap,
+}: {
+  compilation: any
+  block: any
+  assetMap: any
+}) => {
+  block.blocks.forEach((_block: any) =>
+    addDynamicCSSToBuildManifest({
+      compilation,
+      block: _block,
+      assetMap,
+    })
+  )
+
+  const dynamicCSSFiles = new Set<string>()
+
+  const chunkGroup = compilation.chunkGraph.getBlockChunkGroup(block)
+  if (chunkGroup) {
+    for (const chunk of chunkGroup.chunks) {
+      chunk.files.forEach((file: string) => {
+        if (file.endsWith('.css') && file.match(/^static\/css\//)) {
+          dynamicCSSFiles.add(file)
+        }
+      })
+    }
+  }
+
+  for (const dependency of block.dependencies) {
+    // We target the two types of dynamic import() dependencies:
+    // `ImportDependency` and `ContextElementDependency`.
+
+    // ImportDependency:
+    // - syntax: import("./module")
+    // - dependency.type: "import()"
+
+    // ContextElementDependency:
+    // - syntax: import(`./module/${param}`)
+    // - dependency.type: "import() context element"
+    if (dependency.type.startsWith('import()')) {
+      const parentModule = compilation.moduleGraph.getParentModule(dependency)
+
+      const parentChunks = compilation.chunkGraph.getModuleChunks(parentModule)
+
+      for (const chunk of parentChunks) {
+        const chunkName = chunk.name
+        if (!chunkName || !chunkName.startsWith('pages')) continue
+
+        const pagePath = getRouteFromEntrypoint(chunkName)
+        if (!pagePath) continue
+
+        const assetMapPages = assetMap.pages[pagePath]
+        // We expect the target page to already be present in the manifest,
+        // as it should have been added earlier from the `compilation.entrypoints`.
+        if (!assetMapPages) continue
+
+        assetMap.pages[pagePath] = [
+          ...new Set([...assetMapPages, ...dynamicCSSFiles]),
+        ]
+      }
+    }
+  }
+}
+
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
@@ -296,63 +363,14 @@ export default class BuildManifestPlugin {
       // To prevent this, we add the dynamically imported CSS files
       // to the build manifest to signal the client not to clean up
       // the CSS file if it's loaded dynamically, preserving the styles.
-
-      /* Inspired by `next/src/build/webpack/react-loadable-plugin.ts` */
-      const _handleBlock = (block: any) => {
-        block.blocks.forEach(_handleBlock)
-
-        const dynamicCSSFiles = new Set<string>()
-
-        const chunkGroup = compilation.chunkGraph.getBlockChunkGroup(block)
-        if (chunkGroup) {
-          for (const chunk of chunkGroup.chunks) {
-            chunk.files.forEach((file: string) => {
-              if (file.endsWith('.css') && file.match(/^static\/css\//)) {
-                dynamicCSSFiles.add(file)
-              }
-            })
-          }
-        }
-
-        for (const dependency of block.dependencies) {
-          // We target the two types of dynamic import() dependencies:
-          // `ImportDependency` and `ContextElementDependency`.
-
-          // ImportDependency:
-          // - syntax: import("./module")
-          // - dependency.type: "import()"
-
-          // ContextElementDependency:
-          // - syntax: import(`./module/${param}`)
-          // - dependency.type: "import() context element"
-          if (dependency.type.startsWith('import()')) {
-            const parentModule =
-              compilation.moduleGraph.getParentModule(dependency)
-
-            const parentChunks =
-              compilation.chunkGraph.getModuleChunks(parentModule)
-
-            for (const chunk of parentChunks) {
-              const chunkName = chunk.name
-              if (!chunkName || !chunkName.startsWith('pages')) continue
-
-              const pagePath = getRouteFromEntrypoint(chunkName)
-              if (!pagePath) continue
-
-              const assetMapPages = assetMap.pages[pagePath]
-              // We should already have `assetMapPages` from the `entrypoint`.
-              if (!assetMapPages) continue
-
-              assetMap.pages[pagePath] = [
-                ...new Set([...assetMapPages, ...dynamicCSSFiles]),
-              ]
-            }
-          }
-        }
-      }
-
       for (const module of compilation.modules) {
-        module.blocks.forEach(_handleBlock)
+        module.blocks.forEach((block: any) =>
+          addDynamicCSSToBuildManifest({
+            compilation,
+            block,
+            assetMap,
+          })
+        )
       }
 
       if (!this.isDevFallback) {
