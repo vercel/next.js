@@ -124,12 +124,8 @@ fn patch_workspace_package_json_map(
     let overrides_map = get_mut_or_insert_default_object(package_json_map, "overrides")?;
     insert_map_entries(overrides_map, &overrides[..]);
 
-    // pnpm uses `pnpm.overrides`: https://pnpm.io/package_json#pnpmoverrides
-    let pnpm_map = get_mut_or_insert_default_object(package_json_map, "pnpm")?;
-    let pnpm_overrides_map = get_mut_or_insert_default_object(pnpm_map, "overrides")?;
-    insert_map_entries(pnpm_overrides_map, &overrides[..]);
-
     // yarn uses `resolutions`: https://yarnpkg.com/configuration/manifest#resolutions
+    // pnpm also supports this: https://pnpm.io/package_json#resolutions
     let resolutions_map = get_mut_or_insert_default_object(package_json_map, "resolutions")?;
     insert_map_entries(resolutions_map, &overrides[..]);
 
