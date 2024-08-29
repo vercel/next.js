@@ -56,6 +56,7 @@ mod manager;
 mod native_function;
 mod no_move_vec;
 mod once_map;
+mod output;
 pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
@@ -97,6 +98,7 @@ pub use manager::{
     TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
 };
 pub use native_function::{FunctionMeta, NativeFunction};
+pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
 pub use read_ref::ReadRef;
 use rustc_hash::FxHasher;
