@@ -100,8 +100,8 @@ export function generateClientManifest(
     staticFilter: ReturnType<BloomFilter['export']>
     dynamicFilter: ReturnType<BloomFilter['export']>
   },
-  compiler?: any,
-  compilation?: any
+  compiler?: webpack.Compiler,
+  compilation?: webpack.Compilation
 ): string | undefined {
   const compilationSpan = compilation
     ? spans.get(compilation)
@@ -174,11 +174,11 @@ const addDynamicCSSToBuildManifest = ({
   block,
   assetMap,
 }: {
-  compilation: any
-  block: any
-  assetMap: any
+  compilation: webpack.Compilation
+  block: webpack.AsyncDependenciesBlock
+  assetMap: DeepMutable<BuildManifest>
 }) => {
-  block.blocks.forEach((_block: any) =>
+  block.blocks.forEach((_block) =>
     addDynamicCSSToBuildManifest({
       compilation,
       block: _block,
@@ -265,13 +265,17 @@ export default class BuildManifestPlugin {
     this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
   }
 
-  createAssets(compiler: any, compilation: any, assets: any) {
+  createAssets(
+    compiler: webpack.Compiler,
+    compilation: webpack.Compilation,
+    assets: any
+  ) {
     const compilationSpan = spans.get(compilation) || spans.get(compiler)
     const createAssetsSpan = compilationSpan?.traceChild(
       'NextJsBuildManifest-createassets'
     )
     return createAssetsSpan?.traceFn(() => {
-      const entrypoints: Map<string, any> = compilation.entrypoints
+      const entrypoints = compilation.entrypoints
       const assetMap: DeepMutable<BuildManifest> = {
         polyfillFiles: [],
         devFiles: [],
@@ -309,11 +313,8 @@ export default class BuildManifestPlugin {
         ]
       }
 
-      const compilationAssets: {
-        name: string
-        source: typeof sources.RawSource
-        info: object
-      }[] = compilation.getAssets()
+      const compilationAssets: Readonly<webpack.Asset>[] =
+        compilation.getAssets()
 
       assetMap.polyfillFiles = compilationAssets
         .filter((p) => {
@@ -337,8 +338,8 @@ export default class BuildManifestPlugin {
       )
 
       for (const entrypoint of compilation.entrypoints.values()) {
-        if (SYSTEM_ENTRYPOINTS.has(entrypoint.name)) continue
-        const pagePath = getRouteFromEntrypoint(entrypoint.name)
+        if (SYSTEM_ENTRYPOINTS.has(entrypoint.name!)) continue
+        const pagePath = getRouteFromEntrypoint(entrypoint.name!)
 
         if (!pagePath) continue
 
@@ -364,7 +365,7 @@ export default class BuildManifestPlugin {
       // to the build manifest to signal the client not to clean up
       // the CSS file if it's loaded dynamically, preserving the styles.
       for (const module of compilation.modules) {
-        module.blocks.forEach((block: any) =>
+        module.blocks.forEach((block) =>
           addDynamicCSSToBuildManifest({
             compilation,
             block,
