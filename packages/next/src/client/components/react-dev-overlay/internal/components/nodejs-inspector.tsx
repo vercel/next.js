@@ -1,7 +1,7 @@
 import { CopyButton } from './copy-button'
-import { isChromeDesktop } from '../../../../lib/is-chrome'
+import { isChrome } from '../../../../lib/is-chrome'
 
-const isBrowserChromeDesktop = isChromeDesktop()
+const isChromeBrowser = isChrome()
 
 function NodeJsIcon(props: any) {
   return (
@@ -65,14 +65,14 @@ export function NodejsInspectorCopyButton({
   devtoolsFrontendUrl: string | undefined
 }) {
   const content = devtoolsFrontendUrl || ''
-  const disabled = !content || !isBrowserChromeDesktop
+  const disabled = !content || !isChromeBrowser
   const Icon = disabled ? NodeJsDisabledIcon : NodeJsIcon
   return (
     <CopyButton
       data-nextjs-data-runtime-error-copy-devtools-url
       actionLabel={
         disabled
-          ? 'Using Chrome inspector is only available in Chrome desktop and running with Node.js inspector'
+          ? 'Using Chrome inspector is only available in Chrome and when Node.js inspector is enabled in Next.js app'
           : 'Copy Chrome DevTools URL'
       }
       successLabel="Copied"
