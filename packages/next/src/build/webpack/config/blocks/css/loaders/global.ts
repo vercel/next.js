@@ -16,6 +16,7 @@ export function getGlobalCssLoader(
     // loader
     loaders.push(
       getClientStyleLoader({
+        optimizeCssModuleMappings: ctx.experimental.optimizeCssModuleMappings,
         hasAppDir: ctx.hasAppDir,
         isAppDir: ctx.isAppDir,
         isDevelopment: ctx.isDevelopment,

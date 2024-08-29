@@ -279,6 +279,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         caseSensitiveRoutes: z.boolean().optional(),
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
+        optimizeCssModuleMappings: z.boolean().optional(),
         esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
         serverActions: z
           .object({
