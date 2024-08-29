@@ -82,7 +82,6 @@ export function CopyButton({
   ])
   const isDisabled = isPending || disabled
   const label = copyState.state === 'success' ? successLabel : actionLabel
-  const title = label
 
   // Assign default icon
   const renderedIcon =
@@ -92,7 +91,7 @@ export function CopyButton({
     <button
       {...props}
       type="button"
-      title={title}
+      title={label}
       aria-label={label}
       aria-disabled={isDisabled}
       data-nextjs-data-runtime-error-copy-button

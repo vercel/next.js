@@ -44,20 +44,23 @@ function NodeJsDisabledIcon(props: any) {
     >
       <path
         d="M4.44744 11.866L22 1.73205L39.5526 11.866V32.134L22 42.2679L4.44744 32.134V11.866Z"
-        fill="white"
-        stroke="black"
+        stroke="currentColor"
+        fill="transparent"
         strokeWidth="3"
         strokeLinejoin="round"
       />
       <path
         d="M22 2L39 32"
-        stroke="black"
+        stroke="currentColor"
         strokeWidth="3"
         strokeLinecap="round"
       />
     </svg>
   )
 }
+
+const label =
+  'Learn more about enabling Node.js inspector for server code with Chrome DevTools'
 
 export function NodejsInspectorCopyButton({
   devtoolsFrontendUrl,
@@ -66,18 +69,27 @@ export function NodejsInspectorCopyButton({
 }) {
   const content = devtoolsFrontendUrl || ''
   const disabled = !content || !isChromeBrowser
-  const Icon = disabled ? NodeJsDisabledIcon : NodeJsIcon
+  if (disabled) {
+    return (
+      <a
+        title={label}
+        aria-label={label}
+        aria-role="link"
+        className="nextjs-data-runtime-error-inspect-link"
+        href={`https://nextjs.org/docs/app/building-your-application/configuring/debugging#debugging-with-chrome-devtools`}
+        target="_blank" rel="noreferrer"
+      >
+        <NodeJsDisabledIcon width={16} height={16} />
+      </a>
+    )
+  }
   return (
     <CopyButton
       data-nextjs-data-runtime-error-copy-devtools-url
-      actionLabel={
-        disabled
-          ? 'Using Chrome inspector is only available in Chrome and when Node.js inspector is enabled in Next.js app'
-          : 'Copy Chrome DevTools URL'
-      }
+      actionLabel={'Copy Chrome DevTools URL'}
       successLabel="Copied"
       content={content}
-      icon={<Icon width={16} height={16} />}
+      icon={<NodeJsIcon width={16} height={16} />}
       disabled={disabled}
     />
   )

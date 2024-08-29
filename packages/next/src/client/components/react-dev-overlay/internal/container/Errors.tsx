@@ -464,4 +464,9 @@ export const styles = css`
     align-items: center;
     justify-content: space-between;
   }
+  .nextjs-data-runtime-error-inspect-link,
+  .nextjs-data-runtime-error-inspect-link:hover {
+    margin: 0 8px;
+    color: inherit;
+  }
 `
