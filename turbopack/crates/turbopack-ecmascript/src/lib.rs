@@ -14,6 +14,7 @@ pub mod chunk;
 pub mod chunk_group_files_asset;
 pub mod code_gen;
 mod errors;
+pub mod global_module_id_strategy;
 pub mod magic_identifier;
 pub mod manifest;
 pub mod minify;
@@ -365,7 +366,7 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
 impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyse_ecmascript_module(self, None)
+        analyse_ecmascript_module(self, None, None)
     }
 
     /// Generates module contents without an analysis pass. This is useful for

@@ -10,7 +10,7 @@ An `<img>` element was used to display an image instead of `<Image />` from `nex
 
 ## Possible Ways to Fix It
 
-Use [`next/image`](/docs/pages/api-reference/components/image) to improve performance with automatic [Image Optimization](/docs/pages/building-your-application/optimizing/images).
+1. Use [`next/image`](/docs/pages/api-reference/components/image) to improve performance with automatic [Image Optimization](/docs/pages/building-your-application/optimizing/images).
 
 > Note: If deploying to a [managed hosting provider](/docs/pages/building-your-application/deploying), remember to check provider pricing since optimized images might be charged differently than the original images.
 >
@@ -39,9 +39,17 @@ function Home() {
 export default Home
 ```
 
-If you would like to use `next/image` features such as blur-up placeholders but disable Image Optimization, you can do so using [unoptimized](/docs/pages/api-reference/components/image#unoptimized).
+2. If you would like to use `next/image` features such as blur-up placeholders but disable Image Optimization, you can do so using [unoptimized](/docs/pages/api-reference/components/image#unoptimized):
 
-Or, use a `<picture>` element with the nested `<img>` element:
+```jsx filename="pages/index.js"
+import Image from 'next/image'
+
+const UnoptimizedImage = (props) => {
+  return <Image {...props} unoptimized />
+}
+```
+
+3. You can also use the `<picture>` element with the nested `<img>` element:
 
 ```jsx filename="pages/index.js"
 function Home() {

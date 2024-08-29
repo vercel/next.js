@@ -176,7 +176,8 @@ fn react_server_actions_server_errors(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
-                        enabled: true
+                        enabled: true,
+                        hash_salt: "".into()
                     },
                     tr.comments.as_ref().clone(),
                 )
@@ -212,7 +213,8 @@ fn react_server_actions_client_errors(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: false,
-                        enabled: true
+                        enabled: true,
+                        hash_salt: "".into()
                     },
                     tr.comments.as_ref().clone(),
                 )

@@ -19,12 +19,12 @@ async function main() {
   const channel = '#next-info'
 
   const issue = context.payload.issue
+  const html_url = issue.html_url
+  const number = issue.number
+  const title = issue.title
 
   let latestVersion: string
   let latestCanaryVersion: string
-  let html_url: string
-  let number: number
-  let title: string
 
   try {
     latestVersion = await getLatestVersion()
@@ -44,22 +44,15 @@ async function main() {
 
     const result = await generateText({
       model: openai(model),
-      maxAutomaticRoundtrips: 1,
+      maxToolRoundtrips: 1,
       tools: {
         report_to_slack: tool({
           description: 'Report to Slack.',
           parameters: issueSchema,
-          execute: async ({ issue }) => {
-            html_url = issue.html_url
-            number = issue.number
-            title = issue.title
-
-            return { html_url, number, title }
-          },
         }),
       },
       system:
-        'Your job is to determine the severity of a GitHub issue using the triage guidelines and the latest versions of Next.js. Succinctly explain why you chose the severity, without paraphrasing the triage guidelines. Report this explanation to slack only if the severity is considered severe.',
+        'Your job is to determine the severity of a GitHub issue using the triage guidelines and the latest versions of Next.js. Succinctly explain why you chose the severity, without paraphrasing the triage guidelines. Report to Slack the explanation only if the severity is considered severe.',
       prompt:
         `Here are the triage guidelines: ${guidelines}` +
         `Here is the latest version of Next.js: ${latestVersion}` +

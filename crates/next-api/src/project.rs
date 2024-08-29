@@ -11,7 +11,7 @@ use next_core::{
     middleware::middleware_files,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
-    next_config::{JsConfig, NextConfig},
+    next_config::{JsConfig, ModuleIdStrategy as ModuleIdStrategyConfig, NextConfig},
     next_server::{
         get_server_chunking_context, get_server_chunking_context_with_client_assets,
         get_server_compile_time_info, get_server_module_options_context,
@@ -34,12 +34,16 @@ use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSyst
 use turbopack::{evaluate_context::node_build_environment, ModuleAssetContext};
 use turbopack_core::{
     changed::content_changed,
-    chunk::ChunkingContext,
+    chunk::{
+        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
+        ChunkingContext,
+    },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     diagnostics::DiagnosticExt,
     file_source::FileSource,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    module::Modules,
     output::{OutputAsset, OutputAssets},
     resolve::{find_context_file, FindContextFileResult},
     source::Source,
@@ -54,6 +58,7 @@ use crate::{
     app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
     build,
     entrypoints::Entrypoints,
+    global_module_id_strategy::GlobalModuleIdStrategyBuilder,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
@@ -443,7 +448,7 @@ impl Issue for ConflictIssue {
 #[turbo_tasks::value_impl]
 impl Project {
     #[turbo_tasks::function]
-    async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
+    pub async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
         let app_dir = find_app_dir(self.project_path()).await?;
 
         Ok(Vc::cell(
@@ -452,7 +457,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn pages_project(self: Vc<Self>) -> Result<Vc<PagesProject>> {
+    pub async fn pages_project(self: Vc<Self>) -> Result<Vc<PagesProject>> {
         Ok(PagesProject::new(self))
     }
 
@@ -621,6 +626,7 @@ impl Project {
             self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
             self.next_mode(),
+            self.module_id_strategy(),
         ))
     }
 
@@ -637,6 +643,7 @@ impl Project {
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.server_compile_time_info().environment(),
+                self.module_id_strategy(),
             )
         } else {
             get_server_chunking_context(
@@ -644,6 +651,7 @@ impl Project {
                 self.project_path(),
                 self.node_root(),
                 self.server_compile_time_info().environment(),
+                self.module_id_strategy(),
             )
         }
     }
@@ -661,6 +669,7 @@ impl Project {
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.edge_compile_time_info().environment(),
+                self.module_id_strategy(),
             )
         } else {
             get_edge_chunking_context(
@@ -668,6 +677,7 @@ impl Project {
                 self.project_path(),
                 self.node_root(),
                 self.edge_compile_time_info().environment(),
+                self.module_id_strategy(),
             )
         }
     }
@@ -1160,6 +1170,34 @@ impl Project {
     pub fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
         let path = self.client_root();
         any_output_changed(roots, path, false)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let pages_project = self.pages_project();
+        let mut modules = vec![pages_project.client_main_module()];
+
+        if let Some(app_project) = *self.app_project().await? {
+            modules.push(app_project.client_main_module());
+        }
+
+        Ok(Vc::cell(modules))
+    }
+
+    /// Gets the module id strategy for the project.
+    #[turbo_tasks::function]
+    pub async fn module_id_strategy(self: Vc<Self>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
+        let module_id_strategy = self.next_config().module_id_strategy_config();
+        match *module_id_strategy.await? {
+            Some(ModuleIdStrategyConfig::Named) => Ok(Vc::upcast(DevModuleIdStrategy::new())),
+            Some(ModuleIdStrategyConfig::Deterministic) => {
+                Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self)))
+            }
+            None => match *self.next_mode().await? {
+                NextMode::Development => Ok(Vc::upcast(DevModuleIdStrategy::new())),
+                NextMode::Build => Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self))),
+            },
+        }
     }
 }
 

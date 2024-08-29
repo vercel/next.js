@@ -405,7 +405,8 @@ fn server_actions_server_fixture(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
-                        enabled: true
+                        enabled: true,
+                        hash_salt: "".into()
                     },
                     _tr.comments.as_ref().clone(),
                 )
@@ -429,7 +430,8 @@ fn server_actions_client_fixture(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: false,
-                        enabled: true
+                        enabled: true,
+                        hash_salt: "".into()
                     },
                     _tr.comments.as_ref().clone(),
                 )

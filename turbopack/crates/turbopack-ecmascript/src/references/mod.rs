@@ -17,7 +17,7 @@ pub mod util;
 
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     future::Future,
     mem::take,
     pin::Pin,
@@ -121,7 +121,7 @@ use crate::{
         imports::{ImportAnnotations, ImportedSymbol, Reexport},
         parse_require_context,
         top_level_await::has_top_level_await,
-        ConstantNumber, ConstantString, ModuleValue, RequireContextValue,
+        ConstantNumber, ConstantString, RequireContextValue,
     },
     chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
@@ -136,7 +136,7 @@ use crate::{
         type_issue::SpecifiedModuleTypeIssue,
     },
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
-    utils::AstPathRange,
+    utils::{module_value_to_well_known_object, AstPathRange},
     EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptParsable, SpecifiedModuleType,
     TreeShakingMode,
 };
@@ -393,16 +393,23 @@ where
     HANDLER.set(handler, || GLOBALS.set(globals, f))
 }
 
+/// Analyse a provided [EcmascriptModuleAsset] and return a
+/// [AnalyzeEcmascriptModuleResult].
+///
+/// # Arguments
+/// * ignored_spans - A set of spans to ignore when analysing the module. This is useful for example
+///   to respect turbopackIgnore directives on ignores.
 #[turbo_tasks::function]
 pub(crate) async fn analyse_ecmascript_module(
     module: Vc<EcmascriptModuleAsset>,
     part: Option<Vc<ModulePart>>,
+    ignored_spans: Option<Vc<HashSet<Span>>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let span = {
         let module = module.ident().to_string().await?.to_string();
         tracing::info_span!("analyse ecmascript module", module = module)
     };
-    let result = analyse_ecmascript_module_internal(module, part)
+    let result = analyse_ecmascript_module_internal(module, part, ignored_spans)
         .instrument(span)
         .await;
 
@@ -418,6 +425,7 @@ pub(crate) async fn analyse_ecmascript_module(
 pub(crate) async fn analyse_ecmascript_module_internal(
     module: Vc<EcmascriptModuleAsset>,
     part: Option<Vc<ModulePart>>,
+    _webpack_ignored_effects: Option<Vc<HashSet<Span>>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let raw_module = module.await?;
 
@@ -425,7 +433,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let ty = Value::new(raw_module.ty);
     let transforms = raw_module.transforms;
     let options = raw_module.options;
-    let compile_time_info = raw_module.compile_time_info;
     let options = options.await?;
     let import_externals = options.import_externals;
 
@@ -454,40 +461,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         referenced_package_json,
     } = *module.determine_module_type().await?;
 
-    let compile_time_info = match specified_type {
-        SpecifiedModuleType::Automatic | SpecifiedModuleType::CommonJs => {
-            let compile_time_info = compile_time_info.await?;
-            let mut free_var_references =
-                compile_time_info.free_var_references.await?.clone_value();
-            free_var_references
-                .entry(vec![
-                    DefineableNameSegment::Name("exports".into()),
-                    DefineableNameSegment::TypeOf,
-                ])
-                .or_insert("object".into());
-            free_var_references
-                .entry(vec![
-                    DefineableNameSegment::Name("module".into()),
-                    DefineableNameSegment::TypeOf,
-                ])
-                .or_insert("object".into());
-            free_var_references
-                .entry(vec![
-                    DefineableNameSegment::Name("require".into()),
-                    DefineableNameSegment::TypeOf,
-                ])
-                .or_insert("function".into());
-
-            CompileTimeInfo {
-                environment: compile_time_info.environment,
-                defines: compile_time_info.defines,
-                free_var_references: FreeVarReferences(free_var_references).cell(),
-            }
-            .cell()
-        }
-        SpecifiedModuleType::EcmaScript => compile_time_info,
-    };
-
     if let Some(package_json) = referenced_package_json {
         analysis.add_reference(PackageJsonReference::new(package_json));
     }
@@ -515,6 +488,40 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     } = &*parsed
     else {
         return analysis.build(false).await;
+    };
+
+    let compile_time_info = if (specified_type == SpecifiedModuleType::CommonJs)
+        || (specified_type == SpecifiedModuleType::Automatic && !eval_context.is_esm())
+    {
+        let compile_time_info = raw_module.compile_time_info.await?;
+        let mut free_var_references = compile_time_info.free_var_references.await?.clone_value();
+        free_var_references
+            .entry(vec![
+                DefineableNameSegment::Name("exports".into()),
+                DefineableNameSegment::TypeOf,
+            ])
+            .or_insert("object".into());
+        free_var_references
+            .entry(vec![
+                DefineableNameSegment::Name("module".into()),
+                DefineableNameSegment::TypeOf,
+            ])
+            .or_insert("object".into());
+        free_var_references
+            .entry(vec![
+                DefineableNameSegment::Name("require".into()),
+                DefineableNameSegment::TypeOf,
+            ])
+            .or_insert("function".into());
+
+        CompileTimeInfo {
+            environment: compile_time_info.environment,
+            defines: compile_time_info.defines,
+            free_var_references: FreeVarReferences(free_var_references).cell(),
+        }
+        .cell()
+    } else {
+        raw_module.compile_time_info
     };
 
     let mut import_references = Vec::new();
@@ -2402,51 +2409,14 @@ async fn value_visitor_inner(
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
             _ => return Ok((v, false)),
         },
-        JsValue::Module(ModuleValue {
-            module: ref name, ..
-        }) => {
-            if *compile_time_info.environment().node_externals().await? {
-                // TODO check externals
-                match &**name {
-                    "node:path" | "path" => {
-                        JsValue::WellKnownObject(WellKnownObjectKind::PathModule)
-                    }
-                    "node:fs/promises" | "fs/promises" => {
-                        JsValue::WellKnownObject(WellKnownObjectKind::FsModule)
-                    }
-                    "node:fs" | "fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
-                    "node:child_process" | "child_process" => {
-                        JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess)
-                    }
-                    "node:os" | "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
-                    "node:process" | "process" => {
-                        JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess)
-                    }
-                    "@mapbox/node-pre-gyp" => {
-                        JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp)
-                    }
-                    "node-gyp-build" => {
-                        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild)
-                    }
-                    "node:bindings" | "bindings" => {
-                        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings)
-                    }
-                    "express" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpress),
-                    "strong-globalize" => {
-                        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalize)
-                    }
-                    "resolve-from" => {
-                        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
-                    }
-                    "@grpc/proto-loader" => {
-                        JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader)
-                    }
-                    _ => v.into_unknown(true, "cross module analyzing is not yet supported"),
-                }
-            } else {
-                v.into_unknown(true, "cross module analyzing is not yet supported")
-            }
-        }
+        JsValue::Module(ref mv) => compile_time_info
+            .environment()
+            .node_externals()
+            .await?
+            // TODO check externals
+            .then(|| module_value_to_well_known_object(mv))
+            .flatten()
+            .unwrap_or_else(|| v.into_unknown(true, "cross module analyzing is not yet supported")),
         JsValue::Argument(..) => {
             v.into_unknown(true, "cross function analyzing is not yet supported")
         }
