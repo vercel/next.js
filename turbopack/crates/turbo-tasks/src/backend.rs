@@ -85,8 +85,50 @@ pub enum CachedTaskType {
     },
 }
 
+impl CachedTaskType {
+    /// Returns the name of the function in the code. Trait methods are
+    /// formatted as `TraitName::method_name`.
+    pub fn get_name(&self) -> Cow<'static, str> {
+        match self {
+            Self::Native {
+                fn_type: native_fn,
+                this: _,
+                arg: _,
+            }
+            | Self::ResolveNative {
+                fn_type: native_fn,
+                this: _,
+                arg: _,
+            } => Cow::Borrowed(&registry::get_function(*native_fn).name),
+            Self::ResolveTrait {
+                trait_type: trait_id,
+                method_name: fn_name,
+                this: _,
+                arg: _,
+            } => format!("{}::{}", registry::get_trait(*trait_id).name, fn_name).into(),
+        }
+    }
+
+    pub fn try_get_function_id(&self) -> Option<FunctionId> {
+        match self {
+            Self::Native { fn_type, .. } | Self::ResolveNative { fn_type, .. } => Some(*fn_type),
+            Self::ResolveTrait { .. } => None,
+        }
+    }
+}
+
+/// Provides a description of the task, including the function name.
 impl Display for CachedTaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CachedTaskType::Native { .. } => {}
+            CachedTaskType::ResolveNative { .. } => {
+                f.write_str("[resolve] ")?;
+            }
+            CachedTaskType::ResolveTrait { .. } => {
+                f.write_str("[resolve trait] ")?;
+            }
+        }
         f.write_str(&self.get_name())
     }
 }
@@ -280,41 +322,6 @@ mod ser {
                 }
             }
             deserializer.deserialize_seq(Visitor)
-        }
-    }
-}
-
-impl CachedTaskType {
-    /// Returns the name of the function in the code. Trait methods are
-    /// formatted as `TraitName::method_name`.
-    ///
-    /// Equivalent to [`ToString::to_string`], but potentially more efficient as
-    /// it can return a `&'static str` in many cases.
-    pub fn get_name(&self) -> Cow<'static, str> {
-        match self {
-            Self::Native {
-                fn_type: native_fn,
-                this: _,
-                arg: _,
-            }
-            | Self::ResolveNative {
-                fn_type: native_fn,
-                this: _,
-                arg: _,
-            } => Cow::Borrowed(&registry::get_function(*native_fn).name),
-            Self::ResolveTrait {
-                trait_type: trait_id,
-                method_name: fn_name,
-                this: _,
-                arg: _,
-            } => format!("{}::{}", registry::get_trait(*trait_id).name, fn_name).into(),
-        }
-    }
-
-    pub fn try_get_function_id(&self) -> Option<FunctionId> {
-        match self {
-            Self::Native { fn_type, .. } | Self::ResolveNative { fn_type, .. } => Some(*fn_type),
-            Self::ResolveTrait { .. } => None,
         }
     }
 }
