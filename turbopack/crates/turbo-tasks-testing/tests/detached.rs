@@ -12,6 +12,7 @@ static REGISTRATION: Registration = register!();
 #[tokio::test]
 async fn test_spawns_detached() -> anyhow::Result<()> {
     run(&REGISTRATION, || async {
+        // timeout: prevent the test from hanging, and fail instead if this is broken
         timeout(Duration::from_secs(5), async {
             let notify = TransientInstance::new(Notify::new());
             let (tx, mut rx) = watch::channel(None);
@@ -60,6 +61,7 @@ async fn spawns_detached(
 #[tokio::test]
 async fn test_spawns_detached_changing() -> anyhow::Result<()> {
     run(&REGISTRATION, || async {
+        // timeout: prevent the test from hanging, and fail instead if this is broken
         timeout(Duration::from_secs(5), async {
             let (tx, mut rx) = watch::channel(None);
             let tx = TransientInstance::new(tx);
