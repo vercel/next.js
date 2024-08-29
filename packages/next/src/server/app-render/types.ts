@@ -171,6 +171,7 @@ export interface RenderOptsPartial {
     swrDelta: SwrDelta | undefined
     clientTraceMetadata: string[] | undefined
     after: boolean
+    dynamicIO: boolean
   }
   postponed?: string
   /**
@@ -206,8 +207,8 @@ export type InitialRSCPayload = {
   b: string
   /** assetPrefix */
   p: string
-  /** initialCanonicalUrl */
-  c: string
+  /** initialCanonicalUrlParts */
+  c: string[]
   /** couldBeIntercepted */
   i: boolean
   /** initialFlightData */
