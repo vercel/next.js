@@ -355,7 +355,7 @@ function createServer(
     turbo?: boolean
   }
 ): NextServer {
-  if (options.turbo) {
+  if (options && options.turbo) {
     process.env.TURBOPACK = '1'
   }
   // The package is used as a TypeScript plugin.
