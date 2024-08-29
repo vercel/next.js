@@ -21,10 +21,5 @@
       "test-log": ["./test/lib/test-log"]
     }
   },
-  "include": [
-    "test/**/*.test.ts",
-    "test/**/*.test.tsx",
-    "test/lib/**/*.ts",
-    "turbo/**/*.ts"
-  ]
+  "include": ["test/**/*.ts", "test/**/*.tsx", "turbo/**/*.ts"]
 }
