@@ -206,8 +206,9 @@ pub async fn process_module(
         return Ok(());
     }
 
-    let mut trimmed_hash = full_hash % 10;
-    let mut power = 10;
+    // Use a minimum length of 3 digits to have more consistency
+    let mut power = 1000;
+    let mut trimmed_hash = full_hash % power;
     while used_ids.contains(&trimmed_hash) {
         if power >= u64::MAX / 10 {
             // We don't want to take the next power as it would overflow
