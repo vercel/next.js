@@ -12,7 +12,6 @@ const http = require('http')
     const nextApp = next({
       dir: appDir,
       dev,
-      turbo: true,
     })
 
     await nextApp.prepare()
