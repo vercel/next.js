@@ -17,9 +17,42 @@ ruleTester.run('no-redirect-in-try-catch', rule, {
     `'use server'
 
     import { redirect } from "next/navigation"
-    
+
     export async function navigate(data) {
         redirect(\`/posts/\${data.get('id')}\`)
+    }`,
+    `'use server'
+
+    import { redirect, unstable_rethrow } from "next/navigation"
+
+    export async function navigate(data) {
+      try {
+        redirect(\`/posts/\${data.get('id')}\`)
+      } catch (error) {
+        unstable_rethrow(error)
+      }
+    }`,
+    `'use server'
+
+    import { redirect, unstable_rethrow as rethrow } from "next/navigation"
+
+    export async function navigate(data) {
+      try {
+        redirect(\`/posts/\${data.get('id')}\`)
+      } catch (error) {
+        rethrow(error)
+      }
+    }`,
+    `'use server'
+
+    import * as Navigation from "next/navigation"
+
+    export async function navigate(data) {
+      try {
+        Navigation.redirect(\`/posts/\${data.get('id')}\`)
+      } catch (error) {
+        Navigation.unstable_rethrow(error)
+      }
     }`,
   ],
   invalid: [
@@ -40,16 +73,16 @@ ruleTester.run('no-redirect-in-try-catch', rule, {
       errors: [
         {
           message:
-            'Do not use `redirect` within a try-catch block. Move the `redirect` call outside of the try-catch block. See: https://nextjs.org/docs/messages/no-redirect-in-try-catch',
+            'When using `redirect` in a try-catch block, ensure you include `unstable_rethrow` at the start of the catch block to properly handle Next.js errors. See: https://nextjs.org/docs/messages/no-redirect-in-try-catch',
         },
       ],
     },
     {
       code: `
       'use server'
-    
+
       import { redirect } from "next/navigation"
-    
+
       export async function navigate(data) {
         try {
           if (data.id) {
@@ -63,7 +96,29 @@ ruleTester.run('no-redirect-in-try-catch', rule, {
       errors: [
         {
           message:
-            'Do not use `redirect` within a try-catch block. Move the `redirect` call outside of the try-catch block. See: https://nextjs.org/docs/messages/no-redirect-in-try-catch',
+            'When using `redirect` in a try-catch block, ensure you include `unstable_rethrow` at the start of the catch block to properly handle Next.js errors. See: https://nextjs.org/docs/messages/no-redirect-in-try-catch',
+        },
+      ],
+    },
+    {
+      code: `
+      'use server'
+
+      import { redirect, unstable_rethrow } from "next/navigation"
+
+      export async function navigate(data) {
+        try {
+          redirect(\`/posts/\${data.get('id')}\`)
+        } catch (e) {
+          console.error(e);
+          unstable_rethrow(e);
+        }
+      }`,
+      filename: 'app/actions.ts',
+      errors: [
+        {
+          message:
+            'When using `redirect` in a try-catch block, ensure you include `unstable_rethrow` at the start of the catch block to properly handle Next.js errors. See: https://nextjs.org/docs/messages/no-redirect-in-try-catch',
         },
       ],
     },
