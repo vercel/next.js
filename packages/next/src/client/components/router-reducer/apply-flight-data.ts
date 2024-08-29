@@ -1,32 +1,24 @@
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type { FlightDataPath } from '../../../server/app-render/types'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 import type { PrefetchCacheEntry } from './router-reducer-types'
-import {
-  getFlightDataPartsFromPath,
-  isRootFlightDataPath,
-} from '../../flight-data-helpers'
+import type { NormalizedFlightData } from '../../flight-data-helpers'
 
 export function applyFlightData(
   existingCache: CacheNode,
   cache: CacheNode,
-  flightDataPath: FlightDataPath,
+  flightData: NormalizedFlightData,
   prefetchEntry?: PrefetchCacheEntry
 ): boolean {
   // The one before last item is the router state tree patch
-  const {
-    tree: treePatch,
-    seedData,
-    head,
-  } = getFlightDataPartsFromPath(flightDataPath)
+  const { tree: treePatch, seedData, head, isRootRender } = flightData
 
   // Handles case where prefetch only returns the router tree patch without rendered components.
   if (seedData === null) {
     return false
   }
 
-  if (isRootFlightDataPath(flightDataPath)) {
+  if (isRootRender) {
     const rsc = seedData[1]
     const loading = seedData[3]
     cache.loading = loading
@@ -55,12 +47,7 @@ export function applyFlightData(
     cache.parallelRoutes = new Map(existingCache.parallelRoutes)
     cache.loading = existingCache.loading
     // Create a copy of the existing cache with the rsc applied.
-    fillCacheWithNewSubTreeData(
-      cache,
-      existingCache,
-      flightDataPath,
-      prefetchEntry
-    )
+    fillCacheWithNewSubTreeData(cache, existingCache, flightData, prefetchEntry)
   }
 
   return true

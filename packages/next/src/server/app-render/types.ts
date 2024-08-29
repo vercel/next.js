@@ -240,15 +240,7 @@ export type ActionFlightResponse = {
   /** buildId */
   b: string
   /** flightData */
-  f: FlightData | null
-}
-
-export type FetchServerResponseResult = {
-  flightData: FlightData
-  canonicalUrl: URL | undefined
-  couldBeIntercepted: boolean
-  isPrerender: boolean
-  postponed: boolean
+  f: FlightData
 }
 
 export type RSCPayload =

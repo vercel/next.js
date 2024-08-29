@@ -31,10 +31,6 @@ import {
 } from '../prefetch-cache-utils'
 import { clearCacheNodeDataForSegmentPath } from '../clear-cache-node-data-for-segment-path'
 import { fillCacheWithNewSubTreeDataButOnlyLoading } from '../fill-cache-with-new-subtree-data'
-import {
-  getFlightDataPartsFromPath,
-  isRootFlightDataPath,
-} from '../../../flight-data-helpers'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -171,13 +167,14 @@ export function navigateReducer(
       let currentTree = state.tree
       let currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
-      for (const flightDataPath of flightData) {
+      for (const normalizedFlightData of flightData) {
         const {
           tree: treePatch,
           pathToSegment: flightSegmentPath,
           seedData,
           head,
-        } = getFlightDataPartsFromPath(flightDataPath)
+          isRootRender,
+        } = normalizedFlightData
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
@@ -217,7 +214,7 @@ export function navigateReducer(
             // via updateCacheNodeOnNavigation. The current structure is just
             // an incremental step.
             seedData &&
-            isRootFlightDataPath(flightDataPath) &&
+            isRootRender &&
             !prefetchValues.aliased &&
             postponed
           ) {
@@ -295,8 +292,7 @@ export function navigateReducer(
             // The prefetch cache entry was aliased -- this signals that we only fill in the cache with the
             // loading state and not the actual parallel route seed data.
             if (prefetchValues.aliased && seedData) {
-              // Root render
-              if (isRootFlightDataPath(flightDataPath)) {
+              if (isRootRender) {
                 // Fill in the cache with the new loading / rsc data
                 const rsc = seedData[1]
                 const loading = seedData[3]
@@ -313,7 +309,7 @@ export function navigateReducer(
                 fillCacheWithNewSubTreeDataButOnlyLoading(
                   cache,
                   currentCache,
-                  flightDataPath,
+                  normalizedFlightData,
                   prefetchValues
                 )
               }
@@ -343,7 +339,7 @@ export function navigateReducer(
               applied = applyFlightData(
                 currentCache,
                 cache,
-                flightDataPath,
+                normalizedFlightData,
                 prefetchValues
               )
             }
