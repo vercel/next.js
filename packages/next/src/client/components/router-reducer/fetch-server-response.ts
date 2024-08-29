@@ -14,7 +14,6 @@ const { createFromFetch } = (
 import type {
   FlightRouterState,
   NavigationFlightResponse,
-  FetchServerResponseResult,
 } from '../../../server/app-render/types'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -30,6 +29,10 @@ import {
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
+import {
+  normalizeFlightData,
+  type NormalizedFlightData,
+} from '../../flight-data-helpers'
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
@@ -37,6 +40,14 @@ export interface FetchServerResponseOptions {
   readonly buildId: string
   readonly prefetchKind?: PrefetchKind
   readonly isHmrRefresh?: boolean
+}
+
+export type FetchServerResponseResult = {
+  flightData: NormalizedFlightData[] | string
+  canonicalUrl: URL | undefined
+  couldBeIntercepted: boolean
+  isPrerender: boolean
+  postponed: boolean
 }
 
 function urlToUrlWithoutFlightMarker(url: string): URL {
@@ -209,7 +220,7 @@ export async function fetchServerResponse(
     }
 
     return {
-      flightData: response.f,
+      flightData: normalizeFlightData(response.f),
       canonicalUrl: canonicalUrl,
       couldBeIntercepted: interception,
       isPrerender: isPrerender,

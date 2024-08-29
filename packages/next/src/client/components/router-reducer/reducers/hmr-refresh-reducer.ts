@@ -15,10 +15,6 @@ import type { CacheNode } from '../../../../shared/lib/app-router-context.shared
 import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
-import {
-  getFlightDataPartsFromPath,
-  isRootFlightDataPath,
-} from '../../../flight-data-helpers'
 
 // A version of refresh reducer that keeps the cache around instead of wiping all of it.
 function hmrRefreshReducerImpl(
@@ -63,14 +59,13 @@ function hmrRefreshReducerImpl(
       let currentTree = state.tree
       let currentCache = state.cache
 
-      for (const flightDataPath of flightData) {
-        if (!isRootFlightDataPath(flightDataPath)) {
+      for (const normalizedFlightData of flightData) {
+        const { tree: treePatch, isRootRender } = normalizedFlightData
+        if (!isRootRender) {
           // TODO-APP: handle this case better
           console.log('REFRESH FAILED')
           return state
         }
-
-        const { tree: treePatch } = getFlightDataPartsFromPath(flightDataPath)
 
         const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
@@ -100,7 +95,11 @@ function hmrRefreshReducerImpl(
         if (canonicalUrlOverride) {
           mutable.canonicalUrl = canonicalUrlOverrideHref
         }
-        const applied = applyFlightData(currentCache, cache, flightDataPath)
+        const applied = applyFlightData(
+          currentCache,
+          cache,
+          normalizedFlightData
+        )
 
         if (applied) {
           mutable.cache = cache

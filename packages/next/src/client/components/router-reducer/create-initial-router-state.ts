@@ -32,11 +32,12 @@ export function createInitialRouterState({
   // This is to ensure that when the RSC payload streamed to the client, crawlers don't interpret it
   // as a URL that should be crawled.
   const initialCanonicalUrl = initialCanonicalUrlParts.join('/')
+  const normalizedFlightData = getFlightDataPartsFromPath(initialFlightData[0])
   const {
     tree: initialTree,
     seedData: initialSeedData,
     head: initialHead,
-  } = getFlightDataPartsFromPath(initialFlightData[0])
+  } = normalizedFlightData
   const isServer = !location
   // For the SSR render, seed data should always be available (we only send back a `null` response
   // in the case of a `loading` segment, pre-PPR.)
@@ -114,7 +115,7 @@ export function createInitialRouterState({
     createPrefetchCacheEntryForInitialLoad({
       url,
       data: {
-        flightData: initialFlightData,
+        flightData: [normalizedFlightData],
         canonicalUrl: undefined,
         couldBeIntercepted: !!couldBeIntercepted,
         // TODO: the server should probably send a value for this. Default to false for now.

@@ -13,7 +13,6 @@ import { handleMutable } from '../handle-mutable'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
-import { getFlightDataPartsFromPath } from '../../../flight-data-helpers'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
@@ -40,9 +39,9 @@ export function serverPatchReducer(
   let currentTree = state.tree
   let currentCache = state.cache
 
-  for (const flightDataPath of flightData) {
+  for (const normalizedFlightData of flightData) {
     const { segmentPath: flightSegmentPath, tree: treePatch } =
-      getFlightDataPartsFromPath(flightDataPath)
+      normalizedFlightData
 
     const newTree = applyRouterStatePatchToTree(
       // TODO-APP: remove ''
@@ -74,7 +73,7 @@ export function serverPatchReducer(
     }
 
     const cache: CacheNode = createEmptyCacheNode()
-    applyFlightData(currentCache, cache, flightDataPath)
+    applyFlightData(currentCache, cache, normalizedFlightData)
 
     mutable.patchedTree = newTree
     mutable.cache = cache
