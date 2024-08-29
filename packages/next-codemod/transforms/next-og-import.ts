@@ -2,7 +2,11 @@ import type { API, FileInfo, Options } from 'jscodeshift'
 
 const importToChange = 'ImageResponse'
 
-export default function transformer(file: FileInfo, api: API, options: Options) {
+export default function transformer(
+  file: FileInfo,
+  api: API,
+  options: Options
+) {
   const j = api.jscodeshift
 
   // Find import declarations that match the pattern

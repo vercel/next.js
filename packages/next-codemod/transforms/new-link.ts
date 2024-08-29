@@ -1,6 +1,10 @@
 import type { API, FileInfo, Options } from 'jscodeshift'
 
-export default function transformer(file: FileInfo, api: API, options: Options) {
+export default function transformer(
+  file: FileInfo,
+  api: API,
+  options: Options
+) {
   const j = api.jscodeshift.withParser('tsx')
 
   const $j = j(file.source)
