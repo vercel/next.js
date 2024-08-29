@@ -1,12 +1,13 @@
 import type {
   CacheNodeSeedData,
+  FlightData,
   FlightDataPath,
   FlightRouterState,
   FlightSegmentPath,
   Segment,
 } from '../server/app-render/types'
 
-export function getFlightDataPartsFromPath(flightDataPath: FlightDataPath): {
+export type NormalizedFlightData = {
   /**
    * The full `FlightSegmentPath` inclusive of the final `Segment`
    */
@@ -19,7 +20,16 @@ export function getFlightDataPartsFromPath(flightDataPath: FlightDataPath): {
   tree: FlightRouterState
   seedData: CacheNodeSeedData | null
   head: React.ReactNode | null
-} {
+  isRootRender: boolean
+}
+
+// TODO: We should only have to export `normalizeFlightData`, however because the initial flight data
+// that gets passed to `createInitialRouterState` doesn't conform to the `FlightDataPath` type (it's missing the root segment)
+// we're currently exporting it so we can use it directly. This should be fixed as part of the unification of
+// the different ways we express `FlightSegmentPath`.
+export function getFlightDataPartsFromPath(
+  flightDataPath: FlightDataPath
+): NormalizedFlightData {
   // tree, seedData, and head are *always* the last three items in the `FlightDataPath`.
   const [tree, seedData, head] = flightDataPath.slice(-3)
   // The `FlightSegmentPath` is everything except the last three items. For a root render, it won't be present.
@@ -37,17 +47,8 @@ export function getFlightDataPartsFromPath(flightDataPath: FlightDataPath): {
     tree,
     seedData,
     head,
+    isRootRender: flightDataPath.length === 3,
   }
-}
-
-export function isRootFlightDataPath(flightDataPath: FlightDataPath): boolean {
-  return flightDataPath.length === 3
-}
-
-export function isLastFlightDataPathEntry(
-  flightDataPath: FlightDataPath
-): boolean {
-  return flightDataPath.length === 5
 }
 
 export function getNextFlightSegmentPath(
@@ -56,4 +57,16 @@ export function getNextFlightSegmentPath(
   // Since `FlightSegmentPath` is a repeated tuple of `Segment` and `ParallelRouteKey`, we slice off two items
   // to get the next segment path.
   return flightSegmentPath.slice(2)
+}
+
+export function normalizeFlightData(
+  flightData: FlightData
+): NormalizedFlightData[] | string {
+  // FlightData can be a string when the server didn't respond with a proper flight response,
+  // or when a redirect happens, to signal to the client that it needs to perform an MPA navigation.
+  if (typeof flightData === 'string') {
+    return flightData
+  }
+
+  return flightData.map(getFlightDataPartsFromPath)
 }

@@ -16,10 +16,6 @@ import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
-import {
-  getFlightDataPartsFromPath,
-  isRootFlightDataPath,
-} from '../../../flight-data-helpers'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -67,18 +63,19 @@ export function refreshReducer(
       // Remove cache.lazyData as it has been resolved at this point.
       cache.lazyData = null
 
-      for (const flightDataPath of flightData) {
-        if (!isRootFlightDataPath(flightDataPath)) {
-          // TODO-APP: handle this case better
-          console.log('REFRESH FAILED')
-          return state
-        }
-
+      for (const normalizedFlightData of flightData) {
         const {
           tree: treePatch,
           seedData: cacheNodeSeedData,
           head,
-        } = getFlightDataPartsFromPath(flightDataPath)
+          isRootRender,
+        } = normalizedFlightData
+
+        if (!isRootRender) {
+          // TODO-APP: handle this case better
+          console.log('REFRESH FAILED')
+          return state
+        }
 
         const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''

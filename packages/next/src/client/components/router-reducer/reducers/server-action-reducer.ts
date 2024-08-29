@@ -1,7 +1,6 @@
 import type {
   ActionFlightResponse,
   ActionResult,
-  FlightData,
 } from '../../../../server/app-render/types'
 import { callServer } from '../../../app-call-server'
 import {
@@ -41,14 +40,14 @@ import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-c
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
 import {
-  getFlightDataPartsFromPath,
-  isRootFlightDataPath,
+  normalizeFlightData,
+  type NormalizedFlightData,
 } from '../../../flight-data-helpers'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
   actionResult?: ActionResult
-  actionFlightData?: FlightData | undefined | null
+  actionFlightData?: NormalizedFlightData[] | string
   revalidatedParts: {
     tag: boolean
     cookie: boolean
@@ -125,7 +124,7 @@ async function fetchServerAction(
     if (location) {
       // if it was a redirection, then result is just a regular RSC payload
       return {
-        actionFlightData: response.f,
+        actionFlightData: normalizeFlightData(response.f),
         redirectLocation,
         revalidatedParts,
       }
@@ -133,7 +132,7 @@ async function fetchServerAction(
 
     return {
       actionResult: response.a,
-      actionFlightData: response.f,
+      actionFlightData: normalizeFlightData(response.f),
       redirectLocation,
       revalidatedParts,
     }
@@ -225,18 +224,19 @@ export function serverActionReducer(
         mutable.canonicalUrl = newHref
       }
 
-      for (const flightDataPath of flightData) {
-        if (!isRootFlightDataPath(flightDataPath)) {
-          // TODO-APP: handle this case better
-          console.log('SERVER ACTION APPLY FAILED')
-          return state
-        }
-
+      for (const normalizedFlightData of flightData) {
         const {
           tree: treePatch,
           seedData: cacheNodeSeedData,
           head,
-        } = getFlightDataPartsFromPath(flightDataPath)
+          isRootRender,
+        } = normalizedFlightData
+
+        if (!isRootRender) {
+          // TODO-APP: handle this case better
+          console.log('SERVER ACTION APPLY FAILED')
+          return state
+        }
 
         // Given the path can only have two items the items are only the router state and rsc for the root.
         const newTree = applyRouterStatePatchToTree(

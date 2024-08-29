@@ -1,4 +1,7 @@
-import { fetchServerResponse } from './fetch-server-response'
+import {
+  fetchServerResponse,
+  type FetchServerResponseResult,
+} from './fetch-server-response'
 import {
   PrefetchCacheEntryStatus,
   type PrefetchCacheEntry,
@@ -6,7 +9,6 @@ import {
   type ReadonlyReducerState,
 } from './router-reducer-types'
 import { prefetchQueue } from './reducers/prefetch-reducer'
-import type { FetchServerResponseResult } from '../../../server/app-render/types'
 
 const INTERCEPTION_CACHE_KEY_MARKER = '%'
 

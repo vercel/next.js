@@ -3,7 +3,6 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   Segment,
-  FetchServerResponseResult,
 } from '../../../server/app-render/types'
 import type {
   CacheNode,
@@ -14,9 +13,9 @@ import {
   DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
-import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 import { matchSegment } from '../match-segments'
 import { createRouterCacheKey } from './create-router-cache-key'
+import type { FetchServerResponseResult } from './fetch-server-response'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -355,8 +354,8 @@ export function listenForDynamicRequest(
 ) {
   responsePromise.then(
     ({ flightData }: FetchServerResponseResult) => {
-      for (const flightDataPath of flightData) {
-        if (typeof flightDataPath === 'string') {
+      for (const normalizedFlightData of flightData) {
+        if (typeof normalizedFlightData === 'string') {
           // Happens when navigating to page in `pages` from `app`. We shouldn't
           // get here because should have already handled this during
           // the prefetch.
@@ -368,7 +367,7 @@ export function listenForDynamicRequest(
           tree: serverRouterState,
           seedData: dynamicData,
           head: dynamicHead,
-        } = getFlightDataPartsFromPath(flightDataPath)
+        } = normalizedFlightData
 
         if (!dynamicData) {
           // This shouldn't happen. PPR should always send back a response.
