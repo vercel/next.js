@@ -223,8 +223,9 @@ const addDynamicCSSToBuildManifest = ({
         if (!pagePath) continue
 
         const assetMapPages = assetMap.pages[pagePath]
-        // We expect the target page to already be present in the manifest,
-        // as it should have been added earlier from the `compilation.entrypoints`.
+        // As we run this function `addDynamicCSSToBuildManifest`
+        // after the entrypoint files are added to the manifest,
+        // `assetMapPages` should already exist.
         if (!assetMapPages) continue
 
         assetMap.pages[pagePath] = [
