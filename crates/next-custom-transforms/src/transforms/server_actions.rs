@@ -46,6 +46,7 @@ pub fn server_actions<C: Comments>(
         file_name: file_name.to_string(),
         start_pos: BytePos(0),
         in_action_file: false,
+        in_cache_file: false,
         in_export_decl: false,
         in_default_export_decl: false,
         in_callee: false,
@@ -88,6 +89,7 @@ struct ServerActions<C: Comments> {
 
     start_pos: BytePos,
     in_action_file: bool,
+    in_cache_file: bool,
     in_export_decl: bool,
     in_default_export_decl: bool,
     in_callee: bool,
@@ -115,24 +117,24 @@ struct ServerActions<C: Comments> {
 
 impl<C: Comments> ServerActions<C> {
     // Check if the function or arrow function is an action function
-    fn get_action_info(
-        &mut self,
-        maybe_body: Option<&mut BlockStmt>,
-        remove_directive: bool,
-    ) -> bool {
+    fn get_action_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> (bool, bool) {
         let mut is_action_fn = false;
+        let mut is_cache_fn = false;
 
         if self.in_action_file && self.in_export_decl {
             // All export functions in a server file are actions
             is_action_fn = true;
+        } else if self.in_cache_file && self.in_export_decl {
+            // All export functions in a cache file are cache functions
+            is_cache_fn = true;
         } else {
             // Check if the function has `"use server"`
             if let Some(body) = maybe_body {
                 let mut action_span = None;
                 remove_server_directive_index_in_fn(
                     &mut body.stmts,
-                    remove_directive,
                     &mut is_action_fn,
+                    &mut is_cache_fn,
                     &mut action_span,
                     self.config.enabled,
                 );
@@ -150,10 +152,268 @@ impl<C: Comments> ServerActions<C> {
             }
         }
 
-        is_action_fn
+        (is_action_fn, is_cache_fn)
     }
 
     fn maybe_hoist_and_create_proxy(
+        &mut self,
+        ids_from_closure: Vec<Name>,
+        function: Option<&mut Box<Function>>,
+        arrow: Option<&mut ArrowExpr>,
+    ) -> Option<Box<Expr>> {
+        let action_name: JsWord = gen_ident(&mut self.reference_index);
+        let action_ident = private_ident!(action_name.clone());
+        let export_name: JsWord = action_name;
+
+        self.has_action = true;
+        self.export_actions.push(export_name.to_string());
+
+        if let Some(a) = arrow {
+            let register_action_expr = annotate_ident_as_action(
+                action_ident.clone(),
+                ids_from_closure
+                    .iter()
+                    .cloned()
+                    .map(|id| Some(id.as_arg()))
+                    .collect(),
+                generate_action_id(
+                    &self.config.hash_salt,
+                    &self.file_name,
+                    export_name.to_string().as_str(),
+                ),
+            );
+
+            if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
+                block.visit_mut_with(&mut ClosureReplacer {
+                    used_ids: &ids_from_closure,
+                });
+            }
+
+            // export const $ACTION_myAction = async () => {}
+            let mut new_params: Vec<Param> = vec![];
+            let mut new_body: BlockStmtOrExpr = *a.body.clone();
+
+            if !ids_from_closure.is_empty() {
+                // First argument is the encrypted closure variables
+                new_params.push(Param {
+                    span: DUMMY_SP,
+                    decorators: vec![],
+                    pat: Pat::Ident(
+                        IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into(),
+                    ),
+                });
+
+                // Also prepend the decryption decl into the body.
+                // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
+                // $$ACTION_CLOSURE_BOUND)
+                let mut pats = vec![];
+                for i in 0..ids_from_closure.len() {
+                    pats.push(Some(Pat::Ident(
+                        IdentName::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
+                    )));
+                }
+                let decryption_decl = VarDecl {
+                    span: DUMMY_SP,
+                    kind: VarDeclKind::Var,
+                    declare: false,
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP,
+                        name: Pat::Array(ArrayPat {
+                            span: DUMMY_SP,
+                            elems: pats,
+                            optional: false,
+                            type_ann: None,
+                        }),
+                        init: Some(Box::new(Expr::Await(AwaitExpr {
+                            span: DUMMY_SP,
+                            arg: Box::new(Expr::Call(CallExpr {
+                                span: DUMMY_SP,
+                                callee: quote_ident!("decryptActionBoundArgs").as_callee(),
+                                args: vec![
+                                    generate_action_id(
+                                        &self.config.hash_salt,
+                                        &self.file_name,
+                                        &export_name,
+                                    )
+                                    .as_arg(),
+                                    quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
+                                ],
+                                ..Default::default()
+                            })),
+                        }))),
+                        definite: Default::default(),
+                    }],
+                    ..Default::default()
+                };
+
+                match &mut new_body {
+                    BlockStmtOrExpr::BlockStmt(body) => {
+                        body.stmts.insert(0, decryption_decl.into());
+                    }
+                    BlockStmtOrExpr::Expr(body_expr) => {
+                        new_body = BlockStmtOrExpr::BlockStmt(BlockStmt {
+                            span: DUMMY_SP,
+                            stmts: vec![
+                                decryption_decl.into(),
+                                Stmt::Return(ReturnStmt {
+                                    span: DUMMY_SP,
+                                    arg: Some(body_expr.take()),
+                                }),
+                            ],
+                            ..Default::default()
+                        });
+                    }
+                }
+            }
+
+            for p in a.params.iter() {
+                new_params.push(Param {
+                    span: DUMMY_SP,
+                    decorators: vec![],
+                    pat: p.clone(),
+                });
+            }
+
+            // Create the action export decl from the arrow function
+            self.extra_items
+                .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                    span: DUMMY_SP,
+                    decl: FnDecl {
+                        ident: action_ident.clone(),
+                        function: Box::new(Function {
+                            params: new_params,
+                            body: match new_body {
+                                BlockStmtOrExpr::BlockStmt(body) => Some(body),
+                                BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+                                    span: DUMMY_SP,
+                                    stmts: vec![Stmt::Return(ReturnStmt {
+                                        span: DUMMY_SP,
+                                        arg: Some(expr),
+                                    })],
+                                    ..Default::default()
+                                }),
+                            },
+                            decorators: vec![],
+                            span: DUMMY_SP,
+                            is_generator: false,
+                            is_async: true,
+                            ..Default::default()
+                        }),
+                        declare: Default::default(),
+                    }
+                    .into(),
+                })));
+
+            return Some(Box::new(register_action_expr.clone()));
+        } else if let Some(f) = function {
+            let register_action_expr = annotate_ident_as_action(
+                action_ident.clone(),
+                ids_from_closure
+                    .iter()
+                    .cloned()
+                    .map(|id| Some(id.as_arg()))
+                    .collect(),
+                generate_action_id(&self.config.hash_salt, &self.file_name, &export_name),
+            );
+
+            f.body.visit_mut_with(&mut ClosureReplacer {
+                used_ids: &ids_from_closure,
+            });
+
+            // export async function $ACTION_myAction () {}
+            let mut new_params: Vec<Param> = vec![];
+            let mut new_body: Option<BlockStmt> = f.body.clone();
+
+            // add params from closure collected ids
+            if !ids_from_closure.is_empty() {
+                // First argument is the encrypted closure variables
+                new_params.push(Param {
+                    span: DUMMY_SP,
+                    decorators: vec![],
+                    pat: Pat::Ident(
+                        IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into(),
+                    ),
+                });
+
+                // Also prepend the decryption decl into the body.
+                // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
+                // $$ACTION_CLOSURE_BOUND)
+                let mut pats = vec![];
+                for i in 0..ids_from_closure.len() {
+                    pats.push(Some(Pat::Ident(
+                        IdentName::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
+                    )));
+                }
+                let decryption_decl = VarDecl {
+                    span: DUMMY_SP,
+                    kind: VarDeclKind::Var,
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP,
+                        name: Pat::Array(ArrayPat {
+                            span: DUMMY_SP,
+                            elems: pats,
+                            optional: false,
+                            type_ann: None,
+                        }),
+                        init: Some(Box::new(Expr::Await(AwaitExpr {
+                            span: DUMMY_SP,
+                            arg: Box::new(Expr::Call(CallExpr {
+                                span: DUMMY_SP,
+                                callee: quote_ident!("decryptActionBoundArgs").as_callee(),
+                                args: vec![
+                                    generate_action_id(
+                                        &self.config.hash_salt,
+                                        &self.file_name,
+                                        &export_name,
+                                    )
+                                    .as_arg(),
+                                    quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
+                                ],
+                                ..Default::default()
+                            })),
+                        }))),
+                        definite: Default::default(),
+                    }],
+                    ..Default::default()
+                };
+
+                if let Some(body) = &mut new_body {
+                    body.stmts.insert(0, decryption_decl.into());
+                } else {
+                    new_body = Some(BlockStmt {
+                        span: DUMMY_SP,
+                        stmts: vec![decryption_decl.into()],
+                        ..Default::default()
+                    });
+                }
+            }
+
+            for p in f.params.iter() {
+                new_params.push(p.clone());
+            }
+
+            self.extra_items
+                .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                    span: DUMMY_SP,
+                    decl: FnDecl {
+                        ident: action_ident.clone(),
+                        function: Box::new(Function {
+                            params: new_params,
+                            body: new_body,
+                            ..*f.take()
+                        }),
+                        declare: Default::default(),
+                    }
+                    .into(),
+                })));
+
+            return Some(Box::new(register_action_expr));
+        }
+
+        None
+    }
+
+    fn maybe_hoist_and_create_proxy_to_cache(
         &mut self,
         ids_from_closure: Vec<Name>,
         function: Option<&mut Box<Function>>,
@@ -442,7 +702,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
-        let is_action_fn = self.get_action_info(f.function.body.as_mut(), true);
+        let (is_action_fn, _) = self.get_action_info(f.function.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -530,7 +790,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
-        let is_action_fn = self.get_action_info(f.function.body.as_mut(), true);
+        let (is_action_fn, is_cache_fn) = self.get_action_info(f.function.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -561,28 +821,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if !is_action_fn {
-            return;
-        }
+        if is_cache_fn {
+            if !f.function.is_async {
+                HANDLER.with(|handler| {
+                    handler
+                        .struct_span_err(f.ident.span, "Cache functions must be async functions")
+                        .emit();
+                });
+            }
 
-        if !f.function.is_async {
-            HANDLER.with(|handler| {
-                handler
-                    .struct_span_err(f.ident.span, "Server actions must be async functions")
-                    .emit();
-            });
-        }
-
-        if !(self.in_action_file && self.in_export_decl) {
-            // Collect all the identifiers defined inside the closure and used
-            // in the action function. With deduplication.
-            retain_names_from_declared_idents(
-                &mut child_names,
-                &self.declared_idents[..declared_idents_until],
+            let maybe_new_expr = self.maybe_hoist_and_create_proxy_to_cache(
+                [].to_vec(),
+                Some(&mut f.function),
+                None,
             );
-
-            let maybe_new_expr =
-                self.maybe_hoist_and_create_proxy(child_names, Some(&mut f.function), None);
 
             // Replace the original function declaration with a action proxy declaration
             // expr.
@@ -597,6 +849,44 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 }],
                 ..Default::default()
             });
+
+            return;
+        }
+
+        if is_action_fn {
+            if !f.function.is_async {
+                HANDLER.with(|handler| {
+                    handler
+                        .struct_span_err(f.ident.span, "Server actions must be async functions")
+                        .emit();
+                });
+            }
+
+            if !(self.in_action_file && self.in_export_decl) {
+                // Collect all the identifiers defined inside the closure and used
+                // in the action function. With deduplication.
+                retain_names_from_declared_idents(
+                    &mut child_names,
+                    &self.declared_idents[..declared_idents_until],
+                );
+
+                let maybe_new_expr =
+                    self.maybe_hoist_and_create_proxy(child_names, Some(&mut f.function), None);
+
+                // Replace the original function declaration with a action proxy declaration
+                // expr.
+                self.rewrite_fn_decl_to_proxy_decl = Some(VarDecl {
+                    span: DUMMY_SP,
+                    kind: VarDeclKind::Var,
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP,
+                        name: Pat::Ident(f.ident.clone().into()),
+                        init: maybe_new_expr,
+                        definite: false,
+                    }],
+                    ..Default::default()
+                });
+            }
         }
     }
 
@@ -623,14 +913,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_arrow_expr(&mut self, a: &mut ArrowExpr) {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
-        let is_action_fn = self.get_action_info(
-            if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
+        let (is_action_fn, _) =
+            self.get_action_info(if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
                 Some(block)
             } else {
                 None
-            },
-            true,
-        );
+            });
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -1543,8 +1831,8 @@ fn remove_server_directive_index_in_module(
 
 fn remove_server_directive_index_in_fn(
     stmts: &mut Vec<Stmt>,
-    remove_directive: bool,
     is_action_fn: &mut bool,
+    is_cache_fn: &mut bool,
     action_span: &mut Option<Span>,
     enabled: bool,
 ) {
@@ -1571,9 +1859,7 @@ fn remove_server_directive_index_in_fn(
                                 .emit()
                         });
                     }
-                    if remove_directive {
-                        return false;
-                    }
+                    return false;
                 } else {
                     HANDLER.with(|handler| {
                         handler
@@ -1585,9 +1871,8 @@ fn remove_server_directive_index_in_fn(
                             .emit();
                     });
                 }
-            } else {
-                // Detect typo of "use server"
-                if detect_similar_strings(value, "use server") {
+            } else if detect_similar_strings(value, "use server") {
+                    // Detect typo of "use server"
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(
@@ -1600,7 +1885,36 @@ fn remove_server_directive_index_in_fn(
                             )
                             .emit();
                     });
+            } else if value == "use cache" {
+                if is_directive {
+                    // Detect typo of "use server"
+                    *is_cache_fn = true;
+                    return false;
+                } else {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                *span,
+                                "The \"use cache\" directive must be at the top of the function \
+                                 body.",
+                            )
+                            .emit();
+                    });
                 }
+            } else if detect_similar_strings(value, "use cache") {
+                // Detect typo of "use cache"
+                HANDLER.with(|handler| {
+                    handler
+                        .struct_span_err(
+                            *span,
+                            format!(
+                                "Did you mean \"use cache\"? \"{value}\" is not a supported \
+                                 directive name."
+                            )
+                            .as_str(),
+                        )
+                        .emit();
+                });
             }
         } else {
             is_directive = false;

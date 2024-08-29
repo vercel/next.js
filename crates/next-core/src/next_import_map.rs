@@ -912,6 +912,13 @@ async fn insert_next_shared_aliases(
         "private-next-rsc-action-encryption",
         request_to_import_mapping(project_path, "next/dist/server/app-render/encryption"),
     );
+    import_map.insert_exact_alias(
+        "private-next-rsc-cache-wrapper",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/build/webpack/loaders/next-flight-loader/cache-wrapper",
+        ),
+    );
 
     insert_turbopack_dev_alias(import_map);
     insert_package_alias(
