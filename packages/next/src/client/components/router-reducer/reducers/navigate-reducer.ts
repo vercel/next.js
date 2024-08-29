@@ -31,6 +31,10 @@ import {
 } from '../prefetch-cache-utils'
 import { clearCacheNodeDataForSegmentPath } from '../clear-cache-node-data-for-segment-path'
 import { fillCacheWithNewSubTreeDataButOnlyLoading } from '../fill-cache-with-new-subtree-data'
+import {
+  getFlightDataPartsFromPath,
+  isRootFlightDataPath,
+} from '../../../flight-data-helpers'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -168,12 +172,12 @@ export function navigateReducer(
       let currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
       for (const flightDataPath of flightData) {
-        const flightSegmentPath = flightDataPath.slice(
-          0,
-          -4
-        ) as unknown as FlightSegmentPath
-        // The one before last item is the router state tree patch
-        const treePatch = flightDataPath.slice(-3)[0] as FlightRouterState
+        const {
+          tree: treePatch,
+          pathToSegment: flightSegmentPath,
+          seedData,
+          head,
+        } = getFlightDataPartsFromPath(flightDataPath)
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
@@ -212,18 +216,15 @@ export function navigateReducer(
             // TODO: We should get rid of the else branch and do all navigations
             // via updateCacheNodeOnNavigation. The current structure is just
             // an incremental step.
-            flightDataPath.length === 3 &&
+            seedData &&
+            isRootFlightDataPath(flightDataPath) &&
             !prefetchValues.aliased &&
             postponed
           ) {
-            const prefetchedTree: FlightRouterState = flightDataPath[0]
-            const seedData = flightDataPath[1]
-            const head = flightDataPath[2]
-
             const task = updateCacheNodeOnNavigation(
               currentCache,
               currentTree,
-              prefetchedTree,
+              treePatch,
               seedData,
               head,
               mutable.onlyHashChange
@@ -278,7 +279,7 @@ export function navigateReducer(
               // TODO: What if the head changed but not any of the segment data?
               // Is that possible? If so, we should clone the whole tree and
               // update the head.
-              newTree = prefetchedTree
+              newTree = treePatch
             }
           } else {
             // The static response does not include any dynamic holes, so
@@ -293,13 +294,12 @@ export function navigateReducer(
 
             // The prefetch cache entry was aliased -- this signals that we only fill in the cache with the
             // loading state and not the actual parallel route seed data.
-            if (prefetchValues.aliased) {
+            if (prefetchValues.aliased && seedData) {
               // Root render
-              if (flightDataPath.length === 3) {
+              if (isRootFlightDataPath(flightDataPath)) {
                 // Fill in the cache with the new loading / rsc data
-                const cacheNodeSeedData = flightDataPath[1]
-                const rsc = cacheNodeSeedData[1]
-                const loading = cacheNodeSeedData[3]
+                const rsc = seedData[1]
+                const loading = seedData[3]
                 cache.loading = loading
                 cache.rsc = rsc
               } else {

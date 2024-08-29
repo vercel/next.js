@@ -14,6 +14,7 @@ import {
   DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
+import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 import { matchSegment } from '../match-segments'
 import { createRouterCacheKey } from './create-router-cache-key'
 
@@ -355,15 +356,24 @@ export function listenForDynamicRequest(
   responsePromise.then(
     ({ flightData }: FetchServerResponseResult) => {
       for (const flightDataPath of flightData) {
-        const segmentPath = flightDataPath.slice(0, -3)
-        const serverRouterState = flightDataPath[flightDataPath.length - 3]
-        const dynamicData = flightDataPath[flightDataPath.length - 2]
-        const dynamicHead = flightDataPath[flightDataPath.length - 1]
-
-        if (typeof segmentPath === 'string') {
+        if (typeof flightDataPath === 'string') {
           // Happens when navigating to page in `pages` from `app`. We shouldn't
           // get here because should have already handled this during
           // the prefetch.
+          continue
+        }
+
+        const {
+          segmentPath,
+          tree: serverRouterState,
+          seedData: dynamicData,
+          head: dynamicHead,
+        } = getFlightDataPartsFromPath(flightDataPath)
+
+        if (!dynamicData) {
+          // This shouldn't happen. PPR should always send back a response.
+          // However, `FlightDataPath` is a shared type and the pre-PPR handling of
+          // this might return null.
           continue
         }
 

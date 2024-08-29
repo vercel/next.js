@@ -1,5 +1,6 @@
 import type {
   FlightDataPath,
+  FlightDataSegment,
   FlightRouterState,
   FlightSegmentPath,
   PreloadCallbacks,
@@ -135,7 +136,14 @@ export async function walkTreeWithFlightRouterState({
 
     if (shouldSkipComponentTree) {
       // Send only the router state
-      return [[overriddenSegment, routerState, null, null]]
+      return [
+        [
+          overriddenSegment,
+          routerState,
+          null,
+          null,
+        ] satisfies FlightDataSegment,
+      ]
     } else {
       // Create component tree using the slice of the loaderTree
       const seedData = await createComponentTree(
@@ -156,7 +164,14 @@ export async function walkTreeWithFlightRouterState({
         }
       )
 
-      return [[overriddenSegment, routerState, seedData, rscPayloadHead]]
+      return [
+        [
+          overriddenSegment,
+          routerState,
+          seedData,
+          rscPayloadHead,
+        ] satisfies FlightDataSegment,
+      ]
     }
   }
 

@@ -16,6 +16,10 @@ import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
+import {
+  getFlightDataPartsFromPath,
+  isRootFlightDataPath,
+} from '../../../flight-data-helpers'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -64,15 +68,18 @@ export function refreshReducer(
       cache.lazyData = null
 
       for (const flightDataPath of flightData) {
-        // FlightDataPath with more than two items means unexpected Flight data was returned
-        if (flightDataPath.length !== 3) {
+        if (!isRootFlightDataPath(flightDataPath)) {
           // TODO-APP: handle this case better
           console.log('REFRESH FAILED')
           return state
         }
 
-        // Given the path can only have two items the items are only the router state and rsc for the root.
-        const [treePatch] = flightDataPath
+        const {
+          tree: treePatch,
+          seedData: cacheNodeSeedData,
+          head,
+        } = getFlightDataPartsFromPath(flightDataPath)
+
         const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           [''],
@@ -101,9 +108,6 @@ export function refreshReducer(
         if (canonicalUrlOverride) {
           mutable.canonicalUrl = canonicalUrlOverrideHref
         }
-
-        // The one before last item is the router state tree patch
-        const [cacheNodeSeedData, head] = flightDataPath.slice(-2)
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (cacheNodeSeedData !== null) {

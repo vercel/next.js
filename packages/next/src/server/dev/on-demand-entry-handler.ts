@@ -4,6 +4,7 @@ import type { NextConfigComplete } from '../config-shared'
 import type {
   DynamicParamTypesShort,
   FlightRouterState,
+  FlightSegmentPath,
 } from '../app-render/types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
@@ -43,6 +44,7 @@ import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_TYPES } from '../../lib/page-types'
+import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -54,7 +56,7 @@ const keys = Object.keys as <T>(o: T) => Extract<keyof T, string>[]
 const COMPILER_KEYS = keys(COMPILER_INDEXES)
 
 function treePathToEntrypoint(
-  segmentPath: string[],
+  segmentPath: FlightSegmentPath,
   parentPath?: string
 ): string {
   const [parallelRouteKey, segment] = segmentPath
@@ -72,7 +74,7 @@ function treePathToEntrypoint(
     return path
   }
 
-  const childSegmentPath = segmentPath.slice(2)
+  const childSegmentPath = getNextFlightSegmentPath(segmentPath)
   return treePathToEntrypoint(childSegmentPath, path)
 }
 
