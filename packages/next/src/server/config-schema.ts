@@ -391,6 +391,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             useSwcCss: z.boolean().optional(),
             treeShaking: z.boolean().optional(),
             memoryLimit: z.number().optional(),
+            moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),

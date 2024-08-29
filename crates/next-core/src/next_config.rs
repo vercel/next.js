@@ -400,6 +400,7 @@ pub struct ExperimentalTurboConfig {
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub use_swc_css: Option<bool>,
     pub tree_shaking: Option<bool>,
+    pub module_id_strategy: Option<ModuleIdStrategy>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -431,6 +432,17 @@ pub enum LoaderItem {
     LoaderName(RcStr),
     LoaderOptions(WebpackLoaderItem),
 }
+
+#[turbo_tasks::value]
+#[derive(Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum ModuleIdStrategy {
+    Named,
+    Deterministic,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionModuleIdStrategy(pub Option<ModuleIdStrategy>);
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
@@ -1140,6 +1152,20 @@ impl NextConfig {
         _is_development: bool,
     ) -> Result<Vc<OptionTreeShaking>> {
         Ok(Vc::cell(Some(TreeShakingMode::ReexportsOnly)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn module_id_strategy_config(self: Vc<Self>) -> Result<Vc<OptionModuleIdStrategy>> {
+        let this = self.await?;
+        let Some(module_id_strategy) = this
+            .experimental
+            .turbo
+            .as_ref()
+            .and_then(|t| t.module_id_strategy.as_ref())
+        else {
+            return Ok(Vc::cell(None));
+        };
+        Ok(Vc::cell(Some(module_id_strategy.clone())))
     }
 }
 

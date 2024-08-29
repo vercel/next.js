@@ -158,6 +158,13 @@ export interface ExperimentalTurboOptions {
    * Enable tree shaking for the turbopack dev server and build.
    */
   treeShaking?: boolean
+
+  /**
+   * The module ID strategy to use for Turbopack.
+   * If not set, the default is `'named'` for development and `'deterministic'`
+   * for production.
+   */
+  moduleIdStrategy?: 'named' | 'deterministic'
 }
 
 export interface WebpackConfigContext {
