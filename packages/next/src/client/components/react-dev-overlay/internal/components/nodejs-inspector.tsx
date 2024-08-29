@@ -1,5 +1,18 @@
 import { CopyButton } from './copy-button'
-import { isChrome } from '../../../../lib/is-chrome'
+
+// Inline this helper to avoid widely used across the codebase,
+// as for this feature the Chrome detector doesn't need to be super accurate.
+function isChrome() {
+  if (typeof window === 'undefined') return false
+  const isChromium = 'chrome' in window && window.chrome
+  const vendorName = window.navigator.vendor
+
+  return (
+    isChromium !== null &&
+    isChromium !== undefined &&
+    vendorName === 'Google Inc.'
+  )
+}
 
 const isChromeBrowser = isChrome()
 
@@ -78,7 +91,7 @@ export function NodejsInspectorCopyButton({
         className="nextjs-data-runtime-error-inspect-link"
         href={`https://nextjs.org/docs/app/building-your-application/configuring/debugging#debugging-with-chrome-devtools`}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
       >
         <NodeJsDisabledIcon width={16} height={16} />
       </a>
@@ -91,7 +104,6 @@ export function NodejsInspectorCopyButton({
       successLabel="Copied"
       content={content}
       icon={<NodeJsIcon width={16} height={16} />}
-      disabled={disabled}
     />
   )
 }
