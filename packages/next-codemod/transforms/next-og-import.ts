@@ -1,8 +1,8 @@
-import type { API, FileInfo } from 'jscodeshift'
+import type { API, FileInfo, Options } from 'jscodeshift'
 
 const importToChange = 'ImageResponse'
 
-export default function transformer(file: FileInfo, api: API) {
+export default function transformer(file: FileInfo, api: API, options: Options) {
   const j = api.jscodeshift
 
   // Find import declarations that match the pattern
@@ -45,7 +45,7 @@ export default function transformer(file: FileInfo, api: API) {
       }
       j(path).remove()
     })
-    .toSource()
+    .toSource(options)
 
   return file.source
 }
