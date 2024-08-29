@@ -8630,11 +8630,11 @@
       didWarnAboutMaps = !1;
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-rc-7771d3a7-20240827" !== isomorphicReactPackageVersion)
+      if ("19.0.0-rc-a19a8ab4-20240829" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-rc-7771d3a7-20240827\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-rc-a19a8ab4-20240829\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     exports.renderToPipeableStream = function (children, options) {
@@ -8676,5 +8676,5 @@
         }
       };
     };
-    exports.version = "19.0.0-rc-7771d3a7-20240827";
+    exports.version = "19.0.0-rc-a19a8ab4-20240829";
   })();
