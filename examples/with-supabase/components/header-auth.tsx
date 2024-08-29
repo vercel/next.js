@@ -1,5 +1,5 @@
 import { signOutAction } from "@/app/actions";
-import { verifySupabase } from "@/utils/supabase/verify-supabase";
+import { hasEnvVars } from "@/utils/supabase/check-env-vars";
 import Link from "next/link";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -10,7 +10,7 @@ export default async function AuthButton() {
     data: { user },
   } = await createClient().auth.getUser();
 
-  if (!verifySupabase) {
+  if (!hasEnvVars) {
     return (
       <>
         <div className="flex gap-4 items-center">

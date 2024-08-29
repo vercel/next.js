@@ -15,6 +15,7 @@ on:
 
 env:
   NODE_LTS_VERSION: 20
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
 jobs:
   create-pull-request:
@@ -27,6 +28,11 @@ jobs:
           # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
           token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
+      - name: Set Git author
+        run: |
+          git config user.name "vercel-release-bot"
+          git config user.email "infra+release@vercel.com"
+
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -37,4 +43,11 @@ jobs:
 
       - name: Install dependencies
         shell: bash
-        run: pnpm i
+        # Just need scripts/ but those dependencies are listed in the workspace root.
+        run: pnpm install --filter .
+
+      - name: Create Pull Request
+        shell: bash
+        run: pnpm sync-react --actor "${{ github.actor }}" --commit --create-pull --version "${{ inputs.version }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}

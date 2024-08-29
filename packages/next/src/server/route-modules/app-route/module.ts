@@ -277,6 +277,8 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Get the context for the static generation.
     const staticGenerationContext: StaticGenerationContext = {
+      // App Routes don't support unknown route params.
+      fallbackRouteParams: null,
       page: this.definition.page,
       renderOpts: context.renderOpts,
     }
@@ -384,6 +386,7 @@ export class AppRouteRouteModule extends RouteModule<
                       staticGenerationAsyncStorage:
                         this.staticGenerationAsyncStorage,
                       requestAsyncStorage: this.requestAsyncStorage,
+                      prerenderAsyncStorage: this.prerenderAsyncStorage,
                     })
                     const res = await handler(request, {
                       params: context.params

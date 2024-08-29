@@ -1,5 +1,5 @@
 import { TutorialStep } from "./tutorial-step";
-import { Code } from "./code";
+import { CodeBlock } from "./code-block";
 
 const create = `create table notes (
   id bigserial primary key,
@@ -71,7 +71,7 @@ export default function FetchDataSteps() {
           </a>{" "}
           and click RUN!
         </p>
-        <Code code={create} />
+        <CodeBlock code={create} />
       </TutorialStep>
 
       <TutorialStep title="Query Supabase data from Next.js">
@@ -83,9 +83,9 @@ export default function FetchDataSteps() {
           </span>{" "}
           and add the following.
         </p>
-        <Code code={server} />
+        <CodeBlock code={server} />
         <p>Alternatively, you can use a Client Component.</p>
-        <Code code={client} />
+        <CodeBlock code={client} />
       </TutorialStep>
 
       <TutorialStep title="Build in a weekend and scale to millions!">

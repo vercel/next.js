@@ -357,6 +357,7 @@ async function exportAppImpl(
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       swrDelta: nextConfig.swrDelta,
       after: nextConfig.experimental.after ?? false,
+      dynamicIO: nextConfig.experimental.dynamicIO ?? false,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }
