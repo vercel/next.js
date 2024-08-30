@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
 import * as Log from './utils/log'
@@ -9,13 +8,9 @@ import {
 } from '../../../lib/next-test-utils'
 
 describe('unstable_after() - invalid usages', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // reading runtime logs is not supported in a deployed environment
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   let currentCliOutputIndex = 0
   beforeEach(() => {
@@ -30,7 +25,7 @@ describe('unstable_after() - invalid usages', () => {
     return Log.readCliLogs(next.cliOutput.slice(currentCliOutputIndex))
   }
 
-  ;(isNextDev ? it : it.skip).each(['error', 'force-static'])(
+  it.each(['error', 'force-static'])(
     `errors at compile time with dynamic = "%s"`,
     async (dynamicValue) => {
       const pathname = '/invalid-in-dynamic-' + dynamicValue
@@ -43,16 +38,13 @@ describe('unstable_after() - invalid usages', () => {
       expect(getLogs()).toHaveLength(0)
     }
   )
-  ;(isNextDev ? it : it.skip)(
-    'errors at compile time when used in a client module',
-    async () => {
-      const session = await next.browser('/invalid-in-client')
+  it('errors at compile time when used in a client module', async () => {
+    const session = await next.browser('/invalid-in-client')
 
-      await assertHasRedbox(session)
-      expect(await getRedboxSource(session)).toMatch(
-        /You're importing a component that needs "?unstable_after"?\. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component\./
-      )
-      expect(getLogs()).toHaveLength(0)
-    }
-  )
+    await assertHasRedbox(session)
+    expect(await getRedboxSource(session)).toMatch(
+      /You're importing a component that needs "?unstable_after"?\. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component\./
+    )
+    expect(getLogs()).toHaveLength(0)
+  })
 })
