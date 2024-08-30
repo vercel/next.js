@@ -4,24 +4,15 @@ import { retry } from 'next-test-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 import { outdent } from 'outdent'
 import { sandbox } from '../../../lib/development-sandbox'
-import * as fs from 'fs'
-import * as path from 'path'
-import * as os from 'os'
 import * as Log from './utils/log'
 
 const runtimes = ['nodejs', 'edge']
 
 describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
-  const logFileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logs-'))
-  const logFile = path.join(logFileDir, 'logs.jsonl')
-
   const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
     // `patchFile` and reading runtime logs are not supported in a deployed environment
     skipDeployment: true,
-    env: {
-      PERSISTENT_LOG_FILE: logFile,
-    },
   })
 
   if (skipped) return

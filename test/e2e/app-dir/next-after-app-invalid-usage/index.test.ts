@@ -1,9 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
-import * as fs from 'fs'
-import * as path from 'path'
-import * as os from 'os'
 import * as Log from './utils/log'
 import {
   assertHasRedbox,
@@ -12,16 +9,10 @@ import {
 } from '../../../lib/next-test-utils'
 
 describe('unstable_after() - invalid usages', () => {
-  const logFileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logs-'))
-  const logFile = path.join(logFileDir, 'logs.jsonl')
-
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     // `patchFile` and reading runtime logs are not supported in a deployed environment
     skipDeployment: true,
-    env: {
-      PERSISTENT_LOG_FILE: logFile,
-    },
   })
 
   if (skipped) return
