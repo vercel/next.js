@@ -4,12 +4,14 @@ import { ACTION_UNHANDLED_ERROR, type OverlayState } from '../shared'
 import { ShadowPortal } from '../internal/components/ShadowPortal'
 import { BuildError } from '../internal/container/BuildError'
 import { Errors } from '../internal/container/Errors'
+import { StaticIndicator } from '../internal/container/StaticIndicator'
 import type { SupportedErrorEvent } from '../internal/container/Errors'
 import { parseStack } from '../internal/helpers/parseStack'
 import { Base } from '../internal/styles/Base'
 import { ComponentStyles } from '../internal/styles/ComponentStyles'
 import { CssReset } from '../internal/styles/CssReset'
 import { RootLayoutMissingTagsError } from '../internal/container/root-layout-missing-tags-error'
+import type { Dispatcher } from './hot-reloader-client'
 
 interface ReactDevOverlayState {
   reactError: SupportedErrorEvent | null
@@ -17,6 +19,7 @@ interface ReactDevOverlayState {
 export default class ReactDevOverlay extends React.PureComponent<
   {
     state: OverlayState
+    dispatcher?: Dispatcher
     children: React.ReactNode
     onReactError: (error: Error) => void
   },
@@ -43,14 +46,12 @@ export default class ReactDevOverlay extends React.PureComponent<
   }
 
   render() {
-    const { state, children } = this.props
+    const { state, children, dispatcher } = this.props
     const { reactError } = this.state
 
     const hasBuildError = state.buildError != null
     const hasRuntimeErrors = Boolean(state.errors.length)
-    const hasMissingTags = Boolean(state.rootLayoutMissingTags?.length)
-    const isMounted =
-      hasBuildError || hasRuntimeErrors || reactError || hasMissingTags
+    const hasStaticIndicator = state.staticIndicator
 
     return (
       <>
@@ -62,37 +63,45 @@ export default class ReactDevOverlay extends React.PureComponent<
         ) : (
           children
         )}
-        {isMounted ? (
-          <ShadowPortal>
-            <CssReset />
-            <Base />
-            <ComponentStyles />
-            {state.rootLayoutMissingTags?.length ? (
-              <RootLayoutMissingTagsError
-                missingTags={state.rootLayoutMissingTags}
-              />
-            ) : hasBuildError ? (
-              <BuildError
-                message={state.buildError!}
-                versionInfo={state.versionInfo}
-              />
-            ) : reactError ? (
-              <Errors
-                isAppDir={true}
-                versionInfo={state.versionInfo}
-                initialDisplayState="fullscreen"
-                errors={[reactError]}
-              />
-            ) : hasRuntimeErrors ? (
-              <Errors
-                isAppDir={true}
-                initialDisplayState="minimized"
-                errors={state.errors}
-                versionInfo={state.versionInfo}
-              />
-            ) : undefined}
-          </ShadowPortal>
-        ) : undefined}
+        <ShadowPortal>
+          <CssReset />
+          <Base />
+          <ComponentStyles />
+          {state.rootLayoutMissingTags?.length ? (
+            <RootLayoutMissingTagsError
+              missingTags={state.rootLayoutMissingTags}
+            />
+          ) : hasBuildError ? (
+            <BuildError
+              message={state.buildError!}
+              versionInfo={state.versionInfo}
+            />
+          ) : (
+            <>
+              {reactError ? (
+                <Errors
+                  isAppDir={true}
+                  versionInfo={state.versionInfo}
+                  initialDisplayState="fullscreen"
+                  errors={[reactError]}
+                  hasStaticIndicator={hasStaticIndicator}
+                />
+              ) : hasRuntimeErrors ? (
+                <Errors
+                  isAppDir={true}
+                  initialDisplayState="minimized"
+                  errors={state.errors}
+                  versionInfo={state.versionInfo}
+                  hasStaticIndicator={hasStaticIndicator}
+                />
+              ) : null}
+
+              {hasStaticIndicator && (
+                <StaticIndicator dispatcher={dispatcher} />
+              )}
+            </>
+          )}
+        </ShadowPortal>
       </>
     )
   }

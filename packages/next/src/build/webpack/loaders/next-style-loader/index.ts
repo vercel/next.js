@@ -13,8 +13,8 @@ loaderApi.pitch = function loader(this: any, request: any): any {
       typeof options.insert === 'undefined'
         ? '"head"'
         : typeof options.insert === 'string'
-        ? JSON.stringify(options.insert)
-        : options.insert.toString()
+          ? JSON.stringify(options.insert)
+          : options.insert.toString()
     const injectType = options.injectType || 'styleTag'
     const esModule =
       typeof options.esModule !== 'undefined' ? options.esModule : false

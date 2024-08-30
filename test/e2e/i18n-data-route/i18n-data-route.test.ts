@@ -10,17 +10,21 @@ const pages = [
 function checkDataRoute(data: any, page: string) {
   expect(data).toHaveProperty('pageProps')
   expect(data.pageProps).toHaveProperty('page', page)
-  expect(data.pageProps).toHaveProperty('output', page)
 }
 
 describe('i18n-data-route', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // This test skips deployment because env vars that are doubled underscore prefixed
+    // are not supported.
+    skipDeployment: true,
     env: {
       // Disable internal header stripping so we can test the invoke output.
       __NEXT_NO_STRIP_INTERNAL_HEADERS: '1',
     },
   })
+
+  if (skipped) return
 
   describe('with locale prefix', () => {
     describe.each(i18n.locales)('/%s', (locale) => {

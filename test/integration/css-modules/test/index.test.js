@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { readdir, readFile, remove } from 'fs-extra'
+import { remove } from 'fs-extra'
 import {
   File,
   findPort,
@@ -10,6 +10,7 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
+  fetchViaHTTP,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -46,17 +47,29 @@ describe('Basic CSS Module Support', () => {
       })
 
       it(`should've emitted a single CSS file`, async () => {
-        const cssFolder = join(appDir, '.next/static/css')
+        const content = await renderViaHTTP(appPort, '/')
+        const $ = cheerio.load(content)
 
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
+        const cssSheet = $('link[rel="stylesheet"]')
+        expect(cssSheet.length).toBe(1)
+        const stylesheet = cssSheet.attr('href')
 
-        expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+        const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
+          res.text()
+        )
 
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(`".index_redText__honUV{color:red}"`)
+        if (process.env.TURBOPACK) {
+          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+            .toMatchInlineSnapshot(`
+            ".index-module__VJHdSq__redText {
+              color: red;
+            }"
+          `)
+        } else {
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(`".index_redText__honUV{color:red}"`)
+        }
       })
 
       it(`should've injected the CSS on server render`, async () => {
@@ -65,17 +78,21 @@ describe('Basic CSS Module Support', () => {
 
         const cssPreload = $('link[rel="preload"][as="style"]')
         expect(cssPreload.length).toBe(1)
-        expect(cssPreload.attr('href')).toMatch(
-          /^\/_next\/static\/css\/.*\.css$/
-        )
+        expect(cssPreload.attr('href')).toMatch(/^\/_next\/static\/.*\.css$/)
 
         const cssSheet = $('link[rel="stylesheet"]')
         expect(cssSheet.length).toBe(1)
-        expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+        expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/.*\.css$/)
 
-        expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
-          `"index_redText__honUV"`
-        )
+        if (process.env.TURBOPACK) {
+          expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
+            `"index-module__VJHdSq__redText"`
+          )
+        } else {
+          expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
+            `"index_redText__honUV"`
+          )
+        }
       })
     }
   )
@@ -109,19 +126,43 @@ describe('3rd Party CSS Module Support', () => {
       })
 
       it(`should've emitted a single CSS file`, async () => {
-        const cssFolder = join(appDir, '.next/static/css')
+        const content = await renderViaHTTP(appPort, '/')
+        const $ = cheerio.load(content)
 
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
+        const cssSheet = $('link[rel="stylesheet"]')
+        expect(cssSheet.length).toBe(1)
+        const stylesheet = cssSheet.attr('href')
 
-        expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(
-          `".index_foo__6TgnK{position:relative}.index_foo__6TgnK .bar,.index_foo__6TgnK .baz{height:100%;overflow:hidden}.index_foo__6TgnK .lol,.index_foo__6TgnK>.lel{width:80%}"`
+        const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
+          res.text()
         )
+        if (process.env.TURBOPACK) {
+          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+            .toMatchInlineSnapshot(`
+            ".index-module__jAE1EW__foo {
+              position: relative;
+            }
+
+            .index-module__jAE1EW__foo .bar, .index-module__jAE1EW__foo .baz {
+              height: 100%;
+              overflow: hidden;
+            }
+
+            .index-module__jAE1EW__foo .lol {
+              width: 80%;
+            }
+
+            .index-module__jAE1EW__foo > .lel {
+              width: 80%;
+            }"
+          `)
+        } else {
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `".index_foo__6TgnK{position:relative}.index_foo__6TgnK .bar,.index_foo__6TgnK .baz{height:100%;overflow:hidden}.index_foo__6TgnK .lol,.index_foo__6TgnK>.lel{width:80%}"`
+          )
+        }
       })
 
       it(`should've injected the CSS on server render`, async () => {
@@ -130,17 +171,21 @@ describe('3rd Party CSS Module Support', () => {
 
         const cssPreload = $('link[rel="preload"][as="style"]')
         expect(cssPreload.length).toBe(1)
-        expect(cssPreload.attr('href')).toMatch(
-          /^\/_next\/static\/css\/.*\.css$/
-        )
+        expect(cssPreload.attr('href')).toMatch(/^\/_next\/static\/.*\.css$/)
 
         const cssSheet = $('link[rel="stylesheet"]')
         expect(cssSheet.length).toBe(1)
-        expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+        expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/.*\.css$/)
 
-        expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
-          `"index_foo__6TgnK"`
-        )
+        if (process.env.TURBOPACK) {
+          expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
+            `"index-module__jAE1EW__foo"`
+          )
+        } else {
+          expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
+            `"index_foo__6TgnK"`
+          )
+        }
       })
     }
   )
@@ -347,23 +392,41 @@ describe('Valid CSS Module Usage from within node_modules', () => {
         const $ = cheerio.load(content)
 
         const cssPreload = $('#nm-div')
-        expect(cssPreload.text()).toMatchInlineSnapshot(
-          `"{"message":"Why hello there"} {"redText":"example_redText__0ctGB"}"`
-        )
+        if (process.env.TURBOPACK) {
+          expect(cssPreload.text()).toMatchInlineSnapshot(
+            `"{"message":"Why hello there","default":{"message":"Why hello there"}} {"redText":"index-module__kwuKnq__redText","default":{"redText":"index-module__kwuKnq__redText"}}"`
+          )
+        } else {
+          expect(cssPreload.text()).toMatchInlineSnapshot(
+            `"{"message":"Why hello there"} {"redText":"example_redText__0ctGB"}"`
+          )
+        }
       })
 
       it(`should've emitted a single CSS file`, async () => {
-        const cssFolder = join(appDir, '.next/static/css')
+        const content = await renderViaHTTP(appPort, '/')
+        const $ = cheerio.load(content)
 
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
+        const cssSheet = $('link[rel="stylesheet"]')
+        expect(cssSheet.length).toBe(1)
+        const stylesheet = cssSheet.attr('href')
 
-        expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+        const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
+          res.text()
+        )
 
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(`".example_redText__0ctGB{color:red}"`)
+        if (process.env.TURBOPACK) {
+          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+            .toMatchInlineSnapshot(`
+            ".index-module__kwuKnq__redText {
+              color: red;
+            }"
+          `)
+        } else {
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(`".example_redText__0ctGB{color:red}"`)
+        }
       })
     }
   )
@@ -375,10 +438,6 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
     () => {
       const appDir = join(fixturesDir, 'nm-module-nested')
 
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
-
       let appPort
       let app
       let stdout
@@ -388,6 +447,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
         ;({ code, stdout } = await nextBuild(appDir, [], {
           stdout: true,
         }))
+
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
       })
@@ -411,19 +471,30 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
       })
 
       it(`should've emitted a single CSS file`, async () => {
-        const cssFolder = join(appDir, '.next/static/css')
+        const content = await renderViaHTTP(appPort, '/')
+        const $ = cheerio.load(content)
 
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
+        const cssSheet = $('link[rel="stylesheet"]')
+        expect(cssSheet.length).toBe(1)
+        const stylesheet = cssSheet.attr('href')
 
-        expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(
-          `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:#ff0}.example_subClass__m6Tyy{background:blue}"`
+        const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
+          res.text()
         )
+
+        if (process.env.TURBOPACK) {
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:#ff0}.example_subClass__m6Tyy{background:blue}"`
+          )
+        } else {
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:#ff0}.example_subClass__m6Tyy{background:blue}"`
+          )
+        }
       })
     }
   )
@@ -436,6 +507,8 @@ describe('CSS Module Composes Usage (Basic)', () => {
       // This is a very bad feature. Do not use it.
       const appDir = join(fixturesDir, 'composes-basic')
 
+      let appPort
+      let app
       let stdout
       let code
       beforeAll(async () => {
@@ -443,6 +516,11 @@ describe('CSS Module Composes Usage (Basic)', () => {
         ;({ code, stdout } = await nextBuild(appDir, [], {
           stdout: true,
         }))
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
       })
 
       it('should have compiled successfully', () => {
@@ -451,19 +529,36 @@ describe('CSS Module Composes Usage (Basic)', () => {
       })
 
       it(`should've emitted a single CSS file`, async () => {
-        const cssFolder = join(appDir, '.next/static/css')
+        const content = await renderViaHTTP(appPort, '/')
+        const $ = cheerio.load(content)
 
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
+        const cssSheet = $('link[rel="stylesheet"]')
+        expect(cssSheet.length).toBe(1)
+        const stylesheet = cssSheet.attr('href')
 
-        expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(
-          `".index_className__jjcZ1{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
+        const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
+          res.text()
         )
+
+        if (process.env.TURBOPACK) {
+          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+            .toMatchInlineSnapshot(`
+            ".index-module__QppuLW__className {
+              background: red;
+              color: #ff0;
+            }
+
+            .index-module__QppuLW__subClass {
+              background: #00f;
+            }"
+          `)
+        } else {
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `".index_className__jjcZ1{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
+          )
+        }
       })
     }
   )
@@ -476,6 +571,8 @@ describe('CSS Module Composes Usage (External)', () => {
       // This is a very bad feature. Do not use it.
       const appDir = join(fixturesDir, 'composes-external')
 
+      let appPort
+      let app
       let stdout
       let code
       beforeAll(async () => {
@@ -483,6 +580,11 @@ describe('CSS Module Composes Usage (External)', () => {
         ;({ code, stdout } = await nextBuild(appDir, [], {
           stdout: true,
         }))
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
       })
 
       it('should have compiled successfully', () => {
@@ -491,19 +593,30 @@ describe('CSS Module Composes Usage (External)', () => {
       })
 
       it(`should've emitted a single CSS file`, async () => {
-        const cssFolder = join(appDir, '.next/static/css')
+        const content = await renderViaHTTP(appPort, '/')
+        const $ = cheerio.load(content)
 
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
+        const cssSheet = $('link[rel="stylesheet"]')
+        expect(cssSheet.length).toBe(1)
+        const stylesheet = cssSheet.attr('href')
 
-        expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(
-          `".other_className__eZV4M{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
+        const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
+          res.text()
         )
+
+        if (process.env.TURBOPACK) {
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `".other_className__eZV4M{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
+          )
+        } else {
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `".other_className__eZV4M{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
+          )
+        }
       })
     }
   )
@@ -546,17 +659,28 @@ describe('Dynamic Route CSS Module Usage', () => {
       })
 
       it(`should've emitted a single CSS file`, async () => {
-        const cssFolder = join(appDir, '.next/static/css')
+        const content = await renderViaHTTP(appPort, '/post-1')
+        const $ = cheerio.load(content)
 
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
+        const cssSheet = $('link[rel="stylesheet"]')
+        expect(cssSheet.length).toBe(1)
+        const stylesheet = cssSheet.attr('href')
 
-        expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(`"._post__home__yRmHz{background:red}"`)
+        const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
+          res.text()
+        )
+        if (process.env.TURBOPACK) {
+          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+            .toMatchInlineSnapshot(`
+            ".index-module__Iury9a__home {
+              background: red;
+            }"
+          `)
+        } else {
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(`"._post__home__yRmHz{background:red}"`)
+        }
       })
     }
   )
@@ -601,19 +725,37 @@ describe('Catch-all Route CSS Module Usage', () => {
       })
 
       it(`should've emitted a single CSS file`, async () => {
-        const cssFolder = join(appDir, '.next/static/css')
+        const content = await renderViaHTTP(appPort, '/post-1')
+        const $ = cheerio.load(content)
 
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
+        const cssSheet = $('link[rel="stylesheet"]')
+        expect(cssSheet.length).toBe(1)
+        const stylesheet = cssSheet.attr('href')
 
-        expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(
-          `".___post__home__e4zfx{background:red}.__55css_home__r8Rnq{color:green}"`
+        const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
+          res.text()
         )
+
+        if (process.env.TURBOPACK) {
+          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+            .toMatchInlineSnapshot(`
+            ".index-module___rV4CG__home {
+              background: red;
+            }
+
+
+
+            .\\35 5css-module__qe774W__home {
+              color: green;
+            }"
+          `)
+        } else {
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `".___post__home__e4zfx{background:red}.__55css_home__r8Rnq{color:green}"`
+          )
+        }
       })
     }
   )

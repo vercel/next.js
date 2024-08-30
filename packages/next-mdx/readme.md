@@ -102,7 +102,7 @@ yarn add @next/mdx
 
 ## Usage
 
-Create a `mdx-components.js` file at the root of your project with the following contents:
+Create an `mdx-components.js` file at the root of your project with the following contents:
 
 ```js
 // This file is required to use @next/mdx in the `app` directory.

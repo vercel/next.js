@@ -3,6 +3,7 @@
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
+  retry,
   findPort,
   launchApp,
   killApp,
@@ -34,17 +35,20 @@ const noError = async (pathname) => {
 
 const didPrefetch = async (pathname) => {
   const browser = await webdriver(appPort, pathname)
-  const links = await browser.elementsByCss('link[rel=prefetch]')
-  let found = false
 
-  for (const link of links) {
-    const href = await link.getAttribute('href')
-    if (href.includes('index')) {
-      found = true
-      break
-    }
-  }
-  expect(found).toBe(true)
+  await retry(async () => {
+    const links = await browser.elementsByCss('link[rel=prefetch]')
+
+    const hrefs = await Promise.all(
+      links.map((link) => link.getAttribute('href'))
+    )
+
+    // expect one of the href contain string "index"
+    expect(hrefs).toEqual(
+      expect.arrayContaining([expect.stringContaining('index')])
+    )
+  })
+
   await browser.close()
 }
 
@@ -84,6 +88,10 @@ describe('Invalid hrefs', () => {
       it('should handle child ref that is a function', async () => {
         await noError('/child-ref-func')
       })
+
+      it('should handle child ref that is a function that returns a cleanup function', async () => {
+        await noError('/child-ref-func-cleanup')
+      })
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -108,6 +116,10 @@ describe('Invalid hrefs', () => {
 
       it('should preload with child ref with function', async () => {
         await didPrefetch('/child-ref-func')
+      })
+
+      it('should preload with child ref with function that returns a cleanup function', async () => {
+        await didPrefetch('/child-ref-func-cleanup')
       })
     }
   )

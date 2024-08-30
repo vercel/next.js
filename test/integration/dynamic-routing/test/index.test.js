@@ -5,6 +5,7 @@ import { join, dirname } from 'path'
 import fs from 'fs-extra'
 import url from 'url'
 import {
+  assertHasRedbox,
   renderViaHTTP,
   fetchViaHTTP,
   findPort,
@@ -15,7 +16,6 @@ import {
   nextStart,
   normalizeRegEx,
   check,
-  hasRedbox,
   getRedboxHeader,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
@@ -1200,7 +1200,7 @@ function runTests({ dev }) {
         await browser
           .elementByCss('#view-post-1-interpolated-incorrectly')
           .click()
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         const header = await getRedboxHeader(browser)
         expect(header).toContain(
           'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'

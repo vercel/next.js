@@ -16,7 +16,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyTypeScriptSetup } from '../lib/verify-typescript-setup'
 
-type NextLintOptions = {
+export type NextLintOptions = {
   cache: boolean
   cacheLocation?: string
   cacheStrategy: string

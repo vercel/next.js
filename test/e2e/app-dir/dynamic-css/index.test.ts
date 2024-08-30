@@ -11,10 +11,14 @@ describe('app dir - dynamic css', () => {
     return
   }
 
-  it('should preload css of dynamic component during SSR', async () => {
+  it('should preload all chunks of dynamic component during SSR', async () => {
     const $ = await next.render$('/ssr')
-    const cssLinks = $('link[rel="stylesheet"]')
+    const cssLinks = $('link[rel="stylesheet"][data-precedence="dynamic"]')
     expect(cssLinks.attr('href')).toContain('.css')
+
+    const preloadJsChunks = $('link[rel="preload"]')
+    expect(preloadJsChunks.attr('as')).toBe('script')
+    expect(preloadJsChunks.attr('fetchpriority')).toContain(`low`)
   })
 
   it('should only apply corresponding css for page loaded that /ssr', async () => {

@@ -48,7 +48,7 @@ describe('useDefineForClassFields SWC option', () => {
     let data_foundLog = false
     let name_foundLog = false
 
-    const browserLogs = await browser.log('browser')
+    const browserLogs = await browser.log()
 
     browserLogs.forEach((log) => {
       if (log.message.includes('data changed')) {

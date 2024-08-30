@@ -1,10 +1,10 @@
 /* eslint-env jest */
 import { join } from 'path'
 import {
+  assertNoRedbox,
   killApp,
   findPort,
   launchApp,
-  hasRedbox,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -25,7 +25,7 @@ describe('App assetPrefix config', () => {
     const browser = await webdriver(appPort, '/')
     try {
       await waitFor(2000)
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       const title = await browser.elementById('title').text()
       expect(title).toBe('IndexPage')
     } finally {

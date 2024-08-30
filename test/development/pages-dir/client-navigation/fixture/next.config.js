@@ -4,6 +4,6 @@ module.exports = {
     maxInactiveAge: 1000 * 60 * 60,
   },
   experimental: {
-    strictNextHead: true,
+    strictNextHead: process.env.TEST_STRICT_NEXT_HEAD !== 'false',
   },
 }

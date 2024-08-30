@@ -4,6 +4,7 @@ describe('custom server', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     startCommand: 'node server.js',
+    serverReadyPattern: /^- Local:/,
     dependencies: {
       'get-port': '5.1.1',
     },
@@ -20,15 +21,14 @@ describe('custom server', () => {
   })
 
   describe('with app dir', () => {
-    it('should render app with react canary', async () => {
+    it('should render app with react rc', async () => {
       const $ = await next.render$(`/1`)
-      expect($('body').text()).toMatch(/app: .+-canary/)
+      expect($('body').text()).toMatch(/app: .+-rc/)
     })
 
-    it('should not render pages with react canary', async () => {
+    it('should render pages with installed react', async () => {
       const $ = await next.render$(`/2`)
-      expect($('body').text()).toMatch(/pages:/)
-      expect($('body').text()).not.toMatch(/canary/)
+      expect($('body').text()).toMatch(/pages: 19.0.0/)
     })
   })
 })
@@ -37,6 +37,7 @@ describe('custom server with quiet setting', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     startCommand: 'node server.js',
+    serverReadyPattern: /^- Local:/,
     env: { USE_QUIET: 'true' },
     dependencies: {
       'get-port': '5.1.1',

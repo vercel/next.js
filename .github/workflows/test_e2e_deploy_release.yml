@@ -1,0 +1,76 @@
+name: test-e2e-deploy-release
+
+on:
+  # run on every release/prerelease
+  release:
+    types: [published]
+  # allow triggering manually as well
+  workflow_dispatch:
+
+env:
+  VERCEL_TEST_TEAM: vtest314-next-e2e-tests
+  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  DD_ENV: 'ci'
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'vercel'
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - name: Setup pnpm
+        run: corepack enable
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 25
+
+      - name: Setup test project
+        run: |
+          pnpm install
+          pnpm run build
+          node scripts/run-e2e-test-project-reset.mjs
+
+  test-deploy:
+    name: test deploy
+    needs: setup
+    uses: ./.github/workflows/build_reusable.yml
+    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/5, 2/5, 3/5, 4/5, 5/5, 6/6]
+    with:
+      afterBuild: NEXT_TEST_MODE=deploy NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+      skipNativeBuild: 'yes'
+      stepName: 'test-deploy-${{ matrix.group }}'
+      timeout_minutes: 180
+      runs_on_labels: '["ubuntu-latest"]'
+
+  report-test-results-to-datadog:
+    needs: test-deploy
+    if: ${{ always() }}
+
+    runs-on: ubuntu-latest
+    name: report test results to datadog
+    steps:
+      - name: Download test report artifacts
+        id: download-test-reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-reports-*
+          path: test
+          merge-multiple: true
+
+      - name: Upload test report to datadog
+        run: |
+          if [ -d ./test/test-junit-report ]; then
+            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:deploy --service nextjs ./test/test-junit-report
+          fi

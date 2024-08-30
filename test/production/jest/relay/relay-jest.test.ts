@@ -4,7 +4,8 @@ import path from 'path'
 
 const appDir = path.join(__dirname, 'app')
 
-describe('next/jest', () => {
+// react-relay is not compatible with React 19 and therefore Next.js 15
+describe.skip('next/jest', () => {
   let next: NextInstance
 
   beforeAll(async () => {

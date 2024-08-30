@@ -11,6 +11,10 @@ import pkg from "../package.json";
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
+// Do not rename or format. sync-react script relies on this line.
+// prettier-ignore
+const nextjsReactPeerVersion = "19.0.0-rc-7771d3a7-20240827";
+
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
  */
@@ -39,6 +43,7 @@ export const installTemplate = async ({
   srcDir,
   importAlias,
   skipInstall,
+  turbo,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -108,9 +113,10 @@ export const installTemplate = async ({
         if ((await fs.stat(filePath)).isFile()) {
           await fs.writeFile(
             filePath,
-            (
-              await fs.readFile(filePath, "utf8")
-            ).replace(`@/`, `${importAlias.replace(/\*/g, "")}`),
+            (await fs.readFile(filePath, "utf8")).replace(
+              `@/`,
+              `${importAlias.replace(/\*/g, "")}`,
+            ),
           );
         }
         writeSema.release();
@@ -143,9 +149,7 @@ export const installTemplate = async ({
 
     await fs.writeFile(
       indexPageFile,
-      (
-        await fs.readFile(indexPageFile, "utf8")
-      ).replace(
+      (await fs.readFile(indexPageFile, "utf8")).replace(
         isAppTemplate ? "app/page" : "pages/index",
         isAppTemplate ? "src/app/page" : "src/pages/index",
       ),
@@ -158,9 +162,7 @@ export const installTemplate = async ({
       );
       await fs.writeFile(
         tailwindConfigFile,
-        (
-          await fs.readFile(tailwindConfigFile, "utf8")
-        ).replace(
+        (await fs.readFile(tailwindConfigFile, "utf8")).replace(
           /\.\/(\w+)\/\*\*\/\*\.\{js,ts,jsx,tsx,mdx\}/g,
           "./src/$1/**/*.{js,ts,jsx,tsx,mdx}",
         ),
@@ -177,7 +179,7 @@ export const installTemplate = async ({
     version: "0.1.0",
     private: true,
     scripts: {
-      dev: "next dev",
+      dev: `next dev${turbo ? " --turbo" : ""}`,
       build: "next build",
       start: "next start",
       lint: "next lint",
@@ -186,8 +188,8 @@ export const installTemplate = async ({
      * Default dependencies.
      */
     dependencies: {
-      react: "^18",
-      "react-dom": "^18",
+      react: nextjsReactPeerVersion,
+      "react-dom": nextjsReactPeerVersion,
       next: version,
     },
     devDependencies: {},

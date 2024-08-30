@@ -1,3 +1,4 @@
+import { stringifyCookie } from '../../web/spec-extension/cookies'
 import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
 import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
@@ -55,7 +56,13 @@ export class NextResponse<Body = unknown> extends Response {
               const newHeaders = new Headers(headers)
 
               if (result instanceof ResponseCookies) {
-                headers.set('x-middleware-set-cookie', result.toString())
+                headers.set(
+                  'x-middleware-set-cookie',
+                  result
+                    .getAll()
+                    .map((cookie) => stringifyCookie(cookie))
+                    .join(',')
+                )
               }
 
               handleMiddlewareField(init, newHeaders)

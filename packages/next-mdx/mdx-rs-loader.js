@@ -123,8 +123,8 @@ function createFormatAwareProcessors(bindings, compileOptions = {}) {
       compileOptions.format === 'md'
         ? mdExtensions
         : compileOptions.format === 'mdx'
-        ? mdxExtensions
-        : mdExtensions.concat(mdxExtensions),
+          ? mdxExtensions
+          : mdExtensions.concat(mdxExtensions),
     compile,
   }
 
@@ -133,9 +133,9 @@ function createFormatAwareProcessors(bindings, compileOptions = {}) {
       compileOptions.format === 'md' || compileOptions.format === 'mdx'
         ? compileOptions.format
         : path.extname(p) &&
-          (compileOptions.mdExtensions || md).includes(path.extname(p))
-        ? 'md'
-        : 'mdx'
+            (compileOptions.mdExtensions || md).includes(path.extname(p))
+          ? 'md'
+          : 'mdx'
 
     const options = {
       parse: compileOptions.parse,

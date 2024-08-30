@@ -21,8 +21,6 @@ describe('New Link Behavior with stitches', () => {
       dependencies: {
         '@stitches/react': '^1.2.6',
         next: 'latest',
-        react: 'latest',
-        'react-dom': 'latest',
       },
     })
   })

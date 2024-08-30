@@ -1,7 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
+import { assertHasRedbox, getRedboxSource, retry } from 'next-test-utils'
 
 describe('module layer', () => {
-  const { next, isNextStart } = nextTestSetup({
+  const { next, isNextStart, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
@@ -17,8 +18,10 @@ describe('module layer', () => {
       '/app/route',
       '/app/route-edge',
       // pages/api
-      '/api/hello',
-      '/api/hello-edge',
+      '/api/default',
+      '/api/default-edge',
+      '/api/server-only',
+      '/api/server-only-edge',
       '/api/mixed',
     ]
 
@@ -28,6 +31,35 @@ describe('module layer', () => {
         expect([route, status]).toEqual([route, 200])
       })
     }
+
+    it('should render installed react-server condition for middleware', async () => {
+      const json = await next.fetch('/middleware').then((res) => res.json())
+      expect(json.React).toContain('version') // basic react-server export
+      expect(json.React).not.toContain('useEffect') // no client api export
+    })
+
+    // This is for backward compatibility, don't change react usage in existing pages/api
+    it('should contain client react exports for pages api', async () => {
+      async function verifyReactExports(route, isEdge) {
+        const json = await next.fetch(route).then((res) => res.json())
+        // contain all react-server and default condition exports
+        expect(json.React).toContain('version')
+        expect(json.React).toContain('useEffect')
+
+        // contain react-dom-server default condition exports
+        expect(json.ReactDomServer).toContain('version')
+        expect(json.ReactDomServer).toContain('renderToString')
+        expect(json.ReactDomServer).toContain('renderToStaticMarkup')
+        expect(json.ReactDomServer).toContain(
+          isEdge ? 'renderToReadableStream' : 'renderToPipeableStream'
+        )
+      }
+
+      await verifyReactExports('/api/default', false)
+      await verifyReactExports('/api/default-edge', true)
+      await verifyReactExports('/api/server-only', false)
+      await verifyReactExports('/api/server-only-edge', true)
+    })
 
     if (isNextStart) {
       it('should log the build info properly', async () => {
@@ -39,7 +71,8 @@ describe('module layer', () => {
         )
         expect(functionsManifest.functions).toContainKeys([
           '/app/route-edge',
-          '/api/hello-edge',
+          '/api/default-edge',
+          '/api/server-only-edge',
           '/app/client-edge',
           '/app/server-edge',
         ])
@@ -51,51 +84,47 @@ describe('module layer', () => {
         )
         expect(middlewareManifest.middleware).toBeTruthy()
         expect(pagesManifest).toContainKeys([
-          '/api/hello-edge',
+          '/api/default-edge',
           '/pages-ssr',
-          '/api/hello',
+          '/api/default',
+          '/api/server-only',
         ])
       })
     }
   }
 
-  describe('no server-only in server targets', () => {
-    const middlewareFile = 'middleware.js'
-    // const pagesApiFile = 'pages/api/hello.js'
-    let middlewareContent = ''
-    // let pagesApiContent = ''
+  if (isNextDev) {
+    describe('client packages in middleware', () => {
+      const middlewareFile = 'middleware.js'
+      let middlewareContent = ''
 
-    beforeAll(async () => {
-      await next.stop()
+      afterAll(async () => {
+        await next.patchFile(middlewareFile, middlewareContent)
+      })
 
-      middlewareContent = await next.readFile(middlewareFile)
-      // pagesApiContent = await next.readFile(pagesApiFile)
+      it('should error when import server packages in middleware', async () => {
+        const browser = await next.browser('/')
 
-      await next.patchFile(
-        middlewareFile,
-        middlewareContent
-          .replace("import 'server-only'", "// import 'server-only'")
-          .replace("// import './lib/mixed-lib'", "import './lib/mixed-lib'")
-      )
+        middlewareContent = await next.readFile(middlewareFile)
 
-      // await next.patchFile(
-      //   pagesApiFile,
-      //   pagesApiContent
-      //     .replace("import 'server-only'", "// import 'server-only'")
-      //     .replace(
-      //       "// import '../../lib/mixed-lib'",
-      //       "import '../../lib/mixed-lib'"
-      //     )
-      // )
+        await next.patchFile(
+          middlewareFile,
+          middlewareContent
+            .replace("import 'server-only'", "// import 'server-only'")
+            .replace("// import './lib/mixed-lib'", "import './lib/mixed-lib'")
+        )
 
-      await next.start()
+        await retry(async () => {
+          await assertHasRedbox(browser)
+          const source = await getRedboxSource(browser)
+          expect(source).toContain(
+            `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client"`
+          )
+        })
+      })
     })
-    afterAll(async () => {
-      await next.patchFile(middlewareFile, middlewareContent)
-      // await next.patchFile(pagesApiFile, pagesApiContent)
-    })
-    runTests()
-  })
+  }
+
   describe('with server-only in server targets', () => {
     runTests()
   })

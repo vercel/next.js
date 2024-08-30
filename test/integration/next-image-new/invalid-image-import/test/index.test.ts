@@ -2,10 +2,10 @@
 
 import { join } from 'path'
 import {
+  assertHasRedbox,
   findPort,
   getRedboxHeader,
   getRedboxSource,
-  hasRedbox,
   killApp,
   launchApp,
   nextBuild,
@@ -22,7 +22,7 @@ function runTests({ isDev }) {
   it('should show error', async () => {
     if (isDev) {
       const browser = await webdriver(appPort, '/')
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
       const source = await getRedboxSource(browser)
       if (process.env.TURBOPACK) {

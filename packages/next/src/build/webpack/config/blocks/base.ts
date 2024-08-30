@@ -17,8 +17,8 @@ export const base = curry(function base(
   config.target = !ctx.targetWeb
     ? 'node18.17' // Same version defined in packages/next/package.json#engines
     : ctx.isEdgeRuntime
-    ? ['web', 'es6']
-    : ['web', 'es6']
+      ? ['web', 'es6']
+      : ['web', 'es6']
 
   // https://webpack.js.org/configuration/devtool/#development
   if (ctx.isDevelopment) {

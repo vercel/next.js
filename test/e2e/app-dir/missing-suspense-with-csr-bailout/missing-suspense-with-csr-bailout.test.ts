@@ -4,6 +4,8 @@ describe('missing-suspense-with-csr-bailout', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // This test is skipped when deployed because it's not possible to rename files after deployment.
+    skipDeployment: true,
   })
 
   if (skipped) {
@@ -41,26 +43,6 @@ describe('missing-suspense-with-csr-bailout', () => {
 
       await next.renameFile('app/layout.js', 'app/layout-suspense.js')
       await next.renameFile('app/layout-no-suspense.js', 'app/layout.js')
-    })
-
-    it('should pass build if missingSuspenseWithCSRBailout os set to false', async () => {
-      let _content
-      await next.patchFile('next.config.js', (content) => {
-        _content = content
-        return content.replace(
-          '{}',
-          '{ experimental: { missingSuspenseWithCSRBailout: false } }'
-        )
-      })
-
-      const result = await next.build()
-      expect(result.exitCode).toBe(0)
-      expect(result.cliOutput).toMatch(
-        '⚠ Entire page "/" deopted into client-side rendering due to "useSearchParams()". Read more: https://nextjs.org/docs/messages/deopted-into-client-rendering'
-      )
-      expect(result.cliOutput).toMatch(/app\/page\.js:\d+:\d+/)
-
-      await next.patchFile('next.config.js', _content)
     })
   })
 

@@ -70,6 +70,16 @@ export default function Nav() {
             Partial Reversed B
           </Link>
         </li>
+        <li>
+          <Link href={'/global-first'} id="global-first">
+            Global First
+          </Link>
+        </li>
+        <li>
+          <Link href={'/global-second'} id="global-second">
+            Global Second
+          </Link>
+        </li>
       </ul>
       <h3>Pages</h3>
       <ul>

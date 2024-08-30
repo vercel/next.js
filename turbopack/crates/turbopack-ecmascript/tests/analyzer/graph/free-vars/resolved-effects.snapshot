@@ -1,0 +1,6 @@
+0 -> 2 free var = FreeVar(Buffer)
+
+0 -> 3 member call = ???*0*["from"]("Hello World")
+- *0* FreeVar(Buffer)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects

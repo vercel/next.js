@@ -20,16 +20,19 @@ class NextFixtureImpl implements NextFixture {
     private page: Page
   ) {
     this.testId = testInfo.testId
+    worker.onFetch(this.testId, this.handleFetch.bind(this))
+  }
+
+  async setup(): Promise<void> {
     const testHeaders = {
-      'Next-Test-Proxy-Port': String(worker.proxyPort),
+      'Next-Test-Proxy-Port': String(this.worker.proxyPort),
       'Next-Test-Data': this.testId,
     }
-    const handleFetch = this.handleFetch.bind(this)
-    worker.onFetch(this.testId, handleFetch)
-    this.page
+
+    await this.page
       .context()
       .route('**', (route) =>
-        handleRoute(route, page, testHeaders, handleFetch)
+        handleRoute(route, this.page, testHeaders, this.handleFetch.bind(this))
       )
   }
 
@@ -73,6 +76,7 @@ export async function applyNextFixture(
 ): Promise<void> {
   const fixture = new NextFixtureImpl(testInfo, nextOptions, nextWorker, page)
 
+  await fixture.setup()
   await use(fixture)
 
   fixture.teardown()

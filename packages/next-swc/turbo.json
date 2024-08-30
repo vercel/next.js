@@ -1,10 +1,12 @@
 {
+  "$schema": "https://turborepo.org/schema.json",
   "extends": ["//"],
-  "pipeline": {
+  "tasks": {
     "build-native": {
       "inputs": [
         "../../.cargo/**",
-        "crates/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
         "../../Cargo.toml",
         "../../Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -15,7 +17,8 @@
     "build-native-release": {
       "inputs": [
         "../../.cargo/**",
-        "crates/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -26,7 +29,8 @@
     "build-native-no-plugin": {
       "inputs": [
         "../../.cargo/**",
-        "crates/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -34,21 +38,11 @@
       ],
       "outputs": ["native/*.node"]
     },
-    "build-native-no-plugin-woa": {
+    "build-native-no-plugin-release": {
       "inputs": [
         "../../.cargo/**",
-        "crates/**",
-        "../../**/Cargo.toml",
-        "../../**/Cargo.lock",
-        "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
-      ],
-      "outputs": ["native/*.node"]
-    },
-    "build-native-no-plugin-woa-release": {
-      "inputs": [
-        "../../.cargo/**",
-        "crates/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -59,18 +53,20 @@
     "build-wasm": {
       "inputs": [
         "../../.cargo/**",
-        "crates/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
         "../../rust-toolchain"
       ],
-      "outputs": ["crates/wasm/pkg/*"]
+      "outputs": ["../../crates/wasm/pkg/*"]
     },
     "build-native-wasi": {
       "inputs": [
         "../../.cargo/**",
-        "crates/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -81,7 +77,8 @@
     "cache-build-native": {
       "inputs": [
         "../../.cargo/**",
-        "crates/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -99,7 +96,8 @@
     "rust-check-fmt": {
       "inputs": [
         "../../.cargo/**",
-        "crates/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -110,7 +108,8 @@
     "rust-check-clippy": {
       "inputs": [
         "../../.cargo/**",
-        "crates/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -120,7 +119,8 @@
     "rust-check-napi-rustls": {
       "inputs": [
         "../../.cargo/**",
-        "crates/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",
@@ -130,7 +130,8 @@
     "test-cargo-unit": {
       "inputs": [
         "../../.cargo/**",
-        "crates/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
         "../../**/Cargo.toml",
         "../../**/Cargo.lock",
         "../../.github/workflows/build_and_deploy.yml",

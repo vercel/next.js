@@ -205,7 +205,7 @@ export async function collectBuildTraces({
   }
 
   const { outputFileTracingIncludes = {}, outputFileTracingExcludes = {} } =
-    config.experimental
+    config
   const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
   const includeGlobKeys = Object.keys(outputFileTracingIncludes)
 
@@ -319,7 +319,6 @@ export async function collectBuildTraces({
 
         ...(isStandalone ? [] : TRACE_IGNORES),
         ...additionalIgnores,
-        ...(config.experimental.outputFileTracingIgnores || []),
       ]
 
       const sharedIgnoresFn = makeIgnoreFn(sharedIgnores)
@@ -637,7 +636,7 @@ export async function collectBuildTraces({
 
       for (const type of moduleTypes) {
         const modulePath = require.resolve(
-          `next/dist/server/future/route-modules/${type}/module.compiled`
+          `next/dist/server/route-modules/${type}/module.compiled`
         )
         const relativeModulePath = path.relative(root, modulePath)
 

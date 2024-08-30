@@ -42,7 +42,7 @@ export function AppRouterAnnouncer({ tree }: { tree: FlightRouterState }) {
   }, [])
 
   const [routeAnnouncement, setRouteAnnouncement] = useState('')
-  const previousTitle = useRef<string | undefined>()
+  const previousTitle = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     let currentTitle = ''
