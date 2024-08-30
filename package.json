@@ -5,6 +5,10 @@
   "workspaces": [
     "packages/*"
   ],
+
+
+
+  
   "scripts": {
     "new-error": "turbo gen error",
     "new-test": "turbo gen test",
