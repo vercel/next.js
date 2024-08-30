@@ -14,11 +14,11 @@ use swc_core::{
     common::{util::take::Take, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
-            op, ClassDecl, Decl, DefaultDecl, ExportAll, ExportDecl, ExportNamedSpecifier,
-            ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName, ImportDecl,
-            ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp, Lit,
-            Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
-            PropName, PropOrSpread, Stmt, VarDecl, VarDeclKind, VarDeclarator,
+            op, ClassDecl, ClassExpr, Decl, DefaultDecl, ExportAll, ExportDecl, ExportDefaultExpr,
+            ExportNamedSpecifier, ExportSpecifier, Expr, ExprStmt, FnDecl, FnExpr, Id, Ident,
+            IdentName, ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier,
+            KeyValueProp, Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport,
+            ObjectLit, Prop, PropName, PropOrSpread, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
         utils::{find_pat_ids, private_ident, quote_ident},
@@ -110,7 +110,8 @@ pub(crate) struct ItemData {
 
     pub content: ModuleItem,
 
-    pub export: Option<JsWord>,
+    /// Export 0 as 1
+    pub export: Option<(Id, JsWord)>,
 }
 
 impl fmt::Debug for ItemData {
@@ -241,7 +242,11 @@ impl DepGraph {
     /// a usage side, `import` and `export` will be added.
     ///
     /// Note: ESM imports are immutable, but we do not handle it.
-    pub(super) fn split_module(&self, data: &FxHashMap<ItemId, ItemData>) -> SplitModuleResult {
+    pub(super) fn split_module(
+        &self,
+        directives: &[ModuleItem],
+        data: &FxHashMap<ItemId, ItemData>,
+    ) -> SplitModuleResult {
         let groups = self.finalize();
         let mut exports = FxHashMap::default();
         let mut part_deps = FxHashMap::<_, Vec<_>>::default();
@@ -279,7 +284,7 @@ impl DepGraph {
         for (ix, group) in groups.graph_ix.iter().enumerate() {
             let mut chunk = Module {
                 span: DUMMY_SP,
-                body: vec![],
+                body: directives.to_vec(),
                 shebang: None,
             };
 
@@ -313,17 +318,31 @@ impl DepGraph {
             for item in group {
                 match item {
                     ItemId::Group(ItemIdGroupKind::Export(..)) => {
-                        if let Some(export) = &data[item].export {
+                        if let Some((local, export)) = &data[item].export {
                             exports.insert(Key::Export(export.as_str().into()), ix as u32);
 
                             let s = ExportSpecifier::Named(ExportNamedSpecifier {
                                 span: DUMMY_SP,
-                                orig: ModuleExportName::Ident(Ident::new(
+                                orig: if export == "default" {
+                                    // references/mod.rs makes some assumptions about default
+                                    // exports.
+                                    ModuleExportName::Ident(Ident::new(
+                                        "default".into(),
+                                        DUMMY_SP,
+                                        Default::default(),
+                                    ))
+                                } else {
+                                    ModuleExportName::Ident(Ident::new(
+                                        local.0.clone(),
+                                        DUMMY_SP,
+                                        local.1,
+                                    ))
+                                },
+                                exported: Some(ModuleExportName::Ident(Ident::new(
                                     export.clone(),
                                     DUMMY_SP,
                                     Default::default(),
-                                )),
-                                exported: None,
+                                ))),
                                 is_type_only: false,
                             });
                             exports_module.body.push(ModuleItem::ModuleDecl(
@@ -333,7 +352,7 @@ impl DepGraph {
                                     src: Some(Box::new(TURBOPACK_PART_IMPORT_SOURCE.into())),
                                     type_only: false,
                                     with: Some(Box::new(create_turbopack_part_id_assert(
-                                        PartId::Export(export.to_string().into()),
+                                        PartId::Export(export.as_str().into()),
                                     ))),
                                 }),
                             ));
@@ -527,13 +546,13 @@ impl DepGraph {
                 match item {
                     ModuleDecl::ExportDecl(item) => match &item.decl {
                         Decl::Fn(FnDecl { ident, .. }) | Decl::Class(ClassDecl { ident, .. }) => {
-                            exports.push((ident.to_id(), None));
+                            exports.push((ident.to_id(), ident.sym.clone()));
                         }
                         Decl::Var(v) => {
                             for decl in &v.decls {
                                 let ids: Vec<Id> = find_pat_ids(&decl.name);
                                 for id in ids {
-                                    exports.push((id, None));
+                                    exports.push((id.clone(), id.0));
                                 }
                             }
                         }
@@ -564,24 +583,35 @@ impl DepGraph {
                             );
                         }
 
+                        fn may_escape(s: &str) -> String {
+                            match Ident::verify_symbol(s) {
+                                Ok(()) => s.into(),
+                                Err(_) => magic_identifier::mangle(s),
+                            }
+                        }
+
                         for (si, s) in item.specifiers.iter().enumerate() {
                             let (orig, mut local, exported) = match s {
                                 ExportSpecifier::Named(s) => (
-                                    Some(s.orig.clone()),
+                                    Some(ModuleExportName::Ident(
+                                        quote_ident!(may_escape(s.orig.atom())).into(),
+                                    )),
                                     match &s.orig {
-                                        ModuleExportName::Ident(i) => i.clone(),
+                                        ModuleExportName::Ident(i) => {
+                                            quote_ident!(may_escape(&i.sym)).into()
+                                        }
                                         ModuleExportName::Str(..) => quote_ident!("_tmp").into(),
                                     },
-                                    Some(s.exported.clone().unwrap_or_else(|| s.orig.clone())),
+                                    s.exported.clone().unwrap_or_else(|| s.orig.clone()),
                                 ),
                                 ExportSpecifier::Default(s) => (
                                     Some(ModuleExportName::Ident(Ident::new(
-                                        "default".into(),
+                                        "_default".into(),
                                         DUMMY_SP,
                                         Default::default(),
                                     ))),
-                                    quote_ident!("default").into(),
-                                    Some(ModuleExportName::Ident(s.exported.clone())),
+                                    quote_ident!("_default").into(),
+                                    ModuleExportName::Ident(s.exported.clone()),
                                 ),
                                 ExportSpecifier::Namespace(s) => (
                                     None,
@@ -589,7 +619,7 @@ impl DepGraph {
                                         ModuleExportName::Ident(i) => i.clone(),
                                         ModuleExportName::Str(..) => quote_ident!("_tmp").into(),
                                     },
-                                    Some(s.name.clone()),
+                                    s.name.clone(),
                                 ),
                             };
 
@@ -600,7 +630,7 @@ impl DepGraph {
                                 local = local.into_private();
                             }
 
-                            exports.push((local.to_id(), exported.clone()));
+                            exports.push((local.to_id(), exported.atom().clone()));
 
                             if let Some(src) = &item.src {
                                 let id = ItemId::Item {
@@ -693,7 +723,32 @@ impl DepGraph {
                                 write_vars: used_ids.write,
                                 eventual_write_vars: captured_ids.write,
                                 var_decls: [default_var.to_id()].into_iter().collect(),
-                                content: ModuleItem::ModuleDecl(item.clone()),
+                                content: ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(
+                                    VarDecl {
+                                        span: DUMMY_SP,
+                                        kind: VarDeclKind::Const,
+                                        decls: vec![VarDeclarator {
+                                            span: DUMMY_SP,
+                                            name: default_var.clone().into(),
+                                            init: Some(match &export.decl {
+                                                DefaultDecl::Class(c) => ClassExpr {
+                                                    ident: default_var.clone().into(),
+                                                    class: c.class.clone(),
+                                                }
+                                                .into(),
+                                                DefaultDecl::Fn(f) => FnExpr {
+                                                    ident: default_var.clone().into(),
+                                                    function: f.function.clone(),
+                                                }
+                                                .into(),
+                                                DefaultDecl::TsInterfaceDecl(_) => unreachable!(),
+                                            }),
+                                            definite: false,
+                                        }],
+                                        ..Default::default()
+                                    },
+                                )))),
+                                side_effects: true,
                                 ..Default::default()
                             };
 
@@ -705,10 +760,7 @@ impl DepGraph {
                             items.insert(id, data);
                         }
 
-                        exports.push((
-                            default_var.to_id(),
-                            Some(ModuleExportName::Ident(quote_ident!("default").into())),
-                        ));
+                        exports.push((default_var.to_id(), "default".into()));
                     }
                     ModuleDecl::ExportDefaultExpr(export) => {
                         let default_var =
@@ -767,10 +819,7 @@ impl DepGraph {
                         {
                             // For export default __TURBOPACK__default__export__
 
-                            exports.push((
-                                default_var.to_id(),
-                                Some(ModuleExportName::Ident(quote_ident!("default").into())),
-                            ));
+                            exports.push((default_var.to_id(), "default".into()));
                         }
                     }
 
@@ -1066,29 +1115,32 @@ impl DepGraph {
         }
 
         for (local, export_name) in exports {
-            let name = match &export_name {
-                Some(ModuleExportName::Ident(v)) => v.sym.clone(),
-                _ => local.0.clone(),
-            };
-            let id = ItemId::Group(ItemIdGroupKind::Export(local.clone(), name.clone()));
+            let id = ItemId::Group(ItemIdGroupKind::Export(local.clone(), export_name.clone()));
             ids.push(id.clone());
             items.insert(
                 id.clone(),
                 ItemData {
-                    content: ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(NamedExport {
-                        span: DUMMY_SP,
-                        specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
+                    content: if export_name == "default" {
+                        ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
                             span: DUMMY_SP,
-                            orig: ModuleExportName::Ident(local.clone().into()),
-                            exported: export_name,
-                            is_type_only: false,
-                        })],
-                        src: None,
-                        type_only: false,
-                        with: None,
-                    })),
+                            expr: local.clone().into(),
+                        }))
+                    } else {
+                        ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(NamedExport {
+                            span: DUMMY_SP,
+                            specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
+                                span: DUMMY_SP,
+                                orig: ModuleExportName::Ident(local.clone().into()),
+                                exported: None,
+                                is_type_only: false,
+                            })],
+                            src: None,
+                            type_only: false,
+                            with: None,
+                        }))
+                    },
                     read_vars: [local.clone()].into_iter().collect(),
-                    export: Some(name),
+                    export: Some((local.clone(), export_name.clone())),
                     ..Default::default()
                 },
             );

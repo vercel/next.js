@@ -15,7 +15,7 @@ use swc_core::{
         ast::{EsVersion, Id, Module},
         atoms::JsWord,
         codegen::text_writer::JsWriter,
-        parser::parse_file_as_module,
+        parser::{parse_file_as_module, EsSyntax},
         visit::VisitMutWith,
     },
     testing::{self, fixture, NormalizedOutput},
@@ -54,7 +54,10 @@ fn run(input: PathBuf) {
 
         let mut module = parse_file_as_module(
             &fm,
-            Default::default(),
+            swc_core::ecma::parser::Syntax::Es(EsSyntax {
+                jsx: true,
+                ..Default::default()
+            }),
             EsVersion::latest(),
             None,
             &mut vec![],
@@ -190,7 +193,7 @@ fn run(input: PathBuf) {
                     modules,
                     entrypoints,
                     ..
-                } = g.split_module(analyzer.items);
+                } = g.split_module(&[], analyzer.items);
 
                 writeln!(s, "# Entrypoints\n\n```\n{:#?}\n```\n\n", entrypoints).unwrap();
 

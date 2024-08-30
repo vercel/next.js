@@ -7,8 +7,8 @@ use swc_core::{
     common::{util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
     ecma::{
         ast::{
-            ExportAll, ExportNamedSpecifier, Id, Ident, ImportDecl, Module, ModuleDecl,
-            ModuleExportName, ModuleItem, NamedExport, Program,
+            ExportAll, ExportNamedSpecifier, Expr, ExprStmt, Id, Ident, ImportDecl, Lit, Module,
+            ModuleDecl, ModuleExportName, ModuleItem, NamedExport, Program, Stmt,
         },
         codegen::{text_writer::JsWriter, Emitter},
     },
@@ -437,7 +437,11 @@ impl PartialEq for SplitResult {
 
 #[turbo_tasks::function]
 pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<SplitResult>> {
-    Ok(split(asset.source().ident(), asset.source(), asset.parse()))
+    Ok(split(
+        asset.source().ident(),
+        asset.source(),
+        asset.parse(None),
+    ))
 }
 
 #[turbo_tasks::function]
@@ -446,6 +450,13 @@ pub(super) async fn split(
     source: Vc<Box<dyn Source>>,
     parsed: Vc<ParseResult>,
 ) -> Result<Vc<SplitResult>> {
+    if ident.await?.part.is_some() {
+        return Ok(SplitResult::Failed {
+            parse_result: parsed,
+        }
+        .cell());
+    }
+
     let parse_result = parsed.await?;
 
     match &*parse_result {
@@ -455,6 +466,7 @@ pub(super) async fn split(
             eval_context,
             source_map,
             globals,
+            top_level_mark,
             ..
         } => {
             // If the script file is a common js file, we cannot split the module
@@ -469,6 +481,22 @@ pub(super) async fn split(
                 Program::Module(module) => module,
                 Program::Script(..) => unreachable!("CJS is already handled"),
             };
+
+            // We copy directives like `use client` or `use server` to each module
+            let directives = module
+                .body
+                .iter()
+                .take_while(|item| {
+                    matches!(
+                        item,
+                        ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                            expr: box Expr::Lit(Lit::Str(..)),
+                            ..
+                        }))
+                    )
+                })
+                .cloned()
+                .collect::<Vec<_>>();
 
             let (mut dep_graph, items) = GLOBALS.set(globals, || {
                 Analyzer::analyze(
@@ -485,7 +513,17 @@ pub(super) async fn split(
                 part_deps,
                 modules,
                 star_reexports,
-            } = dep_graph.split_module(&items);
+            } = dep_graph.split_module(&directives, &items);
+
+            // eprintln!(
+            //     "# Program ({}):\n{}",
+            //     ident.to_string().await?,
+            //     to_code(&program)
+            // );
+
+            // for (idx, module) in modules.iter().enumerate() {
+            //     eprintln!("# Module #{idx}:\n{}", to_code(&module));
+            // }
 
             assert_ne!(modules.len(), 0, "modules.len() == 0;\nModule: {module:?}",);
 
@@ -515,6 +553,7 @@ pub(super) async fn split(
                         comments: comments.clone(),
                         source_map: source_map.clone(),
                         eval_context,
+                        top_level_mark: *top_level_mark,
                     })
                 })
                 .collect();
@@ -537,7 +576,7 @@ pub(super) async fn split(
 }
 
 #[turbo_tasks::function]
-pub(super) async fn part_of_module(
+pub(crate) async fn part_of_module(
     split_data: Vc<SplitResult>,
     part: Vc<ModulePart>,
 ) -> Result<Vc<ParseResult>> {
@@ -560,6 +599,7 @@ pub(super) async fn part_of_module(
                     eval_context,
                     globals,
                     source_map,
+                    top_level_mark,
                     ..
                 } = &*modules[0].await?
                 {
@@ -639,6 +679,7 @@ pub(super) async fn part_of_module(
                         eval_context,
                         globals: globals.clone(),
                         source_map: source_map.clone(),
+                        top_level_mark: *top_level_mark,
                     }
                     .cell());
                 } else {
@@ -652,6 +693,7 @@ pub(super) async fn part_of_module(
                     eval_context,
                     globals,
                     source_map,
+                    top_level_mark,
                     ..
                 } = &*modules[0].await?
                 {
@@ -716,6 +758,7 @@ pub(super) async fn part_of_module(
                         eval_context,
                         globals: globals.clone(),
                         source_map: source_map.clone(),
+                        top_level_mark: *top_level_mark,
                     }
                     .cell());
                 } else {
