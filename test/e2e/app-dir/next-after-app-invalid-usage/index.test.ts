@@ -11,7 +11,7 @@ import {
 describe('unstable_after() - invalid usages', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
-    // `patchFile` and reading runtime logs are not supported in a deployed environment
+    // reading runtime logs is not supported in a deployed environment
     skipDeployment: true,
   })
 
