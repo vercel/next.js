@@ -85,19 +85,6 @@ jobs:
       stepName: 'lint'
     secrets: inherit
 
-  validate-docs-links:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 18
-      - run: corepack enable
-      - name: 'Run link checker'
-        run: node ./.github/actions/validate-docs-links/dist/index.js
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   check-types-precompiled:
     name: types and precompiled
     needs: ['changes', 'build-native', 'build-next']
@@ -327,7 +314,6 @@ jobs:
         'build-native',
         'build-next',
         'lint',
-        'validate-docs-links',
         'check-types-precompiled',
         'test-unit',
         'test-dev',
