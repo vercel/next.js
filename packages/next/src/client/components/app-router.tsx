@@ -291,7 +291,7 @@ function Router({
   buildId,
   initialHead,
   initialTree,
-  initialCanonicalUrl,
+  urlParts,
   initialSeedData,
   couldBeIntercepted,
   assetPrefix,
@@ -302,7 +302,7 @@ function Router({
       createInitialRouterState({
         buildId,
         initialSeedData,
-        initialCanonicalUrl,
+        urlParts,
         initialTree,
         initialParallelRoutes,
         location: !isServer ? window.location : null,
@@ -312,7 +312,7 @@ function Router({
     [
       buildId,
       initialSeedData,
-      initialCanonicalUrl,
+      urlParts,
       initialTree,
       initialHead,
       couldBeIntercepted,

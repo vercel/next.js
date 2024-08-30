@@ -36,7 +36,7 @@ describe('createInitialRouterState', () => {
     const state = createInitialRouterState({
       buildId,
       initialTree,
-      initialCanonicalUrl,
+      urlParts: initialCanonicalUrl.split('/'),
       initialSeedData: ['', {}, children, null],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
@@ -47,7 +47,7 @@ describe('createInitialRouterState', () => {
     const state2 = createInitialRouterState({
       buildId,
       initialTree,
-      initialCanonicalUrl,
+      urlParts: initialCanonicalUrl.split('/'),
       initialSeedData: ['', {}, children, null],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
