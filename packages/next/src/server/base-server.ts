@@ -132,7 +132,11 @@ import {
   normalizeNextQueryParam,
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
-import { CACHE_ONE_YEAR, NEXT_CACHE_TAGS_HEADER } from '../lib/constants'
+import {
+  CACHE_ONE_YEAR,
+  NEXT_CACHE_TAGS_HEADER,
+  NEXT_RESUME_HEADER,
+} from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import {
   NextRequestAdapter,
@@ -141,7 +145,6 @@ import {
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
-import { PostponedPathnameNormalizer } from './normalizers/request/postponed'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
   isAppPageRouteModule,
@@ -439,7 +442,6 @@ export default abstract class Server<
   protected readonly localeNormalizer?: LocaleRouteNormalizer
 
   protected readonly normalizers: {
-    readonly postponed: PostponedPathnameNormalizer | undefined
     readonly rsc: RSCPathnameNormalizer | undefined
     readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
     readonly data: NextDataPathnameNormalizer | undefined
@@ -517,13 +519,6 @@ export default abstract class Server<
       checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
 
     this.normalizers = {
-      // We should normalize the pathname from the RSC prefix only in minimal
-      // mode as otherwise that route is not exposed external to the server as
-      // we instead only rely on the headers.
-      postponed:
-        this.isAppPPREnabled && this.minimalMode
-          ? new PostponedPathnameNormalizer()
-          : undefined,
       rsc:
         this.enabledDirectories.app && this.minimalMode
           ? new RSCPathnameNormalizer()
@@ -1055,9 +1050,11 @@ export default abstract class Server<
             parsedUrl.query.__nextDataReq = '1'
           }
           // In minimal mode, if PPR is enabled, then we should check to see if
-          // the matched path is a postponed path, and if it is, handle it.
+          // the request should be a resume request.
           else if (
-            this.normalizers.postponed?.match(matchedPath) &&
+            this.isAppPPREnabled &&
+            this.minimalMode &&
+            req.headers[NEXT_RESUME_HEADER] === '1' &&
             req.method === 'POST'
           ) {
             // Decode the postponed state from the request body, it will come as
@@ -1070,17 +1067,6 @@ export default abstract class Server<
             const postponed = Buffer.concat(body).toString('utf8')
 
             addRequestMeta(req, 'postponed', postponed)
-
-            // If the request does not have the `x-now-route-matches` header,
-            // it means that the request has it's exact path specified in the
-            // `x-matched-path` header. In this case, we should update the
-            // pathname to the matched path.
-            if (!req.headers['x-now-route-matches']) {
-              urlPathname = this.normalizers.postponed.normalize(
-                matchedPath,
-                true
-              )
-            }
           }
 
           matchedPath = this.normalize(matchedPath)
@@ -1505,10 +1491,6 @@ export default abstract class Server<
 
     if (this.normalizers.data) {
       normalizers.push(this.normalizers.data)
-    }
-
-    if (this.normalizers.postponed) {
-      normalizers.push(this.normalizers.postponed)
     }
 
     // We have to put the prefetch normalizer before the RSC normalizer
@@ -2052,16 +2034,14 @@ export default abstract class Server<
       typeof query.__nextppronly !== 'undefined' &&
       couldSupportPPR
 
-    // This page supports PPR if it has `experimentalPPR` set to `true` in the
+    // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
     const isRoutePPREnabled: boolean =
       couldSupportPPR &&
-      // In production, we'd expect to see the `experimentalPPR` flag set in the
-      // prerender manifest.
       ((
         prerenderManifest.routes[pathname] ??
         prerenderManifest.dynamicRoutes[pathname]
-      )?.experimentalPPR === true ||
+      )?.renderingMode === 'PARTIALLY_STATIC' ||
         // Ideally we'd want to check the appConfig to see if this page has PPR
         // enabled or not, but that would require plumbing the appConfig through
         // to the server during development. We assume that the page supports it

@@ -119,7 +119,8 @@ describe('required server files app router', () => {
   it('should properly stream resume', async () => {
     const res = await fetchViaHTTP(appPort, '/delayed', undefined, {
       headers: {
-        'x-matched-path': '/_next/postponed/resume/delayed',
+        'x-matched-path': '/delayed',
+        'next-resume': '1',
       },
       method: 'POST',
       body: delayedPostpone,
@@ -212,7 +213,8 @@ describe('required server files app router', () => {
         {
           method: 'POST',
           headers: {
-            'x-matched-path': '/_next/postponed/resume/rewrite/first-cookie',
+            'x-matched-path': '/rewrite/first-cookie',
+            'next-resume': '1',
           },
           body: rewritePostpone,
         }
@@ -233,7 +235,8 @@ describe('required server files app router', () => {
     const res = await fetchViaHTTP(appPort, '/dyn/' + random, undefined, {
       method: 'POST',
       headers: {
-        'x-matched-path': '/_next/postponed/resume/dyn/' + random,
+        'x-matched-path': '/dyn/[slug]',
+        'next-resume': '1',
       },
       // This is a corrupted postponed JSON payload.
       body: '{',
@@ -330,7 +333,7 @@ describe('required server files app router', () => {
       undefined,
       {
         headers: {
-          'x-matched-path': '/dyn/first',
+          'x-matched-path': '/dyn/[slug]',
         },
       }
     )

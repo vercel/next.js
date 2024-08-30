@@ -1,3 +1,4 @@
+import { RenderingMode } from '../../../build/rendering-mode'
 import { SharedRevalidateTimings } from './shared-revalidate-timings'
 
 describe('SharedRevalidateTimings', () => {
@@ -12,14 +13,14 @@ describe('SharedRevalidateTimings', () => {
           dataRoute: null,
           srcRoute: null,
           prefetchDataRoute: null,
-          experimentalPPR: undefined,
+          renderingMode: RenderingMode.STATIC,
         },
         '/route2': {
           initialRevalidateSeconds: 20,
           dataRoute: null,
           srcRoute: null,
           prefetchDataRoute: null,
-          experimentalPPR: undefined,
+          renderingMode: RenderingMode.STATIC,
         },
       },
       dynamicRoutes: {},
