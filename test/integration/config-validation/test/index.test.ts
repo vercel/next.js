@@ -39,6 +39,17 @@ describe('next.config.js validation', () => {
             `Unrecognized key(s) in object: 'anotherNonExistent' at "experimental"`,
           ],
         },
+        {
+          name: 'invalid config array lengths',
+          configContent: `
+        module.exports = {
+          pageExtensions: []
+        }
+      `,
+          outputs: [
+            'Array must contain at least 1 element(s) at "pageExtensions"',
+          ],
+        },
       ])(
         'it should validate correctly for $name',
         async ({ outputs, configContent }) => {
@@ -79,33 +90,6 @@ describe('next.config.js validation', () => {
 
         expect(result.stdout + result.stderr).not.toContain(
           '"env.QUX" is missing'
-        )
-      })
-
-      it('should allow for empty topLevelImportPaths and meaninglessFileNames arrays (compiler.styledComponents)', async () => {
-        const configContent = `
-        module.exports = {
-          compiler: {
-            styledComponents: {
-              topLevelImportPaths: [],
-              meaninglessFileNames: []
-            }
-          }
-        }`
-
-        await fs.writeFile(nextConfigPath, configContent)
-        const result = await nextBuild(path.join(__dirname, '../'), undefined, {
-          stderr: true,
-          stdout: true,
-        })
-
-        await fs.remove(nextConfigPath)
-
-        expect(result.stdout + result.stderr).not.toContain(
-          'Array must contain at least 1 element(s) at "compiler.styledComponents.topLevelImportPaths'
-        )
-        expect(result.stdout + result.stderr).not.toContain(
-          'Array must contain at least 1 element(s) at "compiler.styledComponents.meaninglessFilenames'
         )
       })
     }
