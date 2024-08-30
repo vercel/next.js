@@ -8,6 +8,7 @@ import {
 } from 'next-test-utils'
 
 const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+const isReact18 = true
 
 describe('react-dom/server in React Server environment', () => {
   const dependencies = (global as any).isNextDeploy
@@ -151,8 +152,8 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-edge-explicit'
     )
 
-    await assertNoRedbox(browser)
     if (isTurbopack) {
+      await assertNoRedbox(browser)
       if (isReactExperimental) {
         expect(await browser.elementByCss('main').text())
           .toMatchInlineSnapshot(`
@@ -196,6 +197,7 @@ describe('react-dom/server in React Server environment', () => {
       }
     } else {
       if (isReactExperimental) {
+        await assertNoRedbox(browser)
         expect(await browser.elementByCss('main').text())
           .toMatchInlineSnapshot(`
           "{
@@ -216,7 +218,10 @@ describe('react-dom/server in React Server environment', () => {
             ]
           }"
         `)
+      } else if (isReact18) {
+        await assertHasRedbox(browser)
       } else {
+        await assertNoRedbox(browser)
         expect(await browser.elementByCss('main').text())
           .toMatchInlineSnapshot(`
           "{
@@ -249,12 +254,21 @@ describe('react-dom/server in React Server environment', () => {
         }
       `)
     } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
-      `)
+      if (isReact18) {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "TypeError: Cannot read properties of undefined (reading 'd')",
+            "source": null,
+          }
+        `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": null,
+            "source": null,
+          }
+        `)
+      }
     }
   })
 
@@ -328,12 +342,21 @@ describe('react-dom/server in React Server environment', () => {
         }
       `)
     } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Error: react-dom/server is not supported in React Server Components.",
-          "source": null,
-        }
-      `)
+      if (isReact18) {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
+            "source": null,
+          }
+        `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "Error: react-dom/server is not supported in React Server Components.",
+            "source": null,
+          }
+        `)
+      }
     }
   })
 
@@ -415,12 +438,21 @@ describe('react-dom/server in React Server environment', () => {
         }
       `)
     } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
+      if (isReact18) {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
+            "source": null,
+          }
+        `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
           "description": "Error: react-dom/server is not supported in React Server Components.",
-          "source": null,
-        }
-      `)
+            "source": null,
+          }
+        `)
+      }
     }
   })
 
@@ -429,8 +461,8 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/library-code/react-dom-server-edge-explicit'
     )
 
-    await assertNoRedbox(browser)
     if (isTurbopack) {
+      await assertNoRedbox(browser)
       if (isReactExperimental) {
         expect(await browser.elementByCss('main').text())
           .toMatchInlineSnapshot(`
@@ -478,6 +510,7 @@ describe('react-dom/server in React Server environment', () => {
       }
     } else {
       if (isReactExperimental) {
+        await assertNoRedbox(browser)
         expect(await browser.elementByCss('main').text())
           .toMatchInlineSnapshot(`
           "{
@@ -500,27 +533,30 @@ describe('react-dom/server in React Server environment', () => {
             }
           }"
         `)
+      } else if (isReact18) {
+        await assertHasRedbox(browser)
       } else {
+        await assertNoRedbox(browser)
         expect(await browser.elementByCss('main').text())
           .toMatchInlineSnapshot(`
-          "{
-            "default": {
-              "default": [
-                "renderToReadableStream",
-                "renderToStaticMarkup",
-                "renderToString",
-                "version"
-              ],
-              "named": [
-                "default",
-                "renderToReadableStream",
-                "renderToStaticMarkup",
-                "renderToString",
-                "version"
-              ]
-            }
-          }"
-        `)
+            "{
+              "default": {
+                "default": [
+                  "renderToReadableStream",
+                  "renderToStaticMarkup",
+                  "renderToString",
+                  "version"
+                ],
+                "named": [
+                  "default",
+                  "renderToReadableStream",
+                  "renderToStaticMarkup",
+                  "renderToString",
+                  "version"
+                ]
+              }
+            }"
+          `)
       }
     }
     const redbox = {
@@ -535,12 +571,21 @@ describe('react-dom/server in React Server environment', () => {
         }
       `)
     } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
+      if (isReact18) {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "TypeError: Cannot read properties of undefined (reading 'd')",
+            "source": null,
+          }
+        `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
           "description": null,
-          "source": null,
-        }
-      `)
+            "source": null,
+          }
+        `)
+      }
     }
   })
 
@@ -686,12 +731,21 @@ describe('react-dom/server in React Server environment', () => {
         }
       `)
     } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Error: react-dom/server is not supported in React Server Components.",
-          "source": null,
-        }
-      `)
+      if (isReact18) {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
+            "source": null,
+          }
+        `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "Error: react-dom/server is not supported in React Server Components.",
+            "source": null,
+          }
+        `)
+      }
     }
   })
 
@@ -718,12 +772,21 @@ describe('react-dom/server in React Server environment', () => {
         }
       `)
     } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Error: react-dom/server is not supported in React Server Components.",
-          "source": null,
-        }
-      `)
+      if (isReact18) {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
+            "source": null,
+          }
+        `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "Error: react-dom/server is not supported in React Server Components.",
+            "source": null,
+          }
+        `)
+      }
     }
   })
 })
