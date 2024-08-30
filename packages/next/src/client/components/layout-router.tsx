@@ -517,7 +517,6 @@ export default function OuterLayoutRouter({
   template,
   notFound,
   notFoundStyles,
-  styles,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -529,7 +528,6 @@ export default function OuterLayoutRouter({
   template: React.ReactNode
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
-  styles?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -562,7 +560,6 @@ export default function OuterLayoutRouter({
 
   return (
     <>
-      {styles}
       {preservedSegments.map((preservedSegment) => {
         const preservedSegmentValue = getSegmentValue(preservedSegment)
         const cacheKey = createRouterCacheKey(preservedSegment)
