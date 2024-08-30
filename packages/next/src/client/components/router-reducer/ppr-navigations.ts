@@ -125,6 +125,12 @@ export function updateCacheNodeOnNavigation(
     const oldSegmentChild =
       oldRouterStateChild !== undefined ? oldRouterStateChild[0] : undefined
 
+    // A dynamic segment will be an array, and doesn't correspond with a page segment.
+    const isPageSegment = Array.isArray(newSegmentChild)
+      ? false
+      : // A page segment might contain search parameters, so we verify that it starts with the page segment key.
+        newSegmentChild.startsWith(PAGE_SEGMENT_KEY)
+
     const oldCacheNodeChild =
       oldSegmentMapChild !== undefined
         ? oldSegmentMapChild.get(newSegmentKeyChild)
@@ -136,7 +142,7 @@ export function updateCacheNodeOnNavigation(
       // We spawn a "task" just to keep track of the updated router state; unlike most, it's
       // already fulfilled and won't be affected by the dynamic response.
       taskChild = spawnReusedTask(oldRouterStateChild)
-    } else if (newSegmentChild === PAGE_SEGMENT_KEY) {
+    } else if (isPageSegment) {
       // This is a leaf segment — a page, not a shared layout. We always apply
       // its data.
       taskChild = spawnPendingTask(
