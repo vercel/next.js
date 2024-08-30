@@ -41,6 +41,10 @@ import {
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
 import type { Params } from '../client/components/params'
+import {
+  getFallbackRouteParams,
+  type FallbackRouteParams,
+} from '../client/components/fallback-params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 const envConfig = require('../shared/lib/runtime-config.external')
@@ -84,6 +88,9 @@ async function exportPageImpl(
   const {
     page,
 
+    // The parameters that are currently unknown.
+    _fallbackRouteParams = [],
+
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
 
@@ -99,6 +106,9 @@ async function exportPageImpl(
   } = pathMap
 
   try {
+    const fallbackRouteParams: FallbackRouteParams | null =
+      getFallbackRouteParams(_fallbackRouteParams)
+
     let query = { ...originalQuery }
     const pathname = normalizeAppPath(page)
     const isDynamic = isDynamicRoute(page)
@@ -275,6 +285,7 @@ async function exportPageImpl(
         path,
         pathname,
         query,
+        fallbackRouteParams,
         renderOpts,
         htmlFilepath,
         debugOutput,
@@ -547,4 +558,18 @@ process.on('rejectionHandled', () => {
   // It is ok to await a Promise late in Next.js as it allows for better
   // prefetching patterns to avoid waterfalls. We ignore logging these.
   // We should've already errored in anyway unhandledRejection.
+})
+
+const FATAL_UNHANDLED_NEXT_API_EXIT_CODE = 78
+
+process.on('uncaughtException', (err) => {
+  if (isDynamicUsageError(err)) {
+    console.error(
+      'A Next.js API that uses exceptions to signal framework behavior was uncaught. This suggests improper usage of a Next.js API. The original error is printed below and the build will now exit.'
+    )
+    console.error(err)
+    process.exit(FATAL_UNHANDLED_NEXT_API_EXIT_CODE)
+  } else {
+    console.error(err)
+  }
 })
