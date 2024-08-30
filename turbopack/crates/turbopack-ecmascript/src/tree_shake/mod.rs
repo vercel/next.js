@@ -437,11 +437,7 @@ impl PartialEq for SplitResult {
 
 #[turbo_tasks::function]
 pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<SplitResult>> {
-    Ok(split(
-        asset.source().ident(),
-        asset.source(),
-        asset.parse(None),
-    ))
+    Ok(split(asset.source().ident(), asset.source(), asset.parse()))
 }
 
 #[turbo_tasks::function]
@@ -466,7 +462,6 @@ pub(super) async fn split(
             eval_context,
             source_map,
             globals,
-            top_level_mark,
             ..
         } => {
             // If the script file is a common js file, we cannot split the module
@@ -553,7 +548,6 @@ pub(super) async fn split(
                         comments: comments.clone(),
                         source_map: source_map.clone(),
                         eval_context,
-                        top_level_mark: *top_level_mark,
                     })
                 })
                 .collect();
@@ -599,7 +593,6 @@ pub(crate) async fn part_of_module(
                     eval_context,
                     globals,
                     source_map,
-                    top_level_mark,
                     ..
                 } = &*modules[0].await?
                 {
@@ -679,7 +672,6 @@ pub(crate) async fn part_of_module(
                         eval_context,
                         globals: globals.clone(),
                         source_map: source_map.clone(),
-                        top_level_mark: *top_level_mark,
                     }
                     .cell());
                 } else {
@@ -693,7 +685,6 @@ pub(crate) async fn part_of_module(
                     eval_context,
                     globals,
                     source_map,
-                    top_level_mark,
                     ..
                 } = &*modules[0].await?
                 {
@@ -758,7 +749,6 @@ pub(crate) async fn part_of_module(
                         eval_context,
                         globals: globals.clone(),
                         source_map: source_map.clone(),
-                        top_level_mark: *top_level_mark,
                     }
                     .cell());
                 } else {
