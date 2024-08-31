@@ -7,14 +7,13 @@ describe('extractEtag', () => {
   it('should return base64url encoded etag if etag is provided', () => {
     const etag = 'sample-etag'
     const result = extractEtag(etag, Buffer.from(''))
-    expect(result).toMatch('c2FtcGxlLWV0YWc')
+    expect(result).toEqual('c2FtcGxlLWV0YWc')
   })
 
   it('should not return weak etag identifier if etag is provided', () => {
     const etag = 'W/"sample-etag"'
     const result = extractEtag(etag, Buffer.from(''))
-    expect(result).not.toContain('/')
-    expect(result).toMatch('Vy8ic2FtcGxlLWV0YWci')
+    expect(result).toEqual('Vy8ic2FtcGxlLWV0YWci')
   })
 
   it('should call getImageEtag and return its result if etag is null', async () => {

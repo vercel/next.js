@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import {
-  shouldUsePreviouslyCachedEntry,
+  getPreviouslyCachedImageOrNull,
   getImageEtag,
 } from 'next/dist/server/image-optimizer'
 import { readFile } from 'fs-extra'
@@ -13,7 +13,7 @@ const getImageUpstream = async (filepath, contentType = 'image/jpeg') => {
     contentType,
     cacheControl: 'max-age=31536000',
     etag: getImageEtag(buffer),
-  } satisfies Parameters<typeof shouldUsePreviouslyCachedEntry>[0]
+  } satisfies Parameters<typeof getPreviouslyCachedImageOrNull>[0]
 }
 const baseCacheEntry = {
   revalidateAfter: Date.now() + 1000,
@@ -40,75 +40,76 @@ const getPreviousCacheEntry = async (
       buffer,
       extension,
     },
-  } satisfies Parameters<typeof shouldUsePreviouslyCachedEntry>[1]
+  } satisfies Parameters<typeof getPreviouslyCachedImageOrNull>[1]
 }
 
 describe('shouldUsePreviouslyCachedEntry', () => {
-  it('should return true if the upstream image matches previous cache entry upstream etag and not the optimized etag', async () => {
+  it('should return the cached image if the upstream image matches previous cache entry upstream etag and not the optimized etag', async () => {
+    const previousEntry = await getPreviousCacheEntry('./images/test.jpg')
     expect(
-      shouldUsePreviouslyCachedEntry(
+      getPreviouslyCachedImageOrNull(
         await getImageUpstream('./images/test.jpg'),
-        await getPreviousCacheEntry('./images/test.jpg')
+        previousEntry
       )
-    ).toBe(true)
+    ).toEqual(previousEntry.value)
   })
 
-  it('should return false if previous cache entry value is not of kind IMAGE', async () => {
+  it('should return null if previous cache entry value is not of kind IMAGE', async () => {
     const nonImageCacheEntry = {
       ...baseCacheEntry,
       value: { kind: 'REDIRECT', props: {} },
-    } satisfies Parameters<typeof shouldUsePreviouslyCachedEntry>[1]
+    } satisfies Parameters<typeof getPreviouslyCachedImageOrNull>[1]
     expect(
-      shouldUsePreviouslyCachedEntry(
+      getPreviouslyCachedImageOrNull(
         await getImageUpstream('./images/test.jpg'),
         nonImageCacheEntry
       )
-    ).toBe(false)
+    ).toBe(null)
   })
 
-  it('should return false if upstream image does not match previous cache entry upstream etag', async () => {
+  it('should return null if upstream image does not match previous cache entry upstream etag', async () => {
     expect(
-      shouldUsePreviouslyCachedEntry(
+      getPreviouslyCachedImageOrNull(
         await getImageUpstream('./images/test.png', 'image/png'),
         await getPreviousCacheEntry('./images/test.jpg')
       )
-    ).toBe(false)
+    ).toBe(null)
   })
 
-  it('should return false if upstream image matches optimized etag', async () => {
+  it('should return null if upstream image matches optimized etag', async () => {
     expect(
-      shouldUsePreviouslyCachedEntry(
+      getPreviouslyCachedImageOrNull(
         await getImageUpstream('./images/test.jpg'),
         await getPreviousCacheEntry('./images/test.jpg', 'jpeg', false)
       )
-    ).toBe(false)
+    ).toBe(null)
   })
 
-  it('should return false if previous cache entry is undefined', async () => {
+  it('should return null if previous cache entry is undefined', async () => {
     expect(
-      shouldUsePreviouslyCachedEntry(
+      getPreviouslyCachedImageOrNull(
         await getImageUpstream('./images/test.jpg'),
         undefined
       )
-    ).toBe(false)
+    ).toBe(null)
   })
 
-  it('should return false if previous cache entry is null', async () => {
+  it('should return null if previous cache entry is null', async () => {
     expect(
-      shouldUsePreviouslyCachedEntry(
+      getPreviouslyCachedImageOrNull(
         await getImageUpstream('./images/test.jpg'),
         null
       )
-    ).toBe(false)
+    ).toBe(null)
   })
 
-  it('should return false if previous cache entry value is null', async () => {
+  it('should return null if previous cache entry value is null', async () => {
     const nullValueCacheEntry = { ...baseCacheEntry, value: null }
     expect(
-      shouldUsePreviouslyCachedEntry(
+      getPreviouslyCachedImageOrNull(
         await getImageUpstream('./images/test.jpg'),
         nullValueCacheEntry
       )
-    ).toBe(false)
+    ).toBe(null)
   })
 })

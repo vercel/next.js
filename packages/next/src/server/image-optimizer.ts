@@ -111,7 +111,7 @@ export function extractEtag(
   etag: string | null | undefined,
   imageBuffer: Buffer
 ) {
-  if (!!etag) {
+  if (etag) {
     // upstream etag needs to be base64url encoded due to weak etag signature
     // as we store this in the cache-entry file name.
     return Buffer.from(etag).toString('base64url')
@@ -484,20 +484,21 @@ export function getMaxAge(str: string | null | undefined): number {
   }
   return 0
 }
-
-export function shouldUsePreviouslyCachedEntry(
+export function getPreviouslyCachedImageOrNull(
   upstreamImage: ImageUpstream,
   previousCacheEntry: IncrementalCacheItem | undefined
-): previousCacheEntry is NonNullable<IncrementalCacheItem> & {
-  value: CachedImageValue
-} {
-  return (
+): CachedImageValue | null {
+  if (
     previousCacheEntry?.value?.kind === 'IMAGE' &&
-    // If the cached image is optimized
+    // Images that are SVGs, animated or failed the optimization previously end up using upstreamEtag as their etag as well,
+    // in these cases we want to trigger a new "optimization" attempt.
     previousCacheEntry.value.upstreamEtag !== previousCacheEntry.value.etag &&
     // and the upstream etag is the same as the previous cache entry's
     upstreamImage.etag === previousCacheEntry.value.upstreamEtag
-  )
+  ) {
+    return previousCacheEntry.value
+  }
+  return null
 }
 
 export async function optimizeImage({
@@ -643,17 +644,6 @@ export async function imageOptimizer(
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
   const maxAge = getMaxAge(imageUpstream.cacheControl)
 
-  if (shouldUsePreviouslyCachedEntry(imageUpstream, previousCacheEntry)) {
-    // Return the cached optimized image
-    return {
-      buffer: previousCacheEntry.value.buffer,
-      contentType: paramsResult.mimeType,
-      maxAge: previousCacheEntry.curRevalidate || maxAge,
-      etag: previousCacheEntry.value.etag,
-      upstreamEtag: previousCacheEntry.value.upstreamEtag,
-    }
-  }
-
   const upstreamType =
     detectContentType(upstreamBuffer) ||
     imageUpstream.contentType?.toLowerCase().trim()
@@ -720,6 +710,20 @@ export async function imageOptimizer(
   } else {
     contentType = JPEG
   }
+  const previouslyCachedImage = getPreviouslyCachedImageOrNull(
+    imageUpstream,
+    previousCacheEntry
+  )
+  if (previouslyCachedImage) {
+    return {
+      buffer: previouslyCachedImage.buffer,
+      contentType,
+      maxAge: previousCacheEntry?.curRevalidate || maxAge,
+      etag: previouslyCachedImage.etag,
+      upstreamEtag: previouslyCachedImage.upstreamEtag,
+    }
+  }
+
   try {
     let optimizedBuffer = await optimizeImage({
       buffer: upstreamBuffer,
