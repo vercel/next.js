@@ -1130,7 +1130,14 @@ impl DepGraph {
                             specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
                                 span: DUMMY_SP,
                                 orig: ModuleExportName::Ident(local.clone().into()),
-                                exported: None,
+                                exported: if local.0 == export_name {
+                                    None
+                                } else {
+                                    Some(ModuleExportName::Ident(Ident::new_no_ctxt(
+                                        export_name.clone(),
+                                        DUMMY_SP,
+                                    )))
+                                },
                                 is_type_only: false,
                             })],
                             src: None,
