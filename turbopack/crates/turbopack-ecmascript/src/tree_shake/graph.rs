@@ -597,9 +597,7 @@ impl DepGraph {
                                         quote_ident!(may_escape(s.orig.atom())).into(),
                                     )),
                                     match &s.orig {
-                                        ModuleExportName::Ident(i) => {
-                                            quote_ident!(may_escape(&i.sym)).into()
-                                        }
+                                        ModuleExportName::Ident(i) => i.clone(),
                                         ModuleExportName::Str(..) => quote_ident!("_tmp").into(),
                                     },
                                     s.exported.clone().unwrap_or_else(|| s.orig.clone()),
