@@ -109,7 +109,7 @@ export const revalidate = false
 > **Good to know**:
 >
 > - The revalidate value needs to be statically analyzable. For example `revalidate = 600` is valid, but `revalidate = 60 * 10` is not.
-> - The revalidate value is not available when using `runtime = 'edge'`.
+> - The revalidate value is not going to effect revalidation of the route for when using `runtime = 'edge'`, but can still effect the data cache.
 
 #### Revalidation Frequency
 
