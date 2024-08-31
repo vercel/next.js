@@ -604,11 +604,11 @@ impl DepGraph {
                                 ),
                                 ExportSpecifier::Default(s) => (
                                     Some(ModuleExportName::Ident(Ident::new(
-                                        "_default".into(),
+                                        "default".into(),
                                         DUMMY_SP,
                                         Default::default(),
                                     ))),
-                                    quote_ident!("_default").into(),
+                                    quote_ident!("default").into(),
                                     ModuleExportName::Ident(s.exported.clone()),
                                 ),
                                 ExportSpecifier::Namespace(s) => (
@@ -620,13 +620,6 @@ impl DepGraph {
                                     s.name.clone(),
                                 ),
                             };
-
-                            if item.src.is_some() {
-                                local.sym =
-                                    magic_identifier::mangle(&format!("reexport {}", local.sym))
-                                        .into();
-                                local = local.into_private();
-                            }
 
                             exports.push((local.to_id(), exported.atom().clone()));
 
