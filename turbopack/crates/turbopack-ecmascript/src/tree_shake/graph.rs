@@ -591,7 +591,7 @@ impl DepGraph {
                         }
 
                         for (si, s) in item.specifiers.iter().enumerate() {
-                            let (orig, mut local, exported) = match s {
+                            let (orig, local, exported) = match s {
                                 ExportSpecifier::Named(s) => (
                                     Some(ModuleExportName::Ident(
                                         quote_ident!(may_escape(s.orig.atom())).into(),
@@ -602,15 +602,23 @@ impl DepGraph {
                                     },
                                     s.exported.clone().unwrap_or_else(|| s.orig.clone()),
                                 ),
-                                ExportSpecifier::Default(s) => (
-                                    Some(ModuleExportName::Ident(Ident::new(
-                                        "default".into(),
+                                ExportSpecifier::Default(s) => {
+                                    let ident = Ident::new_private(
+                                        magic_identifier::mangle("default export").into(),
                                         DUMMY_SP,
-                                        Default::default(),
-                                    ))),
-                                    quote_ident!("default").into(),
-                                    ModuleExportName::Ident(s.exported.clone()),
-                                ),
+                                    );
+
+                                    (
+                                        Some(ModuleExportName::Ident(
+                                            quote_ident!("default").into(),
+                                        )),
+                                        ident,
+                                        ModuleExportName::Ident(Ident::new_no_ctxt(
+                                            may_escape(&s.exported.sym).into(),
+                                            DUMMY_SP,
+                                        )),
+                                    )
+                                }
                                 ExportSpecifier::Namespace(s) => (
                                     None,
                                     match &s.name {
