@@ -34,6 +34,7 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     page: z.string(),
     query: z.any(), // NextParsedUrlQuery
     // private optional properties
+    _fallbackRouteParams: z.array(z.string()).optional(),
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
     _isRoutePPREnabled: z.boolean().optional(),
@@ -278,6 +279,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         caseSensitiveRoutes: z.boolean().optional(),
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
+        dynamicIO: z.boolean().optional(),
         esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
         serverActions: z
           .object({
@@ -318,6 +320,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .union([z.boolean(), z.literal('incremental')])
           .readonly()
           .optional(),
+        pprFallbacks: z.boolean().optional(),
         taint: z.boolean().optional(),
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
@@ -388,6 +391,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             useSwcCss: z.boolean().optional(),
             treeShaking: z.boolean().optional(),
             memoryLimit: z.number().optional(),
+            moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),

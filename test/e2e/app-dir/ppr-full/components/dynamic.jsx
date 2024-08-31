@@ -1,9 +1,9 @@
 import React, { use } from 'react'
 import * as next from 'next/headers'
 
-export const Dynamic = ({ pathname, fallback = null }) => {
+export const Dynamic = ({ pathname, fallback = null, params = null }) => {
   if (fallback) {
-    return <div>Dynamic Loading...</div>
+    return <div data-fallback>Dynamic Loading...</div>
   }
 
   const headers = next.headers()
@@ -33,6 +33,12 @@ export const Dynamic = ({ pathname, fallback = null }) => {
           <dd>{value ?? `MISSING:${name.toUpperCase()}`}</dd>
         </React.Fragment>
       ))}
+      {params && (
+        <>
+          <dt>Params</dt>
+          <dd data-params={JSON.stringify(params)}>{JSON.stringify(params)}</dd>
+        </>
+      )}
     </dl>
   )
 }

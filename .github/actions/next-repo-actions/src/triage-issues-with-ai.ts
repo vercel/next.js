@@ -44,15 +44,20 @@ async function main() {
 
     const result = await generateText({
       model: openai(model),
-      maxAutomaticRoundtrips: 1,
+      maxToolRoundtrips: 1,
       tools: {
         report_to_slack: tool({
           description: 'Report to Slack.',
           parameters: issueSchema,
+          execute: async () => {
+            // necessary to have an execute the tool automatically,
+            // so just putting an info message here as a placeholder
+            info('Reporting to Slack...')
+          },
         }),
       },
       system:
-        'Your job is to determine the severity of a GitHub issue using the triage guidelines and the latest versions of Next.js. Succinctly explain why you chose the severity, without paraphrasing the triage guidelines. Report this explanation to slack only if the severity is considered severe.',
+        'Your job is to determine the severity of a GitHub issue using the triage guidelines and the latest versions of Next.js. Succinctly explain why you chose the severity, without paraphrasing the triage guidelines. Report to Slack the explanation only if the severity is considered severe.',
       prompt:
         `Here are the triage guidelines: ${guidelines}` +
         `Here is the latest version of Next.js: ${latestVersion}` +
@@ -79,7 +84,7 @@ async function main() {
         username: 'GitHub Notifier',
       })
 
-      info('Posted to Slack!')
+      info('Reported to Slack!')
     }
 
     // the ai will also provide a reason why the issue was not severe enough to report on slack
