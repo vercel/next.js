@@ -127,7 +127,7 @@
     }
   },
   "optionalDependencies": {
-    "sharp": "^0.33.4"
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.8.3",
