@@ -53,9 +53,21 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
     result
 }
 
+const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
+
 pub fn module_id_to_lit(module_id: &ModuleId) -> Expr {
     Expr::Lit(match module_id {
-        ModuleId::Number(n) => Lit::Num((*n as f64).into()),
+        ModuleId::Number(n) => {
+            if *n <= JS_MAX_SAFE_INTEGER {
+                Lit::Num((*n as f64).into())
+            } else {
+                Lit::Str(Str {
+                    span: DUMMY_SP,
+                    value: n.to_string().into(),
+                    raw: None,
+                })
+            }
+        }
         ModuleId::String(s) => Lit::Str(Str {
             span: DUMMY_SP,
             value: (s as &str).into(),
