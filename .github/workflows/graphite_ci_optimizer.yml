@@ -20,8 +20,12 @@ on:
     secrets:
       GRAPHITE_TOKEN:
         description: 'The Graphite CI optimization secret'
-        required: true
+        # secrets are not available in forks, check-skip will just fail-open with a warning
+        required: false
 env:
+  # FYI, if you add this label, you must *push* to the repository again to trigger a new event. Just
+  # re-running in the GitHub actions UI won't work, as it will re-use the old event with the old
+  # labels.
   HAS_BYPASS_LABEL: |-
     ${{
       github.event_name == 'pull_request' &&
@@ -42,5 +46,6 @@ jobs:
       - name: Debug Output
         run: |
           echo 'github.event_name: ${{ github.event_name }}'
+          echo "secrets.GRAPHITE_TOKEN != '': ${{ secrets.GRAPHITE_TOKEN != '' }}"
           echo 'env.HAS_BYPASS_LABEL: ${{ env.HAS_BYPASS_LABEL }}'
           echo 'steps.check-skip.outputs.skip: ${{ steps.check-skip.outputs.skip }}'
