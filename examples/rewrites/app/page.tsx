@@ -1,6 +1,6 @@
 import styles from "../styles.module.css";
 import Link from "next/link";
-import Code from "../components/Code";
+import Code from "./_components/Code";
 
 export default function Index() {
   return (
@@ -11,12 +11,12 @@ export default function Index() {
         <p>
           The links below are{" "}
           <Link
-            href="https://nextjs.org/docs/api-reference/next.config.js/rewrites"
+            href="https://nextjs.org/docs/app/api-reference/next-config-js/rewrites"
             legacyBehavior
           >
-            <>
+            <span>
               custom <Code>rewrites</Code>
-            </>
+            </span>
           </Link>{" "}
           that map an incoming request path to a different destination path.
         </p>
