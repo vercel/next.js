@@ -593,11 +593,11 @@ impl DepGraph {
                         for (si, s) in item.specifiers.iter().enumerate() {
                             let (orig, local, exported) = match s {
                                 ExportSpecifier::Named(s) => (
-                                    Some(ModuleExportName::Ident(
-                                        quote_ident!(may_escape(s.orig.atom())).into(),
-                                    )),
+                                    Some(s.orig.clone()),
                                     match &s.orig {
-                                        ModuleExportName::Ident(i) => i.clone(),
+                                        ModuleExportName::Ident(i) => {
+                                            Ident::new(may_escape(&i.sym).into(), i.span, i.ctxt)
+                                        }
                                         ModuleExportName::Str(..) => quote_ident!("_tmp").into(),
                                     },
                                     s.exported.clone().unwrap_or_else(|| s.orig.clone()),
