@@ -42,6 +42,7 @@ use crate::{
         get_next_client_resolved_map,
     },
     next_shared::{
+        next_js_special_exports,
         resolve::{
             get_invalid_server_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
             NextSharedRuntimeResolvePlugin,
@@ -289,6 +290,7 @@ pub async fn get_client_module_options_context(
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
+        special_exports: Some(next_js_special_exports()),
         ..Default::default()
     };
 

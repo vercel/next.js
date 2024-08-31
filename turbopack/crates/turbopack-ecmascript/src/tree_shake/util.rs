@@ -14,6 +14,7 @@ use swc_core::{
         visit::{noop_visit_type, Visit, VisitWith},
     },
 };
+use turbo_tasks::RcStr;
 
 use crate::TURBOPACK_HELPER;
 
@@ -392,7 +393,7 @@ where
     v.bindings
 }
 
-pub fn should_skip_tree_shaking(m: &Program) -> bool {
+pub fn should_skip_tree_shaking(m: &Program, special_exports: &[RcStr]) -> bool {
     if let Program::Module(m) = m {
         for item in m.body.iter() {
             match item {
@@ -433,6 +434,30 @@ pub fn should_skip_tree_shaking(m: &Program) -> bool {
                                 return true;
                             }
                         }
+                    }
+                }
+
+                // Skip special reexports that are recognized by next.js
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                    decl: Decl::Var(box VarDecl { decls, .. }),
+                    ..
+                })) => {
+                    for decl in decls {
+                        if let Pat::Ident(name) = &decl.name {
+                            if special_exports.iter().any(|s| **s == *name.sym) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                // Skip special reexports that are recognized by next.js
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                    decl: Decl::Fn(f),
+                    ..
+                })) => {
+                    if special_exports.iter().any(|s| **s == *f.ident.sym) {
+                        return true;
                     }
                 }
 

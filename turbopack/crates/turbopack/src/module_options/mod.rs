@@ -91,6 +91,7 @@ impl ModuleOptions {
             execution_context,
             ref rules,
             tree_shaking_mode,
+            special_exports,
             ..
         } = *module_options_context.await?;
 
@@ -133,6 +134,7 @@ impl ModuleOptions {
             import_externals,
             ignore_dynamic_requests,
             refresh,
+            special_exports: special_exports.unwrap_or_else(|| Vc::cell(vec![])),
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.cell();
