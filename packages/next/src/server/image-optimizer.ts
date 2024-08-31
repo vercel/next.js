@@ -37,7 +37,6 @@ const ICO = 'image/x-icon'
 const TIFF = 'image/tiff'
 const BMP = 'image/bmp'
 const CACHE_VERSION = 3
-const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
@@ -473,7 +472,10 @@ export async function optimizeImage({
   height?: number
 }): Promise<Buffer> {
   const sharp = getSharp()
-  const transformer = sharp(buffer).timeout({ seconds: 7 }).rotate()
+  const animated = isAnimated(buffer) || undefined
+  const transformer = sharp(buffer, { animated })
+    .timeout({ seconds: 7 })
+    .rotate()
 
   if (height) {
     transformer.resize(width, height)
@@ -608,13 +610,6 @@ export async function imageOptimizer(
         400,
         '"url" parameter is valid but image type is not allowed'
       )
-    }
-
-    if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
-      Log.warnOnce(
-        `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
-      )
-      return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
     }
     if (VECTOR_TYPES.includes(upstreamType)) {
       // We don't warn here because we already know that "dangerouslyAllowSVG"
