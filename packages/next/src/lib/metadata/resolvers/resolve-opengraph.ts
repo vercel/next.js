@@ -55,7 +55,7 @@ function resolveAndValidateImage(
   // process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_BRANCH_URL, or
   // process.env.VERCEL_URL for the `metadataBase`. process.env.VERCEL is undefined
   // when System Environment Variables are not exposed. When not exposed, we cannot
-  // detect if the deployment is a Vercel deployment or not.
+  // detect in the build environment if the deployment is a Vercel deployment or not.
   //
   // x-ref: https://vercel.com/docs/projects/environment-variables/system-environment-variables#system-environment-variables
   const isNonVercelDeployment =
