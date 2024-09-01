@@ -215,7 +215,6 @@ export function navigateReducer(
             // an incremental step.
             seedData &&
             isRootRender &&
-            !prefetchValues.aliased &&
             postponed
           ) {
             const task = updateCacheNodeOnNavigation(
