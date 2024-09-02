@@ -140,9 +140,11 @@ impl MiddlewareEndpoint {
 
         let regions = if let Some(regions) = config.regions.as_ref() {
             if regions.len() == 1 {
-                regions
-                    .first()
-                    .map(|region| Regions::Single(region.clone()))
+                if let Some(region) = regions.first() {
+                    Some(Regions::Single(region.clone()))
+                } else {
+                    None
+                }
             } else {
                 Some(Regions::Multiple(regions.clone()))
             }
