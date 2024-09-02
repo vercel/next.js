@@ -37,12 +37,19 @@ pub enum OutdatedEdge {
 }
 
 impl CleanupOldEdgesOperation {
-    pub fn run(task_id: TaskId, outdated: Vec<OutdatedEdge>, ctx: ExecuteContext<'_>) {
+    pub fn run(
+        task_id: TaskId,
+        outdated: Vec<OutdatedEdge>,
+        was_dirty: bool,
+        ctx: ExecuteContext<'_>,
+    ) {
         let mut queue = AggregationUpdateQueue::new();
-        queue.push(AggregationUpdateJob::DataUpdate {
-            task_id,
-            update: AggregatedDataUpdate::no_longer_dirty_task(task_id),
-        });
+        if was_dirty {
+            queue.push(AggregationUpdateJob::DataUpdate {
+                task_id,
+                update: AggregatedDataUpdate::no_longer_dirty_task(task_id),
+            });
+        }
         CleanupOldEdgesOperation::RemoveEdges {
             task_id,
             outdated,

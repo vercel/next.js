@@ -326,6 +326,7 @@ impl CachedDataItemValue {
     }
 }
 
+#[derive(Debug)]
 pub struct CachedDataUpdate {
     pub task: TaskId,
     pub key: CachedDataItemKey,
