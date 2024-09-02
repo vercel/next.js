@@ -2,6 +2,9 @@
 import { draftMode } from 'next/headers'
 import { redirect } from 'next/navigation'
 
+// BACKPORT: GETs are static by default in 14.x
+export const dynamic = 'force-dynamic'
+
 // Preview URL: localhost:3000/api/draft?secret=secret-token&slug=preview-page
 
 export async function GET(request: Request) {
