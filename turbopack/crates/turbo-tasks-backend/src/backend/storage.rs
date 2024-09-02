@@ -161,7 +161,7 @@ macro_rules! get {
 }
 
 #[macro_export]
-macro_rules! get_many {
+macro_rules! iter_many {
     ($task:ident, $key:ident $input:tt => $value:ident) => {
         $task
             .iter()
@@ -169,7 +169,6 @@ macro_rules! get_many {
                 CachedDataItemKey::$key $input => Some($value),
                 _ => None,
             })
-            .collect()
     };
     ($task:ident, $key:ident $input:tt $value_ident:ident => $value:expr) => {
         $task
@@ -178,7 +177,6 @@ macro_rules! get_many {
                 (&CachedDataItemKey::$key $input, &CachedDataItemValue::$key { value: $value_ident }) => Some($value),
                 _ => None,
             })
-            .collect()
     };
     ($task:ident, $key1:ident $input1:tt => $value1:ident, $key2:ident $input2:tt => $value2:ident) => {
         $task
@@ -188,7 +186,19 @@ macro_rules! get_many {
                 CachedDataItemKey::$key2 $input2 => Some($value2),
                 _ => None,
             })
-            .collect()
+    };
+}
+
+#[macro_export]
+macro_rules! get_many {
+    ($task:ident, $key:ident $input:tt => $value:ident) => {
+        $crate::iter_many!($task, $key $input => $value).collect()
+    };
+    ($task:ident, $key:ident $input:tt $value_ident:ident => $value:expr) => {
+        $crate::iter_many!($task, $key $input $value_ident => $value).collect()
+    };
+    ($task:ident, $key1:ident $input1:tt => $value1:ident, $key2:ident $input2:tt => $value2:ident) => {
+        $crate::iter_many!($task, $key1 $input1 => $value1, $key2 $input2 => $value2).collect()
     };
 }
 

@@ -810,13 +810,13 @@ impl Backend for TurboTasksBackend {
                 })
                 .collect::<Vec<_>>();
 
-            task.remove(&CachedDataItemKey::Dirty {});
+            let was_dirty = task.remove(&CachedDataItemKey::Dirty {}).is_some();
 
             drop(task);
 
             done_event.notify(usize::MAX);
 
-            CleanupOldEdgesOperation::run(task_id, old_edges, ctx);
+            CleanupOldEdgesOperation::run(task_id, old_edges, was_dirty, ctx);
 
             drop(removed_data)
         }
