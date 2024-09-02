@@ -236,53 +236,61 @@ async function loadWebAssemblyModule(
     const chunkUrl = getChunkRelativeUrl(chunkPath);
     const decodedChunkUrl = decodeURI(chunkUrl);
 
-    if (chunkPath.endsWith(".css")) {
-      const previousLinks = document.querySelectorAll(
-        `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
-      );
-      if (previousLinks.length > 0) {
-        // CSS chunks do not register themselves, and as such must be marked as
-        // loaded instantly.
-        resolver.resolve();
+    if (typeof importScripts === "function") {
+      if (chunkPath.endsWith(".js")) {
+        importScripts(chunkUrl);
       } else {
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href = chunkUrl;
-        link.onerror = () => {
-          resolver.reject();
-        };
-        link.onload = () => {
+        throw new Error(`can't infer type of chunk from path ${chunkPath}`);
+      }
+    } else {
+      if (chunkPath.endsWith(".css")) {
+        const previousLinks = document.querySelectorAll(
+          `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
+        );
+        if (previousLinks.length > 0) {
           // CSS chunks do not register themselves, and as such must be marked as
           // loaded instantly.
           resolver.resolve();
-        };
-        document.body.appendChild(link);
-      }
-    } else if (chunkPath.endsWith(".js")) {
-      const previousScripts = document.querySelectorAll(
-        `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
-      );
-      if (previousScripts.length > 0) {
-        // There is this edge where the script already failed loading, but we
-        // can't detect that. The Promise will never resolve in this case.
-        for (const script of Array.from(previousScripts)) {
-          script.addEventListener("error", () => {
+        } else {
+          const link = document.createElement("link");
+          link.rel = "stylesheet";
+          link.href = chunkUrl;
+          link.onerror = () => {
             resolver.reject();
-          });
+          };
+          link.onload = () => {
+            // CSS chunks do not register themselves, and as such must be marked as
+            // loaded instantly.
+            resolver.resolve();
+          };
+          document.body.appendChild(link);
+        }
+      } else if (chunkPath.endsWith(".js")) {
+        const previousScripts = document.querySelectorAll(
+          `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
+        );
+        if (previousScripts.length > 0) {
+          // There is this edge where the script already failed loading, but we
+          // can't detect that. The Promise will never resolve in this case.
+          for (const script of Array.from(previousScripts)) {
+            script.addEventListener("error", () => {
+              resolver.reject();
+            });
+          }
+        } else {
+          const script = document.createElement("script");
+          script.src = chunkUrl;
+          // We'll only mark the chunk as loaded once the script has been executed,
+          // which happens in `registerChunk`. Hence the absence of `resolve()` in
+          // this branch.
+          script.onerror = () => {
+            resolver.reject();
+          };
+          document.body.appendChild(script);
         }
       } else {
-        const script = document.createElement("script");
-        script.src = chunkUrl;
-        // We'll only mark the chunk as loaded once the script has been executed,
-        // which happens in `registerChunk`. Hence the absence of `resolve()` in
-        // this branch.
-        script.onerror = () => {
-          resolver.reject();
-        };
-        document.body.appendChild(script);
+        throw new Error(`can't infer type of chunk from path ${chunkPath}`);
       }
-    } else {
-      throw new Error(`can't infer type of chunk from path ${chunkPath}`);
     }
 
     return resolver.promise;
