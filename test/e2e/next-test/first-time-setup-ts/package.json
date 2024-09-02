@@ -8,8 +8,8 @@
   },
   "dependencies": {
     "next": "canary",
-    "react": "19.0.0-rc-7771d3a7-20240827",
-    "react-dom": "19.0.0-rc-7771d3a7-20240827"
+    "react": "19.0.0-rc-4f604941-20240830",
+    "react-dom": "19.0.0-rc-4f604941-20240830"
   },
   "devDependencies": {
     "@types/react": "^18",
