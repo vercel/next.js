@@ -92,7 +92,7 @@ pub async fn make_chunks(
             empty_referenced_output_assets: OutputAssets::empty().resolve().await?,
         };
 
-        if *ty.should_vendor_split().await? {
+        if !*ty.must_keep_item_order().await? {
             app_vendors_split(
                 chunk_items,
                 format!("{key_prefix}{ty_name}"),
