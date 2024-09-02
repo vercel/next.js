@@ -20,7 +20,7 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
-    analyzer::{ConstantValue, JsValue, ObjectPart},
+    analyzer::{JsValue, ObjectPart},
     parse::ParseResult,
     utils::StringifyJs,
     EcmascriptParsable,
@@ -178,8 +178,6 @@ pub struct NextSourceConfig {
 
     /// Middleware router matchers
     pub matcher: Option<Vec<MiddlewareMatcherKind>>,
-
-    pub regions: Option<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -520,43 +518,6 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                         if key == "matcher" {
                             config.matcher =
                                 parse_route_matcher_from_js_value(module.ident(), value);
-                        }
-                        if key == "regions" {
-                            let regions = match value {
-                                // Single value is turned into a single-element Vec.
-                                JsValue::Constant(ConstantValue::Str(str)) => {
-                                    vec![str.to_string().into()]
-                                }
-                                // Array of strings is turned into a Vec. If one of the values in
-                                // not a String it will error.
-                                JsValue::Array { items, .. } => {
-                                    let mut regions: Vec<RcStr> = Vec::new();
-                                    for item in items {
-                                        if let JsValue::Constant(ConstantValue::Str(str)) = item {
-                                            regions.push(str.to_string().into());
-                                        } else {
-                                            emit_invalid_config_warning(
-                                                module.ident(),
-                                                "Values of the `config.regions` array need to \
-                                                 static strings",
-                                                &item,
-                                            );
-                                        }
-                                    }
-                                    regions
-                                }
-                                _ => {
-                                    emit_invalid_config_warning(
-                                        module.ident(),
-                                        "`config.regions` needs to be a static string or array of \
-                                         static strings",
-                                        &value,
-                                    );
-                                    Vec::new()
-                                }
-                            };
-
-                            config.regions = Some(regions)
                         }
                     } else {
                         emit_invalid_config_warning(
