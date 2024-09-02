@@ -1064,6 +1064,17 @@ export function runTests(ctx: RunTestsCtx) {
     })
   })
 
+  it('should pass with external absolute next image url', async () => {
+    const query = {
+      url: `https://example.com/_next/image?url=test.png&w=1&q=1`,
+      w: ctx.w,
+      q: 1,
+    }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    // the example image doesn't exist, so we do not check for 200 status code
+    expect(res.status).not.toBe(400)
+  })
+
   it('should fail when internal url is not an image', async () => {
     const url = `/api/no-header`
     const query = { url, w: ctx.w, q: 39 }

@@ -215,21 +215,26 @@ export class ImageOptimizerCache {
       }
     }
 
+    let isAbsolute = !url.startsWith('/')
+
     const parsedUrl = parseUrl(url)
     if (parsedUrl) {
+      // if the url is external (matching with remote patterns), we can allow it
+      const isExternalUrlWithMatch =
+        isAbsolute && hasMatch(domains, remotePatterns, parsedUrl)
       const decodedPathname = decodeURIComponent(parsedUrl.pathname)
-      if (/\/_next\/image($|\/)/.test(decodedPathname)) {
+      if (
+        /\/_next\/image($|\/)/.test(decodedPathname) &&
+        !isExternalUrlWithMatch
+      ) {
         return {
           errorMessage: '"url" parameter cannot be recursive',
         }
       }
     }
 
-    let isAbsolute: boolean
-
-    if (url.startsWith('/')) {
+    if (!isAbsolute) {
       href = url
-      isAbsolute = false
     } else {
       let hrefParsed: URL
 
