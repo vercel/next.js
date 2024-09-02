@@ -522,10 +522,10 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                 parse_route_matcher_from_js_value(module.ident(), value);
                         }
                         if key == "regions" {
-                            let regions = match value {
+                            config.regions = match value {
                                 // Single value is turned into a single-element Vec.
                                 JsValue::Constant(ConstantValue::Str(str)) => {
-                                    vec![str.to_string().into()]
+                                    Some(vec![str.to_string().into()])
                                 }
                                 // Array of strings is turned into a Vec. If one of the values in
                                 // not a String it will error.
@@ -543,7 +543,7 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                             );
                                         }
                                     }
-                                    regions
+                                    Some(regions)
                                 }
                                 _ => {
                                     emit_invalid_config_warning(
@@ -552,11 +552,9 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                          static strings",
                                         value,
                                     );
-                                    Vec::new()
+                                    None
                                 }
                             };
-
-                            config.regions = Some(regions)
                         }
                     } else {
                         emit_invalid_config_warning(
