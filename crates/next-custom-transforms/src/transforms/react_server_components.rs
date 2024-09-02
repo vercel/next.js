@@ -618,7 +618,8 @@ impl ReactServerComponentValidator {
         if self.is_from_node_modules(&self.filepath) {
             return;
         }
-        static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"[\\/]error\.(ts|js)x?$").unwrap());
+        static RE: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"[\\/]((global-)?error)\.(ts|js)x?$").unwrap());
 
         let is_error_file = RE.is_match(&self.filepath);
 
