@@ -1,12 +1,12 @@
 # Server-Side Rendering Caching Headers
 
-This example uses [`stale-while-revalidate`](https://web.dev/stale-while-revalidate/) [cache-control headers](https://developer.mozilla.org/docs/Web/HTTP/Headers/Cache-Control) in combination with `getServerSideProps` for server-rendering.
+By default, Next.js will cache as much as possible to improve performance and reduce cost. This means routes are statically rendered and data requests are cached unless you opt out.
 
-`pages/index.tsx` uses `getServerSideProps` to forward the request header to the React component, as well as setting a response header. This `cache-control` header uses `stale-while-revalidate` to cache the server response.
+This example uses [`next.revalidate`](https://nextjs.org/docs/app/building-your-application/caching) option of fetch to set the cache lifetime of a resource (in seconds).
 
-`pages/index.tsx` is considered fresh for ten seconds (`s-maxage=10`). If a request is repeated within the next 10 seconds, the previously cached value will still be fresh. If the request is repeated before 59 seconds, the cached value will be stale but still render (`stale-while-revalidate=59`).
+The first time a fetch request with revalidate is called, the data will be fetched from the external data source and stored in the Data Cache.
 
-In the background, a revalidation request will be made to populate the cache with a fresh value. If you refresh the page, you will see the new value shown.
+Any requests that are called within the specified timeframe (e.g. 60-seconds) will return the cached data.
 
 ## Deploy your own
 
