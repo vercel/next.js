@@ -52,7 +52,7 @@ use crate::{
 #[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash)]
 #[serde(untagged)]
 pub enum ModuleId {
-    Number(u32),
+    Number(u64),
     String(RcStr),
 }
 
@@ -75,7 +75,7 @@ impl ValueToString for ModuleId {
 
 impl ModuleId {
     pub fn parse(id: &str) -> Result<ModuleId> {
-        Ok(match id.parse::<u32>() {
+        Ok(match id.parse::<u64>() {
             Ok(i) => ModuleId::Number(i),
             Err(_) => ModuleId::String(id.into()),
         })
