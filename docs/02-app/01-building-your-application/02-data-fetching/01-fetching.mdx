@@ -267,14 +267,14 @@ interface Post {
 }
 
 async function getPost(id: string) {
-  let res = await fetch(`https://api.example.com/posts/${id}`)
+  let res = await fetch(`https://api.vercel.app/blog/${id}`)
   let post: Post = await res.json()
   if (!post) notFound()
   return post
 }
 
 export async function generateStaticParams() {
-  let posts = await fetch('https://api.example.com/posts').then((res) =>
+  let posts = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
 
@@ -307,14 +307,14 @@ export default async function Page({ params }: { params: { id: string } }) {
 import { notFound } from 'next/navigation'
 
 async function getPost(id) {
-  let res = await fetch(`https://api.example.com/posts/${id}`)
+  let res = await fetch(`https://api.vercel.app/blog/${id}`)
   let post = await res.json()
   if (!post) notFound()
   return post
 }
 
 export async function generateStaticParams() {
-  let posts = await fetch('https://api.example.com/posts').then((res) =>
+  let posts = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
 
