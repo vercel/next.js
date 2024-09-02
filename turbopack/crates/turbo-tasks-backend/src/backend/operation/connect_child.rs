@@ -2,7 +2,9 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
 use super::{
-    aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
+    aggregation_update::{
+        is_aggregating_node, is_root_node, AggregationUpdateJob, AggregationUpdateQueue,
+    },
     ExecuteContext, Operation,
 };
 use crate::{
@@ -21,7 +23,6 @@ pub enum ConnectChildOperation {
     },
     #[default]
     Done,
-    // TODO Add aggregated edge
 }
 
 impl ConnectChildOperation {
@@ -36,7 +37,16 @@ impl ConnectChildOperation {
         }) {
             // Update the task aggregation
             let mut queue = AggregationUpdateQueue::new();
-            if get!(parent_task, AggregationNumber).is_some() {
+            let parent_aggregation = get!(parent_task, AggregationNumber)
+                .copied()
+                .unwrap_or_default();
+            if !is_root_node(parent_aggregation) {
+                queue.push(AggregationUpdateJob::UpdateAggregationNumber {
+                    task_id: child_task_id,
+                    aggregation_number: parent_aggregation + 1,
+                });
+            }
+            if is_aggregating_node(parent_aggregation) {
                 queue.push(AggregationUpdateJob::InnerHasNewFollower {
                     upper_ids: vec![parent_task_id],
                     new_follower_id: child_task_id,

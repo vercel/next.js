@@ -311,6 +311,7 @@ impl CachedDataItemValue {
     }
 }
 
+#[derive(Debug)]
 pub struct CachedDataUpdate {
     // TODO persistence
     #[allow(dead_code)]
