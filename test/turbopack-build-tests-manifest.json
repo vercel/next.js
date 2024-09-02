@@ -1665,6 +1665,26 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/dynamic-io/dynamic-io.test.ts": {
+      "passed": [
+        "dynamic-io should not prerender pages that do any uncached IO",
+        "dynamic-io should not prerender pages that take longer than a single task to render",
+        "dynamic-io should not prerender pages that use `cookies()`",
+        "dynamic-io should not prerender pages that use `headers()`",
+        "dynamic-io should not prerender pages that use `searchParams` in Client Components",
+        "dynamic-io should not prerender pages that use `searchParams` in Server Components",
+        "dynamic-io should not prerender pages that use `unstable_noStore()`",
+        "dynamic-io should not prerender pages that use at least one fetch without cache",
+        "dynamic-io should prerender fully static pages",
+        "dynamic-io should prerender pages that only use cached (unstable_cache) IO",
+        "dynamic-io should prerender pages that only use cached fetches",
+        "dynamic-io should prerender pages that render in a microtask"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/dynamic-requests/dynamic-requests.test.ts": {
       "passed": [
         "dynamic-requests should not error for dynamic requests in pages",
@@ -3046,6 +3066,16 @@
         "ppr-full Dynamic RSC Response for /on-demand/c should have correct headers",
         "ppr-full Dynamic RSC Response for /static should have correct headers",
         "ppr-full Dynamic RSC Response for /static should not contain dynamic content",
+        "ppr-full HTML Fallback for /fallback/nested/params/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/nested/use-params/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/nested/use-pathname/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/nested/use-selected-layout-segment/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/nested/use-selected-layout-segments/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/params/slug-01 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/use-params/slug-01 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/use-pathname/slug-01 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/use-selected-layout-segment/slug-01 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/use-selected-layout-segments/slug-01 should render the fallback HTML immediately",
         "ppr-full HTML Response for / should allow navigations to and from a pages/ page",
         "ppr-full HTML Response for / should cache the static part",
         "ppr-full HTML Response for / should have correct headers",
@@ -4025,6 +4055,7 @@
       "passed": [
         "searchparams-reuse-loading With Middleware should correctly return different RSC data for full prefetches with different searchParam values",
         "searchparams-reuse-loading Without Middleware should correctly return different RSC data for full prefetches with different searchParam values",
+        "searchparams-reuse-loading should properly render root page with searchParams when prefetch is aliased",
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-full route",
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-less route",
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-less URL when navigating to param-full route",
@@ -6031,6 +6062,15 @@
     },
     "test/e2e/postcss-config-cjs/index.test.ts": {
       "passed": ["postcss-config-cjs works with postcss.config.cjs files"],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/postcss-config-package/index.test.ts": {
+      "passed": [
+        "postcss-config-json works with postcss config specified in package.json"
+      ],
       "failed": [],
       "pending": [],
       "flakey": [],
@@ -9021,22 +9061,22 @@
     },
     "test/integration/edge-runtime-module-errors/test/index.test.js": {
       "passed": [
+        "Edge runtime code with imports Edge API dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
+        "Edge runtime code with imports Edge API dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Edge API importing vanilla 3rd party module does not throw in dev at runtime",
         "Edge runtime code with imports Edge API importing vanilla 3rd party module production mode does not throw in production at runtime",
         "Edge runtime code with imports Edge API statically importing 3rd party module production mode does not build and reports",
         "Edge runtime code with imports Edge API statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Edge API using Buffer polyfill does not throw in dev at runtime",
         "Edge runtime code with imports Edge API using Buffer polyfill production mode does not throw in production at runtime",
+        "Edge runtime code with imports Middleware dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
+        "Edge runtime code with imports Middleware dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Middleware importing vanilla 3rd party module does not throw in dev at runtime",
         "Edge runtime code with imports Middleware importing vanilla 3rd party module production mode does not throw in production at runtime",
         "Edge runtime code with imports Middleware statically importing 3rd party module production mode does not build and reports",
         "Edge runtime code with imports Middleware statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware using Buffer polyfill does not throw in dev at runtime",
-        "Edge runtime code with imports Middleware using Buffer polyfill production mode does not throw in production at runtime",
-        "Edge runtime code with imports Edge API dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Edge API dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Middleware dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Middleware dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
+        "Edge runtime code with imports Middleware using Buffer polyfill production mode does not throw in production at runtime"
       ],
       "failed": [],
       "pending": [
@@ -9055,20 +9095,19 @@
         "Edge runtime code with imports Edge API importing unused 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Edge API importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Edge API importing unused node.js module does not throw in dev at runtime",
+        "Edge runtime code with imports Edge API importing unused node.js module production mode does not throw in production at runtime",
+        "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Edge API statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware dynamically importing 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Middleware dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware importing unused 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
-        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
-        "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
+        "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime",
+        "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
+        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
       ],
-      "failed": [
-        "Edge runtime code with imports Edge API importing unused node.js module production mode does not throw in production at runtime",
-        "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -12905,6 +12944,23 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/integration/module-id-strategies/test/index.test.js": {
+      "passed": [
+        "minified module ids production mode should have no long module id for the next client runtime module",
+        "minified module ids production mode should have no long module ids for async loader modules",
+        "minified module ids production mode should have no long module ids for basic modules",
+        "minified module ids production mode should have no long module ids for external modules"
+      ],
+      "failed": [],
+      "pending": [
+        "minified module ids development mode should have long module id for the next client runtime module",
+        "minified module ids development mode should have long module ids for async loader modules",
+        "minified module ids development mode should have long module ids for basic modules",
+        "minified module ids development mode should have long module ids for external modules"
+      ],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/integration/next-dynamic-css/test/index.test.js": {
       "passed": ["next/dynamic production mode should load page correctly"],
       "failed": [],
@@ -15681,11 +15737,10 @@
     },
     "test/production/app-dir/app-edge-middleware/app-edge-middleware.test.ts": {
       "passed": [
+        "app edge middleware with node.js modules should have errors about using Node.js modules when present in middleware",
         "app edge middleware without node.js modules should not have any errors about using Node.js modules if not present in middleware"
       ],
-      "failed": [
-        "app edge middleware with node.js modules should have errors about using Node.js modules when present in middleware"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15736,6 +15791,12 @@
     "test/production/app-dir/build-output/index.test.ts": {
       "passed": [
         "production - app dir - build output should always log version first then the rest jobs",
+        "production - app dir - build output should fail the build if you use a dynamic API outside of a render context - cookies",
+        "production - app dir - build output should fail the build if you use a dynamic API outside of a render context - headers",
+        "production - app dir - build output should fail the build if you use a dynamic API outside of a render context - notFound",
+        "production - app dir - build output should fail the build if you use a dynamic API outside of a render context - redirect",
+        "production - app dir - build output should fail the build if you use a dynamic API outside of a render context - searchParams",
+        "production - app dir - build output should log errors not caught by the worker without terminating the process",
         "production - app dir - build output should match the expected output format",
         "production - app dir - build output should only log app routes"
       ],
