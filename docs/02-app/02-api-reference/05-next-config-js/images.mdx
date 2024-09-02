@@ -66,6 +66,7 @@ To learn more about configuring the behavior of the built-in [Image Optimization
 - [Sirv](#sirv)
 - [Supabase](#supabase)
 - [Thumbor](#thumbor)
+- [Imagekit](#imagekit)
 
 ### Akamai
 
@@ -237,5 +238,15 @@ export default function supabaseLoader({ src, width, quality }) {
 export default function thumborLoader({ src, width, quality }) {
   const params = [`${width}x0`, `filters:quality(${quality || 75})`]
   return `https://example.com${params.join('/')}${src}`
+}
+```
+
+### ImageKit.io
+
+```js
+// Docs: https://imagekit.io/docs/image-transformation
+export default function imageKitLoader({ src, width, quality }) {
+  const params = [`w-${width}`, `q-${quality || 80}`]
+  return `https://ik.imagekit.io/your_imagekit_id/${src}?tr=${params.join(',')}`
 }
 ```
