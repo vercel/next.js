@@ -449,7 +449,7 @@ impl ValueToString for CssChunkType {
 impl ChunkType for CssChunkType {
     #[turbo_tasks::function]
     fn must_keep_item_order(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(false)
+        Vc::cell(true)
     }
 
     #[turbo_tasks::function]

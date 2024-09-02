@@ -25,7 +25,7 @@ impl ValueToString for EcmascriptChunkType {
 impl ChunkType for EcmascriptChunkType {
     #[turbo_tasks::function]
     fn must_keep_item_order(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(true)
+        Vc::cell(false)
     }
 
     #[turbo_tasks::function]
