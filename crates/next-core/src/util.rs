@@ -539,7 +539,7 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                                 module.ident(),
                                                 "Values of the `config.regions` array need to \
                                                  static strings",
-                                                &item,
+                                                item,
                                             );
                                         }
                                     }
@@ -550,7 +550,7 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                         module.ident(),
                                         "`config.regions` needs to be a static string or array of \
                                          static strings",
-                                        &value,
+                                        value,
                                     );
                                     Vec::new()
                                 }
