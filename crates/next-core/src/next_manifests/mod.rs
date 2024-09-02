@@ -94,6 +94,7 @@ pub struct EdgeFunctionDefinition {
     pub page: RcStr,
     pub matchers: Vec<MiddlewareMatcher>,
     pub wasm: Vec<AssetBinding>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub assets: Vec<AssetBinding>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regions: Option<Regions>,
