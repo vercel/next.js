@@ -24,8 +24,8 @@ use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
     paths::{
-        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root,
-        wasm_paths_to_bindings,
+        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
+        get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
     route::{Endpoint, WrittenEndpoint},
@@ -138,6 +138,9 @@ impl MiddlewareEndpoint {
         let wasm_paths_from_root =
             get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?;
 
+        let all_assets =
+            get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true).await?;
+
         let regions = if let Some(regions) = config.regions.as_ref() {
             if regions.len() == 1 {
                 regions
@@ -172,12 +175,12 @@ impl MiddlewareEndpoint {
         let edge_function_definition = EdgeFunctionDefinition {
             files: file_paths_from_root,
             wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+            assets: paths_to_bindings(all_assets),
             name: "middleware".into(),
             page: "/".into(),
             regions,
             matchers,
             env: this.project.edge_env().await?.clone_value(),
-            ..Default::default()
         };
         let middleware_manifest_v2 = MiddlewaresManifestV2 {
             middleware: [("/".into(), edge_function_definition)]
