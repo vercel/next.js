@@ -24,7 +24,7 @@ use crate::{
             match_global_metadata_file, match_local_metadata_file, normalize_metadata_route,
             GlobalMetadataFileMatch, MetadataFileMatch,
         },
-        AppPage, AppPath, PageSegment, PageType,
+        AppPage, AppPath, PageSegment, PageType, PathSegment,
     },
     next_import_map::get_next_package,
 };
@@ -504,6 +504,10 @@ fn is_group_route(name: &str) -> bool {
     name.starts_with('(') && name.ends_with(')')
 }
 
+fn is_intercepting_route(name: &str) -> bool {
+    name.starts_with("(.") // TODO ??
+}
+
 fn match_parallel_route(name: &str) -> Option<&str> {
     name.strip_prefix('@')
 }
@@ -847,6 +851,12 @@ fn directory_tree_to_loader_tree_internal(
         global_metadata,
     };
 
+    let current_level_is_intercepting_route = if let Some(PathSegment::Static(s)) = app_path.last()
+    {
+        is_intercepting_route(s)
+    } else {
+        false
+    };
     let current_level_is_parallel_route = is_parallel_route(&directory_name);
 
     if current_level_is_parallel_route {
@@ -907,7 +917,9 @@ fn directory_tree_to_loader_tree_internal(
 
         if let Some(subtree) = subtree {
             if let Some(key) = parallel_route_key {
-                tree.parallel_routes.insert(key.into(), subtree);
+                if !(key == "children" && current_level_is_intercepting_route) {
+                    tree.parallel_routes.insert(key.into(), subtree);
+                }
                 continue;
             }
 
@@ -920,16 +932,18 @@ fn directory_tree_to_loader_tree_internal(
                 check_duplicate(&mut duplicate, &subtree, app_dir);
             }
 
-            if let Some(current_tree) = tree.parallel_routes.get("children") {
-                if current_tree.has_only_catchall()
-                    && (!subtree.has_only_catchall()
-                        || current_tree.get_specificity() < subtree.get_specificity())
-                {
-                    tree.parallel_routes
-                        .insert("children".into(), subtree.clone());
+            if !current_level_is_intercepting_route {
+                if let Some(current_tree) = tree.parallel_routes.get("children") {
+                    if current_tree.has_only_catchall()
+                        && (!subtree.has_only_catchall()
+                            || current_tree.get_specificity() < subtree.get_specificity())
+                    {
+                        tree.parallel_routes
+                            .insert("children".into(), subtree.clone());
+                    }
+                } else {
+                    tree.parallel_routes.insert("children".into(), subtree);
                 }
-            } else {
-                tree.parallel_routes.insert("children".into(), subtree);
             }
         } else if let Some(key) = parallel_route_key {
             bail!(
