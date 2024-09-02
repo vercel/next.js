@@ -3,7 +3,7 @@ use next_core::{
     all_assets_from_entries,
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
-    next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2},
+    next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, Regions},
     next_server::{get_server_runtime_entries, ServerContextType},
     util::{parse_config_from_source, MiddlewareMatcherKind},
 };
@@ -123,7 +123,7 @@ impl MiddlewareEndpoint {
 
         let userland_module = self.userland_module();
 
-        let config = parse_config_from_source(userland_module);
+        let config = parse_config_from_source(userland_module).await?;
 
         let edge_files = self.edge_files();
         let mut output_assets = edge_files.await?.clone_value();
@@ -138,7 +138,21 @@ impl MiddlewareEndpoint {
         let wasm_paths_from_root =
             get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?;
 
-        let matchers = if let Some(matchers) = config.await?.matcher.as_ref() {
+        let regions = if let Some(regions) = config.regions.as_ref() {
+            if regions.len() == 1 {
+                if let Some(region) = regions.first() {
+                    Some(Regions::Single(region.clone()))
+                } else {
+                    None
+                }
+            } else {
+                Some(Regions::Multiple(regions.clone()))
+            }
+        } else {
+            None
+        };
+
+        let matchers = if let Some(matchers) = config.matcher.as_ref() {
             matchers
                 .iter()
                 .map(|matcher| match matcher {
@@ -162,7 +176,7 @@ impl MiddlewareEndpoint {
             wasm: wasm_paths_to_bindings(wasm_paths_from_root),
             name: "middleware".into(),
             page: "/".into(),
-            regions: None,
+            regions,
             matchers,
             env: this.project.edge_env().await?.clone_value(),
             ..Default::default()
