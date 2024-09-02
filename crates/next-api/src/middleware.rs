@@ -123,7 +123,7 @@ impl MiddlewareEndpoint {
 
         let userland_module = self.userland_module();
 
-        let config = parse_config_from_source(userland_module).await?;
+        let config = parse_config_from_source(userland_module);
 
         let edge_files = self.edge_files();
         let mut output_assets = edge_files.await?.clone_value();
@@ -140,6 +140,9 @@ impl MiddlewareEndpoint {
 
         let all_assets =
             get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true).await?;
+
+        // Awaited later for parallelism
+        let config = config.await?;
 
         let regions = if let Some(regions) = config.regions.as_ref() {
             if regions.len() == 1 {
