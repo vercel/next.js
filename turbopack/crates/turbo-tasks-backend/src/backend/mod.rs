@@ -19,7 +19,10 @@ use anyhow::{bail, Result};
 use auto_hash_map::{AutoMap, AutoSet};
 use dashmap::DashMap;
 pub use operation::AnyOperation;
-use operation::{CleanupOldEdgesOperation, ConnectChildOperation, OutdatedEdge};
+use operation::{
+    is_root_node, AggregationUpdateJob, AggregationUpdateQueue, CleanupOldEdgesOperation,
+    ConnectChildOperation, OutdatedEdge,
+};
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHasher;
 use smallvec::smallvec;
@@ -39,7 +42,7 @@ use self::{operation::ExecuteContext, storage::Storage};
 use crate::{
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate, CellRef,
-        InProgressCellState, InProgressState, OutputValue, RootType,
+        InProgressCellState, InProgressState, OutputValue, RootState, RootType,
     },
     get, get_many, remove,
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc},
@@ -247,7 +250,56 @@ impl TurboTasksBackend {
         }
 
         if matches!(consistency, ReadConsistency::Strong) {
-            todo!("Handle strongly consistent read: {task:#?}");
+            // Ensure it's an root node
+            loop {
+                let aggregation_number = get!(task, AggregationNumber).copied().unwrap_or_default();
+                if is_root_node(aggregation_number) {
+                    break;
+                }
+                drop(task);
+                AggregationUpdateQueue::run(
+                    AggregationUpdateJob::UpdateAggregationNumber {
+                        task_id,
+                        aggregation_number: u32::MAX,
+                    },
+                    &ctx,
+                );
+                task = ctx.task(task_id);
+            }
+
+            // Check the dirty count of the root node
+            let dirty_tasks = get!(task, AggregatedDirtyTaskCount)
+                .copied()
+                .unwrap_or_default();
+            let root = get!(task, AggregateRoot);
+            if dirty_tasks > 0 {
+                // When there are dirty task, subscribe to the all_clean_event
+                let root = if let Some(root) = root {
+                    root
+                } else {
+                    // If we don't have a root state, add one
+                    // This also makes sure all tasks stay active, so we need to remove that after
+                    // reading again
+                    task.add_new(CachedDataItem::AggregateRoot {
+                        value: RootState::new(RootType::ReadingStronglyConsistent),
+                    });
+                    get!(task, AggregateRoot).unwrap()
+                };
+                let listener = root.all_clean_event.listen_with_note(move || {
+                    format!(
+                        "try_read_task_output (strongly consistent) from {:?}",
+                        reader
+                    )
+                });
+                return Ok(Err(listener));
+            } else {
+                // When there ain't dirty tasks, remove the reading strongly consistent root type
+                if let Some(root) = root {
+                    if matches!(root.ty, RootType::ReadingStronglyConsistent) {
+                        task.remove(&CachedDataItemKey::AggregateRoot {});
+                    }
+                }
+            }
         }
 
         if let Some(output) = get!(task, Output) {
@@ -960,7 +1012,9 @@ impl Backend for TurboTasksBackend {
         {
             let mut task = self.storage.access_mut(task_id);
             let _ = task.add(CachedDataItem::AggregationNumber { value: u32::MAX });
-            let _ = task.add(CachedDataItem::AggregateRootType { value: root_type });
+            let _ = task.add(CachedDataItem::AggregateRoot {
+                value: RootState::new(root_type),
+            });
             let _ = task.add(CachedDataItem::new_scheduled(move || match root_type {
                 RootType::RootTask => "Root Task".to_string(),
                 RootType::OnceTask => "Once Task".to_string(),
