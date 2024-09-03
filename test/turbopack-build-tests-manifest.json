@@ -5400,9 +5400,7 @@
         "using a single matcher with i18n does not add the header for an unmatched path",
         "using root matcher adds the header for a matched data path (with header)",
         "using root matcher adds the header for a matched data path (without header)",
-        "using root matcher adds the header to the /"
-      ],
-      "failed": [
+        "using root matcher adds the header to the /",
         "using a single matcher with i18n adds the header for a matched path",
         "using a single matcher with i18n adds the header for a mathed root path with /index",
         "using a single matcher with i18n adds the headers for a matched data path",
@@ -5417,6 +5415,7 @@
         "using a single matcher with i18n and trailingSlash adds the headers for a matched data path",
         "using root matcher adds the header to the /index"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false

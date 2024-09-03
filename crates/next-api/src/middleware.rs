@@ -156,15 +156,64 @@ impl MiddlewareEndpoint {
             None
         };
 
+        let next_config = this.project.next_config().await?;
+        let has_i18n = next_config.i18n.is_some();
+        let has_i18n_locales = next_config
+            .i18n
+            .as_ref()
+            .map(|i18n| i18n.locales.len() > 1)
+            .unwrap_or(false);
+        let base_path = next_config.base_path.as_ref();
+
         let matchers = if let Some(matchers) = config.matcher.as_ref() {
             matchers
                 .iter()
-                .map(|matcher| match matcher {
-                    MiddlewareMatcherKind::Str(matchers) => MiddlewareMatcher {
-                        original_source: matchers.as_str().into(),
-                        ..Default::default()
-                    },
-                    MiddlewareMatcherKind::Matcher(matcher) => matcher.clone(),
+                .map(|matcher| {
+                    let mut matcher = match matcher {
+                        MiddlewareMatcherKind::Str(matcher) => MiddlewareMatcher {
+                            original_source: matcher.as_str().into(),
+                            ..Default::default()
+                        },
+                        MiddlewareMatcherKind::Matcher(matcher) => matcher.clone(),
+                    };
+
+                    // Mirrors implementation in get-page-static-info.ts getMiddlewareMatchers
+                    let mut source = matcher.original_source.to_string();
+                    let is_root = source == "/";
+                    let has_locale = matcher.locale;
+
+                    if has_i18n_locales && has_locale {
+                        source = format!(
+                            "/:nextInternalLocale((?!_next/)[^/.]{{1,}}){}",
+                            if is_root {
+                                "".to_string()
+                            } else {
+                                source.to_string()
+                            }
+                        );
+                    }
+
+                    let last_part = if is_root {
+                        format!(
+                            "({}/?index|/?index\\\\.json)?",
+                            if has_i18n { "|\\\\.json|" } else { "" }
+                        )
+                    } else {
+                        "(.json)?".into()
+                    };
+
+                    source = format!("/:nextData(_next/data/[^/]{{1,}})?{}{}", source, last_part);
+
+                    if let Some(base_path) = base_path {
+                        source = format!("{}{}", base_path.to_string(), source);
+                    }
+
+                    // TODO: The implementation of getMiddlewareMatchers outputs a regex here using
+                    // path-to-regexp. Currently there is no equivalent of that so it post-processes
+                    // this value to the relevant regex in manifest-loader.ts
+                    matcher.regexp = Some(RcStr::from(source));
+
+                    matcher
                 })
                 .collect()
         } else {
@@ -174,6 +223,7 @@ impl MiddlewareEndpoint {
                 ..Default::default()
             }]
         };
+        println!("matchers: {:?}", matchers);
 
         let edge_function_definition = EdgeFunctionDefinition {
             files: file_paths_from_root,
