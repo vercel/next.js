@@ -20,6 +20,11 @@ The following methods and properties are available:
 | `enable()`  | Enables Draft Mode in a Route Handler by setting a cookie (`__prerender_bypass`). |
 | `disable()` | Disables Draft Mode in a Route Handler by deleting a cookie.                      |
 
+> **Good to know:**
+>
+> - A new bypass cookie value will be generated each time you run `next build`. This ensures that the bypass cookie can’t be guessed.
+> - To test Draft Mode locally over HTTP, your browser will need to allow third-party cookies and local storage access.
+
 ## Examples
 
 ### Enabling Draft Mode
