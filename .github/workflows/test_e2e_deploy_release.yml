@@ -56,7 +56,7 @@ jobs:
 
   report-test-results-to-datadog:
     needs: test-deploy
-    if: ${{ always() }}
+    if: github.ref_name == 'canary'
 
     runs-on: ubuntu-latest
     name: report test results to datadog
