@@ -1,6 +1,7 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-createNextDescribe('x-forwarded-headers', { files: __dirname }, ({ next }) => {
+describe('x-forwarded-headers', () => {
+  const { next } = nextTestSetup({ files: __dirname })
   it('should include x-forwarded-* headers', async () => {
     const res = await next.fetch('/')
     const headers = await res.json()
