@@ -1,26 +1,30 @@
+// app/page.tsx
+
+"use client"; // Required for client-side rendering
+
 import { useState } from "react";
-import Header from "../components/Header";
+import Header from "./_components/Header"; // Adjust the path based on your directory structure
 import dynamic from "next/dynamic";
 
-const DynamicComponent1 = dynamic(() => import("../components/hello1"));
+const DynamicComponent1 = dynamic(() => import("./_components/hello1"));
 
 const DynamicComponent2WithCustomLoading = dynamic(
-  () => import("../components/hello2"),
+  () => import("./_components/hello2"),
   { loading: () => <p>Loading caused by client page transition ...</p> },
 );
 
 const DynamicComponent3WithNoSSR = dynamic(
-  () => import("../components/hello3"),
+  () => import("./_components/hello3"),
   { loading: () => <p>Loading ...</p>, ssr: false },
 );
 
-const DynamicComponent4 = dynamic(() => import("../components/hello4"));
+const DynamicComponent4 = dynamic(() => import("./_components/hello4"));
 
-const DynamicComponent5 = dynamic(() => import("../components/hello5"));
+const DynamicComponent5 = dynamic(() => import("./_components/hello5"));
 
 const names = ["Tim", "Joe", "Bel", "Max", "Lee"];
 
-const IndexPage = () => {
+export default function IndexPage() {
   const [showMore, setShowMore] = useState(false);
   const [falsyField] = useState(false);
   const [results, setResults] = useState();
@@ -63,6 +67,4 @@ const IndexPage = () => {
       </div>
     </div>
   );
-};
-
-export default IndexPage;
+}
