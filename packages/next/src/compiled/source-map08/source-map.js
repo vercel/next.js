@@ -36,7 +36,7 @@ class ArraySet {
 
   /**
    * Return how many unique items are in this ArraySet. If duplicates have been
-   * added, then those do not count towards the size.
+   * added, than those do not count towards the size.
    *
    * @returns Number
    */
@@ -587,7 +587,7 @@ class SourceMapConsumer {
   /**
    * Returns all generated line and column information for the original source,
    * line, and column provided. If no column is provided, returns all mappings
-   * corresponding to either the line we are searching for or the next
+   * corresponding to a either the line we are searching for or the next
    * closest line that has any mappings. Otherwise, returns all mappings
    * corresponding to the given line and either the column we are searching for
    * or the next closest column that has any offsets.
@@ -2767,7 +2767,7 @@ function relativeIfPossible(rootURL, targetURL) {
 }
 
 /**
- * Compute the URL of a source given the source root, the source's
+ * Compute the URL of a source given the the source root, the source's
  * URL, and the source map's URL.
  */
 function computeSourceURL(sourceRoot, sourceURL, sourceMapURL) {
