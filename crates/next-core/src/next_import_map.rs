@@ -116,12 +116,14 @@ pub async fn get_next_client_import_map(
     match ty.into_value() {
         ClientContextType::Pages { .. } => {}
         ClientContextType::App { app_dir } => {
-            let react_flavor =
-                if *next_config.enable_ppr().await? || *next_config.enable_taint().await? {
-                    "-experimental"
-                } else {
-                    ""
-                };
+            let react_flavor = if *next_config.enable_ppr().await?
+                || *next_config.enable_taint().await?
+                || *next_config.enable_dynamic_io().await?
+            {
+                "-experimental"
+            } else {
+                ""
+            };
 
             import_map.insert_exact_alias(
                 "react",
@@ -665,7 +667,12 @@ async fn rsc_aliases(
 ) -> Result<()> {
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
-    let react_channel = if ppr || taint { "-experimental" } else { "" };
+    let dynamic_io = *next_config.enable_dynamic_io().await?;
+    let react_channel = if ppr || taint || dynamic_io {
+        "-experimental"
+    } else {
+        ""
+    };
     let react_client_package = get_react_client_package(&next_config).await?;
 
     let mut alias = IndexMap::new();
@@ -695,10 +702,12 @@ async fn rsc_aliases(
         "react-server-dom-webpack/client.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
         "react-server-dom-webpack/server.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
         "react-server-dom-webpack/server.node" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
+        "react-server-dom-webpack/static.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
         "react-server-dom-turbopack/client" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client"),
         "react-server-dom-turbopack/client.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
         "react-server-dom-turbopack/server.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
         "react-server-dom-turbopack/server.node" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
+        "react-server-dom-turbopack/static.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
     });
 
     if runtime == NextRuntime::NodeJs {
@@ -726,8 +735,10 @@ async fn rsc_aliases(
                     "react-dom" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-dom"),
                     "react-server-dom-webpack/server.edge" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
                     "react-server-dom-webpack/server.node" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
+                    "react-server-dom-webpack/static.edge" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-static-edge"),
                     "react-server-dom-turbopack/server.edge" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
                     "react-server-dom-turbopack/server.node" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
+                    "react-server-dom-turbopack/static.edge" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-static-edge"),
                     "next/navigation" => format!("next/dist/api/navigation.react-server"),
 
                     // Needed to make `react-dom/server` work.
