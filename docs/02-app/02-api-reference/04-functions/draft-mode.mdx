@@ -3,7 +3,17 @@ title: draftMode
 description: API Reference for the draftMode function.
 ---
 
-The `draftMode` function allows you to detect [Draft Mode](/docs/app/building-your-application/configuring/draft-mode) inside a [Server Component](/docs/app/building-your-application/rendering/server-components).
+The `draftMode` function allows you to enable and disable [Draft Mode](/docs/app/building-your-application/configuring/draft-mode), as well as check if Draft Mode is enabled in a [Server Component](/docs/app/building-your-application/rendering/server-components).
+
+## Reference
+
+The following methods and properties are available:
+
+| Method      | Description                                                                       |
+| ----------- | --------------------------------------------------------------------------------- |
+| `isEnabled` | A boolean value that indicates if Draft Mode is enabled.                          |
+| `enable()`  | Enables Draft Mode in a Route Handler by setting a cookie (`__prerender_bypass`). |
+| `disable()` | Disables Draft Mode in a Route Handler by deleting a cookie.                      |
 
 ```jsx filename="app/page.js"
 import { draftMode } from 'next/headers'
