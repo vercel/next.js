@@ -107,7 +107,7 @@ graph TD
 ## Part 0
 ```js
 var RouteKind;
-export { RouteKind } from "__TURBOPACK_VAR__" assert {
+export { RouteKind as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -117,7 +117,7 @@ export { RouteKind } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { RouteKind } from "__TURBOPACK_PART__" assert {
+import { a as RouteKind } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 (function(RouteKind) {
@@ -144,7 +144,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { RouteKind } from "__TURBOPACK_PART__" assert {
+import { a as RouteKind } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 export { RouteKind };
@@ -182,7 +182,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 var RouteKind;
-export { RouteKind } from "__TURBOPACK_VAR__" assert {
+export { RouteKind as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -192,7 +192,7 @@ export { RouteKind } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { RouteKind } from "__TURBOPACK_PART__" assert {
+import { a as RouteKind } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 (function(RouteKind) {
@@ -219,7 +219,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { RouteKind } from "__TURBOPACK_PART__" assert {
+import { a as RouteKind } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 export { RouteKind };

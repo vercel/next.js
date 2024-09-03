@@ -289,7 +289,7 @@ pub async fn project_new(
         std::fs::create_dir_all(&internal_dir)
             .context("Unable to create .next directory")
             .unwrap();
-        let trace_file = internal_dir.join("trace.log");
+        let trace_file = internal_dir.join("trace-turbopack");
         let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
         let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));

@@ -59,16 +59,14 @@ function hmrRefreshReducerImpl(
       let currentTree = state.tree
       let currentCache = state.cache
 
-      for (const flightDataPath of flightData) {
-        // FlightDataPath with more than two items means unexpected Flight data was returned
-        if (flightDataPath.length !== 3) {
+      for (const normalizedFlightData of flightData) {
+        const { tree: treePatch, isRootRender } = normalizedFlightData
+        if (!isRootRender) {
           // TODO-APP: handle this case better
           console.log('REFRESH FAILED')
           return state
         }
 
-        // Given the path can only have two items the items are only the router state and rsc for the root.
-        const [treePatch] = flightDataPath
         const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           [''],
@@ -97,7 +95,11 @@ function hmrRefreshReducerImpl(
         if (canonicalUrlOverride) {
           mutable.canonicalUrl = canonicalUrlOverrideHref
         }
-        const applied = applyFlightData(currentCache, cache, flightDataPath)
+        const applied = applyFlightData(
+          currentCache,
+          cache,
+          normalizedFlightData
+        )
 
         if (applied) {
           mutable.cache = cache
