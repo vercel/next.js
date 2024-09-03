@@ -456,6 +456,7 @@ ${ENDGROUP}`)
       ]
       const env = {
         IS_RETRY: isRetry ? 'true' : undefined,
+        NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
         RECORD_REPLAY: shouldRecordTestWithReplay,
         // run tests in headless mode by default
         HEADLESS: 'true',
