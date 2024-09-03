@@ -1,22 +1,18 @@
 "use client";
-import { useState, useEffect } from "react";
+
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+
 import styles from "../../styles.module.css";
 import Code from "../_components/Code";
 
 export default function About() {
   const pathname = usePathname();
-  const [path, setPath] = useState<string | null>(null);
-
-  useEffect(() => {
-    setPath(pathname);
-  }, [pathname]);
 
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        <h1>Path: {path}</h1>
+        <h1>Path: {pathname}</h1>
         <hr className={styles.hr} />
         <p>
           {" "}
