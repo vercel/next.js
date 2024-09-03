@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{borrow::Cow, collections::HashSet};
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
@@ -307,12 +307,43 @@ impl TurboFn {
         &self.inline_signature
     }
 
-    fn input_idents(&self) -> impl Iterator<Item = &Ident> {
-        self.inputs.iter().map(|Input { ident, .. }| ident)
+    fn input_expressions(&self) -> impl Iterator<Item = impl ToTokens + '_> {
+        enum Expr<'a> {
+            // common case
+            Ident(&'a Ident),
+            // used when `trace_ignore` is set
+            TokenStream(TokenStream),
+        }
+        impl ToTokens for Expr<'_> {
+            fn to_tokens(&self, tokens: &mut TokenStream) {
+                match self {
+                    Self::Ident(id) => id.to_tokens(tokens),
+                    Self::TokenStream(stream) => stream.to_tokens(tokens),
+                }
+            }
+        }
+        self.inputs.iter().map(|input| {
+            let mut expr = Expr::Ident(&input.ident);
+            if input.trace_ignore {
+                expr = Expr::TokenStream(quote! {
+                    turbo_tasks::trace::TraceRawVcsIgnore::new(#expr)
+                })
+            }
+            expr
+        })
     }
 
-    pub fn input_types(&self) -> Vec<&Type> {
-        self.inputs.iter().map(|Input { ty, .. }| ty).collect()
+    pub fn input_types(&self) -> Vec<Cow<'_, Type>> {
+        self.inputs
+            .iter()
+            .map(|input| {
+                let mut ty = Cow::Borrowed(&input.ty);
+                if input.trace_ignore {
+                    ty = Cow::Owned(parse_quote! { turbo_tasks::trace::TraceRawVcsIgnore<#ty> });
+                }
+                ty
+            })
+            .collect()
     }
 
     pub fn persistence(&self) -> impl ToTokens {
@@ -363,7 +394,7 @@ impl TurboFn {
         let ident = &self.ident;
         let output = &self.output;
         let assertions = self.get_assertions();
-        let inputs = self.input_idents();
+        let inputs = self.input_expressions();
         let persistence = self.persistence();
         parse_quote! {
             {
@@ -387,7 +418,7 @@ impl TurboFn {
     /// given native function.
     pub fn static_block(&self, native_function_id_ident: &Ident) -> Block {
         let output = &self.output;
-        let inputs = self.input_idents();
+        let inputs = self.input_expressions();
         let persistence = self.persistence();
         let assertions = self.get_assertions();
         if let Some(converted_this) = self.converted_this() {

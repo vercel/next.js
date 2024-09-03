@@ -2,7 +2,10 @@ use std::{fmt::Debug, marker::PhantomData, ops::Deref};
 
 use serde::{Deserialize, Serialize};
 
-use crate::SharedReference;
+use crate::{
+    trace::{TraceRawVcs, TraceRawVcsContext},
+    SharedReference,
+};
 
 /// Pass a value by value (`Value<Xxx>`) instead of by reference (`Vc<Xxx>`).
 ///
@@ -38,6 +41,15 @@ impl<T: Default> Default for Value<T> {
     }
 }
 
+impl<T> TraceRawVcs for Value<T>
+where
+    T: TraceRawVcs,
+{
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        self.inner.trace_raw_vcs(trace_context)
+    }
+}
+
 /// Pass a value by value (`Value<Xxx>`) instead of by reference (`Vc<Xxx>`).
 ///
 /// Doesn't require serialization, and won't be stored in the persistent cache
@@ -62,6 +74,15 @@ impl<T> Deref for TransientValue<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl<T> TraceRawVcs for TransientValue<T>
+where
+    T: TraceRawVcs,
+{
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        self.inner.trace_raw_vcs(trace_context)
     }
 }
 
@@ -157,5 +178,14 @@ impl<T: 'static> Deref for TransientInstance<T> {
 
     fn deref(&self) -> &Self::Target {
         self.inner.0.downcast_ref().unwrap()
+    }
+}
+
+impl<T> TraceRawVcs for TransientInstance<T>
+where
+    T: TraceRawVcs + 'static,
+{
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        (&**self).trace_raw_vcs(trace_context)
     }
 }

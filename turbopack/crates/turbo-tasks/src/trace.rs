@@ -1,7 +1,9 @@
 use std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    fmt::Display,
     marker::PhantomData,
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{atomic::*, Arc, Mutex},
     time::Duration,
@@ -9,6 +11,7 @@ use std::{
 
 use auto_hash_map::{AutoMap, AutoSet};
 use indexmap::{IndexMap, IndexSet};
+use serde::{Deserialize, Serialize};
 
 use crate::{RawVc, RcStr};
 
@@ -242,6 +245,42 @@ impl<T: TraceRawVcs + ?Sized> TraceRawVcs for &T {
 impl<T: TraceRawVcs + ?Sized> TraceRawVcs for &mut T {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         (**self).trace_raw_vcs(trace_context);
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[serde(transparent)]
+pub struct TraceRawVcsIgnore<T> {
+    inner: T,
+}
+
+impl<T> TraceRawVcsIgnore<T> {
+    pub fn new(inner: T) -> Self {
+        Self { inner }
+    }
+
+    pub fn into_inner(self: TraceRawVcsIgnore<T>) -> T {
+        self.inner
+    }
+}
+
+impl<T> Deref for TraceRawVcsIgnore<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<T> DerefMut for TraceRawVcsIgnore<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+impl<T: Display> Display for TraceRawVcsIgnore<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.inner.fmt(f)
     }
 }
 

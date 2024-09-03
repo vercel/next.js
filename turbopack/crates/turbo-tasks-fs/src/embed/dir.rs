@@ -20,7 +20,7 @@ pub async fn directory_from_relative_path(
 #[turbo_tasks::function]
 pub async fn directory_from_include_dir(
     name: RcStr,
-    dir: TransientInstance<&'static include_dir::Dir<'static>>,
+    #[turbo_tasks(trace_ignore)] dir: TransientInstance<&'static include_dir::Dir<'static>>,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     Ok(Vc::upcast(EmbeddedFileSystem::new(name, dir)))
 }

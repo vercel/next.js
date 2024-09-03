@@ -19,7 +19,7 @@ impl EmbeddedFileSystem {
     #[turbo_tasks::function]
     pub(super) fn new(
         name: RcStr,
-        dir: TransientInstance<&'static Dir<'static>>,
+        #[turbo_tasks(trace_ignore)] dir: TransientInstance<&'static Dir<'static>>,
     ) -> Vc<EmbeddedFileSystem> {
         EmbeddedFileSystem { name, dir }.cell()
     }

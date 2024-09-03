@@ -5,7 +5,8 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    MagicAny, RcStr, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
+    trace::TraceRawVcs, MagicAny, RcStr, ResolvedVc, TaskId, TransientInstance, TransientValue,
+    Value, ValueTypeId, Vc,
 };
 
 /// Trait to implement in order for a type to be accepted as a
@@ -13,15 +14,15 @@ use crate::{
 ///
 /// See also [`ConcreteTaskInput`].
 #[async_trait]
-pub trait TaskInput: Send + Sync + Clone + Debug + PartialEq + Eq + Hash {
-    async fn resolve(&self) -> Result<Self> {
-        Ok(self.clone())
-    }
+pub trait TaskInput: TraceRawVcs + Send + Sync + Clone + Debug + PartialEq + Eq + Hash {
     fn is_resolved(&self) -> bool {
         true
     }
     fn is_transient(&self) -> bool {
         false
+    }
+    async fn resolve(&self) -> Result<Self> {
+        Ok(self.clone())
     }
 }
 
@@ -138,6 +139,7 @@ where
         + Send
         + Sync
         + Serialize
+        + TraceRawVcs
         + for<'de> Deserialize<'de>
         + 'static,
 {
@@ -152,7 +154,7 @@ where
 
 impl<T> TaskInput for TransientValue<T>
 where
-    T: MagicAny + Clone + Debug + Hash + Eq + 'static,
+    T: TraceRawVcs + MagicAny + Clone + Debug + Hash + Eq + 'static,
 {
     fn is_transient(&self) -> bool {
         true
@@ -189,7 +191,7 @@ where
 
 impl<T> TaskInput for TransientInstance<T>
 where
-    T: Sync + Send + 'static,
+    T: TraceRawVcs + Sync + Send + 'static,
 {
     fn is_transient(&self) -> bool {
         true
