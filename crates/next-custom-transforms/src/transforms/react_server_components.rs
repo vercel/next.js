@@ -1,5 +1,6 @@
 use std::{collections::HashMap, path::PathBuf, rc::Rc, sync::Arc};
 
+use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Deserialize;
 use swc_core::{
@@ -617,9 +618,10 @@ impl ReactServerComponentValidator {
         if self.is_from_node_modules(&self.filepath) {
             return;
         }
-        let is_error_file = Regex::new(r"[\\/]error\.(ts|js)x?$")
-            .unwrap()
-            .is_match(&self.filepath);
+        static RE: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"[\\/]((global-)?error)\.(ts|js)x?$").unwrap());
+
+        let is_error_file = RE.is_match(&self.filepath);
 
         if is_error_file {
             if let Some(app_dir) = &self.app_dir {
