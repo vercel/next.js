@@ -41,6 +41,7 @@ jobs:
       ${{ 
         github.event.workflow_run.conclusion == 'failure' &&
         github.event.workflow_run.run_attempt >= 2 &&
+        github.ref_name == 'canary' &&
         !github.event.workflow_run.head_repository.fork
       }}
     runs-on: ubuntu-latest
