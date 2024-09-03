@@ -56,7 +56,6 @@ impl Default for MiddlewaresManifest {
     TraceRawVcs,
     Serialize,
     Deserialize,
-    Default,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct MiddlewareMatcher {
@@ -72,6 +71,18 @@ pub struct MiddlewareMatcher {
     pub original_source: RcStr,
 }
 
+impl Default for MiddlewareMatcher {
+    fn default() -> Self {
+        Self {
+            regexp: None,
+            locale: true,
+            has: None,
+            missing: None,
+            original_source: Default::default(),
+        }
+    }
+}
+
 fn bool_is_true(b: &bool) -> bool {
     *b
 }
@@ -82,9 +93,7 @@ pub struct EdgeFunctionDefinition {
     pub name: RcStr,
     pub page: RcStr,
     pub matchers: Vec<MiddlewareMatcher>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub wasm: Vec<AssetBinding>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub assets: Vec<AssetBinding>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regions: Option<Regions>,
