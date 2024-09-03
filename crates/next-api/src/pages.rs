@@ -64,8 +64,8 @@ use crate::{
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
     paths::{
-        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root,
-        wasm_paths_to_bindings,
+        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
+        get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
@@ -1110,6 +1110,10 @@ impl PageEndpoint {
                 wasm_paths_from_root
                     .extend(get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?);
 
+                let all_assets =
+                    get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true)
+                        .await?;
+
                 let named_regex = get_named_middleware_regex(&pathname).into();
                 let matchers = MiddlewareMatcher {
                     regexp: Some(named_regex),
@@ -1120,12 +1124,12 @@ impl PageEndpoint {
                 let edge_function_definition = EdgeFunctionDefinition {
                     files: file_paths_from_root,
                     wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                    assets: paths_to_bindings(all_assets),
                     name: pathname.clone_value(),
                     page: original_name.clone_value(),
                     regions: None,
                     matchers: vec![matchers],
                     env: this.pages_project.project().edge_env().await?.clone_value(),
-                    ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
                     sorted_middleware: vec![pathname.clone_value()],
