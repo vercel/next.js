@@ -36,11 +36,32 @@ impl OutputValue {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug)]
+pub struct RootState {
+    pub ty: RootType,
+    pub all_clean_event: Event,
+}
+
+impl RootState {
+    pub fn new(ty: RootType) -> Self {
+        Self {
+            ty,
+            all_clean_event: Event::new(|| "RootState::all_clean_event".to_string()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum RootType {
     RootTask,
     OnceTask,
-    _ReadingStronglyConsistent,
+    ReadingStronglyConsistent,
+}
+
+impl Clone for RootState {
+    fn clone(&self) -> Self {
+        panic!("RootState cannot be cloned");
+    }
 }
 
 #[derive(Debug)]
@@ -169,14 +190,14 @@ pub enum CachedDataItem {
         collectible: CellRef,
         value: u32,
     },
-    AggregatedUnfinishedTasks {
+    AggregatedDirtyTaskCount {
         value: u32,
     },
 
     // Transient Root Type
     #[serde(skip)]
-    AggregateRootType {
-        value: RootType,
+    AggregateRoot {
+        value: RootState,
     },
 
     // Transient In Progress state
@@ -236,8 +257,8 @@ impl CachedDataItem {
             CachedDataItem::AggregatedCollectible { collectible, .. } => {
                 !collectible.task.is_transient()
             }
-            CachedDataItem::AggregatedUnfinishedTasks { .. } => true,
-            CachedDataItem::AggregateRootType { .. } => false,
+            CachedDataItem::AggregatedDirtyTaskCount { .. } => true,
+            CachedDataItem::AggregateRoot { .. } => false,
             CachedDataItem::InProgress { .. } => false,
             CachedDataItem::InProgressCell { .. } => false,
             CachedDataItem::OutdatedCollectible { .. } => false,
@@ -301,8 +322,8 @@ impl CachedDataItemKey {
             CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
                 !collectible.task.is_transient()
             }
-            CachedDataItemKey::AggregatedUnfinishedTasks { .. } => true,
-            CachedDataItemKey::AggregateRootType { .. } => false,
+            CachedDataItemKey::AggregatedDirtyTaskCount { .. } => true,
+            CachedDataItemKey::AggregateRoot { .. } => false,
             CachedDataItemKey::InProgress { .. } => false,
             CachedDataItemKey::InProgressCell { .. } => false,
             CachedDataItemKey::OutdatedCollectible { .. } => false,

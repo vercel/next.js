@@ -6,7 +6,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
-use super::{ExecuteContext, TaskGuard};
+use super::{ExecuteContext, Operation, TaskGuard};
 use crate::{
     data::{CachedDataItem, CachedDataItemKey},
     get, get_many, iter_many, update, update_count,
@@ -73,7 +73,7 @@ impl AggregatedDataUpdate {
         let aggregation = get!(task, AggregationNumber).copied().unwrap_or_default();
         let dirty = get!(task, Dirty).is_some();
         if is_aggregating_node(aggregation) {
-            let mut unfinished = get!(task, AggregatedUnfinishedTasks).copied().unwrap_or(0);
+            let mut unfinished = get!(task, AggregatedDirtyTaskCount).copied().unwrap_or(0);
             let mut dirty_tasks_update = task
                 .iter()
                 .filter_map(|(key, _)| match *key {
@@ -115,7 +115,7 @@ impl AggregatedDataUpdate {
         } = self;
         let mut result = Self::default();
         if *unfinished != 0 {
-            update!(task, AggregatedUnfinishedTasks, |old: Option<u32>| {
+            update!(task, AggregatedDirtyTaskCount, |old: Option<u32>| {
                 let old = old.unwrap_or(0);
                 let new = old as i32 + *unfinished;
                 debug_assert!(new >= 0);
@@ -133,7 +133,7 @@ impl AggregatedDataUpdate {
         }
         if !dirty_tasks_update.is_empty() {
             let mut task_to_schedule = Vec::new();
-            let root_type = get!(task, AggregateRootType).copied();
+            let root = get!(task, AggregateRoot).is_some();
             for (task_id, count) in dirty_tasks_update {
                 update!(
                     task,
@@ -148,7 +148,7 @@ impl AggregatedDataUpdate {
                             None
                         } else {
                             if old <= 0 && new > 0 {
-                                if root_type.is_some() {
+                                if root {
                                     task_to_schedule.push(*task_id);
                                 }
                                 result.dirty_tasks_update.insert(*task_id, 1);
@@ -226,7 +226,7 @@ pub struct AggregationUpdateQueue {
 impl AggregationUpdateQueue {
     pub fn new() -> Self {
         Self {
-            jobs: VecDeque::new(),
+            jobs: VecDeque::with_capacity(8),
         }
     }
 
@@ -238,8 +238,14 @@ impl AggregationUpdateQueue {
         self.jobs.push_back(job);
     }
 
+    pub fn run(job: AggregationUpdateJob, ctx: &ExecuteContext<'_>) {
+        let mut queue = Self::new();
+        queue.push(job);
+        queue.execute(ctx);
+    }
+
     pub fn process(&mut self, ctx: &ExecuteContext<'_>) -> bool {
-        if let Some(job) = self.jobs.pop_back() {
+        if let Some(job) = self.jobs.pop_front() {
             match job {
                 AggregationUpdateJob::UpdateAggregationNumber {
                     task_id,
@@ -523,5 +529,17 @@ impl AggregationUpdateQueue {
         }
 
         self.jobs.is_empty()
+    }
+}
+
+impl Operation for AggregationUpdateQueue {
+    fn execute(mut self, ctx: &ExecuteContext<'_>) {
+        let _span = tracing::trace_span!("aggregation update queue").entered();
+        loop {
+            ctx.operation_suspend_point(&self);
+            if self.process(ctx) {
+                return;
+            }
+        }
     }
 }
