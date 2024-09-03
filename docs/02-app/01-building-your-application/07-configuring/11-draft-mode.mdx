@@ -211,39 +211,3 @@ Set this as the draft URL on your headless CMS or access manually, and you shoul
 ```bash filename="Terminal"
 https://<your-site>/api/draft?secret=<token>&slug=<path>
 ```
-
-## More Details
-
-### Clear the Draft Mode cookie
-
-By default, the Draft Mode session ends when the browser is closed.
-
-To clear the Draft Mode cookie manually, create a Route Handler that calls `draftMode().disable()`:
-
-```ts filename="app/api/disable-draft/route.ts" switcher
-import { draftMode } from 'next/headers'
-
-export async function GET(request: Request) {
-  draftMode().disable()
-  return new Response('Draft mode is disabled')
-}
-```
-
-```js filename="app/api/disable-draft/route.js" switcher
-import { draftMode } from 'next/headers'
-
-export async function GET(request) {
-  draftMode().disable()
-  return new Response('Draft mode is disabled')
-}
-```
-
-Then, send a request to `/api/disable-draft` to invoke the Route Handler. If calling this route using [`next/link`](/docs/app/api-reference/components/link), you must pass `prefetch={false}` to prevent accidentally deleting the cookie on prefetch.
-
-### Unique per `next build`
-
-A new bypass cookie value will be generated each time you run `next build`.
-
-This ensures that the bypass cookie can’t be guessed.
-
-> **Good to know**: To test Draft Mode locally over HTTP, your browser will need to allow third-party cookies and local storage access.
