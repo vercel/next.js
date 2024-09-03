@@ -205,7 +205,7 @@ impl MiddlewareEndpoint {
                     source = format!("/:nextData(_next/data/[^/]{{1,}})?{}{}", source, last_part);
 
                     if let Some(base_path) = base_path {
-                        source = format!("{}{}", base_path.to_string(), source);
+                        source = format!("{}{}", base_path, source);
                     }
 
                     // TODO: The implementation of getMiddlewareMatchers outputs a regex here using
