@@ -17,7 +17,7 @@ const MAX_UPPERS_TIMES_CHILDREN: usize = 32;
 
 const MAX_AFFECTED_NODES: usize = 4096;
 
-/// Handle the addition of a new edge to a node. The the edge is propagated to
+/// Handle the addition of a new edge to a node. The edge is propagated to
 /// the uppers of that node or added a inner node.
 pub fn handle_new_edge<C: AggregationContext>(
     ctx: &C,

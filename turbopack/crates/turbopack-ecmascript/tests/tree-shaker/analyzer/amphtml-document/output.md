@@ -329,7 +329,7 @@ graph TD
 ## Part 0
 ```js
 import { NextScript } from 'next/document';
-export { NextScript } from "__TURBOPACK_VAR__" assert {
+export { NextScript as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -337,7 +337,7 @@ export { NextScript } from "__TURBOPACK_VAR__" assert {
 ## Part 1
 ```js
 import { Main } from 'next/document';
-export { Main } from "__TURBOPACK_VAR__" assert {
+export { Main as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -345,7 +345,7 @@ export { Main } from "__TURBOPACK_VAR__" assert {
 ## Part 2
 ```js
 import { Head } from 'next/document';
-export { Head } from "__TURBOPACK_VAR__" assert {
+export { Head as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -353,7 +353,7 @@ export { Head } from "__TURBOPACK_VAR__" assert {
 ## Part 3
 ```js
 import { Html } from 'next/document';
-export { Html } from "__TURBOPACK_VAR__" assert {
+export { Html as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -361,7 +361,7 @@ export { Html } from "__TURBOPACK_VAR__" assert {
 ## Part 4
 ```js
 import { jsx as _jsx } from "react/jsx-runtime";
-export { _jsx } from "__TURBOPACK_VAR__" assert {
+export { _jsx as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -369,7 +369,7 @@ export { _jsx } from "__TURBOPACK_VAR__" assert {
 ## Part 5
 ```js
 import { Fragment as _Fragment } from "react/jsx-runtime";
-export { _Fragment } from "__TURBOPACK_VAR__" assert {
+export { _Fragment as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -377,7 +377,7 @@ export { _Fragment } from "__TURBOPACK_VAR__" assert {
 ## Part 6
 ```js
 import { jsxs as _jsxs } from "react/jsx-runtime";
-export { _jsxs } from "__TURBOPACK_VAR__" assert {
+export { _jsxs as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -385,7 +385,7 @@ export { _jsxs } from "__TURBOPACK_VAR__" assert {
 ## Part 7
 ```js
 import Document from 'next/document';
-export { Document } from "__TURBOPACK_VAR__" assert {
+export { Document as h } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -416,28 +416,28 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { Document } from "__TURBOPACK_PART__" assert {
+import { h as Document } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
-import { _jsxs } from "__TURBOPACK_PART__" assert {
+import { g as _jsxs } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
-import { _Fragment } from "__TURBOPACK_PART__" assert {
+import { f as _Fragment } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
-import { _jsx } from "__TURBOPACK_PART__" assert {
+import { e as _jsx } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
-import { Html } from "__TURBOPACK_PART__" assert {
+import { d as Html } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { Head } from "__TURBOPACK_PART__" assert {
+import { c as Head } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { Main } from "__TURBOPACK_PART__" assert {
+import { b as Main } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
-import { NextScript } from "__TURBOPACK_PART__" assert {
+import { a as NextScript } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 class MyDocument extends Document {
@@ -471,7 +471,7 @@ class MyDocument extends Document {
         });
     }
 }
-export { MyDocument } from "__TURBOPACK_VAR__" assert {
+export { MyDocument as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -500,11 +500,11 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 10
 };
-import { MyDocument } from "__TURBOPACK_PART__" assert {
+import { i as MyDocument } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
 const __TURBOPACK__default__export__ = MyDocument;
-export { __TURBOPACK__default__export__ } from "__TURBOPACK_VAR__" assert {
+export { __TURBOPACK__default__export__ as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -528,7 +528,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
-import { __TURBOPACK__default__export__ } from "__TURBOPACK_PART__" assert {
+import { j as __TURBOPACK__default__export__ } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
 export { __TURBOPACK__default__export__ as default };
@@ -572,7 +572,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import { NextScript } from 'next/document';
-export { NextScript } from "__TURBOPACK_VAR__" assert {
+export { NextScript as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -580,7 +580,7 @@ export { NextScript } from "__TURBOPACK_VAR__" assert {
 ## Part 1
 ```js
 import { Main } from 'next/document';
-export { Main } from "__TURBOPACK_VAR__" assert {
+export { Main as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -588,7 +588,7 @@ export { Main } from "__TURBOPACK_VAR__" assert {
 ## Part 2
 ```js
 import { Head } from 'next/document';
-export { Head } from "__TURBOPACK_VAR__" assert {
+export { Head as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -596,7 +596,7 @@ export { Head } from "__TURBOPACK_VAR__" assert {
 ## Part 3
 ```js
 import { Html } from 'next/document';
-export { Html } from "__TURBOPACK_VAR__" assert {
+export { Html as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -604,7 +604,7 @@ export { Html } from "__TURBOPACK_VAR__" assert {
 ## Part 4
 ```js
 import { jsx as _jsx } from "react/jsx-runtime";
-export { _jsx } from "__TURBOPACK_VAR__" assert {
+export { _jsx as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -612,7 +612,7 @@ export { _jsx } from "__TURBOPACK_VAR__" assert {
 ## Part 5
 ```js
 import { Fragment as _Fragment } from "react/jsx-runtime";
-export { _Fragment } from "__TURBOPACK_VAR__" assert {
+export { _Fragment as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -620,7 +620,7 @@ export { _Fragment } from "__TURBOPACK_VAR__" assert {
 ## Part 6
 ```js
 import { jsxs as _jsxs } from "react/jsx-runtime";
-export { _jsxs } from "__TURBOPACK_VAR__" assert {
+export { _jsxs as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -628,7 +628,7 @@ export { _jsxs } from "__TURBOPACK_VAR__" assert {
 ## Part 7
 ```js
 import Document from 'next/document';
-export { Document } from "__TURBOPACK_VAR__" assert {
+export { Document as h } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -659,28 +659,28 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { Document } from "__TURBOPACK_PART__" assert {
+import { h as Document } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
-import { _jsxs } from "__TURBOPACK_PART__" assert {
+import { g as _jsxs } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
-import { _Fragment } from "__TURBOPACK_PART__" assert {
+import { f as _Fragment } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
-import { _jsx } from "__TURBOPACK_PART__" assert {
+import { e as _jsx } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
-import { Html } from "__TURBOPACK_PART__" assert {
+import { d as Html } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { Head } from "__TURBOPACK_PART__" assert {
+import { c as Head } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { Main } from "__TURBOPACK_PART__" assert {
+import { b as Main } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
-import { NextScript } from "__TURBOPACK_PART__" assert {
+import { a as NextScript } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 class MyDocument extends Document {
@@ -714,7 +714,7 @@ class MyDocument extends Document {
         });
     }
 }
-export { MyDocument } from "__TURBOPACK_VAR__" assert {
+export { MyDocument as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -743,11 +743,11 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 10
 };
-import { MyDocument } from "__TURBOPACK_PART__" assert {
+import { i as MyDocument } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
 const __TURBOPACK__default__export__ = MyDocument;
-export { __TURBOPACK__default__export__ } from "__TURBOPACK_VAR__" assert {
+export { __TURBOPACK__default__export__ as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -771,7 +771,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
-import { __TURBOPACK__default__export__ } from "__TURBOPACK_PART__" assert {
+import { j as __TURBOPACK__default__export__ } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
 export { __TURBOPACK__default__export__ as default };

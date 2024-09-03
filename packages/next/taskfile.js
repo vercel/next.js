@@ -1155,7 +1155,7 @@ export async function ncc_cli_select(task, opts) {
     .ncc({ packageName: 'cli-select', externals })
     .target('src/compiled/cli-select')
 }
-externals['commmander'] = 'next/dist/compiled/commander'
+externals['commander'] = 'next/dist/compiled/commander'
 export async function ncc_commander(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('commander')))

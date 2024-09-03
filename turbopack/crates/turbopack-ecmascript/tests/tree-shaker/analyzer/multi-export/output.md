@@ -107,7 +107,7 @@ graph TD
 ## Part 0
 ```js
 const cat = "cat";
-export { cat } from "__TURBOPACK_VAR__" assert {
+export { cat as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -117,7 +117,7 @@ export { cat } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { cat } from "__TURBOPACK_PART__" assert {
+import { a as cat } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 export { cat as cat };
@@ -126,7 +126,7 @@ export { cat as cat };
 ## Part 2
 ```js
 const dog = "dog";
-export { dog } from "__TURBOPACK_VAR__" assert {
+export { dog as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -136,7 +136,7 @@ export { dog } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { dog } from "__TURBOPACK_PART__" assert {
+import { b as dog } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 export { dog as DOG };
@@ -182,7 +182,7 @@ export { DOG } from "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 const cat = "cat";
-export { cat } from "__TURBOPACK_VAR__" assert {
+export { cat as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -192,7 +192,7 @@ export { cat } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { cat } from "__TURBOPACK_PART__" assert {
+import { a as cat } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 export { cat as cat };
@@ -201,7 +201,7 @@ export { cat as cat };
 ## Part 2
 ```js
 const dog = "dog";
-export { dog } from "__TURBOPACK_VAR__" assert {
+export { dog as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -211,7 +211,7 @@ export { dog } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { dog } from "__TURBOPACK_PART__" assert {
+import { b as dog } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 export { dog as DOG };

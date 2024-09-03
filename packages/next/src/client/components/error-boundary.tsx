@@ -122,7 +122,7 @@ export class ErrorBoundaryHandler extends React.Component<
     this.setState({ error: null })
   }
 
-  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific the the `@types/react` version.
+  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
   render(): React.ReactNode {
     if (this.state.error) {
       return (
@@ -190,7 +190,7 @@ export function ErrorBoundary({
   // When we're rendering the missing params shell, this will return null. This
   // is because we won't be rendering any not found boundaries or error
   // boundaries for the missing params shell. When this runs on the client
-  // (where these error can occur), we will get the correct pathname.
+  // (where these errors can occur), we will get the correct pathname.
   const pathname = useUntrackedPathname()
   if (errorComponent) {
     return (
