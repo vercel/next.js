@@ -1,11 +1,11 @@
-function format({ params, searchParams }) {
+async function format({ params, searchParams }) {
   const { slug } = params
   const { q } = searchParams
   return `params - ${slug}${q ? ` query - ${q}` : ''}`
 }
 
-export default function page(props) {
-  return <p>{format(props)}</p>
+export default async function page(props) {
+  return <p>{await format(props)}</p>
 }
 
 export async function generateMetadata(props, parent) {
@@ -13,7 +13,7 @@ export async function generateMetadata(props, parent) {
   /* mutating */
   return {
     ...parentMetadata,
-    title: format(props),
+    title: await format(props),
     keywords: parentMetadata.keywords.concat(['child']),
   }
 }

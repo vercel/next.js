@@ -838,8 +838,8 @@ describe('Error overlay for hydration errors', () => {
             <RedirectErrorBoundary router={{...}}>
               <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
                 <Segment>
-                  <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
-                    <Page params={{}} searchParams={{}}>
+                  <ClientPageRoot params={{}} searchParams={Promise} Component={function Page}>
+                    <Page params={{}} searchParams={Promise}>
                       <div>
                         <div>
                           <div>
@@ -858,8 +858,8 @@ describe('Error overlay for hydration errors', () => {
             <RedirectErrorBoundary router={{...}}>
               <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
                 <Segment>
-                  <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
-                    <Page params={{}} searchParams={{}}>
+                  <ClientPageRoot params={{}} searchParams={Promise} Component={function Page}>
+                    <Page params={{}} searchParams={Promise}>
                       <div>
                         <div>
                           <div>

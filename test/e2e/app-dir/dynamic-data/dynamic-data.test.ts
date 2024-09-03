@@ -213,7 +213,7 @@ describe('dynamic-data with dynamic = "error"', () => {
       try {
         await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
-          'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams`'
+          'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams.then`'
         )
       } finally {
         await browser.close()
@@ -234,13 +234,13 @@ describe('dynamic-data with dynamic = "error"', () => {
         'Error: Route /headers with `dynamic = "error"` couldn\'t be rendered statically because it used `headers`'
       )
       expect(next.cliOutput).toMatch(
-        "Route /search couldn't be rendered statically because it used `await searchParams`, `searchParams.then`, or similar."
+        "Error: Route /search couldn't be rendered statically because it used `await searchParams`, `use(searchParams)`, or similar"
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /routes/form-data/error with `dynamic = "error"` couldn\'t be rendered statically because it used `request.formData`.'
+        'Error: Route /routes/form-data/error with `dynamic = "error"` couldn\'t be rendered statically because it used `request.formData`'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /routes/next-url/error with `dynamic = "error"` couldn\'t be rendered statically because it used `nextUrl.toString`.'
+        'Error: Route /routes/next-url/error with `dynamic = "error"` couldn\'t be rendered statically because it used `nextUrl.toString`'
       )
     })
   }

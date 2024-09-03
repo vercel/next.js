@@ -1,8 +1,10 @@
-export default async function Page({ searchParams }) {
-  // this page is using searchParams to opt into dynamic rendering
+import { unstable_noStore as noStore } from 'next/cache'
+
+export default async function Page() {
+  // this page is using unstable_noStore() to opt into dynamic rendering
   // meaning the page will bail from ISR cache and hint to patch-fetch
   // that it's in a dynamic scope and shouldn't cache the fetch.
-  console.log(searchParams.q)
+  noStore()
   const data1 = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?1',
     { cache: 'default' }
