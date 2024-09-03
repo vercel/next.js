@@ -79,7 +79,9 @@ module.exports = {
   appStartCommand: 'NEXT_TELEMETRY_DISABLED=1 pnpm next start --port $PORT',
   appDevCommand: 'NEXT_TELEMETRY_DISABLED=1 pnpm next --port $PORT',
   mainRepo: 'vercel/next.js',
-  mainBranch: 'canary',
+  // BACKPORT: we can't base off of canary here
+  // mainBranch: 'canary',
+  mainBranch: '14-2-1',
   autoMergeMain: true,
   configs: [
     {
