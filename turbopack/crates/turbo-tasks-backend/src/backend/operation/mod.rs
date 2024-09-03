@@ -330,6 +330,32 @@ impl<'a> TaskGuard<'a> {
     pub fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
         self.task.iter_all()
     }
+
+    pub fn invalidate_serialization(&mut self) {
+        let mut count = 0;
+        let cell_data = self
+            .iter(CachedDataItemIndex::CellData)
+            .filter_map(|(key, value)| match (key, value) {
+                (CachedDataItemKey::CellData { cell }, CachedDataItemValue::CellData { value }) => {
+                    count += 1;
+                    Some(CachedDataUpdate {
+                        task: self.task_id,
+                        key: CachedDataItemKey::CellData { cell: *cell },
+                        value: Some(CachedDataItemValue::CellData {
+                            value: value.clone(),
+                        }),
+                    })
+                }
+                _ => None,
+            });
+        {
+            let mut guard = self.backend.persisted_storage_log.lock();
+            guard.extend(cell_data);
+            self.task
+                .persistance_state_mut()
+                .add_persisting_items(count);
+        }
+    }
 }
 
 macro_rules! impl_operation {

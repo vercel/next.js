@@ -35,6 +35,10 @@ impl PersistanceState {
         self.value += 1;
     }
 
+    pub fn add_persisting_items(&mut self, count: u32) {
+        self.value += count;
+    }
+
     pub fn finish_persisting_items(&mut self, count: u32) {
         self.value -= count;
     }
