@@ -14,11 +14,14 @@ export function CopyButton({
   actionLabel,
   successLabel,
   content,
+  icon,
+  disabled,
   ...props
 }: React.HTMLProps<HTMLButtonElement> & {
   actionLabel: string
   successLabel: string
   content: string
+  icon?: React.ReactNode
 }) {
   const [copyState, dispatch, isPending] = React.useActionState(
     (
@@ -77,21 +80,22 @@ export function CopyButton({
     // Remove from dependencies once https://github.com/facebook/react/pull/29665 is released.
     dispatch,
   ])
-  const isDisabled = isPending
+  const isDisabled = isPending || disabled
   const label = copyState.state === 'success' ? successLabel : actionLabel
-  const title = label
-  const icon =
-    copyState.state === 'success' ? <CopySuccessIcon /> : <CopyIcon />
+
+  // Assign default icon
+  const renderedIcon =
+    copyState.state === 'success' ? <CopySuccessIcon /> : icon || <CopyIcon />
 
   return (
     <button
       {...props}
       type="button"
-      title={title}
+      title={label}
       aria-label={label}
       aria-disabled={isDisabled}
-      data-nextjs-data-runtime-error-copy-stack
-      className={`nextjs-data-runtime-error-copy-stack nextjs-data-runtime-error-copy-stack--${copyState.state}`}
+      data-nextjs-data-runtime-error-copy-button
+      className={`nextjs-data-runtime-error-copy-button nextjs-data-runtime-error-copy-button--${copyState.state}`}
       onClick={() => {
         if (!isDisabled) {
           React.startTransition(() => {
@@ -100,7 +104,7 @@ export function CopyButton({
         }
       }}
     >
-      {icon}
+      {renderedIcon}
       {copyState.state === 'error' ? ` ${copyState.error}` : null}
     </button>
   )
