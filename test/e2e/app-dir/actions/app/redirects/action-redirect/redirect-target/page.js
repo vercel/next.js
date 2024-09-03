@@ -12,7 +12,7 @@ export default async function Page({ searchParams }) {
       <h1>
         foo={foo ? foo.value : ''}; bar={bar ? bar.value : ''}
       </h1>
-      <h2>baz={searchParams.baz ?? ''}</h2>
+      <h2>baz={(await searchParams).baz ?? ''}</h2>
     </div>
   )
 }

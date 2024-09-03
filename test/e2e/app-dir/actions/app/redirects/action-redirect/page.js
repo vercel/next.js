@@ -21,7 +21,7 @@ export default async function Page({ searchParams }) {
           Set Cookies and Redirect
         </button>
       </form>
-      <h2>baz={searchParams.baz ?? ''}</h2>
+      <h2>baz={(await searchParams).baz ?? ''}</h2>
       <form
         action={async () => {
           'use server'
