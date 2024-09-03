@@ -219,6 +219,7 @@ pub enum ReferenceType {
     Css(CssReferenceSubType),
     Url(UrlReferenceSubType),
     TypeScript(TypeScriptReferenceSubType),
+    Worker,
     Entry(EntryReferenceSubType),
     Runtime,
     Internal(Vc<InnerAssets>),
@@ -238,6 +239,7 @@ impl Display for ReferenceType {
             ReferenceType::Css(_) => "css",
             ReferenceType::Url(_) => "url",
             ReferenceType::TypeScript(_) => "typescript",
+            ReferenceType::Worker => "worker",
             ReferenceType::Entry(_) => "entry",
             ReferenceType::Runtime => "runtime",
             ReferenceType::Internal(_) => "internal",
@@ -283,6 +285,7 @@ impl ReferenceType {
                     && matches!(sub_type, EntryReferenceSubType::Undefined)
             }
             ReferenceType::Runtime => matches!(other, ReferenceType::Runtime),
+            ReferenceType::Worker => matches!(other, ReferenceType::Worker),
             ReferenceType::Internal(_) => matches!(other, ReferenceType::Internal(_)),
             ReferenceType::Custom(_) => {
                 todo!()
