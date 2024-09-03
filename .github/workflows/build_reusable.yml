@@ -71,9 +71,8 @@ env:
   TURBO_TEAM: 'vercel'
   TURBO_REMOTE_ONLY: 'true'
   NEXT_TELEMETRY_DISABLED: 1
-  # we build a dev binary for use in CI so skip downloading
-  # canary next-swc binaries in the monorepo
-  NEXT_SKIP_NATIVE_POSTINSTALL: 1
+  # only skip the install-native postinstall script if we're building a native binary
+  NEXT_SKIP_NATIVE_POSTINSTALL: ${{ inputs.skipNativeBuild != 'yes' && 'true' || '' }}
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
   NEXT_JUNIT_TEST_REPORT: 'true'
   DD_ENV: 'ci'
