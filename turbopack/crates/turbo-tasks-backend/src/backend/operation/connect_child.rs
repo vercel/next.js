@@ -40,7 +40,12 @@ impl ConnectChildOperation {
             let parent_aggregation = get!(parent_task, AggregationNumber)
                 .copied()
                 .unwrap_or_default();
-            if !is_root_node(parent_aggregation) {
+            if parent_task_id.is_transient() && !child_task_id.is_transient() {
+                queue.push(AggregationUpdateJob::UpdateAggregationNumber {
+                    task_id: child_task_id,
+                    aggregation_number: u32::MAX,
+                });
+            } else if !is_root_node(parent_aggregation) {
                 queue.push(AggregationUpdateJob::UpdateAggregationNumber {
                     task_id: child_task_id,
                     aggregation_number: parent_aggregation + 1,
