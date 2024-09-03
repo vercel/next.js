@@ -1,3 +1,4 @@
+// @ts-check
 const os = require('os')
 const path = require('path')
 const _glob = require('glob')
@@ -5,7 +6,12 @@ const { existsSync } = require('fs')
 const fsp = require('fs/promises')
 const nodeFetch = require('node-fetch')
 const vercelFetch = require('@vercel/fetch')
-const fetch = vercelFetch(nodeFetch)
+
+/** @type {import('@vercel/fetch').Fetch} */
+const fetch =
+  // @ts-expect-error: TS doesn't understand default exports
+  vercelFetch(nodeFetch)
+
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
@@ -16,6 +22,7 @@ const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
 const mockSpan = require('./.github/actions/next-stats-action/src/util/mock-trace')
 
+// @ts-expect-error: missing type declarations for yargs
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
   .string('test-pattern')
@@ -313,6 +320,7 @@ async function main() {
     const groupTotal = parseInt(groupParts[1], 10)
 
     if (prevTimings) {
+      /** @type {TestFile[][]} */
       const groups = [[]]
       const groupTimes = [0]
 
@@ -459,7 +467,9 @@ ${ENDGROUP}`)
         // Format the output of junit report to include the test name
         // For the debugging purpose to compare actual run list to the generated reports
         // [NOTE]: This won't affect if junit reporter is not enabled
-        JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
+        JEST_JUNIT_OUTPUT_NAME:
+          // @ts-expect-error missing lib: es2021
+          test.file.replaceAll('/', '_'),
         // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
         // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
         // [NOTE]: This won't affect if junit reporter is not enabled
@@ -546,9 +556,12 @@ ${ENDGROUP}`)
             }
             outputSema.release()
           }
+
           const err = new Error(
             code ? `failed with code: ${code}` : `failed with signal: ${signal}`
           )
+
+          // @ts-expect-error
           err.output = outputChunks
             .map(({ chunk }) => chunk.toString())
             .join('')

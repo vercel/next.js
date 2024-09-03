@@ -1,3 +1,4 @@
+// @ts-check
 const os = require('os')
 const path = require('path')
 const execa = require('execa')
@@ -117,6 +118,7 @@ async function createNextInstall({
           .traceAsyncFn((span) =>
             linkPackages({
               repoDir: tmpRepoDir,
+              nextSwcVersion: null,
               parentSpan: span,
             })
           )

@@ -1,3 +1,4 @@
+// @ts-check
 const path = require('path')
 const fs = require('fs')
 const { existsSync } = require('fs')
@@ -102,7 +103,9 @@ module.exports = (actionInfo) => {
             continue
           }
 
-          const packageJson = JSON.parse(fs.readFileSync(packageJsonPath))
+          const packageJson = JSON.parse(
+            fs.readFileSync(packageJsonPath, 'utf-8')
+          )
           const { name: packageName } = packageJson
 
           pkgDatas.set(packageName, {
@@ -196,7 +199,7 @@ module.exports = (actionInfo) => {
                 return packingSpan
                   .traceChild('handle-package', { packageName })
                   .traceAsyncFn(async (handlePackageSpan) => {
-                    /** @type {null | () => Promise<void>} */
+                    /** @type {null | (() => Promise<void>)} */
                     let cleanup = null
 
                     if (packageName === '@next/swc') {
