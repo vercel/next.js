@@ -14,6 +14,7 @@ const glob = promisify(_glob)
 const exec = promisify(execOrig)
 const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
+const mockSpan = require('./.github/actions/next-stats-action/src/util/mock-trace')
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -77,12 +78,6 @@ const testFilters = {
   integration: 'test/integration/',
   e2e: 'test/e2e/',
 }
-
-const mockTrace = () => ({
-  traceAsyncFn: (fn) => fn(mockTrace()),
-  traceFn: (fn) => fn(mockTrace()),
-  traceChild: () => mockTrace(),
-})
 
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
@@ -388,7 +383,7 @@ ${ENDGROUP}`)
     console.log(`${GROUP}Creating Next.js install for isolated tests`)
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
-      parentSpan: mockTrace(),
+      parentSpan: mockSpan(),
       dependencies: {
         react: reactVersion,
         'react-dom': reactVersion,

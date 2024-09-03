@@ -4,12 +4,9 @@ const { existsSync } = require('fs')
 const exec = require('../util/exec')
 const logger = require('../util/logger')
 const execa = require('execa')
+const mockSpan = require('../util/mock-trace')
 
-const mockSpan = () => ({
-  traceAsyncFn: (fn) => fn(mockTrace()),
-  traceFn: (fn) => fn(mockTrace()),
-  traceChild: () => mockTrace(),
-})
+/** @typedef {import('../util/mock-trace').Span} Span */
 
 module.exports = (actionInfo) => {
   return {
@@ -62,7 +59,7 @@ module.exports = (actionInfo) => {
     },
     /**
      * Runs `pnpm pack` on each package in the `packages` folder of the provided `repoDir`
-     * @param {{ repoDir: string, nextSwcVersion: null | string }} options Required options
+     * @param {{ repoDir: string, nextSwcVersion: null | string, parentSpan?: Span }} options Required options
      * @returns {Promise<Map<string, string>>} List packages key is the package name, value is the path to the packed tar file.'
      */
     async linkPackages({ repoDir, nextSwcVersion, parentSpan }) {
