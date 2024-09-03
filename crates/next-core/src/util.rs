@@ -489,72 +489,77 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                 ),
                 ObjectPart::KeyValue(key, value) => {
                     if let Some(key) = key.as_str() {
-                        if key == "runtime" {
-                            if let JsValue::Constant(runtime) = value {
-                                if let Some(runtime) = runtime.as_str() {
-                                    match runtime {
-                                        "edge" | "experimental-edge" => {
-                                            config.runtime = NextRuntime::Edge;
-                                        }
-                                        "nodejs" => {
-                                            config.runtime = NextRuntime::NodeJs;
-                                        }
-                                        _ => {
-                                            emit_invalid_config_warning(
-                                                module.ident(),
-                                                "The runtime property must be either \"nodejs\" \
-                                                 or \"edge\".",
-                                                value,
-                                            );
-                                        }
-                                    }
-                                }
-                            } else {
-                                emit_invalid_config_warning(
-                                    module.ident(),
-                                    "The runtime property must be a constant string.",
-                                    value,
-                                );
-                            }
-                        }
-                        if key == "matcher" {
-                            config.matcher =
-                                parse_route_matcher_from_js_value(module.ident(), value);
-                        }
-                        if key == "regions" {
-                            config.regions = match value {
-                                // Single value is turned into a single-element Vec.
-                                JsValue::Constant(ConstantValue::Str(str)) => {
-                                    Some(vec![str.to_string().into()])
-                                }
-                                // Array of strings is turned into a Vec. If one of the values in
-                                // not a String it will error.
-                                JsValue::Array { items, .. } => {
-                                    let mut regions: Vec<RcStr> = Vec::new();
-                                    for item in items {
-                                        if let JsValue::Constant(ConstantValue::Str(str)) = item {
-                                            regions.push(str.to_string().into());
-                                        } else {
-                                            emit_invalid_config_warning(
-                                                module.ident(),
-                                                "Values of the `config.regions` array need to \
-                                                 static strings",
-                                                item,
-                                            );
+                        match key {
+                            "runtime" => {
+                                if let JsValue::Constant(runtime) = value {
+                                    if let Some(runtime) = runtime.as_str() {
+                                        match runtime {
+                                            "edge" | "experimental-edge" => {
+                                                config.runtime = NextRuntime::Edge;
+                                            }
+                                            "nodejs" => {
+                                                config.runtime = NextRuntime::NodeJs;
+                                            }
+                                            _ => {
+                                                emit_invalid_config_warning(
+                                                    module.ident(),
+                                                    "The runtime property must be either \
+                                                     \"nodejs\" or \"edge\".",
+                                                    value,
+                                                );
+                                            }
                                         }
                                     }
-                                    Some(regions)
-                                }
-                                _ => {
+                                } else {
                                     emit_invalid_config_warning(
                                         module.ident(),
-                                        "`config.regions` needs to be a static string or array of \
-                                         static strings",
+                                        "The runtime property must be a constant string.",
                                         value,
                                     );
-                                    None
                                 }
-                            };
+                            }
+                            "matcher" => {
+                                config.matcher =
+                                    parse_route_matcher_from_js_value(module.ident(), value);
+                            }
+                            "regions" => {
+                                config.regions = match value {
+                                    // Single value is turned into a single-element Vec.
+                                    JsValue::Constant(ConstantValue::Str(str)) => {
+                                        Some(vec![str.to_string().into()])
+                                    }
+                                    // Array of strings is turned into a Vec. If one of the values
+                                    // in not a String it will
+                                    // error.
+                                    JsValue::Array { items, .. } => {
+                                        let mut regions: Vec<RcStr> = Vec::new();
+                                        for item in items {
+                                            if let JsValue::Constant(ConstantValue::Str(str)) = item
+                                            {
+                                                regions.push(str.to_string().into());
+                                            } else {
+                                                emit_invalid_config_warning(
+                                                    module.ident(),
+                                                    "Values of the `config.regions` array need to \
+                                                     static strings",
+                                                    item,
+                                                );
+                                            }
+                                        }
+                                        Some(regions)
+                                    }
+                                    _ => {
+                                        emit_invalid_config_warning(
+                                            module.ident(),
+                                            "`config.regions` needs to be a static string or \
+                                             array of static strings",
+                                            value,
+                                        );
+                                        None
+                                    }
+                                };
+                            }
+                            _ => {}
                         }
                     } else {
                         emit_invalid_config_warning(
