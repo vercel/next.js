@@ -158,7 +158,7 @@ impl<'i, 'o> StyleSheetLike<'i, 'o> {
                 // We always analyze dependencies, but remove them only if remove_imports is
                 // true
                 let mut deps = vec![];
-                stylesheet.visit_mut_with(&mut SwcDepColllector {
+                stylesheet.visit_mut_with(&mut SwcDepCollector {
                     deps: &mut deps,
                     remove_imports,
                 });
@@ -683,7 +683,7 @@ async fn process_content(
                     .get(0)
                     .context("Must include basename preceding .")?
                     .as_str();
-                // Truncate this as u32 so it's formated as 8-character hex in the suffic below
+                // Truncate this as u32 so it's formatted as 8-character hex in the suffix below
                 let path_hash = turbo_tasks_hash::hash_xxh3_hash64(filename) as u32;
 
                 Some(SwcCssModuleMode {
@@ -763,7 +763,7 @@ impl CssError {
 const CSS_MODULE_ERROR: &str =
     "Selector is not pure (pure selectors must contain at least one local class or id)";
 
-/// We only vist top-level selectors.
+/// We only visit top-level selectors.
 impl swc_core::css::visit::Visit for CssValidator {
     fn visit_complex_selector(&mut self, n: &ComplexSelector) {
         fn is_complex_not_pure(sel: &ComplexSelector) -> bool {
@@ -867,7 +867,7 @@ impl swc_core::css::visit::Visit for CssValidator {
     fn visit_simple_block(&mut self, _: &swc_core::css::ast::SimpleBlock) {}
 }
 
-/// We only vist top-level selectors.
+/// We only visit top-level selectors.
 impl lightningcss::visitor::Visitor<'_> for CssValidator {
     type Error = ();
 
@@ -1008,12 +1008,12 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
     }
 }
 
-struct SwcDepColllector<'a> {
+struct SwcDepCollector<'a> {
     deps: &'a mut Vec<Dependency>,
     remove_imports: bool,
 }
 
-impl VisitMut for SwcDepColllector<'_> {
+impl VisitMut for SwcDepCollector<'_> {
     fn visit_mut_rules(&mut self, n: &mut Vec<swc_core::css::ast::Rule>) {
         n.visit_mut_children_with(self);
 
