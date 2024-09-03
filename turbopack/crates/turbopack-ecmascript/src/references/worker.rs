@@ -1,17 +1,20 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use swc_core::{
-    common::{util::take::Take, DUMMY_SP},
-    ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit, NewExpr},
+    common::util::take::Take,
+    ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
     quote_expr,
 };
 use turbo_tasks::{debug::ValueDebug, RcStr, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
-        ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
-        ChunkingTypeOption,
+        availability_info::AvailabilityInfo, ChunkData, ChunkableModuleReference, ChunkingContext,
+        ChunkingType, ChunkingTypeOption, EntryChunkGroupResult, EvaluatableAsset,
+        EvaluatableAssets,
     },
     environment::ChunkLoading,
     issue::IssueSource,
+    module::Module,
+    output::OutputAsset,
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType, UrlReferenceSubType},
     resolve::{
@@ -21,11 +24,12 @@ use turbopack_core::{
 };
 use turbopack_resolve::ecmascript::{esm_resolve, try_to_severity};
 
-use super::pattern_mapping::{PatternMapping, ResolveType, SinglePatternMapping};
 use crate::{
+    chunk::EcmascriptChunkData,
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
+    utils::StringifyJs,
 };
 
 #[turbo_tasks::value]
@@ -65,7 +69,7 @@ fn worker_resolve_reference_inline(reference: &WorkerAssetReference) -> Vc<Modul
     url_resolve(
         reference.origin,
         reference.request,
-        Value::new(ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl)),
+        Value::new(ReferenceType::Worker),
         Some(reference.issue_source),
         try_to_severity(reference.in_try),
     )
@@ -93,7 +97,7 @@ impl ValueToString for WorkerAssetReference {
 impl ChunkableModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Async))
+        Vc::cell(Some(ChunkingType::Isolated))
     }
 }
 
@@ -104,39 +108,39 @@ impl CodeGenerateable for WorkerAssetReference {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        // TODO change for worker
-        // let pm = PatternMapping::resolve_request(
-        //     self.request,
-        //     self.origin,
-        //     Vc::upcast(chunking_context),
-        //     worker_resolve_reference_inline(self),
-        //     Value::new(ResolveType::ChunkItem),
-        // );
-        // let single_pattern_mapping =
-        //     to_single_pattern_mapping(origin, chunking_context, resolve_item,
-        // resolve_type).await?;
-        // Ok(PatternMapping::Single(single_pattern_mapping).cell())
-
         let resolve_result = worker_resolve_reference_inline(self);
         let result = resolve_result.await?;
 
-        // TODO
+        // TODO unwrap
         let resolve_item = result.primary.first().unwrap().1;
 
-        // if let ModuleResolveResultItem::Module(module) = *resolve_item {
-        //     if let Some(chunkable) =
-        //         Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await?
-        //     {
-        //         chunking_context.entry_chunk_group(
-        //             path,
-        //             module,
-        //             vec![],
-        //             module.availability_info,
-        //         );
-        //         // let chunk_item = chunkable.as_chunk_item(chunking_context);
-        //         // chunk_item.id().await?.clone_value();
-        //     }
-        // };
+        let ModuleResolveResultItem::Module(module) = *resolve_item else {
+            // TODO bail
+            bail!("b");
+        };
+
+        let Some(evaluatable) =
+            Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module).await?
+        else {
+            // TODO bail
+            bail!("a");
+        };
+
+        let EntryChunkGroupResult { asset, .. } = &*chunking_context
+            .entry_chunk_group(
+                chunking_context.chunk_path(module.ident(), ".js".into()),
+                module,
+                EvaluatableAssets::one(evaluatable),
+                Value::new(AvailabilityInfo::Root),
+            )
+            .await?;
+        let chunk_data = ChunkData::from_asset(chunking_context.output_root(), *asset)
+            .await?
+            .as_ref()
+            // TODO unwrap
+            .unwrap()
+            .await?;
+
         // CodeGenerationIssue {
         //     severity: IssueSeverity::Bug.into(),
         //     title: StyledString::Text("non-ecmascript placeable asset".into()).cell(),
@@ -149,57 +153,48 @@ impl CodeGenerateable for WorkerAssetReference {
         // .cell()
         // .emit();
 
-        // println!(
-        //     "pm {:?} {:?} {:?} {:?}",
-        //     self.origin.dbg().await?,
-        //     self.request.dbg().await?,
-        //     worker_resolve_reference_inline(self).await?,
-        //     pm.dbg().await?,
-        // );
+        let path = &self.path.await?;
 
-        // let pm = pm.await?;
+        let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+            let old_expr = expr.take();
+            let message = if let Expr::New(NewExpr { args, ..}) = old_expr {
+                if let Some(args) = args {
+                    match args.into_iter().next() {
+                        Some(ExprOrSpread { spread: None, expr: key_expr }) => {
+                            // TODO ensure that this is EcmascriptChunkData::Simple?
+                            // TODO relative?
+                            // let url_str = StringifyJs(&EcmascriptChunkData::new(&chunk_data)).to_string();
+                            let url_str = format!("./{}", chunk_data.path);
 
-        // let path = &self.path.await?;
-        // let import_externals = self.import_externals;
-
-        // let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
-        //     let old_expr = expr.take();
-        //     let message = if let Expr::New(NewExpr { args, ..}) = old_expr {
-        //         if let Some(args) = args {
-        //             match args.into_iter().next() {
-        //                 Some(ExprOrSpread { spread: None, expr: key_expr }) => {
-        //                     if let PatternMapping::Single(pm/* SinglePatternMapping::Module(m)
-        // */) = &*pm {                         *expr = *quote_expr!(
-        //                             "new Worker(__turbopack_resolve_module_id_path__($url))",
-        //                             url: Expr =
-        // pm.create_id(std::borrow::Cow::Borrowed(&*key_expr))
-        // // url: Expr = Expr::Lit(Lit::Str(format!("{}", m).into()))
-        // );                     }
-        //                     // *expr = pm.create_import(*key_expr, import_externals);
-        //                     return;
-        //                 }
-        //                 // These are SWC bugs: https://github.com/swc-project/swc/issues/5394
-        //                 Some(ExprOrSpread { spread: Some(_), expr: _ }) => {
-        //                     "spread operator is illegal in new Worker() expressions."
-        //                 }
-        //                 _ => {
-        //                     "new Worker() expressions require at least 1 argument"
-        //                 }
-        //             }
-        //         } else {
-        //             "new Worker() expressions require at least 1 argument"
-        //         }
-        //     } else {
-        //         "visitor must be executed on a CallExpr"
-        //     };
-        //     *expr = *quote_expr!(
-        //         "(() => { throw new Error($message); })()",
-        //         message: Expr = Expr::Lit(Lit::Str(message.into()))
-        //     );
-        // });
+                            let url = Expr::Lit(Lit::Str(url_str.clone().into()));
+                            *expr = *quote_expr!(
+                                "new Worker($url)",
+                                url: Expr = url
+                            );
+                            return;
+                        }
+                        // These are SWC bugs: https://github.com/swc-project/swc/issues/5394
+                        Some(ExprOrSpread { spread: Some(_), expr: _ }) => {
+                            "spread operator is illegal in new Worker() expressions."
+                        }
+                        _ => {
+                            "new Worker() expressions require at least 1 argument"
+                        }
+                    }
+                } else {
+                    "new Worker() expressions require at least 1 argument"
+                }
+            } else {
+                "visitor must be executed on a NewExpr"
+            };
+            *expr = *quote_expr!(
+                "(() => { throw new Error($message); })()",
+                message: Expr = Expr::Lit(Lit::Str(message.into()))
+            );
+        });
 
         Ok(CodeGeneration {
-            visitors: vec![/* visitor */],
+            visitors: vec![visitor],
         }
         .into())
     }

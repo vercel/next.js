@@ -1290,12 +1290,12 @@ async fn handle_worker<G: Fn(Vec<Effect>) + Send + Sync>(
         // ignore_dynamic_requests,
         ..
     } = state;
-    println!("url: {:?}", url);
+    // println!("url: {:?}", url);
     if let JsValue::New(_, box JsValue::FreeVar(constructor), url_args) = url {
         if constructor == js_word!("URL") {
             let url = &url_args[0];
             let pat = js_value_to_pattern(url);
-            println!("url pat: {:?} {:?}", url, pat);
+            // println!("url pat: {:?} {:?}", url, pat);
             // if !pat.has_constant_parts() {
             //     let (args, hints) = explain_args(&args);
             //     handler.span_warn_with_code(
