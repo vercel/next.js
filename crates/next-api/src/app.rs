@@ -49,7 +49,7 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+        EntryChunkGroupResult, EvaluatableAssets,
     },
     file_source::FileSource,
     ident::AssetIdent,
@@ -70,12 +70,12 @@ use crate::{
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
     paths::{
-        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root,
-        wasm_paths_to_bindings,
+        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
+        get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
     route::{AppPageRoute, Endpoint, Route, Routes, WrittenEndpoint},
-    server_actions::{build_server_actions_loader, create_server_actions_manifest, get_actions},
+    server_actions::create_server_actions_manifest,
 };
 
 #[turbo_tasks::value]
@@ -765,42 +765,6 @@ impl AppEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn server_actions_loader(self: Vc<Self>) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
-        let this = self.await?;
-
-        let app_entry = self.app_endpoint_entry().await?;
-        let rsc_entry = app_entry.rsc_entry;
-
-        let runtime = app_entry.config.await?.runtime.unwrap_or_default();
-
-        let rsc_entry_asset = Vc::upcast(rsc_entry);
-        let client_references = client_reference_graph(Vc::cell(vec![rsc_entry_asset]));
-        let client_reference_types = client_references.types();
-        let app_server_reference_modules = get_app_server_reference_modules(client_reference_types);
-
-        let asset_context = match runtime {
-            NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
-            NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
-        };
-
-        let actions = get_actions(rsc_entry, app_server_reference_modules, asset_context);
-
-        let server_actions_loader = build_server_actions_loader(
-            this.app_project.project().project_path(),
-            app_entry.original_name.clone(),
-            actions,
-            asset_context,
-        );
-
-        let evaluatable_server_actions_loader =
-            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(server_actions_loader)
-                .await?
-                .context("loader module must be evaluatable")?;
-
-        Ok(evaluatable_server_actions_loader)
-    }
-
-    #[turbo_tasks::function]
     fn output_assets(self: Vc<Self>) -> Vc<OutputAssets> {
         self.output().output_assets()
     }
@@ -1084,12 +1048,11 @@ impl AppEndpoint {
                     .context("Entry module must be evaluatable")?;
                 evaluatable_assets.push(evaluatable);
 
-                let loader = self.server_actions_loader();
                 if let Some(app_server_reference_modules) = app_server_reference_modules {
-                    let manifest = create_server_actions_manifest(
+                    let (loader, manifest) = create_server_actions_manifest(
                         Vc::upcast(app_entry.rsc_entry),
-                        loader,
                         app_server_reference_modules,
+                        this.app_project.project().project_path(),
                         node_root,
                         &app_entry.original_name,
                         NextRuntime::Edge,
@@ -1137,10 +1100,13 @@ impl AppEndpoint {
                 wasm_paths_from_root
                     .extend(get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?);
 
+                let all_assets =
+                    get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true)
+                        .await?;
+
                 let entry_file = "app-edge-has-no-entrypoint".into();
 
                 // create middleware manifest
-                // TODO(alexkirsz) This should be shared with next build.
                 let named_regex = get_named_middleware_regex(&app_entry.pathname);
                 let matchers = MiddlewareMatcher {
                     regexp: Some(named_regex.into()),
@@ -1150,6 +1116,7 @@ impl AppEndpoint {
                 let edge_function_definition = EdgeFunctionDefinition {
                     files: file_paths_from_root,
                     wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                    assets: paths_to_bindings(all_assets),
                     name: app_entry.pathname.clone(),
                     page: app_entry.original_name.clone(),
                     regions: app_entry
@@ -1160,7 +1127,6 @@ impl AppEndpoint {
                         .map(Regions::Multiple),
                     matchers: vec![matchers],
                     env: this.app_project.project().edge_env().await?.clone_value(),
-                    ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
                     sorted_middleware: vec![app_entry.original_name.clone()],
@@ -1229,12 +1195,11 @@ impl AppEndpoint {
                     .project()
                     .server_chunking_context(process_client);
 
-                let loader = self.server_actions_loader();
                 if let Some(app_server_reference_modules) = app_server_reference_modules {
-                    let manifest = create_server_actions_manifest(
+                    let (loader, manifest) = create_server_actions_manifest(
                         Vc::upcast(app_entry.rsc_entry),
-                        loader,
                         app_server_reference_modules,
+                        this.app_project.project().project_path(),
                         node_root,
                         &app_entry.original_name,
                         NextRuntime::NodeJs,
@@ -1409,17 +1374,8 @@ impl Endpoint for AppEndpoint {
 
     #[turbo_tasks::function]
     async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        let this = self.await?;
-
         let rsc_entry = self.app_endpoint_entry().await?.rsc_entry;
-        let mut modules = vec![rsc_entry];
-
-        if matches!(this.ty, AppEndpointType::Page { .. }) {
-            let server_actions_loader_module = Vc::upcast(self.server_actions_loader());
-            modules.push(server_actions_loader_module);
-        }
-
-        Ok(Vc::cell(modules))
+        Ok(Vc::cell(vec![rsc_entry]))
     }
 }
 

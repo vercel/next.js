@@ -44,6 +44,7 @@ describe('required server files app router', () => {
         cacheHandler: './cache-handler.js',
         experimental: {
           ppr: true,
+          pprFallbacks: true,
         },
         eslint: {
           ignoreDuringBuilds: true,
@@ -123,6 +124,8 @@ describe('required server files app router', () => {
       method: 'POST',
       body: delayedPostpone,
     })
+
+    expect(res.status).toBe(200)
 
     let chunks = []
 

@@ -174,15 +174,18 @@ describe('Middleware Runtime', () => {
         }
         delete middlewareWithoutEnvs.env
         expect(middlewareWithoutEnvs).toEqual({
-          files: expect.arrayContaining([
-            'server/edge-runtime-webpack.js',
-            'server/middleware.js',
-          ]),
+          // Turbopack creates more files as it can do chunking.
+          files: process.env.TURBOPACK
+            ? expect.toBeArray()
+            : expect.arrayContaining([
+                'server/edge-runtime-webpack.js',
+                'server/middleware.js',
+              ]),
           name: 'middleware',
           page: '/',
           matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
           wasm: [],
-          assets: [],
+          assets: process.env.TURBOPACK ? expect.toBeArray() : [],
           regions: 'auto',
         })
         expect(envs).toContainAllKeys([
@@ -211,9 +214,12 @@ describe('Middleware Runtime', () => {
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
-          expect(middleware.files).toContainEqual(
-            expect.stringContaining('server/edge-runtime-webpack')
-          )
+          if (!process.env.TURBOPACK) {
+            expect(middleware.files).toContainEqual(
+              expect.stringContaining('server/edge-runtime-webpack')
+            )
+          }
+
           expect(middleware.files).not.toContainEqual(
             expect.stringContaining('static/chunks/')
           )

@@ -11,7 +11,7 @@ use next_core::{
     middleware::middleware_files,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
-    next_config::{JsConfig, NextConfig},
+    next_config::{JsConfig, ModuleIdStrategy as ModuleIdStrategyConfig, NextConfig},
     next_server::{
         get_server_chunking_context, get_server_chunking_context_with_client_assets,
         get_server_compile_time_info, get_server_module_options_context,
@@ -1184,14 +1184,19 @@ impl Project {
         Ok(Vc::cell(modules))
     }
 
-    /// Get the module id strategy for the project.
-    /// In production mode, we use the global module id strategy with optimized ids.
-    /// In development mode, we use a standard module id strategy with no modifications.
+    /// Gets the module id strategy for the project.
     #[turbo_tasks::function]
     pub async fn module_id_strategy(self: Vc<Self>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
-        match *self.next_mode().await? {
-            NextMode::Build => Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self))),
-            NextMode::Development => Ok(Vc::upcast(DevModuleIdStrategy::new())),
+        let module_id_strategy = self.next_config().module_id_strategy_config();
+        match *module_id_strategy.await? {
+            Some(ModuleIdStrategyConfig::Named) => Ok(Vc::upcast(DevModuleIdStrategy::new())),
+            Some(ModuleIdStrategyConfig::Deterministic) => {
+                Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self)))
+            }
+            None => match *self.next_mode().await? {
+                NextMode::Development => Ok(Vc::upcast(DevModuleIdStrategy::new())),
+                NextMode::Build => Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self))),
+            },
         }
     }
 }
