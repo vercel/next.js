@@ -319,7 +319,9 @@ impl AggregationUpdateQueue {
                         let upper_aggregation_number =
                             get!(upper, AggregationNumber).copied().unwrap_or_default();
 
-                        if upper_aggregation_number < follower_aggregation_number {
+                        if !is_root_node(upper_aggregation_number)
+                            && upper_aggregation_number <= follower_aggregation_number
+                        {
                             // It's a follower of the upper node
                             upper_ids_as_follower.push(upper_id);
                             false
