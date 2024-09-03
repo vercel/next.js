@@ -1,8 +1,9 @@
 import Link from 'next/link'
 
-export default function Page() {
+export default function Page({ searchParams }) {
   return (
     <>
+      <div id="root-params">{JSON.stringify(searchParams)}</div>
       <Link href="/search">Go to search</Link>
       <hr />
 

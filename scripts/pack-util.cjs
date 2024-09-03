@@ -118,6 +118,19 @@ function booleanArg(args, name) {
 
 exports.booleanArg = booleanArg
 
+/**
+ * @param {string[]} args
+ * @param {string} name
+ * @returns {?string}
+ */
+function namedValueArg(args, name) {
+  const index = args.indexOf(name)
+  if (index === -1) return null
+  return args.splice(index, 2)[1]
+}
+
+exports.namedValueArg = namedValueArg
+
 const DEFAULT_GLOBS = ['**', '!target', '!node_modules', '!crates', '!.turbo']
 const FORCED_GLOBS = ['package.json', 'README*', 'LICENSE*', 'LICENCE*']
 

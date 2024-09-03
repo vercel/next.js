@@ -8,10 +8,8 @@ related:
 
 Errors can be divided into two categories: **expected errors** and **uncaught exceptions**:
 
-- **Model expected errors as return values**: Avoid using `try`/`catch` for expected errors in Server Actions. Use [`useActionState`](https://react.dev/reference/react/useActionState) to manage these errors and return them to the client.
+- **Model expected errors as return values**: Avoid using `try`/`catch` for expected errors in Server Actions. Use `useFormState` to manage these errors and return them to the client.
 - **Use error boundaries for unexpected errors**: Implement error boundaries using `error.tsx` and `global-error.tsx` files to handle unexpected errors and provide a fallback UI.
-
-> **Good to know**: These examples use React's `useActionState` hook, which is available in React 19 RC. If you are using an earlier version of React, use `useFormState` instead. See the [React docs](https://react.dev/reference/react/useActionState) for more information.
 
 ## Handling Expected Errors
 
@@ -19,7 +17,7 @@ Expected errors are those that can occur during the normal operation of the appl
 
 ### Handling Expected Errors from Server Actions
 
-Use the [`useActionState`](https://react.dev/reference/react/useActionState) hook to manage the state of Server Actions, including handling errors. This approach avoids `try`/`catch` blocks for expected errors, which should be modeled as return values rather than thrown exceptions.
+Use the `useFormState` hook to manage the state of Server Actions, including handling errors. This approach avoids `try`/`catch` blocks for expected errors, which should be modeled as return values rather than thrown exceptions.
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -55,12 +53,12 @@ export async function createUser(prevState, formData) {
 }
 ```
 
-Then, you can pass your action to the `useActionState` hook and use the returned `state` to display an error message.
+Then, you can pass your action to the `useFormState` hook and use the returned `state` to display an error message.
 
 ```tsx filename="app/ui/signup.tsx" highlight={11,18-20} switcher
 'use client'
 
-import { useActionState } from 'react'
+import { useFormState } from 'react'
 import { createUser } from '@/app/actions'
 
 const initialState = {
@@ -68,7 +66,7 @@ const initialState = {
 }
 
 export function Signup() {
-  const [state, formAction] = useActionState(createUser, initialState)
+  const [state, formAction] = useFormState(createUser, initialState)
 
   return (
     <form action={formAction}>
@@ -85,7 +83,7 @@ export function Signup() {
 ```jsx filename="app/ui/signup.js" highlight={11,18-20} switcher
 'use client'
 
-import { useActionState } from 'react'
+import { useFormState } from 'react'
 import { createUser } from '@/app/actions'
 
 const initialState = {
@@ -93,7 +91,7 @@ const initialState = {
 }
 
 export function Signup() {
-  const [state, formAction] = useActionState(createUser, initialState)
+  const [state, formAction] = useFormState(createUser, initialState)
 
   return (
     <form action={formAction}>
@@ -106,6 +104,8 @@ export function Signup() {
   )
 }
 ```
+
+> **Good to know**: These examples use React's `useFormState` hook, which is bundled with the Next.js App Router. If you are using React 19, use `useActionState` instead. See the [React docs](https://react.dev/reference/react/useActionState) for more information.
 
 You could also use the returned state to display a toast message from the client component.
 
