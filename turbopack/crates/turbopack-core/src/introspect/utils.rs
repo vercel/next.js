@@ -39,6 +39,11 @@ fn passthrough_reference_ty() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::function]
+fn isolated_reference_ty() -> Vc<RcStr> {
+    Vc::cell("isolated reference".into())
+}
+
+#[turbo_tasks::function]
 pub async fn content_to_details(content: Vc<AssetContent>) -> Result<Vc<RcStr>> {
     Ok(match &*content.await? {
         AssetContent::File(file_content) => match &*file_content.await? {
@@ -71,6 +76,7 @@ pub async fn children_from_module_references(
         {
             match &*chunkable.chunking_type().await? {
                 None => {}
+                Some(ChunkingType::Isolated) => key = isolated_reference_ty(),
                 Some(ChunkingType::Parallel) => key = parallel_reference_ty(),
                 Some(ChunkingType::ParallelInheritAsync) => {
                     key = parallel_inherit_async_reference_ty()

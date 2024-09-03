@@ -25,6 +25,7 @@ pub async fn make_chunk_group(
 ) -> Result<MakeChunkGroupResult> {
     let ChunkContentResult {
         chunk_items,
+        isolated_chunk_items,
         async_modules,
         external_module_references,
         forward_edges_inherit_async,
@@ -163,6 +164,25 @@ pub async fn make_chunk_group(
 
         // concatenate chunks
         chunks.extend(async_loader_chunks.iter().copied());
+    }
+
+    for isolated_chunk_item in isolated_chunk_items {
+        let isolated_chunks = make_chunks(
+            chunking_context,
+            Vc::cell(vec![(isolated_chunk_item, None)]),
+            "isolated-".into(),
+            references_to_output_assets(
+                isolated_chunk_item
+                    .references()
+                    .await?
+                    .iter()
+                    .copied()
+                    .collect(),
+            )
+            .await?,
+        )
+        .await?;
+        chunks.extend(isolated_chunks.iter().copied());
     }
 
     Ok(MakeChunkGroupResult {
