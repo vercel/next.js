@@ -171,7 +171,7 @@ const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
             createInitialRouterState({
               buildId: initialRSCPayload.b,
               initialFlightData: initialRSCPayload.f,
-              initialCanonicalUrl: initialRSCPayload.c,
+              initialCanonicalUrlParts: initialRSCPayload.c,
               initialParallelRoutes: new Map(),
               location: window.location,
               couldBeIntercepted: initialRSCPayload.i,

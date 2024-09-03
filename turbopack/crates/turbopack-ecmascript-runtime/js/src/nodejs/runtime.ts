@@ -250,7 +250,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       P: resolveAbsolutePath,
       U: relativeURL,
       R: createResolvePathFromModule(r),
-      __dirname: module.id.replace(/(^|\/)\/+$/, ""),
+      __dirname: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
     });
   } catch (error) {
     module.error = error as any;

@@ -49,6 +49,11 @@ async function main() {
         report_to_slack: tool({
           description: 'Report to Slack.',
           parameters: issueSchema,
+          execute: async () => {
+            // necessary to have an execute the tool automatically,
+            // so just putting an info message here as a placeholder
+            info('Reporting to Slack...')
+          },
         }),
       },
       system:
@@ -79,7 +84,7 @@ async function main() {
         username: 'GitHub Notifier',
       })
 
-      info('Posted to Slack!')
+      info('Reported to Slack!')
     }
 
     // the ai will also provide a reason why the issue was not severe enough to report on slack
