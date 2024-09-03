@@ -880,6 +880,71 @@ export async function assertNoRedbox(browser: BrowserInterface) {
   }
 }
 
+type Redbox = {
+  category: string
+  description: string
+  location: string
+  codeFrame: string
+  callStack: {
+    copied: string
+    expanded: string
+  }
+}
+
+export function normalizeCodeLocInfo(str: string): string | undefined {
+  if (!str) return
+
+  return str.replace(/\n +(?:at|in) ([\S]+)[^\n]*/g, function (m, name) {
+    return '\n    at ' + name + ' (**)'
+  })
+}
+
+export async function assertRedbox(browser: BrowserInterface, redbox: Redbox) {
+  try {
+    await retry(
+      async () => {
+        await assertHasRedbox(browser)
+
+        await browser.waitForElementByCss('[data-nextjs-frame-source]')
+        // get innerText of each element
+        const callStackFrameSources = await browser.elementsByCss(
+          '[data-nextjs-frame-source]'
+        )
+        const callStackFrameSourceTexts = await Promise.all(
+          callStackFrameSources.map((f) => f.innerText())
+        )
+
+        let expanded = await getRedboxCallStack(browser)
+
+        for (const source of callStackFrameSourceTexts) {
+          expanded = expanded.replace(source, '** (**)')
+        }
+
+        const expectedRedbox = {
+          category: await getRedboxCategory(browser),
+          description: await getRedboxDescription(browser),
+          location: await getRedboxLocation(browser),
+          codeFrame: await getRedboxCodeFrame(browser),
+          callStack: {
+            copied: normalizeCodeLocInfo(
+              await getRedboxOriginalCallStack(browser)
+            ),
+            expanded,
+          },
+        }
+
+        expect(expectedRedbox).toMatchInlineSnapshot(redbox)
+      },
+      5000,
+      200
+    )
+  } catch (errorCause) {
+    const error = new Error('Expected Redbox but found none')
+    Error.captureStackTrace(error, assertHasRedbox)
+    throw error
+  }
+}
+
 export async function hasErrorToast(
   browser: BrowserInterface
 ): Promise<boolean> {
@@ -1277,6 +1342,19 @@ export async function expandCallStack(
     .click()
 }
 
+export async function expandCallStackDetails(
+  browser: BrowserInterface
+): Promise<void> {
+  await browser.waitForElementByCss(
+    '[data-nextjs-collapsed-call-stack-details]',
+    30000
+  )
+  const details = await browser.elementsByCss(
+    '[data-nextjs-collapsed-call-stack-details]'
+  )
+  await Promise.all(details.map((detail) => detail.click()))
+}
+
 export async function getRedboxCallStack(
   browser: BrowserInterface
 ): Promise<string> {
@@ -1290,6 +1368,25 @@ export async function getRedboxCallStack(
   )
 
   return callStackFrameTexts.join('\n').trim()
+}
+
+export async function getRedboxOriginalCallStack(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss(
+    '[data-nextjs-data-runtime-error-copy-stack]',
+    30000
+  )
+
+  const copyButton = await browser.elementByCss(
+    '[data-nextjs-data-runtime-error-copy-stack]'
+  )
+
+  await copyButton.click()
+
+  return evaluate(browser, async () => {
+    return await navigator.clipboard.readText()
+  })
 }
 
 export async function getVersionCheckerText(

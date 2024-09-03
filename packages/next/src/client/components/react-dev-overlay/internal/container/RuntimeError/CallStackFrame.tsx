@@ -36,7 +36,7 @@ export const CallStackFrame: React.FC<{
         onClick={open}
         title={hasSource ? 'Click to open in your editor' : undefined}
       >
-        <span>{getFrameSource(f)}</span>
+        <span data-nextjs-frame-source>{getFrameSource(f)}</span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"

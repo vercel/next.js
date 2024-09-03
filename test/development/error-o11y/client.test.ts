@@ -1,15 +1,24 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,
-  getRedboxDescription,
+  expandCallStackDetails,
   getRedboxCallStack,
   getRedboxCategory,
+  getRedboxDescription,
   getRedboxLocation,
   getRedboxCodeFrame,
-} from 'next-test-utils'
+  getRedboxOriginalCallStack,
+  normalizeCodeLocInfo,
+} from '../../lib/next-test-utils'
+
+// Goal: Write a test for error o11y that ensures we have everything.
+// Requirements:
+// - 1 expect, check every field
+// - path match of callstack
+// - callstack expanded & copied value
 
 describe('error o11y in client component', () => {
-  const { next, skipped, isTurbopack } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -20,55 +29,83 @@ describe('error o11y in client component', () => {
 
   it('should display error o11y for client component app code in Turbopack', async () => {
     const browser = await next.browser('/client/app-code')
-
     await assertHasRedbox(browser)
+    await expandCallStackDetails(browser)
+    await browser.waitForElementByCss('[data-nextjs-frame-source]')
+    // get innerText of each element
+    const callStackFrameSources = await browser.elementsByCss(
+      '[data-nextjs-frame-source]'
+    )
+    const callStackFrameSourceTexts = await Promise.all(
+      callStackFrameSources.map((f) => f.innerText())
+    )
 
-    const redbox = {
+    let expanded = await getRedboxCallStack(browser)
+
+    for (const source of callStackFrameSourceTexts) {
+      expanded = expanded.replace(source, '** (**)')
+    }
+
+    const expectedRedbox = {
       category: await getRedboxCategory(browser),
       description: await getRedboxDescription(browser),
       location: await getRedboxLocation(browser),
       codeFrame: await getRedboxCodeFrame(browser),
-      callStack: await getRedboxCallStack(browser),
+      callStack: {
+        copied: normalizeCodeLocInfo(await getRedboxOriginalCallStack(browser)),
+        expanded,
+      },
     }
 
-    if (isTurbopack) {
-      expect(redbox.category).toMatchInlineSnapshot(`"Unhandled Runtime Error"`)
-      expect(redbox.description).toMatchInlineSnapshot(
-        `"Error: runtime error in client component app code"`
-      )
-      expect(redbox.location).toMatchInlineSnapshot(
-        `"app/client/app-code/page.tsx (4:9) @ Error"`
-      )
-      expect(redbox.codeFrame).toMatchInlineSnapshot(`
-      "  2 |
-        3 | if ('window' in global) {
+    expect(expectedRedbox).toMatchInlineSnapshot(`
+      {
+        "callStack": {
+          "copied": "Error: runtime error in client component app code
+          at Page (**)
+          at react-stack-bottom-frame (**)
+          at renderWithHooks (**)
+          at updateFunctionComponent (**)
+          at beginWork (**)
+          at runWithFiberInDEV (**)
+          at performUnitOfWork (**)
+          at workLoopSync (**)
+          at renderRootSync (**)
+          at recoverFromConcurrentError (**)
+          at performConcurrentWorkOnRoot (**)
+          at MessagePort.performWorkUntilDeadline (**)",
+          "expanded": "react-stack-bottom-frame
+      ** (**)
+      renderWithHooks
+      ** (**)
+      updateFunctionComponent
+      ** (**)
+      beginWork
+      ** (**)
+      runWithFiberInDEV
+      ** (**)
+      performUnitOfWork
+      ** (**)
+      workLoopSync
+      ** (**)
+      renderRootSync
+      ** (**)
+      recoverFromConcurrentError
+      ** (**)
+      performConcurrentWorkOnRoot
+      ** (**)
+      MessagePort.performWorkUntilDeadline
+      ** (**)",
+        },
+        "category": "Unhandled Runtime Error",
+        "codeFrame": "  2 |
+        3 | export default function Page() {
       > 4 |   throw Error('runtime error in client component app code')
           |         ^
         5 | }
-        6 |
-        7 | export default function Page() {"
+        6 |",
+        "description": "Error: runtime error in client component app code",
+        "location": "app/client/app-code/page.tsx (4:9) @ Error",
+      }
     `)
-      // TODO: The callstack file path may vary.
-      // expect(redbox.callStack).toMatchInlineSnapshot(``)
-    } else {
-      expect(redbox.category).toMatchInlineSnapshot(`"Unhandled Runtime Error"`)
-      expect(redbox.description).toMatchInlineSnapshot(
-        `"Error: runtime error in client component app code"`
-      )
-      expect(redbox.location).toMatchInlineSnapshot(
-        `"app/client/app-code/page.tsx (4:9) @ Error"`
-      )
-      expect(redbox.codeFrame).toMatchInlineSnapshot(`
-      "  2 |
-        3 | if ('window' in global) {
-      > 4 |   throw Error('runtime error in client component app code')
-          |         ^
-        5 | }
-        6 |
-        7 | export default function Page() {"
-    `)
-      // TODO: The callstack file path may vary.
-      // expect(redbox.callStack).toMatchInlineSnapshot(``)
-    }
   })
 })

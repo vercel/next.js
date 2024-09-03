@@ -159,6 +159,7 @@ export class Playwright extends BrowserInterface {
       ignoreHTTPSErrors,
       ...device,
     })
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
     contextHasJSEnabled = javaScriptEnabled
   }
 
