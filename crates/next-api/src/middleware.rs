@@ -223,7 +223,6 @@ impl MiddlewareEndpoint {
                 ..Default::default()
             }]
         };
-        println!("matchers: {:?}", matchers);
 
         let edge_function_definition = EdgeFunctionDefinition {
             files: file_paths_from_root,
