@@ -2,11 +2,9 @@
 
 By default, Next.js will cache as much as possible to improve performance and reduce cost. This means routes are statically rendered and data requests are cached unless you opt out.
 
-This example uses [`next.revalidate`](https://nextjs.org/docs/app/building-your-application/caching) option of fetch to set the cache lifetime of a resource (in seconds).
+This example uses the [`revalidate`](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#revalidate) route segment config option to override the route segment defaults.
 
-The first time a fetch request with revalidate is called, the data will be fetched from the external data source and stored in the Data Cache.
-
-Any requests that are called within the specified timeframe (e.g. 60-seconds) will return the cached data.
+Calling the Index Page (`/`) within the specified timeframe (e.g., 10 seconds) will return the cached Page ([Full Route Cache](https://nextjs.org/docs/app/building-your-application/caching#full-route-cache) in this example).
 
 ## Deploy your own
 
