@@ -8618,6 +8618,7 @@ dependencies = [
  "auto-hash-map",
  "byteorder",
  "dashmap",
+ "hashbrown 0.14.5",
  "indexmap 1.9.3",
  "lmdb-rkv",
  "once_cell",

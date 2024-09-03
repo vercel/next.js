@@ -75,6 +75,50 @@ impl<'a> ExecuteContext<'a> {
         }
     }
 
+    pub fn task_pair(&self, task_id1: TaskId, task_id2: TaskId) -> (TaskGuard<'a>, TaskGuard<'a>) {
+        let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
+        let is_restored1 = task1.persistance_state.is_restored();
+        let is_restored2 = task2.persistance_state.is_restored();
+        if !is_restored1 || !is_restored2 {
+            // Avoid holding the lock too long since this can also affect other tasks
+            drop(task1);
+            drop(task2);
+
+            let items1 =
+                (!is_restored1).then(|| self.backend.backing_storage.lookup_data(task_id1));
+            let items2 =
+                (!is_restored2).then(|| self.backend.backing_storage.lookup_data(task_id2));
+
+            let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
+            task1 = t1;
+            task2 = t2;
+            if !task1.persistance_state.is_restored() {
+                for item in items1.unwrap() {
+                    task1.add(item);
+                }
+                task1.persistance_state.set_restored();
+            }
+            if !task2.persistance_state.is_restored() {
+                for item in items2.unwrap() {
+                    task2.add(item);
+                }
+                task2.persistance_state.set_restored();
+            }
+        }
+        (
+            TaskGuard {
+                task: task1,
+                task_id: task_id1,
+                backend: self.backend,
+            },
+            TaskGuard {
+                task: task2,
+                task_id: task_id2,
+                backend: self.backend,
+            },
+        )
+    }
+
     pub fn schedule(&self, task_id: TaskId) {
         self.turbo_tasks.schedule(task_id);
     }
@@ -288,6 +332,25 @@ impl<'a> TaskGuard<'a> {
 
     pub fn iter(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
         self.task.iter()
+    }
+
+    pub(crate) fn invalidate_serialization(&mut self) {
+        let mut count = 0;
+        let cell_data = self.iter().filter_map(|(key, value)| match (key, value) {
+            (CachedDataItemKey::CellData { cell }, CachedDataItemValue::CellData { value }) => {
+                count += 1;
+                Some(CachedDataUpdate {
+                    task: self.task_id,
+                    key: CachedDataItemKey::CellData { cell: *cell },
+                    value: Some(CachedDataItemValue::CellData {
+                        value: value.clone(),
+                    }),
+                })
+            }
+            _ => None,
+        });
+        self.backend.persisted_storage_log.lock().extend(cell_data);
+        self.task.persistance_state.add_persisting_items(count);
     }
 }
 

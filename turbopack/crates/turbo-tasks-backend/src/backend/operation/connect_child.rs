@@ -12,6 +12,8 @@ use crate::{
     get, get_many,
 };
 
+const AGGREGATION_NUMBER_BUFFER_SPACE: u32 = 2;
+
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum ConnectChildOperation {
     UpdateAggregation {
@@ -48,7 +50,7 @@ impl ConnectChildOperation {
             } else if !is_root_node(parent_aggregation) {
                 queue.push(AggregationUpdateJob::UpdateAggregationNumber {
                     task_id: child_task_id,
-                    aggregation_number: parent_aggregation + 1,
+                    aggregation_number: parent_aggregation + AGGREGATION_NUMBER_BUFFER_SPACE + 1,
                 });
             }
             if is_aggregating_node(parent_aggregation) {

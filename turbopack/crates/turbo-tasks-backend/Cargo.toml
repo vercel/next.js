@@ -21,7 +21,8 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 byteorder = "1.5.0"
-dashmap = { workspace = true }
+dashmap = { workspace = true, features = ["raw-api"]}
+hashbrown = { workspace = true }
 indexmap = { workspace = true }
 lmdb-rkv = "0.14.0"
 once_cell = { workspace = true }
