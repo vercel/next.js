@@ -185,7 +185,7 @@ describe('Middleware Runtime', () => {
           page: '/',
           matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
           wasm: [],
-          assets: [],
+          assets: process.env.TURBOPACK ? expect.toBeArray() : [],
           regions: 'auto',
         })
         expect(envs).toContainAllKeys([
