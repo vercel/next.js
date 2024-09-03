@@ -1,10 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
-use syn::{
-    parse_macro_input, parse_quote, spanned::Spanned, ExprPath, ItemTrait, TraitItem,
-    TraitItemMethod,
-};
+use syn::{parse_macro_input, parse_quote, ExprPath, ItemTrait, TraitItem, TraitItemMethod};
 use turbo_tasks_macros_shared::{
     get_trait_default_impl_function_id_ident, get_trait_default_impl_function_ident,
     get_trait_type_id_ident, get_trait_type_ident, ValueTraitArguments,
@@ -13,8 +10,8 @@ use turbo_tasks_macros_shared::{
 use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
+    let mut errors = Vec::new();
     let ValueTraitArguments { debug, resolved } = parse_macro_input!(args as ValueTraitArguments);
-
     let item = parse_macro_input!(input as ItemTrait);
 
     let ItemTrait {
@@ -32,31 +29,43 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     } = &item;
 
     if unsafety.is_some() {
-        item.span()
-            .unwrap()
-            .error("unsafe traits are not supported in #[turbo_tasks::value_trait]")
-            .emit();
+        errors.push(
+            syn::Error::new_spanned(
+                &item,
+                "unsafe traits are not supported in #[turbo_tasks::value_trait]",
+            )
+            .into_compile_error(),
+        );
     }
 
     if auto_token.is_some() {
-        item.span()
-            .unwrap()
-            .error("auto traits are not supported in #[turbo_tasks::value_trait]")
-            .emit();
+        errors.push(
+            syn::Error::new_spanned(
+                &item,
+                "auto traits are not supported in #[turbo_tasks::value_trait]",
+            )
+            .into_compile_error(),
+        );
     }
 
     if !generics.params.is_empty() {
-        item.span()
-            .unwrap()
-            .error("generic traits are not supported in #[turbo_tasks::value_trait]")
-            .emit();
+        errors.push(
+            syn::Error::new_spanned(
+                &item,
+                "generic traits are not supported in #[turbo_tasks::value_trait]",
+            )
+            .into_compile_error(),
+        );
     }
 
     if generics.where_clause.is_some() {
-        item.span()
-            .unwrap()
-            .error("where clauses are not supported in #[turbo_tasks::value_trait]")
-            .emit();
+        errors.push(
+            syn::Error::new_spanned(
+                &item,
+                "where clauses are not supported in #[turbo_tasks::value_trait]",
+            )
+            .into_compile_error(),
+        );
     }
 
     let supertraits = supertraits.iter().collect::<Vec<_>>();
@@ -76,10 +85,13 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             semi_token: _,
         }) = item
         else {
-            item.span()
-                .unwrap()
-                .error("only methods are allowed in a #[turbo_tasks::value_trait] trait")
-                .emit();
+            errors.push(
+                syn::Error::new_spanned(
+                    &item,
+                    "only methods are allowed in a #[turbo_tasks::value_trait] trait",
+                )
+                .into_compile_error(),
+            );
             continue;
         };
 
@@ -88,15 +100,16 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         // Value trait method declarations don't have `#[turbo_tasks::function]`
         // annotations on them, though their `impl`s do. It may make sense to require it
         // in the future when defining a default implementation.
-        let Some(turbo_fn) = TurboFn::new(
-            sig,
-            DefinitionContext::ValueTrait,
+        let turbo_fn = match TurboFn::new(
+            sig.clone(),
+            DefinitionContext::ValueTraitDefaultImpl,
             FunctionArguments::default(),
-        ) else {
-            return quote! {
-                // An error occurred while parsing the function signature.
+        ) {
+            Ok(turbo_fn) => turbo_fn,
+            Err(err) => {
+                errors.push(err.into_compile_error());
+                continue;
             }
-            .into();
         };
 
         let turbo_signature = turbo_fn.signature();
@@ -113,7 +126,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             let inline_extension_trait_ident =
                 Ident::new(&format!("{}_{}_inline", trait_ident, ident), ident.span());
             let inline_function_path: ExprPath = parse_quote! { <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident };
-            let mut inline_signature = sig.clone();
+            let mut inline_signature = turbo_fn.inline_signature().clone();
             inline_signature.ident = inline_function_ident;
 
             let native_function = NativeFn::new(
@@ -257,6 +270,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         )*
 
         #value_debug_impl
+
+        #(#errors)*
     };
     expanded.into()
 }

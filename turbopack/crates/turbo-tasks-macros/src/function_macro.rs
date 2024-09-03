@@ -40,18 +40,21 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         .unwrap_or_default();
     let local_cells = args.local_cells.is_some();
 
-    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args) else {
-        return quote! {
-            // An error occurred while parsing the function signature.
+    let ident = sig.ident.clone();
+    let turbo_fn = match TurboFn::new(sig, DefinitionContext::NakedFn, args) {
+        Ok(turbo_fn) => turbo_fn,
+        Err(err) => {
+            errors.push(err.into_compile_error());
+            return errors
+                .into_iter()
+                .collect::<proc_macro2::TokenStream>()
+                .into();
         }
-        .into();
     };
-
-    let ident = &sig.ident;
 
     let inline_function_ident = Ident::new(&format!("{ident}_inline_function"), ident.span());
     let inline_function_path: ExprPath = parse_quote! { #inline_function_ident };
-    let mut inline_signature = sig.clone();
+    let mut inline_signature = turbo_fn.inline_signature().clone();
     inline_signature.ident = inline_function_ident;
 
     let native_fn = NativeFn::new(
@@ -60,11 +63,11 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         turbo_fn.is_method(),
         local_cells,
     );
-    let native_function_ident = get_native_function_ident(ident);
+    let native_function_ident = get_native_function_ident(&ident);
     let native_function_ty = native_fn.ty();
     let native_function_def = native_fn.definition();
 
-    let native_function_id_ident = get_native_function_id_ident(ident);
+    let native_function_id_ident = get_native_function_id_ident(&ident);
     let native_function_id_ty = native_fn.id_ty();
     let native_function_id_def = native_fn.id_definition(&native_function_ident.clone().into());
 

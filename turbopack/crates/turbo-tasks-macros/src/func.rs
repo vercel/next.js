@@ -9,9 +9,9 @@ use syn::{
     punctuated::{Pair, Punctuated},
     spanned::Spanned,
     token::Paren,
-    AngleBracketedGenericArguments, Block, Expr, ExprPath, FnArg, GenericArgument, Meta, Pat,
-    PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, ReturnType, Signature, Token,
-    Type, TypeGroup, TypePath, TypeTuple,
+    AngleBracketedGenericArguments, Attribute, Block, Expr, ExprPath, FnArg, GenericArgument, Meta,
+    Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, ReturnType, Signature,
+    Token, Type, TypeGroup, TypePath, TypeTuple,
 };
 
 #[derive(Debug)]
@@ -26,53 +26,51 @@ pub struct TurboFn {
     resolved: Option<Span>,
     /// Should this function use `TaskPersistence::LocalCells`?
     local_cells: bool,
+    inline_signature: Signature,
 }
 
 #[derive(Debug)]
 pub struct Input {
     pub ident: Ident,
     pub ty: Type,
+    pub trace_ignore: bool,
 }
 
 impl TurboFn {
     pub fn new(
-        original_signature: &Signature,
+        original_signature: Signature,
         definition_context: DefinitionContext,
         args: FunctionArguments,
-    ) -> Option<TurboFn> {
+    ) -> syn::Result<TurboFn> {
         if !original_signature.generics.params.is_empty() {
-            original_signature
-                .generics
-                .span()
-                .unwrap()
-                .error(format!(
+            return Err(syn::Error::new_spanned(
+                &original_signature.generics.params,
+                format!(
                     "{} do not support generic parameters",
                     definition_context.function_type(),
-                ))
-                .emit();
-            return None;
+                ),
+            ));
         }
 
-        if original_signature.generics.where_clause.is_some() {
-            original_signature
-                .generics
-                .where_clause
-                .span()
-                .unwrap()
-                .error(format!(
+        if let Some(where_clause) = &original_signature.generics.where_clause {
+            return Err(syn::Error::new_spanned(
+                where_clause,
+                format!(
                     "{} do not support where clauses",
                     definition_context.function_type(),
-                ))
-                .emit();
-            return None;
+                ),
+            ));
         }
 
-        let mut raw_inputs = original_signature.inputs.iter();
+        let ident = original_signature.ident.clone();
+        let raw_inputs = &original_signature.inputs;
+        // `this` may be assigned multiple times if there are multiple arguments using the `self`
+        // ident, but rustc will generate its own error in this case
         let mut this = None;
         let mut inputs = Vec::with_capacity(raw_inputs.len());
 
-        if let Some(possibly_receiver) = raw_inputs.next() {
-            match possibly_receiver {
+        for (input_idx, raw_input) in raw_inputs.iter().enumerate() {
+            match raw_input {
                 FnArg::Receiver(
                     receiver @ Receiver {
                         attrs,
@@ -82,15 +80,13 @@ impl TurboFn {
                     },
                 ) => {
                     if !attrs.is_empty() {
-                        receiver
-                            .span()
-                            .unwrap()
-                            .error(format!(
-                                "{} do not support attributes on arguments",
+                        return Err(syn::Error::new_spanned(
+                            receiver,
+                            format!(
+                                "{} do not support attributes on the self argument",
                                 definition_context.function_type(),
-                            ))
-                            .emit();
-                        return None;
+                            ),
+                        ));
                     }
 
                     // tt::functions in tt::value_impl can either take self as a typed `self:
@@ -98,59 +94,59 @@ impl TurboFn {
                     // other forms of self.
 
                     let definition_context = match &definition_context {
-                        DefinitionContext::NakedFn { .. } => return None,
+                        DefinitionContext::NakedFn { .. } => {
+                            return Err(syn::Error::new_spanned(
+                                receiver,
+                                format!(
+                                    "self is not supported on non-method {}",
+                                    definition_context.function_type(),
+                                ),
+                            ))
+                        }
                         _ => &definition_context,
                     };
 
                     if !attrs.is_empty() {
-                        receiver
-                            .span()
-                            .unwrap()
-                            .error(format!(
+                        return Err(syn::Error::new_spanned(
+                            receiver,
+                            format!(
                                 "{} do not support attributes on self",
                                 definition_context.function_type(),
-                            ))
-                            .emit();
-                        return None;
+                            ),
+                        ));
                     }
 
                     if mutability.is_some() {
-                        receiver
-                            .span()
-                            .unwrap()
-                            .error(format!(
+                        return Err(syn::Error::new_spanned(
+                            receiver,
+                            format!(
                                 "{} cannot take self by mutable reference, use &self or self: \
                                  Vc<Self> instead",
                                 definition_context.function_type(),
-                            ))
-                            .emit();
-                        return None;
+                            ),
+                        ));
                     }
 
                     match &reference {
                         None => {
-                            receiver
-                                .span()
-                                .unwrap()
-                                .error(format!(
+                            return Err(syn::Error::new_spanned(
+                                receiver,
+                                format!(
                                     "{} cannot take self by value, use &self or self: Vc<Self> \
                                      instead",
                                     definition_context.function_type(),
-                                ))
-                                .emit();
-                            return None;
+                                ),
+                            ));
                         }
                         Some((_, Some(lifetime))) => {
-                            lifetime
-                                .span()
-                                .unwrap()
-                                .error(format!(
+                            return Err(syn::Error::new_spanned(
+                                lifetime,
+                                format!(
                                     "{} cannot take self by reference with a custom lifetime, use \
                                      &self or self: Vc<Self> instead",
                                     definition_context.function_type(),
-                                ))
-                                .emit();
-                            return None;
+                                ),
+                            ));
                         }
                         _ => {}
                     }
@@ -158,29 +154,40 @@ impl TurboFn {
                     this = Some(Input {
                         ident: Ident::new("self", self_token.span()),
                         ty: parse_quote! { turbo_tasks::Vc<Self> },
+                        trace_ignore: false,
                     });
                 }
                 FnArg::Typed(typed) => {
-                    if !typed.attrs.is_empty() {
-                        typed
-                            .span()
-                            .unwrap()
-                            .error(format!(
-                                "{} does not support attributes on arguments",
-                                definition_context.function_type(),
-                            ))
-                            .emit();
-                        return None;
+                    let mut arg_attrs = None;
+                    for raw_attr in &typed.attrs {
+                        let Attribute { path, tokens, .. } = raw_attr;
+                        if !path.get_ident().map_or(false, |id| id == "turbo_tasks") {
+                            return Err(syn::Error::new_spanned(
+                                path,
+                                format!(
+                                    "{} only supports #[turbo_tasks(...)] attributes on arguments",
+                                    definition_context.function_type(),
+                                ),
+                            ));
+                        }
+                        if arg_attrs.is_some() {
+                            return Err(syn::Error::new_spanned(
+                                path,
+                                format!(
+                                    "Only one #[turbo_tasks(...)] attribute per argument is \
+                                     allowed inside {}",
+                                    definition_context.function_type(),
+                                ),
+                            ));
+                        }
+                        arg_attrs = Some(
+                            syn::parse2::<Parenthesized<FnArgAttributes>>(tokens.clone())?.inner,
+                        );
                     }
+                    let arg_attrs = arg_attrs.unwrap_or(Default::default());
 
                     if let Pat::Ident(ident) = &*typed.pat {
                         if ident.ident == "self" {
-                            if let DefinitionContext::NakedFn { .. } = definition_context {
-                                // The function is not associated. The compiler will emit an error
-                                // on its own.
-                                return None;
-                            };
-
                             // We don't validate that the user provided a valid
                             // `turbo_tasks::Vc<Self>` here.
                             // We'll rely on the compiler to emit an error
@@ -191,75 +198,62 @@ impl TurboFn {
                             this = Some(Input {
                                 ident,
                                 ty: parse_quote! { turbo_tasks::Vc<Self> },
+                                trace_ignore: arg_attrs.trace_ignore,
                             });
+                        } else if this.is_none() && definition_context.is_trait() {
+                            return Err(syn::Error::new_spanned(
+                                typed,
+                                format!(
+                                    "{} must accept &self or self: Vc<Self> as the first argument",
+                                    definition_context.function_type(),
+                                ),
+                            ));
                         } else {
-                            match definition_context {
-                                DefinitionContext::NakedFn { .. }
-                                | DefinitionContext::ValueInherentImpl { .. } => {}
-                                DefinitionContext::ValueTraitImpl { .. }
-                                | DefinitionContext::ValueTrait { .. } => {
-                                    typed
-                                        .span()
-                                        .unwrap()
-                                        .error(format!(
-                                            "{} must accept &self or self: Vc<Self> as the first \
-                                             argument",
-                                            definition_context.function_type(),
-                                        ))
-                                        .emit();
-                                    return None;
-                                }
-                            }
                             let ident = ident.ident.clone();
 
                             inputs.push(Input {
                                 ident,
                                 ty: (*typed.ty).clone(),
+                                trace_ignore: arg_attrs.trace_ignore,
                             });
                         }
                     } else {
                         // We can't support destructuring patterns (or other kinds of patterns).
-                        let ident = Ident::new("arg1", typed.pat.span());
+                        let ident = Ident::new(&format!("arg{}", input_idx + 1), typed.pat.span());
 
                         inputs.push(Input {
                             ident,
                             ty: (*typed.ty).clone(),
+                            trace_ignore: arg_attrs.trace_ignore,
                         });
                     }
                 }
             }
         }
 
-        for (i, input) in raw_inputs.enumerate() {
-            match input {
-                FnArg::Receiver(_) => {
-                    // The compiler will emit an error on its own.
-                    return None;
-                }
-                FnArg::Typed(typed) => {
-                    let ident = if let Pat::Ident(ident) = &*typed.pat {
-                        ident.ident.clone()
-                    } else {
-                        Ident::new(&format!("arg{}", i + 2), typed.pat.span())
-                    };
+        let output = return_type_to_type(&original_signature.output);
 
-                    inputs.push(Input {
-                        ident,
-                        ty: (*typed.ty).clone(),
-                    });
+        // remove any annotations from the inline signature
+        let mut inline_signature = original_signature;
+        for arg in inline_signature.inputs.iter_mut() {
+            match arg {
+                FnArg::Receiver(receiver) => {
+                    receiver.attrs = Vec::new();
+                }
+                FnArg::Typed(pat_type) => {
+                    pat_type.attrs = Vec::new();
                 }
             }
         }
 
-        let output = return_type_to_type(&original_signature.output);
-
-        Some(TurboFn {
-            ident: original_signature.ident.clone(),
+        Ok(TurboFn {
+            ident,
             output,
             this,
             inputs,
             resolved: args.resolved,
             local_cells: args.local_cells.is_some(),
+            inline_signature,
         })
     }
 
@@ -296,12 +290,21 @@ impl TurboFn {
         }
     }
 
+    /// The signature of the exposed trait method.
     pub fn trait_signature(&self) -> Signature {
         let signature = self.signature();
 
         parse_quote! {
             #signature where Self: Sized
         }
+    }
+
+    /// The signature of the un-exposed "inline" function. The inline function has the body of the
+    /// original function.
+    ///
+    /// The signature is the same, but with annotations removed.
+    pub fn inline_signature(&self) -> &Signature {
+        &self.inline_signature
     }
 
     fn input_idents(&self) -> impl Iterator<Item = &Ident> {
@@ -325,7 +328,7 @@ impl TurboFn {
     }
 
     fn converted_this(&self) -> Option<Expr> {
-        self.this.as_ref().map(|Input { ty: _, ident }| {
+        self.this.as_ref().map(|Input { ident, .. }| {
             parse_quote! {
                 turbo_tasks::Vc::into_raw(#ident)
             }
@@ -639,6 +642,45 @@ fn expand_vc_return_type(orig_output: &Type) -> Type {
     new_output
 }
 
+/// Attributes applied to an argument of a `#[turbo_tasks::function]`.
+///
+/// For example:
+///
+/// ```
+/// # #[turbo_tasks::value]
+/// # struct MyArg {}
+///
+/// #[turbo_tasks::function]
+/// fn my_function(
+///     #[turbo_tasks(trace_ignore)]
+///     my_arg: MyArg,
+/// ) {
+///     // ...
+/// }
+/// ```
+#[derive(Default)]
+struct FnArgAttributes {
+    trace_ignore: bool,
+}
+
+impl Parse for FnArgAttributes {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut parsed_attrs = Self::default();
+        let punctuated: Punctuated<Ident, Token![,]> = input.parse_terminated(Ident::parse)?;
+        for id in &punctuated {
+            if id == "trace_ignore" {
+                parsed_attrs.trace_ignore = true;
+            } else {
+                return Err(syn::Error::new_spanned(
+                    id,
+                    "unexpected token, expected: \"trace_ignore\"",
+                ));
+            }
+        }
+        Ok(parsed_attrs)
+    }
+}
+
 /// The context in which the function is being defined.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum DefinitionContext {
@@ -649,16 +691,23 @@ pub enum DefinitionContext {
     // The function is defined as a #[turbo_tasks::value_impl] trait implementation method.
     ValueTraitImpl,
     // The function is defined as a #[turbo_tasks::value_trait] default method.
-    ValueTrait,
+    ValueTraitDefaultImpl,
 }
 
 impl DefinitionContext {
     pub fn function_type(&self) -> &'static str {
         match self {
-            DefinitionContext::NakedFn => "#[turbo_tasks::function] naked functions",
-            DefinitionContext::ValueInherentImpl => "#[turbo_tasks::value_impl] inherent methods",
-            DefinitionContext::ValueTraitImpl => "#[turbo_tasks::value_impl] trait methods",
-            DefinitionContext::ValueTrait => "#[turbo_tasks::value_trait] methods",
+            Self::NakedFn => "#[turbo_tasks::function] naked functions",
+            Self::ValueInherentImpl => "#[turbo_tasks::value_impl] inherent methods",
+            Self::ValueTraitImpl => "#[turbo_tasks::value_impl] trait methods",
+            Self::ValueTraitDefaultImpl => "#[turbo_tasks::value_trait] methods",
+        }
+    }
+
+    fn is_trait(&self) -> bool {
+        match self {
+            Self::NakedFn { .. } | Self::ValueInherentImpl { .. } => false,
+            Self::ValueTraitImpl { .. } | Self::ValueTraitDefaultImpl { .. } => true,
         }
     }
 }
