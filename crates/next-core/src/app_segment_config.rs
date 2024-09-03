@@ -70,7 +70,7 @@ pub struct NextSegmentConfig {
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<Vec<RcStr>>,
     pub experimental_ppr: Option<bool>,
-    /// Wether these metadata exports are defined in the source file.
+    /// Whether these metadata exports are defined in the source file.
     pub generate_image_metadata: bool,
     pub generate_sitemaps: bool,
 }
@@ -106,7 +106,7 @@ impl NextSegmentConfig {
         *experimental_ppr = experimental_ppr.or(parent.experimental_ppr);
     }
 
-    /// Applies a config from a paralllel route to this config, returning an
+    /// Applies a config from a parallel route to this config, returning an
     /// error if there are conflicting values.
     pub fn apply_parallel_config(&mut self, parallel_config: &Self) -> Result<()> {
         fn merge_parallel<T: PartialEq + Clone>(
@@ -197,7 +197,7 @@ impl Issue for NextSegmentConfigParsingIssue {
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
             StyledString::Text(
-                "The exported configuration object in a source file need to have a very specific \
+                "The exported configuration object in a source file needs to have a very specific \
                  format from which some properties can be statically parsed at compiled-time."
                     .into(),
             )
