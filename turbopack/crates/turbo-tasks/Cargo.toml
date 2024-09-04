@@ -37,6 +37,7 @@ serde_json = { workspace = true }
 serde_regex = "1.1.0"
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true }
 tracing = { workspace = true }
 triomphe = { workspace = true, features = ["unsize", "unstable"] }
 turbo-tasks-hash = { workspace = true }
