@@ -74,7 +74,7 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
 };
 use turbopack_resolve::{
-    ecmascript::{apply_cjs_specific_options, cjs_resolve, try_to_severity},
+    ecmascript::{apply_cjs_specific_options, cjs_resolve},
     typescript::tsconfig,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
@@ -141,8 +141,8 @@ use crate::{
     TreeShakingMode,
 };
 
-#[derive(Clone)]
 #[turbo_tasks::value(shared)]
+#[derive(Clone)]
 pub struct AnalyzeEcmascriptModuleResult {
     pub references: Vc<ModuleReferences>,
     pub local_references: Vc<ModuleReferences>,
@@ -365,21 +365,13 @@ struct AnalysisState<'a> {
 }
 
 impl<'a> AnalysisState<'a> {
-    async fn link_value(&self, value: JsValue, in_try: bool) -> Result<JsValue> {
+    async fn link_value(&self, value: JsValue) -> Result<JsValue> {
         let fun_args_values = self.fun_args_values.lock().clone();
         link(
             self.var_graph,
-            value,
+            value.clone(),
             &early_value_visitor,
-            &|value| {
-                value_visitor(
-                    self.origin,
-                    value,
-                    self.compile_time_info,
-                    self.var_graph,
-                    in_try,
-                )
-            },
+            &|value| value_visitor(self.origin, value, self.compile_time_info, self.var_graph),
             fun_args_values,
         )
         .await
@@ -920,9 +912,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 kind,
                 ast_path: condition_ast_path,
                 span: _,
-                in_try,
+                in_try: _,
             } => {
-                let condition = analysis_state.link_value(condition, in_try).await?;
+                let condition = analysis_state.link_value(condition).await?;
 
                 macro_rules! inactive {
                     ($block:ident) => {
@@ -1069,7 +1061,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         continue;
                     }
                 }
-                let func = analysis_state.link_value(func, in_try).await?;
+                let func = analysis_state.link_value(func).await?;
 
                 handle_call(
                     &ast_path,
@@ -1097,8 +1089,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         continue;
                     }
                 }
-                let mut obj = analysis_state.link_value(obj, in_try).await?;
-                let prop = analysis_state.link_value(prop, in_try).await?;
+                let mut obj = analysis_state.link_value(obj).await?;
+                let prop = analysis_state.link_value(prop).await?;
 
                 if let JsValue::Array {
                     items: ref mut values,
@@ -1108,7 +1100,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 {
                     if matches!(prop.as_str(), Some("map" | "forEach" | "filter")) {
                         if let [EffectArg::Closure(value, block)] = &mut args[..] {
-                            *value = analysis_state.link_value(take(value), in_try).await?;
+                            *value = analysis_state.link_value(take(value)).await?;
                             if let JsValue::Function(_, func_ident, _) = value {
                                 let mut closure_arg = JsValue::alternatives(take(values));
                                 if mutable {
@@ -1132,10 +1124,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
 
                 let func = analysis_state
-                    .link_value(
-                        JsValue::member(Box::new(obj.clone()), Box::new(prop)),
-                        in_try,
-                    )
+                    .link_value(JsValue::member(Box::new(obj.clone()), Box::new(prop)))
                     .await?;
 
                 handle_call(
@@ -1164,10 +1153,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 prop,
                 ast_path,
                 span,
-                in_try,
+                in_try: _,
             } => {
-                let obj = analysis_state.link_value(obj, in_try).await?;
-                let prop = analysis_state.link_value(prop, in_try).await?;
+                let obj = analysis_state.link_value(obj).await?;
+                let prop = analysis_state.link_value(prop).await?;
 
                 handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis).await?;
             }
@@ -1194,7 +1183,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 ast_path,
                 span,
             } => {
-                let arg = analysis_state.link_value(arg, false).await?;
+                let arg = analysis_state.link_value(arg).await?;
                 handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
             }
             Effect::ImportMeta {
@@ -1315,7 +1304,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             JsValue::unknown_empty(true, "spread is not supported yet")
                         }
                     };
-                    state.link_value(value, in_try).await
+                    state.link_value(value).await
                 }
             })
             .try_join()
@@ -1530,17 +1519,14 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let args = linked_args(args).await?;
 
             let linked_func_call = state
-                .link_value(
-                    JsValue::call(
-                        Box::new(JsValue::WellKnownFunction(
-                            WellKnownFunctionKind::PathResolve(Box::new(
-                                parent_path.path.as_str().into(),
-                            )),
+                .link_value(JsValue::call(
+                    Box::new(JsValue::WellKnownFunction(
+                        WellKnownFunctionKind::PathResolve(Box::new(
+                            parent_path.path.as_str().into(),
                         )),
-                        args.clone(),
-                    ),
-                    in_try,
-                )
+                    )),
+                    args.clone(),
+                ))
                 .await?;
 
             let pat = js_value_to_pattern(&linked_func_call);
@@ -1569,13 +1555,10 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             }
             let args = linked_args(args).await?;
             let linked_func_call = state
-                .link_value(
-                    JsValue::call(
-                        Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)),
-                        args.clone(),
-                    ),
-                    in_try,
-                )
+                .link_value(JsValue::call(
+                    Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)),
+                    args.clone(),
+                ))
                 .await?;
             let pat = js_value_to_pattern(&linked_func_call);
             if !pat.has_constant_parts() {
@@ -1608,7 +1591,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 if pat.is_match_ignore_dynamic("node") && args.len() >= 2 {
                     let first_arg =
                         JsValue::member(Box::new(args[1].clone()), Box::new(0_f64.into()));
-                    let first_arg = state.link_value(first_arg, in_try).await?;
+                    let first_arg = state.link_value(first_arg).await?;
                     let pat = js_value_to_pattern(&first_arg);
                     let dynamic = !pat.has_constant_parts();
                     if dynamic {
@@ -1729,7 +1712,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
 
             let args = linked_args(args).await?;
             if args.len() == 1 {
-                let first_arg = state.link_value(args[0].clone(), in_try).await?;
+                let first_arg = state.link_value(args[0].clone()).await?;
                 if let Some(s) = first_arg.as_str() {
                     // TODO this resolving should happen within Vc<NodeGypBuildReference>
                     let current_context = origin
@@ -1759,7 +1742,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
 
             let args = linked_args(args).await?;
             if args.len() == 1 {
-                let first_arg = state.link_value(args[0].clone(), in_try).await?;
+                let first_arg = state.link_value(args[0].clone()).await?;
                 if let Some(s) = first_arg.as_str() {
                     analysis
                         .add_reference(NodeBindingsReference::new(origin.origin_path(), s.into()));
@@ -1800,18 +1783,15 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                     pat
                                 } else {
                                     let linked_func_call = state
-                                        .link_value(
-                                            JsValue::call(
-                                                Box::new(JsValue::WellKnownFunction(
-                                                    WellKnownFunctionKind::PathJoin,
-                                                )),
-                                                vec![
-                                                    JsValue::FreeVar("__dirname".into()),
-                                                    pkg_or_dir.clone(),
-                                                ],
-                                            ),
-                                            in_try,
-                                        )
+                                        .link_value(JsValue::call(
+                                            Box::new(JsValue::WellKnownFunction(
+                                                WellKnownFunctionKind::PathJoin,
+                                            )),
+                                            vec![
+                                                JsValue::FreeVar("__dirname".into()),
+                                                pkg_or_dir.clone(),
+                                            ],
+                                        ))
                                         .await?;
                                     js_value_to_pattern(&linked_func_call)
                                 };
@@ -1856,19 +1836,14 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     Pattern::Constant(format!("{p}/intl").into())
                 } else {
                     let linked_func_call = state
-                        .link_value(
-                            JsValue::call(
-                                Box::new(JsValue::WellKnownFunction(
-                                    WellKnownFunctionKind::PathJoin,
-                                )),
-                                vec![
-                                    JsValue::FreeVar("__dirname".into()),
-                                    p.into(),
-                                    "intl".into(),
-                                ],
-                            ),
-                            in_try,
-                        )
+                        .link_value(JsValue::call(
+                            Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)),
+                            vec![
+                                JsValue::FreeVar("__dirname".into()),
+                                p.into(),
+                                "intl".into(),
+                            ],
+                        ))
                         .await?;
                     js_value_to_pattern(&linked_func_call)
                 };
@@ -2338,10 +2313,8 @@ async fn value_visitor(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     var_graph: &VarGraph,
-    in_try: bool,
 ) -> Result<(JsValue, bool)> {
-    let (mut v, modified) =
-        value_visitor_inner(origin, v, compile_time_info, var_graph, in_try).await?;
+    let (mut v, modified) = value_visitor_inner(origin, v, compile_time_info, var_graph).await?;
     v.normalize_shallow();
     Ok((v, modified))
 }
@@ -2351,7 +2324,6 @@ async fn value_visitor_inner(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     var_graph: &VarGraph,
-    in_try: bool,
 ) -> Result<(JsValue, bool)> {
     // This check is just an optimization
     if v.get_defineable_name_len().is_some() {
@@ -2375,12 +2347,12 @@ async fn value_visitor_inner(
             _,
             box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
             args,
-        ) => require_resolve_visitor(origin, args, in_try).await?,
+        ) => require_resolve_visitor(origin, args).await?,
         JsValue::Call(
             _,
             box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
             args,
-        ) => require_context_visitor(origin, args, in_try).await?,
+        ) => require_context_visitor(origin, args).await?,
         JsValue::Call(
             _,
             box JsValue::WellKnownFunction(
@@ -2433,12 +2405,11 @@ async fn value_visitor_inner(
 async fn require_resolve_visitor(
     origin: Vc<Box<dyn ResolveOrigin>>,
     args: Vec<JsValue>,
-    in_try: bool,
 ) -> Result<JsValue> {
     Ok(if args.len() == 1 {
         let pat = js_value_to_pattern(&args[0]);
         let request = Request::parse(Value::new(pat.clone()));
-        let resolved = cjs_resolve(origin, request, None, try_to_severity(in_try))
+        let resolved = cjs_resolve(origin, request, None, IssueSeverity::Warning.cell())
             .resolve()
             .await?;
         let mut values = resolved
@@ -2480,7 +2451,6 @@ async fn require_resolve_visitor(
 async fn require_context_visitor(
     origin: Vc<Box<dyn ResolveOrigin>>,
     args: Vec<JsValue>,
-    in_try: bool,
 ) -> Result<JsValue> {
     let options = match parse_require_context(&args) {
         Ok(options) => options,
@@ -2506,7 +2476,7 @@ async fn require_context_visitor(
         options.include_subdirs,
         Vc::cell(options.filter),
         None,
-        try_to_severity(in_try),
+        IssueSeverity::Warning.cell(),
     );
 
     Ok(JsValue::WellKnownFunction(
