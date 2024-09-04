@@ -16174,11 +16174,11 @@
       "runtimeError": false
     },
     "test/production/generate-middleware-source-maps/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Middleware source maps generates a source map for Edge API",
         "Middleware source maps generates a source map for Middleware"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
