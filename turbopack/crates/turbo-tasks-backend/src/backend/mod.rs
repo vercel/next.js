@@ -6,6 +6,7 @@ use std::{
     collections::{HashMap, HashSet},
     future::Future,
     hash::BuildHasherDefault,
+    mem::take,
     pin::Pin,
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -74,7 +75,7 @@ pub enum TransientTask {
     /// happened after that. It may see these invalidations partially
     /// applied.
     /// Active until done. Automatically scheduled.
-    Once(tokio::sync::Mutex<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>),
+    Once(Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>),
 }
 
 pub struct TurboTasksBackend {
@@ -686,18 +687,16 @@ impl Backend for TurboTasksBackend {
             TaskType::Transient(task_type) => {
                 let task_type = task_type.clone();
                 let span = tracing::trace_span!("turbo_tasks::root_task");
-                let future = Box::pin(async move {
-                    match &*task_type {
-                        TransientTask::Root(f) => {
-                            let future = f();
-                            future.await
-                        }
-                        TransientTask::Once(future) => {
-                            let mut mutex_guard = future.lock().await;
-                            (&mut *mutex_guard).await
-                        }
+                let future = match &*task_type {
+                    TransientTask::Root(f) => {
+                        let future = f();
+                        future
                     }
-                }) as Pin<Box<dyn Future<Output = _> + Send + '_>>;
+                    TransientTask::Once(future_mutex) => {
+                        let future = take(&mut *future_mutex.lock())?;
+                        future
+                    }
+                };
                 (span, future)
             }
         };
@@ -958,7 +957,7 @@ impl Backend for TurboTasksBackend {
             task_id,
             Arc::new(match task_type {
                 TransientTaskType::Root(f) => TransientTask::Root(f),
-                TransientTaskType::Once(f) => TransientTask::Once(tokio::sync::Mutex::new(f)),
+                TransientTaskType::Once(f) => TransientTask::Once(Mutex::new(Some(f))),
             }),
         );
         {
