@@ -1,7 +1,7 @@
 'use client'
 // TODO: Evaluate import 'client only'
-import React, { useEffect } from 'react'
 import Script from 'next/script'
+import { useEffect } from 'react'
 
 import type { GTMParams } from '../types/google'
 
@@ -44,11 +44,16 @@ export function GoogleTagManager(props: GTMParams) {
         id="_next-gtm-init"
         dangerouslySetInnerHTML={{
           __html: `
-      (function(w,l){
-        w[l]=w[l]||[];
-        w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});
-        ${dataLayer ? `w[l].push(${JSON.stringify(dataLayer)})` : ''}
-      })(window,'${dataLayerName}');`,
+            (function(w,d,s,l,i){
+              w[l]=w[l]||[];
+              w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});
+              var f=d.getElementsByTagName(s)[0],
+              j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
+              j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;
+              var n=d.querySelector('[nonce]');
+              n&&j.setAttribute('nonce',n.nonce||n.getAttribute('nonce'));
+              f.parentNode.insertBefore(j,f);
+            })(window,document,'script','${dataLayerName}','${gtmId}');`,
         }}
         nonce={nonce}
       />
