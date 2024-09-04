@@ -21,15 +21,15 @@ const noError = async (pathname) => {
   await browser.eval(`(function() {
     window.caughtErrors = []
     const origError = window.console.error
-    window.console.error = function () {
-      window.caughtErrors.push(1)
+    window.console.error = function (format) {
+      window.caughtErrors.push(format)
       origError(arguments)
     }
     window.next.router.replace('${pathname}')
   })()`)
   await waitFor(1000)
-  const numErrors = await browser.eval(`window.caughtErrors.length`)
-  expect(numErrors).toBe(0)
+  const errors = await browser.eval(`window.caughtErrors`)
+  expect(errors).toEqual([])
   await browser.close()
 }
 
