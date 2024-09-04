@@ -68,15 +68,6 @@ impl<'de, T> Deserialize<'de> for State<T> {
     }
 }
 
-impl<T> Drop for State<T> {
-    fn drop(&mut self) {
-        let mut inner = self.inner.lock();
-        for invalidator in take(&mut inner.invalidators) {
-            invalidator.invalidate();
-        }
-    }
-}
-
 impl<T> State<T> {
     pub fn new(value: T) -> Self {
         mark_stateful();
