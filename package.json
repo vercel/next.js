@@ -99,7 +99,7 @@
     "@svgr/webpack": "5.5.0",
     "@swc/cli": "0.1.55",
     "@swc/core": "1.6.13",
-    "@swc/helpers": "0.5.12",
+    "@swc/helpers": "0.5.13",
     "@swc/types": "0.1.7",
     "@testing-library/jest-dom": "6.1.2",
     "@testing-library/react": "^15.0.5",
