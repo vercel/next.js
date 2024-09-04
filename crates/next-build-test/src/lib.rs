@@ -41,7 +41,7 @@ pub async fn main_inner(
         .run_once(async {
             let project = ProjectContainer::new("next-build-test".into(), options.dev);
             let project = project.resolve().await?;
-            project.await?.initialize(options);
+            project.initialize(options).await?;
             Ok(project)
         })
         .await?;

@@ -26,8 +26,8 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, IntoTraitRef, RcStr, State, TaskInput, TraitRef, TransientInstance,
-    TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, IntoTraitRef, RcStr, ReadRef, State, TaskInput, TraitRef,
+    TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -194,11 +194,23 @@ impl ProjectContainer {
 }
 
 impl ProjectContainer {
-    pub fn initialize(&self, options: ProjectOptions) {
-        self.options_state.set(Some(options));
+    pub async fn initialize(self: Vc<Self>, options: ProjectOptions) -> Result<()> {
+        self.await?.options_state.set(Some(options));
+        let project = self.project();
+        project
+            .project_fs()
+            .strongly_consistent()
+            .await?
+            .start_watching()?;
+        project
+            .output_fs()
+            .strongly_consistent()
+            .await?
+            .invalidate();
+        Ok(())
     }
 
-    pub fn update(&self, options: PartialProjectOptions) -> Result<()> {
+    pub async fn update(self: Vc<Self>, options: PartialProjectOptions) -> Result<()> {
         let PartialProjectOptions {
             root_path,
             project_path,
@@ -213,7 +225,9 @@ impl ProjectContainer {
             preview_props,
         } = options;
 
-        let mut new_options = self
+        let this = self.await?;
+
+        let mut new_options = this
             .options_state
             .get()
             .clone()
@@ -255,7 +269,21 @@ impl ProjectContainer {
 
         // TODO: Handle mode switch, should prevent mode being switched.
 
-        self.options_state.set(Some(new_options));
+        let project = self.project();
+        let prev_project_fs = project.project_fs().strongly_consistent().await?;
+        let prev_output_fs = project.output_fs().strongly_consistent().await?;
+
+        this.options_state.set(Some(new_options));
+        let project_fs = project.project_fs().strongly_consistent().await?;
+        let output_fs = project.output_fs().strongly_consistent().await?;
+
+        if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
+            // TODO stop watching: prev_project_fs.stop_watching()?;
+            project_fs.start_watching()?;
+        }
+        if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
+            prev_output_fs.invalidate();
+        }
 
         Ok(())
     }
@@ -479,7 +507,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn project_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+    async fn project_fs(self: Vc<Self>) -> Result<Vc<DiskFileSystem>> {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.into(),
@@ -489,7 +517,7 @@ impl Project {
         if this.watch {
             disk_fs.await?.start_watching_with_invalidation_reason()?;
         }
-        Ok(Vc::upcast(disk_fs))
+        Ok(disk_fs)
     }
 
     #[turbo_tasks::function]
@@ -499,10 +527,10 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn output_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+    pub async fn output_fs(self: Vc<Self>) -> Result<Vc<DiskFileSystem>> {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new("output".into(), this.project_path.clone(), vec![]);
-        Ok(Vc::upcast(disk_fs))
+        Ok(disk_fs)
     }
 
     #[turbo_tasks::function]
