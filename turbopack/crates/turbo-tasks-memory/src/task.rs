@@ -1,6 +1,5 @@
 use std::{
     borrow::Cow,
-    cell::RefCell,
     fmt::{self, Debug, Display, Formatter},
     future::Future,
     hash::{BuildHasherDefault, Hash},
@@ -17,14 +16,13 @@ use either::Either;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
-use tokio::task_local;
 use tracing::Span;
 use turbo_prehash::PreHashed;
 use turbo_tasks::{
     backend::{CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec},
     event::{Event, EventListener},
     get_invalidator, registry, CellId, Invalidator, RawVc, ReadConsistency, TaskId, TaskIdSet,
-    TraitTypeId, TurboTasksBackendApi, ValueTypeId,
+    TraitTypeId, TurboTasksBackendApi, TurboTasksBackendApiExt, ValueTypeId,
 };
 
 use crate::{
@@ -44,12 +42,6 @@ pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
 mod aggregation;
 mod meta_state;
-
-task_local! {
-    /// Cells/Outputs/Collectibles that are read during task execution
-    /// These will be stored as dependencies when the execution has finished
-    pub(crate) static DEPENDENCIES_TO_TRACK: RefCell<TaskEdgesSet>;
-}
 
 type OnceTaskFn = Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>;
 
@@ -966,7 +958,8 @@ impl Task {
             let mut change_job = None;
             let mut remove_job = None;
             let mut drained_cells = SmallVec::<[Cell; 8]>::new();
-            let dependencies = DEPENDENCIES_TO_TRACK.with(|deps| deps.take());
+            let dependencies = turbo_tasks
+                .write_task_state(|deps| std::mem::take(&mut deps.dependencies_to_track));
             {
                 let mut state = self.full_state_mut();
 
@@ -1343,11 +1336,13 @@ impl Task {
         }
     }
 
-    pub(crate) fn add_dependency_to_current(dep: TaskEdge) {
-        DEPENDENCIES_TO_TRACK.with(|list| {
-            let mut list = list.borrow_mut();
-            list.insert(dep);
-        })
+    pub(crate) fn add_dependency_to_current(
+        dep: TaskEdge,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) {
+        turbo_tasks.write_task_state(|ts| {
+            ts.dependencies_to_track.insert(dep);
+        });
     }
 
     /// Get an [Invalidator] that can be used to invalidate the current [Task]
