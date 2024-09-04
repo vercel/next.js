@@ -171,6 +171,8 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         f: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>;
+
+    fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send>>;
 }
 
 /// A wrapper around a value that is unused.
@@ -1335,6 +1337,13 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             ),
         ))
     }
+
+    fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
+        let this = self.pin();
+        Box::pin(async move {
+            this.stop_and_wait().await;
+        })
+    }
 }
 
 impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
@@ -1351,6 +1360,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
             this.backend.run_backend_job(id, &*this).await;
         })
     }
+
     #[track_caller]
     fn schedule_backend_foreground_job(&self, id: BackendJobId) {
         self.schedule_foreground_job(move |this| async move {
