@@ -27,6 +27,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import isError from '../lib/is-error'
 import type { NodeFileTraceReasons } from '@vercel/nft'
 import type { RoutesUsingEdgeRuntime } from './utils'
+import type { ExternalObject, TurboTasks } from './swc/generated'
 
 const debug = debugOriginal('next:build:build-traces')
 
@@ -107,7 +108,7 @@ export async function collectBuildTraces({
 }) {
   const startTime = Date.now()
   debug('starting build traces')
-  let turboTasksForTrace: unknown
+  let turboTasksForTrace: ExternalObject<TurboTasks>
   let bindings = await loadBindings()
 
   const runTurbotrace = async function () {

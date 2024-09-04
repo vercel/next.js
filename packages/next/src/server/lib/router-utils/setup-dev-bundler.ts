@@ -953,7 +953,7 @@ async function startWatcher(opts: SetupOpts) {
                   file: frameFile,
                   methodName: frame.methodName,
                   line: frame.lineNumber ?? 0,
-                  column: frame.column,
+                  column: frame.column ?? undefined,
                   isServer: true,
                 }
               )
@@ -1124,7 +1124,7 @@ async function traceTurbopackErrorStack(
           file: f.file!,
           methodName: f.methodName,
           line: f.lineNumber ?? 0,
-          column: f.column,
+          column: f.column ?? undefined,
           isServer: true,
         })
 
