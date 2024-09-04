@@ -85,7 +85,7 @@ impl RawVc {
     pub fn is_transient(&self) -> bool {
         match self {
             RawVc::TaskOutput(task) | RawVc::TaskCell(task, _) => task.is_transient(),
-            RawVc::LocalCell(_, _) => true,
+            RawVc::LocalOutput(_, _) | RawVc::LocalCell(_, _) => true,
         }
     }
 
