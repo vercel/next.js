@@ -716,7 +716,7 @@ async fn dir_dependency_shallow(glob: Vc<ReadGlobResult>) -> Result<Vc<Completio
         // Reading all files to add itself as dependency
         match *item {
             DirectoryEntry::File(file) => {
-                file.track().await?;
+                file.read().await?;
             }
             DirectoryEntry::Directory(dir) => {
                 dir_dependency(dir.read_glob(Glob::new("**".into()), false)).await?;
