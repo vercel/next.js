@@ -6,9 +6,11 @@ use std::{
 };
 
 use auto_hash_map::{map::Entry, AutoMap};
-use dashmap::{mapref::one::RefMut, DashMap};
+use dashmap::DashMap;
 use rustc_hash::FxHasher;
 use turbo_tasks::KeyValuePair;
+
+use crate::utils::dash_map_multi::{get_multiple_mut, RefMut};
 
 pub struct InnerStorage<T: KeyValuePair> {
     // TODO consider adding some inline storage
@@ -120,7 +122,21 @@ where
             dashmap::mapref::entry::Entry::Occupied(e) => e.into_ref(),
             dashmap::mapref::entry::Entry::Vacant(e) => e.insert(InnerStorage::new()),
         };
-        StorageWriteGuard { inner }
+        StorageWriteGuard {
+            inner: inner.into(),
+        }
+    }
+
+    pub fn access_pair_mut(
+        &self,
+        key1: K,
+        key2: K,
+    ) -> (StorageWriteGuard<'_, K, T>, StorageWriteGuard<'_, K, T>) {
+        let (a, b) = get_multiple_mut(&self.map, key1, key2, || InnerStorage::new());
+        (
+            StorageWriteGuard { inner: a },
+            StorageWriteGuard { inner: b },
+        )
     }
 }
 

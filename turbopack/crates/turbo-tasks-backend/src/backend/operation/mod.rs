@@ -58,6 +58,22 @@ impl<'a> ExecuteContext<'a> {
         }
     }
 
+    pub fn task_pair(&self, task_id1: TaskId, task_id2: TaskId) -> (TaskGuard<'a>, TaskGuard<'a>) {
+        let (task1, task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
+        (
+            TaskGuard {
+                task: task1,
+                task_id: task_id1,
+                backend: self.backend,
+            },
+            TaskGuard {
+                task: task2,
+                task_id: task_id2,
+                backend: self.backend,
+            },
+        )
+    }
+
     pub fn schedule(&self, task_id: TaskId) {
         self.turbo_tasks.schedule(task_id);
     }
