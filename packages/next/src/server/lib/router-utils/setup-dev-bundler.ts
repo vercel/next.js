@@ -9,7 +9,8 @@ import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/midd
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
-import { createDefineEnv, type Project } from '../../../build/swc'
+import { createDefineEnv } from '../../../build/swc'
+import type { Project } from '../../../build/swc/types'
 import fs from 'fs'
 import { mkdir } from 'fs/promises'
 import url from 'url'

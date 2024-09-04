@@ -179,7 +179,10 @@ export function projectNew(
 export function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
-): { __napiType: 'Project' }
+): Promise<void>
+export function projectShutdown(project: {
+  __napiType: 'Project'
+}): Promise<void>
 export interface AppPageNapiRoute {
   /** The relative path from project_path to the route file */
   originalName?: string
