@@ -97,7 +97,7 @@ let data = await fetch('https://api.vercel.app/blog', { cache: 'no-store' })
 
 ### Fetching data on the server with an ORM or database
 
-This page will be SSG by default. The page will be prerendered during `next build`. Can be revalidated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
+This page will be SSG by default. The page will be prerendered during `next build`. It can be revalidated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
 
 ```tsx filename="app/page.tsx" switcher
 import { db, posts } from '@/lib/db'
