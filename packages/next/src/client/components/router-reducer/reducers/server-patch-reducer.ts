@@ -39,11 +39,10 @@ export function serverPatchReducer(
   let currentTree = state.tree
   let currentCache = state.cache
 
-  for (const flightDataPath of flightData) {
-    // Slices off the last segment (which is at -4) as it doesn't exist in the tree yet
-    const flightSegmentPath = flightDataPath.slice(0, -4)
+  for (const normalizedFlightData of flightData) {
+    const { segmentPath: flightSegmentPath, tree: treePatch } =
+      normalizedFlightData
 
-    const [treePatch] = flightDataPath.slice(-3, -2)
     const newTree = applyRouterStatePatchToTree(
       // TODO-APP: remove ''
       ['', ...flightSegmentPath],
@@ -74,7 +73,7 @@ export function serverPatchReducer(
     }
 
     const cache: CacheNode = createEmptyCacheNode()
-    applyFlightData(currentCache, cache, flightDataPath)
+    applyFlightData(currentCache, cache, normalizedFlightData)
 
     mutable.patchedTree = newTree
     mutable.cache = cache

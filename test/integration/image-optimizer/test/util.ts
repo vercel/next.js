@@ -8,7 +8,6 @@ import {
   fetchViaHTTP,
   File,
   findPort,
-  getFetchUrl,
   killApp,
   launchApp,
   nextBuild,
@@ -1041,22 +1040,28 @@ export function runTests(ctx: RunTestsCtx) {
       expect(await res.text()).toBe(`"url" parameter is invalid`)
     })
 
-    it('should fail with absolute next image url', async () => {
-      const fullUrl = getFetchUrl(
-        ctx.appPort,
-        '/_next/image?url=test.pngw=1&q=1'
-      )
-      const query = { url: fullUrl, w: ctx.w, q: 1 }
-      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
-      expect(res.status).toBe(400)
-      expect(await res.text()).toBe(`"url" parameter cannot be recursive`)
-    })
+    if (domains.length > 0) {
+      it('should pass with absolute next image url', async () => {
+        const fullUrl =
+          'https://image-optimization-test.vercel.app/_next/image?url=%2Ffrog.jpg&w=1024&q=75'
+        const query = { url: fullUrl, w: ctx.w, q: 1 }
+        const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+        expect(res.status).toBe(200)
+        await expectWidth(res, ctx.w)
+      })
+    } else {
+      it('should fail with absolute next image url', async () => {
+        const fullUrl =
+          'https://image-optimization-test.vercel.app/_next/image?url=%2Ffrog.jpg&w=1024&q=75'
+        const query = { url: fullUrl, w: ctx.w, q: 1 }
+        const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+        expect(res.status).toBe(400)
+        expect(await res.text()).toBe(`"url" parameter is not allowed`)
+      })
+    }
 
     it('should fail with relative image url with assetPrefix', async () => {
-      const fullUrl = getFetchUrl(
-        ctx.appPort,
-        `/assets/_next/image?url=test.pngw=1&q=1`
-      )
+      const fullUrl = '/assets/_next/image?url=%2Ftest.png&w=128&q=75'
       const query = { url: fullUrl, w: ctx.w, q: 1 }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
       expect(res.status).toBe(400)

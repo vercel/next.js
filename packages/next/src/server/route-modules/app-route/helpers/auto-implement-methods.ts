@@ -9,7 +9,7 @@ export function autoImplementMethods(
   handlers: AppRouteHandlers
 ): Record<HTTP_METHOD, AppRouteHandlerFn> {
   // Loop through all the HTTP methods to create the initial methods object.
-  // Each of the methods will be set to the the 405 response handler.
+  // Each of the methods will be set to the 405 response handler.
   const methods: Record<HTTP_METHOD, AppRouteHandlerFn> = HTTP_METHODS.reduce(
     (acc, method) => ({
       ...acc,

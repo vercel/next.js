@@ -31,6 +31,13 @@ describe('searchparams-reuse-loading', () => {
     expect(await newSearchValue.text()).toBe('Search Value: another')
   })
 
+  it('should properly render root page with searchParams when prefetch is aliased', async () => {
+    const browser = await next.browser('/search-params')
+    await browser.elementByCss("[href='/?id=1']").click()
+    const params = await browser.waitForElementByCss('#root-params').text()
+    expect(params).toBe('{"id":"1"}')
+  })
+
   // Dev doesn't perform prefetching, so this test is skipped, as it relies on intercepting
   // prefetch network requests.
   if (!isNextDev) {
