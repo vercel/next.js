@@ -97,7 +97,7 @@ let data = await fetch('https://api.vercel.app/blog', { cache: 'no-store' })
 
 ### Fetching data on the server with an ORM or database
 
-This component will always fetch and display a dynamic, up-to-date list of blog posts.
+This page will be SSG by default. The page will be prerendered during `next build`. It can be revalidated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
 
 ```tsx filename="app/page.tsx" switcher
 import { db, posts } from '@/lib/db'
@@ -129,7 +129,7 @@ export default async function Page() {
 }
 ```
 
-The database call is _not_ cached. This example would opt your Next.js application into [server-side rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering). If you want to cache the response and allow the page to be prerendered, [see this example](#caching-data-with-an-orm-or-database).
+The database call will run again every time you revalidate the page using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
 
 ### Fetching data on the client
 
