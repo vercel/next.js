@@ -213,7 +213,7 @@ interface PatchableModule {
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }
 
-function createPatchedFetcher(
+export function createPatchedFetcher(
   originFetch: Fetcher,
   {
     serverHooks: { DynamicServerError },
@@ -464,13 +464,14 @@ function createPatchedFetcher(
           revalidate === false
 
         let cacheKey: string | undefined
-        if (staticGenerationStore.incrementalCache && isCacheableRevalidate) {
+        const { incrementalCache } = staticGenerationStore
+
+        if (incrementalCache && isCacheableRevalidate) {
           try {
-            cacheKey =
-              await staticGenerationStore.incrementalCache.fetchCacheKey(
-                fetchUrl,
-                isRequestInput ? (input as RequestInit) : init
-              )
+            cacheKey = await incrementalCache.fetchCacheKey(
+              fetchUrl,
+              isRequestInput ? (input as RequestInit) : init
+            )
           } catch (err) {
             console.error(`Failed to generate cache key for`, input)
           }
@@ -481,6 +482,8 @@ function createPatchedFetcher(
 
         const normalizedRevalidate =
           typeof revalidate !== 'number' ? CACHE_ONE_YEAR : revalidate
+
+        let handleUnlock = () => Promise.resolve()
 
         const doOriginalFetch = async (
           isStale?: boolean,
@@ -531,6 +534,8 @@ function createPatchedFetcher(
             next: { ...init?.next, fetchType: 'origin', fetchIdx },
           }
 
+          let deferUnlockUntilCacheIsSet = false
+
           return originFetch(input, clonedInit).then(async (res) => {
             if (!isStale) {
               trackFetchMetric(staticGenerationStore, {
@@ -545,60 +550,69 @@ function createPatchedFetcher(
             }
             if (
               res.status === 200 &&
-              staticGenerationStore.incrementalCache &&
+              incrementalCache &&
               cacheKey &&
               isCacheableRevalidate
             ) {
-              const bodyBuffer = Buffer.from(await res.arrayBuffer())
+              // Backport Notes: Previously this was gated behind `isCacheableRevalidate` because
+              // it was possible to flow into here in the HMR cache branch. Since that doesn't exist,
+              // we can simplify this to always set this to true if we're in here.
+              deferUnlockUntilCacheIsSet = true
 
-              try {
-                await staticGenerationStore.incrementalCache.set(
-                  cacheKey,
-                  {
-                    kind: 'FETCH',
-                    data: {
-                      headers: Object.fromEntries(res.headers.entries()),
-                      body: bodyBuffer.toString('base64'),
-                      status: res.status,
-                      url: res.url,
-                    },
-                    revalidate: normalizedRevalidate,
-                  },
-                  {
-                    fetchCache: true,
-                    revalidate,
-                    fetchUrl,
-                    fetchIdx,
-                    tags,
+              res
+                .clone()
+                .arrayBuffer()
+                .then(async (arrayBuffer) => {
+                  const bodyBuffer = Buffer.from(arrayBuffer)
+
+                  const fetchedData = {
+                    headers: Object.fromEntries(res.headers.entries()),
+                    body: bodyBuffer.toString('base64'),
+                    status: res.status,
+                    url: res.url,
                   }
-                )
-              } catch (err) {
-                console.warn(`Failed to set fetch cache`, input, err)
-              }
 
-              const response = new Response(bodyBuffer, {
-                headers: new Headers(res.headers),
-                status: res.status,
-              })
-              Object.defineProperty(response, 'url', { value: res.url })
-              return response
+                  if (isCacheableRevalidate) {
+                    await incrementalCache.set(
+                      cacheKey!,
+                      {
+                        kind: 'FETCH',
+                        data: fetchedData,
+                        revalidate: normalizedRevalidate,
+                      },
+                      {
+                        fetchCache: true,
+                        revalidate: curRevalidate,
+                        fetchUrl,
+                        fetchIdx,
+                        tags,
+                      }
+                    )
+                  }
+                })
+                .catch((error) =>
+                  console.warn(`Failed to set fetch cache`, input, error)
+                )
+                .finally(handleUnlock)
             }
+
+            if (!deferUnlockUntilCacheIsSet) {
+              await handleUnlock()
+            }
+
             return res
           })
         }
 
-        let handleUnlock = () => Promise.resolve()
         let cacheReasonOverride
         let isForegroundRevalidate = false
 
-        if (cacheKey && staticGenerationStore.incrementalCache) {
-          handleUnlock = await staticGenerationStore.incrementalCache.lock(
-            cacheKey
-          )
+        if (cacheKey && incrementalCache) {
+          handleUnlock = await incrementalCache.lock(cacheKey)
 
           const entry = staticGenerationStore.isOnDemandRevalidate
             ? null
-            : await staticGenerationStore.incrementalCache.get(cacheKey, {
+            : await incrementalCache.get(cacheKey, {
                 kindHint: 'fetch',
                 revalidate,
                 fetchUrl,
@@ -738,15 +752,12 @@ function createPatchedFetcher(
             return res.clone()
           }
           return (staticGenerationStore.pendingRevalidates[cacheKey] =
-            doOriginalFetch(true, cacheReasonOverride).finally(async () => {
+            doOriginalFetch(true, cacheReasonOverride).finally(() => {
               staticGenerationStore.pendingRevalidates ??= {}
               delete staticGenerationStore.pendingRevalidates[cacheKey || '']
-              await handleUnlock()
             }))
         } else {
-          return doOriginalFetch(false, cacheReasonOverride).finally(
-            handleUnlock
-          )
+          return doOriginalFetch(false, cacheReasonOverride)
         }
       }
     )
