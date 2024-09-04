@@ -74,12 +74,12 @@ You can use `digest` property on error to help identify the actual error type.
 ```ts filename="instrumentation.ts" switcher
 import { type Instrumentation } from 'next'
 
-export const onRequestError: Instrumentation.onRequestError = (
+export const onRequestError: Instrumentation.onRequestError = async (
   err,
   request,
   context
 ) => {
-  return fetch('https://.../report-error', {
+  await fetch('https://.../report-error', {
     method: 'POST',
     body: JSON.stringify({
       message: err.message,
@@ -94,8 +94,8 @@ export const onRequestError: Instrumentation.onRequestError = (
 ```
 
 ```js filename="instrumentation.js" switcher
-export function onRequestError(err, request, context) {
-  return fetch('https://.../report-error', {
+export async function onRequestError(err, request, context) {
+  await fetch('https://.../report-error', {
     method: 'POST',
     body: JSON.stringify({
       message: err.message,
@@ -132,7 +132,7 @@ export function onRequestError(
     revalidateReason: 'on-demand' | 'stale' | undefined // undefined is a normal request without revalidation
     renderType: 'dynamic' | 'dynamic-resume' // 'dynamic-resume' for PPR
   }
-)
+): void | Promise<void>
 ```
 
 - `error`: The caught error itself (type is always `Error`), and a `digest` property which is the unique ID of the error.
