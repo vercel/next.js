@@ -5703,6 +5703,14 @@
     }
     function finishRenderingHooks(current, workInProgress) {
       workInProgress._debugHookTypes = hookTypesDev;
+      null === workInProgress.dependencies
+        ? null !== thenableState &&
+          (workInProgress.dependencies = {
+            lanes: 0,
+            firstContext: null,
+            _debugThenableState: thenableState
+          })
+        : (workInProgress.dependencies._debugThenableState = thenableState);
       ReactSharedInternals.H = ContextOnlyDispatcher;
       var didRenderTooFewHooks =
         null !== currentHook && null !== currentHook.next;
@@ -10103,7 +10111,11 @@
               "Context can only be read while React is rendering. In classes, you can read it in the render method or getDerivedStateFromProps. In function components, you can read it directly in the function body, but not inside Hooks like useReducer() or useMemo()."
             );
           lastContextDependency = context;
-          consumer.dependencies = { lanes: 0, firstContext: context };
+          consumer.dependencies = {
+            lanes: 0,
+            firstContext: context,
+            _debugThenableState: null
+          };
         } else lastContextDependency = lastContextDependency.next = context;
       return value;
     }
@@ -13002,7 +13014,8 @@
           ? null
           : {
               lanes: pendingProps.lanes,
-              firstContext: pendingProps.firstContext
+              firstContext: pendingProps.firstContext,
+              _debugThenableState: pendingProps._debugThenableState
             };
       workInProgress.sibling = current.sibling;
       workInProgress.index = current.index;
@@ -13055,7 +13068,8 @@
               ? null
               : {
                   lanes: renderLanes.lanes,
-                  firstContext: renderLanes.firstContext
+                  firstContext: renderLanes.firstContext,
+                  _debugThenableState: renderLanes._debugThenableState
                 }),
           (workInProgress.selfBaseDuration = current.selfBaseDuration),
           (workInProgress.treeBaseDuration = current.treeBaseDuration));
@@ -24278,11 +24292,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-rc-7771d3a7-20240827" !== isomorphicReactPackageVersion)
+      if ("19.0.0-rc-d1afcb43-20240903" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-rc-7771d3a7-20240827\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-rc-d1afcb43-20240903\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -24319,11 +24333,11 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.0.0-rc-7771d3a7-20240827",
+          version: "19.0.0-rc-d1afcb43-20240903",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
           findFiberByHostInstance: getClosestInstanceFromNode,
-          reconcilerVersion: "19.0.0-rc-7771d3a7-20240827"
+          reconcilerVersion: "19.0.0-rc-d1afcb43-20240903"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -24797,7 +24811,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.0.0-rc-7771d3a7-20240827";
+    exports.version = "19.0.0-rc-d1afcb43-20240903";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
