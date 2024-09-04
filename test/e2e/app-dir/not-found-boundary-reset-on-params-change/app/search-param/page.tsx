@@ -9,9 +9,5 @@ export default function Test({ searchParams }) {
   }
 
   const id = 'q' in searchParams ? `sp-${searchParams['q']}` : 'no-query'
-  return (
-    <>
-      <p id={id}>search param page</p>
-    </>
-  )
+  return <p id={id}>search param page</p>
 }

@@ -1,14 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('app dir - not-found - search-params-change', () => {
-  const { next, skipped } = nextTestSetup({
+describe('not-found-boundary-reset-on-params-change', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should reset not found error boundary when query params change', async () => {
     let browser = await next.browser('/')
@@ -58,8 +53,8 @@ describe('app dir - not-found - search-params-change', () => {
     }
   })
 
-  it('should return 404 status code for custom not-found page', async () => {
-    const res = await next.fetch('/_not-found')
+  it('should return 404 status code when directly visiting not-found triggering page', async () => {
+    const res = await next.fetch('/search-param?q=404')
     expect(res.status).toBe(404)
   })
 })
