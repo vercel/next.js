@@ -16290,11 +16290,11 @@
     },
     "test/production/next-font/telemetry.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "next/font unused telemetry should not send next/font/google and next/font/local usage event",
         "next/font used telemetry should send next/font/google and next/font/local usage event"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
