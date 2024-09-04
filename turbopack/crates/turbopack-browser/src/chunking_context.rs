@@ -1,3 +1,5 @@
+use std::iter::once;
+
 use anyhow::{bail, Context, Result};
 use tracing::Instrument;
 use turbo_tasks::{RcStr, Value, ValueToString, Vc};
@@ -476,14 +478,67 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn entry_chunk_group(
+    pub async fn entry_chunk_group(
         self: Vc<Self>,
-        _path: Vc<FileSystemPath>,
-        _module: Vc<Box<dyn Module>>,
-        _evaluatable_assets: Vc<EvaluatableAssets>,
-        _availability_info: Value<AvailabilityInfo>,
+        path: Vc<FileSystemPath>,
+        module: Vc<Box<dyn Module>>,
+        evaluatable_assets: Vc<EvaluatableAssets>,
+        availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EntryChunkGroupResult>> {
-        bail!("Browser chunking context does not support entry chunk groups")
+        let availability_info = availability_info.into_value();
+
+        let MakeChunkGroupResult {
+            chunks,
+            availability_info,
+        } = make_chunk_group(
+            Vc::upcast(self),
+            // TODO should `module` be added here?
+            once(module).chain(
+                evaluatable_assets
+                    .await?
+                    .iter()
+                    .map(|&asset| Vc::upcast(asset)),
+            ),
+            availability_info,
+        )
+        .await?;
+
+        let other_chunks: Vec<_> = chunks
+            .iter()
+            .map(|chunk| self.generate_chunk(*chunk))
+            .collect();
+
+        // TODO ?
+        // if this.enable_hot_module_replacement {
+        //     assets.push(self.generate_chunk_list_register_chunk(
+        //         ident,
+        //         evaluatable_assets,
+        //         other_assets,
+        //         Value::new(EcmascriptDevChunkListSource::Entry),
+        //     ));
+        // }
+
+        // let Some(module) = Vc::try_resolve_downcast(module).await? else {
+        //     bail!("module must be placeable in an ecmascript chunk");
+        // };
+        // let asset = Vc::upcast(EcmascriptBuildNodeEntryChunk::new(
+        //     path,
+        //     self,
+        //     Vc::cell(other_chunks),
+        //     evaluatable_assets,
+        //     module,
+        // ));
+        let asset = self.generate_evaluate_chunk(
+            AssetIdent::from_path(path),
+            Vc::cell(other_chunks),
+            evaluatable_assets,
+        );
+
+        Ok(EntryChunkGroupResult {
+            asset,
+            availability_info,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
