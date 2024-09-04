@@ -609,7 +609,7 @@ impl Backend for TurboTasksBackend {
 
         let task_type = Arc::new(task_type);
         let task_id = self.transient_task_id_factory.get();
-        if let Err(existing_task_id) = self.task_cache.try_insert(task_type, task_id) {
+        if let Err(existing_task_id) = self.task_cache.try_insert(task_type.clone(), task_id) {
             // Safety: We just created the id and failed to insert it.
             unsafe {
                 self.transient_task_id_factory.reuse(task_id);
@@ -617,6 +617,8 @@ impl Backend for TurboTasksBackend {
             self.connect_child(parent_task, existing_task_id, turbo_tasks);
             return existing_task_id;
         }
+
+        println!("{task_id} {task_type:?}");
 
         self.connect_child(parent_task, task_id, turbo_tasks);
 

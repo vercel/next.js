@@ -61,10 +61,14 @@ impl Operation for InvalidateOperation {
 pub fn make_task_dirty(task_id: TaskId, queue: &mut AggregationUpdateQueue, ctx: &ExecuteContext) {
     let mut task = ctx.task(task_id);
 
+    println!("make_task_dirty {:?}", task_id);
+
     if task.add(CachedDataItem::Dirty { value: () }) {
         queue.push(AggregationUpdateJob::DataUpdate {
             task_id,
             update: AggregatedDataUpdate::dirty_task(task_id),
         })
+    } else {
+        println!("already dirty");
     }
 }
