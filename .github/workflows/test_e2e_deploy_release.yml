@@ -54,8 +54,10 @@ jobs:
         NEXT_TEST_SWC_PACKAGE_NAME="@next/swc-linux-x64-gnu"
         NEXT_TEST_SWC_PACKAGE_VERSION="https://vercel-packages.vercel.app/next/commits/${{ github.sha }}/@next/swc-linux-x64-gnu"
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json"
+        NEXT_TEST_CONTINUE_ON_ERROR="1"
         node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
       skipNativeBuild: 'yes'
+      skipNativeInstall: 'yes'
       stepName: 'test-deploy-${{ matrix.group }}'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
