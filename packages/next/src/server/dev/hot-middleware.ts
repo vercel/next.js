@@ -106,14 +106,20 @@ export class WebpackHotMiddleware {
   serverLatestStats: { ts: number; stats: webpack.Stats } | null
   closed: boolean
   versionInfo: VersionInfo
+  devtoolsFrontendUrl: string | undefined
 
-  constructor(compilers: webpack.Compiler[], versionInfo: VersionInfo) {
+  constructor(
+    compilers: webpack.Compiler[],
+    versionInfo: VersionInfo,
+    devtoolsFrontendUrl: string | undefined
+  ) {
     this.eventStream = new EventStream()
     this.clientLatestStats = null
     this.middlewareLatestStats = null
     this.serverLatestStats = null
     this.closed = false
     this.versionInfo = versionInfo
+    this.devtoolsFrontendUrl = devtoolsFrontendUrl
 
     compilers[0].hooks.invalid.tap(
       'webpack-hot-middleware',
@@ -171,6 +177,7 @@ export class WebpackHotMiddleware {
 
   onEdgeServerDone = (statsResult: webpack.Stats) => {
     if (!isMiddlewareStats(statsResult)) {
+      this.onServerInvalid()
       this.onServerDone(statsResult)
       return
     }
@@ -209,6 +216,9 @@ export class WebpackHotMiddleware {
           ...(middlewareStats.warnings || []),
         ],
         versionInfo: this.versionInfo,
+        debug: {
+          devtoolsFrontendUrl: this.devtoolsFrontendUrl,
+        },
       })
     }
   }

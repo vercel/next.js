@@ -61,7 +61,7 @@ export function generateViewport({ params }) {
 
 > **Good to know**:
 >
-> - If the viewport doesn't depend on runtime information, it should be defined using the static [`viewport` object](#the-viewport-object) rather than `generateMetadata`.
+> - If the viewport doesn't depend on runtime information, it should be defined using the static [`viewport` object](#the-viewport-object) rather than `generateViewport`.
 
 ## Viewport Fields
 
@@ -118,7 +118,7 @@ export const viewport = {
 
 ### `width`, `initialScale`, `maximumScale` and `userScalable`
 
-> **Good to know**: The `viewport` meta tag is automatically set with the following default values. Usually, manual configuration is unnecessary as the default is sufficient. However, the information is provided for completeness.
+> **Good to know**: The `viewport` meta tag is automatically set, and manual configuration is usually unnecessary as the default is sufficient. However, the information is provided for completeness.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
 import type { Viewport } from 'next'

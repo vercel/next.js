@@ -66,13 +66,13 @@ const formatDuration = (duration, isBold) => {
   } else if (duration < 1_000_000) {
     return color(cyan(`${Math.round(duration / 1000)} ms`))
   } else if (duration < 10_000_000) {
-    return color(green(`${Math.round(duration / 100000) / 10}s`))
+    return color(green(`${Math.round(duration / 100000) / 10} s`))
   } else if (duration < 20_000_000) {
-    return color(yellow(`${Math.round(duration / 1000000)}s`))
+    return color(yellow(`${Math.round(duration / 1000000)} s`))
   } else if (duration < 100_000_000) {
-    return color(red(`${Math.round(duration / 1000000)}s`))
+    return color(red(`${Math.round(duration / 1000000)} s`))
   } else {
-    return color('🔥' + red(`${Math.round(duration / 1000000)}s`))
+    return color('🔥' + red(`${Math.round(duration / 1000000)} s`))
   }
 }
 

@@ -10,7 +10,7 @@ import {
   launchApp,
   killApp,
   nextBuild,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -48,26 +48,27 @@ describe('jsconfig.json baseurl', () => {
       const basicPage = join(appDir, 'pages/hello.js')
       const contents = await fs.readFile(basicPage, 'utf8')
 
-      await fs.writeFile(
-        basicPage,
-        contents.replace('components/world', 'components/worldd')
-      )
-      await renderViaHTTP(appPort, '/hello')
+      try {
+        await fs.writeFile(
+          basicPage,
+          contents.replace('components/world', 'components/worldd')
+        )
 
-      const found = await check(
-        () => stripAnsi(output),
-        process.env.TURBOPACK
-          ? /unable to resolve module "components\/worldd"/
-          : /Module not found: Can't resolve 'components\/worldd'/,
-        false
-      )
-      await fs.writeFile(basicPage, contents)
-      expect(found).toBe(true)
+        await retry(async () => {
+          await renderViaHTTP(appPort, '/hello')
+          const strippedOutput = stripAnsi(output)
+          expect(strippedOutput).toMatch(
+            /Module not found: Can't resolve 'components\/worldd'/
+          )
+        })
+      } finally {
+        await fs.writeFile(basicPage, contents)
+      }
     })
   })
 
   describe('should build', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {

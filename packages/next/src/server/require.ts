@@ -1,6 +1,5 @@
 import path from 'path'
 import {
-  FONT_MANIFEST,
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
   APP_PATHS_MANIFEST,
@@ -13,7 +12,6 @@ import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { loadManifest } from './load-manifest'
 import { promises } from 'fs'
-import type { FontManifest } from './font-utils'
 
 const isDev = process.env.NODE_ENV === 'development'
 const pagePathCache = !isDev
@@ -105,11 +103,11 @@ export function getPagePath(
   return pagePath
 }
 
-export function requirePage(
+export async function requirePage(
   page: string,
   distDir: string,
   isAppPath: boolean
-): any {
+): Promise<any> {
   const pagePath = getPagePath(page, distDir, undefined, isAppPath)
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8').catch((err) => {
@@ -129,12 +127,4 @@ export function requirePage(
   } finally {
     process.env.__NEXT_PRIVATE_RUNTIME_TYPE = ''
   }
-}
-
-export function requireFontManifest(distDir: string) {
-  const serverBuildPath = path.join(distDir, SERVER_DIRECTORY)
-  const fontManifest = loadManifest(
-    path.join(serverBuildPath, FONT_MANIFEST)
-  ) as FontManifest
-  return fontManifest
 }

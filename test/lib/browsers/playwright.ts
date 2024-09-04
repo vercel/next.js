@@ -9,7 +9,7 @@ import {
   Page,
   ElementHandle,
   devices,
-} from 'playwright-chromium'
+} from 'playwright'
 import path from 'path'
 
 let page: Page
@@ -20,6 +20,12 @@ let pageLogs: Array<{ source: string; message: string }> = []
 let websocketFrames: Array<{ payload: string | Buffer }> = []
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
+
+const defaultTimeout = process.env.NEXT_E2E_TEST_TIMEOUT
+  ? parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)
+  : // In development mode, compilation can take longer due to lower CPU
+    // availability in GitHub Actions.
+    60 * 1000
 
 // loose global to register teardown functions before quitting the browser instance.
 // This is due to `quit` can be called anytime outside of BrowserInterface's lifecycle,
@@ -49,12 +55,9 @@ export class Playwright extends BrowserInterface {
   private activeTrace?: string
   private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
     request: new Set(),
+    response: new Set(),
   }
-  private async initContextTracing(
-    url: string,
-    page: Page,
-    context: BrowserContext
-  ) {
+  private async initContextTracing(url: string, context: BrowserContext) {
     if (!tracePlaywright) {
       return
     }
@@ -69,17 +72,13 @@ export class Playwright extends BrowserInterface {
         sources: true,
       })
       this.activeTrace = encodeURIComponent(url)
-
-      page.on('close', async () => {
-        await teardown(this.teardownTracing.bind(this))
-      })
     } catch (e) {
       this.activeTrace = undefined
     }
   }
 
   private async teardownTracing() {
-    if (!tracePlaywright || !this.activeTrace) {
+    if (!this.activeTrace) {
       return
     }
 
@@ -163,6 +162,11 @@ export class Playwright extends BrowserInterface {
     contextHasJSEnabled = javaScriptEnabled
   }
 
+  async close(): Promise<void> {
+    await teardown(this.teardownTracing.bind(this))
+    await page?.close()
+  }
+
   async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
     if (browserName === 'safari') {
       return await webkit.launch(launchOptions)
@@ -201,18 +205,18 @@ export class Playwright extends BrowserInterface {
       beforePageLoad?: (...args: any[]) => void
     }
   ) {
+    await this.close()
+
     // clean-up existing pages
     for (const oldPage of context.pages()) {
       await oldPage.close()
     }
 
+    await this.initContextTracing(url, context)
     page = await context.newPage()
-    await this.initContextTracing(url, page, context)
 
-    // in development compilation can take longer due to
-    // lower CPU availability in GH actions
-    page.setDefaultTimeout(60 * 1000)
-    page.setDefaultNavigationTimeout(60 * 1000)
+    page.setDefaultTimeout(defaultTimeout)
+    page.setDefaultNavigationTimeout(defaultTimeout)
 
     pageLogs = []
     websocketFrames = []
@@ -221,7 +225,7 @@ export class Playwright extends BrowserInterface {
       console.log('browser log:', msg)
       pageLogs.push({ source: msg.type(), message: msg.text() })
     })
-    page.on('crash', (page) => {
+    page.on('crash', () => {
       console.error('page crashed')
     })
     page.on('pageerror', (error) => {
@@ -233,6 +237,9 @@ export class Playwright extends BrowserInterface {
     })
     page.on('request', (req) => {
       this.eventCallbacks.request.forEach((cb) => cb(req))
+    })
+    page.on('response', (res) => {
+      this.eventCallbacks.response.forEach((cb) => cb(res))
     })
 
     if (opts?.disableCache) {
@@ -277,31 +284,25 @@ export class Playwright extends BrowserInterface {
     await page.goto(url, { waitUntil: 'load' })
   }
 
-  back(options): BrowserInterface {
+  back(options) {
     return this.chain(async () => {
       await page.goBack(options)
     })
   }
-  forward(options): BrowserInterface {
+  forward(options) {
     return this.chain(async () => {
       await page.goForward(options)
     })
   }
-  refresh(): BrowserInterface {
+  refresh() {
     return this.chain(async () => {
       await page.reload()
     })
   }
-  setDimensions({
-    width,
-    height,
-  }: {
-    height: number
-    width: number
-  }): BrowserInterface {
+  setDimensions({ width, height }: { height: number; width: number }) {
     return this.chain(() => page.setViewportSize({ width, height }))
   }
-  addCookie(opts: { name: string; value: string }): BrowserInterface {
+  addCookie(opts: { name: string; value: string }) {
     return this.chain(async () =>
       context.addCookies([
         {
@@ -312,7 +313,7 @@ export class Playwright extends BrowserInterface {
       ])
     )
   }
-  deleteCookies(): BrowserInterface {
+  deleteCookies() {
     return this.chain(async () => context.clearCookies())
   }
 
@@ -370,21 +371,21 @@ export class Playwright extends BrowserInterface {
     }) as any
   }
 
-  async getAttribute<T = any>(attr) {
-    return this.chain((el: ElementHandleExt) => el.getAttribute(attr)) as T
+  async getAttribute(attr) {
+    return this.chain((el: ElementHandleExt) => el.getAttribute(attr))
   }
 
   hasElementByCssSelector(selector: string) {
     return this.eval<boolean>(`!!document.querySelector('${selector}')`)
   }
 
-  keydown(key: string): BrowserInterface {
+  keydown(key: string) {
     return this.chain((el: ElementHandleExt) => {
       return page.keyboard.down(key).then(() => el)
     })
   }
 
-  keyup(key: string): BrowserInterface {
+  keyup(key: string) {
     return this.chain((el: ElementHandleExt) => {
       return page.keyboard.up(key).then(() => el)
     })
@@ -415,7 +416,7 @@ export class Playwright extends BrowserInterface {
           return el
         })
       })
-    ) as any as BrowserInterface[]
+    )
   }
 
   waitForElementByCss(selector, timeout?: number) {
@@ -438,7 +439,7 @@ export class Playwright extends BrowserInterface {
   }
 
   eval<T = any>(fn: any, ...args: any[]): Promise<T> {
-    return this.chainWithReturnValue(() =>
+    return this.chain(() =>
       page
         .evaluate(fn, ...args)
         .catch((err) => {
@@ -452,7 +453,7 @@ export class Playwright extends BrowserInterface {
     )
   }
 
-  async evalAsync<T = any>(fn: any, ...args: any[]) {
+  async evalAsync<T = any>(fn: any) {
     if (typeof fn === 'function') {
       fn = fn.toString()
     }
@@ -474,15 +475,15 @@ export class Playwright extends BrowserInterface {
   }
 
   async log() {
-    return this.chain(() => pageLogs) as any
+    return this.chain(() => pageLogs)
   }
 
   async websocketFrames() {
-    return this.chain(() => websocketFrames) as any
+    return this.chain(() => websocketFrames)
   }
 
   async url() {
-    return this.chain(() => page.evaluate('window.location.href')) as any
+    return this.chain(() => page.url())
   }
 
   async waitForIdleNetwork(): Promise<void> {

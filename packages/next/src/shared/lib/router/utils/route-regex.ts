@@ -1,9 +1,10 @@
-import { INTERCEPTION_ROUTE_MARKERS } from '../../../../server/future/helpers/interception-routes'
+import {
+  NEXT_INTERCEPTION_MARKER_PREFIX,
+  NEXT_QUERY_PARAM_PREFIX,
+} from '../../../../lib/constants'
+import { INTERCEPTION_ROUTE_MARKERS } from '../../../../server/lib/interception-routes'
 import { escapeStringRegexp } from '../../escape-regexp'
 import { removeTrailingSlash } from './remove-trailing-slash'
-
-const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
-const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 
 export interface Group {
   pos: number
@@ -17,14 +18,50 @@ export interface RouteRegex {
 }
 
 /**
+ * Regular expression pattern used to match route parameters.
+ * Matches both single parameters and parameter groups.
+ * Examples:
+ *   - `[[...slug]]` matches parameter group with key 'slug', repeat: true, optional: true
+ *   - `[...slug]` matches parameter group with key 'slug', repeat: true, optional: false
+ *   - `[[foo]]` matches parameter with key 'foo', repeat: false, optional: true
+ *   - `[bar]` matches parameter with key 'bar', repeat: false, optional: false
+ */
+const PARAMETER_PATTERN = /\[((?:\[.*\])|.+)\]/
+
+/**
  * Parses a given parameter from a route to a data structure that can be used
- * to generate the parametrized route. Examples:
+ * to generate the parametrized route.
+ * Examples:
+ *   - `[[...slug]]` -> `{ key: 'slug', repeat: true, optional: true }`
+ *   - `[...slug]` -> `{ key: 'slug', repeat: true, optional: false }`
+ *   - `[[foo]]` -> `{ key: 'foo', repeat: false, optional: true }`
+ *   - `[bar]` -> `{ key: 'bar', repeat: false, optional: false }`
+ *   - `fizz` -> `{ key: 'fizz', repeat: false, optional: false }`
+ * @param param - The parameter to parse.
+ * @returns The parsed parameter as a data structure.
+ */
+export function parseParameter(param: string) {
+  const match = param.match(PARAMETER_PATTERN)
+
+  if (!match) {
+    return parseMatchedParameter(param)
+  }
+
+  return parseMatchedParameter(match[1])
+}
+
+/**
+ * Parses a matched parameter from the PARAMETER_PATTERN regex to a data structure that can be used
+ * to generate the parametrized route.
+ * Examples:
  *   - `[...slug]` -> `{ key: 'slug', repeat: true, optional: true }`
  *   - `...slug` -> `{ key: 'slug', repeat: true, optional: false }`
  *   - `[foo]` -> `{ key: 'foo', repeat: false, optional: true }`
  *   - `bar` -> `{ key: 'bar', repeat: false, optional: false }`
+ * @param param - The matched parameter to parse.
+ * @returns The parsed parameter as a data structure.
  */
-function parseParameter(param: string) {
+function parseMatchedParameter(param: string) {
   const optional = param.startsWith('[') && param.endsWith(']')
   if (optional) {
     param = param.slice(1, -1)
@@ -46,14 +83,18 @@ function getParametrizedRoute(route: string) {
         const markerMatch = INTERCEPTION_ROUTE_MARKERS.find((m) =>
           segment.startsWith(m)
         )
-        const paramMatches = segment.match(/\[((?:\[.*\])|.+)\]/) // Check for parameters
+        const paramMatches = segment.match(PARAMETER_PATTERN) // Check for parameters
 
         if (markerMatch && paramMatches) {
-          const { key, optional, repeat } = parseParameter(paramMatches[1])
+          const { key, optional, repeat } = parseMatchedParameter(
+            paramMatches[1]
+          )
           groups[key] = { pos: groupIndex++, repeat, optional }
           return `/${escapeStringRegexp(markerMatch)}([^/]+?)`
         } else if (paramMatches) {
-          const { key, repeat, optional } = parseParameter(paramMatches[1])
+          const { key, repeat, optional } = parseMatchedParameter(
+            paramMatches[1]
+          )
           groups[key] = { pos: groupIndex++, repeat, optional }
           return repeat ? (optional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
         } else {
@@ -109,7 +150,7 @@ function getSafeKeyFromSegment({
   routeKeys: Record<string, string>
   keyPrefix?: string
 }) {
-  const { key, optional, repeat } = parseParameter(segment)
+  const { key, optional, repeat } = parseMatchedParameter(segment)
 
   // replace any non-word characters since they can break
   // the named regex

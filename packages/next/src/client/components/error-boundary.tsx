@@ -1,8 +1,10 @@
 'use client'
 
-import React from 'react'
-import { usePathname } from './navigation'
+import React, { type JSX } from 'react'
+import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
+import { handleHardNavError } from './nav-failure-handler'
+import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
 const styles = {
   error: {
@@ -37,30 +39,25 @@ export interface ErrorBoundaryProps {
 }
 
 interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
-  pathname: string
+  pathname: string | null
   errorComponent: ErrorComponent
 }
 
 interface ErrorBoundaryHandlerState {
   error: Error | null
-  previousPathname: string
+  previousPathname: string | null
 }
 
 // if we are revalidating we want to re-throw the error so the
 // function crashes so we can maintain our previous cache
 // instead of caching the error page
 function HandleISRError({ error }: { error: any }) {
-  if (typeof (fetch as any).__nextGetStaticStore === 'function') {
-    const store:
-      | undefined
-      | import('./static-generation-async-storage.external').StaticGenerationStore =
-      (fetch as any).__nextGetStaticStore()?.getStore()
-
-    if (store?.isRevalidate || store?.isStaticGeneration) {
-      console.error(error)
-      throw error
-    }
+  const store = staticGenerationAsyncStorage.getStore()
+  if (store?.isRevalidate || store?.isStaticGeneration) {
+    console.error(error)
+    throw error
   }
+
   return null
 }
 
@@ -87,6 +84,22 @@ export class ErrorBoundaryHandler extends React.Component<
     props: ErrorBoundaryHandlerProps,
     state: ErrorBoundaryHandlerState
   ): ErrorBoundaryHandlerState | null {
+    const { error } = state
+
+    // if we encounter an error while
+    // a navigation is pending we shouldn't render
+    // the error boundary and instead should fallback
+    // to a hard navigation to attempt recovering
+    if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
+      if (error && handleHardNavError(error)) {
+        // clear error so we don't render anything
+        return {
+          error: null,
+          previousPathname: props.pathname,
+        }
+      }
+    }
+
     /**
      * Handles reset of the error boundary when a navigation happens.
      * Ensures the error boundary does not stay enabled when navigating to a new page.
@@ -109,7 +122,8 @@ export class ErrorBoundaryHandler extends React.Component<
     this.setState({ error: null })
   }
 
-  render() {
+  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
+  render(): React.ReactNode {
     if (this.state.error) {
       return (
         <>
@@ -170,8 +184,14 @@ export function ErrorBoundary({
   errorStyles,
   errorScripts,
   children,
-}: ErrorBoundaryProps & { children: React.ReactNode }): JSX.Element {
-  const pathname = usePathname()
+}: ErrorBoundaryProps & {
+  children: React.ReactNode
+}): JSX.Element {
+  // When we're rendering the missing params shell, this will return null. This
+  // is because we won't be rendering any not found boundaries or error
+  // boundaries for the missing params shell. When this runs on the client
+  // (where these errors can occur), we will get the correct pathname.
+  const pathname = useUntrackedPathname()
   if (errorComponent) {
     return (
       <ErrorBoundaryHandler

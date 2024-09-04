@@ -10,7 +10,7 @@ describe('Error overlay - RSC build errors', () => {
     dependencies: {
       '@next/mdx': 'canary',
       'react-wrap-balancer': '^0.2.4',
-      'react-tweet': '^2.0.2',
+      'react-tweet': '^3.2.0',
       '@mdx-js/react': '^2.3.0',
       tailwindcss: '^3.2.6',
       typescript: 'latest',
@@ -51,12 +51,12 @@ describe('Error overlay - RSC build errors', () => {
           await session.patch(pagePath, break2.replace('break 3', '<Hello />'))
 
           await session.patch(pagePath, break2)
-          expect(await session.hasRedbox()).toBe(true)
+          await session.assertHasRedbox()
 
           await session.patch(pagePath, break1)
 
           await session.patch(pagePath, originalPage)
-          expect(await session.hasRedbox()).toBe(false)
+          await session.assertNoRedbox()
         }
 
         expect(

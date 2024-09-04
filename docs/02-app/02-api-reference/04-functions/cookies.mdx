@@ -1,20 +1,90 @@
 ---
 title: cookies
 description: API Reference for the cookies function.
-related:
-  title: Next Steps
-  description: For more information on what to do next, we recommend the following sections
-  links:
-    - app/building-your-application/data-fetching/server-actions-and-mutations
 ---
 
 The `cookies` function allows you to read the HTTP incoming request cookies from a [Server Component](/docs/app/building-your-application/rendering/server-components) or write outgoing request cookies in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
-> **Good to know**: `cookies()` is a **[Dynamic Function](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering)** at request time.
+```tsx filename="app/page.tsx"
+import { cookies } from 'next/headers'
 
-## `cookies().get(name)`
+export default function Page() {
+  const cookieStore = cookies()
+  const theme = cookieStore.get('theme')
+  return '...'
+}
+```
 
-A method that takes a cookie name and returns an object with name and value. If a cookie with `name` isn't found, it returns `undefined`. If multiple cookies match, it will only return the first match.
+```js filename="app/page.js"
+import { cookies } from 'next/headers'
+
+export default function Page() {
+  const cookieStore = cookies()
+  const theme = cookieStore.get('theme')
+  return '...'
+}
+```
+
+## Reference
+
+### Methods
+
+The following methods are available:
+
+| Method                      | Return Type      | Description                                                                     |
+| --------------------------- | ---------------- | ------------------------------------------------------------------------------- |
+| `get('name')`               | Object           | Accepts a cookie name and returns an object with the name and value.            |
+| `getAll()`                  | Array of objects | Returns a list of all the cookies with a matching name.                         |
+| `has('name')`               | Boolean          | Accepts a cookie name and returns a boolean based on if the cookie exists.      |
+| `set(name, value, options)` | -                | Accepts a cookie name, value, and options and sets the outgoing request cookie. |
+| `delete(name)`              | -                | Accepts a cookie name and deletes the cookie.                                   |
+| `clear()`                   | -                | Deletes all cookies.                                                            |
+| `toString()`                | String           | Returns a string representation of the cookies.                                 |
+
+### Options
+
+When setting a cookie, the following properties from the `options` object are supported:
+
+| Option            | Type                                   | Description                                                                        |
+| ----------------- | -------------------------------------- | ---------------------------------------------------------------------------------- |
+| `name`            | String                                 | Specifies the name of the cookie.                                                  |
+| `value`           | String                                 | Specifies the value to be stored in the cookie.                                    |
+| `expires`         | Date                                   | Defines the exact date when the cookie will expire.                                |
+| `maxAge`          | Number                                 | Sets the cookie’s lifespan in seconds.                                             |
+| `domain`          | String                                 | Specifies the domain where the cookie is available.                                |
+| `path`            | String                                 | Limits the cookie's scope to a specific path within the domain.                    |
+| `secure`          | Boolean,                               | Ensures the cookie is sent only over HTTPS connections for added security.         |
+| `httpOnly`        | Boolean                                | Restricts the cookie to HTTP requests, preventing client-side access.              |
+| `sameSite`        | Boolean, `'lax'`, `'strict'`, `'none'` | Controls the cookie's cross-site request behavior.                                 |
+| `priority`        | String (`"low"`, `"medium"`, `"high"`) | Specifies the cookie's priority                                                    |
+| `encode('value')` | Function                               | Specifies a function that will be used to encode a cookie's value.                 |
+| `partitioned`     | Boolean                                | Indicates whether the cookie is [partitioned](https://github.com/privacycg/CHIPS). |
+
+To learn more about these options, see the [MDN docs](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies).
+
+## Caveats
+
+- `cookies()` is a **[Dynamic Function](/docs/app/building-your-application/rendering/server-components#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering)**.
+- The `.delete()` method can only be called:
+  - In a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+  - If it belongs to the same domain from which `.set()` is called. Additionally, the code must be executed on the same protocol (HTTP or HTTPS) as the cookie you want to delete.
+- HTTP does not allow setting cookies after streaming starts, so you must use `.set()` in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+
+## Examples
+
+### Getting a cookie
+
+You can use the `cookies().get('name')` method to get a single cookie:
+
+```tsx filename="app/page.tsx"
+import { cookies } from 'next/headers'
+
+export default function Page() {
+  const cookieStore = cookies()
+  const theme = cookieStore.get('theme')
+  return '...'
+}
+```
 
 ```jsx filename="app/page.js"
 import { cookies } from 'next/headers'
@@ -26,9 +96,23 @@ export default function Page() {
 }
 ```
 
-## `cookies().getAll()`
+### Getting all cookies
 
-A method that is similar to `get`, but returns a list of all the cookies with a matching `name`. If `name` is unspecified, it returns all the available cookies.
+You can use the `cookies().getAll()` method to get all cookies with a matching name. If `name` is unspecified, it returns all the available cookies.
+
+```tsx filename="app/page.tsx"
+import { cookies } from 'next/headers'
+
+export default function Page() {
+  const cookieStore = cookies()
+  return cookieStore.getAll().map((cookie) => (
+    <div key={cookie.name}>
+      <p>Name: {cookie.name}</p>
+      <p>Value: {cookie.value}</p>
+    </div>
+  ))
+}
+```
 
 ```jsx filename="app/page.js"
 import { cookies } from 'next/headers'
@@ -44,25 +128,28 @@ export default function Page() {
 }
 ```
 
-## `cookies().has(name)`
+### Setting a cookie
 
-A method that takes a cookie name and returns a `boolean` based on if the cookie exists (`true`) or not (`false`).
+You can use the `cookies().set(name, value, options)` method in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers) to set a cookie. The [`options` object](#options) is optional.
 
-```jsx filename="app/page.js"
+```tsx filename="app/actions.ts"
+'use server'
+
 import { cookies } from 'next/headers'
 
-export default function Page() {
-  const cookiesList = cookies()
-  const hasCookie = cookiesList.has('theme')
-  return '...'
+async function create(data) {
+  cookies().set('name', 'lee')
+  // or
+  cookies().set('name', 'lee', { secure: true })
+  // or
+  cookies().set({
+    name: 'name',
+    value: 'lee',
+    httpOnly: true,
+    path: '/',
+  })
 }
 ```
-
-## `cookies().set(name, value, options)`
-
-A method that takes a cookie name, value, and options and sets the outgoing request cookie.
-
-> **Good to know**: HTTP does not allow setting cookies after streaming starts, so you must use `.set()` in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 ```js filename="app/actions.js"
 'use server'
@@ -83,15 +170,45 @@ async function create(data) {
 }
 ```
 
-## Deleting cookies
+### Check if a cookie exists
 
-> **Good to know**: You can only delete cookies in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+You can use the `cookies().has(name)` method to check if a cookie exists:
 
-There are several options for deleting a cookie:
+```tsx filename="app/page.ts"
+import { cookies } from 'next/headers'
 
-### `cookies().delete(name)`
+export default function Page() {
+  const cookieStore = cookies()
+  const hasCookie = cookieStore.has('theme')
+  return '...'
+}
+```
 
-You can explicitly delete a cookie with a given name.
+```jsx filename="app/page.js"
+import { cookies } from 'next/headers'
+
+export default function Page() {
+  const cookieStore = cookies()
+  const hasCookie = cookieStore.has('theme')
+  return '...'
+}
+```
+
+### Deleting cookies
+
+There are three ways you can delete a cookie.
+
+1. Using the `delete()` method:
+
+```tsx filename="app/actions.ts"
+'use server'
+
+import { cookies } from 'next/headers'
+
+async function delete(data) {
+  cookies().delete('name')
+}
+```
 
 ```js filename="app/actions.js"
 'use server'
@@ -103,9 +220,17 @@ async function delete(data) {
 }
 ```
 
-### `cookies().set(name, '')`
+2. Setting a new cookie with the same name and an empty value:
 
-Alternatively, you can set a new cookie with the same name and an empty value.
+```tsx filename="app/actions.ts"
+'use server'
+
+import { cookies } from 'next/headers'
+
+async function delete(data) {
+  cookies().set('name', '')
+}
+```
 
 ```js filename="app/actions.js"
 'use server'
@@ -117,11 +242,17 @@ async function delete(data) {
 }
 ```
 
-> **Good to know**: `.set()` is only available in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+3. Setting the `maxAge` to 0 will immediately expire a cookie. `maxAge` accepts a value in seconds.
 
-### `cookies().set(name, value, { maxAge: 0 })`
+```tsx filename="app/actions.ts"
+'use server'
 
-Setting `maxAge` to 0 will immediately expire a cookie.
+import { cookies } from 'next/headers'
+
+async function delete(data) {
+  cookies().set('name', 'value', { maxAge: 0 })
+}
+```
 
 ```js filename="app/actions.js"
 'use server'
@@ -132,23 +263,6 @@ async function delete(data) {
   cookies().set('name', 'value', { maxAge: 0 })
 }
 ```
-
-### `cookies().set(name, value, { expires: timestamp })`
-
-Setting `expires` to any value in the past will immediately expire a cookie.
-
-```js filename="app/actions.js"
-'use server'
-
-import { cookies } from 'next/headers'
-
-async function delete(data) {
-  const oneDay = 24 * 60 * 60 * 1000
-  cookies().set('name', 'value', { expires: Date.now() - oneDay })
-}
-```
-
-> **Good to know**: You can only delete cookies that belong to the same domain from which `.set()` is called. Additionally, the code must be executed on the same protocol (HTTP or HTTPS) as the cookie you want to delete.
 
 ## Version History
 

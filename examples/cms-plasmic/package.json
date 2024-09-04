@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@plasmicapp/loader-nextjs": "1.0.136",
+    "@plasmicapp/loader-nextjs": "1.0.363",
     "next": "latest",
     "react": "18.1.0",
     "react-dom": "18.1.0"

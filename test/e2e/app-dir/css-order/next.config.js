@@ -1,6 +1,10 @@
 /**
  * @type {import('next').NextConfig}
  */
-const nextConfig = {}
+const nextConfig = {
+  experimental: {
+    cssChunking: 'strict',
+  },
+}
 
 module.exports = nextConfig

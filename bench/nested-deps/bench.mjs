@@ -115,7 +115,7 @@ function runNextCommandDev(argv, opts = {}) {
     function handleStdout(data) {
       const message = data.toString()
       const bootupMarkers = {
-        dev: /compiled .*successfully/i,
+        dev: /Ready in .*/i,
         start: /started server/i,
       }
       if (
@@ -184,7 +184,7 @@ try {
         function waitForOnData(data) {
           const message = data.toString()
           const compiledRegex =
-            /compiled client and server successfully in (\d*[.]?\d+)\s*(m?s) \((\d+) modules\)/gm
+            /Compiled (?:.+ )?in (\d*[.]?\d+)\s*(m?s)(?: \((\d+) modules\))?/gm
           const matched = compiledRegex.exec(message)
           if (matched) {
             resolve({
@@ -208,19 +208,19 @@ try {
 
     results.push(initial)
 
-    file.prepend('// First edit')
+    file.replace('Hello', 'Hello!')
 
     results.push(await waitForCompiled())
 
     await waitFor(1000)
 
-    file.prepend('// Second edit')
+    file.replace('Hello', 'Hello!')
 
     results.push(await waitForCompiled())
 
     await waitFor(1000)
 
-    file.prepend('// Third edit')
+    file.replace('Hello', 'Hello!')
 
     results.push(await waitForCompiled())
 

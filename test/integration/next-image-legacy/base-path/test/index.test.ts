@@ -1,10 +1,11 @@
 /* eslint-env jest */
 
 import {
+  assertHasRedbox,
+  assertNoRedbox,
   check,
   findPort,
   getRedboxHeader,
-  hasRedbox,
   killApp,
   launchApp,
   nextBuild,
@@ -61,10 +62,8 @@ function getRatio(width, height) {
 
 function runTests(mode) {
   it('should load the images', async () => {
-    let browser
+    let browser = await webdriver(appPort, '/docs')
     try {
-      browser = await webdriver(appPort, '/docs')
-
       await check(async () => {
         const result = await browser.eval(
           `document.getElementById('basic-image').naturalWidth`
@@ -84,17 +83,13 @@ function runTests(mode) {
         )
       ).toBe(true)
     } finally {
-      if (browser) {
-        await browser.close()
-      }
+      await browser.close()
     }
   })
 
   it('should update the image on src change', async () => {
-    let browser
+    let browser = await webdriver(appPort, '/docs/update')
     try {
-      browser = await webdriver(appPort, '/docs/update')
-
       await check(
         () => browser.eval(`document.getElementById("update-image").src`),
         /test\.jpg/
@@ -107,16 +102,13 @@ function runTests(mode) {
         /test\.png/
       )
     } finally {
-      if (browser) {
-        await browser.close()
-      }
+      await browser.close()
     }
   })
 
   it('should work when using flexbox', async () => {
-    let browser
+    let browser = await webdriver(appPort, '/docs/flex')
     try {
-      browser = await webdriver(appPort, '/docs/flex')
       await check(async () => {
         const result = await browser.eval(
           `document.getElementById('basic-image').width`
@@ -128,16 +120,13 @@ function runTests(mode) {
         return 'result-correct'
       }, /result-correct/)
     } finally {
-      if (browser) {
-        await browser.close()
-      }
+      await browser.close()
     }
   })
 
   it('should work with layout-fixed so resizing window does not resize image', async () => {
-    let browser
+    let browser = await webdriver(appPort, '/docs/layout-fixed')
     try {
-      browser = await webdriver(appPort, '/docs/layout-fixed')
       const width = 1200
       const height = 700
       const delta = 250
@@ -162,16 +151,13 @@ function runTests(mode) {
       expect(await getComputed(browser, id, 'width')).toBe(width)
       expect(await getComputed(browser, id, 'height')).toBe(height)
     } finally {
-      if (browser) {
-        await browser.close()
-      }
+      await browser.close()
     }
   })
 
   it('should work with layout-intrinsic so resizing window maintains image aspect ratio', async () => {
-    let browser
+    let browser = await webdriver(appPort, '/docs/layout-intrinsic')
     try {
-      browser = await webdriver(appPort, '/docs/layout-intrinsic')
       const width = 1200
       const height = 700
       const delta = 250
@@ -206,16 +192,13 @@ function runTests(mode) {
         1
       )
     } finally {
-      if (browser) {
-        await browser.close()
-      }
+      await browser.close()
     }
   })
 
   it('should work with layout-responsive so resizing window maintains image aspect ratio', async () => {
-    let browser
+    let browser = await webdriver(appPort, '/docs/layout-responsive')
     try {
-      browser = await webdriver(appPort, '/docs/layout-responsive')
       const width = 1200
       const height = 700
       const delta = 250
@@ -250,16 +233,13 @@ function runTests(mode) {
         1
       )
     } finally {
-      if (browser) {
-        await browser.close()
-      }
+      await browser.close()
     }
   })
 
   it('should work with layout-fill to fill the parent but NOT stretch with viewport', async () => {
-    let browser
+    let browser = await webdriver(appPort, '/docs/layout-fill')
     try {
-      browser = await webdriver(appPort, '/docs/layout-fill')
       const width = 600
       const height = 350
       const delta = 150
@@ -294,16 +274,13 @@ function runTests(mode) {
         1
       )
     } finally {
-      if (browser) {
-        await browser.close()
-      }
+      await browser.close()
     }
   })
 
   it('should work with layout-fill to fill the parent and stretch with viewport', async () => {
-    let browser
+    let browser = await webdriver(appPort, '/docs/layout-fill')
     try {
-      browser = await webdriver(appPort, '/docs/layout-fill')
       const id = 'fill2'
       const width = await getComputed(browser, id, 'width')
       const height = await getComputed(browser, id, 'height')
@@ -348,16 +325,13 @@ function runTests(mode) {
       expect(objectFit).toBe('cover')
       expect(objectPosition).toBe('left center')
     } finally {
-      if (browser) {
-        await browser.close()
-      }
+      await browser.close()
     }
   })
 
   it('should work with sizes and automatically use layout-responsive', async () => {
-    let browser
+    let browser = await webdriver(appPort, '/docs/sizes')
     try {
-      browser = await webdriver(appPort, '/docs/sizes')
       const width = 1200
       const height = 700
       const delta = 250
@@ -394,9 +368,7 @@ function runTests(mode) {
         1
       )
     } finally {
-      if (browser) {
-        await browser.close()
-      }
+      await browser.close()
     }
   })
 
@@ -404,7 +376,7 @@ function runTests(mode) {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/docs/missing-src')
 
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
 
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
@@ -414,7 +386,7 @@ function runTests(mode) {
     it('should show invalid src error', async () => {
       const browser = await webdriver(appPort, '/docs/invalid-src')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
       )
@@ -426,7 +398,7 @@ function runTests(mode) {
         '/docs/invalid-src-proto-relative'
       )
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
       )
@@ -434,10 +406,8 @@ function runTests(mode) {
   }
 
   it('should correctly ignore prose styles', async () => {
-    let browser
+    let browser = await webdriver(appPort, '/docs/prose')
     try {
-      browser = await webdriver(appPort, '/docs/prose')
-
       const id = 'prose-image'
 
       // Wait for image to load:
@@ -459,19 +429,15 @@ function runTests(mode) {
       const computedHeight = await getComputed(browser, id, 'height')
       expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1, 1)
     } finally {
-      if (browser) {
-        await browser.close()
-      }
+      await browser.close()
     }
   })
 
   // Tests that use the `unsized` attribute:
   if (mode !== 'dev') {
     it('should correctly rotate image', async () => {
-      let browser
+      let browser = await webdriver(appPort, '/docs/rotated')
       try {
-        browser = await webdriver(appPort, '/docs/rotated')
-
         const id = 'exif-rotation-image'
 
         // Wait for image to load:
@@ -493,32 +459,36 @@ function runTests(mode) {
         const computedHeight = await getComputed(browser, id, 'height')
         expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(0.5625, 1)
       } finally {
-        if (browser) {
-          await browser.close()
-        }
+        await browser.close()
       }
     })
   }
 }
 
 describe('Image Component basePath Tests', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests('dev')
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+      runTests('dev')
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests('server')
-  })
+      runTests('server')
+    }
+  )
 })

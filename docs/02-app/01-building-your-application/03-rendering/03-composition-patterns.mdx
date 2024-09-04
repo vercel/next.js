@@ -32,9 +32,9 @@ Here are some common patterns when working with Server Components:
 
 When fetching data on the server, there may be cases where you need to share data across different components. For example, you may have a layout and a page that depend on the same data.
 
-Instead of using [React Context](https://react.dev/learn/passing-data-deeply-with-context) (which is not available on the server) or passing data as props, you can use [`fetch`](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#fetching-data-on-the-server-with-fetch) or React's `cache` function to fetch the same data in the components that need it, without worrying about making duplicate requests for the same data. This is because React extends `fetch` to automatically memoize data requests, and the `cache` function can be used when `fetch` is not available.
+Instead of using [React Context](https://react.dev/learn/passing-data-deeply-with-context) (which is not available on the server) or passing data as props, you can use `fetch` or React's `cache` function to fetch the same data in the components that need it, without worrying about making duplicate requests for the same data. This is because React extends `fetch` to automatically memoize data requests, and the `cache` function can be used when `fetch` is not available.
 
-Learn more about [memoization](/docs/app/building-your-application/caching#request-memoization) in React.
+[View an example](/docs/app/building-your-application/data-fetching/fetching#reusing-data-across-multiple-functions) of this pattern.
 
 ### Keeping Server-only Code out of the Client Environment
 
@@ -117,7 +117,7 @@ import { useState } from 'react'
 import { Carousel } from 'acme-carousel'
 
 export default function Gallery() {
-  let [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
 
   return (
     <div>
@@ -137,7 +137,7 @@ import { useState } from 'react'
 import { Carousel } from 'acme-carousel'
 
 export default function Gallery() {
-  let [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
 
   return (
     <div>
@@ -402,20 +402,20 @@ export default function Layout({ children }) {
 
 ### Passing props from Server to Client Components (Serialization)
 
-If you fetch data in a Server Component, you may want to pass data down as props to Client Components. Props passed from the Server to Client Components need to be [serializable](https://developer.mozilla.org/docs/Glossary/Serialization) by React.
+If you fetch data in a Server Component, you may want to pass data down as props to Client Components. Props passed from the Server to Client Components need to be [serializable](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values) by React.
 
-If your Client Components depend on data that is not serializable, you can [fetch data on the client with a third party library](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#fetching-data-on-the-client-with-third-party-libraries) or on the server via a [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+If your Client Components depend on data that is _not_ serializable, you can [fetch data on the client with a third party library](/docs/app/building-your-application/data-fetching/fetching#fetching-data-on-the-client) or on the server with a [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 ## Interleaving Server and Client Components
 
-When interleaving Client and Server Components, it may be helpful to visualize your UI as a tree of components. Starting with the [root layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required), which is a Server Component, you can then render certain subtrees of components on the client by adding the `"use client"` directive.
+When interleaving Client and Server Components, it may be helpful to visualize your UI as a tree of components. Starting with the [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required), which is a Server Component, you can then render certain subtrees of components on the client by adding the `"use client"` directive.
 
 {/* Diagram - interleaving */}
 
 Within those client subtrees, you can still nest Server Components or call Server Actions, however there are some things to keep in mind:
 
 - During a request-response lifecycle, your code moves from the server to the client. If you need to access data or resources on the server while on the client, you'll be making a **new** request to the server - not switching back and forth.
-- When a new request is made to the server, all Server Components are rendered first, including those nested inside Client Components. The rendered result (RSC Payload) will contain references to the locations of Client Components. Then, on the client, React uses the RSC Payload to reconcile Server and Client Components into a single tree.
+- When a new request is made to the server, all Server Components are rendered first, including those nested inside Client Components. The rendered result ([RSC Payload](/docs/app/building-your-application/rendering/server-components#what-is-the-react-server-component-payload-rsc)) will contain references to the locations of Client Components. Then, on the client, React uses the RSC Payload to reconcile Server and Client Components into a single tree.
 
 {/* Diagram */}
 

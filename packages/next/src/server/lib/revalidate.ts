@@ -8,13 +8,24 @@ import { CACHE_ONE_YEAR } from '../../lib/constants'
  * value for this option.
  */
 export type Revalidate = number | false
+export type SwrDelta = number
 
-export function formatRevalidate(revalidate: Revalidate): string {
+export function formatRevalidate({
+  revalidate,
+  swrDelta,
+}: {
+  revalidate: Revalidate
+  swrDelta?: SwrDelta
+}): string {
+  const swrHeader = swrDelta
+    ? `stale-while-revalidate=${swrDelta}`
+    : 'stale-while-revalidate'
+
   if (revalidate === 0) {
     return 'private, no-cache, no-store, max-age=0, must-revalidate'
   } else if (typeof revalidate === 'number') {
-    return `s-maxage=${revalidate}, stale-while-revalidate`
+    return `s-maxage=${revalidate}, ${swrHeader}`
   }
 
-  return `s-maxage=${CACHE_ONE_YEAR}, stale-while-revalidate`
+  return `s-maxage=${CACHE_ONE_YEAR}, ${swrHeader}`
 }

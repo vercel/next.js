@@ -32,7 +32,7 @@ export default function Polyfill() {
     <>
       {/* We ensure that intersection observer is available by polyfilling it */}
       <Script
-        src="https://polyfill.io/v3/polyfill.min.js?features=IntersectionObserverEntry%2CIntersectionObserver"
+        src="https://polyfill-fastly.io/v3/polyfill.min.js?features=IntersectionObserverEntry%2CIntersectionObserver"
         strategy="beforeInteractive"
       />
 

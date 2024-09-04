@@ -58,6 +58,8 @@ This will ensure the page does not de-opt to client-side rendering.
 
 #### Disabling
 
+> Note: This is only available with Next.js version 14.x. If you're in versions above 15 please fix it with the approach above.
+
 We don't recommend disabling this rule. However, if you need to, you can disable it by setting the `missingSuspenseWithCSRBailout` option to `false` in your `next.config.js`:
 
 ```js filename="next.config.js"

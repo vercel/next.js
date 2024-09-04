@@ -4,10 +4,10 @@ import type { Duplex } from 'stream'
 import type { Telemetry } from '../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { UrlObject } from 'url'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteDefinition } from '../route-definitions/route-definition'
 
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
-import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
+import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute, posix } from 'path'
 import {
@@ -62,7 +62,6 @@ import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { existsSync, promises as fs } from 'fs'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
-import { getRegistry } from '../../lib/helpers/get-registry'
 import { parseVersionInfo } from './parse-version-info'
 import type { VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
@@ -71,7 +70,7 @@ import {
   isInternalComponent,
   isNonRoutePagesPage,
 } from '../../lib/is-internal-component'
-import { RouteKind } from '../future/route-kind'
+import { RouteKind } from '../route-kind'
 import {
   HMR_ACTIONS_SENT_TO_BROWSER,
   type NextJsHotReloaderInterface,
@@ -79,8 +78,10 @@ import {
 import type { HMR_ACTION_TYPES } from './hot-reloader-types'
 import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
+import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
+import { getNodeDebugType } from '../lib/utils'
 
-const MILLISECONDS_IN_NANOSECOND = 1_000_000
+const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 const isTestMode = !!(
   process.env.NEXT_TEST_MODE ||
   process.env.__NEXT_TEST_MODE ||
@@ -201,20 +202,22 @@ export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
   try {
     installed = require('next/package.json').version
 
-    const registry = getRegistry()
-    const res = await fetch(`${registry}-/package/next/dist-tags`)
+    let res
 
-    if (!res.ok) return { installed, staleness: 'unknown' }
+    try {
+      // use NPM registry regardless user using Yarn
+      res = await fetch('https://registry.npmjs.org/-/package/next/dist-tags')
+    } catch {
+      // ignore fetch errors
+    }
 
-    const tags = await res.json()
+    if (!res || !res.ok) return { installed, staleness: 'unknown' }
 
-    return parseVersionInfo({
-      installed,
-      latest: tags.latest,
-      canary: tags.canary,
-    })
-  } catch (e) {
-    console.error('parse version e', e)
+    const { latest, canary } = await res.json()
+
+    return parseVersionInfo({ installed, latest, canary })
+  } catch (e: any) {
+    console.error(e)
     return { installed, staleness: 'unknown' }
   }
 }
@@ -225,6 +228,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private hasPagesRouterEntrypoints: boolean
   private dir: string
   private buildId: string
+  private encryptionKey: string
   private interceptors: any[]
   private pagesDir?: string
   private distDir: string
@@ -246,10 +250,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private pagesMapping: { [key: string]: string } = {}
   private appDir?: string
   private telemetry: Telemetry
+  private resetFetch: () => void
   private versionInfo: VersionInfo = {
     staleness: 'unknown',
     installed: '0.0.0',
   }
+  private devtoolsFrontendUrl: string | undefined
   private reloadAfterInvalidation: boolean = false
 
   public serverStats: webpack.Stats | null
@@ -266,25 +272,30 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       pagesDir,
       distDir,
       buildId,
+      encryptionKey,
       previewProps,
       rewrites,
       appDir,
       telemetry,
+      resetFetch,
     }: {
       config: NextConfigComplete
       pagesDir?: string
       distDir: string
       buildId: string
+      encryptionKey: string
       previewProps: __ApiPreviewProps
       rewrites: CustomRoutes['rewrites']
       appDir?: string
       telemetry: Telemetry
+      resetFetch: () => void
     }
   ) {
     this.hasAmpEntrypoints = false
     this.hasAppRouterEntrypoints = false
     this.hasPagesRouterEntrypoints = false
     this.buildId = buildId
+    this.encryptionKey = encryptionKey
     this.dir = dir
     this.interceptors = []
     this.pagesDir = pagesDir
@@ -295,6 +306,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.edgeServerStats = null
     this.serverPrevDocumentHash = null
     this.telemetry = telemetry
+    this.resetFetch = resetFetch
 
     this.config = config
     this.previewProps = previewProps
@@ -398,10 +410,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     })
   }
 
-  public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
+  public onHMR(
+    req: IncomingMessage,
+    _socket: Duplex,
+    head: Buffer,
+    callback: (client: ws.WebSocket) => void
+  ) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
       this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
+      callback(client)
 
       client.addEventListener('message', ({ data }) => {
         data = typeof data !== 'string' ? data.toString() : data
@@ -424,11 +442,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 name: payload.spanName,
                 startTime:
                   BigInt(Math.floor(payload.startTime)) *
-                  BigInt(MILLISECONDS_IN_NANOSECOND),
+                  MILLISECONDS_IN_NANOSECOND,
                 attrs: payload.attributes,
                 endTime:
                   BigInt(Math.floor(payload.endTime)) *
-                  BigInt(MILLISECONDS_IN_NANOSECOND),
+                  MILLISECONDS_IN_NANOSECOND,
               }
               break
             }
@@ -436,10 +454,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               traceChild = {
                 name: payload.event,
                 startTime:
-                  BigInt(payload.startTime) *
-                  BigInt(MILLISECONDS_IN_NANOSECOND),
-                endTime:
-                  BigInt(payload.endTime) * BigInt(MILLISECONDS_IN_NANOSECOND),
+                  BigInt(payload.startTime) * MILLISECONDS_IN_NANOSECOND,
+                endTime: BigInt(payload.endTime) * MILLISECONDS_IN_NANOSECOND,
                 attrs: {
                   updatedModules: payload.updatedModules.map((m: string) =>
                     m
@@ -490,9 +506,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               }
 
               if (hadRuntimeError) {
-                Log.warn(
-                  `Fast Refresh had to perform a full reload due to a runtime error.`
-                )
+                Log.warn(FAST_REFRESH_RUNTIME_RELOAD)
                 break
               }
 
@@ -538,8 +552,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           if (traceChild) {
             this.hotReloaderSpan.manualTraceChild(
               traceChild.name,
-              traceChild.startTime || process.hrtime.bigint(),
-              traceChild.endTime || process.hrtime.bigint(),
+              traceChild.startTime,
+              traceChild.endTime,
               { ...traceChild.attrs, clientId: payload.id }
             )
           }
@@ -580,9 +594,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               ])
             )
 
-      this.pagesMapping = webpackConfigSpan
+      this.pagesMapping = await webpackConfigSpan
         .traceChild('create-pages-mapping')
-        .traceFn(() =>
+        .traceAsyncFn(() =>
           createPagesMapping({
             isDev: true,
             pageExtensions: this.config.pageExtensions,
@@ -591,6 +605,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               (i: string | null): i is string => typeof i === 'string'
             ),
             pagesDir: this.pagesDir,
+            appDir: this.appDir,
           })
         )
 
@@ -614,6 +629,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       const commonWebpackOptions = {
         dev: true,
         buildId: this.buildId,
+        encryptionKey: this.encryptionKey,
         config: this.config,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
@@ -670,6 +686,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       compilerType: COMPILER_NAMES.client,
       config: this.config,
       buildId: this.buildId,
+      encryptionKey: this.encryptionKey,
       pagesDir: this.pagesDir,
       rewrites: {
         beforeFiles: [],
@@ -735,6 +752,23 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       startSpan,
       isTestMode || this.telemetry.isEnabled
     )
+
+    const nodeDebugType = getNodeDebugType()
+    if (nodeDebugType && !this.devtoolsFrontendUrl) {
+      const debugPort = process.debugPort
+      let debugInfo
+      try {
+        // It requires to use 127.0.0.1 instead of localhost for server-side fetching.
+        const debugInfoList = await fetch(
+          `http://127.0.0.1:${debugPort}/json/list`
+        ).then((res) => res.json())
+        // There will be only one item for current process, so always get the first item.
+        debugInfo = debugInfoList[0]
+      } catch {}
+      if (debugInfo) {
+        this.devtoolsFrontendUrl = debugInfo.devtoolsFrontendUrl
+      }
+    }
 
     await this.clean(startSpan)
     // Ensure distDir exists before writing package.json
@@ -831,8 +865,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             )
               ? PAGE_TYPES.PAGES
               : entryData.bundlePath.startsWith('app/')
-              ? PAGE_TYPES.APP
-              : PAGE_TYPES.ROOT
+                ? PAGE_TYPES.APP
+                : PAGE_TYPES.ROOT
 
             if (pageType === 'pages') {
               this.hasPagesRouterEntrypoints = true
@@ -1354,6 +1388,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         changedCSSImportPages.size ||
         reloadAfterInvalidation
       ) {
+        this.resetFetch()
         this.refreshServerComponents()
       }
 
@@ -1417,7 +1452,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
       this.multiCompiler.compilers,
-      this.versionInfo
+      this.versionInfo,
+      this.devtoolsFrontendUrl
     )
 
     let booted = false

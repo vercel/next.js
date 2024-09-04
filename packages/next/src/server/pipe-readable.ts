@@ -7,6 +7,7 @@ import {
 import { DetachedPromise } from '../lib/detached-promise'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
+import { getClientComponentLoaderMetrics } from './client-component-renderer-logger'
 
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
   return e?.name === 'AbortError' || e?.name === ResponseAbortedName
@@ -48,6 +49,25 @@ function createWriterFromResponse(
       // started writing chunks.
       if (!started) {
         started = true
+
+        if (
+          'performance' in globalThis &&
+          process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+        ) {
+          const metrics = getClientComponentLoaderMetrics()
+          if (metrics) {
+            performance.measure(
+              `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-client-component-loading`,
+              {
+                start: metrics.clientComponentLoadStart,
+                end:
+                  metrics.clientComponentLoadStart +
+                  metrics.clientComponentLoadTimes,
+              }
+            )
+          }
+        }
+
         res.flushHeaders()
         getTracer().trace(
           NextNodeServerSpan.startResponse,

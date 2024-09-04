@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 describe('eslint plugin deps', () => {
@@ -95,7 +95,8 @@ describe('eslint plugin deps', () => {
         '@types/node': 'latest',
         '@types/react': 'latest',
         '@types/react-dom': 'latest',
-        eslint: 'latest',
+        // Use minimum peer dep version instead of v9 of eslint to avoid breaking changes
+        eslint: '8.56.0',
         'eslint-config-next': 'latest',
         typescript: 'latest',
       },

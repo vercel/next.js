@@ -18,27 +18,42 @@ module.exports = {
 
 This `loaderFile` must point to a file relative to the root of your Next.js application. The file must export a default function that returns a string, for example:
 
-```js
+<AppOnly>
+
+```js filename="my/image/loader.js"
+'use client'
+
 export default function myImageLoader({ src, width, quality }) {
   return `https://example.com/${src}?w=${width}&q=${quality || 75}`
 }
 ```
 
-<AppOnly>
-
 Alternatively, you can use the [`loader` prop](/docs/app/api-reference/components/image#loader) to pass the function to each instance of `next/image`.
+
+> **Good to know**: Customizing the image loader file, which accepts a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+
+To learn more about configuring the behavior of the built-in [Image Optimization API](/docs/app/building-your-application/optimizing/images) and the [Image Component](/docs/app/api-reference/components/image), see [Image Configuration Options](/docs/app/api-reference/components/image#configuration-options) for available options.
 
 </AppOnly>
 
 <PagesOnly>
 
+```js filename="my/image/loader.js"
+export default function myImageLoader({ src, width, quality }) {
+  return `https://example.com/${src}?w=${width}&q=${quality || 75}`
+}
+```
+
 Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/components/image#loader) to pass the function to each instance of `next/image`.
+
+To learn more about configuring the behavior of the built-in [Image Optimization API](/docs/pages/building-your-application/optimizing/images) and the [Image Component](/docs/pages/api-reference/components/image), see [Image Configuration Options](/docs/pages/api-reference/components/image#configuration-options) for available options.
 
 </PagesOnly>
 
 ## Example Loader Configuration
 
 - [Akamai](#akamai)
+- [AWS CloudFront](#aws-cloudfront)
 - [Cloudinary](#cloudinary)
 - [Cloudflare](#cloudflare)
 - [Contentful](#contentful)
@@ -46,10 +61,11 @@ Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/compone
 - [Gumlet](#gumlet)
 - [ImageEngine](#imageengine)
 - [Imgix](#imgix)
-- [Thumbor](#thumbor)
+- [PixelBin](#pixelbin)
 - [Sanity](#sanity)
 - [Sirv](#sirv)
 - [Supabase](#supabase)
+- [Thumbor](#thumbor)
 
 ### Akamai
 
@@ -57,6 +73,19 @@ Alternatively, you can use the [`loader` prop](/docs/pages/api-reference/compone
 // Docs: https://techdocs.akamai.com/ivm/reference/test-images-on-demand
 export default function akamaiLoader({ src, width, quality }) {
   return `https://example.com/${src}?imwidth=${width}`
+}
+```
+
+### AWS CloudFront
+
+```js
+// Docs: https://aws.amazon.com/developer/application-security-performance/articles/image-optimization
+export default function cloudfrontLoader({ src, width, quality }) {
+  const url = new URL(`https://example.com${src}`)
+  url.searchParams.set('format', 'auto')
+  url.searchParams.set('width', width.toString())
+  url.searchParams.set('quality', (quality || 75).toString())
+  return url.href
 }
 ```
 
@@ -73,7 +102,7 @@ export default function cloudinaryLoader({ src, width, quality }) {
 ### Cloudflare
 
 ```js
-// Docs: https://developers.cloudflare.com/images/url-format
+// Docs: https://developers.cloudflare.com/images/transform-images
 export default function cloudflareLoader({ src, width, quality }) {
   const params = [`width=${width}`, `quality=${quality || 75}`, 'format=auto']
   return `https://example.com/cdn-cgi/image/${params.join(',')}/${src}`
@@ -145,13 +174,16 @@ export default function imgixLoader({ src, width, quality }) {
 }
 ```
 
-### Thumbor
+### PixelBin
 
 ```js
-// Docs: https://thumbor.readthedocs.io/en/latest/
-export default function thumborLoader({ src, width, quality }) {
-  const params = [`${width}x0`, `filters:quality(${quality || 75})`]
-  return `https://example.com${params.join('/')}${src}`
+// Doc (Resize): https://www.pixelbin.io/docs/transformations/basic/resize/#width-w
+// Doc (Optimise): https://www.pixelbin.io/docs/optimizations/quality/#image-quality-when-delivering
+// Doc (Auto Format Delivery): https://www.pixelbin.io/docs/optimizations/format/#automatic-format-selection-with-f_auto-url-parameter
+export default function pixelBinLoader({ src, width, quality }) {
+  const name = '<your-cloud-name>'
+  const opt = `t.resize(w:${width})~t.compress(q:${quality || 75})`
+  return `https://cdn.pixelbin.io/v2/${name}/${opt}/${src}?f_auto=true`
 }
 ```
 
@@ -196,5 +228,15 @@ export default function supabaseLoader({ src, width, quality }) {
   url.searchParams.set('width', width.toString())
   url.searchParams.set('quality', (quality || 75).toString())
   return url.href
+}
+```
+
+### Thumbor
+
+```js
+// Docs: https://thumbor.readthedocs.io/en/latest/
+export default function thumborLoader({ src, width, quality }) {
+  const params = [`${width}x0`, `filters:quality(${quality || 75})`]
+  return `https://example.com${params.join('/')}${src}`
 }
 ```

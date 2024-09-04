@@ -6,7 +6,6 @@ const styles = css`
     text-align: right;
   }
   .nextjs-container-build-error-version-status small {
-    margin-left: var(--size-gap);
     font-size: var(--size-font-small);
   }
   .nextjs-container-build-error-version-status a {

@@ -17,12 +17,12 @@ declare global {
     __BUILD_MANIFEST_CB?: Function
     __MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
     __MIDDLEWARE_MANIFEST_CB?: Function
-    __PRERENDER_MANIFEST?: string
     __REACT_LOADABLE_MANIFEST?: any
     __RSC_MANIFEST?: any
     __RSC_SERVER_MANIFEST?: any
     __NEXT_FONT_MANIFEST?: any
     __SUBRESOURCE_INTEGRITY_MANIFEST?: string
+    __INTERCEPTION_ROUTE_REWRITE_MANIFEST?: string
   }
 }
 

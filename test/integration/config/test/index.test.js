@@ -18,9 +18,6 @@ describe('Configuration', () => {
 
     context.appPort = await findPort()
     context.server = await launchApp(join(__dirname, '../'), context.appPort, {
-      env: {
-        NODE_OPTIONS: '--inspect',
-      },
       onStdout: handleOutput,
       onStderr: handleOutput,
     })

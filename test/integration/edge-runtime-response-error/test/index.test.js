@@ -72,7 +72,7 @@ describe('Edge runtime code with imports', () => {
       )
       expect(res.status).toBe(500)
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it(`${title} build test Response`, async () => {

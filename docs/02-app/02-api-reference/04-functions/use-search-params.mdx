@@ -269,6 +269,8 @@ Instead, use the Page [`searchParams`](/docs/app/api-reference/file-conventions/
 You can use [`useRouter`](/docs/app/api-reference/functions/use-router) or [`Link`](/docs/app/api-reference/components/link) to set new `searchParams`. After a navigation is performed, the current [`page.js`](/docs/app/api-reference/file-conventions/page) will receive an updated [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional).
 
 ```tsx filename="app/example-client-component.tsx" switcher
+'use client'
+
 export default function ExampleClientComponent() {
   const router = useRouter()
   const pathname = usePathname()
@@ -315,6 +317,8 @@ export default function ExampleClientComponent() {
 ```
 
 ```jsx filename="app/example-client-component.js" switcher
+'use client'
+
 export default function ExampleClientComponent() {
   const router = useRouter()
   const pathname = usePathname()

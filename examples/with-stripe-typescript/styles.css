@@ -113,7 +113,9 @@ li {
   width: 33%;
   margin: 0 20px 20px 0;
   text-decoration: none;
-  box-shadow: -20px 20px 60px #abacad, 20px -20px 60px #ffffff;
+  box-shadow:
+    -20px 20px 60px #abacad,
+    20px -20px 60px #ffffff;
 }
 .card h2 {
   color: #fff;
@@ -180,7 +182,9 @@ button:disabled {
   transition: box-shadow var(--transition-duration);
 }
 .card.elements-style-background:hover {
-  box-shadow: 20px 20px 60px #464e9c, -20px -20px 60px #8896ff;
+  box-shadow:
+    20px 20px 60px #464e9c,
+    -20px -20px 60px #8896ff;
 }
 .checkout-style {
   color: var(--checkout-color);
@@ -191,7 +195,9 @@ button:disabled {
   transition: box-shadow var(--transition-duration);
 }
 .card.checkout-style-background:hover {
-  box-shadow: 20px 20px 60px #614b91, -20px -20px 60px #bd91ff;
+  box-shadow:
+    20px 20px 60px #614b91,
+    -20px -20px 60px #bd91ff;
 }
 
 /* Test card number */
@@ -234,7 +240,9 @@ pre {
   background: var(--body-color);
   color: #6a7c94;
   border-radius: 50px;
-  box-shadow: -20px 20px 60px #abacad, 20px -20px 60px #ffffff;
+  box-shadow:
+    -20px 20px 60px #abacad,
+    20px -20px 60px #ffffff;
   display: flex;
   align-items: center;
   box-sizing: border-box;

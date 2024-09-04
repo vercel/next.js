@@ -1,0 +1,7 @@
+buf = ???*0*
+- *0* ???*1*["from"]("Hello World")
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *1* FreeVar(Buffer)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects

@@ -1,6 +1,6 @@
 import { join } from 'path'
-import { createNext, createNextDescribe } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { createNext, nextTestSetup } from 'e2e-utils'
+import { NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -12,79 +12,77 @@ import {
 
 const isNextProd = !(global as any).isNextDev && !(global as any).isNextDeploy
 
-createNextDescribe(
-  'streaming SSR with custom next configs',
-  {
+describe('streaming SSR with custom next configs', () => {
+  const { next } = nextTestSetup({
     files: join(__dirname, 'streaming-ssr'),
-  },
-  ({ next }) => {
-    it('should match more specific route along with dynamic routes', async () => {
-      const res1 = await fetchViaHTTP(next.url, '/api/user/login')
-      const res2 = await fetchViaHTTP(next.url, '/api/user/any')
-      expect(await res1.text()).toBe('login')
-      expect(await res2.text()).toBe('[id]')
-    })
+  })
 
-    it('should render styled-jsx styles in streaming', async () => {
-      const html = await renderViaHTTP(next.url, '/')
-      expect(html).toMatch(/color:(?:blue|#00f)/)
-    })
+  it('should match more specific route along with dynamic routes', async () => {
+    const res1 = await fetchViaHTTP(next.url, '/api/user/login')
+    const res2 = await fetchViaHTTP(next.url, '/api/user/any')
+    expect(await res1.text()).toBe('login')
+    expect(await res2.text()).toBe('[id]')
+  })
 
-    it('should redirect paths without trailing-slash and render when slash is appended', async () => {
-      const page = '/hello'
-      const redirectRes = await fetchViaHTTP(
-        next.url,
-        page,
-        {},
-        { redirect: 'manual' }
-      )
-      const res = await fetchViaHTTP(next.url, page + '/')
-      const html = await res.text()
+  it('should render styled-jsx styles in streaming', async () => {
+    const html = await renderViaHTTP(next.url, '/')
+    expect(html).toMatch(/color:(?:blue|#00f)/)
+  })
 
-      expect(redirectRes.status).toBe(308)
-      expect(res.status).toBe(200)
-      expect(html).toContain('hello nextjs')
-      expect(html).toContain('home')
-    })
+  it('should redirect paths without trailing-slash and render when slash is appended', async () => {
+    const page = '/hello'
+    const redirectRes = await fetchViaHTTP(
+      next.url,
+      page,
+      {},
+      { redirect: 'manual' }
+    )
+    const res = await fetchViaHTTP(next.url, page + '/')
+    const html = await res.text()
 
-    it('should render next/router correctly in edge runtime', async () => {
-      const html = await renderViaHTTP(next.url, '/router')
-      expect(html).toContain('link')
-    })
+    expect(redirectRes.status).toBe(308)
+    expect(res.status).toBe(200)
+    expect(html).toContain('hello nextjs')
+    expect(html).toContain('home')
+  })
 
-    it('should render multi-byte characters correctly in streaming', async () => {
-      const html = await renderViaHTTP(next.url, '/multi-byte')
-      expect(html).toContain('マルチバイト'.repeat(28))
-    })
+  it('should render next/router correctly in edge runtime', async () => {
+    const html = await renderViaHTTP(next.url, '/router')
+    expect(html).toContain('link')
+  })
 
-    if ((global as any).isNextDev) {
-      it('should work with custom document', async () => {
-        await next.patchFile(
-          'pages/_document.js',
-          `
-        import { Html, Head, Main, NextScript } from 'next/document'
+  it('should render multi-byte characters correctly in streaming', async () => {
+    const html = await renderViaHTTP(next.url, '/multi-byte')
+    expect(html).toContain('マルチバイト'.repeat(28))
+  })
 
-        export default function Document() {
-          return (
-            <Html>
-              <Head />
-              <body>
-                <Main />
-                <NextScript />
-              </body>
-            </Html>
-          )
-        }
-      `
+  if ((global as any).isNextDev) {
+    it('should work with custom document', async () => {
+      await next.patchFile(
+        'pages/_document.js',
+        `
+      import { Html, Head, Main, NextScript } from 'next/document'
+
+      export default function Document() {
+        return (
+          <Html>
+            <Head />
+            <body>
+              <Main />
+              <NextScript />
+            </body>
+          </Html>
         )
-        await check(async () => {
-          return await renderViaHTTP(next.url, '/')
-        }, /index/)
-        await next.deleteFile('pages/_document.js')
-      })
-    }
+      }
+    `
+      )
+      await check(async () => {
+        return await renderViaHTTP(next.url, '/')
+      }, /index/)
+      await next.deleteFile('pages/_document.js')
+    })
   }
-)
+})
 
 if (isNextProd) {
   describe('streaming SSR with custom server', () => {

@@ -17,7 +17,11 @@ import os from 'os'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { RESTART_EXIT_CODE, checkNodeDebugType, getDebugPort } from './utils'
+import {
+  RESTART_EXIT_CODE,
+  getFormattedDebugAddress,
+  getNodeDebugType,
+} from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
@@ -33,51 +37,50 @@ export interface StartServerOptions {
   dir: string
   port: number
   isDev: boolean
-  hostname: string
+  hostname?: string
   allowRetry?: boolean
   customServer?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
-  isExperimentalTestProxy?: boolean
 }
 
 export async function getRequestHandlers({
   dir,
   port,
   isDev,
+  onCleanup,
   server,
   hostname,
   minimalMode,
-  isNodeDebugging,
   keepAliveTimeout,
-  experimentalTestProxy,
   experimentalHttpsServer,
+  quiet,
 }: {
   dir: string
   port: number
   isDev: boolean
+  onCleanup: (listener: () => Promise<void>) => void
   server?: import('http').Server
-  hostname: string
+  hostname?: string
   minimalMode?: boolean
-  isNodeDebugging?: boolean
   keepAliveTimeout?: number
-  experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
+  quiet?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
     port,
     hostname,
+    onCleanup,
     dev: isDev,
     minimalMode,
     server,
-    isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
-    experimentalTestProxy,
     experimentalHttpsServer,
     startServerSpan,
+    quiet,
   })
 }
 
@@ -91,12 +94,11 @@ export async function startServer(
     minimalMode,
     allowRetry,
     keepAliveTimeout,
-    isExperimentalTestProxy,
     selfSignedCertificate,
   } = serverOptions
   let { port } = serverOptions
 
-  process.title = 'next-server'
+  process.title = `next-server (v${process.env.__NEXT_VERSION})`
   let handlersReady = () => {}
   let handlersError = () => {}
 
@@ -213,10 +215,10 @@ export async function startServer(
     }
   })
 
-  const nodeDebugType = checkNodeDebugType()
-
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
+      const nodeDebugType = getNodeDebugType()
+
       const addr = server.address()
       const actualHostname = formatHostname(
         typeof addr === 'object'
@@ -227,8 +229,8 @@ export async function startServer(
         !hostname || actualHostname === '0.0.0.0'
           ? 'localhost'
           : actualHostname === '[::]'
-          ? '[::1]'
-          : formatHostname(hostname)
+            ? '[::1]'
+            : formatHostname(hostname)
 
       port = typeof addr === 'object' ? addr?.port || port : port
 
@@ -238,14 +240,15 @@ export async function startServer(
       }://${formattedHostname}:${port}`
 
       if (nodeDebugType) {
-        const debugPort = getDebugPort()
+        const formattedDebugAddress = getFormattedDebugAddress()
         Log.info(
-          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at port ${debugPort}.`
+          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at ${formattedDebugAddress}.`
         )
       }
 
       // expose the main port to render workers
       process.env.PORT = port + ''
+      process.env.__NEXT_PRIVATE_ORIGIN = appUrl
 
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
@@ -263,10 +266,26 @@ export async function startServer(
         maxExperimentalFeatures: 3,
       })
 
+      Log.event(`Starting...`)
+
       try {
+        const cleanupListeners = [() => new Promise((res) => server.close(res))]
+        let cleanupStarted = false
         const cleanup = () => {
-          debug('start-server process cleanup')
-          server.close(() => process.exit(0))
+          if (cleanupStarted) {
+            // We can get duplicate signals, e.g. when `ctrl+c` is used in an
+            // interactive shell (i.e. bash, zsh), the shell will recursively
+            // send SIGINT to children. The parent `next-dev` process will also
+            // send us SIGINT.
+            return
+          }
+          cleanupStarted = true
+          ;(async () => {
+            debug('start-server process cleanup')
+            await Promise.all(cleanupListeners.map((f) => f()))
+            debug('start-server process cleanup finished')
+            process.exit(0)
+          })()
         }
         const exception = (err: Error) => {
           if (isPostpone(err)) {
@@ -296,12 +315,11 @@ export async function startServer(
           dir,
           port,
           isDev,
+          onCleanup: (listener) => cleanupListeners.push(listener),
           server,
           hostname,
           minimalMode,
-          isNodeDebugging: Boolean(nodeDebugType),
           keepAliveTimeout,
-          experimentalTestProxy: !!isExperimentalTestProxy,
           experimentalHttpsServer: !!selfSignedCertificate,
         })
         requestHandler = initResult[0]
@@ -325,7 +343,7 @@ export async function startServer(
 
         if (process.env.TURBOPACK) {
           await validateTurboNextConfig({
-            ...serverOptions,
+            dir: serverOptions.dir,
             isDev: true,
           })
         }

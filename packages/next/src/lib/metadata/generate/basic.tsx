@@ -8,6 +8,7 @@ import type { ViewportLayout } from '../types/extra-types'
 import React from 'react'
 import { Meta, MetaFilter, MultiMeta } from './meta'
 import { ViewportMetaKeys } from '../constants'
+import { getOrigin } from './utils'
 
 // convert viewport object to string for viewport meta tag
 function resolveViewportLayout(viewport: Viewport) {
@@ -45,6 +46,10 @@ export function ViewportMeta({ viewport }: { viewport: ResolvedViewport }) {
 }
 
 export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
+  const manifestOrigin = metadata.manifest
+    ? getOrigin(metadata.manifest)
+    : undefined
+
   return MetaFilter([
     <meta charSet="utf-8" />,
     metadata.title !== null && metadata.title.absolute ? (
@@ -61,7 +66,17 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
         ])
       : []),
     metadata.manifest ? (
-      <link rel="manifest" href={metadata.manifest.toString()} />
+      <link
+        rel="manifest"
+        href={metadata.manifest.toString()}
+        // If it's same origin, and it's a preview deployment,
+        // including credentials for manifest request.
+        crossOrigin={
+          !manifestOrigin && process.env.VERCEL_ENV === 'preview'
+            ? 'use-credentials'
+            : undefined
+        }
+      />
     ) : null,
     Meta({ name: 'generator', content: metadata.generator }),
     Meta({ name: 'keywords', content: metadata.keywords?.join(',') }),
@@ -108,6 +123,23 @@ export function ItunesMeta({ itunes }: { itunes: ResolvedMetadata['itunes'] }) {
     content += `, app-argument=${appArgument}`
   }
   return <meta name="apple-itunes-app" content={content} />
+}
+
+export function FacebookMeta({
+  facebook,
+}: {
+  facebook: ResolvedMetadata['facebook']
+}) {
+  if (!facebook) return null
+
+  const { appId, admins } = facebook
+
+  return MetaFilter([
+    appId ? <meta property="fb:app_id" content={appId} /> : null,
+    ...(admins
+      ? admins.map((admin) => <meta property="fb:admins" content={admin} />)
+      : []),
+  ])
 }
 
 const formatDetectionKeys = [
