@@ -36,6 +36,7 @@ use std::{
     mem::take,
     path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::Arc,
+    time::Duration,
 };
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -59,7 +60,7 @@ use tokio::{
 use tracing::Instrument;
 use turbo_tasks::{
     mark_stateful, trace::TraceRawVcs, Completion, Invalidator, RcStr, ReadRef,
-    SerializationInvalidator, ValueToString, Vc,
+    SerializationInvalidator, ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_hash::{
     hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
@@ -299,15 +300,22 @@ impl DiskFileSystem {
         self.serialization_invalidator.invalidate();
     }
 
-    pub fn start_watching(&self) -> Result<()> {
-        self.start_watching_internal(false)
+    pub fn start_watching(&self, poll_interval: Option<Duration>) -> Result<()> {
+        self.start_watching_internal(false, poll_interval)
     }
 
-    pub fn start_watching_with_invalidation_reason(&self) -> Result<()> {
-        self.start_watching_internal(true)
+    pub fn start_watching_with_invalidation_reason(
+        &self,
+        poll_interval: Option<Duration>,
+    ) -> Result<()> {
+        self.start_watching_internal(true, poll_interval)
     }
 
-    fn start_watching_internal(&self, report_invalidation_reason: bool) -> Result<()> {
+    fn start_watching_internal(
+        &self,
+        report_invalidation_reason: bool,
+        poll_interval: Option<Duration>,
+    ) -> Result<()> {
         let _span = tracing::info_span!("start filesystem watching", path = &*self.root).entered();
         let invalidator_map = self.invalidator_map.clone();
         let dir_invalidator_map = self.dir_invalidator_map.clone();
@@ -324,6 +332,7 @@ impl DiskFileSystem {
             invalidation_lock,
             invalidator_map,
             dir_invalidator_map,
+            poll_interval,
         )?;
         self.serialization_invalidator.invalidate();
 
@@ -388,6 +397,20 @@ fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path) -> Option<
 
 pub fn path_to_key(path: impl AsRef<Path>) -> String {
     path.as_ref().to_string_lossy().to_string()
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Default)]
+pub struct DiskFileSystemConfig {
+    pub poll_interval: Option<Duration>,
+}
+
+#[turbo_tasks::value_impl]
+impl ValueDefault for DiskFileSystemConfig {
+    #[turbo_tasks::function]
+    fn value_default() -> Vc<Self> {
+        Self::default().cell()
+    }
 }
 
 #[turbo_tasks::value_impl]

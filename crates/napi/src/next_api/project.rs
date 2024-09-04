@@ -10,7 +10,7 @@ use next_api::{
     entrypoints::Entrypoints,
     project::{
         DefineEnv, DraftModeOptions, Instrumentation, Middleware, PartialProjectOptions, Project,
-        ProjectContainer, ProjectOptions,
+        ProjectContainer, ProjectOptions, WatchOptions,
     },
     route::{Endpoint, Route},
 };
@@ -79,6 +79,16 @@ impl From<NapiDraftModeOptions> for DraftModeOptions {
 }
 
 #[napi(object)]
+pub struct NapiWatchOptions {
+    /// Whether to watch the filesystem for file changes.
+    pub enable: bool,
+
+    /// Enable polling at a certain interval if the native file watching doesn't work (e.g.
+    /// docker).
+    pub poll_interval_ms: Option<f64>,
+}
+
+#[napi(object)]
 pub struct NapiProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
@@ -91,8 +101,8 @@ pub struct NapiProjectOptions {
     /// deserializing next.config, so passing it as separate option.
     pub dist_dir: Option<String>,
 
-    /// Whether to watch he filesystem for file changes.
-    pub watch: bool,
+    /// Filesystem watcher options.
+    pub watch: NapiWatchOptions,
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: String,
@@ -137,8 +147,8 @@ pub struct NapiPartialProjectOptions {
     /// deserializing next.config, so passing it as separate option.
     pub dist_dir: Option<Option<String>>,
 
-    /// Whether to watch he filesystem for file changes.
-    pub watch: Option<bool>,
+    /// Filesystem watcher options.
+    pub watch: Option<NapiWatchOptions>,
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: Option<String>,
@@ -183,12 +193,23 @@ pub struct NapiTurboEngineOptions {
     pub memory_limit: Option<f64>,
 }
 
+impl From<NapiWatchOptions> for WatchOptions {
+    fn from(val: NapiWatchOptions) -> Self {
+        WatchOptions {
+            enable: val.enable,
+            poll_interval: val
+                .poll_interval_ms
+                .map(|interval| Duration::from_secs_f64(interval / 1000.0)),
+        }
+    }
+}
+
 impl From<NapiProjectOptions> for ProjectOptions {
     fn from(val: NapiProjectOptions) -> Self {
         ProjectOptions {
             root_path: val.root_path.into(),
             project_path: val.project_path.into(),
-            watch: val.watch,
+            watch: val.watch.into(),
             next_config: val.next_config.into(),
             js_config: val.js_config.into(),
             env: val
@@ -211,7 +232,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
         PartialProjectOptions {
             root_path: val.root_path.map(From::from),
             project_path: val.project_path.map(From::from),
-            watch: val.watch,
+            watch: val.watch.map(From::from),
             next_config: val.next_config.map(From::from),
             js_config: val.js_config.map(From::from),
             env: val.env.map(|env| {

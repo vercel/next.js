@@ -128,6 +128,7 @@ impl DiskWatcher {
         invalidation_lock: Arc<RwLock<()>>,
         invalidator_map: Arc<InvalidatorMap>,
         dir_invalidator_map: Arc<InvalidatorMap>,
+        poll_interval: Option<Duration>,
     ) -> Result<()> {
         let mut watcher_guard = self.watcher.lock().unwrap();
         if watcher_guard.is_some() {
@@ -138,7 +139,12 @@ impl DiskWatcher {
         let (tx, rx) = channel();
         // Create a watcher object, delivering debounced events.
         // The notification back-end is selected based on the platform.
-        let mut watcher = RecommendedWatcher::new(tx, Config::default())?;
+        let mut config = Config::default();
+        if let Some(poll_interval) = poll_interval {
+            config = config.with_poll_interval(poll_interval);
+        };
+
+        let mut watcher = RecommendedWatcher::new(tx, config)?;
         // Add a path to be watched. All files and directories at that path and
         // below will be monitored for changes.
         #[cfg(any(target_os = "macos", target_os = "windows"))]
