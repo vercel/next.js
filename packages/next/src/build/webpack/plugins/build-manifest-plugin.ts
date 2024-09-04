@@ -169,35 +169,16 @@ export const processRoute = (r: Rewrite) => {
 }
 
 /* Inspired by `next/src/build/webpack/react-loadable-plugin.ts` */
-const addDynamicCSSToBuildManifest = ({
-  compilation,
-  block,
-  assetMap,
-}: {
-  compilation: webpack.Compilation
-  block: webpack.AsyncDependenciesBlock
+function addStaticCSSToDynamicImportDeps(
+  compilation: webpack.Compilation,
+  block: webpack.AsyncDependenciesBlock,
   assetMap: DeepMutable<BuildManifest>
-}) => {
-  block.blocks.forEach((recursiveBlock) =>
-    addDynamicCSSToBuildManifest({
-      compilation,
-      block: recursiveBlock,
-      assetMap,
-    })
-  )
-
-  const dynamicCSSFiles = new Set<string>()
+) {
+  block.blocks.forEach((recursiveBlock) => {
+    addStaticCSSToDynamicImportDeps(compilation, recursiveBlock, assetMap)
+  })
 
   const chunkGroup = compilation.chunkGraph.getBlockChunkGroup(block)
-  if (chunkGroup) {
-    for (const chunk of chunkGroup.chunks) {
-      chunk.files.forEach((file: string) => {
-        if (file.endsWith('.css') && file.match(/^static\/css\//)) {
-          dynamicCSSFiles.add(file)
-        }
-      })
-    }
-  }
 
   for (const dependency of block.dependencies) {
     // We target the two types of dynamic import() dependencies:
@@ -212,8 +193,22 @@ const addDynamicCSSToBuildManifest = ({
     // - dependency.type: "import() context element"
     if (dependency.type.startsWith('import()')) {
       const parentModule = compilation.moduleGraph.getParentModule(dependency)
-
+      // When the dependency is `ContextElementDependency`, the `parentModule.resource`
+      // is `undefined` which we can use for the request origin path. Therefore we go
+      // through the chunks to get the entrypoint.
       const parentChunks = compilation.chunkGraph.getModuleChunks(parentModule)
+      if (!parentChunks.length) continue
+
+      const cssFiles = new Set<string>()
+      if (chunkGroup) {
+        for (const chunk of chunkGroup.chunks) {
+          chunk.files.forEach((file: string) => {
+            if (file.endsWith('.css') && file.match(/^static\/css\//)) {
+              cssFiles.add(file)
+            }
+          })
+        }
+      }
 
       for (const chunk of parentChunks) {
         const chunkName = chunk.name
@@ -223,14 +218,12 @@ const addDynamicCSSToBuildManifest = ({
         if (!pagePath) continue
 
         const assetMapPages = assetMap.pages[pagePath]
-        // As we run this function `addDynamicCSSToBuildManifest`
+        // As we run this function `addStaticCSSToDynamicImportDeps`
         // after the entrypoint files are added to the manifest,
         // `assetMapPages` should already exist.
         if (!assetMapPages) continue
 
-        assetMap.pages[pagePath] = [
-          ...new Set([...assetMapPages, ...dynamicCSSFiles]),
-        ]
+        assetMap.pages[pagePath] = [...new Set([...assetMapPages, ...cssFiles])]
       }
     }
   }
@@ -367,11 +360,7 @@ export default class BuildManifestPlugin {
       // the CSS file if it's loaded dynamically, preserving the styles.
       for (const module of compilation.modules) {
         module.blocks.forEach((block) =>
-          addDynamicCSSToBuildManifest({
-            compilation,
-            block,
-            assetMap,
-          })
+          addStaticCSSToDynamicImportDeps(compilation, block, assetMap)
         )
       }
 
