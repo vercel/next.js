@@ -58,7 +58,7 @@ export default class ResponseCache implements ResponseCacheBase {
       isPrefetch?: boolean
       incrementalCache: IncrementalCache
       isRoutePPREnabled?: boolean
-      isFallback: boolean
+      isFallback?: boolean
     }
   ): Promise<ResponseCacheEntry | null> {
     // If there is no key for the cache, we can't possibly look this up in the

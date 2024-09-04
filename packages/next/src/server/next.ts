@@ -350,7 +350,14 @@ class NextCustomServer extends NextServer {
 }
 
 // This file is used for when users run `require('next')`
-function createServer(options: NextServerOptions): NextServer {
+function createServer(
+  options: NextServerOptions & {
+    turbo?: boolean
+  }
+): NextServer {
+  if (options && options.turbo) {
+    process.env.TURBOPACK = '1'
+  }
   // The package is used as a TypeScript plugin.
   if (
     options &&
