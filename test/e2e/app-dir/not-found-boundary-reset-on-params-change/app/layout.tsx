@@ -1,8 +1,8 @@
 'use client'
-import { ReactNode } from 'react'
+import React from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function Root({ children }: { children: ReactNode }) {
+export default function Root({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   return (
