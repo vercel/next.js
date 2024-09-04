@@ -217,7 +217,7 @@ const addDynamicCSSToBuildManifest = ({
 
       for (const chunk of parentChunks) {
         const chunkName = chunk.name
-        if (!chunkName || !chunkName.startsWith('pages')) continue
+        if (!chunkName) continue
 
         const pagePath = getRouteFromEntrypoint(chunkName)
         if (!pagePath) continue
