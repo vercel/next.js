@@ -52,6 +52,7 @@ export default class ReactDevOverlay extends React.PureComponent<
     const hasBuildError = state.buildError != null
     const hasRuntimeErrors = Boolean(state.errors.length)
     const hasStaticIndicator = state.staticIndicator
+    const debugInfo = state.debugInfo
 
     return (
       <>
@@ -85,6 +86,7 @@ export default class ReactDevOverlay extends React.PureComponent<
                   initialDisplayState="fullscreen"
                   errors={[reactError]}
                   hasStaticIndicator={hasStaticIndicator}
+                  debugInfo={debugInfo}
                 />
               ) : hasRuntimeErrors ? (
                 <Errors
@@ -93,6 +95,7 @@ export default class ReactDevOverlay extends React.PureComponent<
                   errors={state.errors}
                   versionInfo={state.versionInfo}
                   hasStaticIndicator={hasStaticIndicator}
+                  debugInfo={debugInfo}
                 />
               ) : null}
 

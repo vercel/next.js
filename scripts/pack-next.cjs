@@ -19,7 +19,7 @@ const NEXT_PACKAGES = `${NEXT_DIR}/packages`
 const noBuild = booleanArg(args, '--no-build')
 const projectPath = namedValueArg(args, '--project')
 
-;(async () => {
+async function main() {
   // the debuginfo on macos is much smaller, so we don't typically need to strip
   const DEFAULT_PACK_NEXT_COMPRESS =
     process.platform === 'darwin' ? 'none' : 'strip'
@@ -179,4 +179,9 @@ const projectPath = namedValueArg(args, '--project')
     console.log(`  }`)
     console.log()
   }
-})()
+}
+
+main().catch((e) => {
+  console.error(e)
+  process.exit(1)
+})
