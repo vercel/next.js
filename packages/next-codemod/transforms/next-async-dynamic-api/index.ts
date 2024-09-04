@@ -21,39 +21,6 @@ export default function transform(file: FileInfo, api: API) {
         },
       })
       .forEach((path) => {
-        // Find if it's under an if statement,
-        // if yes add a TODO comment
-        let currentPath = path.parentPath
-        let isUnderCondition = false
-        while (currentPath) {
-          if (j.IfStatement.check(currentPath.node)) {
-            isUnderCondition = true
-            break
-          }
-          currentPath = currentPath.parentPath
-        }
-        if (isUnderCondition) {
-          const todoCommentContent = ` TODO: move ${functionName}() outside of the condition`
-
-          const parent = path.parentPath.node
-          const comment = j.commentLine(todoCommentContent, true, false)
-
-          if (Array.isArray(parent.body)) {
-            // If the parent is a block statement, find the index of the current node and insert the comment before
-            const index = parent.body.indexOf(path.node)
-            if (index !== -1) {
-              parent.body.splice(index, 0, comment)
-            }
-          } else {
-            // For other types of parents (e.g., ExpressionStatement), add the comment directly
-            parent.comments = parent.comments || []
-            parent.comments.push(comment)
-          }
-
-          modified = true
-          return
-        }
-
         // Check if available to apply transform
         const closestFunction = j(path).closest(j.FunctionDeclaration)
         const isAsyncFunction = closestFunction
@@ -75,6 +42,8 @@ export default function transform(file: FileInfo, api: API) {
             j.awaitExpression(j.callExpression(j.identifier(functionName), []))
           )
           modified = true
+        } else {
+          // Sever component, sync function
         }
       })
   }
