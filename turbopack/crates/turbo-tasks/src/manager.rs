@@ -240,12 +240,10 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
 
     /// An untyped object-safe version of [`TurboTasksBackendApiExt::read_task_state`]. Callers
     /// should prefer the extension trait's version of this method.
-    #[allow(clippy::type_complexity)] // Moving this to a typedef would make the docs confusing
     fn read_task_state_dyn(&self, func: &mut dyn FnMut(&B::TaskState));
 
     /// An untyped object-safe version of [`TurboTasksBackendApiExt::write_task_state`]. Callers
     /// should prefer the extension trait's version of this method.
-    #[allow(clippy::type_complexity)]
     fn write_task_state_dyn(&self, func: &mut dyn FnMut(&mut B::TaskState));
 
     /// Returns a reference to the backend.
