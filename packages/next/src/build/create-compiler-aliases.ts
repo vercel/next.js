@@ -243,6 +243,7 @@ export function createRSCRendererAliases(bundledReactChannel: string) {
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
     'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+    'react-server-dom-webpack/static.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.edge`,
   }
 }
 
@@ -295,6 +296,7 @@ export function createRSCAliases(
         'react-dom$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-dom`,
         'react-server-dom-webpack/server.edge$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-edge`,
         'react-server-dom-webpack/server.node$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-node`,
+        'react-server-dom-webpack/static.edge$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-static-edge`,
       })
     }
   }

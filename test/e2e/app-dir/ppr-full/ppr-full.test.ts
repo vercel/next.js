@@ -1,42 +1,7 @@
 import { nextTestSetup, isNextStart } from 'e2e-utils'
+import { measurePPRTimings } from 'e2e-utils/ppr'
 import { links } from './components/links'
-
-async function measure(stream: NodeJS.ReadableStream) {
-  let streamFirstChunk = 0
-  let streamEnd = 0
-
-  const data: {
-    chunk: string
-    emittedAt: number
-  }[] = []
-
-  await new Promise<void>((resolve, reject) => {
-    stream.on('data', (chunk: Buffer | string) => {
-      if (!streamFirstChunk) {
-        streamFirstChunk = Date.now()
-      }
-
-      if (typeof chunk !== 'string') {
-        chunk = chunk.toString()
-      }
-
-      data.push({ chunk, emittedAt: Date.now() })
-    })
-
-    stream.on('end', () => {
-      streamEnd = Date.now()
-      resolve()
-    })
-
-    stream.on('error', reject)
-  })
-
-  return {
-    streamFirstChunk,
-    streamEnd,
-    data,
-  }
-}
+import cheerio from 'cheerio'
 
 type Page = {
   pathname: string
@@ -48,6 +13,8 @@ type Page = {
    * to be sent as the static part.
    */
   emptyStaticPart?: boolean
+
+  fallback?: boolean
 }
 
 const pages: Page[] = [
@@ -191,53 +158,37 @@ describe('ppr-full', () => {
             const delay = 500
 
             const dynamicValue = `${Date.now()}:${Math.random()}`
-            const start = Date.now()
-            const res = await next.fetch(pathname, {
-              headers: {
-                'X-Delay': delay.toString(),
-                'X-Test-Input': dynamicValue,
-              },
-            })
-            expect(res.status).toBe(200)
 
-            const result = await measure(res.body)
+            const {
+              timings: { streamFirstChunk, streamEnd, start },
+              chunks,
+            } = await measurePPRTimings(async () => {
+              const res = await next.fetch(pathname, {
+                headers: {
+                  'X-Delay': delay.toString(),
+                  'X-Test-Input': dynamicValue,
+                },
+              })
+              expect(res.status).toBe(200)
+
+              return res.body
+            }, delay)
             if (emptyStaticPart) {
-              expect(result.streamFirstChunk - start).toBeGreaterThanOrEqual(
-                delay
-              )
+              expect(streamFirstChunk - start).toBeGreaterThanOrEqual(delay)
             } else {
-              expect(result.streamFirstChunk - start).toBeLessThan(delay)
+              expect(streamFirstChunk - start).toBeLessThan(delay)
             }
-            expect(result.streamEnd - start).toBeGreaterThanOrEqual(delay)
-
-            // Find all the chunks that arrived before the delay, and split
-            // it into the static and dynamic parts.
-            const chunks = result.data.reduce(
-              (acc, { chunk, emittedAt }) => {
-                if (emittedAt < start + delay) {
-                  acc.static.push(chunk)
-                } else {
-                  acc.dynamic.push(chunk)
-                }
-                return acc
-              },
-              { static: [], dynamic: [] }
-            )
-
-            const parts = {
-              static: chunks.static.join(''),
-              dynamic: chunks.dynamic.join(''),
-            }
+            expect(streamEnd - start).toBeGreaterThanOrEqual(delay)
 
             // The static part should not contain the dynamic input.
-            expect(parts.dynamic).toContain(dynamicValue)
+            expect(chunks.dynamic).toContain(dynamicValue)
 
             // Ensure static part contains what we expect.
             if (emptyStaticPart) {
-              expect(parts.static).toBe('')
+              expect(chunks.static).toBe('')
             } else {
-              expect(parts.static).toContain('Dynamic Loading...')
-              expect(parts.static).not.toContain(dynamicValue)
+              expect(chunks.static).toContain('Dynamic Loading...')
+              expect(chunks.static).not.toContain(dynamicValue)
             }
           })
         }
@@ -279,6 +230,116 @@ describe('ppr-full', () => {
       }
     )
   })
+
+  if (!isNextDev) {
+    describe('HTML Fallback', () => {
+      // We'll attempt to load N pages, all of which will not exist in the cache.
+      const pathnames: Array<{
+        pathname: string
+        slug: string
+        client: boolean
+      }> = []
+      const patterns: Array<
+        [generator: (slug: string) => string, client: boolean, nested: boolean]
+      > = [
+        [(slug) => `/fallback/params/${slug}`, false, false],
+        [(slug) => `/fallback/use-pathname/${slug}`, true, false],
+        [(slug) => `/fallback/use-params/${slug}`, true, false],
+        [
+          (slug) => `/fallback/use-selected-layout-segment/${slug}`,
+          true,
+          false,
+        ],
+        [
+          (slug) => `/fallback/use-selected-layout-segments/${slug}`,
+          true,
+          false,
+        ],
+        [(slug) => `/fallback/nested/params/${slug}`, false, true],
+        [(slug) => `/fallback/nested/use-pathname/${slug}`, true, true],
+        [(slug) => `/fallback/nested/use-params/${slug}`, true, true],
+        [
+          (slug) => `/fallback/nested/use-selected-layout-segment/${slug}`,
+          true,
+          true,
+        ],
+        [
+          (slug) => `/fallback/nested/use-selected-layout-segments/${slug}`,
+          true,
+          true,
+        ],
+      ]
+      const pad = (num: number) => String(num).padStart(2, '0')
+      for (let i = 1; i < 2; i++) {
+        for (const [pattern, client, nested] of patterns) {
+          let slug: string
+          if (nested) {
+            let slugs: string[] = []
+            for (let j = i + 1; j < i + 2; j++) {
+              slugs.push(`slug-${pad(i)}/slug-${pad(j)}`)
+            }
+            slug = slugs.join('/')
+          } else {
+            slug = `slug-${pad(i)}`
+          }
+
+          pathnames.push({ pathname: pattern(slug), slug, client })
+        }
+      }
+
+      describe.each(pathnames)(
+        'for $pathname',
+        ({ pathname, slug, client }) => {
+          it('should render the fallback HTML immediately', async () => {
+            const delay = 1000
+
+            const {
+              timings: { streamFirstChunk, start, streamEnd },
+              chunks,
+            } = await measurePPRTimings(async () => {
+              const res = await next.fetch(pathname)
+              expect(res.status).toBe(200)
+
+              return res.body
+            }, delay)
+
+            // Expect that the first chunk should be emitted before the delay is
+            // complete, implying that the fallback shell was sent immediately.
+            expect(streamFirstChunk - start).toBeLessThan(delay)
+
+            // Expect that the last chunk should be emitted after the delay is
+            // complete.
+            expect(streamEnd - start).toBeGreaterThanOrEqual(delay)
+
+            if (client) {
+              let browser = await next.browser(pathname)
+              try {
+                await browser.waitForElementByCss('[data-slug]')
+                expect(
+                  await browser.elementByCss('[data-slug]').text()
+                ).toContain(slug)
+              } finally {
+                await browser.close()
+              }
+            } else {
+              // The static part should not contain the dynamic parameter.
+              let $ = cheerio.load(chunks.static)
+              let data = $('[data-slug]').text()
+              expect(data).not.toContain(slug)
+
+              // The dynamic part should contain the dynamic parameter.
+              $ = cheerio.load(chunks.dynamic)
+              data = $('[data-slug]').text()
+              expect(data).toContain(slug)
+
+              // The static part should contain the fallback shell.
+              expect(chunks.static).toContain('data-fallback')
+            }
+          })
+        }
+      )
+    })
+  }
 
   describe('Navigation Signals', () => {
     const delay = 500
@@ -329,23 +390,26 @@ describe('ppr-full', () => {
 
         if (pathname.endsWith('/dynamic')) {
           it('should cache the static part', async () => {
-            const start = Date.now()
-            const res = await next.fetch(pathname, {
-              redirect: 'manual',
-              headers: {
-                'X-Delay': delay.toString(),
-              },
-            })
+            const {
+              timings: { streamFirstChunk, streamEnd, start },
+            } = await measurePPRTimings(async () => {
+              const res = await next.fetch(pathname, {
+                redirect: 'manual',
+                headers: {
+                  'X-Delay': delay.toString(),
+                },
+              })
 
-            const result = await measure(res.body)
-            expect(result.streamFirstChunk - start).toBeLessThan(delay)
+              return res.body
+            }, delay)
+            expect(streamFirstChunk - start).toBeLessThan(delay)
 
             if (isNextDev) {
               // This is because the signal should throw and interrupt the
               // delay timer.
-              expect(result.streamEnd - start).toBeGreaterThanOrEqual(delay)
+              expect(streamEnd - start).toBeGreaterThanOrEqual(delay)
             } else {
-              expect(result.streamEnd - start).toBeLessThan(delay)
+              expect(streamEnd - start).toBeLessThan(delay)
             }
           })
         }
@@ -484,7 +548,7 @@ describe('ppr-full', () => {
           // optimistic UI
           expect($('#foosearch').text()).toEqual('foo search: ')
 
-          // There is no hydration mismatch, we continue to have empty searchParmas
+          // There is no hydration mismatch, we continue to have empty searchParams
           const browser = await next.browser(
             '/dynamic-data/force-static?foo=bar'
           )
@@ -563,7 +627,7 @@ describe('ppr-full', () => {
           // optimistic UI
           expect($('#foosearch').text()).toEqual('foo search: ')
 
-          // There is no hydration mismatch, we continue to have empty searchParmas
+          // There is no hydration mismatch, we continue to have empty searchParams
           const browser = await next.browser(
             '/dynamic-data/incidental-postpone/force-static?foo=bar'
           )

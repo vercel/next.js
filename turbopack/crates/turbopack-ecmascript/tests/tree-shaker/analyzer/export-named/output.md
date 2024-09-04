@@ -106,7 +106,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 2
 ```js
 import { cat as __TURBOPACK__reexport__cat__ } from "./lib";
-export { __TURBOPACK__reexport__cat__ } from "__TURBOPACK_VAR__" assert {
+export { __TURBOPACK__reexport__cat__ as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -116,7 +116,7 @@ export { __TURBOPACK__reexport__cat__ } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { __TURBOPACK__reexport__cat__ } from "__TURBOPACK_PART__" assert {
+import { a as __TURBOPACK__reexport__cat__ } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 export { __TURBOPACK__reexport__cat__ as fakeCat };
@@ -167,7 +167,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 2
 ```js
 import { cat as __TURBOPACK__reexport__cat__ } from "./lib";
-export { __TURBOPACK__reexport__cat__ } from "__TURBOPACK_VAR__" assert {
+export { __TURBOPACK__reexport__cat__ as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -177,7 +177,7 @@ export { __TURBOPACK__reexport__cat__ } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { __TURBOPACK__reexport__cat__ } from "__TURBOPACK_PART__" assert {
+import { a as __TURBOPACK__reexport__cat__ } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 export { __TURBOPACK__reexport__cat__ as fakeCat };
