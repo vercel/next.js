@@ -3,7 +3,7 @@ use turbo_tasks::TaskId;
 
 use super::{
     aggregation_update::{
-        is_aggregating_node, is_root_node, AggregationUpdateJob, AggregationUpdateQueue,
+        get_uppers, is_aggregating_node, is_root_node, AggregationUpdateJob, AggregationUpdateQueue,
     },
     ExecuteContext, Operation,
 };
@@ -59,7 +59,7 @@ impl ConnectChildOperation {
                     new_follower_id: child_task_id,
                 });
             } else {
-                let upper_ids = get_many!(parent_task, Upper { task } => task);
+                let upper_ids = get_uppers(&parent_task);
                 queue.push(AggregationUpdateJob::InnerHasNewFollower {
                     upper_ids,
                     new_follower_id: child_task_id,

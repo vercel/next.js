@@ -4,7 +4,10 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
 use super::{
-    aggregation_update::{AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue},
+    aggregation_update::{
+        get_aggregation_number, get_uppers, is_aggregating_node, AggregatedDataUpdate,
+        AggregationUpdateJob, AggregationUpdateQueue,
+    },
     invalidate::make_task_dirty,
     ExecuteContext, Operation,
 };
@@ -74,11 +77,18 @@ impl Operation for CleanupOldEdgesOperation {
                             OutdatedEdge::Child(child_id) => {
                                 let mut task = ctx.task(task_id);
                                 task.remove(&CachedDataItemKey::Child { task: child_id });
-                                let upper_ids = get_many!(task, Upper { task } => task);
-                                queue.push(AggregationUpdateJob::InnerLostFollower {
-                                    upper_ids,
-                                    lost_follower_id: child_id,
-                                });
+                                if is_aggregating_node(get_aggregation_number(&task)) {
+                                    queue.push(AggregationUpdateJob::InnerLostFollower {
+                                        upper_ids: vec![task_id],
+                                        lost_follower_id: child_id,
+                                    });
+                                } else {
+                                    let upper_ids = get_uppers(&task);
+                                    queue.push(AggregationUpdateJob::InnerLostFollower {
+                                        upper_ids,
+                                        lost_follower_id: child_id,
+                                    });
+                                }
                             }
                             OutdatedEdge::CellDependency(CellRef {
                                 task: cell_task_id,

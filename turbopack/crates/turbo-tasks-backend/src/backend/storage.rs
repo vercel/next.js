@@ -182,7 +182,7 @@ macro_rules! iter_many {
         $task
             .iter()
             .filter_map(|(key, _)| match *key {
-                CachedDataItemKey::$key $input => Some($value),
+                $crate::data::CachedDataItemKey::$key $input => Some($value),
                 _ => None,
             })
     };
@@ -190,7 +190,15 @@ macro_rules! iter_many {
         $task
             .iter()
             .filter_map(|(key, value)| match (key, value) {
-                (&CachedDataItemKey::$key $input, &CachedDataItemValue::$key { value: $value_ident }) => Some($value),
+                (&$crate::data::CachedDataItemKey::$key $input, &$crate::data::CachedDataItemValue::$key { value: $value_ident }) => Some($value),
+                _ => None,
+            })
+    };
+    ($task:ident, $key:ident $input:tt $value_ident:ident if $cond:expr => $value:expr) => {
+        $task
+            .iter()
+            .filter_map(|(key, value)| match (key, value) {
+                (&$crate::data::CachedDataItemKey::$key $input, &$crate::data::CachedDataItemValue::$key { value: $value_ident }) if $cond => Some($value),
                 _ => None,
             })
     };
@@ -198,8 +206,8 @@ macro_rules! iter_many {
         $task
             .iter()
             .filter_map(|(key, _)| match *key {
-                CachedDataItemKey::$key1 $input1 => Some($value1),
-                CachedDataItemKey::$key2 $input2 => Some($value2),
+                $crate::data::CachedDataItemKey::$key1 $input1 => Some($value1),
+                $crate::data::CachedDataItemKey::$key2 $input2 => Some($value2),
                 _ => None,
             })
     };
@@ -212,6 +220,9 @@ macro_rules! get_many {
     };
     ($task:ident, $key:ident $input:tt $value_ident:ident => $value:expr) => {
         $crate::iter_many!($task, $key $input $value_ident => $value).collect()
+    };
+    ($task:ident, $key:ident $input:tt $value_ident:ident if $cond:expr => $value:expr) => {
+        $crate::iter_many!($task, $key $input $value_ident if $cond => $value).collect()
     };
     ($task:ident, $key1:ident $input1:tt => $value1:ident, $key2:ident $input2:tt => $value2:ident) => {
         $crate::iter_many!($task, $key1 $input1 => $value1, $key2 $input2 => $value2).collect()
@@ -258,17 +269,14 @@ macro_rules! update_count {
         match $update {
             update => {
                 let mut state_change = false;
-                $crate::update!($task, $key $input, |old: Option<u32>| {
-                    if old.is_none() {
-                        state_change = true;
-                    }
-                    let old = old.unwrap_or(0);
-                    let new = old as i32 + update;
-                    if new == 0 {
-                        state_change = true;
-                        None
+                $crate::update!($task, $key $input, |old: Option<i32>| {
+                    if let Some(old) = old {
+                        let new = old + update;
+                        state_change = old <= 0 && new > 0 || old > 0 && new <= 0;
+                        (new != 0).then_some(new)
                     } else {
-                        Some(new as u32)
+                        state_change = update > 0;
+                        (update != 0).then_some(update)
                     }
                 });
                 state_change
