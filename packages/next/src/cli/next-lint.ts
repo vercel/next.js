@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync } from 'fs'
-import { join, isAbsolute } from 'path'
+import { isAbsolute, join } from 'path'
 
 import loadConfig from '../server/config'
 import { printAndExit } from '../server/lib/utils'
