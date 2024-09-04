@@ -34,19 +34,6 @@ export interface TransformOutput {
   map?: string
   output?: string
 }
-export function streamEntrypoints(
-  turboTasks: ExternalObject<TurboTasks>,
-  rootDir: string,
-  projectDir: string,
-  pageExtensions: Array<string>,
-  func: (...args: any[]) => any
-): void
-export function getEntrypoints(
-  turboTasks: ExternalObject<TurboTasks>,
-  rootDir: string,
-  projectDir: string,
-  pageExtensions: Array<string>
-): Promise<any>
 export function mdxCompile(
   value: string,
   option: Buffer,
@@ -359,7 +346,6 @@ export interface NapiRewrite {
   has?: Array<NapiRouteHas>
   missing?: Array<NapiRouteHas>
 }
-export function experimentalTurbo(unused: Buffer): Promise<void>
 export function createTurboTasks(
   memoryLimit?: number | undefined | null
 ): ExternalObject<TurboTasks>
