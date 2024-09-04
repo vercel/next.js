@@ -1,6 +1,6 @@
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
-import type { ExternalObject, RefCell, TurboTasks } from './generated'
+import type { ExternalObject, RefCell, TurboTasks } from './generated-native'
 
 export interface Binding {
   isWasm: boolean

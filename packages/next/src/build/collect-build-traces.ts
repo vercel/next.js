@@ -27,7 +27,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import isError from '../lib/is-error'
 import type { NodeFileTraceReasons } from '@vercel/nft'
 import type { RoutesUsingEdgeRuntime } from './utils'
-import type { ExternalObject, TurboTasks } from './swc/generated'
+import type { ExternalObject, TurboTasks } from './swc/generated-native'
 
 const debug = debugOriginal('next:build:build-traces')
 

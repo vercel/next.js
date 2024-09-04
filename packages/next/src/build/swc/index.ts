@@ -27,23 +27,27 @@ import type {
   NapiPartialProjectOptions,
   NapiProjectOptions,
   TurboTasks,
-} from './generated'
+} from './generated-native'
 import type {
-  TurbopackResult,
-  DefineEnv,
   Binding,
-  ProjectOptions,
-  Project,
-  Route,
-  Update,
+  DefineEnv,
+  Endpoint,
   HmrIdentifiers,
+  Project,
+  ProjectOptions,
+  Route,
+  TurboEngineOptions,
+  TurbopackResult,
   TurbopackStackFrame,
+  Update,
   UpdateMessage,
   WrittenEndpoint,
-  Endpoint,
 } from './types'
 
-type RawBindings = typeof import('./generated')
+type RawBindings = typeof import('./generated-native')
+type RawWasmBindings = typeof import('./generated-wasm') & {
+  default?(): Promise<typeof import('./generated-wasm')>
+}
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -159,7 +163,7 @@ let lastNativeBindingsLoadErrorCode:
   | string
   | undefined = undefined
 let nativeBindings: Binding
-let wasmBindings: any
+let wasmBindings: Binding
 let downloadWasmPromise: any
 let pendingBindings: any
 let swcTraceFlushGuard: any
@@ -350,6 +354,7 @@ function loadBindingsSync() {
   }
 
   logLoadFailure(attempts)
+  throw new Error('Failed to load bindings', { cause: attempts })
 }
 
 let loggingLoadFailure = false
@@ -753,16 +758,13 @@ function bindingToApi(
     }
 
     updateInfoSubscribe(aggregationMs: number) {
-      const subscription = subscribe<TurbopackResult<UpdateMessage>>(
-        true,
-        async (callback) =>
-          binding.projectUpdateInfoSubscribe(
-            this._nativeProject,
-            aggregationMs,
-            callback
-          )
+      return subscribe<TurbopackResult<UpdateMessage>>(true, async (callback) =>
+        binding.projectUpdateInfoSubscribe(
+          this._nativeProject,
+          aggregationMs,
+          callback
+        )
       )
-      return subscription
     }
 
     shutdown(): Promise<void> {
@@ -996,15 +998,31 @@ async function loadWasm(importPath = '') {
         // the import path must be exact when not in node_modules
         pkgPath = path.join(importPath, pkg, 'wasm.js')
       }
-      let bindings = await import(pathToFileURL(pkgPath).toString())
+      let bindings: RawWasmBindings = await import(
+        pathToFileURL(pkgPath).toString()
+      )
       if (pkg === '@next/swc-wasm-web') {
-        bindings = await bindings.default()
+        bindings = await bindings.default!()
       }
       infoLog('next-swc build: wasm build @next/swc-wasm-web')
 
       // Note wasm binary does not support async intefaces yet, all async
       // interface coereces to sync interfaces.
       wasmBindings = {
+        css: {
+          lightning: {
+            transform: function (_options: any) {
+              throw new Error(
+                '`css.lightning.transform` is not supported by the wasm bindings.'
+              )
+            },
+            transformStyleAttr: function (_options: any) {
+              throw new Error(
+                '`css.lightning.transformStyleAttr` is not supported by the wasm bindings.'
+              )
+            },
+          },
+        },
         isWasm: true,
         transform(src: string, options: any) {
           // TODO: we can remove fallback to sync interface once new stable version of next-swc gets published (current v12.2)
@@ -1034,6 +1052,26 @@ async function loadWasm(importPath = '') {
         turbo: {
           startTrace() {
             Log.error('Wasm binding does not support trace yet')
+          },
+          createTurboTasks: function (
+            _memoryLimit?: number | undefined
+          ): ExternalObject<TurboTasks> {
+            throw new Error(
+              '`turbo.createTurboTasks` is not supported by the wasm bindings.'
+            )
+          },
+          createProject: function (
+            _options: ProjectOptions,
+            _turboEngineOptions?: TurboEngineOptions | undefined
+          ): Promise<Project> {
+            throw new Error(
+              '`turbo.createProject` is not supported by the wasm bindings.'
+            )
+          },
+          startTurbopackTraceServer: function (_traceFilePath: string): void {
+            throw new Error(
+              '`turbo.startTurbopackTraceServer` is not supported by the wasm bindings.'
+            )
           },
         },
         mdx: {

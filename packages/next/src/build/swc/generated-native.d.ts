@@ -162,7 +162,7 @@ export interface NapiTurboEngineOptions {
 export function projectNew(
   options: NapiProjectOptions,
   turboEngineOptions: NapiTurboEngineOptions
-): { __napiType: 'Project' }
+): Promise<{ __napiType: 'Project' }>
 export function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
