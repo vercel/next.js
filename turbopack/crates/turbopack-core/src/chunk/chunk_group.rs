@@ -23,15 +23,16 @@ pub async fn make_chunk_group(
     entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
 ) -> Result<MakeChunkGroupResult> {
+    let entries = entries.into_iter().collect::<Vec<_>>();
     let ChunkContentResult {
         chunk_items,
-        isolated_chunk_items,
+        isolated_modules,
         async_modules,
         external_module_references,
         forward_edges_inherit_async,
         local_back_edges_inherit_async,
         available_async_modules_back_edges_inherit_async,
-    } = chunk_content(chunking_context, entries, availability_info).await?;
+    } = chunk_content(chunking_context, entries.clone(), availability_info).await?;
 
     // Find all local chunk items that are self async
     let self_async_children = chunk_items
@@ -119,6 +120,16 @@ pub async fn make_chunk_group(
         availability_info.with_chunk_items(map).await?
     };
 
+    // Pass chunk items to chunking algorithm
+    let mut chunks = make_chunks(
+        chunking_context,
+        Vc::cell(chunk_items.into_iter().collect()),
+        "".into(),
+        references_to_output_assets(external_module_references).await?,
+    )
+    .await?
+    .clone_value();
+
     // Insert async chunk loaders for every referenced async module
     let async_loaders = async_modules
         .into_iter()
@@ -140,16 +151,6 @@ pub async fn make_chunk_group(
         .flat_map(|references| references.iter().copied())
         .collect();
 
-    // Pass chunk items to chunking algorithm
-    let mut chunks = make_chunks(
-        chunking_context,
-        Vc::cell(chunk_items.into_iter().collect()),
-        "".into(),
-        references_to_output_assets(external_module_references).await?,
-    )
-    .await?
-    .clone_value();
-
     if has_async_loaders {
         // Pass async chunk loaders to chunking algorithm
         // We want them to be separate since they are specific to this chunk group due
@@ -166,23 +167,43 @@ pub async fn make_chunk_group(
         chunks.extend(async_loader_chunks.iter().copied());
     }
 
-    for isolated_chunk_item in isolated_chunk_items {
-        let isolated_chunks = make_chunks(
+    // Insert async chunk loaders for every referenced async module
+    let isolated_loaders = isolated_modules
+        .into_iter()
+        .map(|module| {
+            chunking_context.isolated_loader_chunk_item(module, Value::new(availability_info))
+        })
+        .collect::<Vec<_>>();
+    let has_isolated_loaders = !isolated_loaders.is_empty();
+    let isolated_loader_chunk_items = isolated_loaders
+        .iter()
+        .map(|&chunk_item| (chunk_item, None));
+
+    // And also add output assets referenced by isolated chunk loaders
+    let isolated_loader_references = isolated_loaders
+        .iter()
+        .map(|&loader| loader.references())
+        .try_join()
+        .await?;
+    let isolated_loader_external_module_references = isolated_loader_references
+        .iter()
+        .flat_map(|references| references.iter().copied())
+        .collect();
+
+    if has_isolated_loaders {
+        // Pass isolated chunk loaders to chunking algorithm
+        // We want them to be separate since they are specific to this chunk group due
+        // to available chunk items differing
+        let isolated_loader_chunks = make_chunks(
             chunking_context,
-            Vc::cell(vec![(isolated_chunk_item, None)]),
-            "isolated-".into(),
-            references_to_output_assets(
-                isolated_chunk_item
-                    .references()
-                    .await?
-                    .iter()
-                    .copied()
-                    .collect(),
-            )
-            .await?,
+            Vc::cell(isolated_loader_chunk_items.into_iter().collect()),
+            "isolated-loader-".into(),
+            references_to_output_assets(isolated_loader_external_module_references).await?,
         )
         .await?;
-        chunks.extend(isolated_chunks.iter().copied());
+
+        // concatenate chunks
+        chunks.extend(isolated_loader_chunks.iter().copied());
     }
 
     Ok(MakeChunkGroupResult {

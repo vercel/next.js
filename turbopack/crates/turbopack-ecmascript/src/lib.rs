@@ -15,6 +15,7 @@ pub mod chunk_group_files_asset;
 pub mod code_gen;
 mod errors;
 pub mod global_module_id_strategy;
+pub mod isolated_chunk;
 pub mod magic_identifier;
 pub mod manifest;
 pub mod minify;

@@ -7,29 +7,24 @@ use swc_core::{
 use turbo_tasks::{debug::ValueDebug, RcStr, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, ChunkData, ChunkableModuleReference, ChunkingContext,
-        ChunkingType, ChunkingTypeOption, EntryChunkGroupResult, EvaluatableAsset,
-        EvaluatableAssets,
+        ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
+        ChunkingTypeOption,
     },
-    environment::ChunkLoading,
     issue::IssueSource,
     module::Module,
-    output::OutputAsset,
     reference::ModuleReference,
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType, UrlReferenceSubType},
+    reference_type::ReferenceType,
     resolve::{
         origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult,
         ModuleResolveResultItem,
     },
 };
-use turbopack_resolve::ecmascript::{esm_resolve, try_to_severity};
+use turbopack_resolve::ecmascript::try_to_severity;
 
 use crate::{
-    chunk::EcmascriptChunkData,
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
-    utils::StringifyJs,
 };
 
 #[turbo_tasks::value]
@@ -119,26 +114,44 @@ impl CodeGenerateable for WorkerAssetReference {
             bail!("b");
         };
 
-        let Some(evaluatable) =
-            Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module).await?
+        // let Some(evaluatable) =
+        //     Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module).await?
+        // else {
+        //     // TODO bail
+        //     bail!("a");
+        // };
+        let Some(chunkable) = Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await?
         else {
             // TODO bail
             bail!("a");
         };
 
-        let EntryChunkGroupResult { asset, .. } = &*chunking_context
-            .entry_chunk_group(
-                chunking_context.chunk_path(module.ident(), ".js".into()),
-                module,
-                EvaluatableAssets::one(evaluatable),
-                Value::new(AvailabilityInfo::Root),
-            )
-            .await?;
-        let chunk_data = ChunkData::from_asset(chunking_context.output_root(), *asset)
-            .await?
-            .as_ref()
-            // TODO unwrap
-            .unwrap()
+        println!(
+            "worker module {:?} {:?} {:?}",
+            module.dbg().await?,
+            module.ident().dbg().await?,
+            chunking_context
+                .chunk_path(module.ident(), ".js".into())
+                .await?
+                .path
+        );
+        // let EntryChunkGroupResult { asset, .. } = &*chunking_context
+        //     .entry_chunk_group(
+        //         chunking_context.chunk_path(module.ident(), ".js".into()),
+        //         module,
+        //         EvaluatableAssets::empty().with_entry(evaluatable),
+        //         Value::new(AvailabilityInfo::Root),
+        //     )
+        //     .await?;
+        // let chunk_data = ChunkData::from_asset(chunking_context.output_root(), *asset)
+        //     .await?
+        //     .as_ref()
+        //     // TODO unwrap
+        //     .unwrap()
+        //     .await?;
+
+        let item_id = chunking_context
+            .isolated_loader_chunk_item_id(Vc::upcast(chunkable))
             .await?;
 
         // CodeGenerationIssue {
@@ -164,12 +177,13 @@ impl CodeGenerateable for WorkerAssetReference {
                             // TODO ensure that this is EcmascriptChunkData::Simple?
                             // TODO relative?
                             // let url_str = StringifyJs(&EcmascriptChunkData::new(&chunk_data)).to_string();
-                            let url_str = format!("./{}", chunk_data.path);
+                            // let url_str = format!("./{}", chunk_data.path);
 
-                            let url = Expr::Lit(Lit::Str(url_str.clone().into()));
+                            // let url = Expr::Lit(Lit::Str(url_str.clone().into()));
+                            let item_id = Expr::Lit(Lit::Str(item_id.to_string().into()));
                             *expr = *quote_expr!(
-                                "new Worker($url)",
-                                url: Expr = url
+                                "new Worker(__turbopack_require__($item_id))",
+                                item_id: Expr = item_id
                             );
                             return;
                         }

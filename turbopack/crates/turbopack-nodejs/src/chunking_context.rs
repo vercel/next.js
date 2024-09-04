@@ -20,6 +20,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
     chunk::EcmascriptChunk,
+    isolated_chunk::module::IsolatedLoaderModule,
     manifest::{chunk_asset::ManifestAsyncModule, loader_item::ManifestLoaderChunkItem},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -395,5 +396,23 @@ impl ChunkingContext for NodeJsChunkingContext {
         } else {
             self.chunk_item_id_from_ident(AsyncLoaderModule::asset_ident_for(module))
         })
+    }
+
+    #[turbo_tasks::function]
+    async fn isolated_loader_chunk_item(
+        self: Vc<Self>,
+        module: Vc<Box<dyn ChunkableModule>>,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Result<Vc<Box<dyn ChunkItem>>> {
+        let module = IsolatedLoaderModule::new(module, Vc::upcast(self), availability_info);
+        Ok(Vc::upcast(module.as_chunk_item(Vc::upcast(self))))
+    }
+
+    #[turbo_tasks::function]
+    async fn isolated_loader_chunk_item_id(
+        self: Vc<Self>,
+        module: Vc<Box<dyn ChunkableModule>>,
+    ) -> Result<Vc<ModuleId>> {
+        Ok(self.chunk_item_id_from_ident(IsolatedLoaderModule::asset_ident_for(module)))
     }
 }
