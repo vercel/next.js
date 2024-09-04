@@ -72,6 +72,24 @@ function buildManifest(
   const handleBlock = (block: any) => {
     block.blocks.forEach(handleBlock)
     const chunkGroup = getChunkGroupFromBlock(compilation, block)
+    const filesFromChunkGroup = new Set<string>()
+    // There might not be a chunk group when all modules
+    // are already loaded. In this case we only need need
+    // the module id and no files
+    if (chunkGroup) {
+      for (const chunk of (chunkGroup as any)
+        .chunks as webpack.Compilation['chunks']) {
+        chunk.files.forEach((file: string) => {
+          if (
+            (file.endsWith('.js') || file.endsWith('.css')) &&
+            file.match(/^static\/(chunks|css)\//)
+          ) {
+            filesFromChunkGroup.add(file)
+          }
+        })
+      }
+    }
+
     for (const dependency of block.dependencies) {
       if (dependency.type.startsWith('import()')) {
         // get the referenced module
@@ -94,7 +112,7 @@ function buildManifest(
         }`
 
         // Capture all files that need to be loaded.
-        const files = new Set<string>()
+        const files = new Set<string>(filesFromChunkGroup)
 
         if (manifest[key]) {
           // In the "rare" case where multiple chunk groups
@@ -104,23 +122,6 @@ function buildManifest(
           // This may cause overfetching in edge cases.
           for (const file of manifest[key].files) {
             files.add(file)
-          }
-        }
-
-        // There might not be a chunk group when all modules
-        // are already loaded. In this case we only need need
-        // the module id and no files
-        if (chunkGroup) {
-          for (const chunk of (chunkGroup as any)
-            .chunks as webpack.Compilation['chunks']) {
-            chunk.files.forEach((file: string) => {
-              if (
-                (file.endsWith('.js') || file.endsWith('.css')) &&
-                file.match(/^static\/(chunks|css)\//)
-              ) {
-                files.add(file)
-              }
-            })
           }
         }
 
