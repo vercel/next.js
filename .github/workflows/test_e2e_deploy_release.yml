@@ -57,7 +57,7 @@ jobs:
         NEXT_TEST_CONTINUE_ON_ERROR="1"
         node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
       skipNativeBuild: 'yes'
-      skipNativeInstall: 'yes'
+      skipNativeInstall: 'no'
       stepName: 'test-deploy-${{ matrix.group }}'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
