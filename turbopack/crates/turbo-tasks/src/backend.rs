@@ -748,7 +748,7 @@ pub(crate) mod tests {
                 arg: Box::new(()),
             }
             .get_name(),
-            "MockTrait::mock_method_task",
+            "*MockTrait::mock_method_task",
         );
     }
 }
