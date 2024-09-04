@@ -26,7 +26,7 @@ use crate::{
 /// A module derived from an original ecmascript module that only contains all
 /// the reexports from that module and also reexports the locals from
 /// [EcmascriptModuleLocalsModule]. It allows to follow
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct EcmascriptModuleFacadeModule {
     pub module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     pub ty: Vc<ModulePart>,

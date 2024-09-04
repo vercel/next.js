@@ -47,14 +47,14 @@ pub enum ClientReferenceType {
     CssClientReference(Vc<CssClientReferenceModule>),
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Debug)]
 pub struct ClientReferenceGraphResult {
     pub client_references: Vec<ClientReference>,
     pub server_component_entries: Vec<Vc<NextServerComponentModule>>,
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct ClientReferenceTypes(IndexSet<ClientReferenceType>);
 
 #[turbo_tasks::value_impl]

@@ -23,7 +23,7 @@ pub struct PreprocessedChildrenIdents {
 }
 
 #[derive(Clone, Hash)]
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub enum ReferencedModule {
     Module(Vc<Box<dyn Module>>),
     AsyncLoaderModule(Vc<Box<dyn Module>>),
@@ -42,7 +42,7 @@ impl ReferencedModule {
 #[allow(clippy::type_complexity)]
 type ModulesAndAsyncLoaders = Vec<(Vec<Vc<Box<dyn Module>>>, Option<Vc<Box<dyn Module>>>)>;
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct ReferencedModules(Vec<Vc<ReferencedModule>>);
 
 #[turbo_tasks::function]

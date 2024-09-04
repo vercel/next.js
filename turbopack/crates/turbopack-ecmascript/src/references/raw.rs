@@ -6,7 +6,7 @@ use turbopack_core::{
     source::Source,
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct FileSourceReference {
     pub source: Vc<Box<dyn Source>>,

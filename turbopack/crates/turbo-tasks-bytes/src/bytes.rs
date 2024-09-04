@@ -10,7 +10,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// Bytes is a thin wrapper around [bytes::Bytes], implementing easy
 /// conversion to/from, ser/de support, and Vc containers.
 #[derive(Clone, Debug, Default)]
-#[turbo_tasks::value(transparent, serialization = "custom")]
+#[turbo_tasks::value(transparent, serialization = "custom", unresolved)]
 pub struct Bytes(#[turbo_tasks(trace_ignore)] CBytes);
 
 impl Bytes {

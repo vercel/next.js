@@ -42,7 +42,7 @@ use crate::{
     EcmascriptInputTransform,
 };
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual", unresolved)]
 #[allow(clippy::large_enum_variant)]
 pub enum ParseResult {
     // Note: Ok must not contain any Vc as it's snapshot by failsafe_parse
@@ -73,7 +73,7 @@ impl PartialEq for ParseResult {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual", unresolved)]
 pub struct ParseResultSourceMap {
     /// Confusingly, SWC's SourceMap is not a mapping of transformed locations
     /// to source locations. It's a map of filesnames to file contents.
@@ -464,7 +464,7 @@ async fn parse_content(
     Ok(result.cell())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ReadSourceIssue {
     source: Vc<Box<dyn Source>>,
     error: RcStr,

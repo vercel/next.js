@@ -19,7 +19,7 @@ use crate::chunk::{write_import_context, CssChunkItem};
 /// A CSS chunk that only contains a single item. This is used for selectively
 /// loading CSS modules that are part of a larger chunk in development mode, and
 /// avoiding rule duplication.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct SingleItemCssChunk {
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     item: Vc<Box<dyn CssChunkItem>>,

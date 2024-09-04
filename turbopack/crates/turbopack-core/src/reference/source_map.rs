@@ -10,7 +10,7 @@ use crate::{
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct SourceMapReference {
     from: Vc<FileSystemPath>,
     file: Vc<FileSystemPath>,

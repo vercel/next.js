@@ -20,7 +20,7 @@ use turbopack_ecmascript::chunk::{
 /// which `code` and `hash` are derived, we store `Vc`s directly. This avoids
 /// creating tasks in a hot loop when iterating over thousands of entries when
 /// computing updates.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Debug)]
 pub struct EcmascriptDevChunkContentEntry {
     pub code: Vc<Code>,
@@ -40,7 +40,7 @@ impl EcmascriptDevChunkContentEntry {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct EcmascriptDevChunkContentEntries(
     IndexMap<ReadRef<ModuleId>, EcmascriptDevChunkContentEntry>,
 );

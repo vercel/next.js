@@ -26,13 +26,13 @@ use turbopack_core::{
 
 use crate::{embed::CssEmbed, StyleSheetLike};
 
-#[turbo_tasks::value(into = "new")]
+#[turbo_tasks::value(into = "new", unresolved)]
 pub enum ReferencedAsset {
     Some(Vc<Box<dyn OutputAsset>>),
     None,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct UrlAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,

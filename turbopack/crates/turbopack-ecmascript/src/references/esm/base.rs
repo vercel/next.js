@@ -33,7 +33,7 @@ use crate::{
     utils::module_id_to_lit,
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub enum ReferencedAsset {
     Some(Vc<Box<dyn EcmascriptChunkPlaceable>>),
     External(RcStr, ExternalType),
@@ -88,7 +88,7 @@ impl ReferencedAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
@@ -100,7 +100,7 @@ pub struct EsmAssetReference {
 }
 
 /// A list of [EsmAssetReference]s
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct EsmAssetReferences(Vec<Vc<EsmAssetReference>>);
 
 impl EsmAssetReference {

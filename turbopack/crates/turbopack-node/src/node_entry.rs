@@ -6,7 +6,7 @@ use turbopack_core::{
 };
 use turbopack_dev_server::source::ContentSourceData;
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct NodeRenderingEntry {
     pub runtime_entries: Vc<EvaluatableAssets>,
     pub module: Vc<Box<dyn Module>>,
@@ -16,7 +16,7 @@ pub struct NodeRenderingEntry {
     pub project_dir: Vc<FileSystemPath>,
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct NodeRenderingEntries(Vec<Vc<NodeRenderingEntry>>);
 
 /// Trait that allows to get the entry module for rendering something in Node.js

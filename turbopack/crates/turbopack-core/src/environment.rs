@@ -36,7 +36,7 @@ pub enum ChunkLoading {
     Dom,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct Environment {
     // members must be private to avoid leaking non-custom types
     execution: ExecutionEnvironment,
@@ -52,7 +52,7 @@ impl Environment {
     }
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(serialization = "auto_for_input", unresolved)]
 #[derive(Debug, Hash, Clone, Copy)]
 pub enum ExecutionEnvironment {
     NodeJsBuildTime(Vc<NodeJsEnvironment>),
@@ -230,7 +230,7 @@ pub enum NodeEnvironmentType {
     Server,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct NodeJsEnvironment {
     pub compile_target: Vc<CompileTarget>,
     pub node_version: Vc<NodeJsVersion>,
@@ -276,7 +276,7 @@ impl NodeJsEnvironment {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub enum NodeJsVersion {
     Current(Vc<Box<dyn ProcessEnv>>),
     Static(Vc<RcStr>),
@@ -299,7 +299,7 @@ pub struct BrowserEnvironment {
 #[turbo_tasks::value(shared)]
 pub struct EdgeWorkerEnvironment {}
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
 
 #[turbo_tasks::function]

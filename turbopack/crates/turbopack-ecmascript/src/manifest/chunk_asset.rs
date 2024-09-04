@@ -29,7 +29,7 @@ fn modifier() -> Vc<RcStr> {
 /// compilation. The traversal won't be performed until the dynamic import is
 /// actually reached, instead of eagerly as part of the chunk that the dynamic
 /// import appears in.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct ManifestAsyncModule {
     pub inner: Vc<Box<dyn ChunkableModule>>,
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,

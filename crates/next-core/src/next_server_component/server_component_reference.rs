@@ -5,7 +5,7 @@ use turbopack_core::{
     resolve::ModuleResolveResult,
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct NextServerComponentModuleReference {
     asset: Vc<Box<dyn Module>>,
 }

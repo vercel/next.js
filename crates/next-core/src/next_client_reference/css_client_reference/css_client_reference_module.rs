@@ -13,7 +13,7 @@ use turbopack_core::{
 
 /// A [`CssClientReferenceModule`] is a marker module used to indicate which
 /// client reference should appear in the client reference manifest.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct CssClientReferenceModule {
     pub client_module: Vc<Box<dyn CssChunkPlaceable>>,
 }

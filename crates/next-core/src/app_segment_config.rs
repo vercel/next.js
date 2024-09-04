@@ -60,7 +60,7 @@ pub enum NextRevalidate {
     },
 }
 
-#[turbo_tasks::value(into = "shared")]
+#[turbo_tasks::value(into = "shared", unresolved)]
 #[derive(Debug, Default, Clone)]
 pub struct NextSegmentConfig {
     pub dynamic: Option<NextSegmentDynamic>,
@@ -164,7 +164,7 @@ impl NextSegmentConfig {
 }
 
 /// An issue that occurred while parsing the app segment config.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct NextSegmentConfigParsingIssue {
     ident: Vc<AssetIdent>,
     detail: Vc<StyledString>,

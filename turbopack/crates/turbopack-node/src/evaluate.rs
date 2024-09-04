@@ -66,13 +66,13 @@ type LoopResult = ControlFlow<Result<Option<String>, StructuredError>, String>;
 type EvaluationItem = Result<Bytes, SharedError>;
 type JavaScriptStream = Stream<EvaluationItem>;
 
-#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
+#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none", unresolved)]
 pub struct JavaScriptStreamSender {
     #[turbo_tasks(trace_ignore, debug_ignore)]
     get: Box<dyn Fn() -> UnboundedSender<Result<Bytes, SharedError>> + Send + Sync>,
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 #[derive(Clone, Debug)]
 pub struct JavaScriptEvaluation(#[turbo_tasks(trace_ignore)] JavaScriptStream);
 
@@ -557,7 +557,7 @@ async fn print_error(
         .await
 }
 /// An issue that occurred while evaluating node code.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct EvaluationIssue {
     pub context_ident: Vc<AssetIdent>,
     pub error: StructuredError,

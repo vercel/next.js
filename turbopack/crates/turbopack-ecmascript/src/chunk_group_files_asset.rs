@@ -35,7 +35,7 @@ fn modifier() -> Vc<RcStr> {
 
 /// An asset that exports a list of chunk URLs by putting the [asset] into a
 /// ChunkGroup with the provided ChunkingContext.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct ChunkGroupFilesAsset {
     pub module: Vc<Box<dyn ChunkableModule>>,
     pub client_root: Vc<FileSystemPath>,
@@ -114,7 +114,7 @@ impl EcmascriptChunkPlaceable for ChunkGroupFilesAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ChunkGroupFilesChunkItem {
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     client_root: Vc<FileSystemPath>,

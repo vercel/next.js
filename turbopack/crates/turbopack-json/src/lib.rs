@@ -31,7 +31,7 @@ fn modifier() -> Vc<RcStr> {
     Vc::cell("json".into())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct JsonModuleAsset {
     source: Vc<Box<dyn Source>>,
 }
@@ -82,7 +82,7 @@ impl EcmascriptChunkPlaceable for JsonModuleAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct JsonChunkItem {
     module: Vc<JsonModuleAsset>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,

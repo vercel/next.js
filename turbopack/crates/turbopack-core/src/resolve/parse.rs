@@ -5,7 +5,7 @@ use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
 
 use super::pattern::Pattern;
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Hash, Clone, Debug)]
 pub enum Request {
     Raw {

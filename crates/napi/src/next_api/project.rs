@@ -578,7 +578,7 @@ struct NapiEntrypoints {
     pub pages_error_endpoint: External<ExternalEndpoint>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", unresolved)]
 struct EntrypointsWithIssues {
     entrypoints: ReadRef<Entrypoints>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -673,7 +673,7 @@ pub fn project_entrypoints_subscribe(
     )
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", unresolved)]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -784,7 +784,7 @@ struct HmrIdentifiers {
     pub identifiers: Vec<String>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", unresolved)]
 struct HmrIdentifiersWithIssues {
     identifiers: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,

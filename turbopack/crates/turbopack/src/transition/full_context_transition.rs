@@ -4,7 +4,7 @@ use turbo_tasks::Vc;
 use crate::{transition::Transition, ModuleAssetContext};
 
 /// A transition that only affects the asset context.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct FullContextTransition {
     module_context: Vc<ModuleAssetContext>,
 }

@@ -26,7 +26,7 @@ use crate::{
     references::css_resolve,
 };
 
-#[turbo_tasks::value(into = "new", eq = "manual", serialization = "none")]
+#[turbo_tasks::value(into = "new", eq = "manual", serialization = "none", unresolved)]
 pub enum ImportAttributes {
     LightningCss {
         #[turbo_tasks(trace_ignore)]
@@ -194,7 +194,7 @@ where
     code
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct ImportAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,

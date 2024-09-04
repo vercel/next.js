@@ -3,7 +3,7 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, Vc};
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(shared, serialization = "auto_for_input", unresolved)]
 #[derive(Hash, Debug, Copy, Clone)]
 pub struct CompileTarget {
     /// <https://nodejs.org/api/os.html#osarch>

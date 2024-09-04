@@ -20,7 +20,7 @@ fn react_refresh_request_in_next() -> Vc<Request> {
     Request::parse_string("next/dist/compiled/@next/react-refresh-utils/dist/runtime".into())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub enum ResolveReactRefreshResult {
     NotFound,
     Found(Vc<Request>),
@@ -70,7 +70,7 @@ pub async fn assert_can_resolve_react_refresh(
 }
 
 /// An issue that occurred while resolving the React Refresh runtime module.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct ReactRefreshResolvingIssue {
     path: Vc<FileSystemPath>,
 }

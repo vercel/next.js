@@ -17,7 +17,7 @@ pub enum ConstantConditionValue {
     Nullish,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct ConstantCondition {
     value: ConstantConditionValue,
     path: Vc<AstPath>,

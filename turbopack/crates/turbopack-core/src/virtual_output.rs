@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// An [OutputAsset] that is created from some passed source code.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct VirtualOutputAsset {
     pub path: Vc<FileSystemPath>,
     pub content: Vc<AssetContent>,

@@ -10,7 +10,7 @@ use turbopack_core::{
 use crate::references::css_resolve;
 
 /// A `composes: ... from ...` CSS module reference.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct CssModuleComposeReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,

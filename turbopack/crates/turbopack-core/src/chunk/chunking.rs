@@ -18,7 +18,7 @@ use super::{
 };
 use crate::output::OutputAssets;
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ChunkItemInfo {
     ty: Vc<Box<dyn ChunkType>>,
     name: Vc<RcStr>,

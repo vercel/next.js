@@ -95,7 +95,7 @@ pub trait FileSystem: ValueToString {
     fn metadata(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileMeta>;
 }
 
-#[turbo_tasks::value(cell = "new", eq = "manual")]
+#[turbo_tasks::value(cell = "new", eq = "manual", unresolved)]
 pub struct DiskFileSystem {
     pub name: RcStr,
     pub root: RcStr,
@@ -756,7 +756,7 @@ impl ValueToString for DiskFileSystem {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Debug, Clone)]
 pub struct FileSystemPath {
     pub fs: Vc<Box<dyn FileSystem>>,
@@ -903,7 +903,7 @@ impl FileSystemPath {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct FileSystemPathOption(Option<Vc<FileSystemPath>>);
 
 #[turbo_tasks::value_impl]
@@ -1292,7 +1292,7 @@ impl ValueToString for FileSystemPath {
 }
 
 #[derive(Clone, Debug)]
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct RealPathResult {
     pub path: Vc<FileSystemPath>,
     pub symlinks: Vec<Vc<FileSystemPath>>,
@@ -1358,7 +1358,7 @@ impl From<std::fs::Permissions> for Permissions {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Debug, DeterministicHash)]
 pub enum FileContent {
     Content(File),
@@ -1449,7 +1449,7 @@ bitflags! {
   }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Debug)]
 pub enum LinkContent {
     // for the relative link, the target is raw value read from the link
@@ -1463,7 +1463,7 @@ pub enum LinkContent {
     NotFound,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, DeterministicHash)]
 pub struct File {
     meta: FileMeta,
@@ -1643,7 +1643,7 @@ mod mime_option_serde {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Debug, Clone, Default)]
 pub struct FileMeta {
     permissions: Permissions,
@@ -1816,7 +1816,7 @@ impl FileContent {
 }
 
 /// A file's content interpreted as a JSON value.
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "none", unresolved)]
 pub enum FileJsonContent {
     Content(Value),
     Unparseable(Box<UnparseableJson>),
@@ -1876,7 +1876,7 @@ pub struct FileLine {
     pub bytes_offset: usize,
 }
 
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "none", unresolved)]
 pub enum FileLinesContent {
     Lines(#[turbo_tasks(trace_ignore)] Vec<FileLine>),
     Unparseable,
@@ -1959,7 +1959,7 @@ impl From<&DirectoryEntry> for FileSystemEntryType {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Debug)]
 pub enum InternalDirectoryContent {
     Entries(Vec<(RcStr, InternalDirectoryEntry)>),
@@ -1976,7 +1976,7 @@ impl InternalDirectoryContent {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Debug)]
 pub enum DirectoryContent {
     Entries(AutoMap<RcStr, DirectoryEntry>),

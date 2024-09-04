@@ -16,7 +16,7 @@ use turbopack_ecmascript::chunk::{
 
 /// A virtual module that references other modules, but doesn't do anything at
 /// runtime. It can be used to include modules into a chunk.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct IncludeModulesModule {
     ident: Vc<AssetIdent>,
     modules: Vec<Vc<Box<dyn Module>>>,
@@ -90,7 +90,7 @@ impl ChunkableModule for IncludeModulesModule {
 }
 
 /// The chunk item for [`IncludeModulesModule`].
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct IncludeModulesChunkItem {
     module: Vc<IncludeModulesModule>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -141,7 +141,7 @@ impl EcmascriptChunkItem for IncludeModulesChunkItem {
 
 /// A module reference that references a module that is references from the
 /// [`IncludeModulesModule`].
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct IncludedModuleReference {
     pub module: Vc<Box<dyn Module>>,
 }

@@ -63,7 +63,7 @@ struct BytesBase64 {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-#[turbo_tasks::value(serialization = "custom")]
+#[turbo_tasks::value(serialization = "custom", unresolved)]
 struct WebpackLoadersProcessingResult {
     #[serde(with = "either::serde_untagged")]
     #[turbo_tasks(debug_ignore, trace_ignore)]
@@ -81,10 +81,10 @@ pub struct WebpackLoaderItem {
 }
 
 #[derive(Debug, Clone)]
-#[turbo_tasks::value(shared, transparent)]
+#[turbo_tasks::value(shared, transparent, unresolved)]
 pub struct WebpackLoaderItems(pub Vec<WebpackLoaderItem>);
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct WebpackLoaders {
     evaluate_context: Vc<Box<dyn AssetContext>>,
     execution_context: Vc<ExecutionContext>,
@@ -128,7 +128,7 @@ impl SourceTransform for WebpackLoaders {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct WebpackLoadersProcessedAsset {
     transform: Vc<WebpackLoaders>,
     source: Vc<Box<dyn Source>>,
@@ -164,7 +164,7 @@ impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ProcessWebpackLoadersResult {
     content: Vc<AssetContent>,
     source_map: Option<Vc<SourceMap>>,
@@ -648,7 +648,7 @@ async fn apply_webpack_resolve_options(
 }
 
 /// An issue that occurred while evaluating node code.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct BuildDependencyIssue {
     pub context_ident: Vc<AssetIdent>,
     pub path: Vc<FileSystemPath>,
@@ -733,7 +733,7 @@ async fn dir_dependency_shallow(glob: Vc<ReadGlobResult>) -> Result<Vc<Completio
     Ok(Completion::new())
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct EvaluateEmittedErrorIssue {
     pub file_path: Vc<FileSystemPath>,
     pub severity: Vc<IssueSeverity>,
@@ -784,7 +784,7 @@ impl Issue for EvaluateEmittedErrorIssue {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct EvaluateErrorLoggingIssue {
     pub file_path: Vc<FileSystemPath>,
     pub severity: Vc<IssueSeverity>,

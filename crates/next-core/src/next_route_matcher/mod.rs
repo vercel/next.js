@@ -13,7 +13,7 @@ mod path_regex;
 mod prefix_suffix;
 
 /// A route matcher that matches a path against an exact route.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(crate) struct NextExactMatcher {
     path: Vc<RcStr>,
 }
@@ -44,7 +44,7 @@ impl RouteMatcher for NextExactMatcher {
 }
 
 /// A route matcher that matches a path against a route regex.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(crate) struct NextParamsMatcher {
     #[turbo_tasks(trace_ignore)]
     matcher: PathRegex,
@@ -75,7 +75,7 @@ impl RouteMatcher for NextParamsMatcher {
 
 /// A route matcher that strips a prefix and a suffix from a path before
 /// matching it against a route regex.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(crate) struct NextPrefixSuffixParamsMatcher {
     #[turbo_tasks(trace_ignore)]
     matcher: PrefixSuffixMatcher<PathRegex>,
@@ -111,7 +111,7 @@ impl RouteMatcher for NextPrefixSuffixParamsMatcher {
 }
 
 /// A route matcher that matches against all paths.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(crate) struct NextFallbackMatcher {
     #[turbo_tasks(trace_ignore)]
     matcher: AllMatch,

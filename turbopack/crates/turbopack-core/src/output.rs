@@ -19,7 +19,7 @@ pub trait OutputAsset: Asset {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OutputAssets(Vec<Vc<Box<dyn OutputAsset>>>);
 
 #[turbo_tasks::value_impl]
@@ -44,7 +44,7 @@ impl OutputAssets {
 }
 
 /// A set of [OutputAsset]s
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OutputAssetsSet(IndexSet<Vc<Box<dyn OutputAsset>>>);
 
 // TODO All Vc::try_resolve_downcast::<Box<dyn OutputAsset>> calls should be

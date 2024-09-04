@@ -3,7 +3,7 @@ use turbo_tasks_fs::FileSystemPath;
 
 use super::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct CodeGenerationIssue {
     pub severity: Vc<IssueSeverity>,
     pub path: Vc<FileSystemPath>,

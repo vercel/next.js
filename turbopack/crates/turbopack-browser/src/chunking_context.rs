@@ -93,7 +93,7 @@ impl BrowserChunkingContextBuilder {
 /// It also uses a chunking heuristic that is incremental and cacheable.
 /// It splits "node_modules" separately as these are less likely to change
 /// during development
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(serialization = "auto_for_input", unresolved)]
 #[derive(Debug, Clone, Hash)]
 pub struct BrowserChunkingContext {
     name: Option<RcStr>,

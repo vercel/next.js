@@ -26,7 +26,7 @@ fn modifier() -> Vc<RcStr> {
 }
 
 /// Exports the relative path to the WebAssembly file without loading it.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Clone)]
 pub struct RawWebAssemblyModuleAsset {
     source: Vc<WebAssemblySource>,
@@ -97,7 +97,7 @@ impl EcmascriptChunkPlaceable for RawWebAssemblyModuleAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct RawModuleChunkItem {
     module: Vc<RawWebAssemblyModuleAsset>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,

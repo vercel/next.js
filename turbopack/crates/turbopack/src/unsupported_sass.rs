@@ -14,7 +14,7 @@ use turbopack_core::{
 };
 
 /// Resolve plugins that warns when importing a sass file.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(crate) struct UnsupportedSassResolvePlugin {
     root: Vc<FileSystemPath>,
 }
@@ -56,7 +56,7 @@ impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 struct UnsupportedSassModuleIssue {
     file_path: Vc<FileSystemPath>,
     request: Vc<Request>,

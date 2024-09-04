@@ -12,7 +12,7 @@ pub mod render_proxy;
 pub mod render_static;
 pub mod rendered_source;
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[serde(rename_all = "camelCase")]
 pub struct RenderData {
     params: IndexMap<RcStr, Param>,

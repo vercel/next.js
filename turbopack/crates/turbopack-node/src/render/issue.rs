@@ -3,7 +3,7 @@ use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueStage, OptionStyledString, StyledString};
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Copy, Clone)]
 pub struct RenderingIssue {
     pub file_path: Vc<FileSystemPath>,

@@ -17,7 +17,7 @@ pub struct ServerPath {
 }
 
 /// A list of server paths
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct ServerPaths(Vec<ServerPath>);
 
 /// Return a list of all server paths with filename and hash for all output

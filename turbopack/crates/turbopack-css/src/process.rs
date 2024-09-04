@@ -271,10 +271,16 @@ impl<'i, 'o> StyleSheetLike<'i, 'o> {
 }
 
 /// Multiple [ModuleReference]s
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct UnresolvedUrlReferences(pub Vec<(String, Vc<UrlAssetReference>)>);
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(
+    shared,
+    serialization = "none",
+    eq = "manual",
+    cell = "new",
+    unresolved
+)]
 pub enum ParseCssResult {
     Ok {
         #[turbo_tasks(debug_ignore, trace_ignore)]
@@ -296,7 +302,13 @@ pub enum ParseCssResult {
     NotFound,
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(
+    shared,
+    serialization = "none",
+    eq = "manual",
+    cell = "new",
+    unresolved
+)]
 pub enum CssWithPlaceholderResult {
     Ok {
         parse_result: Vc<ParseCssResult>,
@@ -318,7 +330,7 @@ pub enum CssWithPlaceholderResult {
     NotFound,
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual", unresolved)]
 pub enum FinalCssResult {
     Ok {
         #[turbo_tasks(trace_ignore)]
@@ -918,7 +930,7 @@ impl lightningcss::visitor::Visitor<'_> for CssValidator {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual", unresolved)]
 pub enum ParseCssResultSourceMap {
     Parcel {
         #[turbo_tasks(debug_ignore, trace_ignore)]
@@ -1069,7 +1081,7 @@ impl TransformConfig for ModuleTransformConfig {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ParsingIssue {
     msg: Vc<RcStr>,
     file: Vc<FileSystemPath>,

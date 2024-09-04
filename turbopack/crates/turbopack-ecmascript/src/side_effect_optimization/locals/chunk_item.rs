@@ -17,7 +17,7 @@ use crate::{
 };
 
 /// The chunk item for [EcmascriptModuleLocalsModule].
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct EcmascriptModuleLocalsChunkItem {
     pub(super) module: Vc<EcmascriptModuleLocalsModule>,
     pub(super) chunking_context: Vc<Box<dyn ChunkingContext>>,

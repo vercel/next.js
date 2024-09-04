@@ -3,7 +3,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueStage, OptionStyledString, StyledString};
 
 /// An issue that occurred while resolving the parsing or evaluating the .env.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct ProcessEnvIssue {
     pub path: Vc<FileSystemPath>,
     pub description: Vc<StyledString>,

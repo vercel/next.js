@@ -83,7 +83,7 @@ impl ModuleId {
 }
 
 /// A list of module ids.
-#[turbo_tasks::value(transparent, shared)]
+#[turbo_tasks::value(transparent, shared, unresolved)]
 pub struct ModuleIds(Vec<Vc<ModuleId>>);
 
 /// A [Module] that can be converted into a [Chunk].
@@ -95,7 +95,7 @@ pub trait ChunkableModule: Module + Asset {
     ) -> Vc<Box<dyn ChunkItem>>;
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct Chunks(Vec<Vc<Box<dyn Chunk>>>);
 
 #[turbo_tasks::value_impl]
@@ -129,7 +129,7 @@ pub trait Chunk: Asset {
 
 /// Aggregated information about a chunk content that can be used by the runtime
 /// code to optimize chunk loading.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Default)]
 pub struct OutputChunkRuntimeInfo {
     pub included_ids: Option<Vc<ModuleIds>>,
@@ -166,7 +166,7 @@ pub enum ChunkingType {
     Passthrough,
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct ChunkingTypeOption(Option<ChunkingType>);
 
 /// A [ModuleReference] implementing this trait and returning true for
@@ -258,7 +258,7 @@ struct ChunkGraphEdge {
 }
 
 #[derive(Debug, Clone)]
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 struct ChunkGraphEdges(Vec<ChunkGraphEdge>);
 
 #[turbo_tasks::function]
@@ -713,10 +713,10 @@ pub trait ChunkType: ValueToString {
     ) -> Vc<usize>;
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct ChunkItems(Vec<Vc<Box<dyn ChunkItem>>>);
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct AsyncModuleInfo {
     pub referenced_async_modules: AutoSet<Vc<Box<dyn ChunkItem>>>,
 }
@@ -734,7 +734,7 @@ impl AsyncModuleInfo {
 
 pub type ChunkItemWithAsyncModuleInfo = (Vc<Box<dyn ChunkItem>>, Option<Vc<AsyncModuleInfo>>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct ChunkItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
 
 pub trait ChunkItemExt: Send {

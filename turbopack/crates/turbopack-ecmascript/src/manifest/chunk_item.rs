@@ -20,7 +20,7 @@ use crate::{
 /// The ManifestChunkItem generates a __turbopack_load__ call for every chunk
 /// necessary to load the real asset. Once all the loads resolve, it is safe to
 /// __turbopack_import__ the actual module that was dynamically imported.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub(super) struct ManifestChunkItem {
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,
     pub manifest: Vc<ManifestAsyncModule>,

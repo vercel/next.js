@@ -9,7 +9,7 @@ use crate::{module::Module, resolve::ModulePart};
 /// Named references to inner assets. Modules can used them to allow to
 /// per-module aliases of some requests to already created module assets.
 /// Name is usually in UPPER_CASE to make it clear that this is an inner asset.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct InnerAssets(IndexMap<RcStr, Vc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
@@ -39,7 +39,7 @@ pub enum ImportWithType {
     Json,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(serialization = "auto_for_input", unresolved)]
 #[derive(Debug, Default, Clone, Hash)]
 pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(Vc<ModulePart>),
@@ -162,7 +162,7 @@ impl ImportContext {
     }
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(serialization = "auto_for_input", unresolved)]
 #[derive(Debug, Clone, Hash)]
 pub enum CssReferenceSubType {
     AtImport(Option<Vc<ImportContext>>),
@@ -211,7 +211,7 @@ pub enum EntryReferenceSubType {
     Undefined,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(serialization = "auto_for_input", unresolved)]
 #[derive(Debug, Clone, Hash)]
 pub enum ReferenceType {
     CommonJs(CommonJsReferenceSubType),

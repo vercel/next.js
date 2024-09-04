@@ -7,7 +7,7 @@ use super::super::version::EcmascriptDevChunkVersion;
 
 /// The version of a [`super::content::EcmascriptMergedChunkContent`]. This is
 /// essentially a composite [`EcmascriptChunkVersion`].
-#[turbo_tasks::value(serialization = "none", shared)]
+#[turbo_tasks::value(serialization = "none", shared, unresolved)]
 pub(super) struct EcmascriptDevMergedChunkVersion {
     #[turbo_tasks(trace_ignore)]
     pub(super) versions: Vec<ReadRef<EcmascriptDevChunkVersion>>,

@@ -14,16 +14,16 @@ pub struct AvailableChunkItemInfo {
     pub is_async: bool,
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionAvailableChunkItemInfo(Option<AvailableChunkItemInfo>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct AvailableChunkItemInfoMap(IndexMap<Vc<Box<dyn ChunkItem>>, AvailableChunkItemInfo>);
 
 /// Allows to gather information about which assets are already available.
 /// Adding more roots will form a linked list like structure to allow caching
 /// `include` queries.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct AvailableChunkItems {
     parent: Option<Vc<AvailableChunkItems>>,
     chunk_items: Vc<AvailableChunkItemInfoMap>,

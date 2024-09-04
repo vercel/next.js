@@ -331,7 +331,7 @@ type HashToLayerNameModule = IndexMap<String, (ActionLayer, String, Vc<Box<dyn M
 
 /// A mapping of every module which exports a Server Action, with the hashed id
 /// and exported name of each found action.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 struct AllActions(HashToLayerNameModule);
 
 #[turbo_tasks::value_impl]
@@ -347,7 +347,7 @@ impl AllActions {
 struct ActionMap(IndexMap<String, String>);
 
 /// An Option wrapper around [ActionMap].
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 struct OptionActionMap(Option<Vc<ActionMap>>);
 
 #[turbo_tasks::value_impl]

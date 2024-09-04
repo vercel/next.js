@@ -14,7 +14,7 @@ pub trait GetContentSource {
 
 /// Wraps the [ContentSource] creation in a way that only creates it when
 /// actually used.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct LazyInstantiatedContentSource {
     pub get_source: Vc<Box<dyn GetContentSource>>,
 }

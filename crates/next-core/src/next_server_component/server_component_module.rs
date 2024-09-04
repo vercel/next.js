@@ -28,7 +28,7 @@ fn modifier() -> Vc<RcStr> {
     Vc::cell("Next.js server component".into())
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct NextServerComponentModule {
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
 }
@@ -118,7 +118,7 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct BuildServerComponentChunkItem {
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     inner: Vc<NextServerComponentModule>,

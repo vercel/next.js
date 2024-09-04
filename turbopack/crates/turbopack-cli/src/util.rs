@@ -5,7 +5,7 @@ use dunce::canonicalize;
 use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct EntryRequests(pub Vec<Vc<EntryRequest>>);
 
 #[turbo_tasks::value(shared)]

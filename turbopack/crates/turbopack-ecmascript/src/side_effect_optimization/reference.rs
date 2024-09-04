@@ -23,7 +23,7 @@ use crate::{
 
 /// A reference to the [EcmascriptModuleLocalsModule] variant of an original
 /// module.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct EcmascriptModulePartReference {
     pub module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     pub part: Option<Vc<ModulePart>>,

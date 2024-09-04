@@ -55,7 +55,7 @@ pub(crate) enum SinglePatternMapping {
 /// A mapping from a request pattern (e.g. "./module", `./images/${name}.png`)
 /// to corresponding module ids. The same pattern can map to multiple module ids
 /// at runtime when using variable interpolation.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(crate) enum PatternMapping {
     /// Constant request that always maps to the same module.
     ///

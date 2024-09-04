@@ -30,13 +30,13 @@ use turbopack_core::{
 use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
 use crate::{process::ParseCssResultSourceMap, util::stringify_js, ImportAssetReference};
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct CssChunk {
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,
     pub content: Vc<CssChunkContent>,
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct CssChunks(Vec<Vc<CssChunk>>);
 
 #[turbo_tasks::value_impl]
@@ -147,7 +147,7 @@ pub async fn write_import_context(
     Ok(close)
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct CssChunkContent {
     pub chunk_items: Vec<Vc<Box<dyn CssChunkItem>>>,
     pub referenced_output_assets: Vc<OutputAssets>,
@@ -327,7 +327,7 @@ impl GenerateSourceMap for CssChunk {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct CssChunkContext {
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 }
@@ -352,11 +352,11 @@ impl CssChunkContext {
 #[turbo_tasks::value_trait]
 pub trait CssChunkPlaceable: ChunkableModule + Module + Asset {}
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct CssChunkPlaceables(Vec<Vc<Box<dyn CssChunkPlaceable>>>);
 
 #[derive(Clone, Debug)]
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub enum CssImport {
     External(Vc<RcStr>),
     Internal(Vc<ImportAssetReference>, Vc<Box<dyn CssChunkItem>>),
@@ -364,7 +364,7 @@ pub enum CssImport {
 }
 
 #[derive(Debug)]
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct CssChunkItemContent {
     pub import_context: Option<Vc<ImportContext>>,
     pub imports: Vec<CssImport>,

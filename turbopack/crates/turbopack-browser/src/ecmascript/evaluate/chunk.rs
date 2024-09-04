@@ -29,7 +29,7 @@ use crate::BrowserChunkingContext;
 /// An Ecmascript chunk that:
 /// * Contains the Turbopack dev runtime code; and
 /// * Evaluates a list of runtime entries.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub(crate) struct EcmascriptDevEvaluateChunk {
     chunking_context: Vc<BrowserChunkingContext>,
     ident: Vc<AssetIdent>,

@@ -13,7 +13,7 @@ use turbopack_core::{
     source::Source,
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Clone, Debug)]
 pub struct PackageJsonReference {
     pub package_json: Vc<FileSystemPath>,
@@ -48,7 +48,7 @@ impl ValueToString for PackageJsonReference {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct DirAssetReference {
     pub source: Vc<Box<dyn Source>>,

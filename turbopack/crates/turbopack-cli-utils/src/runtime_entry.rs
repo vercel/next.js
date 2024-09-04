@@ -11,7 +11,7 @@ use turbopack_core::{
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub enum RuntimeEntry {
     Request(Vc<Request>, Vc<FileSystemPath>),
     Evaluatable(Vc<Box<dyn EvaluatableAsset>>),
@@ -62,7 +62,7 @@ impl RuntimeEntry {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct RuntimeEntries(Vec<Vc<RuntimeEntry>>);
 
 #[turbo_tasks::value_impl]

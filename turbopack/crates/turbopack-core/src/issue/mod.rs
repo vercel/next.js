@@ -197,7 +197,7 @@ trait IssueProcessingPath {
     ) -> Vc<OptionIssueProcessingPathItems>;
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct IssueProcessingPathItem {
     pub file_path: Option<Vc<FileSystemPath>>,
     pub description: Vc<RcStr>,
@@ -235,7 +235,7 @@ impl IssueProcessingPathItem {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionIssueProcessingPathItems(Option<Vec<Vc<IssueProcessingPathItem>>>);
 
 #[turbo_tasks::value_impl]
@@ -261,7 +261,7 @@ impl OptionIssueProcessingPathItems {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct RootIssueProcessingPath(Vc<Box<dyn Issue>>);
 
 #[turbo_tasks::value_impl]
@@ -276,7 +276,7 @@ impl IssueProcessingPath for RootIssueProcessingPath {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ItemIssueProcessingPath(
     Option<Vc<IssueProcessingPathItem>>,
     AutoSet<Vc<Box<dyn IssueProcessingPath>>>,
@@ -351,12 +351,12 @@ where
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct Issues(Vec<Vc<Box<dyn Issue>>>);
 
 /// A list of issues captured with [`Issue::peek_issues_with_path`] and
 /// [`Issue::take_issues_with_path`].
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Debug)]
 pub struct CapturedIssues {
     issues: AutoSet<Vc<Box<dyn Issue>>>,
@@ -424,7 +424,7 @@ impl CapturedIssues {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Clone, Debug)]
 pub struct IssueSource {
     source: Vc<Box<dyn Source>>,
@@ -432,7 +432,7 @@ pub struct IssueSource {
 }
 
 /// The end position is the first character after the range
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Clone, Debug)]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),
@@ -512,10 +512,10 @@ impl IssueSource {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionIssueSource(Option<Vc<IssueSource>>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionStyledString(Option<Vc<StyledString>>);
 
 #[turbo_tasks::value(shared, serialization = "none")]
@@ -558,7 +558,7 @@ impl Display for IssueStage {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", unresolved)]
 #[derive(Clone, Debug)]
 pub struct PlainIssue {
     pub severity: IssueSeverity,
@@ -664,7 +664,7 @@ impl PlainIssue {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", unresolved)]
 #[derive(Clone, Debug)]
 pub struct PlainIssueSource {
     pub asset: ReadRef<PlainSource>,
@@ -700,7 +700,7 @@ impl IssueSource {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", unresolved)]
 #[derive(Clone, Debug)]
 pub struct PlainSource {
     pub ident: ReadRef<RcStr>,
@@ -726,11 +726,11 @@ impl PlainSource {
     }
 }
 
-#[turbo_tasks::value(transparent, serialization = "none")]
+#[turbo_tasks::value(transparent, serialization = "none", unresolved)]
 #[derive(Clone, Debug, DeterministicHash)]
 pub struct PlainIssueProcessingPath(Option<Vec<ReadRef<PlainIssueProcessingPathItem>>>);
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", unresolved)]
 #[derive(Clone, Debug, DeterministicHash)]
 pub struct PlainIssueProcessingPathItem {
     pub file_path: Option<ReadRef<RcStr>>,

@@ -10,7 +10,8 @@ use turbopack_core::chunk::{AsyncModuleInfo, ChunkingContext};
     serialization = "none",
     eq = "manual",
     into = "new",
-    cell = "new"
+    cell = "new",
+    unresolved
 )]
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
@@ -45,7 +46,7 @@ pub enum CodeGen {
     CodeGenerateableWithAsyncModuleInfo(Vc<Box<dyn CodeGenerateableWithAsyncModuleInfo>>),
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct CodeGenerateables(Vec<CodeGen>);
 
 pub fn path_to(

@@ -29,7 +29,7 @@ use crate::{
 };
 
 /// The chunk item for [EcmascriptModuleFacadeModule].
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct EcmascriptModuleFacadeChunkItem {
     pub(crate) module: Vc<EcmascriptModuleFacadeModule>,
     pub(crate) chunking_context: Vc<Box<dyn ChunkingContext>>,

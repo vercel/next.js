@@ -18,7 +18,7 @@ use turbopack_core::{
 /// An unresolved output assets operation. We need to pass an operation here as
 /// it's stored for later usage and we want to reconnect this operation when
 /// it's received from the map again.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OutputAssetsOperation(Vc<OutputAssets>);
 
 #[derive(Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, Debug)]
@@ -28,13 +28,13 @@ struct MapEntry {
     path_to_asset: HashMap<Vc<FileSystemPath>, Vc<Box<dyn OutputAsset>>>,
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 struct OptionMapEntry(Option<MapEntry>);
 
 type PathToOutputOperation = HashMap<Vc<FileSystemPath>, Vc<OutputAssets>>;
 type OutputOperationToComputeEntry = HashMap<Vc<OutputAssets>, Vc<OptionMapEntry>>;
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct VersionedContentMap {
     map_path_to_op: State<PathToOutputOperation>,
     map_op_to_compute_entry: State<OutputOperationToComputeEntry>,

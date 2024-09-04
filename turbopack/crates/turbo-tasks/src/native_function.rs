@@ -94,7 +94,7 @@ pub struct FunctionMeta {
 
 /// A native (rust) turbo-tasks function. It's used internally by
 /// `#[turbo_tasks::function]`.
-#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual")]
+#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual", unresolved)]
 pub struct NativeFunction {
     /// A readable name of the function that is used to reporting purposes.
     pub name: String,

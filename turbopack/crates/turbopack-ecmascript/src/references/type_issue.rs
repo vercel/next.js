@@ -4,7 +4,7 @@ use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString
 
 use crate::SpecifiedModuleType;
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct SpecifiedModuleTypeIssue {
     pub path: Vc<FileSystemPath>,
     pub specified_type: SpecifiedModuleType,

@@ -31,7 +31,7 @@ use self::{
 };
 
 /// The result of proxying a request to another HTTP server.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct ProxyResult {
     /// The HTTP status code to return.
     pub status: u16,
@@ -73,17 +73,17 @@ pub trait GetContentSourceContent {
         -> Vc<ContentSourceContent>;
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct GetContentSourceContents(Vec<Vc<Box<dyn GetContentSourceContent>>>);
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct StaticContent {
     pub content: Vc<Box<dyn VersionedContent>>,
     pub status_code: u16,
     pub headers: Vc<HeaderList>,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 // TODO add Dynamic variant in future to allow streaming and server responses
 /// The content of a result that is returned by a content source.
 pub enum ContentSourceContent {
@@ -176,7 +176,7 @@ impl HeaderList {
 /// Note that you might not receive information that has not been requested via
 /// `ContentSource::vary()`. So make sure to request all information that's
 /// needed.
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(shared, serialization = "auto_for_input", unresolved)]
 #[derive(Clone, Debug, Hash, Default)]
 pub struct ContentSourceData {
     /// HTTP method, if requested.
@@ -205,7 +205,7 @@ pub struct ContentSourceData {
 pub type BodyChunk = Result<Bytes, SharedError>;
 
 /// A request body.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Default, Clone, Debug)]
 pub struct Body {
     #[turbo_tasks(trace_ignore)]
@@ -311,7 +311,7 @@ impl ContentSourceDataFilter {
 /// Describes additional information that need to be sent to requests to
 /// ContentSource. By sending these information ContentSource responses are
 /// cached-keyed by them and they can access them.
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(shared, serialization = "auto_for_input", unresolved)]
 #[derive(Debug, Default, Clone, Hash)]
 pub struct ContentSourceDataVary {
     pub method: bool,
@@ -439,7 +439,7 @@ where
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct ContentSources(Vec<Vc<Box<dyn ContentSource>>>);
 
 #[turbo_tasks::value_impl]
@@ -496,7 +496,7 @@ pub enum RewriteType {
 
 /// A rewrite returned from a [ContentSource]. This tells the dev server to
 /// update its parsed url, path, and queries with this new information.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Debug)]
 pub struct Rewrite {
     pub ty: RewriteType,

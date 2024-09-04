@@ -81,7 +81,7 @@ pub fn create_node_rendered_source(
 }
 
 /// see [create_node_rendered_source]
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct NodeRenderContentSource {
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,

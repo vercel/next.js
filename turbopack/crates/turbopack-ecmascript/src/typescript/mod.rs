@@ -24,7 +24,7 @@ use turbopack_resolve::{
     typescript::{read_from_tsconfigs, read_tsconfigs, type_resolve},
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct TsConfigModuleAsset {
     pub source: Vc<Box<dyn Source>>,
     pub origin: Vc<Box<dyn ResolveOrigin>>,
@@ -163,7 +163,7 @@ impl Asset for TsConfigModuleAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct CompilerReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
@@ -196,7 +196,7 @@ impl ValueToString for CompilerReference {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct TsExtendsReference {
     pub config: Vc<Box<dyn Source>>,
@@ -232,7 +232,7 @@ impl ValueToString for TsExtendsReference {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct TsNodeRequireReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
@@ -269,7 +269,7 @@ impl ValueToString for TsNodeRequireReference {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct TsConfigTypesReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,

@@ -39,7 +39,7 @@ fn modifier() -> Vc<RcStr> {
     Vc::cell("css module".into())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Clone)]
 pub struct ModuleCssAsset {
     pub source: Vc<Box<dyn Source>>,
@@ -108,7 +108,7 @@ impl Asset for ModuleCssAsset {
 /// A CSS class that is exported from a CSS module.
 ///
 /// See [`ModuleCssClasses`] for more information.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Debug, Clone)]
 enum ModuleCssClass {
     Local {
@@ -145,7 +145,7 @@ enum ModuleCssClass {
 /// 1. class1: [Global("exported_class1")]
 /// 2. class2: [Local("exported_class2")]
 /// 3. class3: [Local("exported_class3), Import("class4", "./other.module.css")]
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 #[derive(Debug, Clone)]
 struct ModuleCssClasses(IndexMap<String, Vec<ModuleCssClass>>);
 
@@ -270,7 +270,7 @@ impl ResolveOrigin for ModuleCssAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ModuleChunkItem {
     module: Vc<ModuleCssAsset>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -425,7 +425,7 @@ fn generate_minimal_source_map(filename: String, source: String) -> Vc<ParseResu
     map.cell()
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 struct CssModuleComposesIssue {
     severity: Vc<IssueSeverity>,
     source: Vc<AssetIdent>,

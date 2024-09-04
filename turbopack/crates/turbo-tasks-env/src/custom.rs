@@ -5,7 +5,7 @@ use crate::{case_insensitive_read, EnvMap, ProcessEnv};
 
 /// Allows providing any custom env values that you'd like, deferring the prior
 /// envs if a key is not overridden.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct CustomProcessEnv {
     prior: Vc<Box<dyn ProcessEnv>>,
     custom: Vc<EnvMap>,

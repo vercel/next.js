@@ -384,7 +384,7 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
     )
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual", unresolved)]
 pub(crate) enum SplitResult {
     Ok {
         asset_ident: Vc<AssetIdent>,

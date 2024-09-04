@@ -42,7 +42,7 @@ fn modifier() -> Vc<RcStr> {
     Vc::cell("static".into())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Clone)]
 pub struct StaticModuleAsset {
     pub source: Vc<Box<dyn Source>>,
@@ -110,7 +110,7 @@ impl EcmascriptChunkPlaceable for StaticModuleAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ModuleChunkItem {
     module: Vc<StaticModuleAsset>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,

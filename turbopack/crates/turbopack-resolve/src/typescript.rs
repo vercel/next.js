@@ -28,7 +28,7 @@ use turbopack_core::{
 
 use crate::ecmascript::get_condition_maps;
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct TsConfigIssue {
     pub severity: Vc<IssueSeverity>,
     pub source_ident: Vc<AssetIdent>,
@@ -210,7 +210,7 @@ pub async fn read_from_tsconfigs<T>(
 }
 
 /// Resolve options specific to tsconfig.json.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Default)]
 pub struct TsConfigResolveOptions {
     base_url: Option<Vc<FileSystemPath>>,

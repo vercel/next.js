@@ -9,7 +9,7 @@ use swc_core::{
 use turbo_tasks::{ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionStyledComponentsTransformConfig(Option<Vc<StyledComponentsTransformConfig>>);
 
 #[turbo_tasks::value(shared)]

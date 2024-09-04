@@ -25,7 +25,7 @@ use crate::source::{
     Body, ContentSource, ContentSourceSideEffect, HeaderList, ProxyResult,
 };
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", unresolved)]
 enum GetFromSourceResult {
     Static {
         content: ReadRef<FileContent>,

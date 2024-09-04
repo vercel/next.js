@@ -518,7 +518,7 @@ fn expand_folder_shorthand(key: &str, value: &mut SubpathValue) -> Result<AliasP
 }
 
 /// Content of an "alias" configuration
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Default)]
 pub struct ResolveAliasMap(#[turbo_tasks(trace_ignore)] AliasMap<SubpathValue>);
 

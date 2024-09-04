@@ -46,7 +46,7 @@ impl Display for CachedExternalType {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct CachedExternalModule {
     pub request: RcStr,
     pub external_type: CachedExternalType,
@@ -173,7 +173,7 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct CachedExternalModuleChunkItem {
     module: Vc<CachedExternalModule>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -249,7 +249,7 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
 /// to include a module's ident in the module graph before the module
 /// itself is resolved, as is the case with NextServerComponentModule's
 /// "client modules" and "client modules ssr".
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct IncludeIdentModule {
     ident: Vc<AssetIdent>,
 }

@@ -29,7 +29,7 @@ use crate::{
     references::AstPath,
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct AmdDefineAssetReference {
     origin: Vc<Box<dyn ResolveOrigin>>,
@@ -102,7 +102,7 @@ pub enum AmdDefineFactoryType {
     Value,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Debug)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,

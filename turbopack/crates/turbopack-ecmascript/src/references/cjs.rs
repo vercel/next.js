@@ -20,7 +20,7 @@ use crate::{
     references::AstPath,
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct CjsAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
@@ -73,7 +73,7 @@ impl ValueToString for CjsAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for CjsAssetReference {}
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct CjsRequireAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
@@ -180,7 +180,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct CjsRequireResolveAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
@@ -291,7 +291,7 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Hash, Debug)]
 pub struct CjsRequireCacheAccess {
     pub path: Vc<AstPath>,

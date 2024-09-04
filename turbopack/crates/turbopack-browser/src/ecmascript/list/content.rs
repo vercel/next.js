@@ -24,7 +24,7 @@ use super::{
 };
 
 /// Contents of an [`EcmascriptDevChunkList`].
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(super) struct EcmascriptDevChunkListContent {
     chunk_list_path: String,
     pub(super) chunks_contents: IndexMap<String, Vc<Box<dyn VersionedContent>>>,

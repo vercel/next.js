@@ -10,7 +10,8 @@ use crate::chunk::CssImport;
     serialization = "none",
     eq = "manual",
     into = "new",
-    cell = "new"
+    cell = "new",
+    unresolved
 )]
 pub struct CodeGeneration {
     #[turbo_tasks(debug_ignore, trace_ignore)]
@@ -25,5 +26,5 @@ pub trait CodeGenerateable {
     ) -> Vc<CodeGeneration>;
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct CodeGenerateables(Vec<Vc<Box<dyn CodeGenerateable>>>);

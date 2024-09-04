@@ -19,7 +19,7 @@ use turbopack_node::execution_context::ExecutionContext;
 /// runtime error.
 ///
 /// This can be used by import map alias, refer `next_import_map` for the setup.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct NextEdgeUnsupportedModuleReplacer {
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,

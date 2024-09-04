@@ -82,7 +82,7 @@ impl<'a> Display for StackFrame<'a> {
 }
 /// Source Map Trace is a convenient wrapper to perform and consume a source map
 /// trace's token.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Debug)]
 pub struct SourceMapTrace {
     map: Vc<SourceMap>,
@@ -92,7 +92,7 @@ pub struct SourceMapTrace {
 }
 
 /// The result of performing a source map trace.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Debug)]
 pub enum TraceResult {
     NotFound,

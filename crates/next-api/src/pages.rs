@@ -71,7 +71,7 @@ use crate::{
     route::{Endpoint, Route, Routes, WrittenEndpoint},
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct PagesProject {
     project: Vc<Project>,
 }
@@ -584,7 +584,7 @@ impl PagesProject {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct PageEndpoint {
     ty: PageEndpointType,
     pages_project: Vc<PagesProject>,
@@ -1173,13 +1173,13 @@ impl PageEndpoint {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct InternalSsrChunkModule {
     pub ssr_module: Vc<Box<dyn Module>>,
     pub runtime: NextRuntime,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct ClientChunksModules {
     pub client_module: Vc<Box<dyn Module>>,
     pub client_main_module: Vc<Box<dyn Module>>,
@@ -1285,7 +1285,7 @@ impl Endpoint for PageEndpoint {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 enum PageEndpointOutput {
     NodeJs {
         entry_chunk: Vc<Box<dyn OutputAsset>>,
@@ -1331,7 +1331,7 @@ impl PageEndpointOutput {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub enum SsrChunk {
     NodeJs {
         entry: Vc<Box<dyn OutputAsset>>,

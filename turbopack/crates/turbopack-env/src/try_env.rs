@@ -6,7 +6,7 @@ use turbopack_core::issue::{IssueExt, StyledString};
 
 use crate::ProcessEnvIssue;
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct TryDotenvProcessEnv {
     dotenv: Vc<DotenvProcessEnv>,
     prior: Vc<Box<dyn ProcessEnv>>,

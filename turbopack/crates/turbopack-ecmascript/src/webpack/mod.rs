@@ -28,7 +28,7 @@ fn modifier() -> Vc<RcStr> {
     Vc::cell("webpack".into())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct WebpackModuleAsset {
     pub source: Vc<Box<dyn Source>>,
     pub runtime: Vc<WebpackRuntime>,
@@ -72,7 +72,7 @@ impl Asset for WebpackModuleAsset {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct WebpackChunkAssetReference {
     #[turbo_tasks(trace_ignore)]
     pub chunk_id: Lit,
@@ -124,7 +124,7 @@ impl ValueToString for WebpackChunkAssetReference {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct WebpackEntryAssetReference {
     pub source: Vc<Box<dyn Source>>,
     pub runtime: Vc<WebpackRuntime>,
@@ -152,7 +152,7 @@ impl ValueToString for WebpackEntryAssetReference {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct WebpackRuntimeAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
     pub request: Vc<Request>,

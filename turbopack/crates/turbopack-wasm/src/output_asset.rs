@@ -17,7 +17,7 @@ fn modifier() -> Vc<RcStr> {
 
 /// Emits the [WebAssemblySource] at a chunk path determined by the
 /// [ChunkingContext].
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(crate) struct WebAssemblyAsset {
     source: Vc<WebAssemblySource>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,

@@ -75,7 +75,7 @@ __turbo_tasks_internal_primitive!(Vec<u8>);
 
 __turbo_tasks_internal_primitive!(Vec<bool>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct Bools(Vec<Vc<bool>>);
 
 #[turbo_tasks::value_impl]
@@ -113,7 +113,7 @@ impl Bools {
     }
 }
 
-#[turbo_tasks::value(transparent, eq = "manual")]
+#[turbo_tasks::value(transparent, eq = "manual", unresolved)]
 #[derive(Debug, Clone)]
 pub struct Regex(
     #[turbo_tasks(trace_ignore)]

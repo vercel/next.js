@@ -14,7 +14,7 @@ use crate::EcmascriptAnalyzable;
 ///
 /// Useful to transform partial runtime code files, which get concatenated into
 /// the final runtime code, while keeping source map information.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct StaticEcmascriptCode {
     asset_context: Vc<Box<dyn AssetContext>>,
     asset: Vc<Box<dyn EcmascriptAnalyzable>>,

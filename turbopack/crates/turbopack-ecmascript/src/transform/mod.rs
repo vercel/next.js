@@ -25,7 +25,7 @@ use turbopack_core::{
     issue::{Issue, IssueSeverity, IssueStage, StyledString},
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(serialization = "auto_for_input", unresolved)]
 #[derive(Debug, Clone, Hash)]
 pub enum EcmascriptInputTransform {
     CommonJs,
@@ -76,12 +76,13 @@ pub trait CustomTransformer: Debug {
     serialization = "none",
     eq = "manual",
     into = "new",
-    cell = "new"
+    cell = "new",
+    unresolved
 )]
 #[derive(Debug)]
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionTransformPlugin(Option<Vc<TransformPlugin>>);
 
 #[turbo_tasks::value_impl]
@@ -99,7 +100,7 @@ impl CustomTransformer for TransformPlugin {
     }
 }
 
-#[turbo_tasks::value(transparent, serialization = "auto_for_input")]
+#[turbo_tasks::value(transparent, serialization = "auto_for_input", unresolved)]
 #[derive(Debug, Clone, Hash)]
 pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
 
@@ -320,7 +321,7 @@ pub fn remove_shebang(program: &mut Program) {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct UnsupportedServerActionIssue {
     pub file_path: Vc<FileSystemPath>,
 }

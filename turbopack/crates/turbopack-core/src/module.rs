@@ -22,10 +22,10 @@ pub trait Module: Asset {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionModule(Option<Vc<Box<dyn Module>>>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct Modules(Vec<Vc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
@@ -37,7 +37,7 @@ impl Modules {
 }
 
 /// A set of [Module]s
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct ModulesSet(IndexSet<Vc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]

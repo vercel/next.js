@@ -15,7 +15,7 @@ use crate::source::{route_tree::MapGetContentSourceContent, ContentSources};
 /// begin with the prefix, which will be stripped (along with the subpath)
 /// before querying the ContentSource. A fallback ContentSource will serve all
 /// other subpaths, including if the request path does not include the prefix.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct PrefixedRouterContentSource {
     pub prefix: Vc<RcStr>,
     pub routes: Vec<(RcStr, Vc<Box<dyn ContentSource>>)>,
@@ -117,7 +117,7 @@ impl ContentSource for PrefixedRouterContentSource {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct PrefixedRouterContentSourceMapper {
     prefix: Vc<RcStr>,
     path: RcStr,
@@ -140,7 +140,7 @@ impl MapGetContentSourceContent for PrefixedRouterContentSourceMapper {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct PrefixedRouterGetContentSourceContent {
     mapper: Vc<PrefixedRouterContentSourceMapper>,
     get_content: Vc<Box<dyn GetContentSourceContent>>,

@@ -30,7 +30,7 @@ struct NodePreGypConfig {
     napi_versions: Vec<u8>,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Clone, Debug)]
 pub struct NodePreGypConfigReference {
     pub context_dir: Vc<FileSystemPath>,
@@ -211,7 +211,7 @@ pub async fn resolve_node_pre_gyp_files(
     Ok(ModuleResolveResult::unresolveable().into())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Clone, Debug)]
 pub struct NodeGypBuildReference {
     pub context_dir: Vc<FileSystemPath>,
@@ -321,7 +321,7 @@ pub async fn resolve_node_gyp_build_files(
     .as_raw_module_result())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Clone, Debug)]
 pub struct NodeBindingsReference {
     pub context_dir: Vc<FileSystemPath>,

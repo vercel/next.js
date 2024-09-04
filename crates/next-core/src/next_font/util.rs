@@ -10,7 +10,7 @@ use super::issue::NextFontIssue;
 /// CSS properties and values for a given font variation. These are rendered as
 /// values in both the returned JavaScript object and in the referenced css
 /// module.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub(crate) struct FontCssProperties {
     pub font_family: Vc<RcStr>,
     pub weight: Vc<Option<RcStr>>,

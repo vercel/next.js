@@ -52,7 +52,7 @@ pub trait VersionedContent {
 }
 
 /// A versioned file content.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct VersionedAssetContent {
     // We can't store a `Vc<FileContent>` directly because we don't want
     // `Vc<VersionedAssetContent>` to invalidate when the content changes.
@@ -61,7 +61,7 @@ pub struct VersionedAssetContent {
     asset_content: ReadRef<AssetContent>,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Clone)]
 enum AssetContentSnapshot {
     File(ReadRef<FileContent>),
@@ -142,7 +142,7 @@ pub trait VersionedContentMerger {
     fn merge(self: Vc<Self>, contents: Vc<VersionedContents>) -> Vc<Box<dyn VersionedContent>>;
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct VersionedContents(Vec<Vc<Box<dyn VersionedContent>>>);
 
 #[turbo_tasks::value]
@@ -165,7 +165,7 @@ impl Version for NotFoundVersion {
 }
 
 /// Describes an update to a versioned object.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Debug)]
 pub enum Update {
     /// The asset can't be meaningfully updated while the app is running, so the
@@ -235,7 +235,7 @@ impl Version for FileHashVersion {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct VersionState {
     #[turbo_tasks(trace_ignore)]
     version: State<TraitRef<Box<dyn Version>>>,

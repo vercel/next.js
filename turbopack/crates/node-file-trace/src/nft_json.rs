@@ -10,7 +10,7 @@ use turbopack_core::{
     reference::all_modules_and_affecting_sources,
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct NftJsonAsset {
     entry: Vc<Box<dyn Module>>,
 }

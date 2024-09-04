@@ -12,7 +12,7 @@ use turbopack_core::{
 use super::CssChunk;
 
 /// Represents the source map of an css chunk.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct CssChunkSourceMapAsset {
     chunk: Vc<CssChunk>,
 }

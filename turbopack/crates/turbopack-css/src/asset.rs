@@ -33,7 +33,7 @@ fn modifier(use_swc_css: bool) -> Vc<RcStr> {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Clone)]
 pub struct CssModuleAsset {
     source: Vc<Box<dyn Source>>,
@@ -173,7 +173,7 @@ impl ResolveOrigin for CssModuleAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct CssModuleChunkItem {
     module: Vc<CssModuleAsset>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,

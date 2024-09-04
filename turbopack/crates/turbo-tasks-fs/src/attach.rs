@@ -11,7 +11,7 @@ use crate::{
 /// "subdirectory" in the given root [FileSystem].
 ///
 /// Caveat: The `child_path` itself is not visible as a directory entry.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct AttachedFileSystem {
     root_fs: Vc<Box<dyn FileSystem>>,
     // we turn this into a string because creating a FileSystemPath requires the filesystem which

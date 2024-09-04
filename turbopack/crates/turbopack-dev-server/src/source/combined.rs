@@ -11,7 +11,7 @@ use crate::source::ContentSources;
 /// Combines multiple [ContentSource]s by trying all content sources in order.
 /// The content source which responds with the most specific response (that is
 /// not a [ContentSourceContent::NotFound]) will be returned.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct CombinedContentSource {
     pub sources: Vec<Vc<Box<dyn ContentSource>>>,
 }

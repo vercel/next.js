@@ -43,7 +43,7 @@ pub trait GenerateSourceMap {
 /// The distinction between the source map spec's [sourcemap::Index] and our
 /// [SourceMap::Sectioned] is whether the sections are represented with Vcs
 /// pointers.
-#[turbo_tasks::value(shared, cell = "new")]
+#[turbo_tasks::value(shared, cell = "new", unresolved)]
 pub enum SourceMap {
     /// A decoded source map contains no Vcs.
     Decoded(#[turbo_tasks(trace_ignore)] InnerSourceMap),
@@ -52,10 +52,10 @@ pub enum SourceMap {
     Sectioned(#[turbo_tasks(trace_ignore)] SectionedSourceMap),
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct SectionMapping(IndexMap<String, Vc<Box<dyn GenerateSourceMap>>>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionSourceMap(Option<Vc<SourceMap>>);
 
 #[turbo_tasks::value_impl]

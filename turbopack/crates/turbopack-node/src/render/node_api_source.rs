@@ -54,7 +54,7 @@ pub fn create_node_api_source(
 /// It needs a temporary directory (`intermediate_output_path`) to place file
 /// for Node.js execution during rendering. The `chunking_context` should emit
 /// to this directory.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct NodeApiContentSource {
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,

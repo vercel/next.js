@@ -4,7 +4,7 @@ use turbopack_core::module::Module;
 use crate::app_segment_config::NextSegmentConfig;
 
 /// The entry module asset for a Next.js app route or page.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct AppEntry {
     /// The pathname of the route or page.
     pub pathname: RcStr,

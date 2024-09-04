@@ -11,10 +11,10 @@ pub trait Source: Asset {
     fn ident(&self) -> Vc<AssetIdent>;
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionSource(Option<Vc<Box<dyn Source>>>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct Sources(Vec<Vc<Box<dyn Source>>>);
 
 // TODO All Vc::try_resolve_downcast::<Box<dyn Source>> calls should be removed

@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// Represents the source map of an ecmascript asset.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct SourceMapAsset {
     asset: Vc<Box<dyn OutputAsset>>,
 }

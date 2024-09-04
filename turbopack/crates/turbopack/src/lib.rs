@@ -66,7 +66,7 @@ use self::{
     transition::{Transition, TransitionsByName},
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ModuleIssue {
     ident: Vc<AssetIdent>,
     title: Vc<StyledString>,
@@ -318,7 +318,7 @@ async fn apply_reexport_tree_shaking(
     Ok(Vc::upcast(module))
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Debug)]
 pub struct ModuleAssetContext {
     pub transitions: Vc<TransitionsByName>,
@@ -804,7 +804,7 @@ pub async fn emit_asset_into_dir(
 
 type OutputAssetSet = HashSet<Vc<Box<dyn OutputAsset>>>;
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 struct ReferencesList {
     referenced_by: HashMap<Vc<Box<dyn OutputAsset>>, OutputAssetSet>,
 }

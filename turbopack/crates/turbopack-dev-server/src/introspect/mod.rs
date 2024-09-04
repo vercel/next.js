@@ -15,7 +15,7 @@ use crate::source::{
     ContentSource, ContentSourceContent, ContentSourceData, GetContentSourceContent,
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct IntrospectionSource {
     pub roots: HashSet<Vc<Box<dyn Introspectable>>>,
 }

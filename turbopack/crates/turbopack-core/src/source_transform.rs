@@ -8,7 +8,7 @@ pub trait SourceTransform {
     fn transform(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Vc<Box<dyn Source>>;
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct SourceTransforms(Vec<Vc<Box<dyn SourceTransform>>>);
 
 #[turbo_tasks::value_impl]

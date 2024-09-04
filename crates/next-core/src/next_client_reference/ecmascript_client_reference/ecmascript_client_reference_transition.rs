@@ -14,7 +14,7 @@ use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use super::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule;
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct NextEcmascriptClientReferenceTransition {
     client_transition: Vc<Box<dyn Transition>>,
     ssr_transition: Vc<ContextTransition>,

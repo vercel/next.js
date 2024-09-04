@@ -56,7 +56,7 @@ async fn to_evaluatable(
     Ok(entry)
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct EvaluatableAssets(Vec<Vc<Box<dyn EvaluatableAsset>>>);
 
 #[turbo_tasks::value_impl]

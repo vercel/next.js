@@ -10,7 +10,7 @@ use crate::{
 
 /// A module where source code doesn't need to be parsed but can be used as is.
 /// This module has no references to other modules.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct RawOutput {
     path: Vc<FileSystemPath>,
     source: Vc<Box<dyn Source>>,

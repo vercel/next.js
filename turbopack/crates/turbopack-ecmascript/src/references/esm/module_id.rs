@@ -18,7 +18,7 @@ use crate::{
     utils::module_id_to_lit,
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct EsmModuleIdAssetReference {
     inner: Vc<EsmAssetReference>,

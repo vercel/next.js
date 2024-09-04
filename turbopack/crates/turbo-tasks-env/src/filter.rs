@@ -6,7 +6,7 @@ use crate::{EnvMap, ProcessEnv};
 
 /// Filters env variables by some prefix. Casing of the env vars is ignored for
 /// filtering.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct FilterProcessEnv {
     prior: Vc<Box<dyn ProcessEnv>>,
     filters: Vec<RcStr>,

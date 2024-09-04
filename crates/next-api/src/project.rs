@@ -171,7 +171,7 @@ pub struct Instrumentation {
     pub edge: Vc<Box<dyn Endpoint>>,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct ProjectContainer {
     name: RcStr,
     options_state: State<Option<ProjectOptions>>,
@@ -390,7 +390,7 @@ impl ProjectContainer {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct Project {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
@@ -431,7 +431,7 @@ pub struct Project {
     preview_props: DraftModeOptions,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct ProjectDefineEnv {
     client: Vc<EnvMap>,
     edge: Vc<EnvMap>,
@@ -456,7 +456,7 @@ impl ProjectDefineEnv {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 struct ConflictIssue {
     path: Vc<FileSystemPath>,
     title: Vc<StyledString>,

@@ -9,7 +9,7 @@ const ALLOWED_DISPLAY_VALUES: &[&str] = &["auto", "block", "swap", "fallback", "
 
 pub(super) type FontData = IndexMap<RcStr, FontDataEntry>;
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(serialization = "auto_for_input", unresolved)]
 #[derive(Clone, Debug, PartialOrd, Ord, Hash)]
 pub(super) struct NextFontGoogleOptions {
     /// Name of the requested font from Google. Contains literal spaces.

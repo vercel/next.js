@@ -15,7 +15,7 @@ use turbopack_ecmascript::chunk::EcmascriptChunk;
 use crate::{ecmascript::content::EcmascriptDevChunkContent, BrowserChunkingContext};
 
 /// Development Ecmascript chunk.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub(crate) struct EcmascriptDevChunk {
     chunking_context: Vc<BrowserChunkingContext>,
     chunk: Vc<EcmascriptChunk>,

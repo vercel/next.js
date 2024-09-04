@@ -144,7 +144,7 @@ format_iter!(std::fmt::Pointer);
 format_iter!(std::fmt::UpperExp);
 format_iter!(std::fmt::UpperHex);
 
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "none", unresolved)]
 #[derive(Debug, Clone)]
 pub enum AstPathRange {
     /// The ast path to the block or expression.

@@ -10,7 +10,7 @@ use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
 /// Load the environment variables defined via a dotenv file, with an
 /// optional prior state that we can lookup already defined variables
 /// from.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct DotenvProcessEnv {
     prior: Option<Vc<Box<dyn ProcessEnv>>>,
     path: Vc<FileSystemPath>,

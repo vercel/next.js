@@ -36,7 +36,7 @@ impl BaseSegment {
 /// This can't be a single method `fn merge(Vec<Vc<RouteTree>>)` as this would
 /// lead to creating new tasks over and over. A celled list leads to task reuse
 /// and faster operation.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct RouteTrees(Vec<Vc<RouteTree>>);
 
 #[turbo_tasks::value_impl]
@@ -93,7 +93,7 @@ impl RouteTrees {
 }
 
 /// The prefix tree of routes. Also handling dynamic and catch all segments.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Default, Clone, Debug)]
 pub struct RouteTree {
     base: Vec<BaseSegment>,

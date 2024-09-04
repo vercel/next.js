@@ -10,7 +10,7 @@ use crate::{
 
 /// The raw [Source]. It represents raw content from a path without any
 /// references to other [Source]s.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct FileSource {
     pub path: Vc<FileSystemPath>,
     pub query: Vc<RcStr>,

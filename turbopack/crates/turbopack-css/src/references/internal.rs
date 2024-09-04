@@ -6,7 +6,7 @@ use turbopack_core::{
 };
 
 /// A reference to an internal CSS asset.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct InternalCssAssetReference {
     module: Vc<Box<dyn Module>>,

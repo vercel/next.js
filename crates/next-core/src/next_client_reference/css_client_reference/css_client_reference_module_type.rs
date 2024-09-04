@@ -15,7 +15,7 @@ use super::css_client_reference_module::CssClientReferenceModule;
 
 /// Module type for CSS client references. This will be used to hook into CSS
 /// asset processing and inject a client reference on the server side.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct CssClientReferenceModuleType {
     client_transition: Vc<Box<dyn Transition>>,
 }

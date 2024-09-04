@@ -19,7 +19,7 @@ use turbopack_core::{issue::IssueSource, source::Source};
 use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
 use crate::tree_shake::{find_turbopack_part_id_in_asserts, PartId};
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(serialization = "auto_for_input", unresolved)]
 #[derive(Default, Debug, Clone, Hash)]
 pub struct ImportAnnotations {
     // TODO store this in more structured way

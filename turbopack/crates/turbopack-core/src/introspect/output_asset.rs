@@ -7,7 +7,7 @@ use super::{
 };
 use crate::{asset::Asset, output::OutputAsset};
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct IntrospectableOutputAsset(Vc<Box<dyn OutputAsset>>);
 
 #[turbo_tasks::value_impl]

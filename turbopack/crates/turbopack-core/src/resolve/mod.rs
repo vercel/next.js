@@ -59,7 +59,7 @@ pub use remap::{ResolveAliasMap, SubpathValue};
 
 use crate::{error::PrettyPrintError, issue::IssueSeverity};
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Debug)]
 pub enum ModuleResolveResultItem {
     Module(Vc<Box<dyn Module>>),
@@ -72,7 +72,7 @@ pub enum ModuleResolveResultItem {
     Unresolveable,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
     pub primary: IndexMap<RequestKey, ModuleResolveResultItem>,
@@ -375,7 +375,7 @@ impl ModuleResolveResult {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct ModuleResolveResultOption(Option<Vc<ModuleResolveResult>>);
 
 #[turbo_tasks::value_impl]
@@ -410,7 +410,7 @@ impl Display for ExternalType {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Debug)]
 pub enum ResolveResultItem {
     Source(Vc<Box<dyn Source>>),
@@ -463,7 +463,7 @@ impl RequestKey {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Debug)]
 pub struct ResolveResult {
     pub primary: IndexMap<RequestKey, ResolveResultItem>,
@@ -986,7 +986,7 @@ impl ResolveResult {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct ResolveResultOption(Option<Vc<ResolveResult>>);
 
 #[turbo_tasks::value_impl]
@@ -1055,7 +1055,7 @@ async fn any_exists(
     )
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 enum ExportsFieldResult {
     Some(#[turbo_tasks(debug_ignore, trace_ignore)] ExportsField),
     None,
@@ -1088,7 +1088,7 @@ async fn exports_field(package_json_path: Vc<FileSystemPath>) -> Result<Vc<Expor
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 enum ImportsFieldResult {
     Some(
         #[turbo_tasks(debug_ignore, trace_ignore)] ImportsField,
@@ -1134,7 +1134,7 @@ pub fn package_json() -> Vc<Vec<RcStr>> {
     Vc::cell(vec!["package.json".into()])
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub enum FindContextFileResult {
     Found(Vc<FileSystemPath>, Vec<Vc<Box<dyn Source>>>),
     NotFound(Vec<Vc<Box<dyn Source>>>),
@@ -1230,7 +1230,7 @@ enum FindPackageItem {
     PackageFile(Vc<FileSystemPath>),
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct FindPackageResult {
     packages: Vec<FindPackageItem>,
     affecting_sources: Vec<Vc<Box<dyn Source>>>,
@@ -2281,7 +2281,7 @@ async fn apply_in_package(
     Ok(None)
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 enum FindSelfReferencePackageResult {
     Found {
         name: String,
@@ -2804,7 +2804,7 @@ pub async fn handle_resolve_error(
 /// ModulePart represents a part of a module.
 ///
 /// Currently this is used only for ESMs.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub enum ModulePart {
     /// Represents the side effects of a module. This part is evaluated even if
     /// all exports are unused.

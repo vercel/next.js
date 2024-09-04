@@ -4,7 +4,7 @@ use anyhow::Result;
 use turbo_tasks::Vc;
 use turbopack_core::output::OutputAsset;
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub enum AggregatedGraph {
     Leaf(Vc<Box<dyn OutputAsset>>),
     Node {
@@ -180,18 +180,18 @@ async fn aggregate_more(node: Vc<AggregatedGraph>) -> Result<Vc<AggregatedGraph>
     .into())
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 struct AggregatedGraphsSet {
     pub set: HashSet<Vc<AggregatedGraph>>,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub enum AggregatedGraphNodeContent {
     Asset(Vc<Box<dyn OutputAsset>>),
     Children(HashSet<Vc<AggregatedGraph>>),
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 struct AggregatedGraphsValuedReferences {
     pub inner: HashSet<Vc<AggregatedGraph>>,
     pub outer: HashSet<Vc<AggregatedGraph>>,

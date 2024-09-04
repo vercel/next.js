@@ -11,7 +11,7 @@ use super::request::{
 
 /// A normalized, Vc-friendly struct derived from validating and transforming
 /// [[NextFontLocalRequest]]
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(serialization = "auto_for_input", unresolved)]
 #[derive(Clone, Debug, PartialOrd, Ord, Hash)]
 pub(super) struct NextFontLocalOptions {
     pub fonts: FontDescriptors,

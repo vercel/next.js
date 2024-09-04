@@ -23,7 +23,7 @@ use crate::BrowserChunkingContext;
 /// than one chunk, or affect the chunk group, e.g.:
 /// * moving a module from one chunk to another;
 /// * changing a chunk's path.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub(crate) struct EcmascriptDevChunkList {
     pub(super) chunking_context: Vc<BrowserChunkingContext>,
     pub(super) ident: Vc<AssetIdent>,

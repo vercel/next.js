@@ -26,7 +26,7 @@ impl AppPageRoute {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Debug)]
 pub enum Route {
     Page {
@@ -79,7 +79,7 @@ pub trait Endpoint {
     fn root_modules(self: Vc<Self>) -> Vc<Modules>;
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Debug, Clone)]
 pub enum WrittenEndpoint {
     NodeJs {
@@ -96,5 +96,5 @@ pub enum WrittenEndpoint {
 
 /// The routes as map from pathname to route. (pathname includes the leading
 /// slash)
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct Routes(IndexMap<RcStr, Route>);

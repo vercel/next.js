@@ -2,7 +2,7 @@ use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub(crate) struct NextFontIssue {
     pub(crate) path: Vc<FileSystemPath>,
     pub(crate) title: Vc<StyledString>,

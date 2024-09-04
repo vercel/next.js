@@ -7,7 +7,7 @@ use super::{
 };
 use crate::{asset::Asset, module::Module};
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct IntrospectableModule(Vc<Box<dyn Module>>);
 
 #[turbo_tasks::value_impl]

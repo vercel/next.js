@@ -17,7 +17,7 @@ fn modifier() -> Vc<RcStr> {
 
 /// The AsyncLoaderModule is a module that loads another module async, by
 /// putting it into a separate chunk group.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct AsyncLoaderModule {
     pub inner: Vc<Box<dyn ChunkableModule>>,
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,

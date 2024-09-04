@@ -19,7 +19,7 @@ use turbopack_core::{
 
 /// The predicated based on which the [ExternalCjsModulesResolvePlugin] decides
 /// whether to mark a module as external.
-#[turbo_tasks::value(into = "shared")]
+#[turbo_tasks::value(into = "shared", unresolved)]
 pub enum ExternalPredicate {
     /// Mark all modules as external if they're not listed in the list.
     /// Applies only to imports outside of node_modules.
@@ -33,7 +33,7 @@ pub enum ExternalPredicate {
 ///
 /// Modules matching the predicate are marked as external as long as it's
 /// possible to resolve them at runtime.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(crate) struct ExternalCjsModulesResolvePlugin {
     project_path: Vc<FileSystemPath>,
     root: Vc<FileSystemPath>,
@@ -443,7 +443,7 @@ pub struct PackagesGlobs {
 }
 
 // TODO move that to turbo
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionPackagesGlobs(Option<PackagesGlobs>);
 
 #[turbo_tasks::function]
@@ -461,7 +461,7 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
     })))
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct UnableToExternalize {
     file_path: Vc<FileSystemPath>,
     request: RcStr,

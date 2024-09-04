@@ -109,7 +109,7 @@ where
 /// A list of diagnostics captured with
 /// [`DiagnosticsVc::peek_diagnostics_with_path`] and
 #[derive(Debug)]
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct CapturedDiagnostics {
     pub diagnostics: auto_hash_map::AutoSet<Vc<Box<dyn Diagnostic>>>,
 }

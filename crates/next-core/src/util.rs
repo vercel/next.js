@@ -164,14 +164,14 @@ impl NextRuntime {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Debug, Clone)]
 pub enum MiddlewareMatcherKind {
     Str(String),
     Matcher(MiddlewareMatcher),
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Default, Clone)]
 pub struct NextSourceConfig {
     pub runtime: NextRuntime,
@@ -191,7 +191,7 @@ impl ValueDefault for NextSourceConfig {
 }
 
 /// An issue that occurred while parsing the page config.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct NextSourceConfigParsingIssue {
     ident: Vc<AssetIdent>,
     detail: Vc<StyledString>,

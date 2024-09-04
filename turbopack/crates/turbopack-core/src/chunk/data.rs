@@ -7,7 +7,7 @@ use crate::{
     output::{OutputAsset, OutputAssets},
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct ChunkData {
     pub path: String,
     pub included: Vec<ReadRef<ModuleId>>,
@@ -16,14 +16,14 @@ pub struct ChunkData {
     pub references: Vc<OutputAssets>,
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct ChunkDataOption(Option<Vc<ChunkData>>);
 
 // NOTE(alexkirsz) Our convention for naming vector types is to add an "s" to
 // the end of the type name, but in this case it would be both gramatically
 // incorrect and clash with the variable names everywhere.
 // TODO(WEB-101) Should fix this.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct ChunksData(Vec<Vc<ChunkData>>);
 
 #[turbo_tasks::function]

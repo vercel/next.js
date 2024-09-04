@@ -31,7 +31,7 @@ use crate::{
     route::{Endpoint, WrittenEndpoint},
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct InstrumentationEndpoint {
     project: Vc<Project>,
     asset_context: Vc<Box<dyn AssetContext>>,
@@ -208,7 +208,7 @@ impl InstrumentationEndpoint {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct InstrumentationCoreModules {
     pub userland_module: Vc<Box<dyn Module>>,
     pub edge_entry_module: Vc<Box<dyn Module>>,

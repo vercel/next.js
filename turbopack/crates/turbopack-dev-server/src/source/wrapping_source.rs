@@ -22,7 +22,7 @@ pub trait ContentSourceProcessor {
 /// [ContentSourceResult], allowing us to process whatever
 /// [ContentSourceContent] it would have returned.
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct WrappedGetContentSourceContent {
     inner: Vc<Box<dyn GetContentSourceContent>>,
     processor: Vc<Box<dyn ContentSourceProcessor>>,

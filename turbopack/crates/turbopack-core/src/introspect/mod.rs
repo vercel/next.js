@@ -8,7 +8,7 @@ use turbo_tasks::{RcStr, Vc};
 
 type VcDynIntrospectable = Vc<Box<dyn Introspectable>>;
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct IntrospectableChildren(IndexSet<(Vc<RcStr>, VcDynIntrospectable)>);
 
 #[turbo_tasks::value_trait]

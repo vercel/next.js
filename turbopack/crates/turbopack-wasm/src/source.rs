@@ -31,7 +31,7 @@ pub enum WebAssemblySourceType {
 
 /// Returns the raw binary WebAssembly source or the assembled version of a text
 /// format source.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Clone)]
 pub struct WebAssemblySource {
     source: Vc<Box<dyn Source>>,

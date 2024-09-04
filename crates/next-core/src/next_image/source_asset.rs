@@ -28,7 +28,7 @@ fn blur_options() -> Vc<BlurPlaceholderOptions> {
 
 /// An source asset that transforms an image into javascript code which exports
 /// an object with meta information like width, height and a blur placeholder.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct StructuredImageFileSource {
     pub image: Vc<Box<dyn Source>>,
     pub blur_placeholder_mode: BlurPlaceholderMode,

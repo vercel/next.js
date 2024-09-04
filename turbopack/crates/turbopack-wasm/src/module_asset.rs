@@ -35,7 +35,7 @@ fn modifier() -> Vc<RcStr> {
 
 /// Creates a javascript loader which instantiates the WebAssembly source and
 /// re-exports its exports.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Clone)]
 pub struct WebAssemblyModuleAsset {
     source: Vc<WebAssemblySource>,
@@ -178,7 +178,7 @@ impl ResolveOrigin for WebAssemblyModuleAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ModuleChunkItem {
     module: Vc<WebAssemblyModuleAsset>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,

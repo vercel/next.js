@@ -73,7 +73,7 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(serialization = "auto_for_input", unresolved)]
 #[derive(Debug, Copy, Clone, Hash)]
 pub enum ServerContextType {
     Pages {

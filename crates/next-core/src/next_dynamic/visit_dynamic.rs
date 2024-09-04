@@ -13,7 +13,7 @@ use turbopack_core::{
 
 use super::NextDynamicEntryModule;
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct NextDynamicEntries(Vec<Vc<NextDynamicEntryModule>>);
 
 #[turbo_tasks::value_impl]

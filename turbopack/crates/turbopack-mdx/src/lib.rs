@@ -76,7 +76,7 @@ impl ValueDefault for MdxTransformOptions {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct MdxTransform {
     options: Vc<MdxTransformOptions>,
 }
@@ -103,7 +103,7 @@ impl SourceTransform for MdxTransform {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct MdxTransformedAsset {
     options: Vc<MdxTransformOptions>,
     source: Vc<Box<dyn Source>>,
@@ -232,12 +232,12 @@ impl MdxTransformedAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct MdxTransformResult {
     content: Vc<AssetContent>,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct MdxIssue {
     /// Place of message.
     path: Vc<FileSystemPath>,

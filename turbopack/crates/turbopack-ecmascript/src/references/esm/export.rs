@@ -57,7 +57,7 @@ pub enum FoundExportType {
     Unknown,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct FollowExportsResult {
     pub module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     pub export_name: Option<RcStr>,
@@ -203,7 +203,7 @@ async fn handle_declared_export(
     }))
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct AllExportNamesResult {
     esm_exports: IndexMap<RcStr, Vc<Box<dyn EcmascriptChunkPlaceable>>>,
     dynamic_exporting_modules: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
@@ -352,7 +352,7 @@ fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) {
     .emit();
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Hash, Debug)]
 pub struct EsmExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
@@ -364,7 +364,7 @@ pub struct EsmExports {
 ///
 /// `star_exports` that could not be (fully) expanded end up in
 /// `dynamic_exports`.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Hash, Debug)]
 pub struct ExpandedExports {
     pub exports: BTreeMap<RcStr, EsmExport>,

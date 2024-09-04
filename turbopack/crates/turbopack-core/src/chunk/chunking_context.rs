@@ -35,13 +35,13 @@ pub enum MinifyType {
     NoMinify,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct ChunkGroupResult {
     pub assets: Vc<OutputAssets>,
     pub availability_info: AvailabilityInfo,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct EntryChunkGroupResult {
     pub asset: Vc<Box<dyn OutputAsset>>,
     pub availability_info: AvailabilityInfo,

@@ -21,7 +21,7 @@ use turbopack_ecmascript::{
 use super::{chunk::EcmascriptBuildNodeChunk, version::EcmascriptBuildNodeChunkVersion};
 use crate::NodeJsChunkingContext;
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(super) struct EcmascriptBuildNodeChunkContent {
     pub(super) content: Vc<EcmascriptChunkContent>,
     pub(super) chunking_context: Vc<NodeJsChunkingContext>,

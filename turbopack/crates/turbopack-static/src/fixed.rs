@@ -10,7 +10,7 @@ use turbopack_core::{
 
 /// A static asset that is served at a fixed output path. It won't use
 /// content hashing to generate a long term cacheable URL.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct FixedStaticAsset {
     output_path: Vc<FileSystemPath>,
     source: Vc<Box<dyn Source>>,

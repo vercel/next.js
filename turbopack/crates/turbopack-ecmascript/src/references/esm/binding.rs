@@ -23,7 +23,7 @@ use crate::{
     references::AstPath,
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Hash, Debug)]
 pub struct EsmBindings {
     pub bindings: Vec<EsmBinding>,

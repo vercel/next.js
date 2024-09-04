@@ -27,7 +27,7 @@ pub fn client_modules_ssr_modifier() -> Vc<RcStr> {
     Vc::cell("client modules ssr".into())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct ClientReferencesChunks {
     pub client_component_client_chunks:
         IndexMap<ClientReferenceType, (Vc<OutputAssets>, AvailabilityInfo)>,

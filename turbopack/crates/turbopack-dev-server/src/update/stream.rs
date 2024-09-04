@@ -269,7 +269,7 @@ impl Stream for UpdateStream {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", unresolved)]
 #[derive(Debug)]
 pub enum UpdateStreamItem {
     NotFound,
@@ -279,7 +279,7 @@ pub enum UpdateStreamItem {
     },
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", unresolved)]
 struct FatalStreamIssue {
     description: Vc<StyledString>,
     resource: RcStr,

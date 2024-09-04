@@ -16,7 +16,7 @@ fn modifier() -> Vc<RcStr> {
 
 /// A source asset that exports the string content of an asset as the default
 /// export of a JS module.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct TextContentFileSource {
     pub source: Vc<Box<dyn Source>>,
 }

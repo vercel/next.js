@@ -55,7 +55,7 @@ async fn emit(
 /// List of the all assets of the "internal" subgraph and a list of boundary
 /// assets that are not considered "internal" ("external")
 #[derive(Debug)]
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct SeparatedAssets {
     internal_assets: Vc<OutputAssetsSet>,
     external_asset_entrypoints: Vc<OutputAssetsSet>,
@@ -77,7 +77,7 @@ async fn internal_assets(
     )
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct AssetsForSourceMapping(HashMap<String, Vc<Box<dyn GenerateSourceMap>>>);
 
 /// Extracts a map of "internal" assets ([`internal_assets`]) which implement

@@ -9,7 +9,7 @@ use crate::{
     create_visitor,
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct ConstantValue {
     value: CompileTimeDefineValue,
     path: Vc<AstPath>,

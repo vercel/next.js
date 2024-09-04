@@ -33,7 +33,7 @@ pub trait ModuleReference: ValueToString {
 }
 
 /// Multiple [ModuleReference]s
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct ModuleReferences(Vec<Vc<Box<dyn ModuleReference>>>);
 
 #[turbo_tasks::value_impl]
@@ -46,7 +46,7 @@ impl ModuleReferences {
 }
 
 /// A reference that always resolves to a single module.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct SingleModuleReference {
     asset: Vc<Box<dyn Module>>,
     description: Vc<RcStr>,
@@ -92,7 +92,7 @@ impl SingleModuleReference {
 }
 
 /// A reference that always resolves to a single module.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct SingleOutputAssetReference {
     asset: Vc<Box<dyn OutputAsset>>,
     description: Vc<RcStr>,

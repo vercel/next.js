@@ -18,7 +18,7 @@ pub trait Asset {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone)]
 pub enum AssetContent {
     File(Vc<FileContent>),

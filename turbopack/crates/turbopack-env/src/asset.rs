@@ -13,7 +13,7 @@ use turbopack_ecmascript::utils::StringifyJs;
 
 /// The `process.env` asset, responsible for initializing the env (shared by all
 /// chunks) during app startup.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct ProcessEnvAsset {
     /// The root path which we can construct our env asset path.
     root: Vc<FileSystemPath>,

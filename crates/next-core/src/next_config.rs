@@ -25,18 +25,18 @@ use crate::{
     next_import_map::mdx_import_source_file, next_shared::transforms::ModularizeImportPackageConfig,
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct NextConfigAndCustomRoutes {
     config: Vc<NextConfig>,
     custom_routes: Vc<CustomRoutes>,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct CustomRoutes {
     rewrites: Vc<Rewrites>,
 }
 
-#[turbo_tasks::value(serialization = "custom", eq = "manual")]
+#[turbo_tasks::value(serialization = "custom", eq = "manual", unresolved)]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NextConfig {
@@ -286,7 +286,7 @@ pub struct Rewrite {
     pub missing: Option<Vec<RouteHas>>,
 }
 
-#[turbo_tasks::value(eq = "manual")]
+#[turbo_tasks::value(eq = "manual", unresolved)]
 #[derive(Clone, Debug, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Rewrites {
@@ -302,7 +302,7 @@ pub struct TypeScriptConfig {
     pub ts_config_path: Option<String>,
 }
 
-#[turbo_tasks::value(eq = "manual")]
+#[turbo_tasks::value(eq = "manual", unresolved)]
 #[derive(Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ImageConfig {
@@ -478,7 +478,7 @@ pub enum ReactCompilerOptionsOrBoolean {
     Option(ReactCompilerOptions),
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionalReactCompilerOptions(Option<Vc<ReactCompilerOptions>>);
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -768,7 +768,7 @@ impl RemoveConsoleConfig {
 #[turbo_tasks::value(transparent)]
 pub struct ResolveExtensions(Option<Vec<RcStr>>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionalMdxTransformOptions(Option<Vc<MdxTransformOptions>>);
 
 #[turbo_tasks::value_impl]
@@ -1197,7 +1197,7 @@ impl JsConfig {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct OutdatedConfigIssue {
     path: Vc<FileSystemPath>,
     old_name: RcStr,

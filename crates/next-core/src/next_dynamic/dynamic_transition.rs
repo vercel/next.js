@@ -8,7 +8,7 @@ use super::NextDynamicEntryModule;
 /// This transition is used to create the marker asset for a next/dynamic
 /// import. This will get picked up during module processing and will be used to
 /// create the dynamic entry, and the dynamic manifest entry.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct NextDynamicTransition {
     client_transition: Vc<Box<dyn Transition>>,
 }

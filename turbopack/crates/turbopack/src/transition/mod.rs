@@ -99,7 +99,7 @@ pub trait Transition {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct TransitionsByName(HashMap<RcStr, Vc<Box<dyn Transition>>>);
 
 #[turbo_tasks::value_impl]

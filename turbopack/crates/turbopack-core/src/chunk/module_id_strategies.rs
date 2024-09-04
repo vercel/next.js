@@ -29,7 +29,7 @@ impl ModuleIdStrategy for DevModuleIdStrategy {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct GlobalModuleIdStrategy {
     module_id_map: HashMap<RcStr, Vc<ModuleId>>,
 }

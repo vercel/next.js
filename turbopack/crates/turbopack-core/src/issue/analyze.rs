@@ -8,7 +8,7 @@ use super::{
 };
 use crate::ident::AssetIdent;
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct AnalyzeIssue {
     pub severity: Vc<IssueSeverity>,
     pub source_ident: Vc<AssetIdent>,

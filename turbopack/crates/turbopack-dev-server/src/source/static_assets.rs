@@ -13,7 +13,7 @@ use super::{
     ContentSource, ContentSourceContent, ContentSourceData, GetContentSourceContent,
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct StaticAssetsContentSource {
     pub prefix: Vc<RcStr>,
     pub dir: Vc<FileSystemPath>,
@@ -79,7 +79,7 @@ impl ContentSource for StaticAssetsContentSource {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct StaticAssetsContentSourceItem {
     path: Vc<FileSystemPath>,
 }

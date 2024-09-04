@@ -31,7 +31,7 @@ use crate::{
     route::{Endpoint, WrittenEndpoint},
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct MiddlewareEndpoint {
     project: Vc<Project>,
     asset_context: Vc<Box<dyn AssetContext>>,

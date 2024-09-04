@@ -24,7 +24,7 @@ impl Deref for PackageJson {
     }
 }
 
-#[turbo_tasks::value(transparent, serialization = "none")]
+#[turbo_tasks::value(transparent, serialization = "none", unresolved)]
 pub struct OptionPackageJson(Option<PackageJson>);
 
 /// Reads a package.json file (if it exists). If the file is unparseable, it
@@ -55,7 +55,7 @@ pub async fn read_package_json(path: Vc<FileSystemPath>) -> Result<Vc<OptionPack
 }
 
 /// Reusable Issue struct representing any problem with a `package.json`
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct PackageJsonIssue {
     pub path: Vc<FileSystemPath>,
     pub error_message: RcStr,

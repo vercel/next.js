@@ -78,13 +78,13 @@ use crate::{
     server_actions::create_server_actions_manifest,
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct AppProject {
     project: Vc<Project>,
     app_dir: Vc<FileSystemPath>,
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionAppProject(Option<Vc<AppProject>>);
 
 impl AppProject {
@@ -675,7 +675,7 @@ enum AppEndpointType {
     },
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct AppEndpoint {
     ty: AppEndpointType,
     app_project: Vc<AppProject>,
@@ -1379,7 +1379,7 @@ impl Endpoint for AppEndpoint {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 enum AppEndpointOutput {
     NodeJs {
         rsc_chunk: Vc<Box<dyn OutputAsset>>,

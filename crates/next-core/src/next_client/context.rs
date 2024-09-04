@@ -128,7 +128,7 @@ pub fn get_client_compile_time_info(
     .cell()
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(serialization = "auto_for_input", unresolved)]
 #[derive(Debug, Copy, Clone, Hash)]
 pub enum ClientContextType {
     Pages { pages_dir: Vc<FileSystemPath> },

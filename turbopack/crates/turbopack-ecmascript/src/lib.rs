@@ -121,10 +121,10 @@ pub enum TreeShakingMode {
     ReexportsOnly,
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(shared, serialization = "auto_for_input", unresolved)]
 #[derive(Hash, Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
     pub refresh: bool,
@@ -237,7 +237,7 @@ impl EcmascriptModuleAssetBuilder {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct EcmascriptModuleAsset {
     pub source: Vc<Box<dyn Source>>,
     pub asset_context: Vc<Box<dyn AssetContext>>,
@@ -277,11 +277,11 @@ pub trait EcmascriptAnalyzable {
 }
 
 /// An optional [EcmascriptModuleAsset]
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionEcmascriptModuleAsset(Option<Vc<EcmascriptModuleAsset>>);
 
 /// A list of [EcmascriptModuleAsset]s
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct EcmascriptModuleAssets(Vec<Vc<EcmascriptModuleAsset>>);
 
 impl EcmascriptModuleAsset {
@@ -304,7 +304,7 @@ impl EcmascriptModuleAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Copy, Clone)]
 pub(crate) struct ModuleTypeResult {
     pub module_type: SpecifiedModuleType,
@@ -615,7 +615,7 @@ impl ResolveOrigin for EcmascriptModuleAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ModuleChunkItem {
     module: Vc<EcmascriptModuleAsset>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -703,7 +703,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 }
 
 /// The transformed contents of an Ecmascript module.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
     pub source_map: Option<Vc<Box<dyn GenerateSourceMap>>>,

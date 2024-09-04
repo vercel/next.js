@@ -18,7 +18,7 @@ use crate::{
 pub type Mapping = (usize, Option<Vc<Box<dyn GenerateSourceMap>>>);
 
 /// Code stores combined output code and the source map of that output code.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Debug, Clone)]
 pub struct Code {
     code: Rope,

@@ -4,7 +4,7 @@ use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::chunk::ChunkingContext;
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct ExecutionContext {
     pub project_path: Vc<FileSystemPath>,
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,

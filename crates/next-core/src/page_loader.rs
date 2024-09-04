@@ -68,7 +68,7 @@ pub async fn create_page_loader_entry_module(
     Ok(module)
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct PageLoaderAsset {
     pub server_root: Vc<FileSystemPath>,
     pub pathname: Vc<RcStr>,

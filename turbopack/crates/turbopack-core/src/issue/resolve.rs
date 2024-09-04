@@ -14,7 +14,7 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct ResolvingIssue {
     pub severity: Vc<IssueSeverity>,
     pub request_type: String,

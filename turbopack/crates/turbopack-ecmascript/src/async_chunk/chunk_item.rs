@@ -21,7 +21,7 @@ use crate::{
     utils::StringifyJs,
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct AsyncLoaderChunkItem {
     pub module: Vc<AsyncLoaderModule>,
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,

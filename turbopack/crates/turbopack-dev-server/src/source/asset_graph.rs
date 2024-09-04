@@ -19,12 +19,12 @@ use super::{
     GetContentSourceContent,
 };
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 struct OutputAssetsMap(IndexMap<RcStr, Vc<Box<dyn OutputAsset>>>);
 
 type ExpandedState = State<HashSet<RcStr>>;
 
-#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", unresolved)]
 pub struct AssetGraphContentSource {
     root_path: Vc<FileSystemPath>,
     root_assets: Vc<OutputAssetsSet>,
@@ -233,7 +233,7 @@ impl ContentSource for AssetGraphContentSource {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct AssetGraphGetContentSourceContent {
     source: Vc<AssetGraphContentSource>,
     path: RcStr,
@@ -348,7 +348,7 @@ fn fully_expaned_introspectable_type() -> Vc<RcStr> {
     Vc::cell("fully expanded asset graph content source".into())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct FullyExpaned(Vc<AssetGraphContentSource>);
 
 #[turbo_tasks::value_impl]

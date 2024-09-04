@@ -8,7 +8,7 @@ use turbo_tasks_fs::{
 use crate::next_import_map::get_next_package;
 
 /// A final route in the pages directory.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct PagesStructureItem {
     pub base_path: Vc<FileSystemPath>,
     pub extensions: Vc<Vec<RcStr>>,
@@ -62,7 +62,7 @@ impl PagesStructureItem {
 
 /// A (sub)directory in the pages directory with all analyzed routes and
 /// folders.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct PagesStructure {
     pub app: Vc<PagesStructureItem>,
     pub document: Vc<PagesStructureItem>,
@@ -89,7 +89,7 @@ impl PagesStructure {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct PagesDirectoryStructure {
     pub project_path: Vc<FileSystemPath>,
     pub next_router_path: Vc<FileSystemPath>,

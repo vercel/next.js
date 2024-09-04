@@ -187,7 +187,7 @@ enum NextDynamicVisitEntry {
     DynamicImportsMap(Vc<DynamicImportsMap>),
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 struct NextDynamicVisitEntries(Vec<NextDynamicVisitEntry>);
 
 #[turbo_tasks::function]
@@ -388,12 +388,12 @@ pub type DynamicImportedOutputAssets = Vec<(RcStr, Vc<OutputAssets>)>;
 
 /// A struct contains mapping for the dynamic imports to construct chunk per
 /// each individual module (Origin Module, Vec<(ImportSourceString, Module)>)
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct DynamicImportsMap(pub (Vc<Box<dyn Module>>, DynamicImportedModules));
 
 /// An Option wrapper around [DynamicImportsMap].
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionDynamicImportsMap(Option<Vc<DynamicImportsMap>>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct DynamicImportedChunks(pub IndexMap<Vc<Box<dyn Module>>, DynamicImportedOutputAssets>);

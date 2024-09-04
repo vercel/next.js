@@ -30,7 +30,7 @@ use crate::{
 };
 
 /// A final route in the app directory.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Default, Debug, Clone)]
 pub struct Components {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -177,7 +177,7 @@ impl Metadata {
 }
 
 /// Metadata files that can be placed in the root of the app directory.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Default, Clone, Debug)]
 pub struct GlobalMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -199,7 +199,7 @@ impl GlobalMetadata {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Debug)]
 pub struct DirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
@@ -207,7 +207,7 @@ pub struct DirectoryTree {
     pub components: Components,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Clone, Debug)]
 struct PlainDirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
@@ -233,7 +233,7 @@ impl DirectoryTree {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionAppDir(Option<Vc<FileSystemPath>>);
 
 /// Finds and returns the [DirectoryTree] of the app directory if existing.
@@ -396,7 +396,7 @@ async fn get_directory_tree_internal(
     .cell())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Debug, Clone)]
 pub struct LoaderTree {
     pub page: AppPage,
@@ -493,7 +493,7 @@ impl Entrypoint {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct Entrypoints(IndexMap<AppPath, Entrypoint>);
 
 fn is_parallel_route(name: &str) -> bool {
@@ -709,7 +709,7 @@ fn directory_tree_to_entrypoints(
     )
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct DuplicateParallelRouteIssue {
     app_dir: Vc<FileSystemPath>,
     page: AppPage,
@@ -1298,7 +1298,7 @@ pub async fn get_global_metadata(
     Ok(metadata.cell())
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 struct DirectoryTreeIssue {
     pub severity: Vc<IssueSeverity>,
     pub app_dir: Vc<FileSystemPath>,

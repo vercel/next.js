@@ -184,7 +184,7 @@ impl CompileTimeDefines {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Debug, Clone)]
 pub enum FreeVarReference {
     EcmaScriptModule {
@@ -220,7 +220,7 @@ impl From<CompileTimeDefineValue> for FreeVarReference {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 #[derive(Debug, Clone)]
 pub struct FreeVarReferences(pub IndexMap<Vec<DefineableNameSegment>, FreeVarReference>);
 
@@ -232,7 +232,7 @@ impl FreeVarReferences {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Debug, Clone)]
 pub struct CompileTimeInfo {
     pub environment: Vc<Environment>,

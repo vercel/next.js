@@ -5,7 +5,7 @@ use turbo_tasks::{RcStr, Vc};
 
 use crate::{glob::Glob, DirectoryContent, DirectoryEntry, FileSystemPath};
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Default, Debug)]
 pub struct ReadGlobResult {
     pub results: HashMap<String, DirectoryEntry>,

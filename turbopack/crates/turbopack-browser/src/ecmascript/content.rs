@@ -20,7 +20,7 @@ use super::{
 };
 use crate::BrowserChunkingContext;
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", unresolved)]
 pub struct EcmascriptDevChunkContent {
     pub(super) entries: Vc<EcmascriptDevChunkContentEntries>,
     pub(super) chunking_context: Vc<BrowserChunkingContext>,

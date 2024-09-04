@@ -6,7 +6,7 @@ use crate::{
     route::{Endpoint, Route},
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct Entrypoints {
     pub routes: IndexMap<RcStr, Route>,
     pub middleware: Option<Middleware>,

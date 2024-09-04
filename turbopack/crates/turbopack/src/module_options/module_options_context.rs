@@ -20,14 +20,14 @@ pub struct LoaderRuleItem {
 }
 
 #[derive(Default)]
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct WebpackRules(IndexMap<RcStr, LoaderRuleItem>);
 
 #[derive(Default)]
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionWebpackRules(Option<Vc<WebpackRules>>);
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Debug)]
 pub struct WebpackLoadersOptions {
     pub rules: Vc<WebpackRules>,
@@ -35,7 +35,7 @@ pub struct WebpackLoadersOptions {
 }
 
 #[derive(Default)]
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionWebpackLoadersOptions(Option<Vc<WebpackLoadersOptions>>);
 
 /// The kind of decorators transform to use.
@@ -57,7 +57,7 @@ pub enum TypeofWindow {
 /// This is not part of Typescript transform: while there are typescript
 /// specific transforms (legay decorators), there is an ecma decorator transform
 /// as well for the JS.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Default, Clone, Debug)]
 pub struct DecoratorsOptions {
     pub decorators_kind: Option<DecoratorsKind>,
@@ -108,7 +108,7 @@ pub struct JsxTransformOptions {
     pub runtime: Option<RcStr>,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Default)]
 #[serde(default)]
 pub struct ModuleOptionsContext {
@@ -137,7 +137,7 @@ pub struct ModuleOptionsContext {
     pub placeholder_for_future_extensions: (),
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Default)]
 #[serde(default)]
 pub struct EcmascriptOptionsContext {

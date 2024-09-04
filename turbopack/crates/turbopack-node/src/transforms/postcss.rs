@@ -36,7 +36,7 @@ use crate::{
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-#[turbo_tasks::value(serialization = "custom")]
+#[turbo_tasks::value(serialization = "custom", unresolved)]
 struct PostCssProcessingResult {
     css: String,
     map: Option<String>,
@@ -53,7 +53,7 @@ pub enum PostCssConfigLocation {
     ProjectPathOrLocalPath,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Default)]
 pub struct PostCssTransformOptions {
     pub postcss_package: Option<Vc<ImportMapping>>,
@@ -90,7 +90,7 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
     )
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct PostCssTransform {
     evaluate_context: Vc<Box<dyn AssetContext>>,
     execution_context: Vc<ExecutionContext>,
@@ -130,7 +130,7 @@ impl SourceTransform for PostCssTransform {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct PostCssTransformedAsset {
     evaluate_context: Vc<Box<dyn AssetContext>>,
     execution_context: Vc<ExecutionContext>,
@@ -160,7 +160,7 @@ impl Asset for PostCssTransformedAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ProcessPostCssResult {
     content: Vc<AssetContent>,
     assets: Vec<Vc<VirtualSource>>,
@@ -225,7 +225,7 @@ async fn extra_configs_changed(
     Ok(Vc::<Completions>::cell(configs).completed())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct JsonSource {
     pub path: Vc<FileSystemPath>,
     pub key: Vc<Option<RcStr>>,
@@ -505,7 +505,7 @@ impl PostCssTransformedAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct PostCssTransformIssue {
     source: Vc<FileSystemPath>,
     description: RcStr,

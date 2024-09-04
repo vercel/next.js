@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// A condition which determines if the hooks of a resolve plugin gets called.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct AfterResolvePluginCondition {
     root: Vc<FileSystemPath>,
     glob: Vc<Glob>,
@@ -40,7 +40,7 @@ impl AfterResolvePluginCondition {
 }
 
 /// A condition which determines if the hooks of a resolve plugin gets called.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub enum BeforeResolvePluginCondition {
     Request(Vc<Glob>),
     Modules(Vc<Vec<RcStr>>),

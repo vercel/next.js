@@ -7,7 +7,7 @@ use turbopack_core::{chunk::ModuleId, version::Version};
 
 use super::content_entry::EcmascriptDevChunkContentEntries;
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", unresolved)]
 pub(super) struct EcmascriptDevChunkVersion {
     pub(super) chunk_path: String,
     pub(super) entries_hashes: IndexMap<ReadRef<ModuleId>, u64>,

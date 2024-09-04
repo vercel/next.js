@@ -260,7 +260,7 @@ async fn resolve_source_mapping(
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Debug)]
 pub struct StructuredError {
     pub name: String,

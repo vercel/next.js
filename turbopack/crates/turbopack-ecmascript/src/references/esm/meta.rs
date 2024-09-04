@@ -21,7 +21,7 @@ use crate::{
 ///
 /// There can be many references to import.meta, and they appear at any nesting
 /// in the file. But we must only initialize the binding a single time.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Hash, Debug)]
 pub struct ImportMetaBinding {
     path: Vc<FileSystemPath>,
@@ -81,7 +81,7 @@ impl CodeGenerateable for ImportMetaBinding {
 ///
 /// There can be many references to import.meta, and they appear at any nesting
 /// in the file. But all references refer to the same mutable object.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Hash, Debug)]
 pub struct ImportMetaRef {
     ast_path: Vc<AstPath>,

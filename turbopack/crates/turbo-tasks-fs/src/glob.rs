@@ -41,7 +41,7 @@ enum GlobPart {
 // Note: a/**/b does match a/b, so we need some special logic about path
 // separators
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Debug, Clone)]
 pub struct Glob {
     expression: Vec<GlobPart>,

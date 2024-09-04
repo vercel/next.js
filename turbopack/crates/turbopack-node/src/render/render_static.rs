@@ -34,7 +34,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub enum StaticResult {
     Content {
         content: Vc<AssetContent>,
@@ -181,7 +181,7 @@ async fn static_error(
 }
 
 #[derive(Clone, Debug)]
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 enum RenderItem {
     Response(Vc<StaticResult>),
     Headers(ResponseHeaders),
@@ -190,13 +190,13 @@ enum RenderItem {
 
 type RenderItemResult = Result<RenderItem, SharedError>;
 
-#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
+#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none", unresolved)]
 struct RenderStreamSender {
     #[turbo_tasks(trace_ignore, debug_ignore)]
     get: Box<dyn Fn() -> UnboundedSender<RenderItemResult> + Send + Sync>,
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 struct RenderStream(#[turbo_tasks(trace_ignore)] Stream<RenderItemResult>);
 
 #[derive(Clone, Debug, TaskInput, PartialEq, Eq, Hash, Deserialize, Serialize)]

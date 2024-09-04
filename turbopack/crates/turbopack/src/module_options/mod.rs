@@ -50,7 +50,7 @@ async fn package_import_map_from_context(
     Ok(import_map.cell())
 }
 
-#[turbo_tasks::value(cell = "new", eq = "manual")]
+#[turbo_tasks::value(cell = "new", eq = "manual", unresolved)]
 pub struct ModuleOptions {
     pub rules: Vec<ModuleRule>,
 }

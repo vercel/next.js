@@ -31,7 +31,7 @@ async fn project_fs(project_dir: RcStr, watching: bool) -> Result<Vc<Box<dyn Fil
     Ok(Vc::upcast(disk_fs))
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[serde(rename_all = "camelCase")]
 struct LoaderTreeForJs {
     segment: RcStr,
@@ -53,11 +53,11 @@ enum EntrypointForJs {
     },
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 #[serde(rename_all = "camelCase")]
 struct EntrypointsForJs(HashMap<RcStr, EntrypointForJs>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 struct OptionEntrypointsForJs(Option<Vc<EntrypointsForJs>>);
 
 async fn fs_path_to_path(

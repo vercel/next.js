@@ -22,7 +22,7 @@ use crate::{
     references::AstPath,
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct EsmAsyncAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,

@@ -18,7 +18,7 @@ use turbopack_ecmascript_runtime::RuntimeType;
 use crate::NodeJsChunkingContext;
 
 /// An Ecmascript chunk that contains the Node.js runtime code.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub(crate) struct EcmascriptBuildNodeRuntimeChunk {
     chunking_context: Vc<NodeJsChunkingContext>,
 }

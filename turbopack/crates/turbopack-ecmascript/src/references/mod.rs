@@ -141,7 +141,7 @@ use crate::{
     TreeShakingMode,
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone)]
 pub struct AnalyzeEcmascriptModuleResult {
     pub references: Vc<ModuleReferences>,
@@ -2907,7 +2907,7 @@ async fn resolve_as_webpack_runtime(
 }
 
 // TODO enable serialization
-#[turbo_tasks::value(transparent, serialization = "none")]
+#[turbo_tasks::value(transparent, serialization = "none", unresolved)]
 pub struct AstPath(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>);
 
 pub static TURBOPACK_HELPER: Lazy<JsWord> = Lazy::new(|| "__turbopack-helper__".into());

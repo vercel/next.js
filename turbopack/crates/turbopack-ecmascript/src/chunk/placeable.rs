@@ -29,7 +29,7 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 enum SideEffectsValue {
     None,
     Constant(bool),
@@ -124,7 +124,7 @@ async fn side_effects_from_package_json(
     Ok(SideEffectsValue::None.cell())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct SideEffectsInPackageJsonIssue {
     path: Vc<FileSystemPath>,
     description: Option<Vc<StyledString>>,
@@ -188,7 +188,7 @@ pub async fn is_marked_as_side_effect_free(
     Ok(Vc::cell(false))
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct EcmascriptChunkPlaceables(Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>);
 
 #[turbo_tasks::value_impl]
@@ -199,7 +199,7 @@ impl EcmascriptChunkPlaceables {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub enum EcmascriptExports {
     EsmExports(Vc<EsmExports>),
     DynamicNamespace,

@@ -42,7 +42,7 @@ impl Completion {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct Completions(Vec<Vc<Completion>>);
 
 #[turbo_tasks::value_impl]

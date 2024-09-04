@@ -118,7 +118,7 @@ async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     Ok((result, issues, diagnostics))
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", unresolved)]
 struct WrittenEndpointWithIssues {
     written: Option<ReadRef<WrittenEndpoint>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -205,7 +205,7 @@ pub fn endpoint_server_changed_subscribe(
     )
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual", unresolved)]
 struct EndpointIssuesAndDiags {
     changed: Option<ReadRef<Completion>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,

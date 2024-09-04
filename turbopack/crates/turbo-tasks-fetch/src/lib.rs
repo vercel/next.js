@@ -13,10 +13,10 @@ pub fn register() {
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct FetchResult(Result<Vc<HttpResponse>, Vc<FetchError>>);
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Debug)]
 pub struct HttpResponse {
     pub status: u16,
@@ -97,7 +97,7 @@ pub enum FetchErrorKind {
     Other,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct FetchError {
     pub url: Vc<RcStr>,
     pub kind: Vc<FetchErrorKind>,
@@ -144,7 +144,7 @@ impl FetchError {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct FetchIssue {
     pub issue_context: Vc<FileSystemPath>,
     pub severity: Vc<IssueSeverity>,

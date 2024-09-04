@@ -40,7 +40,7 @@ lazy_static! {
     ]);
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct InvalidImportModuleIssue {
     pub file_path: Vc<FileSystemPath>,
     pub messages: Vec<RcStr>,
@@ -97,7 +97,7 @@ impl Issue for InvalidImportModuleIssue {
 /// specified import requests. It doesn't detect if the import is correctly
 /// alised or not unlike webpack-config does; Instead it should be correctly
 /// configured when each context sets up its resolve options.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(crate) struct InvalidImportResolvePlugin {
     root: Vc<FileSystemPath>,
     invalid_import: RcStr,
@@ -202,7 +202,7 @@ pub(crate) fn get_invalid_styled_jsx_resolve_plugin(
     )
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(crate) struct NextExternalResolvePlugin {
     root: Vc<FileSystemPath>,
 }
@@ -250,7 +250,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(crate) struct NextNodeSharedRuntimeResolvePlugin {
     root: Vc<FileSystemPath>,
     server_context_type: ServerContextType,
@@ -326,7 +326,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
 
 /// A resolver plugin tracks the usage of certain import paths, emit
 /// telemetry events if there is a match.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(crate) struct ModuleFeatureReportResolvePlugin {
     root: Vc<FileSystemPath>,
 }
@@ -383,7 +383,7 @@ impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(crate) struct NextSharedRuntimeResolvePlugin {
     root: Vc<FileSystemPath>,
 }

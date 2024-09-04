@@ -63,10 +63,10 @@ pub const USER_AGENT_FOR_GOOGLE_FONTS: &str = "Mozilla/5.0 (Macintosh; Intel Mac
                                                AppleWebKit/537.36 (KHTML, like Gecko) \
                                                Chrome/104.0.0.0 Safari/537.36";
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 struct FontData(IndexMap<RcStr, FontDataEntry>);
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub(crate) struct NextFontGoogleReplacer {
     project_path: Vc<FileSystemPath>,
 }
@@ -171,7 +171,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct NextFontGoogleCssModuleReplacer {
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
@@ -303,7 +303,7 @@ struct NextFontGoogleFontFileOptions {
     pub has_size_adjust: bool,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub struct NextFontGoogleFontFileReplacer {
     project_path: Vc<FileSystemPath>,
 }

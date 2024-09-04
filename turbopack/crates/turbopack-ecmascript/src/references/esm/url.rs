@@ -46,7 +46,7 @@ pub enum UrlRewriteBehavior {
 ///
 /// It's responsible rewriting the `URL` constructor's arguments to allow the
 /// referenced file to be imported/fetched/etc.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct UrlAssetReference {
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,

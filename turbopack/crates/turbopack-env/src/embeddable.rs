@@ -5,7 +5,7 @@ use turbopack_ecmascript::utils::StringifyJs;
 
 /// Encodes values as JS strings so that they can be safely injected into a JS
 /// output.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct EmbeddableProcessEnv {
     prior: Vc<Box<dyn ProcessEnv>>,
 }

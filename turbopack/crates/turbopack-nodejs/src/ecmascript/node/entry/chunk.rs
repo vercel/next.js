@@ -19,7 +19,7 @@ use crate::NodeJsChunkingContext;
 
 /// An Ecmascript chunk that loads a list of parallel chunks, then instantiates
 /// runtime entries.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 pub(crate) struct EcmascriptBuildNodeEntryChunk {
     path: Vc<FileSystemPath>,
     chunking_context: Vc<NodeJsChunkingContext>,

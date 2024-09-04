@@ -21,7 +21,7 @@ use super::{
 /// The result of [`resolve_source_request`]. Similar to a
 /// `ContentSourceContent`, but without the `Rewrite` variant as this is taken
 /// care in the function.
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", unresolved)]
 pub enum ResolveSourceRequestResult {
     NotFound,
     Static(Vc<StaticContent>, Vc<HeaderList>),

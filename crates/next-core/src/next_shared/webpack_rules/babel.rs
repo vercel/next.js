@@ -124,7 +124,7 @@ pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Resu
     Ok(Vc::cell(!assets.is_empty()))
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct BabelIssue {
     path: Vc<FileSystemPath>,
     title: Vc<StyledString>,

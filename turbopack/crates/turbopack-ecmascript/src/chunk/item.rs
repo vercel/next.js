@@ -18,7 +18,7 @@ use crate::{
     EcmascriptModuleContent, EcmascriptOptions,
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
@@ -262,8 +262,8 @@ async fn module_factory_with_code_generation_issue(
     )
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct EcmascriptChunkItemsChunk(Vec<Vc<Box<dyn EcmascriptChunkItem>>>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct EcmascriptChunkItems(pub(super) Vec<Vc<Box<dyn EcmascriptChunkItem>>>);

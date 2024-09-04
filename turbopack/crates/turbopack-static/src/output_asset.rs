@@ -8,7 +8,7 @@ use turbopack_core::{
     output::OutputAsset,
     source::Source,
 };
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct StaticAsset {
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     source: Vc<Box<dyn Source>>,

@@ -12,7 +12,7 @@ use crate::{
 /// a different path than it was originally set up to be, e.g. to expose layout
 /// CSS chunks under the server FS instead of the output FS when rendering
 /// Next.js apps.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct ProxiedAsset {
     asset: Vc<Box<dyn OutputAsset>>,
     path: Vc<FileSystemPath>,

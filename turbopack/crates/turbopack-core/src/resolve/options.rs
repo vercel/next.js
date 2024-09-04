@@ -86,7 +86,7 @@ pub enum ResolveInPackage {
     },
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone)]
 pub enum ImportMapping {
     External(Option<RcStr>, ExternalType),
@@ -104,7 +104,7 @@ pub enum ImportMapping {
 
 /// An `ImportMapping` that was applied to a pattern. See `ImportMapping` for
 /// more details on the variants.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone)]
 pub enum ReplacedImportMapping {
     External(Option<RcStr>, ExternalType),
@@ -204,7 +204,7 @@ impl AliasTemplate for Vc<ImportMapping> {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Default)]
 pub struct ImportMap {
     map: AliasMap<Vc<ImportMapping>>,
@@ -293,13 +293,13 @@ impl ImportMap {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Default)]
 pub struct ResolvedMap {
     pub by_glob: Vec<(Vc<FileSystemPath>, Vc<Glob>, Vc<ImportMapping>)>,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Debug)]
 pub enum ImportMapResult {
     Result(Vc<ResolveResult>),
@@ -473,7 +473,7 @@ impl ResolvedMap {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Clone, Debug, Default)]
 pub struct ResolveOptions {
     /// When set, do not apply extensions and default_files for relative
@@ -562,7 +562,7 @@ impl ResolveOptions {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 #[derive(Hash, Clone, Debug)]
 pub struct ResolveModulesOptions {
     pub modules: Vec<ResolveModules>,

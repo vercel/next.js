@@ -13,7 +13,7 @@ use turbopack_core::{
 
 /// Converts a [Module] graph into an [OutputAsset] graph by placing it into a
 /// different directory.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash)]
 pub struct RebasedAsset {
     source: Vc<Box<dyn Module>>,

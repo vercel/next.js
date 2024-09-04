@@ -26,7 +26,7 @@ pub struct AsyncModuleOptions {
 }
 
 /// Option<[AsyncModuleOptions]>.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionAsyncModuleOptions(Option<AsyncModuleOptions>);
 
 #[turbo_tasks::value_impl]
@@ -49,7 +49,7 @@ pub struct AsyncModule {
 }
 
 /// Option<[AsyncModule]>.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct OptionAsyncModule(Option<Vc<AsyncModule>>);
 
 #[turbo_tasks::value_impl]

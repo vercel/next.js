@@ -7,7 +7,7 @@ use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, DeterministicHash, Xxh3Hash
 
 use crate::resolve::ModulePart;
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(serialization = "auto_for_input", unresolved)]
 #[derive(Clone, Debug, Hash)]
 pub struct AssetIdent {
     /// The primary path of the asset

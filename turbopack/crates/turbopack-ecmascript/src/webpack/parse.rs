@@ -23,7 +23,7 @@ use crate::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
 };
 
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "none", unresolved)]
 #[derive(Debug)]
 pub enum WebpackRuntime {
     Webpack5 {

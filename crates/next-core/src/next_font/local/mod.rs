@@ -49,7 +49,7 @@ struct NextFontLocalFontFileOptions {
     pub has_size_adjust: bool,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub(crate) struct NextFontLocalResolvePlugin {
     root: Vc<FileSystemPath>,
 }
@@ -307,7 +307,7 @@ async fn font_file_options_from_query_map(
     parse_json_with_source_context(&json)
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, unresolved)]
 struct FontResolvingIssue {
     font_path: Vc<RcStr>,
     origin_path: Vc<FileSystemPath>,

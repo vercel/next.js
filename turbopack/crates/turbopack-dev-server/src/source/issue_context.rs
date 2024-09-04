@@ -12,7 +12,7 @@ use super::{
     GetContentSourceContent,
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct IssueFilePathContentSource {
     file_path: Option<Vc<FileSystemPath>>,
     description: RcStr,
@@ -67,7 +67,7 @@ impl ContentSource for IssueFilePathContentSource {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct IssueContextContentSourceMapper {
     source: Vc<IssueFilePathContentSource>,
 }
@@ -89,7 +89,7 @@ impl MapGetContentSourceContent for IssueContextContentSourceMapper {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct IssueContextGetContentSourceContent {
     get_content: Vc<Box<dyn GetContentSourceContent>>,
     source: Vc<IssueFilePathContentSource>,

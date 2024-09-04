@@ -27,7 +27,7 @@ use super::ecmascript_client_reference_module::EcmascriptClientReferenceModule;
 
 /// A [`EcmascriptClientReferenceProxyModule`] is used in RSC to represent
 /// a client or SSR asset.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct EcmascriptClientReferenceProxyModule {
     server_module_ident: Vc<AssetIdent>,
     server_asset_context: Vc<Box<dyn AssetContext>>,
@@ -242,7 +242,7 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceProxyModule {
 /// wrapped [`Vc<Box<dyn EcmascriptChunkItem>>`]. Otherwise, the asset ident of
 /// the chunk item would not be the same as the asset ident of the
 /// [`Vc<EcmascriptClientReferenceProxyModule>`].
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ProxyModuleChunkItem {
     client_proxy_asset: Vc<EcmascriptClientReferenceProxyModule>,
     inner_proxy_module_chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,

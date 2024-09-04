@@ -44,14 +44,14 @@ use crate::{
     CodeGenerateable, EcmascriptChunkPlaceable,
 };
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Debug)]
 pub(crate) enum DirListEntry {
     File(Vc<FileSystemPath>),
     Dir(Vc<DirList>),
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub(crate) struct DirList(IndexMap<RcStr, DirListEntry>);
 
 #[turbo_tasks::value_impl]
@@ -133,7 +133,7 @@ impl DirList {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub(crate) struct FlatDirList(IndexMap<RcStr, Vc<FileSystemPath>>);
 
 #[turbo_tasks::value_impl]
@@ -144,7 +144,7 @@ impl FlatDirList {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Debug)]
 pub struct RequireContextMapEntry {
     pub origin_relative: RcStr,
@@ -153,7 +153,7 @@ pub struct RequireContextMapEntry {
 }
 
 /// The resolved context map for a `require.context(..)` call.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct RequireContextMap(IndexMap<RcStr, RequireContextMapEntry>);
 
 #[turbo_tasks::value_impl]
@@ -197,7 +197,7 @@ impl RequireContextMap {
 
 /// A reference for `require.context()`, will replace it with an inlined map
 /// wrapped in `__turbopack_module_context__`;
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Hash, Debug)]
 pub struct RequireContextAssetReference {
     pub inner: Vc<RequireContextAsset>,
@@ -303,7 +303,7 @@ impl CodeGenerateable for RequireContextAssetReference {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, unresolved)]
 pub struct ResolvedModuleReference(Vc<ModuleResolveResult>);
 
 #[turbo_tasks::value_impl]
@@ -325,7 +325,7 @@ impl ValueToString for ResolvedModuleReference {
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for ResolvedModuleReference {}
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct RequireContextAsset {
     source: Vc<Box<dyn Source>>,
 
@@ -406,7 +406,7 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct RequireContextChunkItem {
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     inner: Vc<RequireContextAsset>,

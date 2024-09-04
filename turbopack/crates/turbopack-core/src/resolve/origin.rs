@@ -99,7 +99,7 @@ async fn resolve_asset(
 }
 
 /// A resolve origin for some path and context without additional modifications.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 pub struct PlainResolveOrigin {
     asset_context: Vc<Box<dyn AssetContext>>,
     origin_path: Vc<FileSystemPath>,
@@ -134,7 +134,7 @@ impl ResolveOrigin for PlainResolveOrigin {
 }
 
 /// Wraps a ResolveOrigin to add a transition.
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ResolveOriginWithTransition {
     previous: Vc<Box<dyn ResolveOrigin>>,
     transition: RcStr,

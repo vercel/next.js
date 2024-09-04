@@ -50,7 +50,7 @@ impl BlurPlaceholder {
 /// Gathered meta information about an image.
 #[allow(clippy::manual_non_exhaustive)]
 #[serde_as]
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 #[derive(Default)]
 #[non_exhaustive]
 pub struct ImageMetaData {
@@ -475,7 +475,7 @@ pub async fn optimize(
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(unresolved)]
 struct ImageProcessingIssue {
     path: Vc<FileSystemPath>,
     message: Vc<StyledString>,
