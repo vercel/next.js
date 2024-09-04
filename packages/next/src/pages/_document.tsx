@@ -762,7 +762,7 @@ export class Head extends React.Component<HeadProps> {
 
     const tracingMetadata = getTracedMetadata(
       getTracer().getTracePropagationData(),
-      ['baggage', 'sentry-trace'] // TODO: Pass through `experimental.clientTraceMetadata` from Next.js config
+      this.context.experimentalClientTraceMetadata
     )
 
     const traceMetaTags = (tracingMetadata || []).map(
