@@ -1,4 +1,4 @@
-use std::{collections::HashMap, future::Future, ops::Deref, sync::Arc};
+use std::{collections::HashMap, future::Future, ops::Deref, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
 use napi::{
@@ -9,7 +9,6 @@ use napi::{
 use serde::Serialize;
 use turbo_tasks::{ReadRef, TaskId, TryJoinIterExt, TurboTasks, Vc};
 use turbo_tasks_fs::FileContent;
-use turbo_tasks_memory::MemoryBackend;
 use turbopack_core::{
     diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
     error::PrettyPrintError,
@@ -19,7 +18,24 @@ use turbopack_core::{
 
 use crate::util::log_internal_error_and_inform;
 
-pub type NextBackend = MemoryBackend;
+#[cfg(not(feature = "new-backend"))]
+pub type NextBackend = turbo_tasks_memory::MemoryBackend;
+#[cfg(feature = "new-backend")]
+pub type NextBackend = turbo_tasks_backend::TurboTasksBackend;
+
+#[allow(unused_variables, reason = "feature-gated")]
+pub fn create_turbo_tasks(
+    output_path: PathBuf,
+    memory_limit: usize,
+) -> Result<Arc<TurboTasks<NextBackend>>> {
+    #[cfg(not(feature = "new-backend"))]
+    let backend = TurboTasks::new(turbo_tasks_memory::MemoryBackend::new(memory_limit));
+    #[cfg(feature = "new-backend")]
+    let backend = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(Arc::new(
+        turbo_tasks_backend::LmdbBackingStorage::new(&output_path.join("cache/turbopack"))?,
+    )));
+    Ok(backend)
+}
 
 /// A helper type to hold both a Vc operation and the TurboTasks root process.
 /// Without this, we'd need to pass both individually all over the place

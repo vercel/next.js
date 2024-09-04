@@ -94,7 +94,7 @@ export interface NapiProjectOptions {
    * next.config's distDir. Project initialization occurs eariler than
    * deserializing next.config, so passing it as separate option.
    */
-  distDir?: string
+  distDir: string
   /** Whether to watch he filesystem for file changes. */
   watch: boolean
   /** The contents of next.config.js, serialized to JSON. */
@@ -354,11 +354,12 @@ export interface NapiRewrite {
   missing?: Array<NapiRouteHas>
 }
 export function createTurboTasks(
+  outputPath: string,
   memoryLimit?: number | undefined | null
 ): ExternalObject<TurboTasks>
 export function runTurboTracing(
   options: Buffer,
-  turboTasks?: ExternalObject<TurboTasks> | undefined | null
+  turboTasks: ExternalObject<TurboTasks>
 ): Promise<Array<string>>
 export function getTargetTriple(): string
 export function initHeapProfiler(): ExternalObject<RefCell>

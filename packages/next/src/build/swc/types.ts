@@ -6,7 +6,10 @@ export interface Binding {
   isWasm: boolean
   turbo: {
     startTrace(options: any, turboTasks: ExternalObject<TurboTasks>): any
-    createTurboTasks(memoryLimit?: number): ExternalObject<TurboTasks>
+    createTurboTasks(
+      outputPath: string,
+      memoryLimit?: number
+    ): ExternalObject<TurboTasks>
     createProject(
       options: ProjectOptions,
       turboEngineOptions?: TurboEngineOptions
@@ -319,6 +322,11 @@ export interface ProjectOptions {
    * A path inside the root_path which contains the app/pages directories.
    */
   projectPath: string
+
+  /**
+   * The path to the .next directory.
+   */
+  distDir: string
 
   /**
    * The next.config.js contents.

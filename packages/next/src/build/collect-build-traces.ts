@@ -119,6 +119,7 @@ export async function collectBuildTraces({
       let turbotraceOutputPath: string | undefined
       let turbotraceFiles: string[] | undefined
       turboTasksForTrace = bindings.turbo.createTurboTasks(
+        distDir,
         (config.experimental.turbotrace?.memoryLimit ??
           TURBO_TRACE_DEFAULT_MEMORY_LIMIT) *
           1024 *
