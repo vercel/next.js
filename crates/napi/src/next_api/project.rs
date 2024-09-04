@@ -336,7 +336,7 @@ pub async fn project_new(
         .run_once(async move {
             let project = ProjectContainer::new("next.js".into(), options.dev);
             let project = project.resolve().await?;
-            project.await?.initialize(options);
+            project.initialize(options).await?;
             Ok(project)
         })
         .await
@@ -375,7 +375,7 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
         .await?;
 
     let directory = fs.to_sys_path(directory).await?;
-    let temp_path = directory.join(&format!(
+    let temp_path = directory.join(format!(
         "tmp_file_io_benchmark_{:x}",
         rand::random::<u128>()
     ));
@@ -424,7 +424,7 @@ pub async fn project_update(
     let container = project.container;
     turbo_tasks
         .run_once(async move {
-            container.await?.update(options)?;
+            container.update(options).await?;
             Ok(())
         })
         .await
