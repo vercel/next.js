@@ -173,24 +173,24 @@ pub enum CachedDataItem {
     },
     Follower {
         task: TaskId,
-        value: u32,
+        value: i32,
     },
     Upper {
         task: TaskId,
-        value: u32,
+        value: i32,
     },
 
     // Aggregated Data
     AggregatedDirtyTask {
         task: TaskId,
-        value: u32,
+        value: i32,
     },
     AggregatedCollectible {
         collectible: CellRef,
-        value: u32,
+        value: i32,
     },
     AggregatedDirtyTaskCount {
-        value: u32,
+        value: i32,
     },
 
     // Transient Root Type
