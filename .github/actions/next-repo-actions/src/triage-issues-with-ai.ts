@@ -47,8 +47,8 @@ async function main() {
         explanation: z.string().describe('The explanation of the severity.'),
         isSevere: z.boolean().describe('Whether the issue is severe.'),
         number: z.number().describe('The issue number.'),
-        title: z.string().describe('The title of the issue.'),
-        url: z.string().describe('The URL of the issue.'),
+        title: z.string().describe('The issue title.'),
+        url: z.string().describe('The issue URL.'),
       }),
       system:
         'Your job is to determine the severity of a GitHub issue using the triage guidelines and the latest versions of Next.js. Succinctly explain why you chose the severity, without paraphrasing the triage guidelines. Report to Slack the explanation only if the severity is considered severe.',
