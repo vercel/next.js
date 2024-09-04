@@ -110,10 +110,10 @@ struct ValueArguments {
     cell_mode: CellMode,
     manual_eq: bool,
     transparent: bool,
-    /// Should we `#[derive(turbo_tasks::ResolvedValue)]`?
+    /// Should we skip `#[derive(turbo_tasks::ResolvedValue)]`?
     ///
-    /// `Some(...)` if enabled, containing the span that enabled the derive.
-    resolved: Option<Span>,
+    /// `Some(...)` if the derive is disabled, containing the span of this a
+    unresolved: Option<Span>,
 }
 
 impl Parse for ValueArguments {
@@ -123,7 +123,7 @@ impl Parse for ValueArguments {
             into_mode: IntoMode::None,
             cell_mode: CellMode::Shared,
             manual_eq: false,
-            resolved: None,
+            unresolved: None,
             transparent: false,
         };
         let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
@@ -179,8 +179,8 @@ impl Parse for ValueArguments {
                 ("transparent", Meta::Path(_)) => {
                     result.transparent = true;
                 }
-                ("resolved", Meta::Path(path)) => {
-                    result.resolved = Some(path.span());
+                ("unresolved", Meta::Path(path)) => {
+                    result.unresolved = Some(path.span());
                 }
                 (_, meta) => {
                     return Err(Error::new_spanned(
@@ -207,7 +207,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         cell_mode,
         manual_eq,
         transparent,
-        resolved,
+        unresolved,
     } = parse_macro_input!(args as ValueArguments);
 
     let mut inner_type = None;
@@ -375,9 +375,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             #[derive(PartialEq, Eq)]
         )
     };
-    let resolved_derive = if let Some(span) = resolved {
-        quote_spanned!(
-            span =>
+    let resolved_derive = if unresolved.is_none() {
+        quote!(
             #[derive(turbo_tasks::ResolvedValue)]
         )
     } else {
