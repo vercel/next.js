@@ -241,12 +241,12 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
     /// An untyped object-safe version of [`TurboTasksBackendApiExt::read_task_state`]. Callers
     /// should prefer the extension trait's version of this method.
     #[allow(clippy::type_complexity)] // Moving this to a typedef would make the docs confusing
-    fn read_task_state_boxed(&self, func: Box<dyn FnOnce(&B::TaskState) + '_>);
+    fn read_task_state_dyn(&self, func: &mut dyn FnMut(&B::TaskState));
 
     /// An untyped object-safe version of [`TurboTasksBackendApiExt::write_task_state`]. Callers
     /// should prefer the extension trait's version of this method.
     #[allow(clippy::type_complexity)]
-    fn write_task_state_boxed(&self, func: Box<dyn FnOnce(&mut B::TaskState) + '_>);
+    fn write_task_state_dyn(&self, func: &mut dyn FnMut(&mut B::TaskState));
 
     /// Returns a reference to the backend.
     fn backend(&self) -> &B;
@@ -260,9 +260,10 @@ pub trait TurboTasksBackendApiExt<B: Backend + 'static>: TurboTasksBackendApi<B>
     /// This function holds open a non-exclusive read lock that blocks writes, so `func` is expected
     /// to execute quickly in order to release the lock.
     fn read_task_state<T>(&self, func: impl FnOnce(&B::TaskState) -> T) -> T {
+        let mut func = Some(func);
         let mut out = None;
-        self.read_task_state_boxed(Box::new(|ts| out = Some(func(ts))));
-        out.expect("write_task_state_boxed must call `func`")
+        self.read_task_state_dyn(&mut |ts| out = Some((func.take().unwrap())(ts)));
+        out.expect("read_task_state_dyn must call `func`")
     }
 
     /// Allows modification of the [`Backend::TaskState`].
@@ -270,9 +271,10 @@ pub trait TurboTasksBackendApiExt<B: Backend + 'static>: TurboTasksBackendApi<B>
     /// This function holds open a write lock, so `func` is expected to execute quickly in order to
     /// release the lock.
     fn write_task_state<T>(&self, func: impl FnOnce(&mut B::TaskState) -> T) -> T {
+        let mut func = Some(func);
         let mut out = None;
-        self.write_task_state_boxed(Box::new(|ts| out = Some(func(ts))));
-        out.expect("write_task_state_boxed must call `func`")
+        self.write_task_state_dyn(&mut |ts| out = Some((func.take().unwrap())(ts)));
+        out.expect("write_task_state_dyn must call `func`")
     }
 }
 
@@ -1492,12 +1494,12 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
         unsafe { self.transient_task_id_factory.reuse(id.into()) }
     }
 
-    fn read_task_state_boxed(&self, func: Box<dyn FnOnce(&B::TaskState) + '_>) {
+    fn read_task_state_dyn(&self, func: &mut dyn FnMut(&B::TaskState)) {
         CURRENT_GLOBAL_TASK_STATE
             .with(move |ts| func(ts.read().unwrap().backend_state.downcast_ref().unwrap()))
     }
 
-    fn write_task_state_boxed(&self, func: Box<dyn FnOnce(&mut B::TaskState) + '_>) {
+    fn write_task_state_dyn(&self, func: &mut dyn FnMut(&mut B::TaskState)) {
         CURRENT_GLOBAL_TASK_STATE
             .with(move |ts| func(ts.write().unwrap().backend_state.downcast_mut().unwrap()))
     }
