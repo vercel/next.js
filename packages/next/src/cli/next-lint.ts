@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync } from 'fs'
-import { join } from 'path'
+import { join, isAbsolute } from 'path'
 
 import loadConfig from '../server/config'
 import { printAndExit } from '../server/lib/utils'
@@ -78,7 +78,7 @@ const nextLint = async (options: NextLintOptions, directory?: string) => {
   const pathsToLint = (
     filesToLint.length ? filesToLint : ESLINT_DEFAULT_DIRS
   ).reduce((res: string[], d: string) => {
-    const currDir = existsSync(d) ? d : join(baseDir, d)
+    const currDir = isAbsolute(d) ? d : join(baseDir, d)
 
     if (!existsSync(currDir)) {
       return res
