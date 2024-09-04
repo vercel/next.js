@@ -331,11 +331,12 @@ pub async fn project_new(
             .unwrap();
         });
     }
-    let options = options.into();
+    let options: ProjectOptions = options.into();
     let container = turbo_tasks
         .run_once(async move {
-            let project = ProjectContainer::new(options);
+            let project = ProjectContainer::new("next.js".into(), options.dev);
             let project = project.resolve().await?;
+            project.initialize(options).await?;
             Ok(project)
         })
         .await
@@ -365,9 +366,6 @@ pub async fn project_new(
 /// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
 #[tracing::instrument]
 async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
-    let temp_path =
-        directory.join(format!("tmp_file_io_benchmark_{:x}", rand::random::<u128>()).into());
-
     // try to get the real file path on disk so that we can use it with tokio
     let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(directory.fs())
         .await?
@@ -375,7 +373,12 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
             "expected node_root to be a DiskFileSystem, cannot benchmark"
         ))?
         .await?;
-    let temp_path = fs.to_sys_path(temp_path).await?;
+
+    let directory = fs.to_sys_path(directory).await?;
+    let temp_path = directory.join(format!(
+        "tmp_file_io_benchmark_{:x}",
+        rand::random::<u128>()
+    ));
 
     let mut random_buffer = [0u8; 512];
     rand::thread_rng().fill(&mut random_buffer[..]);
@@ -404,7 +407,7 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
         println!(
             "Slow filesystem detected. If {} is a network drive, consider moving it to a local \
              folder. If you have an antivirus enabled, consider excluding your project directory.",
-            fs.to_sys_path(directory).await?.to_string_lossy(),
+            directory.to_string_lossy(),
         );
     }
 
