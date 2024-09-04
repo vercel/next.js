@@ -1077,6 +1077,7 @@ export class NextScript extends React.Component<OriginProps> {
               data-ampdevmode
             />
           ))}
+          {/* TODO: Do we need to render the meta tags here too? */}
         </>
       )
     }
@@ -1108,7 +1109,6 @@ export class NextScript extends React.Component<OriginProps> {
               />
             ))
           : null}
-        {/* here maybe */}
         {disableRuntimeJS ? null : (
           <script
             id="__NEXT_DATA__"
@@ -1130,6 +1130,7 @@ export class NextScript extends React.Component<OriginProps> {
           !disableRuntimeJS &&
           this.getDynamicChunks(files)}
         {disableOptimizedLoading && !disableRuntimeJS && this.getScripts(files)}
+        {/* TODO: Do we need to render the meta tags here too? */}
       </>
     )
   }
