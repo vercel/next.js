@@ -66,10 +66,8 @@ export function register() {
 
 You can optionally export an `onRequestError` function to track **server** errors to any custom observability provider.
 
-If you're running any async tasks in `onRequestError`, make sure they're awaited.
-It will be triggered when Next.js server captures the error and the call itself will be awaited by Next.js.
-The error instance might not be the original error instance you throw in the code as it could be processed by React renderer if the error is encountered while server components rendering.
-You can use `digest` property on error to help identify the actual error type.
+- If you're running any async tasks in `onRequestError`, make sure they're awaited. `onRequestError` will be triggered when the Next.js server captures the error.
+- The `error` instance might not be the original error instance thrown, as it may be processed by React if encountered during Server Components rendering. If this happens, you can use `digest` property on an error to identify the actual error type.
 
 ```ts filename="instrumentation.ts" switcher
 import { type Instrumentation } from 'next'
