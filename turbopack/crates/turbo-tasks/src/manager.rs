@@ -2,7 +2,7 @@ use std::{
     any::Any,
     borrow::Cow,
     future::Future,
-    hash::{BuildHasherDefault, Hash},
+    hash::BuildHasherDefault,
     mem::take,
     panic::AssertUnwindSafe,
     pin::Pin,
@@ -18,7 +18,7 @@ use anyhow::{anyhow, Result};
 use auto_hash_map::AutoMap;
 use futures::FutureExt;
 use rustc_hash::FxHasher;
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use tokio::{runtime::Handle, select, task_local};
 use tokio_util::task::TaskTracker;
 use tracing::{info_span, instrument, trace_span, Instrument, Level};
@@ -1513,112 +1513,6 @@ pub(crate) fn current_task(from: &str) -> TaskId {
     }
 }
 
-pub struct Invalidator {
-    task: TaskId,
-    turbo_tasks: Weak<dyn TurboTasksApi>,
-    handle: Handle,
-}
-
-impl Hash for Invalidator {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.task.hash(state);
-    }
-}
-
-impl PartialEq for Invalidator {
-    fn eq(&self, other: &Self) -> bool {
-        self.task == other.task
-    }
-}
-
-impl Eq for Invalidator {}
-
-impl Invalidator {
-    pub fn invalidate(self) {
-        let Invalidator {
-            task,
-            turbo_tasks,
-            handle,
-        } = self;
-        let _ = handle.enter();
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks.invalidate(task);
-        }
-    }
-
-    pub fn invalidate_with_reason<T: InvalidationReason>(self, reason: T) {
-        let Invalidator {
-            task,
-            turbo_tasks,
-            handle,
-        } = self;
-        let _ = handle.enter();
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks.invalidate_with_reason(
-                task,
-                (Arc::new(reason) as Arc<dyn InvalidationReason>).into(),
-            );
-        }
-    }
-
-    pub fn invalidate_with_static_reason<T: InvalidationReason>(self, reason: &'static T) {
-        let Invalidator {
-            task,
-            turbo_tasks,
-            handle,
-        } = self;
-        let _ = handle.enter();
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks
-                .invalidate_with_reason(task, (reason as &'static dyn InvalidationReason).into());
-        }
-    }
-}
-
-impl TraceRawVcs for Invalidator {
-    fn trace_raw_vcs(&self, _context: &mut crate::trace::TraceRawVcsContext) {
-        // nothing here
-    }
-}
-
-impl Serialize for Invalidator {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_newtype_struct("Invalidator", &self.task)
-    }
-}
-
-impl<'de> Deserialize<'de> for Invalidator {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct V;
-
-        impl<'de> Visitor<'de> for V {
-            type Value = Invalidator;
-
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "an Invalidator")
-            }
-
-            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                Ok(Invalidator {
-                    task: TaskId::deserialize(deserializer)?,
-                    turbo_tasks: weak_turbo_tasks(),
-                    handle: tokio::runtime::Handle::current(),
-                })
-            }
-        }
-        deserializer.deserialize_newtype_struct("Invalidator", V)
-    }
-}
-
 pub async fn run_once<T: Send + 'static>(
     tt: Arc<dyn TurboTasksApi>,
     future: impl Future<Output = Result<T>> + Send + 'static,
@@ -1704,10 +1598,6 @@ pub fn with_turbo_tasks<T>(func: impl FnOnce(&Arc<dyn TurboTasksApi>) -> T) -> T
     TURBO_TASKS.with(|arc| func(arc))
 }
 
-pub fn weak_turbo_tasks() -> Weak<dyn TurboTasksApi> {
-    TURBO_TASKS.with(Arc::downgrade)
-}
-
 pub fn with_turbo_tasks_for_testing<T>(
     tt: Arc<dyn TurboTasksApi>,
     current_task: TaskId,
@@ -1736,17 +1626,6 @@ pub fn spawn_detached_for_testing(f: impl Future<Output = Result<()>> + Send + '
 
 pub fn current_task_for_testing() -> TaskId {
     CURRENT_GLOBAL_TASK_STATE.with(|ts| ts.read().unwrap().task_id)
-}
-
-/// Get an [`Invalidator`] that can be used to invalidate the current task
-/// based on external events.
-pub fn get_invalidator() -> Invalidator {
-    let handle = Handle::current();
-    Invalidator {
-        task: current_task("turbo_tasks::get_invalidator()"),
-        turbo_tasks: weak_turbo_tasks(),
-        handle,
-    }
 }
 
 /// Marks the current task as finished. This excludes it from waiting for
