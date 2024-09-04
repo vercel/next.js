@@ -1,0 +1,45 @@
+---
+title: No Redirect in Try-Catch Without Rethrow
+---
+
+> Ensure that when using `redirect` within a try-catch block, the catch block must start with a call to `unstable_rethrow` to ensure proper error propagation.
+
+## Why This Error Occurred
+
+You attempted to use the `redirect` function within a try-catch block without rethrowing the error using `unstable_rethrow`. When `redirect` is called, it throws a `NEXT_REDIRECT` error internally. If this error is caught without being rethrown, it prevents the redirect from executing as intended and suppresses the error handling.
+
+## Possible Ways to Fix It
+
+To ensure proper error handling and that the redirect can proceed as intended, the catch block should start with a call to `unstable_rethrow`. This ensures that Next.js's internal error handling is respected and that the redirect is properly executed.
+
+If you need to handle other errors, you can still do so after the `unstable_rethrow` call.
+
+## Example
+
+### Incorrect Usage:
+
+```javascript
+try {
+  // some code that might throw an error
+  redirect('/some-path')
+} catch (error) {
+  // handle error
+}
+```
+
+### Correct Usage:
+
+```javascript
+try {
+  // some code that might throw an error
+  redirect('/some-path')
+} catch (error) {
+  unstable_rethrow(error)
+  // handle other errors if necessary
+}
+```
+
+## Useful Links
+
+- [Next.js Redirect Documentation](/docs/app/building-your-application/routing/redirecting#redirect-function)
+- [Next.js Error Handling](/docs/app/building-your-application/routing/error-handling)

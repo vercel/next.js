@@ -1,7 +1,8 @@
 import { defineRule } from '../utils/define-rule'
 import type { Node, BlockStatement, ImportDeclaration } from 'estree'
 
-const url = 'https://nextjs.org/docs/messages/no-redirect-in-try-catch'
+const url =
+  'https://nextjs.org/docs/messages/no-redirect-in-try-catch-without-rethrow'
 
 export = defineRule({
   meta: {

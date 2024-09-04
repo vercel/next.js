@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-redirect-in-try-catch'
+import rule from '@next/eslint-plugin-next/dist/rules/no-redirect-in-try-catch-without-rethrow'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
@@ -12,7 +12,7 @@ import { RuleTester } from 'eslint'
 })
 const ruleTester = new RuleTester()
 
-ruleTester.run('no-redirect-in-try-catch', rule, {
+ruleTester.run('no-redirect-in-try-catch-without-rethrow', rule, {
   valid: [
     `'use server'
 
@@ -73,7 +73,7 @@ ruleTester.run('no-redirect-in-try-catch', rule, {
       errors: [
         {
           message:
-            'When using `redirect` in a try-catch block, ensure you include `unstable_rethrow` at the start of the catch block to properly handle Next.js errors. See: https://nextjs.org/docs/messages/no-redirect-in-try-catch',
+            'When using `redirect` in a try-catch block, ensure you include `unstable_rethrow` at the start of the catch block to properly handle Next.js errors. See: https://nextjs.org/docs/messages/no-redirect-in-try-catch-without-rethrow',
         },
       ],
     },
@@ -96,7 +96,7 @@ ruleTester.run('no-redirect-in-try-catch', rule, {
       errors: [
         {
           message:
-            'When using `redirect` in a try-catch block, ensure you include `unstable_rethrow` at the start of the catch block to properly handle Next.js errors. See: https://nextjs.org/docs/messages/no-redirect-in-try-catch',
+            'When using `redirect` in a try-catch block, ensure you include `unstable_rethrow` at the start of the catch block to properly handle Next.js errors. See: https://nextjs.org/docs/messages/no-redirect-in-try-catch-without-rethrow',
         },
       ],
     },
@@ -118,7 +118,7 @@ ruleTester.run('no-redirect-in-try-catch', rule, {
       errors: [
         {
           message:
-            'When using `redirect` in a try-catch block, ensure you include `unstable_rethrow` at the start of the catch block to properly handle Next.js errors. See: https://nextjs.org/docs/messages/no-redirect-in-try-catch',
+            'When using `redirect` in a try-catch block, ensure you include `unstable_rethrow` at the start of the catch block to properly handle Next.js errors. See: https://nextjs.org/docs/messages/no-redirect-in-try-catch-without-rethrow',
         },
       ],
     },
