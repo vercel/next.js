@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 
 describe('testmode', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,

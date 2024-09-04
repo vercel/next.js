@@ -12,7 +12,7 @@ const EXTERNAL = {
 const COLLECTOR_PORT = 9001
 
 describe('opentelemetry', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
@@ -808,7 +808,7 @@ describe('opentelemetry', () => {
 })
 
 describe('opentelemetry with disabled fetch tracing', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
