@@ -126,15 +126,15 @@ impl CodeGenerateable for WorkerAssetReference {
             bail!("a");
         };
 
-        println!(
-            "worker module {:?} {:?} {:?}",
-            module.dbg().await?,
-            module.ident().dbg().await?,
-            chunking_context
-                .chunk_path(module.ident(), ".js".into())
-                .await?
-                .path
-        );
+        // println!(
+        //     "worker module {:?} {:?} {:?}",
+        //     module.dbg().await?,
+        //     module.ident().dbg().await?,
+        //     chunking_context
+        //         .chunk_path(module.ident(), ".js".into())
+        //         .await?
+        //         .path
+        // );
         // let EntryChunkGroupResult { asset, .. } = &*chunking_context
         //     .entry_chunk_group(
         //         chunking_context.chunk_path(module.ident(), ".js".into()),
@@ -173,7 +173,7 @@ impl CodeGenerateable for WorkerAssetReference {
             let message = if let Expr::New(NewExpr { args, ..}) = old_expr {
                 if let Some(args) = args {
                     match args.into_iter().next() {
-                        Some(ExprOrSpread { spread: None, expr: key_expr }) => {
+                        Some(ExprOrSpread { spread: None, .. }) => {
                             // TODO ensure that this is EcmascriptChunkData::Simple?
                             // TODO relative?
                             // let url_str = StringifyJs(&EcmascriptChunkData::new(&chunk_data)).to_string();
