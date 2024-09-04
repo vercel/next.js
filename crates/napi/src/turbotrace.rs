@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use napi::bindgen_prelude::*;
 use node_file_trace::{start, Args};
@@ -8,29 +8,28 @@ use turbopack::{
     resolve_options_context::ResolveOptionsContext,
 };
 
-use crate::next_api::utils::NextBackend;
+use crate::next_api::utils::{self, NextBackend};
 
 #[napi]
-pub fn create_turbo_tasks(memory_limit: Option<i64>) -> External<Arc<TurboTasks<NextBackend>>> {
-    let turbo_tasks = TurboTasks::new(NextBackend::new(
-        memory_limit.map(|m| m as usize).unwrap_or(usize::MAX),
-    ));
-    External::new_with_size_hint(
-        turbo_tasks,
-        memory_limit.map(|u| u as usize).unwrap_or(usize::MAX),
-    )
+pub fn create_turbo_tasks(
+    output_path: String,
+    memory_limit: Option<i64>,
+) -> External<Arc<TurboTasks<NextBackend>>> {
+    let limit = memory_limit.map(|u| u as usize).unwrap_or(usize::MAX);
+    let turbo_tasks = utils::create_turbo_tasks(PathBuf::from(&output_path), limit)
+        .expect("Failed to create TurboTasks");
+    External::new_with_size_hint(turbo_tasks, limit)
 }
 
 #[napi]
 pub async fn run_turbo_tracing(
     options: Buffer,
-    turbo_tasks: Option<External<Arc<TurboTasks<NextBackend>>>>,
+    turbo_tasks: External<Arc<TurboTasks<NextBackend>>>,
 ) -> napi::Result<Vec<String>> {
     let args: Args = serde_json::from_slice(options.as_ref())?;
-    let turbo_tasks = turbo_tasks.map(|t| t.clone());
     let files = start(
         Arc::new(args),
-        turbo_tasks.as_ref(),
+        turbo_tasks.clone(),
         Some(ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
                 enable_types: true,

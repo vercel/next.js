@@ -1379,6 +1379,7 @@ export default async function build(
               config.experimental?.turbo?.root ||
               config.outputFileTracingRoot ||
               dir,
+            distDir,
             nextConfig: config,
             jsConfig: await getTurbopackJsConfig(dir, config),
             watch: {

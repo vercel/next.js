@@ -150,6 +150,7 @@ export async function createHotReloaderTurbopack(
         opts.nextConfig.experimental.turbo?.root ||
         opts.nextConfig.outputFileTracingRoot ||
         dir,
+      distDir,
       nextConfig: opts.nextConfig,
       jsConfig: await getTurbopackJsConfig(dir, nextConfig),
       watch: {
