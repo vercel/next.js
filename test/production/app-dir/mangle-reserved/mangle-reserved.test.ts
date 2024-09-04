@@ -1,14 +1,12 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-createNextDescribe(
-  'mangle-reserved',
-  {
+describe('mangle-reserved', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-  },
-  ({ next }) => {
-    it('should preserve the name', async () => {
-      const $ = await next.render$('/')
-      expect($('p').text()).toBe('AbortSignal')
-    })
-  }
-)
+  })
+
+  it('should preserve the name', async () => {
+    const $ = await next.render$('/')
+    expect($('p').text()).toBe('AbortSignal')
+  })
+})

@@ -1,9 +1,8 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 describe('Skipped in Turbopack', () => {
-  createNextDescribe(
-    'app-dir - optimizePackageImports - mui',
-    {
+  describe('app-dir - optimizePackageImports - mui', () => {
+    const { next } = nextTestSetup({
       files: __dirname,
 
       dependencies: {
@@ -11,13 +10,12 @@ describe('Skipped in Turbopack', () => {
         '@emotion/react': '11.11.1',
         '@emotion/styled': '11.11.0',
       },
-    },
-    ({ next }) => {
-      it('should build successfully', async () => {
-        // Ensure that MUI is working
-        const $ = await next.render$('/')
-        expect(await $('#typography').text()).toContain('typography')
-      })
-    }
-  )
+    })
+
+    it('should build successfully', async () => {
+      // Ensure that MUI is working
+      const $ = await next.render$('/')
+      expect(await $('#typography').text()).toContain('typography')
+    })
+  })
 })

@@ -1,48 +1,46 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
 import { hasRedbox } from 'next-test-utils'
 import path from 'path'
 
-createNextDescribe(
-  'repeated-dev-edits',
-  {
+describe('repeated-dev-edits', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-  },
-  ({ next }) => {
-    // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
-    it('should not break the hydration ', async () => {
-      const browser = await next.browser('/')
-      expect(await browser.elementByCss('p').text()).toBe('version-1')
+  })
 
-      const pagePath = 'pages/index.tsx'
-      const pageContent = String(
-        await fs.readFile(path.join(__dirname, pagePath))
-      )
+  // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
+  it('should not break the hydration ', async () => {
+    const browser = await next.browser('/')
+    expect(await browser.elementByCss('p').text()).toBe('version-1')
 
-      await next.patchFile(
-        pagePath,
-        pageContent.replaceAll('version-1', 'version-2')
-      )
-      await browser.waitForElementByCss('#version-2')
-      expect(await browser.elementByCss('p').text()).toBe('version-2')
+    const pagePath = 'pages/index.tsx'
+    const pageContent = String(
+      await fs.readFile(path.join(__dirname, pagePath))
+    )
 
-      // Verify no hydration mismatch:
-      expect(await hasRedbox(browser)).toBeFalse()
+    await next.patchFile(
+      pagePath,
+      pageContent.replaceAll('version-1', 'version-2')
+    )
+    await browser.waitForElementByCss('#version-2')
+    expect(await browser.elementByCss('p').text()).toBe('version-2')
 
-      await next.patchFile(
-        pagePath,
-        pageContent.replaceAll('version-1', 'version-3')
-      )
-      await browser.waitForElementByCss('#version-3')
-      expect(await browser.elementByCss('p').text()).toBe('version-3')
+    // Verify no hydration mismatch:
+    expect(await hasRedbox(browser)).toBeFalse()
 
-      // Verify no hydration mismatch:
-      expect(await hasRedbox(browser)).toBeFalse()
+    await next.patchFile(
+      pagePath,
+      pageContent.replaceAll('version-1', 'version-3')
+    )
+    await browser.waitForElementByCss('#version-3')
+    expect(await browser.elementByCss('p').text()).toBe('version-3')
 
-      await browser.refresh()
+    // Verify no hydration mismatch:
+    expect(await hasRedbox(browser)).toBeFalse()
 
-      // Verify no hydration mismatch:
-      expect(await hasRedbox(browser)).toBeFalse()
-    })
-  }
-)
+    await browser.refresh()
+
+    // Verify no hydration mismatch:
+    expect(await hasRedbox(browser)).toBeFalse()
+  })
+})
