@@ -40,7 +40,7 @@ module.exports = nextConfig
 
 ## Exports
 
-### `register` (required)
+### `register` (optional)
 
 The file exports a `register` function that is called **once** when a new Next.js server instance is initiated. `register` can be an async function.
 
@@ -64,7 +64,12 @@ export function register() {
 
 > This API is available in Next.js canary.
 
-You can optionally export an `onRequestError` function to track and send **server** errors to an observability tool.
+You can optionally export an `onRequestError` function to track **server** errors to any custom observability provider.
+
+If you're running any async tasks in `onRequestError`, make sure they're awaited.
+It will be triggered when Next.js server captures the error and the call itself will be awaited by Next.js.
+The error instance might not be the original error instance you throw in the code as it could be processed by React renderer if the error is encountered while server components rendering.
+You can use `digest` property on error to help identify the actual error type.
 
 ```ts filename="instrumentation.ts" switcher
 import { type Instrumentation } from 'next'
@@ -74,7 +79,7 @@ export const onRequestError: Instrumentation.onRequestError = (
   request,
   context
 ) => {
-  fetch('https://.../write-log', {
+  return fetch('https://.../report-error', {
     method: 'POST',
     body: JSON.stringify({
       message: err.message,
@@ -90,7 +95,7 @@ export const onRequestError: Instrumentation.onRequestError = (
 
 ```js filename="instrumentation.js" switcher
 export function onRequestError(err, request, context) {
-  fetch('https://.../write-log', {
+  return fetch('https://.../report-error', {
     method: 'POST',
     body: JSON.stringify({
       message: err.message,
@@ -133,6 +138,28 @@ export function onRequestError(
 - `error`: The caught error itself (type is always `Error`), and a `digest` property which is the unique ID of the error.
 - `request`: Read-only request information associated with the error.
 - `context`: The context in which the error occurred. This can be the type of router (App or Pages Router), and/or (Server Components (`'render'`), Route Handlers (`'route'`), Server Actions (`'action'`), or Middleware (`'middleware'`)).
+
+### Multi Runtime
+
+The `instrumentation.js` file will be built into both Node.js and Edge runtime, if you need separate runtime, using `process.env.NEXT_RUNTIME` to target different runtime.
+
+```js filename="instrumentation.js"
+export function register() {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    return require('./register.edge')
+  } else {
+    return require('./register.node')
+  }
+}
+
+export function onRequestError() {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    return require('./on-request-error.edge')
+  } else {
+    return require('./on-request-error.node')
+  }
+}
+```
 
 ## Version History
 
