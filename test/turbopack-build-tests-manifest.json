@@ -15699,8 +15699,11 @@
       "runtimeError": false
     },
     "test/production/app-dir/app-only-flag/app-only-flag.test.ts": {
-      "passed": ["app-only-flag should serve app route"],
-      "failed": ["app-only-flag should not serve about route"],
+      "passed": [
+        "app-only-flag should serve app route",
+        "app-only-flag should not serve about route"
+      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false

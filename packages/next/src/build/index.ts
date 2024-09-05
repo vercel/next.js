@@ -1386,22 +1386,24 @@ export default async function build(
           )
         }
 
-        for (const [page, route] of currentEntrypoints.page) {
-          enqueue(() =>
-            handleRouteType({
-              dev,
-              page,
-              pathname: page,
-              route,
+        if (!appDirOnly) {
+          for (const [page, route] of currentEntrypoints.page) {
+            enqueue(() =>
+              handleRouteType({
+                dev,
+                page,
+                pathname: page,
+                route,
 
-              currentEntryIssues,
-              entrypoints: currentEntrypoints,
-              manifestLoader,
-              devRewrites: undefined,
-              productionRewrites: customRoutes.rewrites,
-              logErrors: false,
-            })
-          )
+                currentEntryIssues,
+                entrypoints: currentEntrypoints,
+                manifestLoader,
+                devRewrites: undefined,
+                productionRewrites: customRoutes.rewrites,
+                logErrors: false,
+              })
+            )
+          }
         }
 
         for (const [page, route] of currentEntrypoints.app) {
