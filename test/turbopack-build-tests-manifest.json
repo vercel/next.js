@@ -7879,9 +7879,7 @@
         "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
       ],
       "failed": [
-        "CSS Module Composes Usage (External) production mode should have compiled successfully",
         "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
-        "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
         "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
         "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
       ],
