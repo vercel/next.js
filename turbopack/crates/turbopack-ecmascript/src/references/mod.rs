@@ -1064,7 +1064,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             }
             Effect::Worker {
                 url,
-                options,
+                options: _,
                 ast_path,
                 span,
                 in_try,
@@ -1074,17 +1074,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         continue;
                     }
                 }
-                handle_worker(
-                    &ast_path,
-                    span,
-                    url,
-                    options,
-                    &analysis_state,
-                    &add_effects,
-                    &mut analysis,
-                    in_try,
-                )
-                .await?;
+                handle_worker(&ast_path, span, url, &analysis_state, &mut analysis, in_try).await?;
             }
             Effect::Call {
                 func,
@@ -1272,13 +1262,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         .await
 }
 
-async fn handle_worker<G: Fn(Vec<Effect>) + Send + Sync>(
+async fn handle_worker(
     ast_path: &[AstParentKind],
     span: Span,
     url: JsValue,
-    options: Option<JsValue>,
     state: &AnalysisState<'_>,
-    add_effects: &G,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     in_try: bool,
 ) -> Result<()> {

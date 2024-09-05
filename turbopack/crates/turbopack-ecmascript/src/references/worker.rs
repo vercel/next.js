@@ -120,14 +120,13 @@ impl CodeGenerateable for WorkerAssetReference {
         let path = &self.path.await?;
 
         let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
-            let old_expr = expr.take();
-            let message = if let Expr::New(NewExpr { args, ..}) = old_expr {
+            let message = if let Expr::New(NewExpr { args, ..}) = expr {
                 if let Some(args) = args {
-                    match args.into_iter().next() {
-                        Some(ExprOrSpread { spread: None, .. }) => {
+                    match args.iter_mut().next() {
+                        Some(ExprOrSpread { spread: None, expr }) => {
                             let item_id = Expr::Lit(Lit::Str(item_id.to_string().into()));
-                            *expr = *quote_expr!(
-                                "new Worker(__turbopack_require__($item_id))",
+                            *expr = quote_expr!(
+                                "__turbopack_require__($item_id)",
                                 item_id: Expr = item_id
                             );
                             return;
