@@ -18,7 +18,7 @@
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
 var Scheduler = require("next/dist/compiled/scheduler-experimental"),
   React = require("next/dist/compiled/react-experimental"),
-  ReactDOM = require("react-dom");
+  ReactDOM = require("next/dist/compiled/react-dom-experimental");
 function formatProdErrorMessage(code) {
   var url = "https://react.dev/errors/" + code;
   if (1 < arguments.length) {
