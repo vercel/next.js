@@ -238,9 +238,9 @@ async function loadWebAssemblyModule(
 
     if (typeof importScripts === "function") {
       if (chunkPath.endsWith(".js")) {
-        importScripts(chunkUrl);
+        importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
       } else {
-        throw new Error(`can't infer type of chunk from path ${chunkPath}`);
+        throw new Error(`can't infer type of chunk from path ${chunkPath} in worker`);
       }
     } else {
       if (chunkPath.endsWith(".css")) {

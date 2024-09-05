@@ -77,13 +77,8 @@ impl EcmascriptChunkItem for WorkerLoaderChunkItem {
             .collect();
 
         let code = formatdoc! {
-            // TODO this should use getChunkRelativeUrl from runtime-base.ts
             r#"
-                let chunks = {chunks:#};
-                let bootstrap = `importScripts(${{chunks.map(c => (`"${{location.origin}}/_next/${{(c)}}"`)).join(", ")}});`;
-                let blob = new Blob([bootstrap], {{ type: "text/javascript" }});
-                let blobUrl = URL.createObjectURL(blob);
-                __turbopack_export_value__(blobUrl);
+                __turbopack_export_value__(__turbopack_worker_blob_url__({chunks:#}));
             "#,
             chunks = StringifyJs(&chunks_data),
         };

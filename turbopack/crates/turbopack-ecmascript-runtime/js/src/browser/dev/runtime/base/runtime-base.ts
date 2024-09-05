@@ -19,6 +19,9 @@
 type RefreshRuntimeGlobals =
   import("@next/react-refresh-utils/dist/runtime").RefreshRuntimeGlobals;
 
+// Workers are loaded via blob object urls and aren't relative to the main context, this gets
+// prefixed to chunk urls in the worker.
+declare var TURBOPACK_WORKER_LOCATION: string;
 declare var CHUNK_BASE_PATH: string;
 declare var $RefreshHelpers$: RefreshRuntimeGlobals["$RefreshHelpers$"];
 declare var $RefreshReg$: RefreshRuntimeGlobals["$RefreshReg$"];
@@ -376,6 +379,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           U: relativeURL,
           k: refresh,
           R: createResolvePathFromModule(r),
+          b: getWorkerBlobURL,
           __dirname: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
         })
       );
@@ -400,6 +404,12 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
  */
 function resolveAbsolutePath(modulePath?: string): string {
   return `/ROOT/${modulePath ?? ""}`;
+}
+
+function getWorkerBlobURL(chunks: ChunkPath[]): string {
+  let bootstrap = `TURBOPACK_WORKER_LOCATION = "${location.origin}";importScripts(${chunks.map(c => (`TURBOPACK_WORKER_LOCATION + "${getChunkRelativeUrl(c)}"`)).join(", ")});`;
+  let blob = new Blob([bootstrap], { type: "text/javascript" });
+  return URL.createObjectURL(blob);
 }
 
 /**

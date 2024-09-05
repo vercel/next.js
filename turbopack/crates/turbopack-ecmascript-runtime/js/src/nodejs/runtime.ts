@@ -177,6 +177,12 @@ function loadWebAssemblyModule(chunkPath: ChunkPath) {
   return compileWebAssemblyFromPath(resolved);
 }
 
+function getWorkerBlobURL(chunks: ChunkPath[]) {
+  let bootstrap = `require(${chunks.map(c => path.resolve(RUNTIME_ROOT, c)).join(", ")});`;
+  let blob = new Blob([bootstrap], { type: "text/javascript" });
+  return URL.createObjectURL(blob);
+}
+
 function instantiateModule(id: ModuleId, source: SourceInfo): Module {
   const moduleFactory = moduleFactories[id];
   if (typeof moduleFactory !== "function") {
@@ -250,6 +256,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       P: resolveAbsolutePath,
       U: relativeURL,
       R: createResolvePathFromModule(r),
+      b: getWorkerBlobURL,
       __dirname: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
     });
   } catch (error) {
