@@ -585,6 +585,7 @@ function instantiateModule(id, source) {
                 U: relativeURL,
                 k: refresh,
                 R: createResolvePathFromModule(r),
+                b: getWorkerBlobURL,
                 __dirname: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
             }));
         });
@@ -604,6 +605,15 @@ function instantiateModule(id, source) {
  * @param modulePath
  */ function resolveAbsolutePath(modulePath) {
     return `/ROOT/${modulePath ?? ""}`;
+}
+function getWorkerBlobURL(chunks) {
+    let bootstrap = `TURBOPACK_WORKER_LOCATION = "${location.origin}";importScripts(${chunks.map((c)=>`TURBOPACK_WORKER_LOCATION + "${getChunkRelativeUrl(c)}"`).join(", ")});`;
+    let blob = new Blob([
+        bootstrap
+    ], {
+        type: "text/javascript"
+    });
+    return URL.createObjectURL(blob);
 }
 /**
  * NOTE(alexkirsz) Webpack has a "module execution" interception hook that
@@ -1535,49 +1545,57 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
         }
         const chunkUrl = getChunkRelativeUrl(chunkPath);
         const decodedChunkUrl = decodeURI(chunkUrl);
-        if (chunkPath.endsWith(".css")) {
-            const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
-            if (previousLinks.length > 0) {
-                // CSS chunks do not register themselves, and as such must be marked as
-                // loaded instantly.
-                resolver.resolve();
+        if (typeof importScripts === "function") {
+            if (chunkPath.endsWith(".js")) {
+                importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
             } else {
-                const link = document.createElement("link");
-                link.rel = "stylesheet";
-                link.href = chunkUrl;
-                link.onerror = ()=>{
-                    resolver.reject();
-                };
-                link.onload = ()=>{
+                throw new Error(`can't infer type of chunk from path ${chunkPath} in worker`);
+            }
+        } else {
+            if (chunkPath.endsWith(".css")) {
+                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
+                if (previousLinks.length > 0) {
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
                     resolver.resolve();
-                };
-                document.body.appendChild(link);
-            }
-        } else if (chunkPath.endsWith(".js")) {
-            const previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
-            if (previousScripts.length > 0) {
-                // There is this edge where the script already failed loading, but we
-                // can't detect that. The Promise will never resolve in this case.
-                for (const script of Array.from(previousScripts)){
-                    script.addEventListener("error", ()=>{
+                } else {
+                    const link = document.createElement("link");
+                    link.rel = "stylesheet";
+                    link.href = chunkUrl;
+                    link.onerror = ()=>{
                         resolver.reject();
-                    });
+                    };
+                    link.onload = ()=>{
+                        // CSS chunks do not register themselves, and as such must be marked as
+                        // loaded instantly.
+                        resolver.resolve();
+                    };
+                    document.body.appendChild(link);
+                }
+            } else if (chunkPath.endsWith(".js")) {
+                const previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
+                if (previousScripts.length > 0) {
+                    // There is this edge where the script already failed loading, but we
+                    // can't detect that. The Promise will never resolve in this case.
+                    for (const script of Array.from(previousScripts)){
+                        script.addEventListener("error", ()=>{
+                            resolver.reject();
+                        });
+                    }
+                } else {
+                    const script = document.createElement("script");
+                    script.src = chunkUrl;
+                    // We'll only mark the chunk as loaded once the script has been executed,
+                    // which happens in `registerChunk`. Hence the absence of `resolve()` in
+                    // this branch.
+                    script.onerror = ()=>{
+                        resolver.reject();
+                    };
+                    document.body.appendChild(script);
                 }
             } else {
-                const script = document.createElement("script");
-                script.src = chunkUrl;
-                // We'll only mark the chunk as loaded once the script has been executed,
-                // which happens in `registerChunk`. Hence the absence of `resolve()` in
-                // this branch.
-                script.onerror = ()=>{
-                    resolver.reject();
-                };
-                document.body.appendChild(script);
+                throw new Error(`can't infer type of chunk from path ${chunkPath}`);
             }
-        } else {
-            throw new Error(`can't infer type of chunk from path ${chunkPath}`);
         }
         return resolver.promise;
     }

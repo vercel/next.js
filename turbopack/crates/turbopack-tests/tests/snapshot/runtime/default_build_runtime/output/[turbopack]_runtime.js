@@ -522,6 +522,15 @@ function loadWebAssemblyModule(chunkPath) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     return compileWebAssemblyFromPath(resolved);
 }
+function getWorkerBlobURL(chunks) {
+    let bootstrap = `require(${chunks.map((c)=>path.resolve(RUNTIME_ROOT, c)).join(", ")});`;
+    let blob = new Blob([
+        bootstrap
+    ], {
+        type: "text/javascript"
+    });
+    return URL.createObjectURL(blob);
+}
 function instantiateModule(id, source) {
     const moduleFactory = moduleFactories[id];
     if (typeof moduleFactory !== "function") {
@@ -595,6 +604,7 @@ function instantiateModule(id, source) {
             P: resolveAbsolutePath,
             U: relativeURL,
             R: createResolvePathFromModule(r),
+            b: getWorkerBlobURL,
             __dirname: typeof module1.id === "string" ? module1.id.replace(/(^|\/)\/+$/, "") : module1.id
         });
     } catch (error) {
