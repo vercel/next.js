@@ -1,10 +1,11 @@
 [
     (
         "asset",
-        RelUrl(
+        Url(
             Word(
                 "./worker.ts",
             ),
+            Relative,
         ),
     ),
 ]

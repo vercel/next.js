@@ -3,7 +3,7 @@
 use std::{
     borrow::Cow,
     cmp::Ordering,
-    fmt::{Display, Write},
+    fmt::{Display, Formatter, Write},
     future::Future,
     hash::{Hash, Hasher},
     mem::take,
@@ -338,6 +338,21 @@ pub enum PositiveBinaryOperator {
     StrictEqual,
 }
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub enum JsValueUrlKind {
+    Absolute,
+    Relative,
+}
+
+impl Display for JsValueUrlKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            JsValueUrlKind::Absolute => "absolute",
+            JsValueUrlKind::Relative => "relative",
+        })
+    }
+}
+
 /// The four categories of [JsValue]s.
 enum JsValueMetaKind {
     /// Doesn't contain nested values.
@@ -395,10 +410,8 @@ pub enum JsValue {
     // ----------------------------
     /// A constant primitive value.
     Constant(ConstantValue),
-    /// An constant absolute URL object.
-    Url(ConstantString),
-    /// A constant URL string relative to the current module
-    RelUrl(ConstantString),
+    /// A constant URL object.
+    Url(ConstantString, JsValueUrlKind),
     /// Some kind of well-known object
     /// (must not be an array, otherwise Array.concat needs to be changed)
     WellKnownObject(WellKnownObjectKind),
@@ -588,8 +601,7 @@ impl Display for JsValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             JsValue::Constant(v) => write!(f, "{v}"),
-            JsValue::Url(url) => write!(f, "{}", url),
-            JsValue::RelUrl(url) => write!(f, "{}", url),
+            JsValue::Url(url, kind) => write!(f, "{} {}", url, kind),
             JsValue::Array { items, mutable, .. } => write!(
                 f,
                 "{}[{}]",
@@ -765,7 +777,6 @@ impl JsValue {
         match self {
             JsValue::Constant(..)
             | JsValue::Url(..)
-            | JsValue::RelUrl(..)
             | JsValue::WellKnownObject(..)
             | JsValue::WellKnownFunction(..)
             | JsValue::Unknown { .. } => JsValueMetaKind::Leaf,
@@ -995,8 +1006,7 @@ impl JsValue {
     pub fn total_nodes(&self) -> usize {
         match self {
             JsValue::Constant(_)
-            | JsValue::Url(_)
-            | JsValue::RelUrl(_)
+            | JsValue::Url(_, _)
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
             | JsValue::Module(..)
@@ -1028,8 +1038,7 @@ impl JsValue {
     fn update_total_nodes(&mut self) {
         match self {
             JsValue::Constant(_)
-            | JsValue::RelUrl(_)
-            | JsValue::Url(_)
+            | JsValue::Url(_, _)
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
             | JsValue::Module(..)
@@ -1139,8 +1148,7 @@ impl JsValue {
         if self.total_nodes() > limit {
             match self {
                 JsValue::Constant(_)
-                | JsValue::Url(_)
-                | JsValue::RelUrl(_)
+                | JsValue::Url(_, _)
                 | JsValue::FreeVar(_)
                 | JsValue::Variable(_)
                 | JsValue::Module(..)
@@ -1346,8 +1354,7 @@ impl JsValue {
                     ""
                 )
             ),
-            JsValue::Url(url) => format!("{}", url),
-            JsValue::RelUrl(url) => format!("{}", url),
+            JsValue::Url(url, kind) => format!("{} {}", url, kind),
             JsValue::Alternatives {
                 total_nodes: _,
                 values,
@@ -2057,8 +2064,7 @@ impl JsValue {
             }
             JsValue::Member(_, obj, prop) => obj.has_side_effects() || prop.has_side_effects(),
             JsValue::Function(_, _, _) => false,
-            JsValue::RelUrl(_) => false,
-            JsValue::Url(_) => false,
+            JsValue::Url(_, _) => false,
             JsValue::Variable(_) => false,
             JsValue::Module(_) => false,
             JsValue::WellKnownObject(_) => false,
@@ -2263,7 +2269,6 @@ impl JsValue {
             | JsValue::Array { .. }
             | JsValue::Object { .. }
             | JsValue::Url(..)
-            | JsValue::RelUrl(..)
             | JsValue::Module(..)
             | JsValue::Function(..)
             | JsValue::WellKnownObject(_)
@@ -2628,8 +2633,7 @@ macro_rules! for_each_children_async {
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
             | JsValue::Module(..)
-            | JsValue::Url(_)
-            | JsValue::RelUrl(_)
+            | JsValue::Url(_, _)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
             | JsValue::Unknown { .. }
@@ -2943,8 +2947,7 @@ impl JsValue {
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
             | JsValue::Module(..)
-            | JsValue::Url(_)
-            | JsValue::RelUrl(_)
+            | JsValue::Url(_, _)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
             | JsValue::Unknown { .. }
@@ -3138,8 +3141,7 @@ impl JsValue {
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
             | JsValue::Module(..)
-            | JsValue::Url(_)
-            | JsValue::RelUrl(_)
+            | JsValue::Url(_, _)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
             | JsValue::Unknown { .. }
@@ -3373,7 +3375,7 @@ impl JsValue {
                     mutable: rm,
                 },
             ) => lc == rc && lm == rm && all_parts_similar(lp, rp, depth - 1),
-            (JsValue::Url(l), JsValue::Url(r)) => l == r,
+            (JsValue::Url(l, kl), JsValue::Url(r, kr)) => l == r && kl == kr,
             (
                 JsValue::Alternatives {
                     total_nodes: lc,
@@ -3480,8 +3482,10 @@ impl JsValue {
         match self {
             JsValue::Constant(v) => Hash::hash(v, state),
             JsValue::Object { parts, .. } => all_parts_similar_hash(parts, state, depth - 1),
-            JsValue::Url(v) => Hash::hash(v, state),
-            JsValue::RelUrl(v) => Hash::hash(v, state),
+            JsValue::Url(v, kind) => {
+                Hash::hash(v, state);
+                Hash::hash(kind, state);
+            }
             JsValue::FreeVar(v) => Hash::hash(v, state),
             JsValue::Variable(v) => Hash::hash(v, state),
             JsValue::Array { items: v, .. }

@@ -1,1 +1,1 @@
-asset = ./worker.ts
+asset = ./worker.ts relative

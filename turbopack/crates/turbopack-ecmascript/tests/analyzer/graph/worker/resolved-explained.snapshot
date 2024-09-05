@@ -1,1 +1,1 @@
-workerUrl = ./worker.ts
+workerUrl = ./worker.ts relative

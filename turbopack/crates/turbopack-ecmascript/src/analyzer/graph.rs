@@ -21,7 +21,7 @@ use super::{
     WellKnownFunctionKind,
 };
 use crate::{
-    analyzer::{is_unresolved, WellKnownObjectKind},
+    analyzer::{is_unresolved, JsValueUrlKind, WellKnownObjectKind},
     utils::{unparen, AstPathRange},
 };
 
@@ -607,7 +607,7 @@ impl EvalContext {
                     {
                         if prop.as_str() == "url" {
                             // TODO avoid clone
-                            return JsValue::RelUrl(url.clone());
+                            return JsValue::Url(url.clone(), JsValueUrlKind::Relative);
                         }
                     }
                 }
