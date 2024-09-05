@@ -12,26 +12,12 @@ export default function Home() {
         gap: '10px',
       }}
     >
-      <Link id="dynamic-import" href="/dynamic-import">
-        /dynamic-import
-      </Link>
-      <Link
-        id="variable-inserted-dynamic-import"
-        href="/variable-inserted-dynamic-import"
-      >
-        /variable-inserted-dynamic-import
-      </Link>
-      <Link id="next-dynamic" href="/next-dynamic">
-        /next-dynamic
-      </Link>
-      <Link
-        id="variable-inserted-next-dynamic"
-        href="/variable-inserted-next-dynamic"
-      >
-        /variable-inserted-next-dynamic
-      </Link>
+      <Link href="/dynamic-import">/dynamic-import</Link>
+      <Link href="/next-dynamic">/next-dynamic</Link>
+      <Link href="/next-dynamic-no-ssr">/next-dynamic-no-ssr</Link>
       {/* RedButton should be imported to be reproduced */}
       <RedButton />
+      {/* GreenButton style should not remain after navigation */}
       <GreenButton />
     </div>
   )

@@ -2,61 +2,42 @@ import { nextTestSetup } from 'e2e-utils'
 import { join } from 'node:path'
 import { readdir } from 'node:fs/promises'
 
-describe('css-module-with-next-dynamic-and-static-import', () => {
+describe('css-module-build-manifest', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
 
   it('should have the static css file in build-manifest', async () => {
-    const buildManifest: { pages: { [key: string]: string[] } } =
+    const { pages }: { pages: { [key: string]: string[] } } =
       await next.readJSON('.next/build-manifest.json')
 
-    // We only have one css file at components/red.module.css,
-    // and our pages/* files import this css file. So we expect
-    // the build-manifest.json to have this static css file.
-    const staticCSSFile = (
-      await readdir(join(next.testDir, '.next/static/css'))
-    )[0]
+    const staticCSSFiles = await readdir(join(next.testDir, '.next/static/css'))
+    // green + red
+    expect(staticCSSFiles).toContain('d3cb04b05c4b676e.css')
+    // red
+    expect(staticCSSFiles).toContain('b08135001b6a6644.css')
 
-    // `buildManifest.pages` is an array of static file paths.
-    // {
-    //   pages: {
-    //     '/': [
-    //       'static/chunks/...js',
-    //       'static/css/...css',
-    //     ],
-    //     '/dynamic-import': [
-    //       'static/chunks/...js',
-    //       'static/css/...css',
-    //     ]
-    //   }
-    // }
-    expect(
-      buildManifest.pages['/'].some((file) => file.endsWith(staticCSSFile))
-    ).toBe(true)
+    // green + red
+    expect(pages['/']).toContain('static/css/d3cb04b05c4b676e.css')
 
-    expect(
-      buildManifest.pages['/dynamic-import'].some((file) =>
-        file.endsWith(staticCSSFile)
-      )
-    ).toBe(true)
+    // red
+    expect(pages['/next-dynamic']).toContain('static/css/b08135001b6a6644.css')
+    expect(pages['/next-dynamic-no-ssr']).toContain(
+      'static/css/b08135001b6a6644.css'
+    )
+    expect(pages['/dynamic-import']).toContain(
+      'static/css/b08135001b6a6644.css'
+    )
 
-    expect(
-      buildManifest.pages['/variable-inserted-dynamic-import'].some((file) =>
-        file.endsWith(staticCSSFile)
-      )
-    ).toBe(true)
-
-    expect(
-      buildManifest.pages['/next-dynamic'].some((file) =>
-        file.endsWith(staticCSSFile)
-      )
-    ).toBe(true)
-
-    expect(
-      buildManifest.pages['/variable-inserted-next-dynamic'].some((file) =>
-        file.endsWith(staticCSSFile)
-      )
-    ).toBe(true)
+    // no green
+    expect(pages['/next-dynamic']).not.toContain(
+      'static/css/d3cb04b05c4b676e.css'
+    )
+    expect(pages['/next-dynamic-no-ssr']).not.toContain(
+      'static/css/d3cb04b05c4b676e.css'
+    )
+    expect(pages['/dynamic-import']).not.toContain(
+      'static/css/d3cb04b05c4b676e.css'
+    )
   })
 })
