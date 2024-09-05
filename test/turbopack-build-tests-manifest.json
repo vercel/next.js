@@ -7555,10 +7555,10 @@
     },
     "test/integration/config-promise-error/test/index.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Promise in next config production mode should warn when a promise is returned on webpack"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -15300,10 +15300,10 @@
     },
     "test/integration/turbotrace-with-webpack-worker/test/index.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "build trace with extra entries production mode should build and trace correctly"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
