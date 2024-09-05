@@ -1,8 +1,6 @@
-use std::iter::once;
-
 use anyhow::{bail, Context, Result};
 use tracing::Instrument;
-use turbo_tasks::{debug::ValueDebug, RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
@@ -10,7 +8,7 @@ use turbopack_core::{
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext,
-        EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId, OutputChunk,
+        EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -26,7 +24,7 @@ use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::ecmascript::{
     chunk::EcmascriptDevChunk,
-    evaluate::{chunk::EcmascriptDevEvaluateChunk, entry::EcmascriptDevEvaluateEntryChunk},
+    evaluate::chunk::EcmascriptDevEvaluateChunk,
     list::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
 };
 
@@ -477,96 +475,14 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn entry_chunk_group(
+    fn entry_chunk_group(
         self: Vc<Self>,
-        path: Vc<FileSystemPath>,
-        module: Vc<Box<dyn Module>>,
-        evaluatable_assets: Vc<EvaluatableAssets>,
-        availability_info: Value<AvailabilityInfo>,
+        _path: Vc<FileSystemPath>,
+        _module: Vc<Box<dyn Module>>,
+        _evaluatable_assets: Vc<EvaluatableAssets>,
+        _availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EntryChunkGroupResult>> {
-        let availability_info = availability_info.into_value();
-
-        let MakeChunkGroupResult {
-            chunks,
-            availability_info,
-        } = make_chunk_group(
-            Vc::upcast(self),
-            // TODO should `module` be added here?
-            once(module).chain(
-                evaluatable_assets
-                    .await?
-                    .iter()
-                    .map(|&asset| Vc::upcast(asset)),
-            ),
-            availability_info,
-        )
-        .await?;
-
-        let other_chunks: Vec<_> = chunks
-            .iter()
-            .map(|chunk| self.generate_chunk(*chunk))
-            .collect();
-
-        // TODO ?
-        // if this.enable_hot_module_replacement {
-        //     assets.push(self.generate_chunk_list_register_chunk(
-        //         ident,
-        //         evaluatable_assets,
-        //         other_assets,
-        //         Value::new(EcmascriptDevChunkListSource::Entry),
-        //     ));
-        // }
-
-        // let Some(module) = Vc::try_resolve_downcast(module).await? else {
-        //     bail!("module must be placeable in an ecmascript chunk");
-        // };
-        // let asset = Vc::upcast(EcmascriptBuildNodeEntryChunk::new(
-        //     path,
-        //     self,
-        //     Vc::cell(other_chunks),
-        //     evaluatable_assets,
-        //     module,
-        // ));
-        println!("generate_evaluate_chunk");
-        println!("module {:?}", module.ident().dbg().await?);
-        for c in &other_chunks {
-            if let Some(output_chunk) = Vc::try_resolve_sidecast::<Box<dyn OutputChunk>>(*c).await?
-            {
-                println!(
-                    "other {:?} {:?}",
-                    c.ident().dbg().await?,
-                    output_chunk.runtime_info().dbg().await?
-                );
-            } else {
-                println!("other {:?}", c.ident().dbg().await?);
-            }
-        }
-        for c in evaluatable_assets.await? {
-            println!("evalu {:?}", c.ident().dbg().await?);
-        }
-        // let asset = self.generate_evaluate_chunk(
-        //     AssetIdent::from_path(path),
-        //     Vc::cell(other_chunks),
-        //     evaluatable_assets,
-        // );
-        let asset = EcmascriptDevEvaluateEntryChunk::new(
-            self,
-            AssetIdent::from_path(path),
-            Vc::cell(other_chunks),
-            evaluatable_assets,
-        );
-        println!("dev eval chunk {:?}", asset.ident().dbg().await?);
-        println!("chunks_data {:?}", asset.chunks_data().dbg().await?);
-        println!("references {:?}", asset.references().await?.len());
-        for c in asset.references().await? {
-            println!("reference {:?}", c.ident().dbg().await?);
-        }
-
-        Ok(EntryChunkGroupResult {
-            asset: Vc::upcast(asset),
-            availability_info,
-        }
-        .cell())
+        bail!("Browser chunking context does not support entry chunk groups")
     }
 
     #[turbo_tasks::function]
