@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-
 ;(process.env.TURBOPACK ? describe : describe.skip)(
   'turbopack-loader-resource-query',
   () => {
