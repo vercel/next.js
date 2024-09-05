@@ -5,7 +5,7 @@ description: API Reference for the cookies function.
 
 The `cookies` function allows you to read the HTTP incoming request cookies from a [Server Component](/docs/app/building-your-application/rendering/server-components) or write outgoing request cookies in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
-```tsx filename="app/page.tsx"
+```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
 
 export default function Page() {
@@ -15,7 +15,7 @@ export default function Page() {
 }
 ```
 
-```js filename="app/page.js"
+```js filename="app/page.js" switcher
 import { cookies } from 'next/headers'
 
 export default function Page() {
@@ -76,7 +76,7 @@ To learn more about these options, see the [MDN docs](https://developer.mozilla.
 
 You can use the `cookies().get('name')` method to get a single cookie:
 
-```tsx filename="app/page.tsx"
+```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
 
 export default function Page() {
@@ -86,7 +86,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.js"
+```jsx filename="app/page.js" switcher
 import { cookies } from 'next/headers'
 
 export default function Page() {
@@ -100,7 +100,7 @@ export default function Page() {
 
 You can use the `cookies().getAll()` method to get all cookies with a matching name. If `name` is unspecified, it returns all the available cookies.
 
-```tsx filename="app/page.tsx"
+```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
 
 export default function Page() {
@@ -114,7 +114,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.js"
+```jsx filename="app/page.js" switcher
 import { cookies } from 'next/headers'
 
 export default function Page() {
@@ -132,7 +132,7 @@ export default function Page() {
 
 You can use the `cookies().set(name, value, options)` method in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers) to set a cookie. The [`options` object](#options) is optional.
 
-```tsx filename="app/actions.ts"
+```tsx filename="app/actions.ts" switcher
 'use server'
 
 import { cookies } from 'next/headers'
@@ -151,7 +151,7 @@ async function create(data) {
 }
 ```
 
-```js filename="app/actions.js"
+```js filename="app/actions.js" switcher
 'use server'
 
 import { cookies } from 'next/headers'
@@ -174,7 +174,7 @@ async function create(data) {
 
 You can use the `cookies().has(name)` method to check if a cookie exists:
 
-```tsx filename="app/page.ts"
+```tsx filename="app/page.ts" switcher
 import { cookies } from 'next/headers'
 
 export default function Page() {
@@ -184,7 +184,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.js"
+```jsx filename="app/page.js" switcher
 import { cookies } from 'next/headers'
 
 export default function Page() {
@@ -200,7 +200,7 @@ There are three ways you can delete a cookie.
 
 1. Using the `delete()` method:
 
-```tsx filename="app/actions.ts"
+```tsx filename="app/actions.ts" switcher
 'use server'
 
 import { cookies } from 'next/headers'
@@ -210,7 +210,7 @@ async function delete(data) {
 }
 ```
 
-```js filename="app/actions.js"
+```js filename="app/actions.js" switcher
 'use server'
 
 import { cookies } from 'next/headers'
@@ -222,7 +222,7 @@ async function delete(data) {
 
 2. Setting a new cookie with the same name and an empty value:
 
-```tsx filename="app/actions.ts"
+```tsx filename="app/actions.ts" switcher
 'use server'
 
 import { cookies } from 'next/headers'
@@ -232,7 +232,7 @@ async function delete(data) {
 }
 ```
 
-```js filename="app/actions.js"
+```js filename="app/actions.js" switcher
 'use server'
 
 import { cookies } from 'next/headers'
@@ -244,7 +244,7 @@ async function delete(data) {
 
 3. Setting the `maxAge` to 0 will immediately expire a cookie. `maxAge` accepts a value in seconds.
 
-```tsx filename="app/actions.ts"
+```tsx filename="app/actions.ts" switcher
 'use server'
 
 import { cookies } from 'next/headers'
@@ -254,7 +254,7 @@ async function delete(data) {
 }
 ```
 
-```js filename="app/actions.js"
+```js filename="app/actions.js" switcher
 'use server'
 
 import { cookies } from 'next/headers'
