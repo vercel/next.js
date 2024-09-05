@@ -1674,11 +1674,13 @@ export default async function build(
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
         if (turboNextBuild) {
+          console.time('Turbopack build')
           const {
             duration: compilerDuration,
             shutdownPromise: p,
             ...rest
           } = await turbopackBuild()
+          console.timeEnd('Turbopack build')
           shutdownPromise = p
           traceMemoryUsage('Finished build', nextBuildSpan)
 
@@ -1703,6 +1705,7 @@ export default async function build(
               buildStage: 'compile-server',
             })
 
+            console.time('webpack build')
             const serverBuildPromise = webpackBuild(useBuildWorker, [
               'server',
             ]).then((res) => {
@@ -1770,6 +1773,7 @@ export default async function build(
               durationInSeconds += res.duration
               traceMemoryUsage('Finished client compilation', nextBuildSpan)
             })
+            console.timeEnd('webpack build')
 
             Log.event('Compiled successfully')
 
