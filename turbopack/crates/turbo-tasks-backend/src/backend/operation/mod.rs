@@ -15,7 +15,7 @@ use turbo_tasks::{KeyValuePair, TaskId, TurboTasksBackendApi};
 
 use super::{storage::StorageWriteGuard, TurboTasksBackend};
 use crate::{
-    backend::OperationGuard,
+    backend::{OperationGuard, TransientTask},
     data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate},
 };
 
@@ -55,6 +55,17 @@ impl<'a> ExecuteContext<'a> {
             task: self.backend.storage.access_mut(task_id),
             task_id,
             backend: self.backend,
+        }
+    }
+
+    pub fn is_once_task(&self, task_id: TaskId) -> bool {
+        if !task_id.is_transient() {
+            return false;
+        }
+        if let Some(ty) = self.backend.transient_tasks.get(&task_id) {
+            matches!(**ty, TransientTask::Once(_))
+        } else {
+            false
         }
     }
 
