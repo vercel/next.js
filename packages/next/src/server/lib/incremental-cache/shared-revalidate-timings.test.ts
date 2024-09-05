@@ -13,6 +13,7 @@ describe('SharedRevalidateTimings', () => {
           dataRoute: null,
           srcRoute: null,
           prefetchDataRoute: null,
+          experimentalPPR: undefined,
           renderingMode: RenderingMode.STATIC,
         },
         '/route2': {
@@ -20,6 +21,7 @@ describe('SharedRevalidateTimings', () => {
           dataRoute: null,
           srcRoute: null,
           prefetchDataRoute: null,
+          experimentalPPR: undefined,
           renderingMode: RenderingMode.STATIC,
         },
       },

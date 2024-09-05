@@ -16579,6 +16579,8 @@
       "passed": [],
       "failed": [
         "required server files app router middleware rewrite should work with a dynamic path",
+        "required server files app router middleware rewrite should work with a dynamic path (with Next-Resume)",
+        "required server files app router middleware rewrite should work with a dynamic path (without Next-Resume)",
         "required server files app router should handle RSC requests",
         "required server files app router should handle prefetch RSC requests",
         "required server files app router should not fail caching",
@@ -16587,8 +16589,12 @@
         "required server files app router should properly handle fallback for bot request",
         "required server files app router should properly handle prerender for bot request",
         "required server files app router should properly stream resume",
+        "required server files app router should properly stream resume with Next-Resume",
+        "required server files app router should properly stream resume without Next-Resume",
         "required server files app router should send cache tags in minimal mode for ISR",
-        "required server files app router should still render when postponed is corrupted"
+        "required server files app router should still render when postponed is corrupted",
+        "required server files app router should still render when postponed is corrupted with Next-Resume",
+        "required server files app router should still render when postponed is corrupted without Next-Resume"
       ],
       "pending": [],
       "flakey": [],

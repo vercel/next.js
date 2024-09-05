@@ -242,7 +242,13 @@ export interface SsgRoute {
   srcRoute: string | null
 
   /**
-   * The rendering mode for this route.
+   * @deprecated use `renderingMode` instead
+   */
+  experimentalPPR: boolean | undefined
+
+  /**
+   * The rendering mode for this route. Only `undefined` when not an app router
+   * route.
    */
   renderingMode: RenderingMode | undefined
 }
@@ -273,7 +279,13 @@ export interface DynamicSsgRoute {
   routeRegex: string
 
   /**
-   * The rendering mode for this route.
+   * @deprecated use `renderingMode` instead
+   */
+  experimentalPPR: boolean | undefined
+
+  /**
+   * The rendering mode for this route. Only `undefined` when not an app router
+   * route.
    */
   renderingMode: RenderingMode | undefined
 }
@@ -3012,6 +3024,7 @@ export default async function build(
                       ? RenderingMode.PARTIALLY_STATIC
                       : RenderingMode.STATIC
                     : undefined,
+                  experimentalPPR: isRoutePPREnabled,
                   experimentalBypassFor: bypassFor,
                   initialRevalidateSeconds: revalidate,
                   srcRoute: page,
@@ -3088,6 +3101,7 @@ export default async function build(
                     : {}
 
                 prerenderManifest.dynamicRoutes[route] = {
+                  experimentalPPR: isRoutePPREnabled,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
@@ -3344,6 +3358,7 @@ export default async function build(
                       initialRevalidateSeconds:
                         exportResult.byPath.get(localePage)?.revalidate ??
                         false,
+                      experimentalPPR: undefined,
                       renderingMode: undefined,
                       srcRoute: null,
                       dataRoute: path.posix.join(
@@ -3358,6 +3373,7 @@ export default async function build(
                   prerenderManifest.routes[page] = {
                     initialRevalidateSeconds:
                       exportResult.byPath.get(page)?.revalidate ?? false,
+                    experimentalPPR: undefined,
                     renderingMode: undefined,
                     srcRoute: null,
                     dataRoute: path.posix.join(
@@ -3427,6 +3443,7 @@ export default async function build(
 
                   prerenderManifest.routes[route.path] = {
                     initialRevalidateSeconds,
+                    experimentalPPR: undefined,
                     renderingMode: undefined,
                     srcRoute: page,
                     dataRoute: path.posix.join(
@@ -3513,6 +3530,7 @@ export default async function build(
             routeRegex: normalizeRouteRegex(
               getNamedRouteRegex(tbdRoute, false).re.source
             ),
+            experimentalPPR: undefined,
             renderingMode: undefined,
             dataRoute,
             fallback: ssgBlockingFallbackPages.has(tbdRoute)
