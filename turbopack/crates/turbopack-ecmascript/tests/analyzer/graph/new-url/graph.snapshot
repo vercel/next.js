@@ -1,0 +1,10 @@
+[
+    (
+        "asset",
+        RelUrl(
+            Word(
+                "./worker.ts",
+            ),
+        ),
+    ),
+]
