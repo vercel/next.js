@@ -1,6 +1,5 @@
 use anyhow::{bail, Result};
 use swc_core::{
-    common::util::take::Take,
     ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
     quote_expr,
 };
