@@ -85,7 +85,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "0.102.0", features = [
+swc_core = { version = "0.103.1", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
@@ -94,12 +94,12 @@ testing = { version = "0.39.0" }
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.16.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
-mdxjs = "0.2.8"
-modularize_imports = { version = "0.68.23" }
-styled_components = { version = "0.96.22" }
-styled_jsx = { version = "0.73.31" }
-swc_emotion = { version = "0.72.21" }
-swc_relay = { version = "0.44.24" }
+mdxjs = "0.2.9"
+modularize_imports = { version = "0.68.25" }
+styled_components = { version = "0.96.23" }
+styled_jsx = { version = "0.73.33" }
+swc_emotion = { version = "0.72.22" }
+swc_relay = { version = "0.44.25" }
 
 # General Deps
 
@@ -205,7 +205,7 @@ tempfile = "3.3.0"
 thiserror = "1.0.48"
 tiny-gradient = "0.1.0"
 tokio = "1.25.0"
-tokio-util = { version = "0.7.7", features = ["io"] }
+tokio-util = { version = "0.7.11", features = ["io", "rt"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
 triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable" }
