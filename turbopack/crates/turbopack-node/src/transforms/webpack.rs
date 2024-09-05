@@ -232,7 +232,9 @@ impl WebpackLoadersProcessedAsset {
             resolve_options_context: Some(transform.resolve_options_context),
             args: vec![
                 Vc::cell(content.into()),
+                // We need to pass the query string to the loader
                 Vc::cell(resource_path.to_string().into()),
+                Vc::cell(this.source.ident().query().await?.to_string().into()),
                 Vc::cell(json!(*loaders)),
             ],
             additional_invalidation: Completion::immutable(),
