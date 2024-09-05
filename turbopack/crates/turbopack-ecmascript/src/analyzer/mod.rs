@@ -29,7 +29,6 @@ use turbo_tasks::{RcStr, Vc};
 use turbopack_core::compile_time_info::{
     CompileTimeDefineValue, DefineableNameSegment, FreeVarReference,
 };
-use url::Url;
 
 use self::imports::ImportAnnotations;
 pub(crate) use self::imports::ImportMap;
@@ -396,8 +395,8 @@ pub enum JsValue {
     // ----------------------------
     /// A constant primitive value.
     Constant(ConstantValue),
-    /// An constant URL object.
-    Url(Box<Url>),
+    /// An constant absolute URL object.
+    Url(ConstantString),
     /// A constant URL string relative to the current module
     RelUrl(ConstantString),
     /// Some kind of well-known object

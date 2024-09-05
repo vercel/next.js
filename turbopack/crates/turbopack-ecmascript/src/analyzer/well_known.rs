@@ -486,8 +486,7 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
         if let Some(path) = args[0].as_str() {
             Url::from_file_path(path)
-                .map(Box::new)
-                .map(JsValue::Url)
+                .map(|url| JsValue::Url(String::from(url).into()))
                 .unwrap_or_else(|_| {
                     JsValue::unknown(
                         JsValue::call(
