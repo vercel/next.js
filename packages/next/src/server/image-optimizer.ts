@@ -369,6 +369,7 @@ export class ImageOptimizerCache {
             Date.now(),
           curRevalidate: maxAge,
           isStale: now > expireAt,
+          isFallback: false,
         }
       }
     } catch (_) {
