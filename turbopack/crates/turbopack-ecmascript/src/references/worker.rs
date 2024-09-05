@@ -14,16 +14,14 @@ use turbopack_core::{
     module::Module,
     reference::ModuleReference,
     reference_type::ReferenceType,
-    resolve::{
-        origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult,
-        ModuleResolveResultItem,
-    },
+    resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
 };
 use turbopack_resolve::ecmascript::try_to_severity;
 
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
+    isolated_chunk::module::IsolatedLoaderModule,
     references::AstPath,
 };
 
@@ -60,21 +58,31 @@ impl WorkerAssetReference {
     }
 }
 
-fn worker_resolve_reference_inline(reference: &WorkerAssetReference) -> Vc<ModuleResolveResult> {
-    url_resolve(
-        reference.origin,
-        reference.request,
-        Value::new(ReferenceType::Worker),
-        Some(reference.issue_source),
-        try_to_severity(reference.in_try),
-    )
+impl WorkerAssetReference {
+    async fn worker_loader_module(self: &WorkerAssetReference) -> Result<Vc<IsolatedLoaderModule>> {
+        let module = url_resolve(
+            self.origin,
+            self.request,
+            Value::new(ReferenceType::Worker),
+            Some(self.issue_source),
+            try_to_severity(self.in_try),
+        );
+
+        // TODO unwrap
+        let module = module.first_module().await?.unwrap();
+        let Some(chunkable) = Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await?
+        else {
+            bail!("x");
+        };
+        Ok(IsolatedLoaderModule::new(chunkable))
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        worker_resolve_reference_inline(self)
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        Ok(ModuleResolveResult::module(Vc::upcast(self.worker_loader_module().await?)).cell())
     }
 }
 
@@ -92,7 +100,7 @@ impl ValueToString for WorkerAssetReference {
 impl ChunkableModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Isolated))
+        Vc::cell(Some(ChunkingType::Parallel))
     }
 }
 
@@ -103,68 +111,11 @@ impl CodeGenerateable for WorkerAssetReference {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let resolve_result = worker_resolve_reference_inline(self);
-        let result = resolve_result.await?;
-
-        // TODO unwrap
-        let resolve_item = result.primary.first().unwrap().1;
-
-        let ModuleResolveResultItem::Module(module) = *resolve_item else {
-            // TODO bail
-            bail!("b");
-        };
-
-        // let Some(evaluatable) =
-        //     Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module).await?
-        // else {
-        //     // TODO bail
-        //     bail!("a");
-        // };
-        let Some(chunkable) = Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await?
-        else {
-            // TODO bail
-            bail!("a");
-        };
-
-        // println!(
-        //     "worker module {:?} {:?} {:?}",
-        //     module.dbg().await?,
-        //     module.ident().dbg().await?,
-        //     chunking_context
-        //         .chunk_path(module.ident(), ".js".into())
-        //         .await?
-        //         .path
-        // );
-        // let EntryChunkGroupResult { asset, .. } = &*chunking_context
-        //     .entry_chunk_group(
-        //         chunking_context.chunk_path(module.ident(), ".js".into()),
-        //         module,
-        //         EvaluatableAssets::empty().with_entry(evaluatable),
-        //         Value::new(AvailabilityInfo::Root),
-        //     )
-        //     .await?;
-        // let chunk_data = ChunkData::from_asset(chunking_context.output_root(), *asset)
-        //     .await?
-        //     .as_ref()
-        //     // TODO unwrap
-        //     .unwrap()
-        //     .await?;
+        let loader = self.worker_loader_module().await?;
 
         let item_id = chunking_context
-            .isolated_loader_chunk_item_id(Vc::upcast(chunkable))
+            .chunk_item_id_from_ident(loader.ident())
             .await?;
-
-        // CodeGenerationIssue {
-        //     severity: IssueSeverity::Bug.into(),
-        //     title: StyledString::Text("non-ecmascript placeable asset".into()).cell(),
-        //     message: StyledString::Text(
-        //         "asset is not placeable in ESM chunks, so it doesn't have a module id".into(),
-        //     )
-        //     .cell(),
-        //     path: origin.origin_path(),
-        // }
-        // .cell()
-        // .emit();
 
         let path = &self.path.await?;
 
@@ -174,12 +125,6 @@ impl CodeGenerateable for WorkerAssetReference {
                 if let Some(args) = args {
                     match args.into_iter().next() {
                         Some(ExprOrSpread { spread: None, .. }) => {
-                            // TODO ensure that this is EcmascriptChunkData::Simple?
-                            // TODO relative?
-                            // let url_str = StringifyJs(&EcmascriptChunkData::new(&chunk_data)).to_string();
-                            // let url_str = format!("./{}", chunk_data.path);
-
-                            // let url = Expr::Lit(Lit::Str(url_str.clone().into()));
                             let item_id = Expr::Lit(Lit::Str(item_id.to_string().into()));
                             *expr = *quote_expr!(
                                 "new Worker(__turbopack_require__($item_id))",

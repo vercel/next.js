@@ -1,14 +1,14 @@
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_tasks::{debug::ValueDebug, RcStr, Vc};
+use turbo_tasks::{debug::ValueDebug, RcStr, TryJoinIterExt, Value, Vc};
 use turbopack_core::{
     chunk::{
-        ChunkData, ChunkDataOption, ChunkItem, ChunkType, ChunkingContext, ChunkingContextExt,
-        EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkData, ChunkItem, ChunkType, ChunkingContext,
+        ChunkingContextExt, ChunksData, EvaluatableAsset, EvaluatableAssets,
     },
     ident::AssetIdent,
     module::Module,
-    output::OutputAsset,
+    output::OutputAssets,
     reference::{ModuleReferences, SingleOutputAssetReference},
 };
 
@@ -30,7 +30,7 @@ pub struct IsolatedLoaderChunkItem {
 #[turbo_tasks::value_impl]
 impl IsolatedLoaderChunkItem {
     #[turbo_tasks::function]
-    pub(super) async fn chunk(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
+    pub(super) async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let module = this.module.await?;
         // if let Some(chunk_items) = module.availability_info.available_chunk_items() {
@@ -53,25 +53,32 @@ impl IsolatedLoaderChunkItem {
         //     Value::new(module.availability_info),
         // ));
 
+        let Some(evaluatable) =
+            Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module.inner).await?
+        else {
+            bail!("not evaluatable");
+        };
+
         println!(
             "IsolatedLoaderChunkItem entry_chunk_group_asset {:?}",
             module.inner.ident().dbg().await?
         );
-        Ok(this.chunking_context.root_entry_chunk_group_asset(
-            this.chunking_context
-                .chunk_path(module.inner.ident(), ".js".into()),
-            Vc::upcast(module.inner),
-            // TODO .with_entry(evaluatable) ?
-            EvaluatableAssets::empty(),
+        Ok(this.chunking_context.evaluated_chunk_group_assets(
+            AssetIdent::from_path(
+                this.chunking_context
+                    .chunk_path(module.inner.ident(), ".js".into()),
+            ), // .with_modifier("isolated".into().cell())
+            EvaluatableAssets::empty().with_entry(evaluatable),
+            Value::new(AvailabilityInfo::Root),
         ))
     }
 
     #[turbo_tasks::function]
-    async fn chunk_data(self: Vc<Self>) -> Result<Vc<ChunkDataOption>> {
+    async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
         let this = self.await?;
-        Ok(ChunkData::from_asset(
+        Ok(ChunkData::from_assets(
             this.chunking_context.output_root(),
-            self.chunk(),
+            self.chunks(),
         ))
     }
 }
@@ -85,18 +92,23 @@ impl EcmascriptChunkItem for IsolatedLoaderChunkItem {
 
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
-        // TODO unwrap
-        let chunk_data = self.chunk_data().await?.unwrap().await?;
-        let EcmascriptChunkData::Simple(chunk_data) = EcmascriptChunkData::new(&chunk_data) else {
-            // TODO
-            bail!("not simple");
-        };
+        let chunks_data = self.chunks_data().await?;
+        let chunks_data = chunks_data.iter().try_join().await?;
+        let chunks_data: Vec<_> = chunks_data
+            .iter()
+            .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
+            .collect();
 
         let code = formatdoc! {
             r#"
-                __turbopack_export_value__({chunk:#});
+                let chunks = {chunks:#};
+                let bootstrap = `importScripts(${{chunks.map(c => (`"${{location.origin}}/_next/${{(c)}}"`)).join(", ")}});`;
+                let blob = new Blob([bootstrap], {{ type: "text/javascript" }});
+                let blobUrl = URL.createObjectURL(blob);
+                __turbopack_export_value__(blobUrl);
             "#,
-            chunk = StringifyJs(&format!("./{}", chunk_data)),
+            // TODO this should use getChunkRelativeUrl from runtime-base.ts
+            chunks = StringifyJs(&chunks_data),
         };
 
         Ok(EcmascriptChunkItemContent {
@@ -109,7 +121,7 @@ impl EcmascriptChunkItem for IsolatedLoaderChunkItem {
 
 #[turbo_tasks::function]
 fn chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("chunk".into())
+    Vc::cell("isolated chunk".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -135,12 +147,21 @@ impl ChunkItem for IsolatedLoaderChunkItem {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let chunk = self.chunk();
+        let chunks = self.chunks();
 
-        Ok(Vc::cell(vec![Vc::upcast(SingleOutputAssetReference::new(
-            chunk,
-            chunk_reference_description(),
-        ))]))
+        Ok(Vc::cell(
+            chunks
+                .await?
+                .iter()
+                .copied()
+                .map(|chunk| {
+                    Vc::upcast(SingleOutputAssetReference::new(
+                        chunk,
+                        chunk_reference_description(),
+                    ))
+                })
+                .collect(),
+        ))
     }
 
     #[turbo_tasks::function]

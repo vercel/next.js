@@ -1,8 +1,8 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{RcStr, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext},
+    chunk::{ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
     reference::{ModuleReferences, SingleModuleReference},
@@ -20,23 +20,13 @@ fn modifier() -> Vc<RcStr> {
 #[turbo_tasks::value]
 pub struct IsolatedLoaderModule {
     pub inner: Vc<Box<dyn ChunkableModule>>,
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
-    pub availability_info: AvailabilityInfo,
 }
 
 #[turbo_tasks::value_impl]
 impl IsolatedLoaderModule {
     #[turbo_tasks::function]
-    pub fn new(
-        module: Vc<Box<dyn ChunkableModule>>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Self> {
-        Self::cell(IsolatedLoaderModule {
-            inner: module,
-            chunking_context,
-            availability_info: availability_info.into_value(),
-        })
+    pub fn new(module: Vc<Box<dyn ChunkableModule>>) -> Vc<Self> {
+        Self::cell(IsolatedLoaderModule { inner: module })
     }
 
     #[turbo_tasks::function]
