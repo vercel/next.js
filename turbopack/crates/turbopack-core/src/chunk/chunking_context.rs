@@ -89,13 +89,6 @@ pub trait ChunkingContext {
     ) -> Vc<Box<dyn ChunkItem>>;
     fn async_loader_chunk_item_id(&self, module: Vc<Box<dyn ChunkableModule>>) -> Vc<ModuleId>;
 
-    fn isolated_loader_chunk_item(
-        &self,
-        module: Vc<Box<dyn ChunkableModule>>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Box<dyn ChunkItem>>;
-    fn isolated_loader_chunk_item_id(&self, module: Vc<Box<dyn ChunkableModule>>) -> Vc<ModuleId>;
-
     fn chunk_group(
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
