@@ -12,12 +12,23 @@ related:
 
 ## Step 1: Create a Route Handler to enable Draft Mode
 
-Create a [Route Handler](/docs/app/building-your-application/routing/route-handlers). It can have any name, e.g. `app/api/draft/route.ts`.
+Create a [Route Handler](/docs/app/building-your-application/routing/route-handlers). It can have any name, for example, `app/api/draft/route.ts`.
+
+```ts filename="app/api/draft/route.ts" switcher
+export async function GET(request: Request) {
+  return new Response('')
+}
+```
+
+```js filename="app/api/draft/route.js" switcher
+export async function GET() {
+  return new Response('')
+}
+```
 
 Then, import the [`draftMode`](/docs/app/api-reference/functions/draft-mode) function and call the `enable()` method.
 
 ```ts filename="app/api/draft/route.ts" switcher
-// route handler enabling draft mode
 import { draftMode } from 'next/headers'
 
 export async function GET(request: Request) {
@@ -27,7 +38,6 @@ export async function GET(request: Request) {
 ```
 
 ```js filename="app/api/draft/route.js" switcher
-// route handler enabling draft mode
 import { draftMode } from 'next/headers'
 
 export async function GET(request) {
@@ -36,7 +46,7 @@ export async function GET(request) {
 }
 ```
 
-This will set a **cookie** to enable draft mode. Subsequent requests containing this cookie will trigger **Draft Mode** changing the behavior for statically generated pages.
+This will set a **cookie** to enable draft mode. Subsequent requests containing this cookie will trigger draft mode and change the behavior of statically generated pages.
 
 You can test this manually by visiting `/api/draft` and looking at your browser’s developer tools. Notice the `Set-Cookie` response header with a cookie named `__prerender_bypass`.
 
@@ -53,11 +63,11 @@ The specific steps will vary depending on which headless CMS you’re using, but
 https://<your-site>/api/draft?secret=<token>&slug=<path>
 ```
 
-- `<your-site>` should be your deployment domain.
-- `<token>` should be replaced with the secret token you generated.
-- `<path>` should be the path for the page that you want to view. If you want to view `/posts/foo`, then you should use `&slug=/posts/foo`.
-
-Your headless CMS might allow you to include a variable in the draft URL so that `<path>` can be set dynamically based on the CMS’s data like so: `&slug=/posts/{entry.fields.slug}`
+> - `<your-site>` should be your deployment domain.
+> - `<token>` should be replaced with the secret token you generated.
+> - `<path>` should be the path for the page that you want to view. If you want to view `/posts/foo`, then you should use `&slug=/posts/foo`.
+>
+> Your headless CMS might allow you to include a variable in the draft URL so that `<path>` can be set dynamically based on the CMS’s data like so: `&slug=/posts/{entry.fields.slug}`
 
 3. In your Route Handler, check that the secret matches and that the `slug` parameter exists (if not, the request should fail), call `draftMode.enable()` to set the cookie. Then, redirect the browser to the path specified by `slug`:
 
