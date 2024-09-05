@@ -11,7 +11,7 @@ export default function transform(file: FileInfo, api: API) {
   const isClientComponent =
     root.find(j.Literal, { value: 'use client' }).size() > 0
 
-  function processCalls(functionName: 'cookies' | 'headers') {
+  function processAsyncApiCalls(functionName: 'cookies' | 'headers') {
     // Process each call to cookies() or headers()
     root
       .find(j.CallExpression, {
@@ -42,14 +42,12 @@ export default function transform(file: FileInfo, api: API) {
             j.awaitExpression(j.callExpression(j.identifier(functionName), []))
           )
           modified = true
-        } else {
-          // Sever component, sync function
         }
       })
   }
 
-  processCalls('cookies')
-  processCalls('headers')
+  processAsyncApiCalls('cookies')
+  processAsyncApiCalls('headers')
 
   // Add import { use } from 'react' if needed and not already imported
   if (needsReactUseImport) {
