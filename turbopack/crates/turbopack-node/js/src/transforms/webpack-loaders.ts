@@ -181,7 +181,7 @@ const transform = (
 
     runLoaders(
       {
-        resource: resource + (query ? query.startsWith('?') ? query : `?${query}` : ""),
+        resource: resource + query,
         context: {
           _module: {
             // For debugging purpose, if someone find context is not full compatible to
