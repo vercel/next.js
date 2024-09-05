@@ -211,7 +211,7 @@ impl WebpackLoadersProcessedAsset {
         let webpack_loaders_executor = webpack_loaders_executor(evaluate_context).module();
         let resource_fs_path = this.source.ident().path();
         let resource_fs_path_ref = resource_fs_path.await?;
-        let Some(..) = project_path
+        let Some(resource_path) = project_path
             .await?
             .get_relative_path_to(&resource_fs_path_ref)
         else {
@@ -233,7 +233,8 @@ impl WebpackLoadersProcessedAsset {
             args: vec![
                 Vc::cell(content.into()),
                 // We need to pass the query string to the loader
-                Vc::cell(this.source.ident().to_string().await?.to_string().into()),
+                Vc::cell(resource_path.to_string().into()),
+                Vc::cell(this.source.ident().query().await?.to_string().into()),
                 Vc::cell(json!(*loaders)),
             ],
             additional_invalidation: Completion::immutable(),

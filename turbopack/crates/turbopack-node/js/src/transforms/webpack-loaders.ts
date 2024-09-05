@@ -168,10 +168,11 @@ const transform = (
   ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
   content: string,
   name: string,
+  query: string,
   loaders: LoaderConfig[]
 ) => {
   return new Promise((resolve, reject) => {
-    const resource = pathResolve(contextDir, name);
+    const resource = pathResolve(contextDir, name) ;
     const resourceDir = dirname(resource);
 
     const loadersWithOptions = loaders.map((loader) =>
@@ -180,7 +181,7 @@ const transform = (
 
     runLoaders(
       {
-        resource,
+        resource:resource+ (query ? `?${query}` : ""),
         context: {
           _module: {
             // For debugging purpose, if someone find context is not full compatible to
