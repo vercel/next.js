@@ -44,7 +44,6 @@ use swc_core::{
     },
     ecma::{
         ast::*,
-        atoms::js_word,
         visit::{
             fields::{AssignExprField, AssignTargetField, SimpleAssignTargetField},
             AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithAstPath,
