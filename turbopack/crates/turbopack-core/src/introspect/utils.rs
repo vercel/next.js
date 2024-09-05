@@ -76,7 +76,6 @@ pub async fn children_from_module_references(
         {
             match &*chunkable.chunking_type().await? {
                 None => {}
-                Some(ChunkingType::Isolated) => key = isolated_reference_ty(),
                 Some(ChunkingType::Parallel) => key = parallel_reference_ty(),
                 Some(ChunkingType::ParallelInheritAsync) => {
                     key = parallel_inherit_async_reference_ty()

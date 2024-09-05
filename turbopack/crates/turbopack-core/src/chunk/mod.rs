@@ -164,8 +164,6 @@ pub enum ChunkingType {
     Async,
     /// Module not placed in chunk group, but its references are still followed.
     Passthrough,
-    /// Module is placed in a new chunk group.
-    Isolated,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -188,7 +186,6 @@ type AsyncInfo = IndexMap<Vc<Box<dyn ChunkItem>>, Vec<Vc<Box<dyn ChunkItem>>>>;
 
 pub struct ChunkContentResult {
     pub chunk_items: IndexSet<Vc<Box<dyn ChunkItem>>>,
-    pub isolated_modules: IndexSet<Vc<Box<dyn ChunkableModule>>>,
     pub async_modules: IndexSet<Vc<Box<dyn ChunkableModule>>>,
     pub external_module_references: IndexSet<Vc<Box<dyn ModuleReference>>>,
     /// A map from local module to all children from which the async module
@@ -236,10 +233,6 @@ enum ChunkContentGraphNode {
     },
     // Async module that is referenced from the chunk group
     AsyncModule {
-        module: Vc<Box<dyn ChunkableModule>>,
-    },
-    // A module that will become a new chunk group
-    IsolatedModule {
         module: Vc<Box<dyn ChunkableModule>>,
     },
     // ModuleReferences that are not placed in the current chunk group
@@ -459,15 +452,6 @@ async fn graph_node_to_referenced_nodes(
                                 ))
                             }
                         }
-                        ChunkingType::Isolated => Ok((
-                            Some(ChunkGraphEdge {
-                                key: None,
-                                node: ChunkContentGraphNode::IsolatedModule {
-                                    module: chunkable_module,
-                                },
-                            }),
-                            None,
-                        )),
                     }
                 })
                 .try_join()
@@ -622,7 +606,6 @@ async fn chunk_content_internal_parallel(
     let graph_nodes: Vec<_> = traversal_result?.into_reverse_topological().collect();
 
     let mut chunk_items = IndexSet::new();
-    let mut isolated_modules = IndexSet::new();
     let mut async_modules = IndexSet::new();
     let mut external_module_references = IndexSet::new();
     let mut forward_edges_inherit_async = IndexMap::new();
@@ -632,9 +615,6 @@ async fn chunk_content_internal_parallel(
     for graph_node in graph_nodes {
         match graph_node {
             ChunkContentGraphNode::PassthroughChunkItem { .. } => {}
-            ChunkContentGraphNode::IsolatedModule { module, .. } => {
-                isolated_modules.insert(module);
-            }
             ChunkContentGraphNode::ChunkItem { item, .. } => {
                 chunk_items.insert(item);
             }
@@ -671,7 +651,6 @@ async fn chunk_content_internal_parallel(
 
     Ok(ChunkContentResult {
         chunk_items,
-        isolated_modules,
         async_modules,
         external_module_references,
         forward_edges_inherit_async,
