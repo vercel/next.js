@@ -5928,9 +5928,9 @@ dependencies = [
 
 [[package]]
 name = "serde_bytes"
-version = "0.11.9"
+version = "0.11.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "416bda436f9aab92e02c8e10d49a15ddd339cea90b6e340fe51ed97abb548294"
+checksum = "387cc504cb06bb40a96c8e04e951fe01854cf6bc921053c954e4a606d9675c6a"
 dependencies = [
  "serde",
 ]
@@ -8684,6 +8684,7 @@ dependencies = [
  "parking_lot",
  "rstest",
  "serde",
+ "serde_bytes",
  "serde_json",
  "serde_path_to_error",
  "sha2",
@@ -8951,6 +8952,7 @@ dependencies = [
  "regex",
  "rstest",
  "serde",
+ "serde_bytes",
  "serde_json",
  "sourcemap",
  "swc_core",

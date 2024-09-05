@@ -10,6 +10,7 @@ use serde::{
     ser::SerializeMap,
     Deserialize, Deserializer, Serialize, Serializer,
 };
+use serde_bytes::{ByteBuf, Bytes};
 use turbo_tasks::{
     debug::{internal::PassthroughDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
@@ -61,7 +62,8 @@ where
         S: Serializer,
     {
         let mut map = serializer.serialize_map(Some(self.map.len()))?;
-        for (key, value) in self.map.iter() {
+        for (prefix, value) in self.map.iter() {
+            let key = ByteBuf::from(prefix);
             map.serialize_entry(&key, value)?;
         }
         map.end()
@@ -87,8 +89,8 @@ where
         M: MapAccess<'de>,
     {
         let mut map = AliasMap::new();
-        while let Some((key, value)) = access.next_entry()? {
-            map.insert(key, value);
+        while let Some((key, value)) = access.next_entry::<&Bytes, _>()? {
+            map.map.insert(key, value);
         }
         Ok(map)
     }
