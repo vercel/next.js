@@ -23,6 +23,7 @@ import type { Params } from '../request/params'
 import type { NextRequest } from '../web/exports'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { createInterceptor } from './create-interceptor'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -40,6 +41,7 @@ export function createComponentTree(props: {
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
+  interceptors?: ((request: NextRequest) => Promise<void>)[]
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -180,23 +182,8 @@ async function createComponentTreeInternal({
       })
     : []
 
-  const interceptRequest = interceptor
-    ? (interopDefault(await interceptor[0]()) as (
-        request: NextRequest
-      ) => Promise<void>)
-    : undefined
-
-  let interceptorPromise: Promise<void> | undefined
-
-  const segmentInterceptor = interceptRequest
-    ? function intercept(request: NextRequest) {
-        if (!interceptorPromise) {
-          interceptorPromise = interceptRequest(request)
-        }
-
-        return interceptorPromise
-      }
-    : undefined
+  const segmentInterceptor =
+    interceptor && (await createInterceptor(interceptor))
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
