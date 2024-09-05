@@ -8,9 +8,9 @@ related:
     - app/building-your-application/configuring/draft-mode
 ---
 
-**Draft Mode** allows you to preview draft content from your headless CMS in your Next.js application. This is useful for static pages that are generated at build time as it allows you to switch to [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) and see the draft changes without rebuilding your entire site.
+**Draft Mode** allows you to preview draft content from your headless CMS in your Next.js application. This is useful for static pages that are generated at build time as it allows you to switch to [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) and see the draft changes without having to rebuild your entire site. This guide walks through how you can enable Draft Mode.
 
-## Step 1: Create a Route Handler to enable Draft Mode
+## Step 1: Create a Route Handler
 
 Create a [Route Handler](/docs/app/building-your-application/routing/route-handlers). It can have any name, for example, `app/api/draft/route.ts`.
 
@@ -50,14 +50,14 @@ This will set a **cookie** to enable draft mode. Subsequent requests containing 
 
 You can test this manually by visiting `/api/draft` and looking at your browser’s developer tools. Notice the `Set-Cookie` response header with a cookie named `__prerender_bypass`.
 
-## Step 2: Securely access the Route Handler from your Headless CMS
+## Step 2: Access the Route Handler from your Headless CMS
 
-> These steps assume that the headless CMS you’re using supports setting **custom draft URLs**. If it doesn’t, you can still use this method to secure your draft URLs, but you’ll need to construct and access the draft URL manually.
+> These steps assume that the headless CMS you’re using supports setting **custom draft URLs**. If it doesn’t, you can still use this method to secure your draft URLs, but you’ll need to construct and access the draft URL manually. The specific steps will vary depending on which headless CMS you’re using.
 
-The specific steps will vary depending on which headless CMS you’re using, but here are some common steps you could take:
+To securely access the Route Handler from your headless CMS:
 
 1. Create a **secret token string** using a token generator of your choice. This secret will only be known by your Next.js app and your headless CMS.
-2. If your headless CMS supports setting custom draft URLs, specify the following as the draft URL (this assumes that your Route Handler is located at `app/api/draft/route.ts`).
+2. If your headless CMS supports setting custom draft URLs, specify a draft URL (this assumes that your Route Handler is located at `app/api/draft/route.ts`). For example:
 
 ```bash filename="Terminal"
 https://<your-site>/api/draft?secret=<token>&slug=<path>
@@ -141,7 +141,7 @@ export async function GET(request) {
 
 If it succeeds, then the browser will be redirected to the path you want to view with the draft mode cookie.
 
-## Step 3: Update the page
+## Step 3: Preview the Draft Content
 
 The next step is to update your page to check the value of `draftMode().isEnabled`.
 
@@ -205,10 +205,4 @@ export default async function Page() {
 }
 ```
 
-That's it! If you access the draft Route Handler (with `secret` and `slug`) from your headless CMS or manually, you should now be able to see the draft content. And, if you update your draft without publishing, you should be able to view the draft.
-
-Set the draft URL on your headless CMS or access manually, and you should be able to see the draft.
-
-```bash filename="Terminal"
-https://<your-site>/api/draft?secret=<token>&slug=<path>
-```
+That's it! If you access the draft Route Handler (with `secret` and `slug`) from your headless CMS or manually using the URL, you should now be able to see the draft content. And, if you update your draft without publishing, you should be able to view the draft.
