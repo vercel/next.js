@@ -272,6 +272,7 @@
     "node-html-parser": "5.3.3",
     "ora": "4.0.4",
     "os-browserify": "0.3.0",
+    "p-lazy": "3.1.0",
     "p-limit": "3.1.0",
     "p-queue": "6.6.2",
     "path-browserify": "1.0.1",

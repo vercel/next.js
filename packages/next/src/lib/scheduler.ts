@@ -1,3 +1,5 @@
+import PLazy from 'next/dist/compiled/p-lazy'
+
 export type ScheduledFn<T = void> = () => T | PromiseLike<T>
 export type SchedulerFn<T = void> = (cb: ScheduledFn<T>) => void
 
@@ -57,4 +59,15 @@ export function waitAtLeastOneReactRenderTask(): Promise<void> {
   } else {
     return new Promise((r) => setImmediate(r))
   }
+}
+
+/**
+ * This will create a promise that will not have it's executor run until the
+ * promise is awaited.
+ *
+ * @param fn the function to execute
+ * @returns a promise that will resolve with the return value of the function
+ */
+export const scheduleLazily = async <T>(fn: () => Promise<T>) => {
+  return new PLazy<T>((resolve) => fn().then(resolve))
 }

@@ -172,7 +172,7 @@ import { RouteKind } from './route-kind'
 import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
-import { scheduleOnNextTick } from '../lib/scheduler'
+import { scheduleLazily } from '../lib/scheduler'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -3027,7 +3027,7 @@ export default abstract class Server<
     }
 
     // If we're not in minimal mode and the cache entry that was returned was a
-    // app page fallback, then we need to kick off the dynamic shell generation.
+    // app page fallback, then we need to kick off the route shell generation.
     if (
       ssgCacheKey &&
       !this.minimalMode &&
@@ -3035,31 +3035,39 @@ export default abstract class Server<
       this.nextConfig.experimental.pprFallbacks &&
       cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
       cacheEntry.isFallback &&
-      !isOnDemandRevalidate
+      !isOnDemandRevalidate &&
+      process.env.NEXT_RUNTIME !== 'edge'
     ) {
-      scheduleOnNextTick(async () => {
-        try {
-          await this.responseCache.get(
-            ssgCacheKey,
-            () =>
-              doRender({
-                // We're an on-demand request, so we don't need to pass in the
-                // fallbackRouteParams.
-                fallbackRouteParams: null,
-                postponed: undefined,
-              }),
-            {
-              routeKind: RouteKind.APP_PAGE,
-              incrementalCache,
-              isOnDemandRevalidate: true,
-              isPrefetch: false,
-              isRoutePPREnabled: true,
-            }
-          )
-        } catch (err) {
-          console.error('Error occurred while rendering dynamic shell', err)
-        }
-      })
+      // Wait until the response is completed sending before we start the
+      // background revalidation. Attaching this to the `waitUntil` queue on the
+      // render result will not hold the request open until the revalidation is
+      // completed but instead will just delay the time it starts the
+      // revalidation.
+      cacheEntry.value.html.waitUntil(
+        scheduleLazily(() => {
+          return this.responseCache
+            .get(
+              ssgCacheKey,
+              () =>
+                doRender({
+                  // We're an on-demand request, so we don't need to pass in the
+                  // fallbackRouteParams.
+                  fallbackRouteParams: null,
+                  postponed: undefined,
+                }),
+              {
+                routeKind: RouteKind.APP_PAGE,
+                incrementalCache,
+                isOnDemandRevalidate: true,
+                isPrefetch: false,
+                isRoutePPREnabled: true,
+              }
+            )
+            .catch((err) => {
+              console.error('Error occurred while rendering route shell', err)
+            })
+        })
+      )
     }
 
     const didPostpone =

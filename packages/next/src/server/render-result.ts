@@ -2,6 +2,7 @@ import type { OutgoingHttpHeaders, ServerResponse } from 'http'
 import type { Revalidate } from './lib/revalidate'
 import type { FetchMetrics } from './base-http'
 
+import PQueue from 'next/dist/compiled/p-queue'
 import {
   chainStreams,
   streamFromBuffer,
@@ -10,6 +11,7 @@ import {
   streamToString,
 } from './stream-utils/node-web-streams-helper'
 import { isAbortError, pipeToNodeResponse } from './pipe-readable'
+import { scheduleLazily } from '../lib/scheduler'
 
 type ContentTypeOption = string | undefined
 
@@ -96,7 +98,7 @@ export default class RenderResult<
     return new RenderResult<StaticRenderResultMetadata>(value, { metadata: {} })
   }
 
-  private readonly waitUntil?: Promise<unknown>
+  private readonly waitUntilQueue: PQueue = new PQueue({ autoStart: false })
 
   constructor(
     response: RenderResultResponse,
@@ -105,7 +107,14 @@ export default class RenderResult<
     this.response = response
     this.contentType = contentType
     this.metadata = metadata
-    this.waitUntil = waitUntil
+
+    if (waitUntil) {
+      this.waitUntilQueue.add(() => waitUntil)
+    }
+  }
+
+  public waitUntil(promise: Promise<unknown>) {
+    this.waitUntilQueue.add(() => promise)
   }
 
   public assignMetadata(metadata: Metadata) {
@@ -250,7 +259,9 @@ export default class RenderResult<
 
       // If there is a waitUntil promise, wait for it to resolve before
       // closing the writable stream.
-      if (this.waitUntil) await this.waitUntil
+      if (this.waitUntilQueue.size > 0) {
+        await this.waitUntilQueue.start().onIdle()
+      }
 
       // Close the writable stream.
       await writable.close()
@@ -279,6 +290,18 @@ export default class RenderResult<
    * @param res
    */
   public async pipeToNodeResponse(res: ServerResponse) {
-    await pipeToNodeResponse(this.readable, res, this.waitUntil)
+    await pipeToNodeResponse(
+      this.readable,
+      res,
+      // Create a promise that will only run this callback when it's awaited. It
+      // will start the queue and wait until all the tasks are done.
+      scheduleLazily(() => {
+        if (this.waitUntilQueue.size === 0) {
+          return Promise.resolve()
+        }
+
+        return this.waitUntilQueue.start().onIdle()
+      })
+    )
   }
 }

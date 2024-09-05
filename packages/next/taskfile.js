@@ -663,6 +663,14 @@ export async function ncc_p_queue(task, opts) {
     .ncc({ packageName: 'p-queue', externals })
     .target('src/compiled/p-queue')
 }
+// eslint-disable-next-line camelcase
+externals['p-lazy'] = 'next/dist/compiled/p-lazy'
+export async function ncc_p_lazy(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('p-lazy')))
+    .ncc({ packageName: 'p-lazy', externals })
+    .target('src/compiled/p-lazy')
+}
 
 // eslint-disable-next-line camelcase
 externals['raw-body'] = 'next/dist/compiled/raw-body'
@@ -2279,6 +2287,7 @@ export async function ncc(task, opts) {
         'ncc_napirs_triples',
         'ncc_p_limit',
         'ncc_p_queue',
+        'ncc_p_lazy',
         'ncc_raw_body',
         'ncc_image_size',
         'ncc_hapi_accept',

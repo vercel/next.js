@@ -1313,6 +1313,9 @@ importers:
       os-browserify:
         specifier: 0.3.0
         version: 0.3.0
+      p-lazy:
+        specifier: 3.1.0
+        version: 3.1.0
       p-limit:
         specifier: 3.1.0
         version: 3.1.0
@@ -11151,6 +11154,10 @@ packages:
 
   p-finally@2.0.1:
     resolution: {integrity: sha512-vpm09aKwq6H9phqRQzecoDpD8TmVyGw70qmWlyq5onxY7tqyTTFVvxMykxQSQKILBSFlbXpypIw2T1Ml7+DDtw==}
+    engines: {node: '>=8'}
+
+  p-lazy@3.1.0:
+    resolution: {integrity: sha512-sCJn0Cdahs6G6SX9+DUihVFUhrzDEduzE5xeViVBGtoqy5dBWko7W8T6Kk6TjR2uevRXJO7CShfWrqdH5s3w3g==}
     engines: {node: '>=8'}
 
   p-limit@1.3.0:
@@ -27264,6 +27271,8 @@ snapshots:
   p-finally@1.0.0: {}
 
   p-finally@2.0.1: {}
+
+  p-lazy@3.1.0: {}
 
   p-limit@1.3.0:
     dependencies:
