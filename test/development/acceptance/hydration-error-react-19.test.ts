@@ -4,7 +4,8 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import { outdent } from 'outdent'
 import path from 'path'
 
-describe('Error overlay for hydration errors (React 19)', () => {
+// TODO: Enable once React 19 support is added to pages.
+describe.skip('Error overlay for hydration errors (React 19)', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
