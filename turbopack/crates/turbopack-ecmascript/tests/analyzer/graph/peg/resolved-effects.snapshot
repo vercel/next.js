@@ -383,22 +383,45 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 115 member call = ???*0*["sort"]()
-- *0* unknown new expression
+0 -> 115 member call = new ???*0*(???*1*)["sort"]()
+- *0* FreeVar(Array)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
+- *1* ???*2*["length"]
+  ⚠️  unknown object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-0 -> 120 conditional = (???*0* !== ???*3*)
-- *0* ???*1*[???*2*]
+0 -> 120 conditional = (???*0* !== ???*6*)
+- *0* ???*1*[???*5*]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *1* unknown new expression
+- *1* new ???*2*(???*3*)
+  ⚠️  nested operation
+- *2* FreeVar(Array)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *2* unsupported expression
+- *3* ???*4*["length"]
+  ⚠️  unknown object
+- *4* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *5* unsupported expression
   ⚠️  This value might have side effects
-- *3* ???*4*[i]
+- *6* ???*7*[(???*11* | 0 | ???*12* | 1)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *4* unknown new expression
+- *7* new ???*8*(???*9*)
+  ⚠️  nested operation
+- *8* FreeVar(Array)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *9* ???*10*["length"]
+  ⚠️  unknown object
+- *10* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *11* i
+  ⚠️  pattern without value
+- *12* updated with update expression
   ⚠️  This value might have side effects
 
 0 -> 126 unreachable = ???*0*
@@ -409,19 +432,33 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 132 member call = ???*0*["slice"](0, ???*1*)
-- *0* unknown new expression
+0 -> 132 member call = new ???*0*(???*1*)["slice"](0, ???*3*)
+- *0* FreeVar(Array)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *1* unsupported expression
+- *1* ???*2*["length"]
+  ⚠️  unknown object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *3* unsupported expression
   ⚠️  This value might have side effects
 
 0 -> 133 member call = ???*0*["join"](", ")
-- *0* ???*1*["slice"](0, ???*2*)
-  ⚠️  unknown callee object
+- *0* ???*1*(0, ???*6*)
+  ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *1* unknown new expression
+- *1* ???*2*["slice"]
+  ⚠️  unknown object
+- *2* new ???*3*(???*4*)
+  ⚠️  nested operation
+- *3* FreeVar(Array)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *2* unsupported expression
+- *4* ???*5*["length"]
+  ⚠️  unknown object
+- *5* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *6* unsupported expression
   ⚠️  This value might have side effects
 
 0 -> 136 unreachable = ???*0*
@@ -485,16 +522,14 @@
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-142 -> 153 call = (...) => ???*0*([], (???*1* ? ???*2* : null), ???*4*)
-- *0* unknown new expression
+142 -> 153 call = (...) => new peg$SyntaxError(peg$SyntaxError["buildMessage"](expected, found), expected, found, location)([], (???*0* ? ???*1* : null), ???*3*)
+- *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* ???*3*["charAt"](peg$maxFailPos)
+- *1* ???*2*["charAt"](peg$maxFailPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *2* arguments[0]
   ⚠️  function calls are not analysed yet
-- *4* max number of linking steps reached
+- *3* max number of linking steps reached
   ⚠️  This value might have side effects
 
 142 -> 154 unreachable = ???*0*
@@ -1115,16 +1150,14 @@
 - *2* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 344 call = (...) => ???*0*([{"type": "other", "description": ???*1*}], ???*2*, ???*4*)
-- *0* unknown new expression
-  ⚠️  This value might have side effects
-- *1* arguments[0]
+0 -> 344 call = (...) => new peg$SyntaxError(peg$SyntaxError["buildMessage"](expected, found), expected, found, location)([{"type": "other", "description": ???*0*}], ???*1*, ???*3*)
+- *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *2* ???*3*["substring"](peg$savedPos, peg$currPos)
+- *1* ???*2*["substring"](peg$savedPos, peg$currPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *2* arguments[0]
   ⚠️  function calls are not analysed yet
-- *4* max number of linking steps reached
+- *3* max number of linking steps reached
   ⚠️  This value might have side effects
 
 0 -> 345 conditional = ???*0*
@@ -1140,12 +1173,10 @@
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 347 call = (...) => ???*0*(???*1*, ???*2*)
-- *0* unknown new expression
-  ⚠️  This value might have side effects
-- *1* arguments[0]
+0 -> 347 call = (...) => new peg$SyntaxError(message, null, null, location)(???*0*, ???*1*)
+- *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *2* max number of linking steps reached
+- *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
 0 -> 348 unreachable = ???*0*

@@ -1,9 +1,19 @@
 0 -> 2 free var = FreeVar(module)
 
-0 -> 3 typeof = typeof((???*0* | ???*1*))
+0 -> 3 typeof = typeof((???*0* | new ???*1*(???*2*)))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* FreeVar(Array)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *2* ???*3*["length"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *3* ???*4*(FreeVar(encodeURIComponent)(bytes))
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *4* FreeVar(unescape)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 0 -> 4 conditional = (???*0* == "string")
@@ -11,20 +21,42 @@
   ⚠️  nested operation
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
-- *2* unknown new expression
+- *2* new ???*3*(???*4*)
+  ⚠️  nested operation
+- *3* FreeVar(Array)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *4* ???*5*["length"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *5* ???*6*(FreeVar(encodeURIComponent)(bytes))
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *6* FreeVar(unescape)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 4 -> 5 free var = FreeVar(unescape)
 
 4 -> 6 free var = FreeVar(encodeURIComponent)
 
-4 -> 7 call = ???*0*((???*1* | ???*2*))
+4 -> 7 call = ???*0*((???*1* | new ???*2*(???*3*)))
 - *0* FreeVar(encodeURIComponent)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
-- *2* unknown new expression
+- *2* FreeVar(Array)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *3* ???*4*["length"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *4* ???*5*(FreeVar(encodeURIComponent)(bytes))
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *5* FreeVar(unescape)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 4 -> 8 call = ???*0*(???*1*)
@@ -50,10 +82,20 @@
 - *2* updated with update expression
   ⚠️  This value might have side effects
 
-0 -> 15 call = (...) => output((???*0* | ???*1*))
+0 -> 15 call = (...) => output((???*0* | new ???*1*(???*2*)))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* FreeVar(Array)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *2* ???*3*["length"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *3* ???*4*(FreeVar(encodeURIComponent)(bytes))
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *4* FreeVar(unescape)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 0 -> 17 call = (...) => [a, b, c, d]([], ???*0*)
