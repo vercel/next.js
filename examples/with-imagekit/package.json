@@ -12,7 +12,7 @@
     "next": "14.2.4",
     "react": "^18",
     "react-dom": "^18",
-    "react-responsive-masonry": "^2.2.0"
+    "react-responsive-masonry": "^2.2.2"
   },
   "devDependencies": {
     "@types/node": "^20",
