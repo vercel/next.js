@@ -1031,6 +1031,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     middlewareConfig: Buffer.from(
                       JSON.stringify(staticInfo?.middleware || {})
                     ).toString('base64'),
+                    interceptors: this.config.experimental.interceptors
+                      ? true
+                      : undefined,
                   })
                 } else if (isAPIRoute(page)) {
                   value = getRouteLoaderEntry({

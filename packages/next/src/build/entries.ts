@@ -672,6 +672,7 @@ export async function createEntrypoints(
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
               flyingShuttle: Boolean(config.experimental.flyingShuttle),
+              interceptors: config.experimental.interceptors ? true : undefined,
               nextConfigExperimentalUseEarlyImport: config.experimental
                 .useEarlyImport
                 ? true

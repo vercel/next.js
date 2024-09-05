@@ -48,6 +48,7 @@ export type AppLoaderOptions = {
   isDev?: true
   basePath: string
   flyingShuttle?: boolean
+  interceptors?: true
   nextConfigOutput?: NextConfig['output']
   nextConfigExperimentalUseEarlyImport?: true
   middlewareConfig: string
@@ -60,6 +61,7 @@ const FILE_TYPES = {
   error: 'error',
   loading: 'loading',
   'not-found': 'not-found',
+  interceptor: 'interceptor',
 } as const
 
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
@@ -115,6 +117,7 @@ async function createTreeCodeFromPath(
     buildInfo,
     flyingShuttle,
     collectedDeclarations,
+    interceptors,
   }: {
     page: string
     flyingShuttle?: boolean
@@ -129,6 +132,7 @@ async function createTreeCodeFromPath(
     pageExtensions: PageExtensions
     basePath: string
     collectedDeclarations: [string, string][]
+    interceptors?: boolean
   }
 ): Promise<{
   treeCode: string
@@ -276,19 +280,21 @@ async function createTreeCodeFromPath(
       // Fill in the loader tree for all of the special files types (layout, default, etc) at this level
       // `page` is not included here as it's added above.
       const filePaths = await Promise.all(
-        Object.values(FILE_TYPES).map(async (file) => {
-          return [
-            file,
-            await resolver(
-              `${appDirPrefix}${
-                // TODO-APP: parallelSegmentPath sometimes ends in `/` but sometimes it doesn't. This should be consistent.
-                parallelSegmentPath.endsWith('/')
-                  ? parallelSegmentPath
-                  : parallelSegmentPath + '/'
-              }${file}`
-            ),
-          ] as const
-        })
+        Object.values(FILE_TYPES)
+          .filter((file) => file !== 'interceptor' || interceptors)
+          .map(async (file) => {
+            return [
+              file,
+              await resolver(
+                `${appDirPrefix}${
+                  // TODO-APP: parallelSegmentPath sometimes ends in `/` but sometimes it doesn't. This should be consistent.
+                  parallelSegmentPath.endsWith('/')
+                    ? parallelSegmentPath
+                    : parallelSegmentPath + '/'
+                }${file}`
+              ),
+            ] as const
+          })
       )
 
       const definedFilePaths = filePaths.filter(([, filePath]) => {
@@ -478,6 +484,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     preferredRegion,
     basePath,
     flyingShuttle,
+    interceptors,
     middlewareConfig: middlewareConfigBase64,
     nextConfigExperimentalUseEarlyImport,
   } = loaderOptions
@@ -675,6 +682,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     collectedDeclarations,
     buildInfo,
     flyingShuttle,
+    interceptors,
   })
 
   if (!treeCodeResult.rootLayout) {
@@ -726,6 +734,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         collectedDeclarations,
         buildInfo,
         flyingShuttle,
+        interceptors,
       })
     }
   }

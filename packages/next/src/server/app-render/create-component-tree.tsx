@@ -20,6 +20,7 @@ import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { Params } from '../request/params'
+import type { NextRequest } from '../web/exports'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -71,6 +72,7 @@ async function createComponentTreeInternal({
   ctx,
   missingSlots,
   preloadCallbacks,
+  interceptors = [],
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
@@ -84,6 +86,7 @@ async function createComponentTreeInternal({
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
+  interceptors?: (() => Promise<void>)[]
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -111,7 +114,14 @@ async function createComponentTreeInternal({
   const { page, layoutOrPagePath, segment, modules, parallelRoutes } =
     parseLoaderTree(tree)
 
-  const { layout, template, error, loading, 'not-found': notFound } = modules
+  const {
+    layout,
+    template,
+    error,
+    loading,
+    'not-found': notFound,
+    interceptor,
+  } = modules
 
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
   const injectedJSWithCurrentLayout = new Set(injectedJS)
@@ -158,6 +168,34 @@ async function createComponentTreeInternal({
       })
     : []
 
+  const [NotFound, notFoundStyles] = notFound
+    ? await createComponentStylesAndScripts({
+        ctx,
+        filePath: notFound[1],
+        getComponent: notFound[0],
+        injectedCSS: injectedCSSWithCurrentLayout,
+        injectedJS: injectedJSWithCurrentLayout,
+      })
+    : []
+
+  const interceptRequest: (request: NextRequest) => Promise<void> = interceptor
+    ? interopDefault(await interceptor[0]())
+    : undefined
+
+  let interceptorPromise: Promise<void> | undefined
+
+  const childInterceptor = interceptRequest
+    ? () => {
+        if (!interceptorPromise) {
+          interceptorPromise = interceptRequest({
+            url: '/TODO',
+          } as NextRequest)
+        }
+
+        return interceptorPromise
+      }
+    : undefined
+
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
   const { mod: layoutOrPageMod } = await getTracer().trace(
@@ -181,16 +219,6 @@ async function createComponentTreeInternal({
    */
   const rootLayoutIncludedAtThisLevelOrAbove =
     rootLayoutIncluded || rootLayoutAtThisLevel
-
-  const [NotFound, notFoundStyles] = notFound
-    ? await createComponentStylesAndScripts({
-        ctx,
-        filePath: notFound[1],
-        getComponent: notFound[0],
-        injectedCSS: injectedCSSWithCurrentLayout,
-        injectedJS: injectedJSWithCurrentLayout,
-      })
-    : []
 
   let dynamic = layoutOrPageMod?.dynamic
 
@@ -304,6 +332,8 @@ async function createComponentTreeInternal({
     if (typeof NotFound !== 'undefined' && !isValidElementType(NotFound)) {
       errorMissingDefaultExport(pagePath, 'not-found')
     }
+
+    // TODO(interceptors): Add error handling for wrong interceptor export.
   }
 
   // Handle dynamic segment params.
@@ -411,6 +441,9 @@ async function createComponentTreeInternal({
             ctx,
             missingSlots,
             preloadCallbacks,
+            interceptors: childInterceptor
+              ? [...interceptors, childInterceptor]
+              : interceptors,
           })
 
           childCacheNodeSeedData = seedData
@@ -454,17 +487,23 @@ async function createComponentTreeInternal({
   }
 
   const loadingData: LoadingModuleData = Loading
-    ? [<Loading key="l" />, loadingStyles, loadingScripts]
+    ? [
+        <MaybeIntercepted key="l" interceptors={interceptors}>
+          <Loading />
+        </MaybeIntercepted>,
+        loadingStyles,
+        loadingScripts,
+      ]
     : null
 
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!MaybeComponent) {
     return [
       actualSegment,
-      <React.Fragment key={cacheNodeKey}>
+      <MaybeIntercepted key={cacheNodeKey} interceptors={interceptors}>
         {layerAssets}
         {parallelRouteProps.children}
-      </React.Fragment>,
+      </MaybeIntercepted>,
       parallelRouteCacheNodeSeedData,
       loadingData,
     ]
@@ -560,13 +599,13 @@ async function createComponentTreeInternal({
     }
     return [
       actualSegment,
-      <React.Fragment key={cacheNodeKey}>
+      <MaybeIntercepted key={cacheNodeKey} interceptors={interceptors}>
         {pageElement}
         {layerAssets}
         <OutletBoundary>
           <MetadataOutlet ready={getMetadataReady} />
         </OutletBoundary>
-      </React.Fragment>,
+      </MaybeIntercepted>,
       parallelRouteCacheNodeSeedData,
       loadingData,
     ]
@@ -631,33 +670,36 @@ async function createComponentTreeInternal({
           )
 
           segmentNode = (
-            <NotFoundBoundary
-              key={cacheNodeKey}
-              notFound={
-                <>
-                  {layerAssets}
-                  {notfoundClientSegment}
-                </>
-              }
-            >
-              {layerAssets}
-              {clientSegment}
-            </NotFoundBoundary>
+            <MaybeIntercepted interceptors={interceptors} key={cacheNodeKey}>
+              <NotFoundBoundary
+                notFound={
+                  <>
+                    {layerAssets}
+                    {notfoundClientSegment}
+                  </>
+                }
+              >
+                {layerAssets}
+                {clientSegment}
+              </NotFoundBoundary>
+            </MaybeIntercepted>
           )
         } else {
           segmentNode = (
-            <NotFoundBoundary key={cacheNodeKey}>
-              {layerAssets}
-              {clientSegment}
-            </NotFoundBoundary>
+            <MaybeIntercepted interceptors={interceptors} key={cacheNodeKey}>
+              <NotFoundBoundary>
+                {layerAssets}
+                {clientSegment}
+              </NotFoundBoundary>
+            </MaybeIntercepted>
           )
         }
       } else {
         segmentNode = (
-          <React.Fragment key={cacheNodeKey}>
+          <MaybeIntercepted key={cacheNodeKey} interceptors={interceptors}>
             {layerAssets}
             {clientSegment}
-          </React.Fragment>
+          </MaybeIntercepted>
         )
       }
     } else {
@@ -677,30 +719,31 @@ async function createComponentTreeInternal({
         // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
         // rely on the `NotFound` behavior.
         segmentNode = (
-          <NotFoundBoundary
-            key={cacheNodeKey}
-            notFound={
-              NotFound ? (
-                <>
-                  {layerAssets}
-                  <SegmentComponent params={params}>
-                    {notFoundStyles}
-                    <NotFound />
-                  </SegmentComponent>
-                </>
-              ) : undefined
-            }
-          >
-            {layerAssets}
-            {serverSegment}
-          </NotFoundBoundary>
+          <MaybeIntercepted interceptors={interceptors} key={cacheNodeKey}>
+            <NotFoundBoundary
+              notFound={
+                NotFound ? (
+                  <>
+                    {layerAssets}
+                    <SegmentComponent params={params}>
+                      {notFoundStyles}
+                      <NotFound />
+                    </SegmentComponent>
+                  </>
+                ) : undefined
+              }
+            >
+              {layerAssets}
+              {serverSegment}
+            </NotFoundBoundary>
+          </MaybeIntercepted>
         )
       } else {
         segmentNode = (
-          <React.Fragment key={cacheNodeKey}>
+          <MaybeIntercepted key={cacheNodeKey} interceptors={interceptors}>
             {layerAssets}
             {serverSegment}
-          </React.Fragment>
+          </MaybeIntercepted>
         )
       }
     }
@@ -727,4 +770,33 @@ async function MetadataOutlet({
     await r
   }
   return null
+}
+
+function MaybeIntercepted({
+  interceptors,
+  children,
+}: {
+  interceptors: (() => Promise<void>)[]
+  children: React.ReactNode
+}) {
+  return interceptors.length > 0 ? (
+    <Intercepted interceptors={interceptors}>{children}</Intercepted>
+  ) : (
+    children
+  )
+}
+
+async function Intercepted({
+  interceptors,
+  children,
+}: {
+  interceptors: (() => Promise<void>)[]
+  children: React.ReactNode
+}) {
+  // TODO: Allow concurrent execution of interceptors?
+  for (const interceptor of interceptors) {
+    await interceptor()
+  }
+
+  return children
 }

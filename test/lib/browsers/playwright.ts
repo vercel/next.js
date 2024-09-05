@@ -222,8 +222,20 @@ export class Playwright extends BrowserInterface {
     websocketFrames = []
 
     page.on('console', (msg) => {
+      const message = msg.text()
+
+      if (
+        message.includes(
+          'Download the React DevTools for a better development experience'
+        )
+      ) {
+        // Ignore the React DevTools hint that's printed when using a
+        // development build, to not interfere with CLI output matching.
+        return
+      }
+
       console.log('browser log:', msg)
-      pageLogs.push({ source: msg.type(), message: msg.text() })
+      pageLogs.push({ source: msg.type(), message })
     })
     page.on('crash', () => {
       console.error('page crashed')
