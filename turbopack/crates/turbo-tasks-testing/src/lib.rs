@@ -20,7 +20,7 @@ use turbo_tasks::{
     registry,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
-    CellId, ExecutionId, InvalidationReason, MagicAny, RawVc, ReadConsistency, TaskId,
+    CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadConsistency, TaskId,
     TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
 };
 
@@ -242,6 +242,24 @@ impl TurboTasksApi for VcStorage {
         self.read_own_task_cell(current_task, index)
     }
 
+    fn try_read_local_output(
+        &self,
+        parent_task_id: TaskId,
+        local_task_id: LocalTaskId,
+        consistency: ReadConsistency,
+    ) -> Result<Result<RawVc, EventListener>> {
+        self.try_read_local_output_untracked(parent_task_id, local_task_id, consistency)
+    }
+
+    fn try_read_local_output_untracked(
+        &self,
+        _parent_task_id: TaskId,
+        _local_task_id: LocalTaskId,
+        _consistency: ReadConsistency,
+    ) -> Result<Result<RawVc, EventListener>> {
+        unimplemented!()
+    }
+
     fn emit_collectible(&self, _trait_type: turbo_tasks::TraitTypeId, _collectible: RawVc) {
         unimplemented!()
     }
@@ -296,6 +314,10 @@ impl TurboTasksApi for VcStorage {
         _f: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>> {
         unimplemented!()
+    }
+
+    fn stop_and_wait(&self) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
+        Box::pin(async {})
     }
 }
 

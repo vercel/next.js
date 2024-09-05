@@ -567,7 +567,8 @@ impl ReactServerComponentValidator {
     }
 
     fn is_from_node_modules(&self, filepath: &str) -> bool {
-        Regex::new(r"node_modules[\\/]").unwrap().is_match(filepath)
+        static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"node_modules[\\/]").unwrap());
+        RE.is_match(filepath)
     }
 
     // Asserts the server lib apis
@@ -681,9 +682,9 @@ impl ReactServerComponentValidator {
         if self.is_from_node_modules(&self.filepath) {
             return;
         }
-        let is_layout_or_page = Regex::new(r"[\\/](page|layout)\.(ts|js)x?$")
-            .unwrap()
-            .is_match(&self.filepath);
+        static RE: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"[\\/](page|layout)\.(ts|js)x?$").unwrap());
+        let is_layout_or_page = RE.is_match(&self.filepath);
 
         if is_layout_or_page {
             let mut span = DUMMY_SP;

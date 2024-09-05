@@ -168,6 +168,7 @@ import { RouteKind } from './route-kind'
 import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
+import { scheduleOnNextTick } from '../lib/scheduler'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -2501,6 +2502,7 @@ export default abstract class Server<
                   headers,
                 },
                 revalidate,
+                isFallback: false,
               }
 
               return cacheEntry
@@ -2658,7 +2660,11 @@ export default abstract class Server<
 
       // Handle `isNotFound`.
       if ('isNotFound' in metadata && metadata.isNotFound) {
-        return { value: null, revalidate: metadata.revalidate }
+        return {
+          value: null,
+          revalidate: metadata.revalidate,
+          isFallback: false,
+        } satisfies ResponseCacheEntry
       }
 
       // Handle `isRedirect`.
@@ -2669,7 +2675,8 @@ export default abstract class Server<
             props: metadata.pageData ?? metadata.flightData,
           } satisfies CachedRedirectValue,
           revalidate: metadata.revalidate,
-        }
+          isFallback: false,
+        } satisfies ResponseCacheEntry
       }
 
       // Handle `isNull`.
@@ -2689,7 +2696,8 @@ export default abstract class Server<
             status: res.statusCode,
           } satisfies CachedAppPageValue,
           revalidate: metadata.revalidate,
-        }
+          isFallback: !!fallbackRouteParams,
+        } satisfies ResponseCacheEntry
       }
 
       return {
@@ -2701,6 +2709,7 @@ export default abstract class Server<
           status: isAppPath ? res.statusCode : undefined,
         } satisfies CachedPageValue,
         revalidate: metadata.revalidate ?? 1,
+        isFallback: query.__nextFallback === 'true',
       }
     }
 
@@ -2901,8 +2910,6 @@ export default abstract class Server<
           // used in the surrounding cache.
           delete fallbackResponse.revalidate
 
-          // TODO: when we're not in minimal mode, we should also kick off the
-          // more specific fallback shell generation.
           return fallbackResponse
         }
       }
@@ -2927,6 +2934,7 @@ export default abstract class Server<
       ) {
         return {
           revalidate: 1,
+          isFallback: false,
           value: {
             kind: CachedRouteKind.PAGES,
             html: RenderResult.fromStatic(''),
@@ -2973,6 +2981,42 @@ export default abstract class Server<
         throw new Error('invariant: cache entry required but not generated')
       }
       return null
+    }
+
+    // If we're not in minimal mode and the cache entry that was returned was a
+    // app page fallback, then we need to kick off the dynamic shell generation.
+    if (
+      ssgCacheKey &&
+      !this.minimalMode &&
+      isRoutePPREnabled &&
+      this.nextConfig.experimental.pprFallbacks &&
+      cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
+      cacheEntry.isFallback &&
+      !isOnDemandRevalidate
+    ) {
+      scheduleOnNextTick(async () => {
+        try {
+          await this.responseCache.get(
+            ssgCacheKey,
+            () =>
+              doRender({
+                // We're an on-demand request, so we don't need to pass in the
+                // fallbackRouteParams.
+                fallbackRouteParams: null,
+                postponed: undefined,
+              }),
+            {
+              routeKind: RouteKind.APP_PAGE,
+              incrementalCache,
+              isOnDemandRevalidate: true,
+              isPrefetch: false,
+              isRoutePPREnabled: true,
+            }
+          )
+        } catch (err) {
+          console.error('Error occurred while rendering dynamic shell', err)
+        }
+      })
     }
 
     const didPostpone =
@@ -3176,7 +3220,7 @@ export default abstract class Server<
     } else if (cachedData.kind === CachedRouteKind.APP_PAGE) {
       // If the request has a postponed state and it's a resume request we
       // should error.
-      if (cachedData.postponed && minimalPostponed) {
+      if (didPostpone && minimalPostponed) {
         throw new Error(
           'Invariant: postponed state should not be present on a resume request'
         )
@@ -3223,8 +3267,8 @@ export default abstract class Server<
         res.statusCode = cachedData.status
       }
 
-      // Mark that the request did postpone if this is a data request.
-      if (typeof cachedData.postponed === 'string' && isRSCRequest) {
+      // Mark that the request did postpone.
+      if (didPostpone) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
@@ -3266,7 +3310,7 @@ export default abstract class Server<
       // If there's no postponed state, we should just serve the HTML. This
       // should also be the case for a resume request because it's completed
       // as a server render (rather than a static render).
-      if (!cachedData.postponed || this.minimalMode) {
+      if (!didPostpone || this.minimalMode) {
         return {
           type: 'html',
           body,
