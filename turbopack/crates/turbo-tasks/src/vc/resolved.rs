@@ -15,7 +15,9 @@ use std::{
     time::Duration,
 };
 
+use anyhow::Result;
 use auto_hash_map::{AutoMap, AutoSet};
+use futures::Future;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
@@ -108,6 +110,56 @@ pub unsafe trait ResolvedValue {}
 
 unsafe impl<T: ?Sized + Send + ResolvedValue> ResolvedValue for ResolvedVc<T> {}
 
+pub trait ResolveDeep {
+    fn resolve_deep(&mut self) -> impl Future<Output = Result<()>> + Send + '_;
+}
+
+impl<T> ResolveDeep for &mut T
+where
+    T: ResolvedValue,
+{
+    #[expect(
+        clippy::manual_async_fn,
+        reason = "&mut self is !Send, https://github.com/rust-lang/rust-clippy/issues/12664"
+    )]
+    fn resolve_deep(&mut self) -> impl Future<Output = Result<()>> + Send + '_ {
+        async { Ok(()) }
+    }
+}
+
+impl<T: ?Sized + Send + ResolvedValue> ResolveDeep for Vc<T> {
+    async fn resolve_deep(&mut self) -> Result<()> {
+        // we require `T: ResolvedValue`; we can't recursively resolve `T` here because `ReadRef`
+        // gives us `&T`, not `&mut T`.
+        *self = self.resolve().await?;
+        Ok(())
+    }
+}
+
+impl<T: Send + ResolveDeep> ResolveDeep for Option<T> {
+    async fn resolve_deep(&mut self) -> Result<()> {
+        if let Some(el) = self {
+            el.resolve_deep().await?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: Send + ResolveDeep> ResolveDeep for Vec<T> {
+    async fn resolve_deep(&mut self) -> Result<()> {
+        for el in self {
+            el.resolve_deep().await?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: Send + ResolveDeep> ResolveDeep for Box<T> {
+    fn resolve_deep(&mut self) -> impl Future<Output = Result<()>> + Send + '_ {
+        (**self).resolve_deep()
+    }
+}
+
 macro_rules! impl_resolved {
     ($ty:ty) => {
         unsafe impl ResolvedValue for $ty {}
@@ -177,4 +229,4 @@ unsafe impl<T: ?Sized> ResolvedValue for PhantomData<T> {}
 unsafe impl<T: ResolvedValue + ?Sized> ResolvedValue for &T {}
 unsafe impl<T: ResolvedValue + ?Sized> ResolvedValue for &mut T {}
 
-pub use turbo_tasks_macros::ResolvedValue;
+pub use turbo_tasks_macros::{ResolveDeep, ResolvedValue};

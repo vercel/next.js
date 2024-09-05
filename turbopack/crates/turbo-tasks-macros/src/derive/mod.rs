@@ -1,4 +1,5 @@
 mod deterministic_hash_macro;
+mod resolve_deep_macro;
 mod resolved_value_macro;
 mod task_input_macro;
 mod trace_raw_vcs_macro;
@@ -6,6 +7,7 @@ mod value_debug_format_macro;
 mod value_debug_macro;
 
 pub use deterministic_hash_macro::derive_deterministic_hash;
+pub use resolve_deep_macro::derive_resolve_deep;
 pub use resolved_value_macro::derive_resolved_value;
 use syn::{spanned::Spanned, Attribute, Meta, MetaList, NestedMeta};
 pub use task_input_macro::derive_task_input;

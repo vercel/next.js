@@ -1,4 +1,5 @@
 //! Runtime helpers for [turbo-tasks-macro].
+pub use anyhow;
 pub use async_trait::async_trait;
 pub use once_cell::sync::{Lazy, OnceCell};
 pub use serde;

@@ -21,7 +21,7 @@ pub use self::{
     cell_mode::{VcCellMode, VcCellNewMode, VcCellSharedMode},
     default::ValueDefault,
     read::{ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
-    resolved::{ResolvedValue, ResolvedVc},
+    resolved::{ResolveDeep, ResolvedValue, ResolvedVc},
     traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},
 };
 use crate::{
@@ -550,27 +550,24 @@ where
     }
 }
 
-impl<T> std::future::IntoFuture for Vc<T>
-where
-    T: VcValueType,
-{
-    type Output = <ReadVcFuture<T> as std::future::Future>::Output;
-    type IntoFuture = ReadVcFuture<T>;
-    fn into_future(self) -> Self::IntoFuture {
-        self.node.into_read().into()
-    }
+macro_rules! into_future_impl {
+    ($ty:ty) => {
+        impl<T> std::future::IntoFuture for $ty
+        where
+            T: VcValueType,
+        {
+            type Output = <ReadVcFuture<T> as std::future::Future>::Output;
+            type IntoFuture = ReadVcFuture<T>;
+            fn into_future(self) -> Self::IntoFuture {
+                self.node.into_read().into()
+            }
+        }
+    };
 }
 
-impl<T> std::future::IntoFuture for &Vc<T>
-where
-    T: VcValueType,
-{
-    type Output = <Vc<T> as std::future::IntoFuture>::Output;
-    type IntoFuture = <Vc<T> as std::future::IntoFuture>::IntoFuture;
-    fn into_future(self) -> Self::IntoFuture {
-        (*self).into_future()
-    }
-}
+into_future_impl!(Vc<T>);
+into_future_impl!(&Vc<T>);
+into_future_impl!(&mut Vc<T>);
 
 impl<T> Vc<T>
 where
