@@ -8,25 +8,25 @@ use turbopack_core::{
     reference::{ModuleReferences, SingleModuleReference},
 };
 
-use super::chunk_item::IsolatedLoaderChunkItem;
+use super::chunk_item::WorkerLoaderChunkItem;
 
 #[turbo_tasks::function]
 fn modifier() -> Vc<RcStr> {
-    Vc::cell("isolated loader".into())
+    Vc::cell("worker loader".into())
 }
 
-/// The IsolatedLoaderModule is a module that loads another module async, by
-/// putting it into a separate chunk group.
+/// The WorkerLoaderModule is a module that creates a separate root chunk group for the given module
+/// and exports a URL to pass to the worker constructor.
 #[turbo_tasks::value]
-pub struct IsolatedLoaderModule {
+pub struct WorkerLoaderModule {
     pub inner: Vc<Box<dyn ChunkableModule>>,
 }
 
 #[turbo_tasks::value_impl]
-impl IsolatedLoaderModule {
+impl WorkerLoaderModule {
     #[turbo_tasks::function]
     pub fn new(module: Vc<Box<dyn ChunkableModule>>) -> Vc<Self> {
-        Self::cell(IsolatedLoaderModule { inner: module })
+        Self::cell(WorkerLoaderModule { inner: module })
     }
 
     #[turbo_tasks::function]
@@ -37,11 +37,11 @@ impl IsolatedLoaderModule {
 
 #[turbo_tasks::function]
 fn inner_module_reference_description() -> Vc<RcStr> {
-    Vc::cell("isolated module".into())
+    Vc::cell("worker module".into())
 }
 
 #[turbo_tasks::value_impl]
-impl Module for IsolatedLoaderModule {
+impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         Self::asset_ident_for(self.inner)
@@ -57,7 +57,7 @@ impl Module for IsolatedLoaderModule {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for IsolatedLoaderModule {
+impl Asset for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         todo!()
@@ -65,14 +65,14 @@ impl Asset for IsolatedLoaderModule {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModule for IsolatedLoaderModule {
+impl ChunkableModule for WorkerLoaderModule {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         Ok(Vc::upcast(
-            IsolatedLoaderChunkItem {
+            WorkerLoaderChunkItem {
                 chunking_context,
                 module: self,
             }

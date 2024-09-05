@@ -4,7 +4,7 @@ use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
     quote_expr,
 };
-use turbo_tasks::{debug::ValueDebug, RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -21,8 +21,8 @@ use turbopack_resolve::ecmascript::try_to_severity;
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
-    isolated_chunk::module::IsolatedLoaderModule,
     references::AstPath,
+    worker_chunk::module::WorkerLoaderModule,
 };
 
 #[turbo_tasks::value]
@@ -59,7 +59,7 @@ impl WorkerAssetReference {
 }
 
 impl WorkerAssetReference {
-    async fn worker_loader_module(self: &WorkerAssetReference) -> Result<Vc<IsolatedLoaderModule>> {
+    async fn worker_loader_module(self: &WorkerAssetReference) -> Result<Vc<WorkerLoaderModule>> {
         let module = url_resolve(
             self.origin,
             self.request,
@@ -74,7 +74,7 @@ impl WorkerAssetReference {
         else {
             bail!("x");
         };
-        Ok(IsolatedLoaderModule::new(chunkable))
+        Ok(WorkerLoaderModule::new(chunkable))
     }
 }
 
