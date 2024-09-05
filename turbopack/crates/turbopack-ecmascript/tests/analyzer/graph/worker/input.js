@@ -1,1 +1,2 @@
-new Worker(new URL('./worker.ts', import.meta.url))
+let workerUrl = new URL('./worker.ts', import.meta.url);
+new Worker(workerUrl)

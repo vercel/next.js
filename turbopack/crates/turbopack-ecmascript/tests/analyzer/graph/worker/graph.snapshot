@@ -1,1 +1,10 @@
-[]
+[
+    (
+        "workerUrl",
+        RelUrl(
+            Word(
+                "./worker.ts",
+            ),
+        ),
+    ),
+]

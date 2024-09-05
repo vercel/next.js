@@ -398,6 +398,8 @@ pub enum JsValue {
     Constant(ConstantValue),
     /// An constant URL object.
     Url(Box<Url>),
+    /// A constant URL string relative to the current module
+    RelUrl(ConstantString),
     /// Some kind of well-known object
     /// (must not be an array, otherwise Array.concat needs to be changed)
     WellKnownObject(WellKnownObjectKind),
@@ -588,6 +590,7 @@ impl Display for JsValue {
         match self {
             JsValue::Constant(v) => write!(f, "{v}"),
             JsValue::Url(url) => write!(f, "{}", url),
+            JsValue::RelUrl(url) => write!(f, "{}", url),
             JsValue::Array { items, mutable, .. } => write!(
                 f,
                 "{}[{}]",
@@ -763,6 +766,7 @@ impl JsValue {
         match self {
             JsValue::Constant(..)
             | JsValue::Url(..)
+            | JsValue::RelUrl(..)
             | JsValue::WellKnownObject(..)
             | JsValue::WellKnownFunction(..)
             | JsValue::Unknown { .. } => JsValueMetaKind::Leaf,
@@ -993,6 +997,7 @@ impl JsValue {
         match self {
             JsValue::Constant(_)
             | JsValue::Url(_)
+            | JsValue::RelUrl(_)
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
             | JsValue::Module(..)
@@ -1024,6 +1029,7 @@ impl JsValue {
     fn update_total_nodes(&mut self) {
         match self {
             JsValue::Constant(_)
+            | JsValue::RelUrl(_)
             | JsValue::Url(_)
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
@@ -1135,6 +1141,7 @@ impl JsValue {
             match self {
                 JsValue::Constant(_)
                 | JsValue::Url(_)
+                | JsValue::RelUrl(_)
                 | JsValue::FreeVar(_)
                 | JsValue::Variable(_)
                 | JsValue::Module(..)
@@ -1341,6 +1348,7 @@ impl JsValue {
                 )
             ),
             JsValue::Url(url) => format!("{}", url),
+            JsValue::RelUrl(url) => format!("{}", url),
             JsValue::Alternatives {
                 total_nodes: _,
                 values,
@@ -2050,6 +2058,7 @@ impl JsValue {
             }
             JsValue::Member(_, obj, prop) => obj.has_side_effects() || prop.has_side_effects(),
             JsValue::Function(_, _, _) => false,
+            JsValue::RelUrl(_) => false,
             JsValue::Url(_) => false,
             JsValue::Variable(_) => false,
             JsValue::Module(_) => false,
@@ -2255,6 +2264,7 @@ impl JsValue {
             | JsValue::Array { .. }
             | JsValue::Object { .. }
             | JsValue::Url(..)
+            | JsValue::RelUrl(..)
             | JsValue::Module(..)
             | JsValue::Function(..)
             | JsValue::WellKnownObject(_)
@@ -2620,6 +2630,7 @@ macro_rules! for_each_children_async {
             | JsValue::Variable(_)
             | JsValue::Module(..)
             | JsValue::Url(_)
+            | JsValue::RelUrl(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
             | JsValue::Unknown { .. }
@@ -2934,6 +2945,7 @@ impl JsValue {
             | JsValue::Variable(_)
             | JsValue::Module(..)
             | JsValue::Url(_)
+            | JsValue::RelUrl(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
             | JsValue::Unknown { .. }
@@ -3128,6 +3140,7 @@ impl JsValue {
             | JsValue::Variable(_)
             | JsValue::Module(..)
             | JsValue::Url(_)
+            | JsValue::RelUrl(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
             | JsValue::Unknown { .. }
@@ -3469,6 +3482,7 @@ impl JsValue {
             JsValue::Constant(v) => Hash::hash(v, state),
             JsValue::Object { parts, .. } => all_parts_similar_hash(parts, state, depth - 1),
             JsValue::Url(v) => Hash::hash(v, state),
+            JsValue::RelUrl(v) => Hash::hash(v, state),
             JsValue::FreeVar(v) => Hash::hash(v, state),
             JsValue::Variable(v) => Hash::hash(v, state),
             JsValue::Array { items: v, .. }

@@ -1,94 +1,4 @@
 [
-    Worker {
-        url: New(
-            6,
-            FreeVar(
-                "URL",
-            ),
-            [
-                Constant(
-                    Str(
-                        Word(
-                            "./worker.ts",
-                        ),
-                    ),
-                ),
-                Member(
-                    3,
-                    WellKnownObject(
-                        ImportMeta,
-                    ),
-                    Constant(
-                        Str(
-                            Atom(
-                                "url",
-                            ),
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        options: None,
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    0,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                New,
-            ),
-        ],
-        span: 1..52,
-        in_try: false,
-    },
-    FreeVar {
-        var: FreeVar(
-            "Worker",
-        ),
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    0,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                New,
-            ),
-            NewExpr(
-                Callee,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 5..11,
-        in_try: false,
-    },
     Url {
         input: Constant(
             Str(
@@ -110,27 +20,24 @@
                 Stmt,
             ),
             Stmt(
-                Expr,
+                Decl,
             ),
-            ExprStmt(
-                Expr,
+            Decl(
+                Var,
             ),
-            Expr(
-                New,
-            ),
-            NewExpr(
-                Args(
+            VarDecl(
+                Decls(
                     0,
                 ),
             ),
-            ExprOrSpread(
-                Expr,
+            VarDeclarator(
+                Init,
             ),
             Expr(
                 New,
             ),
         ],
-        span: 12..51,
+        span: 17..56,
         in_try: false,
     },
     FreeVar {
@@ -150,21 +57,18 @@
                 Stmt,
             ),
             Stmt(
-                Expr,
+                Decl,
             ),
-            ExprStmt(
-                Expr,
+            Decl(
+                Var,
             ),
-            Expr(
-                New,
-            ),
-            NewExpr(
-                Args(
+            VarDecl(
+                Decls(
                     0,
                 ),
             ),
-            ExprOrSpread(
-                Expr,
+            VarDeclarator(
+                Init,
             ),
             Expr(
                 New,
@@ -176,7 +80,7 @@
                 Ident,
             ),
         ],
-        span: 16..19,
+        span: 21..24,
         in_try: false,
     },
     Member {
@@ -203,21 +107,18 @@
                 Stmt,
             ),
             Stmt(
-                Expr,
+                Decl,
             ),
-            ExprStmt(
-                Expr,
+            Decl(
+                Var,
             ),
-            Expr(
-                New,
-            ),
-            NewExpr(
-                Args(
+            VarDecl(
+                Decls(
                     0,
                 ),
             ),
-            ExprOrSpread(
-                Expr,
+            VarDeclarator(
+                Init,
             ),
             Expr(
                 New,
@@ -234,7 +135,7 @@
                 Member,
             ),
         ],
-        span: 35..50,
+        span: 40..55,
         in_try: false,
     },
     ImportMeta {
@@ -251,21 +152,18 @@
                 Stmt,
             ),
             Stmt(
-                Expr,
+                Decl,
             ),
-            ExprStmt(
-                Expr,
+            Decl(
+                Var,
             ),
-            Expr(
-                New,
-            ),
-            NewExpr(
-                Args(
+            VarDecl(
+                Decls(
                     0,
                 ),
             ),
-            ExprOrSpread(
-                Expr,
+            VarDeclarator(
+                Init,
             ),
             Expr(
                 New,
@@ -288,7 +186,75 @@
                 MetaProp,
             ),
         ],
-        span: 35..46,
+        span: 40..51,
+        in_try: false,
+    },
+    Worker {
+        url: Variable(
+            (
+                "workerUrl",
+                #2,
+            ),
+        ),
+        options: None,
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    1,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                New,
+            ),
+        ],
+        span: 58..79,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "Worker",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    1,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                New,
+            ),
+            NewExpr(
+                Callee,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 62..68,
         in_try: false,
     },
 ]

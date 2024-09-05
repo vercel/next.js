@@ -596,8 +596,21 @@ impl EvalContext {
                     return JsValue::unknown_empty(true, "spread in new calls is not supported");
                 }
 
-                let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
+                let args: Vec<_> = args.iter().map(|arg| self.eval(&arg.expr)).collect();
                 let callee = Box::new(self.eval(callee));
+                if *callee == JsValue::FreeVar("URL".into()) && args.len() == 2 {
+                    if let [JsValue::Constant(ConstantValue::Str(url)), JsValue::Member(
+                        _,
+                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
+                        box JsValue::Constant(ConstantValue::Str(prop)),
+                    )] = &args[..]
+                    {
+                        if prop.as_str() == "url" {
+                            // TODO avoid clone
+                            return JsValue::RelUrl(url.clone());
+                        }
+                    }
+                }
                 JsValue::new(callee, args)
             }
 
