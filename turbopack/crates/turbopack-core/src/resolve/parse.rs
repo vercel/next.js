@@ -76,7 +76,7 @@ fn split_off_query_fragment(raw: RcStr) -> (Pattern, Vc<RcStr>, Vc<RcStr>) {
 
     (
         Pattern::Constant(raw.into()),
-        Vc::cell(query.into()),
+        Vc::cell(format!("?{}", query).into()),
         Vc::cell(format!("#{}", fragment).into()),
     )
 }
