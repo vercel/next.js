@@ -32,7 +32,7 @@ use turbopack_core::compile_time_info::{
 use url::Url;
 
 use self::imports::ImportAnnotations;
-pub(crate) use self::imports::ImportMap;
+pub(crate) use self::imports::{ImportMap, ImportOverrides};
 use crate::{references::require_context::RequireContextMap, utils::StringifyJs};
 
 pub mod builtin;

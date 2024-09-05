@@ -140,16 +140,56 @@ pub(crate) struct ImportMap {
     /// True if the module is an ESM module due to top-level await.
     has_top_level_await: bool,
 
-    /// Locations of webpackIgnore or turbopackIgnore comments
-    /// This is a webpack feature that allows opting out of static
-    /// imports, which we should respect.
+    /// Locations of [webpack-style "magic comments"][magic] that override import behaviors.
+    ///
+    /// Most commonly, these are `/* webpackIgnore: true */` comments. See [ImportOverrides] for
+    /// full details.
+    ///
+    /// [magic]: https://webpack.js.org/api/module-methods/#magic-comments
+    overrides: HashMap<BytePos, ImportOverrides>,
+}
+
+/// Represents a collection of [webpack-style "magic comments"][magic] that override import
+/// behaviors.
+///
+/// [magic]: https://webpack.js.org/api/module-methods/#magic-comments
+#[derive(Debug)]
+pub(crate) struct ImportOverrides {
+    /// Should we ignore this import expression when bundling? If so, the import expression will be
+    /// left as-is in Turbopack's output.
+    ///
+    /// This is set by using either a `webpackIgnore` or `turbopackIgnore` comment.
     ///
     /// Example:
     /// ```js
     /// const a = import(/* webpackIgnore: true */ "a");
     /// const b = import(/* turbopackIgnore: true */ "b");
     /// ```
-    pub turbopack_ignores: HashMap<BytePos, bool>,
+    pub ignore: bool,
+}
+
+impl ImportOverrides {
+    pub const fn empty() -> Self {
+        ImportOverrides { ignore: false }
+    }
+
+    pub fn empty_ref() -> &'static Self {
+        // use `Self::empty` here as `Default::default` isn't const
+        static DEFAULT_VALUE: ImportOverrides = ImportOverrides::empty();
+        &DEFAULT_VALUE
+    }
+}
+
+impl Default for ImportOverrides {
+    fn default() -> Self {
+        ImportOverrides::empty()
+    }
+}
+
+impl Default for &ImportOverrides {
+    fn default() -> Self {
+        ImportOverrides::empty_ref()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -194,8 +234,8 @@ impl ImportMap {
         None
     }
 
-    pub fn get_ignore(&self, span: Span) -> Option<bool> {
-        self.turbopack_ignores.get(&span.lo).copied()
+    pub fn get_overrides(&self, span: Span) -> &ImportOverrides {
+        self.overrides.get(&span.lo).unwrap_or_default()
     }
 
     // TODO this could return &str instead of String to avoid cloning
@@ -463,7 +503,7 @@ impl Visit for Analyzer<'_> {
             };
 
             // we are interested here in the last comment with a valid directive
-            let ignore_statement = n
+            let ignore_directive = n
                 .args
                 .first()
                 .map(|arg| arg.span_lo())
@@ -482,10 +522,15 @@ impl Visit for Analyzer<'_> {
                 })
                 .next();
 
-            if let Some((callee_span, ignore_statement)) = callee_span.zip(ignore_statement) {
-                self.data
-                    .turbopack_ignores
-                    .insert(callee_span.lo, ignore_statement);
+            // potentially support more webpack magic comments in the future:
+            // https://webpack.js.org/api/module-methods/#magic-comments
+            if let Some((callee_span, ignore_directive)) = callee_span.zip(ignore_directive) {
+                self.data.overrides.insert(
+                    callee_span.lo,
+                    ImportOverrides {
+                        ignore: ignore_directive,
+                    },
+                );
             };
         }
 

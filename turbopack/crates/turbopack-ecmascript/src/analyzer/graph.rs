@@ -1246,8 +1246,8 @@ impl VisitAstPath for Analyzer<'_> {
                             ignore: self
                                 .eval_context
                                 .imports
-                                .get_ignore(n.callee.span())
-                                .unwrap_or_default(),
+                                .get_overrides(n.callee.span())
+                                .ignore,
                         }),
                     );
                 }
