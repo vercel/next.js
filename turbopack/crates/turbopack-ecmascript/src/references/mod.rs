@@ -18,9 +18,7 @@ pub mod util;
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap, HashSet},
-    future::Future,
     mem::take,
-    pin::Pin,
     sync::Arc,
 };
 
@@ -1243,30 +1241,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         .await
 }
 
-fn handle_call_boxed<'a, G: Fn(Vec<Effect>) + Send + Sync + 'a>(
-    ast_path: &'a [AstParentKind],
-    span: Span,
-    func: JsValue,
-    this: JsValue,
-    args: Vec<EffectArg>,
-    state: &'a AnalysisState<'a>,
-    add_effects: &'a G,
-    analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
-    in_try: bool,
-) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
-    Box::pin(handle_call(
-        ast_path,
-        span,
-        func,
-        this,
-        args,
-        state,
-        add_effects,
-        analysis,
-        in_try,
-    ))
-}
-
 async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
     ast_path: &[AstParentKind],
     span: Span,
@@ -1317,7 +1291,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             logical_property: _,
         } => {
             for alt in values {
-                handle_call_boxed(
+                Box::pin(handle_call(
                     ast_path,
                     span,
                     alt,
@@ -1327,7 +1301,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     add_effects,
                     analysis,
                     in_try,
-                )
+                ))
                 .await?;
             }
         }
