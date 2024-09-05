@@ -7555,10 +7555,10 @@
     },
     "test/integration/config-promise-error/test/index.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Promise in next config production mode should warn when a promise is returned on webpack"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -7879,9 +7879,7 @@
         "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
       ],
       "failed": [
-        "CSS Module Composes Usage (External) production mode should have compiled successfully",
         "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
-        "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
         "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
         "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
       ],
@@ -15300,10 +15298,10 @@
     },
     "test/integration/turbotrace-with-webpack-worker/test/index.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "build trace with extra entries production mode should build and trace correctly"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -16579,6 +16577,8 @@
       "passed": [],
       "failed": [
         "required server files app router middleware rewrite should work with a dynamic path",
+        "required server files app router middleware rewrite should work with a dynamic path (with Next-Resume)",
+        "required server files app router middleware rewrite should work with a dynamic path (without Next-Resume)",
         "required server files app router should handle RSC requests",
         "required server files app router should handle prefetch RSC requests",
         "required server files app router should not fail caching",
@@ -16587,8 +16587,12 @@
         "required server files app router should properly handle fallback for bot request",
         "required server files app router should properly handle prerender for bot request",
         "required server files app router should properly stream resume",
+        "required server files app router should properly stream resume with Next-Resume",
+        "required server files app router should properly stream resume without Next-Resume",
         "required server files app router should send cache tags in minimal mode for ISR",
-        "required server files app router should still render when postponed is corrupted"
+        "required server files app router should still render when postponed is corrupted",
+        "required server files app router should still render when postponed is corrupted with Next-Resume",
+        "required server files app router should still render when postponed is corrupted without Next-Resume"
       ],
       "pending": [],
       "flakey": [],

@@ -20,6 +20,8 @@ export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'
 
+export const NEXT_RESUME_HEADER = 'next-resume'
+
 // if these change make sure we update the related
 // documentation as well
 export const NEXT_CACHE_TAG_MAX_ITEMS = 64
