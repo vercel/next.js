@@ -56,7 +56,7 @@ export function signalFromNodeResponse(response: Writable): AbortSignal {
 export class NextRequestAdapter {
   public static fromBaseNextRequest(
     request: BaseNextRequest,
-    signal: AbortSignal
+    signal?: AbortSignal
   ): NextRequest {
     if (
       // The type check here ensures that `req` is correctly typed, and the
@@ -79,7 +79,7 @@ export class NextRequestAdapter {
 
   public static fromNodeNextRequest(
     request: NodeNextRequest,
-    signal: AbortSignal
+    signal?: AbortSignal
   ): NextRequest {
     // HEAD and GET requests can not have a body.
     let body: BodyInit | null = null
@@ -116,7 +116,7 @@ export class NextRequestAdapter {
 
       // body can not be passed if request was aborted
       // or we get a Request body was disturbed error
-      ...(signal.aborted
+      ...(signal?.aborted
         ? {}
         : {
             body,

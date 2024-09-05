@@ -21,6 +21,8 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { Params } from '../request/params'
 import type { NextRequest } from '../web/exports'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -86,7 +88,7 @@ async function createComponentTreeInternal({
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
-  interceptors?: (() => Promise<void>)[]
+  interceptors?: ((request: NextRequest) => Promise<void>)[]
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -178,18 +180,18 @@ async function createComponentTreeInternal({
       })
     : []
 
-  const interceptRequest: (request: NextRequest) => Promise<void> = interceptor
-    ? interopDefault(await interceptor[0]())
+  const interceptRequest = interceptor
+    ? (interopDefault(await interceptor[0]()) as (
+        request: NextRequest
+      ) => Promise<void>)
     : undefined
 
   let interceptorPromise: Promise<void> | undefined
 
-  const childInterceptor = interceptRequest
-    ? () => {
+  const segmentInterceptor = interceptRequest
+    ? function intercept(request: NextRequest) {
         if (!interceptorPromise) {
-          interceptorPromise = interceptRequest({
-            url: '/TODO',
-          } as NextRequest)
+          interceptorPromise = interceptRequest(request)
         }
 
         return interceptorPromise
@@ -441,8 +443,8 @@ async function createComponentTreeInternal({
             ctx,
             missingSlots,
             preloadCallbacks,
-            interceptors: childInterceptor
-              ? [...interceptors, childInterceptor]
+            interceptors: segmentInterceptor
+              ? [...interceptors, segmentInterceptor]
               : interceptors,
           })
 
@@ -776,7 +778,7 @@ function MaybeIntercepted({
   interceptors,
   children,
 }: {
-  interceptors: (() => Promise<void>)[]
+  interceptors: ((request: NextRequest) => Promise<void>)[]
   children: React.ReactNode
 }) {
   return interceptors.length > 0 ? (
@@ -790,12 +792,18 @@ async function Intercepted({
   interceptors,
   children,
 }: {
-  interceptors: (() => Promise<void>)[]
+  interceptors: ((request: NextRequest) => Promise<void>)[]
   children: React.ReactNode
 }) {
-  // TODO: Allow concurrent execution of interceptors?
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  if (workUnitStore?.type !== 'request') {
+    throw new InvariantError('requestStore is undefined')
+  }
+
+  // TODO(interceptors): Allow concurrent execution of interceptors?
   for (const interceptor of interceptors) {
-    await interceptor()
+    await interceptor(workUnitStore.nextRequest)
   }
 
   return children

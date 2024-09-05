@@ -34,6 +34,7 @@ describe('interceptors', () => {
     expect(cliOutput.replace(timeStampRegExp, '')).toMatch(outdent`
       RootLayout, start
       RootInterceptor, start
+      URL: http://localhost:${next.appPort}/
       RootLoading
       RootLayout, finish
       RootInterceptor, finish
@@ -54,6 +55,7 @@ describe('interceptors', () => {
     expect(cliOutput.replace(timeStampRegExp, '')).toMatch(outdent`
       RootLayout, start
       RootInterceptor, start
+      URL: http://localhost:${next.appPort}/nested/deep
       RootLoading
       RootLayout, finish
       RootInterceptor, finish
