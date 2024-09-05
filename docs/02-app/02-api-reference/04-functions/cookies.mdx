@@ -64,7 +64,7 @@ To learn more about these options, see the [MDN docs](https://developer.mozilla.
 
 ## Caveats
 
-- `cookies()` is a **[Dynamic Function](/docs/app/building-your-application/rendering/server-components#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering)**.
+- `cookies()` is a [Dynamic Function](/docs/app/building-your-application/rendering/server-components#dynamic-functions) whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering).
 - The `.delete()` method can only be called:
   - In a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
   - If it belongs to the same domain from which `.set()` is called. Additionally, the code must be executed on the same protocol (HTTP or HTTPS) as the cookie you want to delete.
@@ -198,7 +198,7 @@ export default function Page() {
 
 There are three ways you can delete a cookie.
 
-1. Using the `delete()` method:
+Using the `delete()` method:
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -220,7 +220,7 @@ async function delete(data) {
 }
 ```
 
-2. Setting a new cookie with the same name and an empty value:
+Setting a new cookie with the same name and an empty value:
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -242,7 +242,7 @@ async function delete(data) {
 }
 ```
 
-3. Setting the `maxAge` to 0 will immediately expire a cookie. `maxAge` accepts a value in seconds.
+Setting the `maxAge` to 0 will immediately expire a cookie. `maxAge` accepts a value in seconds.
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
