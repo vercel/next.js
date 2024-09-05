@@ -370,34 +370,6 @@ type RenderToStreamOptions = {
   formState: any
 }
 
-/**
- * Creates a resolver that eagerly generates a flight payload that is then
- * resolved when the resolver is called.
- */
-function createFlightDataResolver(ctx: AppRenderContext) {
-  // Generate the flight data and as soon as it can, convert it into a string.
-  const promise = generateFlight(ctx)
-    .then(async (result) => ({
-      flightData: await result.toUnchunkedString(true),
-    }))
-    // Otherwise if it errored, return the error.
-    .catch((err) => ({ err }))
-
-  return async () => {
-    // Resolve the promise to get the flight data or error.
-    const result = await promise
-
-    // If the flight data failed to render due to an error, re-throw the error
-    // here.
-    if ('err' in result) {
-      throw result.err
-    }
-
-    // Otherwise, return the flight data.
-    return result.flightData
-  }
-}
-
 type ReactServerAppProps = {
   tree: LoaderTree
   ctx: AppRenderContext
@@ -825,15 +797,6 @@ async function renderToHTMLOrFlightImpl(
     return generateFlight(ctx)
   }
 
-  // Create the resolver that can get the flight payload when it's ready or
-  // throw the error if it occurred. If we are not generating static HTML, we
-  // don't need to generate the flight payload because it's a dynamic request
-  // which means we're either getting the flight payload only or just the
-  // regular HTML.
-  const flightDataResolver = isStaticGeneration
-    ? createFlightDataResolver(ctx)
-    : null
-
   // Get the nonce from the incoming request if it has one.
   const csp =
     req.headers['content-security-policy'] ||
@@ -977,6 +940,15 @@ async function renderToHTMLOrFlightImpl(
         },
       })
 
+      let flightRenderResult: FlightRenderResult | undefined = undefined
+
+      // Tee the data stream so that we can create a static flight payload.
+      if (isStaticGeneration) {
+        const [original, flightSpy] = dataStream.tee()
+        dataStream = original
+        flightRenderResult = new FlightRenderResult(flightSpy)
+      }
+
       try {
         let { stream, postponed, resumed } = await renderer.render(children)
 
@@ -996,6 +968,14 @@ async function renderToHTMLOrFlightImpl(
            *   Static:            The prerender has no dynamic holes and no dynamic APIs were used. We statically encode
            *                      all server inserted HTML and flight data
            */
+
+          // We need to provide flightData to the page metadata so it can be written to disk
+          // Backport notes: this should be
+          //   metadata.flightData = await flightRenderResult?.toUnchunkedBuffer(
+          // but that doesn't exist here yet
+          metadata.flightData = await flightRenderResult?.toUnchunkedString(
+            true
+          )
 
           // First we check if we have any dynamic holes in our HTML prerender
           if (usedDynamicAPIs(prerenderState)) {
@@ -1144,6 +1124,15 @@ async function renderToHTMLOrFlightImpl(
           // This may be a static render or a dynamic render
           // @TODO factor this further to make the render types more clearly defined and remove
           // the deluge of optional params that passed to configure the various behaviors
+
+          // We need to provide flightData to the page metadata so it can be written to disk
+          // Backport notes: this should be
+          //   metadata.flightData = await flightRenderResult?.toUnchunkedBuffer(
+          // but that doesn't exist here yet
+          metadata.flightData = await flightRenderResult?.toUnchunkedString(
+            true
+          )
+
           return {
             stream: await continueFizzStream(stream, {
               inlinedDataStream: createInlinedDataReadableStream(
@@ -1266,6 +1255,14 @@ async function renderToHTMLOrFlightImpl(
               formState,
             },
           })
+
+          // We need to provide flightData to the page metadata so it can be written to disk
+          // Backport notes: this should be
+          //   metadata.flightData = await flightRenderResult?.toUnchunkedBuffer(
+          // but that doesn't exist here yet
+          metadata.flightData = await flightRenderResult?.toUnchunkedString(
+            true
+          )
 
           return {
             // Returning the error that was thrown so it can be used to handle
@@ -1393,23 +1390,10 @@ async function renderToHTMLOrFlightImpl(
     }
   }
 
-  if (!flightDataResolver) {
-    throw new Error(
-      'Invariant: Flight data resolver is missing when generating static HTML'
-    )
-  }
-
   // If we encountered any unexpected errors during build we fail the
   // prerendering phase and the build.
   if (buildFailingError) {
     throw buildFailingError
-  }
-
-  // Wait for and collect the flight payload data if we don't have it
-  // already
-  const flightData = await flightDataResolver()
-  if (flightData) {
-    metadata.flightData = flightData
   }
 
   // If force static is specifically set to false, we should not revalidate
