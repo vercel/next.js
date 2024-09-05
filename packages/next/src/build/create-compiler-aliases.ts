@@ -14,6 +14,7 @@ import type { NextConfigComplete } from '../server/config-shared'
 import { defaultOverrides } from '../server/require-hook'
 import { NEXT_PROJECT_ROOT, hasExternalOtelApiPackage } from './webpack-config'
 import { WEBPACK_LAYERS } from '../lib/constants'
+import { isWebpackServerOnlyLayer } from './utils'
 
 interface CompilerAliases {
   [alias: string]: string | string[]
@@ -248,6 +249,14 @@ export function createRSCAliases(
     reactProductionProfiling: boolean
   }
 ): CompilerAliases {
+  const isServerOnlyLayer = isWebpackServerOnlyLayer(layer)
+  // For middleware, instrumentation layers, treat them as rsc layer.
+  // Since we only built the runtime package for rsc, convert everything to rsc
+  // to ensure the runtime modules path existed.
+  if (isServerOnlyLayer) {
+    layer = WEBPACK_LAYERS.reactServerComponents
+  }
+
   let alias: Record<string, string> = {
     react$: `next/dist/compiled/react${bundledReactChannel}`,
     'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
