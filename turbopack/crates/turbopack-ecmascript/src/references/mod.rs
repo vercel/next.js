@@ -1271,48 +1271,30 @@ async fn handle_worker(
     in_try: bool,
 ) -> Result<()> {
     let &AnalysisState {
-        // handler,
+        handler,
         origin,
         source,
-        // compile_time_info,
-        // ignore_dynamic_requests,
         ..
     } = state;
-    // println!("url: {:?}", url);
-    if let JsValue::New(_, box JsValue::FreeVar(constructor), url_args) = url {
-        if constructor == js_word!("URL") {
-            let url = &url_args[0];
-            let pat = js_value_to_pattern(url);
-            // println!("url pat: {:?} {:?}", url, pat);
-            // if !pat.has_constant_parts() {
-            //     let (args, hints) = explain_args(&args);
-            //     handler.span_warn_with_code(
-            //         span,
-            //         &format!("import({args}) is very dynamic{hints}",),
-            //         DiagnosticId::Lint(errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT.
-            // to_string()),     );
-            //     if ignore_dynamic_requests {
-            //         analysis.add_code_gen(DynamicExpression::new_promise(Vc::cell(ast_path.
-            // to_vec())));         return Ok(());
-            //     }
-            // }
-            analysis.add_reference(WorkerAssetReference::new(
-                origin,
-                Request::parse(Value::new(pat)),
-                Vc::cell(ast_path.to_vec()),
-                issue_source(source, span),
-                in_try,
-                state.import_externals,
-            ));
-        }
+    if let JsValue::RelUrl(url) = url {
+        let pat = Pattern::Constant(url.as_str().into());
+        analysis.add_reference(WorkerAssetReference::new(
+            origin,
+            Request::parse(Value::new(pat)),
+            Vc::cell(ast_path.to_vec()),
+            issue_source(source, span),
+            in_try,
+            state.import_externals,
+        ));
+        return Ok(());
     }
+    let (args, hints) = JsValue::explain_args(&[url], 10, 2);
+    handler.span_warn_with_code(
+        span,
+        &format!("new Worker({args}) is not statically analyse-able{hints}",),
+        DiagnosticId::Error(errors::failed_to_analyse::ecmascript::NEW_WORKER.to_string()),
+    );
     Ok(())
-    // let (args, hints) = explain_args(&args);
-    // handler.span_warn_with_code(
-    //     span,
-    //     &format!("import({args}) is not statically analyse-able{hints}",),
-    //     DiagnosticId::Error(errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT.to_string()),
-    // )
 }
 
 async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
