@@ -14987,15 +14987,15 @@
         "config telemetry production mode emits telemetry for usage of middleware",
         "config telemetry production mode emits telemetry for usage of swc plugins"
       ],
-      "failed": [
-        "config telemetry production mode emits telemery for usage of image, script & dynamic",
+      "failed": [],
+      "pending": [
         "config telemetry production mode emits telemetry for middleware related options",
         "config telemetry production mode emits telemetry for transpilePackages",
+        "config telemetry production mode emits telemery for usage of image, script & dynamic",
+        "config telemetry production mode emits telemetry for usage of swc",
         "config telemetry production mode emits telemetry for usage of @vercel/og",
-        "config telemetry production mode emits telemetry for usage of next/legacy/image",
-        "config telemetry production mode emits telemetry for usage of swc"
+        "config telemetry production mode emits telemetry for usage of next/legacy/image"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -16290,11 +16290,11 @@
     },
     "test/production/next-font/telemetry.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "next/font unused telemetry should not send next/font/google and next/font/local usage event",
         "next/font used telemetry should send next/font/google and next/font/local usage event"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
