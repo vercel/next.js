@@ -109,23 +109,24 @@ export default function transformSource(
       // We need to await the module proxy creation because it can be async module for SSR layer
       // due to having async dependencies.
       // We only apply `the await` for Node.js as only Edge doesn't have external dependencies.
+      const awaitPrefix = isEdgeServer ? '' : 'await '
       let esmSource = `\
 import { createProxy } from "${MODULE_PROXY_PATH}"
 
 const proxy = ${
-        isEdgeServer ? '' : 'await'
+        isEdgeServer ? '' : 'await '
       } createProxy(String.raw\`${resourceKey}\`)
 `
       let cnt = 0
       for (const ref of clientRefs) {
         if (ref === '') {
-          esmSource += `\nexports[''] = createProxy(String.raw\`${resourceKey}#\`);`
+          esmSource += `\nexports[''] = ${awaitPrefix}createProxy(String.raw\`${resourceKey}#\`);`
         } else if (ref === 'default') {
           esmSource += `\
-export default createProxy(String.raw\`${resourceKey}#default\`);
+export default ${awaitPrefix} createProxy(String.raw\`${resourceKey}#default\`);
 `
         } else {
-          esmSource += `const e${cnt} = proxy["${ref}"];\n`
+          esmSource += `const e${cnt} = ${awaitPrefix}proxy["${ref}"];\n`
           esmSource += `export { e${cnt++} as ${ref} };\n`
         }
       }
