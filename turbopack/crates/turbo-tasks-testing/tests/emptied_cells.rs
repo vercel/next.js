@@ -50,12 +50,14 @@ struct ChangingInput {
 #[turbo_tasks::function]
 async fn compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     let value = *inner_compute(input).await?;
+    println!("compute {value}");
     Ok(Vc::cell(value))
 }
 
 #[turbo_tasks::function]
 async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     let state_value = *input.await?.state.get();
+    println!("inner_compute {state_value}");
     let mut last = None;
     for i in 0..=state_value {
         last = Some(compute2(Vc::cell(i)));
@@ -66,5 +68,6 @@ async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 #[turbo_tasks::function]
 async fn compute2(input: Vc<u32>) -> Result<Vc<u32>> {
     let value = *input.await?;
+    println!("compute2 {value}");
     Ok(Vc::cell(value))
 }
