@@ -47,20 +47,20 @@ const data = unstable_cache(fetchData, keyParts, options)()
 ## Example
 
 ```tsx filename="app/page.tsx" switcher
-import { unstable_cache } from 'next/cache';
+import { unstable_cache } from 'next/cache'
 
 export default async function Page({ params }: { params: { userId: string } }) {
   const getCachedUser = unstable_cache(
     async () => {
-      return { id: params.userId };
+      return { id: params.userId }
     },
     [params.userId], // add the user ID to the cache key
     {
-      tags: ["users"],
+      tags: ['users'],
       revalidate: 60,
     }
-  );
-  
+  )
+
   //...
 }
 ```
@@ -79,7 +79,7 @@ export default async function Page({ params } }) {
       revalidate: 60,
     }
   );
-  
+
   //...
 }
 ```
