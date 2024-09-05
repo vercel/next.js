@@ -172,7 +172,7 @@ const transform = (
   loaders: LoaderConfig[]
 ) => {
   return new Promise((resolve, reject) => {
-    const resource = pathResolve(contextDir, name) ;
+    const resource = pathResolve(contextDir, name);
     const resourceDir = dirname(resource);
 
     const loadersWithOptions = loaders.map((loader) =>
