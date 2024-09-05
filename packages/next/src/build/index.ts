@@ -1249,6 +1249,7 @@ export default async function build(
       async function turbopackBuild(): Promise<{
         duration: number
         buildTraceContext: undefined
+        shutdownPromise: Promise<void>
       }> {
         if (!IS_TURBOPACK_BUILD) {
           throw new Error("next build doesn't support turbopack yet")
@@ -1385,22 +1386,24 @@ export default async function build(
           )
         }
 
-        for (const [page, route] of currentEntrypoints.page) {
-          enqueue(() =>
-            handleRouteType({
-              dev,
-              page,
-              pathname: page,
-              route,
+        if (!appDirOnly) {
+          for (const [page, route] of currentEntrypoints.page) {
+            enqueue(() =>
+              handleRouteType({
+                dev,
+                page,
+                pathname: page,
+                route,
 
-              currentEntryIssues,
-              entrypoints: currentEntrypoints,
-              manifestLoader,
-              devRewrites: undefined,
-              productionRewrites: customRoutes.rewrites,
-              logErrors: false,
-            })
-          )
+                currentEntryIssues,
+                entrypoints: currentEntrypoints,
+                manifestLoader,
+                devRewrites: undefined,
+                productionRewrites: customRoutes.rewrites,
+                logErrors: false,
+              })
+            )
+          }
         }
 
         for (const [page, route] of currentEntrypoints.app) {
@@ -1464,6 +1467,8 @@ export default async function build(
           }
         }
 
+        const shutdownPromise = project.shutdown()
+
         if (warnings.length > 0) {
           Log.warn(
             `Turbopack build collected ${warnings.length} warnings:\n${warnings
@@ -1487,6 +1492,7 @@ export default async function build(
         return {
           duration: process.hrtime(startTime)[0],
           buildTraceContext: undefined,
+          shutdownPromise,
         }
       }
 
@@ -1531,9 +1537,15 @@ export default async function build(
         },
       })
 
+      let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
         if (turboNextBuild) {
-          const { duration: compilerDuration, ...rest } = await turbopackBuild()
+          const {
+            duration: compilerDuration,
+            shutdownPromise: p,
+            ...rest
+          } = await turbopackBuild()
+          shutdownPromise = p
           traceMemoryUsage('Finished build', nextBuildSpan)
 
           buildTraceContext = rest.buildTraceContext
@@ -3566,6 +3578,8 @@ export default async function build(
       await nextBuildSpan
         .traceChild('telemetry-flush')
         .traceAsyncFn(() => telemetry.flush())
+
+      await shutdownPromise
     })
   } finally {
     // Ensure we wait for lockfile patching if present

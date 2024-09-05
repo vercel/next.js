@@ -552,17 +552,26 @@ async fn insert_next_server_special_aliases(
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    let external_if_node = move |context_dir: Vc<FileSystemPath>, request: &str| match runtime {
+    let external_cjs_if_node = move |context_dir: Vc<FileSystemPath>, request: &str| match runtime {
         NextRuntime::Edge => request_to_import_mapping(context_dir, request),
-        NextRuntime::NodeJs => external_request_to_import_mapping(request),
+        NextRuntime::NodeJs => external_request_to_cjs_import_mapping(request),
     };
+    let external_esm_if_node = move |context_dir: Vc<FileSystemPath>, request: &str| match runtime {
+        NextRuntime::Edge => request_to_import_mapping(context_dir, request),
+        NextRuntime::NodeJs => external_request_to_esm_import_mapping(request),
+    };
+
+    import_map.insert_exact_alias(
+        "next/dist/compiled/@vercel/og/index.node.js",
+        external_esm_if_node(project_path, "next/dist/compiled/@vercel/og/index.node.js"),
+    );
 
     import_map.insert_exact_alias(
         "@opentelemetry/api",
         // It needs to prefer the local version of @opentelemetry/api
         ImportMapping::Alternatives(vec![
-            external_if_node(project_path, "@opentelemetry/api"),
-            external_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
+            external_cjs_if_node(project_path, "@opentelemetry/api"),
+            external_cjs_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
         ])
         .cell(),
     );
@@ -641,7 +650,7 @@ async fn insert_next_server_special_aliases(
 
     import_map.insert_exact_alias(
         "@vercel/og",
-        external_if_node(project_path, "next/dist/server/og/image-response"),
+        external_cjs_if_node(project_path, "next/dist/server/og/image-response"),
     );
 
     Ok(())
@@ -1061,6 +1070,12 @@ fn request_to_import_mapping(context_path: Vc<FileSystemPath>, request: &str) ->
 
 /// Creates a direct import mapping to the result of resolving an external
 /// request.
-fn external_request_to_import_mapping(request: &str) -> Vc<ImportMapping> {
+fn external_request_to_cjs_import_mapping(request: &str) -> Vc<ImportMapping> {
     ImportMapping::External(Some(request.into()), ExternalType::CommonJs).into()
+}
+
+/// Creates a direct import mapping to the result of resolving an external
+/// request.
+fn external_request_to_esm_import_mapping(request: &str) -> Vc<ImportMapping> {
+    ImportMapping::External(Some(request.into()), ExternalType::EcmaScriptModule).into()
 }

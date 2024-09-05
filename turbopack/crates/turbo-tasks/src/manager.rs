@@ -1,7 +1,8 @@
 use std::{
+    any::Any,
     borrow::Cow,
     future::Future,
-    hash::{BuildHasherDefault, Hash},
+    hash::BuildHasherDefault,
     mem::take,
     panic::AssertUnwindSafe,
     pin::Pin,
@@ -17,7 +18,7 @@ use anyhow::{anyhow, Result};
 use auto_hash_map::AutoMap;
 use futures::FutureExt;
 use rustc_hash::FxHasher;
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use tokio::{runtime::Handle, select, task_local};
 use tokio_util::task::TaskTracker;
 use tracing::{info_span, instrument, trace_span, Instrument, Level};
@@ -30,7 +31,10 @@ use crate::{
     },
     capture_future::{self, CaptureFuture},
     event::{Event, EventListener},
-    id::{BackendJobId, ExecutionId, FunctionId, LocalCellId, TraitTypeId, TRANSIENT_TASK_BIT},
+    id::{
+        BackendJobId, ExecutionId, FunctionId, LocalCellId, LocalTaskId, TraitTypeId,
+        TRANSIENT_TASK_BIT,
+    },
     id_factory::{IdFactory, IdFactoryWithReuse},
     magic_any::MagicAny,
     raw_vc::{CellId, RawVc},
@@ -143,6 +147,22 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
     ) -> Result<Result<TypedCellContent, EventListener>>;
 
+    fn try_read_local_output(
+        &self,
+        parent_task_id: TaskId,
+        local_task_id: LocalTaskId,
+        consistency: ReadConsistency,
+    ) -> Result<Result<RawVc, EventListener>>;
+
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    fn try_read_local_output_untracked(
+        &self,
+        parent_task_id: TaskId,
+        local_task_id: LocalTaskId,
+        consistency: ReadConsistency,
+    ) -> Result<Result<RawVc, EventListener>>;
+
     fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> TaskCollectiblesMap;
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
@@ -171,6 +191,8 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         f: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>;
+
+    fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send>>;
 }
 
 /// A wrapper around a value that is unused.
@@ -236,8 +258,50 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
 
     /// Returns the duration from the start of the program to the given instant.
     fn program_duration_until(&self, instant: Instant) -> Duration;
+
+    /// An untyped object-safe version of [`TurboTasksBackendApiExt::read_task_state`]. Callers
+    /// should prefer the extension trait's version of this method.
+    fn read_task_state_dyn(&self, func: &mut dyn FnMut(&B::TaskState));
+
+    /// An untyped object-safe version of [`TurboTasksBackendApiExt::write_task_state`]. Callers
+    /// should prefer the extension trait's version of this method.
+    fn write_task_state_dyn(&self, func: &mut dyn FnMut(&mut B::TaskState));
+
     /// Returns a reference to the backend.
     fn backend(&self) -> &B;
+}
+
+/// An extension trait for methods of `TurboTasksBackendApi` that are not object-safe. This is
+/// automatically implemented for all `TurboTasksBackendApi`s using a blanket impl.
+pub trait TurboTasksBackendApiExt<B: Backend + 'static>: TurboTasksBackendApi<B> {
+    /// Allows modification of the [`Backend::TaskState`].
+    ///
+    /// This function holds open a non-exclusive read lock that blocks writes, so `func` is expected
+    /// to execute quickly in order to release the lock.
+    fn read_task_state<T>(&self, func: impl FnOnce(&B::TaskState) -> T) -> T {
+        let mut func = Some(func);
+        let mut out = None;
+        self.read_task_state_dyn(&mut |ts| out = Some((func.take().unwrap())(ts)));
+        out.expect("read_task_state_dyn must call `func`")
+    }
+
+    /// Allows modification of the [`Backend::TaskState`].
+    ///
+    /// This function holds open a write lock, so `func` is expected to execute quickly in order to
+    /// release the lock.
+    fn write_task_state<T>(&self, func: impl FnOnce(&mut B::TaskState) -> T) -> T {
+        let mut func = Some(func);
+        let mut out = None;
+        self.write_task_state_dyn(&mut |ts| out = Some((func.take().unwrap())(ts)));
+        out.expect("write_task_state_dyn must call `func`")
+    }
+}
+
+impl<TT, B> TurboTasksBackendApiExt<B> for TT
+where
+    TT: TurboTasksBackendApi<B> + ?Sized,
+    B: Backend + 'static,
+{
 }
 
 #[allow(clippy::manual_non_exhaustive)]
@@ -341,10 +405,12 @@ struct CurrentGlobalTaskState {
     /// Tracks currently running local tasks, and defers cleanup of the global task until those
     /// complete.
     local_task_tracker: TaskTracker,
+
+    backend_state: Box<dyn Any + Send + Sync>,
 }
 
 impl CurrentGlobalTaskState {
-    fn new(task_id: TaskId) -> Self {
+    fn new(task_id: TaskId, backend_state: Box<dyn Any + Send + Sync>) -> Self {
         Self {
             task_id,
             tasks_to_notify: Vec::new(),
@@ -352,6 +418,7 @@ impl CurrentGlobalTaskState {
             cell_counters: Some(AutoMap::default()),
             local_cells: Vec::new(),
             local_task_tracker: TaskTracker::new(),
+            backend_state,
         }
     }
 }
@@ -689,7 +756,11 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let future = async move {
             let mut schedule_again = true;
             while schedule_again {
-                let global_task_state = Arc::new(RwLock::new(CurrentGlobalTaskState::new(task_id)));
+                let backend_state = this.backend.new_task_state(task_id);
+                let global_task_state = Arc::new(RwLock::new(CurrentGlobalTaskState::new(
+                    task_id,
+                    Box::new(backend_state),
+                )));
                 let local_task_state = CurrentLocalTaskState::new(
                     this.execution_id_factory.get(),
                     this.backend
@@ -754,9 +825,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             anyhow::Ok(())
         };
 
-        let future = TURBO_TASKS
-            .scope(self.pin(), self.backend.execution_scope(task_id, future))
-            .in_current_span();
+        let future = TURBO_TASKS.scope(self.pin(), future).in_current_span();
 
         #[cfg(feature = "tokio_tracing")]
         tokio::task::Builder::new()
@@ -1246,6 +1315,26 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             .try_read_own_task_cell_untracked(current_task, index, self)
     }
 
+    fn try_read_local_output(
+        &self,
+        _parent_task_id: TaskId,
+        _local_task_id: LocalTaskId,
+        _consistency: ReadConsistency,
+    ) -> Result<Result<RawVc, EventListener>> {
+        todo!("bgw: local outputs");
+    }
+
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    fn try_read_local_output_untracked(
+        &self,
+        _parent_task_id: TaskId,
+        _local_task_id: LocalTaskId,
+        _consistency: ReadConsistency,
+    ) -> Result<Result<RawVc, EventListener>> {
+        todo!("bgw: local outputs");
+    }
+
     fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> TaskCollectiblesMap {
         self.backend.read_task_collectibles(
             task,
@@ -1316,24 +1405,24 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         // state as well.
         let global_task_state = CURRENT_GLOBAL_TASK_STATE.with(|ts| ts.clone());
         let local_task_state = CURRENT_LOCAL_TASK_STATE.with(|ts| ts.clone());
-        let (task_id, fut) = {
+        let tracked_fut = {
             let ts = global_task_state.read().unwrap();
-            (ts.task_id, ts.local_task_tracker.track_future(fut))
+            ts.local_task_tracker.track_future(fut)
         };
         Box::pin(TURBO_TASKS.scope(
             turbo_tasks(),
             CURRENT_GLOBAL_TASK_STATE.scope(
                 global_task_state,
-                CURRENT_LOCAL_TASK_STATE.scope(
-                    local_task_state,
-                    // TODO(bgw): This will create a new task-local in the backend, which is not
-                    // what we want. Instead we should replace `execution_scope` with a more
-                    // limited API that allows storing thread-local state in a way the manager can
-                    // control.
-                    self.backend.execution_scope(task_id, fut),
-                ),
+                CURRENT_LOCAL_TASK_STATE.scope(local_task_state, tracked_fut),
             ),
         ))
+    }
+
+    fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
+        let this = self.pin();
+        Box::pin(async move {
+            this.stop_and_wait().await;
+        })
     }
 }
 
@@ -1351,6 +1440,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
             this.backend.run_backend_job(id, &*this).await;
         })
     }
+
     #[track_caller]
     fn schedule_backend_foreground_job(&self, id: BackendJobId) {
         self.schedule_foreground_job(move |this| async move {
@@ -1450,6 +1540,16 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
     unsafe fn reuse_transient_task_id(&self, id: Unused<TaskId>) {
         unsafe { self.transient_task_id_factory.reuse(id.into()) }
     }
+
+    fn read_task_state_dyn(&self, func: &mut dyn FnMut(&B::TaskState)) {
+        CURRENT_GLOBAL_TASK_STATE
+            .with(move |ts| func(ts.read().unwrap().backend_state.downcast_ref().unwrap()))
+    }
+
+    fn write_task_state_dyn(&self, func: &mut dyn FnMut(&mut B::TaskState)) {
+        CURRENT_GLOBAL_TASK_STATE
+            .with(move |ts| func(ts.write().unwrap().backend_state.downcast_mut().unwrap()))
+    }
 }
 
 pub(crate) fn current_task(from: &str) -> TaskId {
@@ -1459,112 +1559,6 @@ pub(crate) fn current_task(from: &str) -> TaskId {
             "{} can only be used in the context of turbo_tasks task execution",
             from
         ),
-    }
-}
-
-pub struct Invalidator {
-    task: TaskId,
-    turbo_tasks: Weak<dyn TurboTasksApi>,
-    handle: Handle,
-}
-
-impl Hash for Invalidator {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.task.hash(state);
-    }
-}
-
-impl PartialEq for Invalidator {
-    fn eq(&self, other: &Self) -> bool {
-        self.task == other.task
-    }
-}
-
-impl Eq for Invalidator {}
-
-impl Invalidator {
-    pub fn invalidate(self) {
-        let Invalidator {
-            task,
-            turbo_tasks,
-            handle,
-        } = self;
-        let _ = handle.enter();
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks.invalidate(task);
-        }
-    }
-
-    pub fn invalidate_with_reason<T: InvalidationReason>(self, reason: T) {
-        let Invalidator {
-            task,
-            turbo_tasks,
-            handle,
-        } = self;
-        let _ = handle.enter();
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks.invalidate_with_reason(
-                task,
-                (Arc::new(reason) as Arc<dyn InvalidationReason>).into(),
-            );
-        }
-    }
-
-    pub fn invalidate_with_static_reason<T: InvalidationReason>(self, reason: &'static T) {
-        let Invalidator {
-            task,
-            turbo_tasks,
-            handle,
-        } = self;
-        let _ = handle.enter();
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks
-                .invalidate_with_reason(task, (reason as &'static dyn InvalidationReason).into());
-        }
-    }
-}
-
-impl TraceRawVcs for Invalidator {
-    fn trace_raw_vcs(&self, _context: &mut crate::trace::TraceRawVcsContext) {
-        // nothing here
-    }
-}
-
-impl Serialize for Invalidator {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_newtype_struct("Invalidator", &self.task)
-    }
-}
-
-impl<'de> Deserialize<'de> for Invalidator {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct V;
-
-        impl<'de> Visitor<'de> for V {
-            type Value = Invalidator;
-
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "an Invalidator")
-            }
-
-            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                Ok(Invalidator {
-                    task: TaskId::deserialize(deserializer)?,
-                    turbo_tasks: weak_turbo_tasks(),
-                    handle: tokio::runtime::Handle::current(),
-                })
-            }
-        }
-        deserializer.deserialize_newtype_struct("Invalidator", V)
     }
 }
 
@@ -1653,10 +1647,6 @@ pub fn with_turbo_tasks<T>(func: impl FnOnce(&Arc<dyn TurboTasksApi>) -> T) -> T
     TURBO_TASKS.with(|arc| func(arc))
 }
 
-pub fn weak_turbo_tasks() -> Weak<dyn TurboTasksApi> {
-    TURBO_TASKS.with(Arc::downgrade)
-}
-
 pub fn with_turbo_tasks_for_testing<T>(
     tt: Arc<dyn TurboTasksApi>,
     current_task: TaskId,
@@ -1666,7 +1656,10 @@ pub fn with_turbo_tasks_for_testing<T>(
     TURBO_TASKS.scope(
         tt,
         CURRENT_GLOBAL_TASK_STATE.scope(
-            Arc::new(RwLock::new(CurrentGlobalTaskState::new(current_task))),
+            Arc::new(RwLock::new(CurrentGlobalTaskState::new(
+                current_task,
+                Box::new(()),
+            ))),
             CURRENT_LOCAL_TASK_STATE.scope(CurrentLocalTaskState::new(execution_id, None), f),
         ),
     )
@@ -1682,17 +1675,6 @@ pub fn spawn_detached_for_testing(f: impl Future<Output = Result<()>> + Send + '
 
 pub fn current_task_for_testing() -> TaskId {
     CURRENT_GLOBAL_TASK_STATE.with(|ts| ts.read().unwrap().task_id)
-}
-
-/// Get an [`Invalidator`] that can be used to invalidate the current task
-/// based on external events.
-pub fn get_invalidator() -> Invalidator {
-    let handle = Handle::current();
-    Invalidator {
-        task: current_task("turbo_tasks::get_invalidator()"),
-        turbo_tasks: weak_turbo_tasks(),
-        handle,
-    }
 }
 
 /// Marks the current task as finished. This excludes it from waiting for
@@ -2017,6 +1999,15 @@ pub(crate) fn read_local_cell(
         // local cell ids are one-indexed (they use NonZeroU32)
         local_cells[(*local_cell_id as usize) - 1].clone()
     })
+}
+
+pub(crate) async fn read_local_output(
+    _this: &dyn TurboTasksApi,
+    _task_id: TaskId,
+    _local_output_id: LocalTaskId,
+    _consistency: ReadConsistency,
+) -> Result<RawVc> {
+    todo!("bgw: local outputs");
 }
 
 /// Panics if the [`ExecutionId`] does not match the current task's
