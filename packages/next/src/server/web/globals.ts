@@ -18,6 +18,8 @@ export async function getEdgeInstrumentationModule(): Promise<
 
 let instrumentationModulePromise: Promise<any> | null = null
 async function registerInstrumentation() {
+  // Ensure registerInstrumentation is not called in production build
+  if (process.env.NEXT_PHASE === 'phase-production-build') return
   if (!instrumentationModulePromise) {
     instrumentationModulePromise = getEdgeInstrumentationModule()
   }
@@ -37,12 +39,7 @@ export async function edgeInstrumentationOnRequestError(
 ) {
   const instrumentation = await getEdgeInstrumentationModule()
   try {
-    if (
-      process.env.__NEXT_EXPERIMENTAL_INSTRUMENTATION &&
-      instrumentation?.onRequestError
-    ) {
-      await instrumentation.onRequestError(...args)
-    }
+    await instrumentation?.onRequestError?.(...args)
   } catch (err) {
     // Log the soft error and continue, since the original error has already been thrown
     console.error('Error in instrumentation.onRequestError:', err)

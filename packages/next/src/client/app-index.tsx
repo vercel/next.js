@@ -1,8 +1,6 @@
 import '../build/polyfills/polyfill-module'
-// @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
-// @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
@@ -10,14 +8,15 @@ import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-ru
 import { onRecoverableError } from './on-recoverable-error'
 import { callServer } from './app-call-server'
 import {
-  ActionQueueContext,
+  type AppRouterActionQueue,
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 import { isNextRouterError } from './components/is-next-router-error'
 import { handleClientError } from './components/react-dev-overlay/internal/helpers/use-error-handler'
 import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
+import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
+import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 
 // Patch console.error to collect information about hydration errors
 const origConsoleError = window.console.error
@@ -26,10 +25,8 @@ window.console.error = (...args) => {
   const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
   if (!isNextRouterError(error)) {
     if (process.env.NODE_ENV !== 'production') {
-      const storeHydrationErrorStateFromConsoleArgs =
-        require('./components/react-dev-overlay/internal/helpers/hydration-error-info')
-          .storeHydrationErrorStateFromConsoleArgs as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info').storeHydrationErrorStateFromConsoleArgs
-      storeHydrationErrorStateFromConsoleArgs()
+      const { storeHydrationErrorStateFromConsoleArgs } =
+        require('./components/react-dev-overlay/internal/helpers/hydration-error-info') as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info')
 
       storeHydrationErrorStateFromConsoleArgs(...args)
       handleClientError(error)
@@ -37,16 +34,6 @@ window.console.error = (...args) => {
 
     origConsoleError.apply(window.console, args)
   }
-}
-
-if (process.env.NODE_ENV === 'development') {
-  const initializePrerenderIndicator =
-    require('./components/prerender-indicator')
-      .default as typeof import('./components/prerender-indicator').default
-
-  initializePrerenderIndicator((handlers) => {
-    window.next.isrIndicatorHandlers = handlers
-  })
 }
 
 /// <reference types="react-dom/experimental" />
@@ -171,10 +158,56 @@ const initialServerResponse = createFromReadableStream(readable, {
   callServer,
 })
 
+// React overrides `.then` and doesn't return a new promise chain,
+// so we wrap the action queue in a promise to ensure that its value
+// is defined when the promise resolves.
+// https://github.com/facebook/react/blob/163365a07872337e04826c4f501565d43dbd2fd4/packages/react-client/src/ReactFlightClient.js#L189-L190
+const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
+  (resolve, reject) => {
+    initialServerResponse.then(
+      (initialRSCPayload: InitialRSCPayload) => {
+        resolve(
+          createMutableActionQueue(
+            createInitialRouterState({
+              buildId: initialRSCPayload.b,
+              initialFlightData: initialRSCPayload.f,
+              initialCanonicalUrlParts: initialRSCPayload.c,
+              initialParallelRoutes: new Map(),
+              location: window.location,
+              couldBeIntercepted: initialRSCPayload.i,
+              postponed: initialRSCPayload.s,
+            })
+          )
+        )
+      },
+      (err: Error) => reject(err)
+    )
+  }
+)
+
 function ServerRoot(): React.ReactNode {
   const initialRSCPayload = use<InitialRSCPayload>(initialServerResponse)
+  const actionQueue = use<AppRouterActionQueue>(pendingActionQueue)
 
-  return <AppRouter initialRSCPayload={initialRSCPayload} />
+  const router = (
+    <AppRouter
+      actionQueue={actionQueue}
+      globalErrorComponent={initialRSCPayload.G}
+      assetPrefix={initialRSCPayload.p}
+    />
+  )
+
+  if (process.env.NODE_ENV === 'development' && initialRSCPayload.m) {
+    // We provide missing slot information in a context provider only during development
+    // as we log some additional information about the missing slots in the console.
+    return (
+      <MissingSlotContext value={initialRSCPayload.m}>
+        {router}
+      </MissingSlotContext>
+    )
+  }
+
+  return router
 }
 
 const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
@@ -194,16 +227,12 @@ function Root({ children }: React.PropsWithChildren<{}>) {
 }
 
 export function hydrate() {
-  const actionQueue = createMutableActionQueue()
-
   const reactEl = (
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider value={{ appDir: true }}>
-        <ActionQueueContext.Provider value={actionQueue}>
-          <Root>
-            <ServerRoot />
-          </Root>
-        </ActionQueueContext.Provider>
+        <Root>
+          <ServerRoot />
+        </Root>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
   )
@@ -219,58 +248,9 @@ export function hydrate() {
 
   if (isError) {
     if (process.env.NODE_ENV !== 'production') {
-      // if an error is thrown while rendering an RSC stream, this will catch it in dev
-      // and show the error overlay
-      const ReactDevOverlay: typeof import('./components/react-dev-overlay/app/ReactDevOverlay').default =
-        require('./components/react-dev-overlay/app/ReactDevOverlay')
-          .default as typeof import('./components/react-dev-overlay/app/ReactDevOverlay').default
-
-      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/shared').INITIAL_OVERLAY_STATE =
-        require('./components/react-dev-overlay/shared').INITIAL_OVERLAY_STATE
-
-      const getSocketUrl: typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl =
-        require('./components/react-dev-overlay/internal/helpers/get-socket-url')
-          .getSocketUrl as typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl
-
-      const FallbackLayout = hasMissingTags
-        ? ({ children }: { children: React.ReactNode }) => (
-            <html id="__next_error__">
-              <body>{children}</body>
-            </html>
-          )
-        : React.Fragment
-      const errorTree = (
-        <FallbackLayout>
-          <ReactDevOverlay
-            state={{ ...INITIAL_OVERLAY_STATE, rootLayoutMissingTags }}
-            onReactError={() => {}}
-          >
-            {reactEl}
-          </ReactDevOverlay>
-        </FallbackLayout>
-      )
-      const socketUrl = getSocketUrl(process.env.__NEXT_ASSET_PREFIX || '')
-      const socket = new window.WebSocket(`${socketUrl}/_next/webpack-hmr`)
-
-      // add minimal "hot reload" support for RSC errors
-      const handler = (event: MessageEvent) => {
-        let obj
-        try {
-          obj = JSON.parse(event.data)
-        } catch {}
-
-        if (!obj || !('action' in obj)) {
-          return
-        }
-
-        if (
-          obj.action === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
-        ) {
-          window.location.reload()
-        }
-      }
-
-      socket.addEventListener('message', handler)
+      const createDevOverlayElement =
+        require('./components/react-dev-overlay/client-entry').createDevOverlayElement
+      const errorTree = createDevOverlayElement(reactEl)
       ReactDOMClient.createRoot(appElement as any, options).render(errorTree)
     } else {
       ReactDOMClient.createRoot(appElement as any, options).render(reactEl)

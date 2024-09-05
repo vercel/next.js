@@ -80,6 +80,35 @@ export type RequestContext = {
   serverComponentsHmrCache?: ServerComponentsHmrCache
 }
 
+/**
+ * If middleware set cookies in this request (indicated by `x-middleware-set-cookie`),
+ * then merge those into the existing cookie object, so that when `cookies()` is accessed
+ * it's able to read the newly set cookies.
+ */
+function mergeMiddlewareCookies(
+  req: RequestContext['req'],
+  existingCookies: RequestCookies | ResponseCookies
+) {
+  if (
+    'x-middleware-set-cookie' in req.headers &&
+    typeof req.headers['x-middleware-set-cookie'] === 'string'
+  ) {
+    const setCookieValue = req.headers['x-middleware-set-cookie']
+    const responseHeaders = new Headers()
+
+    for (const cookie of splitCookiesString(setCookieValue)) {
+      responseHeaders.append('set-cookie', cookie)
+    }
+
+    const responseCookies = new ResponseCookies(responseHeaders)
+
+    // Transfer cookies from ResponseCookies to RequestCookies
+    for (const cookie of responseCookies.getAll()) {
+      existingCookies.set(cookie)
+    }
+  }
+}
+
 export const withRequestStore: WithStore<RequestStore, RequestContext> = <
   Result,
 >(
@@ -129,24 +158,7 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
           HeadersAdapter.from(req.headers)
         )
 
-        if (
-          'x-middleware-set-cookie' in req.headers &&
-          typeof req.headers['x-middleware-set-cookie'] === 'string'
-        ) {
-          const setCookieValue = req.headers['x-middleware-set-cookie']
-          const responseHeaders = new Headers()
-
-          for (const cookie of splitCookiesString(setCookieValue)) {
-            responseHeaders.append('set-cookie', cookie)
-          }
-
-          const responseCookies = new ResponseCookies(responseHeaders)
-
-          // Transfer cookies from ResponseCookies to RequestCookies
-          for (const cookie of responseCookies.getAll()) {
-            requestCookies.set(cookie.name, cookie.value ?? '')
-          }
-        }
+        mergeMiddlewareCookies(req, requestCookies)
 
         // Seal the cookies object that'll freeze out any methods that could
         // mutate the underlying data.
@@ -157,11 +169,15 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
     },
     get mutableCookies() {
       if (!cache.mutableCookies) {
-        cache.mutableCookies = getMutableCookies(
+        const mutableCookies = getMutableCookies(
           req.headers,
           renderOpts?.onUpdateCookies ||
             (res ? defaultOnUpdateCookies : undefined)
         )
+
+        mergeMiddlewareCookies(req, mutableCookies)
+
+        cache.mutableCookies = mutableCookies
       }
       return cache.mutableCookies
     },
@@ -202,11 +218,8 @@ function createAfterContext(
   if (!isAfterEnabled(renderOpts)) {
     return undefined
   }
-
-  const { waitUntil, onClose, ComponentMod } = renderOpts
-  const cacheScope = ComponentMod?.createCacheScope()
-
-  return new AfterContext({ waitUntil, onClose, cacheScope })
+  const { waitUntil, onClose } = renderOpts
+  return new AfterContext({ waitUntil, onClose })
 }
 
 function isAfterEnabled(

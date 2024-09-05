@@ -199,6 +199,7 @@ export function createNextApiEsmAliases() {
     dynamic: 'next/dist/api/dynamic',
     script: 'next/dist/api/script',
     link: 'next/dist/api/link',
+    form: 'next/dist/api/form',
     navigation: 'next/dist/api/navigation',
     headers: 'next/dist/api/headers',
     og: 'next/dist/api/og',
@@ -242,6 +243,7 @@ export function createRSCRendererAliases(bundledReactChannel: string) {
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
     'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+    'react-server-dom-webpack/static.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.edge`,
   }
 }
 
@@ -265,12 +267,12 @@ export function createRSCAliases(
     'react/compiler-runtime$': `next/dist/compiled/react${bundledReactChannel}/compiler-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
     'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
-    'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
-    'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
-    'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
-    // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
+    'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
+    'react-dom/static$': `next/dist/compiled/react-dom${bundledReactChannel}/static`,
+    'react-dom/static.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/static.edge`,
+    'react-dom/static.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/static.browser`,
+    // optimizations to ignore the legacy build of react-dom/server in `server.edge` build
     'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
-    'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
     // react-server-dom-webpack alias
     ...createRSCRendererAliases(bundledReactChannel),
   }
@@ -294,6 +296,7 @@ export function createRSCAliases(
         'react-dom$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-dom`,
         'react-server-dom-webpack/server.edge$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-edge`,
         'react-server-dom-webpack/server.node$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-node`,
+        'react-server-dom-webpack/static.edge$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-static-edge`,
       })
     }
   }

@@ -1,11 +1,11 @@
 'use client'
 
+import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
 import type {
   FocusAndScrollRef,
   PrefetchKind,
   RouterChangeByServerResponse,
 } from '../../client/components/router-reducer/router-reducer-types'
-import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
 import type { FlightRouterState } from '../../server/app-render/types'
 import React from 'react'
 

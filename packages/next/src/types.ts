@@ -18,6 +18,7 @@ import type {
   NextApiRequest,
   NextApiHandler,
 } from './shared/lib/utils'
+import type { GetStaticPathsFallback } from './lib/fallback'
 
 import type { NextApiRequestCookies } from './server/api-utils'
 
@@ -37,6 +38,8 @@ export type {
   ResolvingViewport,
   ResolvedViewport,
 } from './lib/metadata/types/metadata-interface'
+
+export type { Instrumentation } from './server/instrumentation/types'
 
 /**
  * Stub route type for typedRoutes before `next dev` or `next build` is run
@@ -218,7 +221,7 @@ export type GetStaticPathsResult<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
 > = {
   paths: Array<string | { params: Params; locale?: string }>
-  fallback: boolean | 'blocking'
+  fallback: GetStaticPathsFallback
 }
 
 /**

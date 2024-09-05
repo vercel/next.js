@@ -428,10 +428,13 @@ describe('app dir - metadata', () => {
         'twitter:title': 'no-tw-image',
       })
 
-      // icon should be overridden
-      expect($('link[rel="icon"]').attr('href')).toBe(
-        'https://custom-icon-1.png'
-      )
+      // icon should be overridden and contain favicon.ico
+      const [favicon, ...icons] = $('link[rel="icon"]')
+        .toArray()
+        .map((i) => $(i).attr('href'))
+
+      expect(favicon).toMatch('/favicon.ico')
+      expect(icons).toEqual(['https://custom-icon-1.png'])
     })
   })
 
@@ -456,6 +459,7 @@ describe('app dir - metadata', () => {
 
       await checkLink(browser, 'shortcut icon', '/shortcut-icon.png')
       await checkLink(browser, 'icon', [
+        expect.stringMatching(/favicon\.ico/),
         '/icon.png',
         'https://example.com/icon.png',
       ])
@@ -553,7 +557,9 @@ describe('app dir - metadata', () => {
       expect($appleIcon.length).toBe(0)
 
       const $dynamic = await next.render$('/icons/static/dynamic-routes/123')
-      const $dynamicIcon = $dynamic('head > link[rel="icon"]')
+      const $dynamicIcon = $dynamic(
+        'head > link[rel="icon"][type!="image/x-icon"]'
+      )
       const dynamicIconHref = $dynamicIcon.attr('href')
       expect(dynamicIconHref).toMatch(
         /\/icons\/static\/dynamic-routes\/123\/icon/

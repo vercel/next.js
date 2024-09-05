@@ -90,11 +90,18 @@ export type FlightSegmentPath =
  */
 export type CacheNodeSeedData = [
   segment: Segment,
+  node: React.ReactNode | null,
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  node: React.ReactNode | null,
   loading: LoadingModuleData,
+]
+
+export type FlightDataSegment = [
+  /* segment of the rendered slice: */ Segment,
+  /* treePatch */ FlightRouterState,
+  /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
+  /* head */ React.ReactNode | null,
 ]
 
 export type FlightDataPath =
@@ -104,10 +111,7 @@ export type FlightDataPath =
   | [
       // Holds full path to the segment.
       ...FlightSegmentPath[],
-      /* segment of the rendered slice: */ Segment,
-      /* treePatch */ FlightRouterState,
-      /* cacheNodeSeedData */ CacheNodeSeedData, // Can be null during prefetch if there's no loading component
-      /* head */ React.ReactNode | null,
+      ...FlightDataSegment,
     ]
 
 /**
@@ -116,15 +120,6 @@ export type FlightDataPath =
 export type FlightData = Array<FlightDataPath> | string
 
 export type ActionResult = Promise<any>
-
-// Response from `createFromFetch` for normal rendering
-export type NextFlightResponse = [buildId: string, flightData: FlightData]
-
-// Response from `createFromFetch` for server actions. Action's flight data can be null
-export type ActionFlightResponse =
-  | [ActionResult, [buildId: string, flightData: FlightData | null]]
-  // This case happens when `redirect()` is called in a server action.
-  | NextFlightResponse
 
 export type ServerOnInstrumentationRequestError = (
   error: unknown,
@@ -180,6 +175,7 @@ export interface RenderOptsPartial {
     swrDelta: SwrDelta | undefined
     clientTraceMetadata: string[] | undefined
     after: boolean
+    dynamicIO: boolean
   }
   postponed?: string
   /**
@@ -194,6 +190,13 @@ export interface RenderOptsPartial {
    * statically generated.
    */
   isDebugDynamicAccesses?: boolean
+
+  /**
+   * The maximum length of the headers that are emitted by React and added to
+   * the response.
+   */
+  reactMaxHeadersLength: number | undefined
+
   isStaticGeneration?: boolean
 }
 
@@ -208,18 +211,39 @@ export type InitialRSCPayload = {
   b: string
   /** assetPrefix */
   p: string
-  /** initialCanonicalUrl */
-  c: string
+  /** initialCanonicalUrlParts */
+  c: string[]
   /** couldBeIntercepted */
   i: boolean
-  /** initialTree */
-  t: FlightRouterState
-  /** initialSeedData */
-  d: CacheNodeSeedData
-  /** initialHead */
-  h: React.ReactNode
+  /** initialFlightData */
+  f: FlightDataPath[]
   /** missingSlots */
   m: Set<string> | undefined
   /** GlobalError */
   G: React.ComponentType<any>
+  /** postponed */
+  s: boolean
 }
+
+// Response from `createFromFetch` for normal rendering
+export type NavigationFlightResponse = {
+  /** buildId */
+  b: string
+  /** flightData */
+  f: FlightData
+}
+
+// Response from `createFromFetch` for server actions. Action's flight data can be null
+export type ActionFlightResponse = {
+  /** actionResult */
+  a: ActionResult
+  /** buildId */
+  b: string
+  /** flightData */
+  f: FlightData
+}
+
+export type RSCPayload =
+  | InitialRSCPayload
+  | NavigationFlightResponse
+  | ActionFlightResponse

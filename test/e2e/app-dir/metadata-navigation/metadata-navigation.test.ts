@@ -33,14 +33,19 @@ describe('app dir - metadata navigation', () => {
 
       // TODO-APP: support render custom not-found in SSR for generateMetadata.
       // Check contains root not-found payload in flight response for now.
-      let hasRootNotFoundFlight = false
+      const flightDataPrefix = 'self.__next_f.push([1,"'
+      const flightDataSuffix = '"])'
+      let flightText = ''
       for (const el of $('script').toArray()) {
         const text = $(el).text()
-        if (text.includes('Local found boundary')) {
-          hasRootNotFoundFlight = true
+        if (text.startsWith(flightDataPrefix)) {
+          flightText += text.slice(
+            flightDataPrefix.length,
+            -flightDataSuffix.length
+          )
         }
       }
-      expect(hasRootNotFoundFlight).toBe(true)
+      expect(flightText).toContain('Local found boundary')
 
       // Should contain default metadata and noindex tag
       const matchHtml = createMultiHtmlMatcher($)

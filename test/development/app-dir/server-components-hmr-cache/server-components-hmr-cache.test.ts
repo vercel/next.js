@@ -81,12 +81,12 @@ describe('server-components-hmr-cache', () => {
       })
     })
 
-    describe('with experimental.serverComponentsHmrCache not enabled', () => {
+    describe('with experimental.serverComponentsHmrCache disabled', () => {
       beforeAll(async () => {
         await next.patchFile('next.config.js', (content) =>
           content.replace(
-            'serverComponentsHmrCache: true,',
-            '// serverComponentsHmrCache: true,'
+            '// serverComponentsHmrCache: false,',
+            'serverComponentsHmrCache: false,'
           )
         )
       })
@@ -94,8 +94,8 @@ describe('server-components-hmr-cache', () => {
       afterAll(async () => {
         await next.patchFile('next.config.js', (content) =>
           content.replace(
-            '// serverComponentsHmrCache: true,',
-            'serverComponentsHmrCache: true,'
+            'serverComponentsHmrCache: false,',
+            '// serverComponentsHmrCache: false,'
           )
         )
       })

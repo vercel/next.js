@@ -7,7 +7,9 @@ import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
+  ACTION_DEBUG_INFO,
   ACTION_REFRESH,
+  ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
   ACTION_VERSION_INFO,
@@ -33,13 +35,16 @@ import type {
 import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import type { HydrationErrorState } from '../internal/helpers/hydration-error-info'
-import type { ShowHideHandler } from '../../../dev/dev-build-watcher'
-interface Dispatcher {
+import type { DebugInfo } from '../types'
+
+export interface Dispatcher {
   onBuildOk(): void
   onBuildError(message: string): void
   onVersionInfo(versionInfo: VersionInfo): void
+  onDebugInfo(debugInfo: DebugInfo): void
   onBeforeRefresh(): void
   onRefresh(): void
+  onStaticIndicator(status: boolean): void
 }
 
 let mostRecentCompilationHash: any = null
@@ -47,19 +52,36 @@ let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let reloading = false
 let startLatency: number | null = null
 
-function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
+let pendingHotUpdateWebpack = Promise.resolve()
+let resolvePendingHotUpdateWebpack: () => void = () => {}
+function setPendingHotUpdateWebpack() {
+  pendingHotUpdateWebpack = new Promise((resolve) => {
+    resolvePendingHotUpdateWebpack = () => {
+      resolve()
+    }
+  })
+}
+
+export function waitForWebpackRuntimeHotUpdate() {
+  return pendingHotUpdateWebpack
+}
+
+function handleBeforeHotUpdateWebpack(
+  dispatcher: Dispatcher,
+  hasUpdates: boolean
+) {
   if (hasUpdates) {
     dispatcher.onBeforeRefresh()
   }
 }
 
-function onFastRefresh(
+function handleSuccessfulHotUpdateWebpack(
   dispatcher: Dispatcher,
   sendMessage: (message: string) => void,
   updatedModules: ReadonlyArray<string>
 ) {
+  resolvePendingHotUpdateWebpack()
   dispatcher.onBuildOk()
-
   reportHmrLatency(sendMessage, updatedModules)
 
   dispatcher.onRefresh()
@@ -160,7 +182,9 @@ function tryApplyUpdates(
   dispatcher: Dispatcher
 ) {
   if (!isUpdateAvailable() || !canApplyUpdates()) {
+    resolvePendingHotUpdateWebpack()
     dispatcher.onBuildOk()
+    reportHmrLatency(sendMessage, [])
     return
   }
 
@@ -281,12 +305,16 @@ function processMessage(
     } else {
       tryApplyUpdates(
         function onBeforeHotUpdate(hasUpdates: boolean) {
-          onBeforeFastRefresh(dispatcher, hasUpdates)
+          handleBeforeHotUpdateWebpack(dispatcher, hasUpdates)
         },
         function onSuccessfulHotUpdate(webpackUpdatedModules: string[]) {
           // Only dismiss it when we're sure it's a hot update.
           // Otherwise it would flicker right before the reload.
-          onFastRefresh(dispatcher, sendMessage, webpackUpdatedModules)
+          handleSuccessfulHotUpdateWebpack(
+            dispatcher,
+            sendMessage,
+            webpackUpdatedModules
+          )
         },
         sendMessage,
         dispatcher
@@ -300,19 +328,14 @@ function processMessage(
         if (appIsrManifestRef) {
           appIsrManifestRef.current = obj.data
 
-          const isrIndicatorHandlers: ShowHideHandler | undefined =
-            window.next?.isrIndicatorHandlers
-
           // handle initial status on receiving manifest
           // navigation is handled in useEffect for pathname changes
           // as we'll receive the updated manifest before usePathname
           // triggers for new value
-          if (isrIndicatorHandlers) {
-            if ((pathnameRef.current as string) in obj.data) {
-              isrIndicatorHandlers.show()
-            } else {
-              isrIndicatorHandlers.hide()
-            }
+          if ((pathnameRef.current as string) in obj.data) {
+            dispatcher.onStaticIndicator(true)
+          } else {
+            dispatcher.onStaticIndicator(false)
           }
         }
       }
@@ -320,6 +343,9 @@ function processMessage(
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()
+      if (!process.env.TURBOPACK) {
+        setPendingHotUpdateWebpack()
+      }
       console.log('[Fast Refresh] rebuilding')
       break
     }
@@ -333,6 +359,7 @@ function processMessage(
 
       // Is undefined when it's a 'built' event
       if ('versionInfo' in obj) dispatcher.onVersionInfo(obj.versionInfo)
+      if ('debug' in obj && obj.debug) dispatcher.onDebugInfo(obj.debug)
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -395,6 +422,9 @@ function processMessage(
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED: {
       processTurbopackMessage({
         type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+        data: {
+          sessionId: obj.data.sessionId,
+        },
       })
       break
     }
@@ -426,11 +456,11 @@ function processMessage(
         reloading = true
         return window.location.reload()
       }
+      resolvePendingHotUpdateWebpack()
       startTransition(() => {
         router.hmrRefresh()
         dispatcher.onRefresh()
       })
-      reportHmrLatency(sendMessage, [])
 
       if (process.env.__NEXT_TEST_MODE) {
         if (self.__NEXT_HMR_CB) {
@@ -501,6 +531,12 @@ export default function HotReload({
       onVersionInfo(versionInfo) {
         dispatch({ type: ACTION_VERSION_INFO, versionInfo })
       },
+      onStaticIndicator(status: boolean) {
+        dispatch({ type: ACTION_STATIC_INDICATOR, staticIndicator: status })
+      },
+      onDebugInfo(debugInfo) {
+        dispatch({ type: ACTION_DEBUG_INFO, debugInfo })
+      },
     }
   }, [dispatch])
 
@@ -509,7 +545,7 @@ export default function HotReload({
       const errorDetails = (error as any).details as
         | HydrationErrorState
         | undefined
-      // Component stack is added to the error in use-error-handler in case there was a hydration errror
+      // Component stack is added to the error in use-error-handler in case there was a hydration error
       const componentStackTrace =
         (error as any)._componentStack || errorDetails?.componentStack
       const warning = errorDetails?.warning
@@ -559,19 +595,17 @@ export default function HotReload({
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
       pathnameRef.current = pathname
-      const isrIndicatorHandlers: ShowHideHandler | undefined =
-        window.next?.isrIndicatorHandlers
 
       const appIsrManifest = appIsrManifestRef.current
 
-      if (isrIndicatorHandlers && appIsrManifest) {
+      if (appIsrManifest) {
         if (pathname in appIsrManifest) {
-          isrIndicatorHandlers.show()
+          dispatcher.onStaticIndicator(true)
         } else {
-          isrIndicatorHandlers.hide()
+          dispatcher.onStaticIndicator(false)
         }
       }
-    }, [pathname])
+    }, [pathname, dispatcher])
   }
 
   useEffect(() => {
@@ -609,7 +643,11 @@ export default function HotReload({
   ])
 
   return (
-    <ReactDevOverlay onReactError={handleOnReactError} state={state}>
+    <ReactDevOverlay
+      onReactError={handleOnReactError}
+      state={state}
+      dispatcher={dispatcher}
+    >
       {children}
     </ReactDevOverlay>
   )

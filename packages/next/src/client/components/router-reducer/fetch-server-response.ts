@@ -13,8 +13,7 @@ const { createFromFetch } = (
 
 import type {
   FlightRouterState,
-  FlightData,
-  NextFlightResponse,
+  NavigationFlightResponse,
 } from '../../../server/app-render/types'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -23,12 +22,17 @@ import {
   NEXT_URL,
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
-  NEXT_DID_POSTPONE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
+  NEXT_IS_PRERENDER_HEADER,
+  NEXT_DID_POSTPONE_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
+import {
+  normalizeFlightData,
+  type NormalizedFlightData,
+} from '../../flight-data-helpers'
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
@@ -38,12 +42,13 @@ export interface FetchServerResponseOptions {
   readonly isHmrRefresh?: boolean
 }
 
-export type FetchServerResponseResult = [
-  flightData: FlightData,
-  canonicalUrlOverride: URL | undefined,
-  postponed?: boolean,
-  intercepted?: boolean,
-]
+export type FetchServerResponseResult = {
+  flightData: NormalizedFlightData[] | string
+  canonicalUrl: URL | undefined
+  couldBeIntercepted: boolean
+  isPrerender: boolean
+  postponed: boolean
+}
 
 function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -63,7 +68,13 @@ function urlToUrlWithoutFlightMarker(url: string): URL {
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
-  return [urlToUrlWithoutFlightMarker(url).toString(), undefined, false, false]
+  return {
+    flightData: urlToUrlWithoutFlightMarker(url).toString(),
+    canonicalUrl: undefined,
+    couldBeIntercepted: false,
+    isPrerender: false,
+    postponed: false,
+  }
 }
 
 /**
@@ -81,6 +92,7 @@ export async function fetchServerResponse(
     [NEXT_ROUTER_STATE_TREE_HEADER]: string
     [NEXT_URL]?: string
     [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
+    'x-deployment-id'?: string
     [NEXT_HMR_REFRESH_HEADER]?: '1'
     // A header that is only added in test mode to assert on fetch priority
     'Next-Test-Fetch-Priority'?: RequestInit['priority']
@@ -109,6 +121,10 @@ export async function fetchServerResponse(
 
   if (nextUrl) {
     headers[NEXT_URL] = nextUrl
+  }
+
+  if (process.env.NEXT_DEPLOYMENT_ID) {
+    headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
   }
 
   const uniqueCacheQuery = hexHash(
@@ -159,8 +175,9 @@ export async function fetchServerResponse(
     const canonicalUrl = res.redirected ? responseUrl : undefined
 
     const contentType = res.headers.get('content-type') || ''
-    const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
+    const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
+    const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
     let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
 
     if (process.env.NODE_ENV === 'production') {
@@ -182,15 +199,33 @@ export async function fetchServerResponse(
       return doMpaNavigation(responseUrl.toString())
     }
 
-    // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-    const [buildIdFromResponse, flightData]: NextFlightResponse =
-      await createFromFetch(Promise.resolve(res), { callServer })
+    // We may navigate to a page that requires a different Webpack runtime.
+    // In prod, every page will have the same Webpack runtime.
+    // In dev, the Webpack runtime is minimal for each page.
+    // We need to ensure the Webpack runtime is updated before executing client-side JS of the new page.
+    if (process.env.NODE_ENV !== 'production' && !process.env.TURBOPACK) {
+      await require('../react-dev-overlay/app/hot-reloader-client').waitForWebpackRuntimeHotUpdate()
+    }
 
-    if (buildId !== buildIdFromResponse) {
+    // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
+    const response: NavigationFlightResponse = await createFromFetch(
+      Promise.resolve(res),
+      {
+        callServer,
+      }
+    )
+
+    if (buildId !== response.b) {
       return doMpaNavigation(res.url)
     }
 
-    return [flightData, canonicalUrl, postponed, interception]
+    return {
+      flightData: normalizeFlightData(response.f),
+      canonicalUrl: canonicalUrl,
+      couldBeIntercepted: interception,
+      isPrerender: isPrerender,
+      postponed,
+    }
   } catch (err) {
     console.error(
       `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
@@ -199,6 +234,12 @@ export async function fetchServerResponse(
     // If fetch fails handle it like a mpa navigation
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
-    return [url.toString(), undefined, false, false]
+    return {
+      flightData: url.toString(),
+      canonicalUrl: undefined,
+      couldBeIntercepted: false,
+      isPrerender: false,
+      postponed: false,
+    }
   }
 }

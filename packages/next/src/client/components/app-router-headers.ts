@@ -16,3 +16,4 @@ export const FLIGHT_HEADERS = [
 export const NEXT_RSC_UNION_QUERY = '_rsc' as const
 
 export const NEXT_DID_POSTPONE_HEADER = 'x-nextjs-postponed' as const
+export const NEXT_IS_PRERENDER_HEADER = 'x-nextjs-prerender' as const

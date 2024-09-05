@@ -27,6 +27,7 @@ const dirNoConfig = join(__dirname, '../no-config')
 const dirFileLinting = join(__dirname, '../file-linting')
 const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
 const dirTypescript = join(__dirname, '../with-typescript')
+const formatterAsync = join(__dirname, '../formatter-async/format.js')
 
 describe('Next Lint', () => {
   describe('First Time Setup ', () => {
@@ -439,6 +440,21 @@ describe('Next Lint', () => {
     expect(output).toContain('warning: Synchronous scripts should not be used.')
     expect(stdout).toContain('<script src="https://example.com" />')
     expect(stdout).toContain('2 warnings found')
+  })
+
+  test('format flag supports async formatters', async () => {
+    const { stdout, stderr } = await nextLint(
+      dirMaxWarnings,
+      ['-f', formatterAsync],
+      {
+        stdout: true,
+        stderr: true,
+      }
+    )
+
+    const output = stdout + stderr
+    expect(output).toContain('Async results:')
+    expect(stdout).toContain('Synchronous scripts should not be used.')
   })
 
   test('file flag can selectively lint only a single file', async () => {

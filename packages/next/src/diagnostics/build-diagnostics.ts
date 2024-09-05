@@ -1,9 +1,13 @@
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { traceGlobals } from '../trace/shared'
+import type { ExportAppResult } from '../export/types'
+import type { FetchMetrics } from '../server/base-http'
 
 const DIAGNOSTICS_DIR = 'diagnostics'
 const DIAGNOSTICS_FILE = 'build-diagnostics.json'
+const FETCH_METRICS_FILE = 'fetch-metrics.json'
+const FRAMEWORK_VERSION_FILE = 'framework.json'
 
 interface BuildDiagnostics {
   // The current stage of the build process. This should be updated as the
@@ -26,8 +30,11 @@ async function getDiagnosticsDir(): Promise<string> {
  */
 export async function recordFrameworkVersion(version: string): Promise<void> {
   const diagnosticsDir = await getDiagnosticsDir()
-  const frameworkVersionFile = join(diagnosticsDir, 'framework.json')
-  await writeFile(frameworkVersionFile, JSON.stringify({ version }))
+  const frameworkVersionFile = join(diagnosticsDir, FRAMEWORK_VERSION_FILE)
+  await writeFile(
+    frameworkVersionFile,
+    JSON.stringify({ name: 'Next.js', version })
+  )
 }
 
 /**
@@ -56,4 +63,23 @@ export async function updateBuildDiagnostics(
     buildOptions: updatedBuildOptions,
   }
   await writeFile(diagnosticsFile, JSON.stringify(updatedDiagnostics, null, 2))
+}
+
+/**
+ * Writes fetch metrics collected during static generation to a file.
+ */
+export async function recordFetchMetrics(
+  exportResult: ExportAppResult
+): Promise<void> {
+  const diagnosticsDir = await getDiagnosticsDir()
+  const diagnosticsFile = join(diagnosticsDir, FETCH_METRICS_FILE)
+  const fetchMetricsByPath: Record<string, FetchMetrics> = {}
+
+  for (const [appPath, { fetchMetrics }] of exportResult.byPath) {
+    if (fetchMetrics) {
+      fetchMetricsByPath[appPath] = fetchMetrics
+    }
+  }
+
+  return writeFile(diagnosticsFile, JSON.stringify(fetchMetricsByPath, null, 2))
 }
