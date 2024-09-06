@@ -1062,23 +1062,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     },
                 }
             }
-            Effect::Worker {
-                url,
-                options: _,
-                ast_path,
-                span,
-                in_try,
-            } => {
-                if let Some(ignored) = &ignore_effect_span {
-                    if *ignored == span {
-                        continue;
-                    }
-                }
-                if *compile_time_info.environment().rendering().await? == Rendering::Client {
-                    handle_worker(&ast_path, span, url, &analysis_state, &mut analysis, in_try)
-                        .await?;
-                }
-            }
             Effect::Call {
                 func,
                 args,
@@ -1265,40 +1248,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         .await
 }
 
-async fn handle_worker(
-    ast_path: &[AstParentKind],
-    span: Span,
-    url: JsValue,
-    state: &AnalysisState<'_>,
-    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
-    in_try: bool,
-) -> Result<()> {
-    let &AnalysisState {
-        handler,
-        origin,
-        source,
-        ..
-    } = state;
-    if let JsValue::Url(url, JsValueUrlKind::Relative) = url {
-        let pat = Pattern::Constant(url.as_str().into());
-        analysis.add_reference(WorkerAssetReference::new(
-            origin,
-            Request::parse(Value::new(pat)),
-            Vc::cell(ast_path.to_vec()),
-            issue_source(source, span),
-            in_try,
-        ));
-        return Ok(());
-    }
-    let (args, hints) = JsValue::explain_args(&[url], 10, 2);
-    handler.span_warn_with_code(
-        span,
-        &format!("new Worker({args}) is not statically analyse-able{hints}",),
-        DiagnosticId::Error(errors::failed_to_analyse::ecmascript::NEW_WORKER.to_string()),
-    );
-    Ok(())
-}
-
 async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
     ast_path: &[AstParentKind],
     span: Span,
@@ -1388,24 +1337,32 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             }
             JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor) => {
                 let args = linked_args(args).await?;
-                if let [_url @ JsValue::Url(_, JsValueUrlKind::Relative)] = &args[..] {
-                    // let pat = js_value_to_pattern(url);
-                    // if !pat.has_constant_parts() {
-                    //     let (args, hints) = explain_args(&args);
-                    //     handler.span_warn_with_code(
-                    //         span,
-                    //         &format!("new Worker({args}) is very dynamic{hints}",),
-                    //         DiagnosticId::Lint(
-                    //             errors::failed_to_analyse::ecmascript::NEW_URL_IMPORT_META
-                    //                 .to_string(),
-                    //         ),
-                    //     );
-                    //     if ignore_dynamic_requests {
-                    //         return Ok(());
-                    //     }
-                    // }
+                if let [url @ JsValue::Url(_, JsValueUrlKind::Relative)] = &args[..] {
+                    let pat = js_value_to_pattern(url);
+                    if !pat.has_constant_parts() {
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("new Worker({args}) is very dynamic{hints}",),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyse::ecmascript::NEW_WORKER.to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                    }
 
-                    // TODO add worker reference
+                    if *compile_time_info.environment().rendering().await? == Rendering::Client {
+                        analysis.add_reference(WorkerAssetReference::new(
+                            origin,
+                            Request::parse(Value::new(pat)),
+                            Vc::cell(ast_path.to_vec()),
+                            issue_source(source, span),
+                            in_try,
+                        ));
+                    }
+
                     return Ok(());
                 }
                 let (args, hints) = explain_args(&args);
