@@ -359,9 +359,8 @@ impl BackingStorage for LmdbBackingStorage {
             tx.commit()?;
             Ok(result)
         }
-        let result = lookup(self, task_id, &span)
+        lookup(self, task_id, &span)
             .inspect_err(|err| println!("Looking up data for {task_id} failed: {err:?}"))
-            .unwrap_or_default();
-        result
+            .unwrap_or_default()
     }
 }
