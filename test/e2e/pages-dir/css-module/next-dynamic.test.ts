@@ -28,7 +28,7 @@ describe('css-module-with-next-dynamic-and-static-import', () => {
     const browser = await next.browser('/')
     expect(
       await browser
-        .elementByCss('a[href="/next-dynamic-ssr-false"]')
+        .elementByCss('a[href="/next-dynamic-no-ssr"]')
         .click()
         .waitForElementByCss('#red-button')
         .text()

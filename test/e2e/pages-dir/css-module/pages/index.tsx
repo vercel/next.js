@@ -15,7 +15,7 @@ export default function Home() {
       <Link href="/dynamic-import">/dynamic-import</Link>
       <Link href="/next-dynamic">/next-dynamic</Link>
       <Link href="/next-dynamic-no-ssr">/next-dynamic-no-ssr</Link>
-      {/* RedButton should be imported to be reproduced */}
+      {/* RedButton should be imported to reproduce the issue */}
       <RedButton />
       {/* GreenButton style should not remain after navigation */}
       <GreenButton />
