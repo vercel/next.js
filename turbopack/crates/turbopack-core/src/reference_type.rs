@@ -193,6 +193,16 @@ pub enum TypeScriptReferenceSubType {
     Undefined,
 }
 
+#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(Debug, Clone, Hash)]
+pub enum WorkerReferenceSubType {
+    WebWorker,
+    SharedWorker,
+    ServiceWorker,
+    Custom(u8),
+    Undefined,
+}
+
 // TODO(sokra) this was next.js specific values. We want to solve this in a
 // different way.
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -219,7 +229,7 @@ pub enum ReferenceType {
     Css(CssReferenceSubType),
     Url(UrlReferenceSubType),
     TypeScript(TypeScriptReferenceSubType),
-    Worker,
+    Worker(WorkerReferenceSubType),
     Entry(EntryReferenceSubType),
     Runtime,
     Internal(Vc<InnerAssets>),
@@ -239,7 +249,7 @@ impl Display for ReferenceType {
             ReferenceType::Css(_) => "css",
             ReferenceType::Url(_) => "url",
             ReferenceType::TypeScript(_) => "typescript",
-            ReferenceType::Worker => "worker",
+            ReferenceType::Worker(_) => "worker",
             ReferenceType::Entry(_) => "entry",
             ReferenceType::Runtime => "runtime",
             ReferenceType::Internal(_) => "internal",
@@ -280,12 +290,15 @@ impl ReferenceType {
                 matches!(other, ReferenceType::TypeScript(_))
                     && matches!(sub_type, TypeScriptReferenceSubType::Undefined)
             }
+            ReferenceType::Worker(sub_type) => {
+                matches!(other, ReferenceType::Worker(_))
+                    && matches!(sub_type, WorkerReferenceSubType::Undefined)
+            }
             ReferenceType::Entry(sub_type) => {
                 matches!(other, ReferenceType::Entry(_))
                     && matches!(sub_type, EntryReferenceSubType::Undefined)
             }
             ReferenceType::Runtime => matches!(other, ReferenceType::Runtime),
-            ReferenceType::Worker => matches!(other, ReferenceType::Worker),
             ReferenceType::Internal(_) => matches!(other, ReferenceType::Internal(_)),
             ReferenceType::Custom(_) => {
                 todo!()

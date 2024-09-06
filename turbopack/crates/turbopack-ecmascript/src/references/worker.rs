@@ -9,7 +9,7 @@ use turbopack_core::{
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     module::Module,
     reference::ModuleReference,
-    reference_type::ReferenceType,
+    reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
 };
 use turbopack_resolve::ecmascript::try_to_severity;
@@ -29,7 +29,6 @@ pub struct WorkerAssetReference {
     pub path: Vc<AstPath>,
     pub issue_source: Vc<IssueSource>,
     pub in_try: bool,
-    pub import_externals: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -41,7 +40,6 @@ impl WorkerAssetReference {
         path: Vc<AstPath>,
         issue_source: Vc<IssueSource>,
         in_try: bool,
-        import_externals: bool,
     ) -> Vc<Self> {
         Self::cell(WorkerAssetReference {
             origin,
@@ -49,7 +47,6 @@ impl WorkerAssetReference {
             path,
             issue_source,
             in_try,
-            import_externals,
         })
     }
 }
@@ -61,7 +58,8 @@ impl WorkerAssetReference {
         let module = url_resolve(
             self.origin,
             self.request,
-            Value::new(ReferenceType::Worker),
+            // TODO support more worker types
+            Value::new(ReferenceType::Worker(WorkerReferenceSubType::WebWorker)),
             Some(self.issue_source),
             try_to_severity(self.in_try),
         );
