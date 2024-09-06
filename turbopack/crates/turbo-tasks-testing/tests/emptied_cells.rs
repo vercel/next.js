@@ -16,23 +16,23 @@ async fn recompute() {
         let output = compute(input);
         assert_eq!(*output.await?, 1);
 
-        println!("changing input");
+        println!("\n\nchanging input");
         input.await?.state.set(10);
         assert_eq!(*output.strongly_consistent().await?, 10);
 
-        println!("changing input");
+        println!("\n\nchanging input");
         input.await?.state.set(5);
         assert_eq!(*output.strongly_consistent().await?, 5);
 
-        println!("changing input");
+        println!("\n\nchanging input");
         input.await?.state.set(20);
         assert_eq!(*output.strongly_consistent().await?, 20);
 
-        println!("changing input");
+        println!("\n\nchanging input");
         input.await?.state.set(15);
         assert_eq!(*output.strongly_consistent().await?, 15);
 
-        println!("changing input");
+        println!("\n\nchanging input");
         input.await?.state.set(1);
         assert_eq!(*output.strongly_consistent().await?, 1);
 
