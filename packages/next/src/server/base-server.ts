@@ -2995,6 +2995,13 @@ export default abstract class Server<
       }
     )
 
+    if (isPreviewMode) {
+      res.setHeader(
+        'Cache-Control',
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
+    }
+
     if (!cacheEntry) {
       if (ssgCacheKey && !(isOnDemandRevalidate && revalidateOnlyGenerated)) {
         // A cache entry might not be generated if a response is written
@@ -3697,7 +3704,7 @@ export default abstract class Server<
     if (setHeaders) {
       res.setHeader(
         'Cache-Control',
-        'no-cache, no-store, max-age=0, must-revalidate'
+        'private, no-cache, no-store, max-age=0, must-revalidate'
       )
     }
 
