@@ -1,0 +1,79 @@
+{
+  "title": "Mini CSS Extract Plugin options",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "filename": {
+      "anyOf": [
+        {
+          "type": "string",
+          "absolutePath": false,
+          "minLength": 1
+        },
+        {
+          "instanceof": "Function"
+        }
+      ],
+      "description": "This option determines the name of each output CSS file.",
+      "link": "https://github.com/webpack-contrib/mini-css-extract-plugin#filename"
+    },
+    "chunkFilename": {
+      "anyOf": [
+        {
+          "type": "string",
+          "absolutePath": false,
+          "minLength": 1
+        },
+        {
+          "instanceof": "Function"
+        }
+      ],
+      "description": "This option determines the name of non-entry chunk files.",
+      "link": "https://github.com/webpack-contrib/mini-css-extract-plugin#chunkfilename"
+    },
+    "experimentalUseImportModule": {
+      "type": "boolean",
+      "description": "Enable the experimental importModule approach instead of using child compilers. This uses less memory and is faster.",
+      "link": "https://github.com/webpack-contrib/mini-css-extract-plugin#experimentaluseimportmodule"
+    },
+    "ignoreOrder": {
+      "type": "boolean",
+      "description": "Remove Order Warnings.",
+      "link": "https://github.com/webpack-contrib/mini-css-extract-plugin#ignoreorder"
+    },
+    "insert": {
+      "description": "Inserts the `link` tag at the given position for non-initial (async) (https://webpack.js.org/concepts/under-the-hood/#chunks) CSS chunks.",
+      "link": "https://github.com/webpack-contrib/mini-css-extract-plugin#insert",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "instanceof": "Function"
+        }
+      ]
+    },
+    "attributes": {
+      "description": "Adds custom attributes to the `link` tag for non-initial (async) (https://webpack.js.org/concepts/under-the-hood/#chunks) CSS chunks.",
+      "link": "https://github.com/webpack-contrib/mini-css-extract-plugin#attributes",
+      "type": "object"
+    },
+    "linkType": {
+      "anyOf": [
+        {
+          "enum": ["text/css"]
+        },
+        {
+          "type": "boolean"
+        }
+      ],
+      "description": "This option allows loading asynchronous chunks with a custom link type",
+      "link": "https://github.com/webpack-contrib/mini-css-extract-plugin#linktype"
+    },
+    "runtime": {
+      "type": "boolean",
+      "description": "Enabled/Disables runtime generation. CSS will be still extracted and can be used for a custom loading methods.",
+      "link": "https://github.com/webpack-contrib/mini-css-extract-plugin#noRuntime"
+    }
+  }
+}

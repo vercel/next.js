@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { RedButton } from '../components/red-button'
-import { GreenButton } from '../components/green-button'
+// import { GreenButton } from '../components/green-button'
 
 export default function Home() {
   return (
@@ -18,7 +18,7 @@ export default function Home() {
       {/* RedButton should be imported to reproduce the issue */}
       <RedButton />
       {/* GreenButton style should not remain after navigation */}
-      <GreenButton />
+      {/* <GreenButton /> */}
     </div>
   )
 }

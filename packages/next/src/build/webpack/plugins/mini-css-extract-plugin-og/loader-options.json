@@ -1,0 +1,37 @@
+{
+  "title": "Mini CSS Extract Plugin Loader options",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "publicPath": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "instanceof": "Function"
+        }
+      ],
+      "description": "Specifies a custom public path for the external resources like images, files, etc inside CSS.",
+      "link": "https://github.com/webpack-contrib/mini-css-extract-plugin#publicpath"
+    },
+    "emit": {
+      "type": "boolean",
+      "description": "If true, emits a file (writes a file to the filesystem). If false, the plugin will extract the CSS but will not emit the file",
+      "link": "https://github.com/webpack-contrib/mini-css-extract-plugin#emit"
+    },
+    "esModule": {
+      "type": "boolean",
+      "description": "Generates JS modules that use the ES modules syntax.",
+      "link": "https://github.com/webpack-contrib/mini-css-extract-plugin#esmodule"
+    },
+    "layer": {
+      "type": "string"
+    },
+    "defaultExport": {
+      "type": "boolean",
+      "description": "Duplicate the named export with CSS modules locals to the default export (only when `esModules: true` for css-loader).",
+      "link": "https://github.com/webpack-contrib/mini-css-extract-plugin#defaultexports"
+    }
+  }
+}

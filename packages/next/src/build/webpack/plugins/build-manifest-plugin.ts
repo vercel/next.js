@@ -169,65 +169,65 @@ export const processRoute = (r: Rewrite) => {
 }
 
 /* Inspired by `next/src/build/webpack/react-loadable-plugin.ts` */
-function addStaticCSSToDynamicImportDeps(
-  compilation: webpack.Compilation,
-  block: webpack.AsyncDependenciesBlock,
-  assetMap: DeepMutable<BuildManifest>
-) {
-  block.blocks.forEach((recursiveBlock) => {
-    addStaticCSSToDynamicImportDeps(compilation, recursiveBlock, assetMap)
-  })
+// function addStaticCSSToDynamicImportDeps(
+//   compilation: webpack.Compilation,
+//   block: webpack.AsyncDependenciesBlock,
+//   assetMap: DeepMutable<BuildManifest>
+// ) {
+//   block.blocks.forEach((recursiveBlock) => {
+//     addStaticCSSToDynamicImportDeps(compilation, recursiveBlock, assetMap)
+//   })
 
-  const chunkGroup = compilation.chunkGraph.getBlockChunkGroup(block)
+//   const chunkGroup = compilation.chunkGraph.getBlockChunkGroup(block)
 
-  for (const dependency of block.dependencies) {
-    // We target the two types of dynamic import() dependencies:
-    // `ImportDependency` and `ContextElementDependency`.
+//   for (const dependency of block.dependencies) {
+//     // We target the two types of dynamic import() dependencies:
+//     // `ImportDependency` and `ContextElementDependency`.
 
-    // ImportDependency:
-    // - syntax: import("./module")
-    // - dependency.type: "import()"
+//     // ImportDependency:
+//     // - syntax: import("./module")
+//     // - dependency.type: "import()"
 
-    // ContextElementDependency:
-    // - syntax: import(`./module/${param}`)
-    // - dependency.type: "import() context element"
-    if (dependency.type.startsWith('import()')) {
-      const parentModule = compilation.moduleGraph.getParentModule(dependency)
-      // When the dependency is `ContextElementDependency`, the `parentModule.resource`
-      // is `undefined` which we can use for the request origin path. Therefore we go
-      // through the chunks to get the entrypoint.
-      const parentChunks = compilation.chunkGraph.getModuleChunks(parentModule)
-      if (!parentChunks.length) continue
+//     // ContextElementDependency:
+//     // - syntax: import(`./module/${param}`)
+//     // - dependency.type: "import() context element"
+//     if (dependency.type.startsWith('import()')) {
+//       const parentModule = compilation.moduleGraph.getParentModule(dependency)
+//       // When the dependency is `ContextElementDependency`, the `parentModule.resource`
+//       // is `undefined` which we can use for the request origin path. Therefore we go
+//       // through the chunks to get the entrypoint.
+//       const parentChunks = compilation.chunkGraph.getModuleChunks(parentModule)
+//       if (!parentChunks.length) continue
 
-      const cssFiles = new Set<string>()
-      if (chunkGroup) {
-        for (const chunk of chunkGroup.chunks) {
-          chunk.files.forEach((file: string) => {
-            if (file.endsWith('.css') && file.match(/^static\/css\//)) {
-              cssFiles.add(file)
-            }
-          })
-        }
-      }
+//       const cssFiles = new Set<string>()
+//       if (chunkGroup) {
+//         for (const chunk of chunkGroup.chunks) {
+//           chunk.files.forEach((file: string) => {
+//             if (file.endsWith('.css') && file.match(/^static\/css\//)) {
+//               cssFiles.add(file)
+//             }
+//           })
+//         }
+//       }
 
-      for (const chunk of parentChunks) {
-        const chunkName = chunk.name
-        if (!chunkName) continue
+//       for (const chunk of parentChunks) {
+//         const chunkName = chunk.name
+//         if (!chunkName) continue
 
-        const pagePath = getRouteFromEntrypoint(chunkName)
-        if (!pagePath) continue
+//         const pagePath = getRouteFromEntrypoint(chunkName)
+//         if (!pagePath) continue
 
-        const assetMapPages = assetMap.pages[pagePath]
-        // As we run this function `addStaticCSSToDynamicImportDeps`
-        // after the entrypoint files are added to the manifest,
-        // `assetMapPages` should already exist.
-        if (!assetMapPages) continue
+//         const assetMapPages = assetMap.pages[pagePath]
+//         // As we run this function `addStaticCSSToDynamicImportDeps`
+//         // after the entrypoint files are added to the manifest,
+//         // `assetMapPages` should already exist.
+//         if (!assetMapPages) continue
 
-        assetMap.pages[pagePath] = [...new Set([...assetMapPages, ...cssFiles])]
-      }
-    }
-  }
-}
+//         assetMap.pages[pagePath] = [...new Set([...assetMapPages, ...cssFiles])]
+//       }
+//     }
+//   }
+// }
 
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
@@ -358,11 +358,11 @@ export default class BuildManifestPlugin {
       // To prevent this, we add the dynamically imported CSS files
       // to the build manifest to signal the client not to clean up
       // the CSS file if it's loaded dynamically, preserving the styles.
-      for (const module of compilation.modules) {
-        module.blocks.forEach((block) =>
-          addStaticCSSToDynamicImportDeps(compilation, block, assetMap)
-        )
-      }
+      // for (const module of compilation.modules) {
+      //   module.blocks.forEach((block) =>
+      //     addStaticCSSToDynamicImportDeps(compilation, block, assetMap)
+      //   )
+      // }
 
       if (!this.isDevFallback) {
         // Add the runtime build manifest file (generated later in this file)
