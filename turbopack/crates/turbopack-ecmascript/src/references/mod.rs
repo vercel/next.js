@@ -116,7 +116,7 @@ use crate::{
     analyzer::{
         builtin::early_replace_builtin,
         graph::{ConditionalKind, EffectArg, EvalContext, VarGraph},
-        imports::{ImportAnnotations, ImportedSymbol, Reexport},
+        imports::{ImportAnnotations, ImportOverrides, ImportedSymbol, Reexport},
         parse_require_context,
         top_level_await::has_top_level_await,
         ConstantNumber, ConstantString, RequireContextValue,
@@ -364,10 +364,7 @@ struct AnalysisState<'a> {
 
 impl<'a> AnalysisState<'a> {
     /// Links a value to the graph, returning the linked value.
-    ///
-    /// * `ignore` is true if the value is ignored. This is perhaps the case when the webpackIgnore
-    ///   or turbopackIgnore directives are present.
-    async fn link_value(&self, value: JsValue, ignore: bool) -> Result<JsValue> {
+    async fn link_value(&self, value: JsValue, overrides: &ImportOverrides) -> Result<JsValue> {
         let fun_args_values = self.fun_args_values.lock().clone();
         link(
             self.var_graph,
@@ -379,7 +376,7 @@ impl<'a> AnalysisState<'a> {
                     value,
                     self.compile_time_info,
                     self.var_graph,
-                    ignore,
+                    overrides,
                 )
             },
             fun_args_values,
@@ -923,7 +920,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span: _,
                 in_try: _,
             } => {
-                let condition = analysis_state.link_value(condition, false).await?;
+                let condition = analysis_state
+                    .link_value(condition, ImportOverrides::empty_ref())
+                    .await?;
 
                 macro_rules! inactive {
                     ($block:ident) => {
@@ -1072,10 +1071,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
 
                 let func = analysis_state
-                    .link_value(
-                        func,
-                        eval_context.imports.get_ignore(span).unwrap_or_default(),
-                    )
+                    .link_value(func, eval_context.imports.get_overrides(span))
                     .await?;
 
                 handle_call(
@@ -1104,8 +1100,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         continue;
                     }
                 }
-                let mut obj = analysis_state.link_value(obj, false).await?;
-                let prop = analysis_state.link_value(prop, false).await?;
+                let mut obj = analysis_state
+                    .link_value(obj, ImportOverrides::empty_ref())
+                    .await?;
+                let prop = analysis_state
+                    .link_value(prop, ImportOverrides::empty_ref())
+                    .await?;
 
                 if let JsValue::Array {
                     items: ref mut values,
@@ -1115,7 +1115,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 {
                     if matches!(prop.as_str(), Some("map" | "forEach" | "filter")) {
                         if let [EffectArg::Closure(value, block)] = &mut args[..] {
-                            *value = analysis_state.link_value(take(value), false).await?;
+                            *value = analysis_state
+                                .link_value(take(value), ImportOverrides::empty_ref())
+                                .await?;
                             if let JsValue::Function(_, func_ident, _) = value {
                                 let mut closure_arg = JsValue::alternatives(take(values));
                                 if mutable {
@@ -1141,7 +1143,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 let func = analysis_state
                     .link_value(
                         JsValue::member(Box::new(obj.clone()), Box::new(prop)),
-                        false,
+                        ImportOverrides::empty_ref(),
                     )
                     .await?;
 
@@ -1173,8 +1175,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span,
                 in_try: _,
             } => {
-                let obj = analysis_state.link_value(obj, false).await?;
-                let prop = analysis_state.link_value(prop, false).await?;
+                let obj = analysis_state
+                    .link_value(obj, ImportOverrides::empty_ref())
+                    .await?;
+                let prop = analysis_state
+                    .link_value(prop, ImportOverrides::empty_ref())
+                    .await?;
 
                 handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis).await?;
             }
@@ -1201,7 +1207,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 ast_path,
                 span,
             } => {
-                let arg = analysis_state.link_value(arg, false).await?;
+                let arg = analysis_state
+                    .link_value(arg, ImportOverrides::empty_ref())
+                    .await?;
                 handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
             }
             Effect::ImportMeta {
@@ -1298,7 +1306,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             JsValue::unknown_empty(true, "spread is not supported yet")
                         }
                     };
-                    state.link_value(value, false).await
+                    state.link_value(value, ImportOverrides::empty_ref()).await
                 }
             })
             .try_join()
@@ -1528,7 +1536,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         )),
                         args.clone(),
                     ),
-                    false,
+                    ImportOverrides::empty_ref(),
                 )
                 .await?;
 
@@ -1563,7 +1571,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)),
                         args.clone(),
                     ),
-                    false,
+                    ImportOverrides::empty_ref(),
                 )
                 .await?;
             let pat = js_value_to_pattern(&linked_func_call);
@@ -1597,7 +1605,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 if pat.is_match_ignore_dynamic("node") && args.len() >= 2 {
                     let first_arg =
                         JsValue::member(Box::new(args[1].clone()), Box::new(0_f64.into()));
-                    let first_arg = state.link_value(first_arg, false).await?;
+                    let first_arg = state
+                        .link_value(first_arg, ImportOverrides::empty_ref())
+                        .await?;
                     let pat = js_value_to_pattern(&first_arg);
                     let dynamic = !pat.has_constant_parts();
                     if dynamic {
@@ -1718,7 +1728,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
 
             let args = linked_args(args).await?;
             if args.len() == 1 {
-                let first_arg = state.link_value(args[0].clone(), false).await?;
+                let first_arg = state
+                    .link_value(args[0].clone(), ImportOverrides::empty_ref())
+                    .await?;
                 if let Some(s) = first_arg.as_str() {
                     // TODO this resolving should happen within Vc<NodeGypBuildReference>
                     let current_context = origin
@@ -1748,7 +1760,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
 
             let args = linked_args(args).await?;
             if args.len() == 1 {
-                let first_arg = state.link_value(args[0].clone(), false).await?;
+                let first_arg = state
+                    .link_value(args[0].clone(), ImportOverrides::empty_ref())
+                    .await?;
                 if let Some(s) = first_arg.as_str() {
                     analysis
                         .add_reference(NodeBindingsReference::new(origin.origin_path(), s.into()));
@@ -1799,7 +1813,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                                     pkg_or_dir.clone(),
                                                 ],
                                             ),
-                                            false,
+                                            ImportOverrides::empty_ref(),
                                         )
                                         .await?;
                                     js_value_to_pattern(&linked_func_call)
@@ -1856,7 +1870,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                     "intl".into(),
                                 ],
                             ),
-                            false,
+                            ImportOverrides::empty_ref(),
                         )
                         .await?;
                     js_value_to_pattern(&linked_func_call)
@@ -2329,10 +2343,10 @@ async fn value_visitor(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     var_graph: &VarGraph,
-    ignore: bool,
+    overrides: &ImportOverrides,
 ) -> Result<(JsValue, bool)> {
     let (mut v, modified) =
-        value_visitor_inner(origin, v, compile_time_info, var_graph, ignore).await?;
+        value_visitor_inner(origin, v, compile_time_info, var_graph, overrides).await?;
     v.normalize_shallow();
     Ok((v, modified))
 }
@@ -2342,8 +2356,9 @@ async fn value_visitor_inner(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     var_graph: &VarGraph,
-    ignore: bool,
+    overrides: &ImportOverrides,
 ) -> Result<(JsValue, bool)> {
+    let ImportOverrides { ignore, .. } = *overrides;
     // This check is just an optimization
     if v.get_defineable_name_len().is_some() {
         let compile_time_info = compile_time_info.await?;
