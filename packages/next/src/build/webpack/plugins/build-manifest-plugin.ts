@@ -168,67 +168,6 @@ export const processRoute = (r: Rewrite) => {
   return rewrite
 }
 
-/* Inspired by `next/src/build/webpack/react-loadable-plugin.ts` */
-// function addStaticCSSToDynamicImportDeps(
-//   compilation: webpack.Compilation,
-//   block: webpack.AsyncDependenciesBlock,
-//   assetMap: DeepMutable<BuildManifest>
-// ) {
-//   block.blocks.forEach((recursiveBlock) => {
-//     addStaticCSSToDynamicImportDeps(compilation, recursiveBlock, assetMap)
-//   })
-
-//   const chunkGroup = compilation.chunkGraph.getBlockChunkGroup(block)
-
-//   for (const dependency of block.dependencies) {
-//     // We target the two types of dynamic import() dependencies:
-//     // `ImportDependency` and `ContextElementDependency`.
-
-//     // ImportDependency:
-//     // - syntax: import("./module")
-//     // - dependency.type: "import()"
-
-//     // ContextElementDependency:
-//     // - syntax: import(`./module/${param}`)
-//     // - dependency.type: "import() context element"
-//     if (dependency.type.startsWith('import()')) {
-//       const parentModule = compilation.moduleGraph.getParentModule(dependency)
-//       // When the dependency is `ContextElementDependency`, the `parentModule.resource`
-//       // is `undefined` which we can use for the request origin path. Therefore we go
-//       // through the chunks to get the entrypoint.
-//       const parentChunks = compilation.chunkGraph.getModuleChunks(parentModule)
-//       if (!parentChunks.length) continue
-
-//       const cssFiles = new Set<string>()
-//       if (chunkGroup) {
-//         for (const chunk of chunkGroup.chunks) {
-//           chunk.files.forEach((file: string) => {
-//             if (file.endsWith('.css') && file.match(/^static\/css\//)) {
-//               cssFiles.add(file)
-//             }
-//           })
-//         }
-//       }
-
-//       for (const chunk of parentChunks) {
-//         const chunkName = chunk.name
-//         if (!chunkName) continue
-
-//         const pagePath = getRouteFromEntrypoint(chunkName)
-//         if (!pagePath) continue
-
-//         const assetMapPages = assetMap.pages[pagePath]
-//         // As we run this function `addStaticCSSToDynamicImportDeps`
-//         // after the entrypoint files are added to the manifest,
-//         // `assetMapPages` should already exist.
-//         if (!assetMapPages) continue
-
-//         assetMap.pages[pagePath] = [...new Set([...assetMapPages, ...cssFiles])]
-//       }
-//     }
-//   }
-// }
-
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
@@ -340,29 +279,6 @@ export default class BuildManifestPlugin {
         const filesForPage = getEntrypointFiles(entrypoint)
         assetMap.pages[pagePath] = [...new Set([...mainFiles, ...filesForPage])]
       }
-
-      // When a CSS file is server-rendered, it is cleaned up during
-      // the client render. During navigation, if the target route
-      // dynamically imports the same CSS file, the client will skip
-      // loading it as it was already loaded statically, but still
-      // cleaned up during the client render. This results in missing
-      // the expected CSS styles.
-      // x-ref: `next/src/client/index.tsx`
-
-      // 1. page transition
-      // 2. import (CSS already exists)
-      // 3. client render starts
-      // 4. clean up server-rendered CSS
-      // 5. CSS is missing
-
-      // To prevent this, we add the dynamically imported CSS files
-      // to the build manifest to signal the client not to clean up
-      // the CSS file if it's loaded dynamically, preserving the styles.
-      // for (const module of compilation.modules) {
-      //   module.blocks.forEach((block) =>
-      //     addStaticCSSToDynamicImportDeps(compilation, block, assetMap)
-      //   )
-      // }
 
       if (!this.isDevFallback) {
         // Add the runtime build manifest file (generated later in this file)
