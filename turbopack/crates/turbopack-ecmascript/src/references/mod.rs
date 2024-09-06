@@ -1322,11 +1322,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             Request::parse(Value::new(pat)),
                             compile_time_info.environment().rendering(),
                             Vc::cell(ast_path.to_vec()),
-                            IssueSource::from_swc_offsets(
-                                source,
-                                span.lo.to_usize(),
-                                span.hi.to_usize(),
-                            ),
+                            issue_source(source, span),
                             in_try,
                             url_rewrite_behavior
                                 .unwrap_or(UrlRewriteBehavior::Relative)
