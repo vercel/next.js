@@ -30,8 +30,8 @@ impl<'a> EcmascriptChunkData<'a> {
         if included.is_empty() && excluded.is_empty() && module_chunks.is_empty() {
             return EcmascriptChunkData::Simple(path);
         }
-        fn to_module_id_js<'a>(module_id: &'a [ReadRef<ModuleId>]) -> Vec<ModuleIdJs<'a>> {
-            module_id.iter().map(|v| ModuleIdJs(&**v)).collect()
+        fn to_module_id_js(module_id: &[ReadRef<ModuleId>]) -> Vec<ModuleIdJs<'_>> {
+            module_id.iter().map(|v| ModuleIdJs(v)).collect()
         }
 
         EcmascriptChunkData::WithRuntimeInfo {

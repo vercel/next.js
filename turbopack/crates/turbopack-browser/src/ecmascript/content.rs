@@ -96,7 +96,7 @@ impl EcmascriptDevChunkContent {
         )?;
 
         for (id, entry) in this.entries.await?.iter() {
-            write!(code, "\n{}: ", ModuleIdJs(&id))?;
+            write!(code, "\n{}: ", ModuleIdJs(id))?;
             code.push_code(&*entry.code.await?);
             write!(code, ",")?;
         }

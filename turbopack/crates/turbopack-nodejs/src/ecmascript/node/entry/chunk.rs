@@ -121,7 +121,7 @@ impl EcmascriptBuildNodeEntryChunk {
                     r#"
                         runtime.getOrInstantiateRuntimeModule({}, CHUNK_PUBLIC_PATH);
                     "#,
-                    ModuleIdJs(&*runtime_module_id),
+                    ModuleIdJs(&runtime_module_id),
                 )?;
             }
         }
@@ -137,7 +137,7 @@ impl EcmascriptBuildNodeEntryChunk {
             r#"
                     module.exports = runtime.getOrInstantiateRuntimeModule({}, CHUNK_PUBLIC_PATH).exports;
                 "#,
-            ModuleIdJs(&*runtime_module_id),
+            ModuleIdJs(&runtime_module_id),
         )?;
 
         Ok(Code::cell(code.build()))

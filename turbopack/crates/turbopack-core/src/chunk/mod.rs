@@ -88,7 +88,7 @@ impl<'a> Display for ModuleIdJs<'a> {
         match self.0 {
             ModuleId::Number(i) => write!(f, "{}", i),
             ModuleId::String(s) => {
-                f.write_str(&serde_json::to_string(&*s).map_err(|_| std::fmt::Error)?)
+                f.write_str(&serde_json::to_string(&**s).map_err(|_| std::fmt::Error)?)
             }
         }
     }
