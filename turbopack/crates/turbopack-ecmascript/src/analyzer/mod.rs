@@ -1770,6 +1770,14 @@ impl JsValue {
                       "load/loadSync".to_string(),
                       "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
                     ),
+                    WellKnownFunctionKind::WorkerConstructor => (
+                      "Worker".to_string(),
+                      "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
+                    ),
+                    WellKnownFunctionKind::URLConstructor => (
+                      "URL".to_string(),
+                      "The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL"
+                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -3787,6 +3795,8 @@ pub enum WellKnownFunctionKind {
     NodeStrongGlobalizeSetRootDir,
     NodeResolveFrom,
     NodeProtobufLoad,
+    WorkerConstructor,
+    URLConstructor,
 }
 
 impl WellKnownFunctionKind {
@@ -3818,8 +3828,8 @@ pub mod test_utils {
     use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
 
     use super::{
-        builtin::early_replace_builtin, well_known::replace_well_known, JsValue, ModuleValue,
-        WellKnownFunctionKind, WellKnownObjectKind,
+        builtin::early_replace_builtin, well_known::replace_well_known, ConstantValue, JsValue,
+        JsValueUrlKind, ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
     };
     use crate::{
         analyzer::{builtin::replace_builtin, imports::ImportAnnotations, parse_require_context},
@@ -3875,17 +3885,43 @@ pub mod test_utils {
                 }
                 Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string()),
             },
-            JsValue::FreeVar(ref var) => match &**var {
-                "import" => {
-                    JsValue::WellKnownFunction(WellKnownFunctionKind::Import { ignore: false })
+            JsValue::New(
+                _,
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
+                ref args,
+            ) => {
+                if let [JsValue::Constant(ConstantValue::Str(url)), JsValue::Member(
+                    _,
+                    box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
+                    box JsValue::Constant(ConstantValue::Str(prop)),
+                )] = &args[..]
+                {
+                    if prop.as_str() == "url" {
+                        // TODO avoid clone
+                        JsValue::Url(url.clone(), JsValueUrlKind::Relative)
+                    } else {
+                        v.into_unknown(true, "new non constant")
+                    }
+                } else {
+                    v.into_unknown(true, "new non constant")
                 }
+            }
+            JsValue::FreeVar(ref var) => match &**var {
+                "__dirname" => "__dirname".into(),
+                "__filename" => "__filename".into(),
+
                 "require" => {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Require { ignore: false })
                 }
+                "import" => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Import { ignore: false })
+                }
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
-                "__dirname" => "__dirname".into(),
-                "__filename" => "__filename".into(),
+                "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
+                "Worker" => JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+                "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
+                "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
                 _ => v.into_unknown(true, "unknown global"),
             },
             JsValue::Module(ref mv) => {
@@ -4138,12 +4174,18 @@ mod tests {
                                     }
                                 };
                             }
-                            Effect::Call { func, args, .. } => {
+                            Effect::Call {
+                                func, args, new, ..
+                            } => {
                                 let func = resolve(&var_graph, func).await;
                                 let new_args = handle_args(args, &mut queue, &var_graph, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} call"),
-                                    JsValue::call(Box::new(func), new_args),
+                                    if new {
+                                        JsValue::new(Box::new(func), new_args)
+                                    } else {
+                                        JsValue::call(Box::new(func), new_args)
+                                    },
                                 ));
                             }
                             Effect::FreeVar { var, .. } => {
@@ -4176,8 +4218,6 @@ mod tests {
                             Effect::ImportMeta { .. } => {}
                             Effect::ImportedBinding { .. } => {}
                             Effect::Member { .. } => {}
-                            Effect::Worker { .. } => {}
-                            Effect::Url { .. } => {}
                         }
                         let time = start.elapsed();
                         if time.as_millis() > 1 {

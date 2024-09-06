@@ -336,13 +336,8 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 9983* = (...) => undefined
 
-A = ???*0*
-- *0* ???*1*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *1* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+A = Object.assign*0*
+- *0* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
 
 Aa = ???*0*
 - *0* ???*1*["for"]("react.profiler")
@@ -360,36 +355,35 @@ Ab = (null | [???*0*] | ???*1*)
 
 Ac = (...) => undefined
 
-Ad = ???*0*
-- *0* ???*1*(
-        {},
-        ud,
-        {
-            "screenX": 0,
-            "screenY": 0,
-            "clientX": 0,
-            "clientY": 0,
-            "pageX": 0,
-            "pageY": 0,
-            "ctrlKey": 0,
-            "shiftKey": 0,
-            "altKey": 0,
-            "metaKey": 0,
-            "getModifierState": zd,
-            "button": 0,
-            "buttons": 0,
-            "relatedTarget": *anonymous function 28404*,
-            "movementX": *anonymous function 28530*,
-            "movementY": *anonymous function 28699*
-        }
-    )
-  ⚠️  unknown callee
+Ad = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0,
+    "screenX": 0,
+    "screenY": 0,
+    "clientX": 0,
+    "clientY": 0,
+    "pageX": 0,
+    "pageY": 0,
+    "ctrlKey": 0,
+    "shiftKey": 0,
+    "altKey": 0,
+    "metaKey": 0,
+    "getModifierState": (...) => Pd,
+    "button": 0,
+    "buttons": 0,
+    "relatedTarget": (...) => ((???*0* === a["relatedTarget"]) ? ((a["fromElement"] === a["srcElement"]) ? a["toElement"] : a["fromElement"]) : a["relatedTarget"]),
+    "movementX": (...) => (a["movementX"] | wd),
+    "movementY": (...) => (???*1* ? a["movementY"] : xd)
+}
+- *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+- *1* unsupported expression
   ⚠️  This value might have side effects
 
 Ae = (...) => undefined
@@ -481,15 +475,36 @@ Cb = (...) => ((
 
 Cc = (...) => undefined
 
-Cd = ???*0*
-- *0* ???*1*({}, Ad, {"dataTransfer": 0})
-  ⚠️  unknown callee
+Cd = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0,
+    "screenX": 0,
+    "screenY": 0,
+    "clientX": 0,
+    "clientY": 0,
+    "pageX": 0,
+    "pageY": 0,
+    "ctrlKey": 0,
+    "shiftKey": 0,
+    "altKey": 0,
+    "metaKey": 0,
+    "getModifierState": (...) => Pd,
+    "button": 0,
+    "buttons": 0,
+    "relatedTarget": (...) => ((???*0* === a["relatedTarget"]) ? ((a["fromElement"] === a["srcElement"]) ? a["toElement"] : a["fromElement"]) : a["relatedTarget"]),
+    "movementX": (...) => (a["movementX"] | wd),
+    "movementY": (...) => (???*1* ? a["movementY"] : xd),
+    "dataTransfer": 0
+}
+- *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+- *1* unsupported expression
   ⚠️  This value might have side effects
 
 Ce = (...) => undefined
@@ -602,16 +617,17 @@ Ec = (???*0* | (...) => undefined)
 - *0* Ec
   ⚠️  pattern without value
 
-Ed = ???*0*
-- *0* ???*1*({}, ud, {"relatedTarget": 0})
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+Ed = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0,
+    "relatedTarget": 0
+}
 
 Ee = (...) => (undefined | te(b))
 
@@ -722,20 +738,17 @@ Gc = (???*0* | (...) => undefined)
 - *0* Gc
   ⚠️  pattern without value
 
-Gd = ???*0*
-- *0* ???*1*(
-        {},
-        sd,
-        {"animationName": 0, "elapsedTime": 0, "pseudoElement": 0}
-    )
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+Gd = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "animationName": 0,
+    "elapsedTime": 0,
+    "pseudoElement": 0
+}
 
 Ge = (...) => (((a === b) && ((0 !== a) || (???*0* === ???*1*))) || ((a !== a) && (b !== b)))
 - *0* unsupported expression
@@ -795,18 +808,14 @@ He = (???*0* ? ???*4* : (...) => ???*6*)
   ⚠️  nested operation
 - *1* typeof(???*2*)
   ⚠️  nested operation
-- *2* ???*3*["is"]
-  ⚠️  unknown object
+- *2* Object*3*["is"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* FreeVar(Object)
-  ⚠️  unknown global
+- *3* Object: The global Object variable
+- *4* Object*5*["is"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *4* ???*5*["is"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *5* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *5* Object: The global Object variable
 - *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *7* unsupported expression
@@ -865,15 +874,16 @@ Ic = (???*0* | (...) => (undefined | ???*1*))
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
 
-Id = ???*0*
-- *0* ???*1*({}, sd, {"clipboardData": *anonymous function 28936*})
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+Id = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "clipboardData": (...) => (???*0* ? a["clipboardData"] : FreeVar(window)["clipboardData"])
+}
+- *0* unsupported expression
   ⚠️  This value might have side effects
 
 Ie = (...) => (!(0) | !(1))
@@ -1014,16 +1024,15 @@ Kb = (...) => (null | c)
 
 Kc = []
 
-Kd = ???*0*
-- *0* ???*1*({}, sd, {"data": 0})
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+Kd = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "data": 0
+}
 
 Ke = (...) => (undefined | {"node": c, "offset": ???*0*})
 - *0* unsupported expression
@@ -1784,33 +1793,34 @@ Qb = (false | true)
 
 Qc = []
 
-Qd = ???*0*
-- *0* ???*1*(
-        {},
-        ud,
-        {
-            "key": *anonymous function 29891*,
-            "code": 0,
-            "location": 0,
-            "ctrlKey": 0,
-            "shiftKey": 0,
-            "altKey": 0,
-            "metaKey": 0,
-            "repeat": 0,
-            "locale": 0,
-            "getModifierState": zd,
-            "charCode": *anonymous function 30217*,
-            "keyCode": *anonymous function 30272*,
-            "which": *anonymous function 30346*
-        }
-    )
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+Qd = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0,
+    "key": (...) => (
+      | b
+      | (("keypress" === a["type"]) ? ???*0* : ((("keydown" === a["type"]) || ("keyup" === a["type"])) ? (Nd[a["keyCode"]] || "Unidentified") : ""))
+    ),
+    "code": 0,
+    "location": 0,
+    "ctrlKey": 0,
+    "shiftKey": 0,
+    "altKey": 0,
+    "metaKey": 0,
+    "repeat": 0,
+    "locale": 0,
+    "getModifierState": (...) => Pd,
+    "charCode": (...) => (("keypress" === a["type"]) ? od(a) : 0),
+    "keyCode": (...) => ((("keydown" === a["type"]) || ("keyup" === a["type"])) ? a["keyCode"] : 0),
+    "which": (...) => (("keypress" === a["type"]) ? od(a) : ((("keydown" === a["type"]) || ("keyup" === a["type"])) ? a["keyCode"] : 0))
+}
+- *0* ((13 === a) ? "Enter" : FreeVar(String)["fromCharCode"](a))
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
 
 Qe = ???*0*
@@ -1961,30 +1971,45 @@ Sb = {"onError": (...) => undefined}
 
 Sc = (...) => undefined
 
-Sd = ???*0*
-- *0* ???*1*(
-        {},
-        Ad,
-        {
-            "pointerId": 0,
-            "width": 0,
-            "height": 0,
-            "pressure": 0,
-            "tangentialPressure": 0,
-            "tiltX": 0,
-            "tiltY": 0,
-            "twist": 0,
-            "pointerType": 0,
-            "isPrimary": 0
-        }
-    )
-  ⚠️  unknown callee
+Sd = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0,
+    "screenX": 0,
+    "screenY": 0,
+    "clientX": 0,
+    "clientY": 0,
+    "pageX": 0,
+    "pageY": 0,
+    "ctrlKey": 0,
+    "shiftKey": 0,
+    "altKey": 0,
+    "metaKey": 0,
+    "getModifierState": (...) => Pd,
+    "button": 0,
+    "buttons": 0,
+    "relatedTarget": (...) => ((???*0* === a["relatedTarget"]) ? ((a["fromElement"] === a["srcElement"]) ? a["toElement"] : a["fromElement"]) : a["relatedTarget"]),
+    "movementX": (...) => (a["movementX"] | wd),
+    "movementY": (...) => (???*1* ? a["movementY"] : xd),
+    "pointerId": 0,
+    "width": 0,
+    "height": 0,
+    "pressure": 0,
+    "tangentialPressure": 0,
+    "tiltX": 0,
+    "tiltY": 0,
+    "twist": 0,
+    "pointerType": 0,
+    "isPrimary": 0
+}
+- *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+- *1* unsupported expression
   ⚠️  This value might have side effects
 
 Se = ???*0*
@@ -2065,29 +2090,24 @@ Uc = (...) => (???*0* | !(0) | !(1))
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
 
-Ud = ???*0*
-- *0* ???*1*(
-        {},
-        ud,
-        {
-            "touches": 0,
-            "targetTouches": 0,
-            "changedTouches": 0,
-            "altKey": 0,
-            "metaKey": 0,
-            "ctrlKey": 0,
-            "shiftKey": 0,
-            "getModifierState": zd
-        }
-    )
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+Ud = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0,
+    "touches": 0,
+    "targetTouches": 0,
+    "changedTouches": 0,
+    "altKey": 0,
+    "metaKey": 0,
+    "ctrlKey": 0,
+    "shiftKey": 0,
+    "getModifierState": (...) => Pd
+}
 
 Ue = (...) => undefined
 
@@ -2147,20 +2167,17 @@ Wb = (...) => (b["dehydrated"] | null)
 
 Wc = (...) => (b | c | null)
 
-Wd = ???*0*
-- *0* ???*1*(
-        {},
-        sd,
-        {"propertyName": 0, "elapsedTime": 0, "pseudoElement": 0}
-    )
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+Wd = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "propertyName": 0,
+    "elapsedTime": 0,
+    "pseudoElement": 0
+}
 
 We = {"animationend": {}, "animationiteration": {}, "animationstart": {}, "transitionend": {}}
 
@@ -2261,24 +2278,55 @@ Yc = (...) => (
   | null
 )
 
-Yd = ???*0*
-- *0* ???*1*(
-        {},
-        Ad,
-        {
-            "deltaX": *anonymous function 30803*,
-            "deltaY": *anonymous function 30887*,
-            "deltaZ": 0,
-            "deltaMode": 0
-        }
-    )
-  ⚠️  unknown callee
+Yd = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0,
+    "screenX": 0,
+    "screenY": 0,
+    "clientX": 0,
+    "clientY": 0,
+    "pageX": 0,
+    "pageY": 0,
+    "ctrlKey": 0,
+    "shiftKey": 0,
+    "altKey": 0,
+    "metaKey": 0,
+    "getModifierState": (...) => Pd,
+    "button": 0,
+    "buttons": 0,
+    "relatedTarget": (...) => ((???*0* === a["relatedTarget"]) ? ((a["fromElement"] === a["srcElement"]) ? a["toElement"] : a["fromElement"]) : a["relatedTarget"]),
+    "movementX": (...) => (a["movementX"] | wd),
+    "movementY": (...) => (???*1* ? a["movementY"] : xd),
+    "deltaX": (...) => (???*2* ? a["deltaX"] : (???*3* ? ???*4* : 0)),
+    "deltaY": (...) => (???*5* ? a["deltaY"] : (???*6* ? ???*7* : (???*8* ? ???*9* : 0))),
+    "deltaZ": 0,
+    "deltaMode": 0
+}
+- *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
+- *1* unsupported expression
   ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+- *3* unsupported expression
+  ⚠️  This value might have side effects
+- *4* unsupported expression
+  ⚠️  This value might have side effects
+- *5* unsupported expression
+  ⚠️  This value might have side effects
+- *6* unsupported expression
+  ⚠️  This value might have side effects
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* unsupported expression
+  ⚠️  This value might have side effects
+- *9* unsupported expression
   ⚠️  This value might have side effects
 
 Ye = ({} | ???*0*)
@@ -3572,15 +3620,30 @@ a#347 = (???*0* | {} | ???*1* | ???*2*)
   ⚠️  function calls are not analysed yet
 - *1* unknown mutation
   ⚠️  This value might have side effects
-- *2* ???*3*({}, c, d)
-  ⚠️  unknown callee
+- *2* Object.assign*3*({}, ({} | ???*4*), (???*5* | ???*7* | ???*8* | ???*9* | ???*11*()))
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *3* ???*4*["assign"]
+- *3* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *4* unknown mutation
+  ⚠️  This value might have side effects
+- *5* ???*6*["stateNode"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *4* FreeVar(Object)
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* FreeVar(undefined)
   ⚠️  unknown global
   ⚠️  This value might have side effects
+- *8* unknown mutation
+  ⚠️  This value might have side effects
+- *9* ???*10*["stateNode"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *10* unknown mutation
+  ⚠️  This value might have side effects
+- *11* ???*12*["getChildContext"]
+  ⚠️  unknown object
+- *12* d
+  ⚠️  circular variable reference
 
 a#348 = ???*0*
 - *0* arguments[0]
@@ -3947,12 +4010,10 @@ a#429 = (???*0* | ???*1*)
 - *2* ???*3*["toString"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *3* ???*4*["prototype"]
-  ⚠️  unknown object
+- *3* Object*4*["prototype"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *4* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *4* Object: The global Object variable
 
 a#430 = ???*0*
 - *0* arguments[0]
@@ -6735,15 +6796,18 @@ b#370 = ???*0*
 b#381 = (???*0* | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* ???*2*({}, b)
-  ⚠️  unknown callee
+- *1* Object.assign*2*({}, (???*3* | ???*4*))
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *2* ???*3*["assign"]
-  ⚠️  unknown object
+- *2* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *3* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *4* Object.assign*5*({}, ???*6*)
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *3* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *5* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *6* b
+  ⚠️  circular variable reference
 
 b#384 = (null | ???*0*)
 - *0* unknown mutation
@@ -10144,12 +10208,15 @@ c#25 = (???*0* | null | (???*1* ? "" : (???*13* | null | ???*14*)))
   ⚠️  circular variable reference
 
 c#251 = ???*0*
-- *0* ???*1*["keys"](a)
-  ⚠️  unknown callee object
+- *0* ???*1*(???*3*)
+  ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *1* FreeVar(Object)
-  ⚠️  unknown global
+- *1* Object*2*["keys"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
+- *2* Object: The global Object variable
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 c#254 = (
   | ???*0*
@@ -10529,7 +10596,7 @@ c#412 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-c#415 = (???*0* | ???*1* | (???*13* ? (???*26* | ???*27*) : ???*29*))
+c#415 = (???*0* | ???*1* | (???*16* ? (???*32* | ???*33*) : ???*35*))
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* (???*2* | ???*3* | (???*5* ? (???*7* | ???*8*) : ???*10*))(d, b)
@@ -10550,59 +10617,98 @@ c#415 = (???*0* | ???*1* | (???*13* ? (???*26* | ???*27*) : ???*29*))
   ⚠️  unknown object
 - *9* arguments[0]
   ⚠️  function calls are not analysed yet
-- *10* ???*11*({}, b, c)
-  ⚠️  unknown callee
+- *10* Object.assign*11*({}, (???*12* | ???*13*), ???*15*)
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *11* ???*12*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *12* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *13* (null === (???*14* | ???*15* | ???*17*))
-  ⚠️  nested operation
-- *14* arguments[2]
+- *11* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *12* arguments[1]
   ⚠️  function calls are not analysed yet
-- *15* ???*16*(d, b)
-  ⚠️  unknown callee
-- *16* c
+- *13* ???*14*["memoizedState"]
+  ⚠️  unknown object
+- *14* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *15* c
   ⚠️  circular variable reference
-- *17* (???*18* ? (???*20* | ???*21*) : ???*23*)
+- *16* (null === (???*17* | ???*18* | ???*20*))
   ⚠️  nested operation
-- *18* (null === ???*19*)
-  ⚠️  nested operation
+- *17* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *18* ???*19*(d, b)
+  ⚠️  unknown callee
 - *19* c
   ⚠️  circular variable reference
-- *20* arguments[1]
+- *20* (???*21* ? (???*23* | ???*24*) : ???*26*)
+  ⚠️  nested operation
+- *21* (null === ???*22*)
+  ⚠️  nested operation
+- *22* c
+  ⚠️  circular variable reference
+- *23* arguments[1]
   ⚠️  function calls are not analysed yet
-- *21* ???*22*["memoizedState"]
+- *24* ???*25*["memoizedState"]
   ⚠️  unknown object
-- *22* arguments[0]
+- *25* arguments[0]
   ⚠️  function calls are not analysed yet
-- *23* ???*24*({}, b, c)
+- *26* Object.assign*27*({}, (???*28* | ???*29*), ???*31*)
+  ⚠️  only const object assign is supported
+  ⚠️  This value might have side effects
+- *27* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *28* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *29* ???*30*["memoizedState"]
+  ⚠️  unknown object
+- *30* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *31* c
+  ⚠️  circular variable reference
+- *32* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *33* ???*34*["memoizedState"]
+  ⚠️  unknown object
+- *34* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *35* Object.assign*36*(
+        {},
+        (???*37* | ???*38*),
+        (???*40* | ???*41* | (???*43* ? (???*45* | ???*46*) : ???*48*))
+    )
+  ⚠️  only const object assign is supported
+  ⚠️  This value might have side effects
+- *36* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *37* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *38* ???*39*["memoizedState"]
+  ⚠️  unknown object
+- *39* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *40* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *41* ???*42*(d, b)
   ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *24* ???*25*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *25* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *26* arguments[1]
+- *42* c
+  ⚠️  circular variable reference
+- *43* (null === ???*44*)
+  ⚠️  nested operation
+- *44* c
+  ⚠️  circular variable reference
+- *45* arguments[1]
   ⚠️  function calls are not analysed yet
-- *27* ???*28*["memoizedState"]
+- *46* ???*47*["memoizedState"]
   ⚠️  unknown object
-- *28* arguments[0]
+- *47* arguments[0]
   ⚠️  function calls are not analysed yet
-- *29* ???*30*({}, b, c)
-  ⚠️  unknown callee
+- *48* Object.assign*49*({}, (???*50* | ???*51*), ???*53*)
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *30* ???*31*["assign"]
+- *49* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *50* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *51* ???*52*["memoizedState"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *31* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *52* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *53* c
+  ⚠️  circular variable reference
 
 c#417 = ???*0*
 - *0* arguments[2]
@@ -11453,12 +11559,29 @@ c#559 = (???*0* | ???*1*() | ???*2*())
   ⚠️  circular variable reference
 
 c#56 = ???*0*
-- *0* ???*1*["getOwnPropertyDescriptor"](a["constructor"]["prototype"], b)
-  ⚠️  unknown callee object
+- *0* ???*1*(???*3*, ((???*6* | ???*7*) ? "checked" : "value"))
+  ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *1* FreeVar(Object)
-  ⚠️  unknown global
+- *1* Object*2*["getOwnPropertyDescriptor"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
+- *2* Object: The global Object variable
+- *3* ???*4*["prototype"]
+  ⚠️  unknown object
+- *4* ???*5*["constructor"]
+  ⚠️  unknown object
+- *5* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *6* unsupported expression
+  ⚠️  This value might have side effects
+- *7* ("input" === ???*8*)
+  ⚠️  nested operation
+- *8* ???*9*()
+  ⚠️  nested operation
+- *9* ???*10*["toLowerCase"]
+  ⚠️  unknown object
+- *10* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 c#562 = ???*0*
 - *0* max number of linking steps reached
@@ -11752,7 +11875,7 @@ c#634 = ???*0*
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-c#639 = (???*0* | null | {} | ???*1* | ???*5* | (???*14* ? ???*15* : ???*17*))
+c#639 = (???*0* | null | {} | ???*1* | ???*5* | (???*22* ? ???*23* : ???*25*))
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*[(???*3* | null | [] | ???*4*)]
@@ -11763,44 +11886,57 @@ c#639 = (???*0* | null | {} | ???*1* | ???*5* | (???*14* ? ???*15* : ???*17*))
   ⚠️  pattern without value
 - *4* f
   ⚠️  circular variable reference
-- *5* ???*6*[(???*12* | null | [] | ???*13*)]
+- *5* ???*6*[(???*20* | null | [] | ???*21*)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *6* ???*7*(
+- *6* Object.assign*7*(
         {},
-        b,
+        ???*8*,
         {
             "defaultChecked": ???*9*,
             "defaultValue": ???*10*,
             "value": ???*11*,
-            "checked": ((null != c) ? c : a["_wrapperState"]["initialChecked"])
+            "checked": (???*12* ? ???*15* : ???*17*)
         }
     )
-  ⚠️  unknown callee
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *7* ???*8*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *8* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *7* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *8* d
+  ⚠️  circular variable reference
 - *9* unsupported expression
   ⚠️  This value might have side effects
 - *10* unsupported expression
   ⚠️  This value might have side effects
 - *11* unsupported expression
   ⚠️  This value might have side effects
-- *12* l
-  ⚠️  pattern without value
-- *13* f
-  ⚠️  circular variable reference
-- *14* k
-  ⚠️  circular variable reference
-- *15* ???*16*["__html"]
+- *12* (null != ???*13*)
+  ⚠️  nested operation
+- *13* ???*14*["checked"]
   ⚠️  unknown object
-- *16* k
+- *14* d
   ⚠️  circular variable reference
-- *17* unsupported expression
+- *15* ???*16*["checked"]
+  ⚠️  unknown object
+- *16* d
+  ⚠️  circular variable reference
+- *17* ???*18*["initialChecked"]
+  ⚠️  unknown object
+- *18* ???*19*["_wrapperState"]
+  ⚠️  unknown object
+- *19* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *20* l
+  ⚠️  pattern without value
+- *21* f
+  ⚠️  circular variable reference
+- *22* k
+  ⚠️  circular variable reference
+- *23* ???*24*["__html"]
+  ⚠️  unknown object
+- *24* k
+  ⚠️  circular variable reference
+- *25* unsupported expression
   ⚠️  This value might have side effects
 
 c#64 = (???*0*() | ""["_valueTracker"]["getValue"]())
@@ -12351,15 +12487,24 @@ c#961 = (???*0* | {} | ???*1* | ???*2* | ???*4*)
   ⚠️  unknown object
 - *3* a
   ⚠️  circular variable reference
-- *4* ???*5*({}, c, d)
-  ⚠️  unknown callee
+- *4* Object.assign*5*({}, (???*6* | ???*7*), (???*9* | ???*11*()))
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *5* ???*6*["assign"]
+- *5* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *6* c
+  ⚠️  circular variable reference
+- *7* ???*8*["_reactInternals"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *6* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *8* a
+  ⚠️  circular variable reference
+- *9* ???*10*["stateNode"]
+  ⚠️  unknown object
+- *10* c
+  ⚠️  circular variable reference
+- *11* ???*12*["getChildContext"]
+  ⚠️  unknown object
+- *12* d
+  ⚠️  circular variable reference
 
 c#963 = ???*0*
 - *0* ???*1*["retryLane"]
@@ -12771,14 +12916,17 @@ d#25 = (???*0* | (???*1* ? ???*7* : null)["attributeNamespace"] | ???*9*)
 - *11* e
   ⚠️  circular variable reference
 
-d#251 = (???*0* | 0 | ???*2*)
-- *0* ???*1*["keys"](b)
-  ⚠️  unknown callee object
+d#251 = (???*0* | 0 | ???*4*)
+- *0* ???*1*(???*3*)
+  ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *1* FreeVar(Object)
-  ⚠️  unknown global
+- *1* Object*2*["keys"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* updated with update expression
+- *2* Object: The global Object variable
+- *3* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *4* updated with update expression
   ⚠️  This value might have side effects
 
 d#254 = (
@@ -14010,30 +14158,146 @@ d#631 = (???*0* | (0 !== ???*3*))
 d#639 = (???*0* | ???*1*)
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
-- *1* ???*2*(
+- *1* Object.assign*2*(
         {},
-        b,
+        (???*3* | ???*4*),
         {
-            "defaultChecked": ???*4*,
-            "defaultValue": ???*5*,
-            "value": ???*6*,
-            "checked": ((null != c) ? c : a["_wrapperState"]["initialChecked"])
+            "defaultChecked": ???*18*,
+            "defaultValue": ???*19*,
+            "value": ???*20*,
+            "checked": (???*21* ? (???*34* | ???*36*) : ???*49*)
         }
     )
-  ⚠️  unknown callee
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *2* ???*3*["assign"]
+- *2* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *3* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *4* Object.assign*5*(
+        {},
+        ???*6*,
+        {
+            "defaultChecked": ???*7*,
+            "defaultValue": ???*8*,
+            "value": ???*9*,
+            "checked": (???*10* ? ???*13* : ???*15*)
+        }
+    )
+  ⚠️  only const object assign is supported
+  ⚠️  This value might have side effects
+- *5* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *6* d
+  ⚠️  circular variable reference
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* unsupported expression
+  ⚠️  This value might have side effects
+- *9* unsupported expression
+  ⚠️  This value might have side effects
+- *10* (null != ???*11*)
+  ⚠️  nested operation
+- *11* ???*12*["checked"]
+  ⚠️  unknown object
+- *12* d
+  ⚠️  circular variable reference
+- *13* ???*14*["checked"]
+  ⚠️  unknown object
+- *14* d
+  ⚠️  circular variable reference
+- *15* ???*16*["initialChecked"]
+  ⚠️  unknown object
+- *16* ???*17*["_wrapperState"]
+  ⚠️  unknown object
+- *17* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *18* unsupported expression
+  ⚠️  This value might have side effects
+- *19* unsupported expression
+  ⚠️  This value might have side effects
+- *20* unsupported expression
+  ⚠️  This value might have side effects
+- *21* (null != (???*22* | ???*24*))
+  ⚠️  nested operation
+- *22* ???*23*["checked"]
+  ⚠️  unknown object
+- *23* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *24* ???*25*["checked"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *3* FreeVar(Object)
-  ⚠️  unknown global
+- *25* Object.assign*26*(
+        {},
+        ???*27*,
+        {
+            "defaultChecked": ???*28*,
+            "defaultValue": ???*29*,
+            "value": ???*30*,
+            "checked": (???*31* ? ???*32* : ???*33*)
+        }
+    )
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *4* unsupported expression
+- *26* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *27* d
+  ⚠️  circular variable reference
+- *28* unsupported expression
   ⚠️  This value might have side effects
-- *5* unsupported expression
+- *29* unsupported expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
+- *30* unsupported expression
   ⚠️  This value might have side effects
+- *31* (... != ...)
+  ⚠️  nested operation
+- *32* ...[...]
+  ⚠️  unknown object
+- *33* ...[...]
+  ⚠️  unknown object
+- *34* ???*35*["checked"]
+  ⚠️  unknown object
+- *35* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *36* ???*37*["checked"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *37* Object.assign*38*(
+        {},
+        ???*39*,
+        {
+            "defaultChecked": ???*40*,
+            "defaultValue": ???*41*,
+            "value": ???*42*,
+            "checked": (???*43* ? ???*45* : ???*47*)
+        }
+    )
+  ⚠️  only const object assign is supported
+  ⚠️  This value might have side effects
+- *38* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *39* d
+  ⚠️  circular variable reference
+- *40* unsupported expression
+  ⚠️  This value might have side effects
+- *41* unsupported expression
+  ⚠️  This value might have side effects
+- *42* unsupported expression
+  ⚠️  This value might have side effects
+- *43* (null != ???*44*)
+  ⚠️  nested operation
+- *44* ...[...]
+  ⚠️  unknown object
+- *45* ???*46*["checked"]
+  ⚠️  unknown object
+- *46* d
+  ⚠️  circular variable reference
+- *47* ???*48*["initialChecked"]
+  ⚠️  unknown object
+- *48* ...[...]
+  ⚠️  unknown object
+- *49* ???*50*["initialChecked"]
+  ⚠️  unknown object
+- *50* ???*51*["_wrapperState"]
+  ⚠️  unknown object
+- *51* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 d#64 = ???*0*
 - *0* max number of linking steps reached
@@ -15311,12 +15575,15 @@ e#251 = ???*0*
 - *0* ???*1*[d]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *1* ???*2*["keys"](a)
-  ⚠️  unknown callee object
+- *1* ???*2*(???*4*)
+  ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+- *2* Object*3*["keys"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
+- *3* Object: The global Object variable
+- *4* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 e#266 = ???*0*
 - *0* max number of linking steps reached
@@ -16261,12 +16528,27 @@ e#56 = ???*0*
 - *0* ???*1*["get"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *1* ???*2*["getOwnPropertyDescriptor"](a["constructor"]["prototype"], b)
-  ⚠️  unknown callee object
+- *1* ???*2*(???*4*, ((???*7* | ???*8*) ? "checked" : "value"))
+  ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+- *2* Object*3*["getOwnPropertyDescriptor"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
+- *3* Object: The global Object variable
+- *4* ???*5*["prototype"]
+  ⚠️  unknown object
+- *5* ???*6*["constructor"]
+  ⚠️  unknown object
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* ("input" === ???*9*)
+  ⚠️  nested operation
+- *9* ???*10*()
+  ⚠️  nested operation
+- *10* ???["toLowerCase"]
+  ⚠️  unknown object
 
 e#570 = ???*0*
 - *0* max number of linking steps reached
@@ -16456,30 +16738,152 @@ e#639 = (???*0* | ???*2*)
   ⚠️  unknown object
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
-- *2* ???*3*(
+- *2* Object.assign*3*(
         {},
-        b,
+        (???*4* | ???*6*),
         {
-            "defaultChecked": ???*5*,
-            "defaultValue": ???*6*,
-            "value": ???*7*,
-            "checked": ((null != c) ? c : a["_wrapperState"]["initialChecked"])
+            "defaultChecked": ???*20*,
+            "defaultValue": ???*21*,
+            "value": ???*22*,
+            "checked": (???*23* ? (???*37* | ???*40*) : ???*53*)
         }
     )
-  ⚠️  unknown callee
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *3* ???*4*["assign"]
+- *3* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *4* ???*5*["memoizedProps"]
+  ⚠️  unknown object
+- *5* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *6* Object.assign*7*(
+        {},
+        ???*8*,
+        {
+            "defaultChecked": ???*9*,
+            "defaultValue": ???*10*,
+            "value": ???*11*,
+            "checked": (???*12* ? ???*15* : ???*17*)
+        }
+    )
+  ⚠️  only const object assign is supported
+  ⚠️  This value might have side effects
+- *7* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *8* e
+  ⚠️  circular variable reference
+- *9* unsupported expression
+  ⚠️  This value might have side effects
+- *10* unsupported expression
+  ⚠️  This value might have side effects
+- *11* unsupported expression
+  ⚠️  This value might have side effects
+- *12* (null != ???*13*)
+  ⚠️  nested operation
+- *13* ???*14*["checked"]
+  ⚠️  unknown object
+- *14* e
+  ⚠️  circular variable reference
+- *15* ???*16*["checked"]
+  ⚠️  unknown object
+- *16* e
+  ⚠️  circular variable reference
+- *17* ???*18*["initialChecked"]
+  ⚠️  unknown object
+- *18* ???*19*["_wrapperState"]
+  ⚠️  unknown object
+- *19* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *20* unsupported expression
+  ⚠️  This value might have side effects
+- *21* unsupported expression
+  ⚠️  This value might have side effects
+- *22* unsupported expression
+  ⚠️  This value might have side effects
+- *23* (null != (???*24* | ???*27*))
+  ⚠️  nested operation
+- *24* ???*25*["checked"]
+  ⚠️  unknown object
+- *25* ???*26*["memoizedProps"]
+  ⚠️  unknown object
+- *26* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *27* ???*28*["checked"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *4* FreeVar(Object)
-  ⚠️  unknown global
+- *28* Object.assign*29*(
+        {},
+        ???*30*,
+        {
+            "defaultChecked": ???*31*,
+            "defaultValue": ???*32*,
+            "value": ???*33*,
+            "checked": (???*34* ? ???*35* : ???*36*)
+        }
+    )
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *5* unsupported expression
+- *29* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *30* e
+  ⚠️  circular variable reference
+- *31* unsupported expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
+- *32* unsupported expression
   ⚠️  This value might have side effects
-- *7* unsupported expression
+- *33* unsupported expression
   ⚠️  This value might have side effects
+- *34* (... != ...)
+  ⚠️  nested operation
+- *35* ...[...]
+  ⚠️  unknown object
+- *36* ...[...]
+  ⚠️  unknown object
+- *37* ???*38*["checked"]
+  ⚠️  unknown object
+- *38* ???*39*["memoizedProps"]
+  ⚠️  unknown object
+- *39* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *40* ???*41*["checked"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *41* Object.assign*42*(
+        {},
+        ???*43*,
+        {
+            "defaultChecked": ???*44*,
+            "defaultValue": ???*45*,
+            "value": ???*46*,
+            "checked": (???*47* ? ???*49* : ???*51*)
+        }
+    )
+  ⚠️  only const object assign is supported
+  ⚠️  This value might have side effects
+- *42* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *43* e
+  ⚠️  circular variable reference
+- *44* unsupported expression
+  ⚠️  This value might have side effects
+- *45* unsupported expression
+  ⚠️  This value might have side effects
+- *46* unsupported expression
+  ⚠️  This value might have side effects
+- *47* (null != ???*48*)
+  ⚠️  nested operation
+- *48* ...[...]
+  ⚠️  unknown object
+- *49* ???*50*["checked"]
+  ⚠️  unknown object
+- *50* e
+  ⚠️  circular variable reference
+- *51* ???*52*["initialChecked"]
+  ⚠️  unknown object
+- *52* ...[...]
+  ⚠️  unknown object
+- *53* ???*54*["initialChecked"]
+  ⚠️  unknown object
+- *54* ???*55*["_wrapperState"]
+  ⚠️  unknown object
+- *55* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 e#646 = ???*0*
 - *0* ???*1*["child"]
@@ -17460,12 +17864,27 @@ f#56 = ???*0*
 - *0* ???*1*["set"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *1* ???*2*["getOwnPropertyDescriptor"](a["constructor"]["prototype"], b)
-  ⚠️  unknown callee object
+- *1* ???*2*(???*4*, ((???*7* | ???*8*) ? "checked" : "value"))
+  ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+- *2* Object*3*["getOwnPropertyDescriptor"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
+- *3* Object: The global Object variable
+- *4* ???*5*["prototype"]
+  ⚠️  unknown object
+- *5* ???*6*["constructor"]
+  ⚠️  unknown object
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* ("input" === ???*9*)
+  ⚠️  nested operation
+- *9* ???*10*()
+  ⚠️  nested operation
+- *10* ???["toLowerCase"]
+  ⚠️  unknown object
 
 f#572 = ???*0*
 - *0* f
@@ -18970,12 +19389,10 @@ ja = ???*0*
 - *0* ???*1*["hasOwnProperty"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *1* ???*2*["prototype"]
-  ⚠️  unknown object
+- *1* Object*2*["prototype"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *2* Object: The global Object variable
 
 jb = (...) => undefined
 
@@ -19277,7 +19694,7 @@ k#609 = ???*0*
 k#639 = (
   | ???*0*
   | ???*4*
-  | ((???*13* | ???*17* | ???*26*) ? (???*31* | ???*36*) : ???*46*)
+  | ((???*21* | ???*25* | ???*42*) ? (???*47* | ???*52*) : ???*68*)
 )
 - *0* ???*1*[(???*2* | null | [] | ???*3*)]
   ⚠️  unknown object
@@ -19287,131 +19704,166 @@ k#639 = (
   ⚠️  pattern without value
 - *3* f
   ⚠️  circular variable reference
-- *4* ???*5*[(???*11* | null | [] | ???*12*)]
+- *4* ???*5*[(???*19* | null | [] | ???*20*)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *5* ???*6*(
+- *5* Object.assign*6*(
         {},
-        b,
+        ???*7*,
         {
             "defaultChecked": ???*8*,
             "defaultValue": ???*9*,
             "value": ???*10*,
-            "checked": ((null != c) ? c : a["_wrapperState"]["initialChecked"])
+            "checked": (???*11* ? ???*14* : ???*16*)
         }
     )
-  ⚠️  unknown callee
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *6* ???*7*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *7* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *6* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *7* d
+  ⚠️  circular variable reference
 - *8* unsupported expression
   ⚠️  This value might have side effects
 - *9* unsupported expression
   ⚠️  This value might have side effects
 - *10* unsupported expression
   ⚠️  This value might have side effects
-- *11* l
-  ⚠️  pattern without value
-- *12* f
-  ⚠️  circular variable reference
-- *13* ???*14*[(???*15* | null | [] | ???*16*)]
+- *11* (null != ???*12*)
+  ⚠️  nested operation
+- *12* ???*13*["checked"]
   ⚠️  unknown object
-- *14* arguments[3]
-  ⚠️  function calls are not analysed yet
-- *15* l
-  ⚠️  pattern without value
-- *16* f
+- *13* d
   ⚠️  circular variable reference
-- *17* ???*18*[(???*24* | null | [] | ???*25*)]
+- *14* ???*15*["checked"]
+  ⚠️  unknown object
+- *15* d
+  ⚠️  circular variable reference
+- *16* ???*17*["initialChecked"]
+  ⚠️  unknown object
+- *17* ???*18*["_wrapperState"]
+  ⚠️  unknown object
+- *18* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *19* l
+  ⚠️  pattern without value
+- *20* f
+  ⚠️  circular variable reference
+- *21* ???*22*[(???*23* | null | [] | ???*24*)]
+  ⚠️  unknown object
+- *22* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *23* l
+  ⚠️  pattern without value
+- *24* f
+  ⚠️  circular variable reference
+- *25* ???*26*[(???*40* | null | [] | ???*41*)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *18* ???*19*(
+- *26* Object.assign*27*(
         {},
-        b,
+        ???*28*,
         {
-            "defaultChecked": ???*21*,
-            "defaultValue": ???*22*,
-            "value": ???*23*,
-            "checked": ((null != c) ? c : a["_wrapperState"]["initialChecked"])
+            "defaultChecked": ???*29*,
+            "defaultValue": ???*30*,
+            "value": ???*31*,
+            "checked": (???*32* ? ???*35* : ???*37*)
         }
     )
-  ⚠️  unknown callee
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *19* ???*20*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *20* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *21* unsupported expression
-  ⚠️  This value might have side effects
-- *22* unsupported expression
-  ⚠️  This value might have side effects
-- *23* unsupported expression
-  ⚠️  This value might have side effects
-- *24* l
-  ⚠️  pattern without value
-- *25* f
+- *27* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *28* d
   ⚠️  circular variable reference
-- *26* (???*27* ? ???*28* : ???*30*)
-  ⚠️  nested operation
-- *27* k
-  ⚠️  circular variable reference
-- *28* ???*29*["__html"]
-  ⚠️  unknown object
-- *29* k
-  ⚠️  circular variable reference
+- *29* unsupported expression
+  ⚠️  This value might have side effects
 - *30* unsupported expression
   ⚠️  This value might have side effects
-- *31* ???*32*["__html"]
+- *31* unsupported expression
+  ⚠️  This value might have side effects
+- *32* (null != ???*33*)
+  ⚠️  nested operation
+- *33* ???*34*["checked"]
   ⚠️  unknown object
-- *32* ???*33*[(???*34* | null | [] | ???*35*)]
-  ⚠️  unknown object
-- *33* arguments[3]
-  ⚠️  function calls are not analysed yet
-- *34* l
-  ⚠️  pattern without value
-- *35* f
+- *34* d
   ⚠️  circular variable reference
-- *36* ???*37*["__html"]
+- *35* ???*36*["checked"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *37* ???*38*[(???*44* | null | [] | ???*45*)]
+- *36* d
+  ⚠️  circular variable reference
+- *37* ???*38*["initialChecked"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *38* ???*39*(
-        {},
-        b,
-        {
-            "defaultChecked": ???*41*,
-            "defaultValue": ???*42*,
-            "value": ???*43*,
-            "checked": ((null != c) ? c : a["_wrapperState"]["initialChecked"])
-        }
-    )
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *39* ???*40*["assign"]
+- *38* ???*39*["_wrapperState"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *40* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *41* unsupported expression
-  ⚠️  This value might have side effects
-- *42* unsupported expression
-  ⚠️  This value might have side effects
-- *43* unsupported expression
-  ⚠️  This value might have side effects
-- *44* l
+- *39* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *40* l
   ⚠️  pattern without value
-- *45* f
+- *41* f
+  ⚠️  circular variable reference
+- *42* (???*43* ? ???*44* : ???*46*)
+  ⚠️  nested operation
+- *43* k
+  ⚠️  circular variable reference
+- *44* ???*45*["__html"]
+  ⚠️  unknown object
+- *45* k
   ⚠️  circular variable reference
 - *46* unsupported expression
+  ⚠️  This value might have side effects
+- *47* ???*48*["__html"]
+  ⚠️  unknown object
+- *48* ???*49*[(???*50* | null | [] | ???*51*)]
+  ⚠️  unknown object
+- *49* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *50* l
+  ⚠️  pattern without value
+- *51* f
+  ⚠️  circular variable reference
+- *52* ???*53*["__html"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *53* ???*54*[(???*66* | null | [] | ???*67*)]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *54* Object.assign*55*(
+        {},
+        ???*56*,
+        {
+            "defaultChecked": ???*57*,
+            "defaultValue": ???*58*,
+            "value": ???*59*,
+            "checked": (???*60* ? ???*62* : ???*64*)
+        }
+    )
+  ⚠️  only const object assign is supported
+  ⚠️  This value might have side effects
+- *55* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *56* d
+  ⚠️  circular variable reference
+- *57* unsupported expression
+  ⚠️  This value might have side effects
+- *58* unsupported expression
+  ⚠️  This value might have side effects
+- *59* unsupported expression
+  ⚠️  This value might have side effects
+- *60* (null != ???*61*)
+  ⚠️  nested operation
+- *61* ???["checked"]
+  ⚠️  unknown object
+- *62* ???*63*["checked"]
+  ⚠️  unknown object
+- *63* d
+  ⚠️  circular variable reference
+- *64* ???*65*["initialChecked"]
+  ⚠️  unknown object
+- *65* ???["_wrapperState"]
+  ⚠️  unknown object
+- *66* l
+  ⚠️  pattern without value
+- *67* f
+  ⚠️  circular variable reference
+- *68* unsupported expression
   ⚠️  This value might have side effects
 
 k#647 = ???*0*
@@ -20613,35 +21065,24 @@ t#883 = ???*0*
 
 ta = (...) => undefined
 
-tb = ???*0*
-- *0* ???*1*(
-        {"menuitem": !(0)},
-        {
-            "area": !(0),
-            "base": !(0),
-            "br": !(0),
-            "col": !(0),
-            "embed": !(0),
-            "hr": !(0),
-            "img": !(0),
-            "input": !(0),
-            "keygen": !(0),
-            "link": !(0),
-            "meta": !(0),
-            "param": !(0),
-            "source": !(0),
-            "track": !(0),
-            "wbr": !(0)
-        }
-    )
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+tb = {
+    "menuitem": true,
+    "area": true,
+    "base": true,
+    "br": true,
+    "col": true,
+    "embed": true,
+    "hr": true,
+    "img": true,
+    "input": true,
+    "keygen": true,
+    "link": true,
+    "meta": true,
+    "param": true,
+    "source": true,
+    "track": true,
+    "wbr": true
+}
 
 tc = (...) => (undefined | 1 | 2 | 4 | 8 | 16 | 32 | ???*0* | 134217728 | 268435456 | 536870912 | 1073741824 | a)
 - *0* unsupported expression
@@ -20712,16 +21153,16 @@ ub = (...) => undefined
 
 uc = (...) => (0 | b | d)
 
-ud = ???*0*
-- *0* ???*1*({}, sd, {"view": 0, "detail": 0})
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+ud = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0
+}
 
 ue = (...) => (undefined | a["stateNode"])
 

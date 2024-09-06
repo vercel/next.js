@@ -119,7 +119,7 @@ use crate::{
         imports::{ImportAnnotations, ImportOverrides, ImportedSymbol, Reexport},
         parse_require_context,
         top_level_await::has_top_level_await,
-        ConstantNumber, ConstantString, RequireContextValue,
+        ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
     },
     chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
@@ -360,6 +360,7 @@ struct AnalysisState<'a> {
     tree_shaking_mode: Option<TreeShakingMode>,
     import_externals: bool,
     ignore_dynamic_requests: bool,
+    url_rewrite_behavior: Option<UrlRewriteBehavior>,
 }
 
 impl<'a> AnalysisState<'a> {
@@ -876,6 +877,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         tree_shaking_mode: options.tree_shaking_mode,
         import_externals: options.import_externals,
         ignore_dynamic_requests: options.ignore_dynamic_requests,
+        url_rewrite_behavior: options.url_rewrite_behavior,
     };
 
     enum Action {
@@ -1063,6 +1065,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 ast_path,
                 span,
                 in_try,
+                new,
             } => {
                 if let Some(ignored) = &ignore_effect_span {
                     if *ignored == span {
@@ -1084,11 +1087,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     &add_effects,
                     &mut analysis,
                     in_try,
+                    new,
                 )
                 .await?;
-            }
-            Effect::Worker { .. } => {
-                // TODO: perform worker replacement
             }
             Effect::MemberCall {
                 obj,
@@ -1097,6 +1098,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 ast_path,
                 span,
                 in_try,
+                new,
             } => {
                 if let Some(ignored) = &ignore_effect_span {
                     if *ignored == span {
@@ -1110,34 +1112,36 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     .link_value(prop, ImportOverrides::empty_ref())
                     .await?;
 
-                if let JsValue::Array {
-                    items: ref mut values,
-                    mutable,
-                    ..
-                } = obj
-                {
-                    if matches!(prop.as_str(), Some("map" | "forEach" | "filter")) {
-                        if let [EffectArg::Closure(value, block)] = &mut args[..] {
-                            *value = analysis_state
-                                .link_value(take(value), ImportOverrides::empty_ref())
-                                .await?;
-                            if let JsValue::Function(_, func_ident, _) = value {
-                                let mut closure_arg = JsValue::alternatives(take(values));
-                                if mutable {
-                                    closure_arg.add_unknown_mutations(true);
+                if !new {
+                    if let JsValue::Array {
+                        items: ref mut values,
+                        mutable,
+                        ..
+                    } = obj
+                    {
+                        if matches!(prop.as_str(), Some("map" | "forEach" | "filter")) {
+                            if let [EffectArg::Closure(value, block)] = &mut args[..] {
+                                *value = analysis_state
+                                    .link_value(take(value), ImportOverrides::empty_ref())
+                                    .await?;
+                                if let JsValue::Function(_, func_ident, _) = value {
+                                    let mut closure_arg = JsValue::alternatives(take(values));
+                                    if mutable {
+                                        closure_arg.add_unknown_mutations(true);
+                                    }
+                                    analysis_state
+                                        .fun_args_values
+                                        .get_mut()
+                                        .insert(*func_ident, vec![closure_arg]);
+                                    queue_stack.get_mut().push(Action::LeaveScope(*func_ident));
+                                    queue_stack.get_mut().extend(
+                                        take(&mut block.effects)
+                                            .into_iter()
+                                            .map(Action::Effect)
+                                            .rev(),
+                                    );
+                                    continue;
                                 }
-                                analysis_state
-                                    .fun_args_values
-                                    .get_mut()
-                                    .insert(*func_ident, vec![closure_arg]);
-                                queue_stack.get_mut().push(Action::LeaveScope(*func_ident));
-                                queue_stack.get_mut().extend(
-                                    take(&mut block.effects)
-                                        .into_iter()
-                                        .map(Action::Effect)
-                                        .rev(),
-                                );
-                                continue;
                             }
                         }
                     }
@@ -1160,6 +1164,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     &add_effects,
                     &mut analysis,
                     in_try,
+                    new,
                 )
                 .await?;
             }
@@ -1227,38 +1232,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
                 analysis.add_code_gen(ImportMetaRef::new(Vc::cell(ast_path)));
             }
-            Effect::Url {
-                input,
-                ast_path,
-                span,
-                in_try,
-            } => {
-                let pat = js_value_to_pattern(&input);
-                if !pat.has_constant_parts() {
-                    handler.span_warn_with_code(
-                        span,
-                        &format!("new URL({input}, import.meta.url) is very dynamic"),
-                        DiagnosticId::Lint(
-                            errors::failed_to_analyse::ecmascript::NEW_URL_IMPORT_META.to_string(),
-                        ),
-                    );
-                    if options.ignore_dynamic_requests {
-                        continue;
-                    }
-                }
-                analysis.add_reference(UrlAssetReference::new(
-                    origin,
-                    Request::parse(Value::new(pat)),
-                    compile_time_info.environment().rendering(),
-                    Vc::cell(ast_path),
-                    IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize()),
-                    in_try,
-                    options
-                        .url_rewrite_behavior
-                        .unwrap_or(UrlRewriteBehavior::Relative)
-                        .cell(),
-                ));
-            }
         }
     }
 
@@ -1282,6 +1255,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
     add_effects: &G,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     in_try: bool,
+    new: bool,
 ) -> Result<()> {
     let &AnalysisState {
         handler,
@@ -1289,6 +1263,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         source,
         compile_time_info,
         ignore_dynamic_requests,
+        url_rewrite_behavior,
         ..
     } = state;
     fn explain_args(args: &[JsValue]) -> (String, String) {
@@ -1315,6 +1290,104 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             .try_join()
             .await
     };
+
+    if new {
+        match func {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor) => {
+                let args = linked_args(args).await?;
+                if let [url @ JsValue::Constant(super::analyzer::ConstantValue::Str(_)), JsValue::Member(
+                    _,
+                    box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
+                    box JsValue::Constant(super::analyzer::ConstantValue::Str(prop)),
+                )] = &args[..]
+                {
+                    if prop.as_str() == "url" {
+                        let pat = js_value_to_pattern(url);
+                        if !pat.has_constant_parts() {
+                            let (args, hints) = explain_args(&args);
+                            handler.span_warn_with_code(
+                                span,
+                                &format!("new URL({args}) is very dynamic{hints}",),
+                                DiagnosticId::Lint(
+                                    errors::failed_to_analyse::ecmascript::NEW_URL_IMPORT_META
+                                        .to_string(),
+                                ),
+                            );
+                            if ignore_dynamic_requests {
+                                return Ok(());
+                            }
+                        }
+                        analysis.add_reference(UrlAssetReference::new(
+                            origin,
+                            Request::parse(Value::new(pat)),
+                            compile_time_info.environment().rendering(),
+                            Vc::cell(ast_path.to_vec()),
+                            IssueSource::from_swc_offsets(
+                                source,
+                                span.lo.to_usize(),
+                                span.hi.to_usize(),
+                            ),
+                            in_try,
+                            url_rewrite_behavior
+                                .unwrap_or(UrlRewriteBehavior::Relative)
+                                .cell(),
+                        ));
+                        return Ok(());
+                    }
+                }
+                let (args, hints) = explain_args(&args);
+                handler.span_warn_with_code(
+                    span,
+                    &format!("import({args}) is not statically analyse-able{hints}",),
+                    DiagnosticId::Error(
+                        errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT.to_string(),
+                    ),
+                );
+                return Ok(());
+            }
+            JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor) => {
+                let args = linked_args(args).await?;
+                if let [_url @ JsValue::Url(_, JsValueUrlKind::Relative)] = &args[..] {
+                    // let pat = js_value_to_pattern(url);
+                    // if !pat.has_constant_parts() {
+                    //     let (args, hints) = explain_args(&args);
+                    //     handler.span_warn_with_code(
+                    //         span,
+                    //         &format!("new Worker({args}) is very dynamic{hints}",),
+                    //         DiagnosticId::Lint(
+                    //             errors::failed_to_analyse::ecmascript::NEW_URL_IMPORT_META
+                    //                 .to_string(),
+                    //         ),
+                    //     );
+                    //     if ignore_dynamic_requests {
+                    //         return Ok(());
+                    //     }
+                    // }
+
+                    // TODO add worker reference
+                    return Ok(());
+                }
+                let (args, hints) = explain_args(&args);
+                handler.span_warn_with_code(
+                    span,
+                    &format!("new Worker({args}) is not statically analyse-able{hints}",),
+                    DiagnosticId::Error(
+                        errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT.to_string(),
+                    ),
+                );
+                return Ok(());
+            }
+            _ => {}
+        }
+
+        for arg in args {
+            if let EffectArg::Closure(_, block) = arg {
+                add_effects(block.effects);
+            }
+        }
+        return Ok(());
+    }
+
     match func {
         JsValue::Alternatives {
             total_nodes: _,
@@ -1332,6 +1405,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     add_effects,
                     analysis,
                     in_try,
+                    new,
                 ))
                 .await?;
             }
@@ -2406,13 +2480,36 @@ async fn value_visitor_inner(
                 "require.context() static analysis is currently limited",
             )
         }
+        JsValue::New(
+            _,
+            box JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
+            ref args,
+        ) => {
+            if let [JsValue::Constant(super::analyzer::ConstantValue::Str(url)), JsValue::Member(
+                _,
+                box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
+                box JsValue::Constant(super::analyzer::ConstantValue::Str(prop)),
+            )] = &args[..]
+            {
+                if prop.as_str() == "url" {
+                    // TODO avoid clone
+                    JsValue::Url(url.clone(), JsValueUrlKind::Relative)
+                } else {
+                    v.into_unknown(true, "new non constant")
+                }
+            } else {
+                v.into_unknown(true, "new non constant")
+            }
+        }
         JsValue::FreeVar(ref kind) => match &**kind {
             "__dirname" => as_abs_path(origin.origin_path().parent()).await?,
             "__filename" => as_abs_path(origin.origin_path()).await?,
 
             "require" => JsValue::WellKnownFunction(WellKnownFunctionKind::Require { ignore }),
-            "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
             "import" => JsValue::WellKnownFunction(WellKnownFunctionKind::Import { ignore }),
+            "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
+            "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
+            "Worker" => JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
             "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
