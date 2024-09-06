@@ -1,0 +1,6 @@
+  x "ImageResponse" is deprecated.
+   ,-[input.js:5:1]
+ 4 | 
+ 5 | import { ImageResponse } from 'next/server'
+   :          ^^^^^^^^^^^^^
+   `----
