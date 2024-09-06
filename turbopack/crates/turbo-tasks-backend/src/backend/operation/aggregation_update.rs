@@ -298,27 +298,22 @@ impl AggregationUpdateQueue {
                             let followers =
                                 iter_many!(task, Follower { task } count if count > 0 => task);
                             for follower_id in followers {
-                                self.jobs.push_back(AggregationUpdateJob::BalanceEdge {
+                                self.push(AggregationUpdateJob::BalanceEdge {
                                     upper_id: task_id,
                                     task_id: follower_id,
                                 });
                             }
                             let uppers = iter_uppers(&task);
                             for upper_id in uppers {
-                                self.jobs.push_back(AggregationUpdateJob::BalanceEdge {
-                                    upper_id,
-                                    task_id,
-                                });
+                                self.push(AggregationUpdateJob::BalanceEdge { upper_id, task_id });
                             }
                         } else {
                             let children = iter_many!(task, Child { task } => task);
                             for child_id in children {
-                                self.jobs.push_back(
-                                    AggregationUpdateJob::UpdateAggregationNumber {
-                                        task_id: child_id,
-                                        aggregation_number: aggregation_number + 1,
-                                    },
-                                );
+                                self.push(AggregationUpdateJob::UpdateAggregationNumber {
+                                    task_id: child_id,
+                                    aggregation_number: aggregation_number + 1,
+                                });
                             }
                         }
                     }
@@ -396,21 +391,18 @@ impl AggregationUpdateQueue {
                                     let diff = data.apply(&mut upper, self);
                                     if !diff.is_empty() {
                                         let upper_ids = get_uppers(&upper);
-                                        self.jobs.push_back(
-                                            AggregationUpdateJob::AggregatedDataUpdate {
-                                                upper_ids,
-                                                update: diff,
-                                            },
-                                        )
+                                        self.push(AggregationUpdateJob::AggregatedDataUpdate {
+                                            upper_ids,
+                                            update: diff,
+                                        })
                                     }
                                 }
                             }
                             if !children.is_empty() {
-                                self.jobs
-                                    .push_back(AggregationUpdateJob::InnerHasNewFollowers {
-                                        upper_ids: upper_ids.clone(),
-                                        new_follower_ids: children,
-                                    });
+                                self.push(AggregationUpdateJob::InnerHasNewFollowers {
+                                    upper_ids: upper_ids.clone(),
+                                    new_follower_ids: children,
+                                });
                             }
                         } else {
                             drop(follower);
@@ -425,11 +417,10 @@ impl AggregationUpdateQueue {
                             },
                             1
                         ) {
-                            self.jobs
-                                .push_back(AggregationUpdateJob::InnerHasNewFollower {
-                                    upper_ids: vec![upper_id],
-                                    new_follower_id,
-                                })
+                            self.push(AggregationUpdateJob::InnerHasNewFollower {
+                                upper_ids: vec![upper_id],
+                                new_follower_id,
+                            })
                         }
                     }
                 }
@@ -486,21 +477,18 @@ impl AggregationUpdateQueue {
                                 let diff = data.apply(&mut upper, self);
                                 if !diff.is_empty() {
                                     let upper_ids = get_uppers(&upper);
-                                    self.jobs.push_back(
-                                        AggregationUpdateJob::AggregatedDataUpdate {
-                                            upper_ids,
-                                            update: diff,
-                                        },
-                                    )
+                                    self.push(AggregationUpdateJob::AggregatedDataUpdate {
+                                        upper_ids,
+                                        update: diff,
+                                    })
                                 }
                             }
                         }
                         if !children.is_empty() {
-                            self.jobs
-                                .push_back(AggregationUpdateJob::InnerLostFollowers {
-                                    upper_ids: upper_ids.clone(),
-                                    lost_follower_ids: children,
-                                });
+                            self.push(AggregationUpdateJob::InnerLostFollowers {
+                                upper_ids: upper_ids.clone(),
+                                lost_follower_ids: children,
+                            });
                         }
                     } else {
                         drop(follower);
@@ -515,11 +503,10 @@ impl AggregationUpdateQueue {
                             },
                             -1
                         ) {
-                            self.jobs
-                                .push_back(AggregationUpdateJob::InnerLostFollower {
-                                    upper_ids: vec![upper_id],
-                                    lost_follower_id,
-                                })
+                            self.push(AggregationUpdateJob::InnerLostFollower {
+                                upper_ids: vec![upper_id],
+                                lost_follower_id,
+                            })
                         }
                     }
                 }
@@ -530,11 +517,10 @@ impl AggregationUpdateQueue {
                         if !diff.is_empty() {
                             let upper_ids = get_uppers(&upper);
                             if !upper_ids.is_empty() {
-                                self.jobs
-                                    .push_back(AggregationUpdateJob::AggregatedDataUpdate {
-                                        upper_ids,
-                                        update: diff,
-                                    });
+                                self.push(AggregationUpdateJob::AggregatedDataUpdate {
+                                    upper_ids,
+                                    update: diff,
+                                });
                             }
                         }
                     }
@@ -543,11 +529,10 @@ impl AggregationUpdateQueue {
                     let task = ctx.task(task_id);
                     let upper_ids: Vec<_> = get_uppers(&task);
                     if !upper_ids.is_empty() {
-                        self.jobs
-                            .push_back(AggregationUpdateJob::AggregatedDataUpdate {
-                                upper_ids,
-                                update: update.clone(),
-                            });
+                        self.push(AggregationUpdateJob::AggregatedDataUpdate {
+                            upper_ids,
+                            update: update.clone(),
+                        });
                     }
                 }
                 AggregationUpdateJob::ScheduleWhenDirty { task_ids } => {
@@ -592,31 +577,26 @@ impl AggregationUpdateQueue {
                                 if !upper_ids.is_empty() {
                                     if !diff.is_empty() {
                                         // Notify uppers about changed aggregated data
-                                        self.jobs.push_back(
-                                            AggregationUpdateJob::AggregatedDataUpdate {
-                                                upper_ids: upper_ids.clone(),
-                                                update: diff,
-                                            },
-                                        );
+                                        self.push(AggregationUpdateJob::AggregatedDataUpdate {
+                                            upper_ids: upper_ids.clone(),
+                                            update: diff,
+                                        });
                                     }
-                                    if !followers.is_empty() {
-                                        self.jobs.push_back(
-                                            AggregationUpdateJob::InnerHasNewFollowers {
-                                                upper_ids: upper_ids.clone(),
-                                                new_follower_ids: followers,
-                                            },
-                                        );
-                                    }
+                                }
+                                if !followers.is_empty() {
+                                    self.push(AggregationUpdateJob::InnerHasNewFollowers {
+                                        upper_ids: vec![upper_id],
+                                        new_follower_ids: followers,
+                                    });
                                 }
                             }
 
                             // notify uppers about lost follower
                             if !upper_ids.is_empty() {
-                                self.jobs
-                                    .push_back(AggregationUpdateJob::InnerLostFollower {
-                                        upper_ids,
-                                        lost_follower_id: task_id,
-                                    });
+                                self.push(AggregationUpdateJob::InnerLostFollower {
+                                    upper_ids,
+                                    lost_follower_id: task_id,
+                                });
                             }
                         }
                     } else if should_be_follower {
@@ -629,12 +609,10 @@ impl AggregationUpdateQueue {
                             if update_count!(upper, Follower { task: task_id }, count as i32) {
                                 // notify uppers about new follower
                                 if !upper_ids.is_empty() {
-                                    self.jobs.push_back(
-                                        AggregationUpdateJob::InnerHasNewFollower {
-                                            upper_ids: upper_ids.clone(),
-                                            new_follower_id: task_id,
-                                        },
-                                    );
+                                    self.push(AggregationUpdateJob::InnerHasNewFollower {
+                                        upper_ids: upper_ids.clone(),
+                                        new_follower_id: task_id,
+                                    });
                                 }
                             }
 
@@ -645,31 +623,27 @@ impl AggregationUpdateQueue {
                             let diff = data.apply(&mut upper, self);
                             if !upper_ids.is_empty() {
                                 if !diff.is_empty() {
-                                    self.jobs.push_back(
-                                        AggregationUpdateJob::AggregatedDataUpdate {
-                                            upper_ids: upper_ids.clone(),
-                                            update: diff,
-                                        },
-                                    );
+                                    self.push(AggregationUpdateJob::AggregatedDataUpdate {
+                                        upper_ids: upper_ids.clone(),
+                                        update: diff,
+                                    });
                                 }
-                                if !followers.is_empty() {
-                                    self.jobs
-                                        .push_back(AggregationUpdateJob::InnerLostFollowers {
-                                            upper_ids,
-                                            lost_follower_ids: followers,
-                                        });
-                                }
+                            }
+                            if !followers.is_empty() {
+                                self.push(AggregationUpdateJob::InnerLostFollowers {
+                                    upper_ids: vec![upper_id],
+                                    lost_follower_ids: followers,
+                                });
                             }
                         }
                     } else {
                         // both nodes have the same aggregation number
                         // We need to change the aggregation number of the task
                         let new_aggregation_number = upper_aggregation_number + 1;
-                        self.jobs
-                            .push_back(AggregationUpdateJob::UpdateAggregationNumber {
-                                task_id,
-                                aggregation_number: new_aggregation_number,
-                            });
+                        self.push(AggregationUpdateJob::UpdateAggregationNumber {
+                            task_id,
+                            aggregation_number: new_aggregation_number,
+                        });
                     }
                 }
             }
