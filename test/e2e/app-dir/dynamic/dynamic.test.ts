@@ -58,6 +58,11 @@ createNextDescribe(
       expect($('h1').text()).toBe('hello')
     })
 
+    it('14.x behavior: should support dynamic import that returns a client component not wrapped in a module', async () => {
+      const $ = await next.render$('/dynamic/named-export-unwrapped')
+      expect($('#client-button').text()).toBe('this is a client button')
+    })
+
     describe('no SSR', () => {
       it('should not render client component imported through ssr: false in client components in edge runtime', async () => {
         // noSSR should not show up in html
