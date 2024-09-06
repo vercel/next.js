@@ -61,6 +61,10 @@ The following props can be passed to the `<Link>` component:
 | [`replace`](#replace)    | `replace={false}`   | Boolean          | -        |
 | [`scroll`](#scroll)      | `scroll={false}`    | Boolean          | -        |
 | [`prefetch`](#prefetch)  | `prefetch={false}`  | Boolean          | -        |
+| [`legacyBehavior`](#legacybehavior) | `legacyBehavior={true}`  | Boolean          | -        |
+| [`passHref`](#passhref)  | `passHref={true}`              | Boolean          | -        |
+| [`shallow`](#shallow)    | `shallow={false}`              | Boolean          | -        |
+| [`locale`](#locale)      | `locale="fr"`                  | String or Boolean | -        |
 
 </PagesOnly>
 
@@ -356,19 +360,17 @@ export default function Home() {
 }
 ```
 
-### Other Props
-
-#### `legacyBehavior`
+### `legacyBehavior`
 
 An `<a>` element is no longer required as a child of `<Link>`. Add the `legacyBehavior` prop to use the legacy behavior or remove the `<a>` to upgrade. A [codemod is available](/docs/app/building-your-application/upgrading/codemods#new-link) to automatically upgrade your code.
 
 > **Good to know**: when `legacyBehavior` is not set to `true`, all [`anchor`](https://developer.mozilla.org/docs/Web/HTML/Element/a) tag properties can be passed to `next/link` as well such as, `className`, `onClick`, etc.
 
-#### `passHref`
+### `passHref`
 
 Forces `Link` to send the `href` property to its child. Defaults to `false`. See [If the child is a functional component](#if-the-child-is-a-functional-component) for more information.
 
-#### `scroll`
+### `scroll`
 
 Scroll to the top of the page after a navigation. Defaults to `true`.
 
@@ -396,7 +398,7 @@ export default function Home() {
 }
 ```
 
-#### `shallow`
+### `shallow`
 
 Update the path of the current page without rerunning [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props), [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props) or [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props). Defaults to `false`.
 
@@ -425,7 +427,7 @@ export default function Home() {
 ```
 
 
-#### `locale`
+### `locale`
 
 The active locale is automatically prepended. `locale` allows for providing a different locale. When `false` `href` has to include the locale as the default behavior is disabled.
 
@@ -485,9 +487,167 @@ export default function Home() {
 
 The following examples demonstrate how to use the `<Link>` component in different scenarios.
 
-### Linking to Dynamic Routes
+<AppOnly>
 
-For dynamic routes, it can be handy to use template literals to create the link's path.
+### Linking to dynamic segments
+
+When linking to [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes), you can use [template literals and interpolation](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Template_literals) to generate a list of links. For example, to generate a list of blog posts:
+
+```tsx filename="app/blog/post-list.tsx" switcher
+import Link from 'next/link'
+
+interface Post {
+  id: number
+  title: string
+  slug: string
+}
+
+export default function PostList({ posts }: { posts: Post[] }) {
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>
+          <Link href={`/blog/${post.slug}`}>{post.title}</Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+```jsx filename="app/blog/post-list.js" switcher
+import Link from 'next/link'
+
+export default function PostList({ posts }) {
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>
+          <Link href={`/blog/${post.slug}`}>{post.title}</Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+### Checking active links
+
+You can use [`usePathname()`](/docs/app/api-reference/functions/use-pathname) to determine if a link is active. For example, to add a class to the active link, you can check if the current `pathname` matches the `href` of the link:
+
+```tsx filename="app/ui/nav-links.tsx" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+
+export function Links() {
+  const pathname = usePathname()
+
+  return (
+    <nav>
+      <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
+        Home
+      </Link>
+
+      <Link
+        className={`link ${pathname === '/about' ? 'active' : ''}`}
+        href="/about"
+      >
+        About
+      </Link>
+    </nav>
+  )
+}
+```
+
+```jsx filename="app/ui/nav-links.js" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+
+export function Links() {
+  const pathname = usePathname()
+
+  return (
+    <nav>
+      <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
+        Home
+      </Link>
+
+      <Link
+        className={`link ${pathname === '/about' ? 'active' : ''}`}
+        href="/about"
+      >
+        About
+      </Link>
+    </nav>
+  )
+}
+```
+
+### Scrolling to an `id`
+
+The default behavior of the Next.js App Router is to **scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.**
+
+If you'd like to scroll to a specific `id` on navigation, you can append your URL with a `#` hash link or just pass a hash link to the `href` prop. This is possible since `<Link>` renders to an `<a>` element.
+
+```jsx
+<Link href="/dashboard#settings">Settings</Link>
+
+// Output
+<a href="/dashboard#settings">Settings</a>
+```
+
+> **Good to know**:
+>
+> - Next.js will scroll to the [Page](/docs/app/building-your-application/routing/pages) if it is not visible in the viewport upon navigation.
+
+### Disabling scroll restoration
+
+The default behavior of the Next.js App Router is to **scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.** If you'd like to disable this behavior, you can pass `scroll={false}` to the `<Link>` component, or `scroll: false` to `router.push()` or `router.replace()`.
+
+```tsx filename="app/page.tsx" switcher
+import Link from 'next/link'
+
+export default function Home() {
+  return (
+    <Link href="/dashboard" scroll={false}>
+      Dashboard
+    </Link>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import Link from 'next/link'
+
+export default function Home() {
+  return (
+    <Link href="/dashboard" scroll={false}>
+      Dashboard
+    </Link>
+  )
+}
+```
+
+Using `router.push()` or `router.replace()`:
+
+```jsx
+// useRouter
+import { useRouter } from 'next/navigation'
+
+const router = useRouter()
+
+router.push('/dashboard', { scroll: false })
+```
+
+</AppOnly>
+
+### Linking to dynamic route segments
+
+For [dynamic route segments](docs/app/building-your-application/routing/dynamic-routes), it can be handy to use template literals to create the link's path.
 
 <PagesOnly>
 
@@ -624,7 +784,7 @@ export default NavLink
 - If you’re using [emotion](https://emotion.sh/)’s JSX pragma feature (`@jsx jsx`), you must use `passHref` even if you use an `<a>` tag directly.
 - The component should support `onClick` property to trigger navigation correctly
 
-### If the child is a functional component
+### Nesting a functional component
 
 If the child of `Link` is a functional component, in addition to using `passHref` and `legacyBehavior`, you must wrap the component in [`React.forwardRef`](https://react.dev/reference/react/forwardRef):
 
@@ -758,7 +918,7 @@ export default function Home() {
 
 <PagesOnly>
 
-### With URL Object
+### Passing a URL Object
 
 `Link` can also receive a URL object and it will automatically format it to create the URL string:
 
@@ -957,7 +1117,7 @@ export default function Home() {
 
 </PagesOnly>
 
-### Middleware
+### Prefetching links in Middleware
 
 It's common to use [Middleware](/docs/app/building-your-application/routing/middleware) for authentication or other purposes that involve rewriting the user to a different page. In order for the `<Link />` component to properly prefetch links with rewrites via Middleware, you need to tell Next.js both the URL to display and the URL to prefetch. This is required to avoid un-necessary fetches to middleware to know the correct route to prefetch.
 
@@ -1073,7 +1233,7 @@ export default function Home() {
 
 </PagesOnly>
 
-## Version History
+## Version history
 
 | Version   | Changes                                                                                                                                                                                         |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
