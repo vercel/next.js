@@ -1295,13 +1295,13 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         match func {
             JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor) => {
                 let args = linked_args(args).await?;
-                if let [url @ JsValue::Constant(super::analyzer::ConstantValue::Str(_)), JsValue::Member(
+                if let [url, JsValue::Member(
                     _,
                     box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                    box JsValue::Constant(super::analyzer::ConstantValue::Str(prop)),
+                    box JsValue::Constant(super::analyzer::ConstantValue::Str(meta_prop)),
                 )] = &args[..]
                 {
-                    if prop.as_str() == "url" {
+                    if meta_prop.as_str() == "url" {
                         let pat = js_value_to_pattern(url);
                         if !pat.has_constant_parts() {
                             let (args, hints) = explain_args(&args);
@@ -1328,17 +1328,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                 .unwrap_or(UrlRewriteBehavior::Relative)
                                 .cell(),
                         ));
-                        return Ok(());
                     }
                 }
-                let (args, hints) = explain_args(&args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("import({args}) is not statically analyse-able{hints}",),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT.to_string(),
-                    ),
-                );
                 return Ok(());
             }
             JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor) => {
