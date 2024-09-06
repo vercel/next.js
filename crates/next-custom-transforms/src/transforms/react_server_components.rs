@@ -75,6 +75,7 @@ enum RSCErrorKind {
     NextRscErrClientMetadataExport((String, Span)),
     NextRscErrConflictMetadataExport(Span),
     NextRscErrInvalidApi((String, Span)),
+    NextRscErrDeprecatedApi((String, Span)),
 }
 
 impl<C: Comments> VisitMut for ReactServerComponents<C> {
@@ -291,6 +292,10 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             RSCErrorKind::NextRscErrInvalidApi((source, span)) => (
                 format!("\"{source}\" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching\n\n"), span
             ),
+
+            RSCErrorKind::NextRscErrDeprecatedApi((source, span)) => (
+                format!("\"{source}\" is deprecated."), span
+            ),
         };
 
     HANDLER.with(|handler| handler.struct_span_err(span, msg.as_str()).emit())
@@ -488,6 +493,7 @@ struct ReactServerComponentValidator {
     app_dir: Option<PathBuf>,
     invalid_server_imports: Vec<JsWord>,
     invalid_server_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
+    deprecated_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
     invalid_client_imports: Vec<JsWord>,
     invalid_client_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
     pub directive_import_collection: Option<(bool, bool, RcVec<ModuleImports>, RcVec<String>)>,
@@ -550,9 +556,9 @@ impl ReactServerComponentValidator {
                         "ServerInsertedHTMLContext",
                     ],
                 ),
-                ("next/server", vec!["ImageResponse"]),
             ]
             .into(),
+            deprecated_apis_mapping: [("next/server", vec!["ImageResponse"])].into(),
 
             invalid_server_imports: vec![
                 JsWord::from("client-only"),
@@ -577,6 +583,22 @@ impl ReactServerComponentValidator {
     // assert_invalid_server_lib_apis("react", import)
     // assert_invalid_server_lib_apis("react-dom", import)
     fn assert_invalid_server_lib_apis(&self, import_source: String, import: &ModuleImports) {
+        let deprecated_apis = self.deprecated_apis_mapping.get(import_source.as_str());
+        if let Some(deprecated_apis) = deprecated_apis {
+            for specifier in &import.specifiers {
+                if deprecated_apis.contains(&specifier.0.as_str()) {
+                    report_error(
+                        &self.app_dir,
+                        &self.filepath,
+                        RSCErrorKind::NextRscErrDeprecatedApi((
+                            specifier.0.to_string(),
+                            specifier.1,
+                        )),
+                    );
+                }
+            }
+        }
+
         let invalid_apis = self
             .invalid_server_lib_apis_mapping
             .get(import_source.as_str());
