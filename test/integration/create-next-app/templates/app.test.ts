@@ -11,7 +11,7 @@ beforeAll(async () => {
   if (testVersion) return
   // TODO: investigate moving this post publish or create deployed GH#57025
   // tarballs to avoid these failing while a publish is in progress
-  testVersion = 'canary'
+  testVersion = 'latest'
   // const span = new Span({ name: 'parent' })
   // testVersion = (
   //   await createNextInstall({ onlyPackages: true, parentSpan: span })

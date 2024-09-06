@@ -30,7 +30,7 @@ export const run = (
     env: {
       ...process.env,
       ...options.env,
-      NEXT_PRIVATE_TEST_VERSION: '14.2.3',
+      NEXT_PRIVATE_TEST_VERSION: 'latest',
     },
   })
 
