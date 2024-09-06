@@ -20,9 +20,6 @@ import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { Params } from '../request/params'
-import type { NextRequest } from '../web/exports'
-import { workUnitAsyncStorage } from './work-unit-async-storage.external'
-import { InvariantError } from '../../shared/lib/invariant-error'
 import { createInterceptor } from './create-interceptor'
 
 /**
@@ -41,7 +38,7 @@ export function createComponentTree(props: {
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
-  interceptors?: ((request: NextRequest) => Promise<void>)[]
+  interceptors?: (() => Promise<void>)[]
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -90,11 +87,12 @@ async function createComponentTreeInternal({
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
-  interceptors?: ((request: NextRequest) => Promise<void>)[]
+  interceptors?: (() => Promise<void>)[]
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
     workStore,
+    requestStore,
     componentMod: {
       NotFoundBoundary,
       LayoutRouter,
@@ -183,7 +181,8 @@ async function createComponentTreeInternal({
     : []
 
   const segmentInterceptor =
-    interceptor && (await createInterceptor(interceptor))
+    interceptor &&
+    (await createInterceptor(interceptor, requestStore.nextRequest))
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
@@ -765,7 +764,7 @@ function MaybeIntercepted({
   interceptors,
   children,
 }: {
-  interceptors: ((request: NextRequest) => Promise<void>)[]
+  interceptors: (() => Promise<void>)[]
   children: React.ReactNode
 }) {
   return interceptors.length > 0 ? (
@@ -779,20 +778,14 @@ async function Intercepted({
   interceptors,
   children,
 }: {
-  interceptors: ((request: NextRequest) => Promise<void>)[]
+  interceptors: (() => Promise<void>)[]
   children: React.ReactNode
 }) {
-  const workUnitStore = workUnitAsyncStorage.getStore()
-
-  if (workUnitStore?.type !== 'request') {
-    throw new InvariantError('requestStore is undefined')
-  }
-
   for (const interceptor of interceptors) {
     // We don't need to catch parent interceptors here, because if they throw we
     // wouldn't get to this point (i.e. rendering the segments further down in
     // the component tree).
-    await interceptor(workUnitStore.nextRequest)
+    await interceptor()
   }
 
   return children

@@ -3,10 +3,9 @@ import type { NextRequest } from '../web/exports'
 import { interopDefault } from './interop-default'
 
 export async function createInterceptor(
-  moduleTuple: ModuleTuple
-  // TODO(interceptors): Pass in nextRequest here instead of consuming it from
-  // the RequestStorage to avoid invariant error when the store is undefined.
-): Promise<(request: NextRequest) => Promise<void>> {
+  moduleTuple: ModuleTuple,
+  request: NextRequest
+): Promise<() => Promise<void>> {
   const [getModule] = moduleTuple
 
   const interceptRequest = interopDefault(await getModule()) as (
@@ -15,7 +14,7 @@ export async function createInterceptor(
 
   let interceptorPromise: Promise<void> | undefined
 
-  return function intercept(request: NextRequest) {
+  return function intercept() {
     if (!interceptorPromise) {
       interceptorPromise = interceptRequest(request)
     }

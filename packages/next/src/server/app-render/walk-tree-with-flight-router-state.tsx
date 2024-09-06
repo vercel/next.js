@@ -22,7 +22,6 @@ import {
 } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
 import { createInterceptor } from './create-interceptor'
-import type { NextRequest } from '../web/exports'
 
 /**
  * Use router state to decide at what common layout to render the page.
@@ -59,7 +58,7 @@ export async function walkTreeWithFlightRouterState({
   getMetadataReady: () => Promise<void>
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
-  interceptors?: ((request: NextRequest) => Promise<void>)[]
+  interceptors?: (() => Promise<void>)[]
 }): Promise<FlightDataPath[]> {
   const {
     renderOpts: { nextFontManifest, experimental },
@@ -67,6 +66,7 @@ export async function walkTreeWithFlightRouterState({
     isPrefetch,
     getDynamicParamFromSegment,
     componentMod: { tree: loaderTree },
+    requestStore,
   } = ctx
 
   const [segment, parallelRoutes, modules] = loaderTreeToFilter
@@ -181,7 +181,8 @@ export async function walkTreeWithFlightRouterState({
   }
 
   const segmentInterceptor =
-    interceptor && (await createInterceptor(interceptor))
+    interceptor &&
+    (await createInterceptor(interceptor, requestStore.nextRequest))
 
   // If we are not rendering on this level we need to check if the current
   // segment has a layout. If so, we need to track all the used CSS to make
