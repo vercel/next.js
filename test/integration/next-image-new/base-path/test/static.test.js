@@ -184,7 +184,11 @@ describe('Build Error Tests', () => {
           "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
         )
         // should contain the importing module
-        expect(stderr).toContain('./pages/static-img.js')
+        if (process.env.TURBOPACK) {
+          expect(stderr).toContain('/pages/static-img.js')
+        } else {
+          expect(stderr).toContain('./pages/static-img.js')
+        }
         // should contain a import trace
         expect(stderr).not.toContain('Import trace for requested module')
       })
