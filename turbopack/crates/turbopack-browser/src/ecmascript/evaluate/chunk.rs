@@ -114,7 +114,7 @@ impl EcmascriptDevEvaluateChunk {
         let runtime_module_ids = runtime_module_ids
             .iter()
             .flatten()
-            .map(|id| ModuleIdJs(&**id))
+            .map(|id| ModuleIdJs(id))
             .collect();
 
         let params = EcmascriptDevChunkRuntimeParams {
