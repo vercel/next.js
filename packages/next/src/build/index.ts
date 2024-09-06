@@ -128,7 +128,7 @@ import {
   isAppBuiltinNotFoundPage,
   collectRoutesUsingEdgeRuntime,
   collectMeta,
-  getSupportedBrowsers,
+  // getSupportedBrowsers,
 } from './utils'
 import type { PageInfo, PageInfos, AppConfig, PrerenderedRoute } from './utils'
 import { writeBuildId } from './write-build-id'
@@ -1332,7 +1332,10 @@ export default async function build(
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const dev = false
 
-        const supportedBrowsers = await getSupportedBrowsers(dir, dev)
+        // const supportedBrowsers = await getSupportedBrowsers(dir, dev)
+        const supportedBrowsers = [
+          'last 1 Chrome versions, last 1 Firefox versions, last 1 Safari versions, last 1 Edge versions',
+        ]
 
         const project = await bindings.turbo.createProject(
           {

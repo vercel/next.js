@@ -80,7 +80,7 @@ import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { getNodeDebugType } from '../lib/utils'
-import { getSupportedBrowsers } from '../../build/utils'
+// import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -135,7 +135,10 @@ export async function createHotReloaderTurbopack(
     // TODO this need to be set correctly for persistent caching to work
   }
 
-  const supportedBrowsers = await getSupportedBrowsers(dir, dev)
+  // const supportedBrowsers = await getSupportedBrowsers(dir, dev)
+  const supportedBrowsers = [
+    'last 1 Chrome versions, last 1 Firefox versions, last 1 Safari versions, last 1 Edge versions',
+  ]
 
   const project = await bindings.turbo.createProject(
     {
