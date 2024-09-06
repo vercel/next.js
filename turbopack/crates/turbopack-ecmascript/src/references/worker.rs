@@ -96,12 +96,7 @@ impl ValueToString for WorkerAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModuleReference for WorkerAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel))
-    }
-}
+impl ChunkableModuleReference for WorkerAssetReference {}
 
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for WorkerAssetReference {
