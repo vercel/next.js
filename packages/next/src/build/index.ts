@@ -128,6 +128,7 @@ import {
   isAppBuiltinNotFoundPage,
   collectRoutesUsingEdgeRuntime,
   collectMeta,
+  getSupportedBrowsers,
 } from './utils'
 import type { PageInfo, PageInfos, AppConfig, PrerenderedRoute } from './utils'
 import { writeBuildId } from './write-build-id'
@@ -1330,6 +1331,9 @@ export default async function build(
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const dev = false
+
+        const supportedBrowsers = await getSupportedBrowsers(dir, dev)
+
         const project = await bindings.turbo.createProject(
           {
             projectPath: dir,
@@ -1353,6 +1357,7 @@ export default async function build(
             buildId: NextBuildContext.buildId!,
             encryptionKey: NextBuildContext.encryptionKey!,
             previewProps: NextBuildContext.previewProps!,
+            browserslistQuery: supportedBrowsers.join(', '),
           },
           {
             memoryLimit: config.experimental.turbo?.memoryLimit,
