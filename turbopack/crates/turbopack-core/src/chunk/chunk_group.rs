@@ -23,7 +23,6 @@ pub async fn make_chunk_group(
     entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
 ) -> Result<MakeChunkGroupResult> {
-    let entries = entries.into_iter().collect::<Vec<_>>();
     let ChunkContentResult {
         chunk_items,
         async_modules,
@@ -31,7 +30,7 @@ pub async fn make_chunk_group(
         forward_edges_inherit_async,
         local_back_edges_inherit_async,
         available_async_modules_back_edges_inherit_async,
-    } = chunk_content(chunking_context, entries.clone(), availability_info).await?;
+    } = chunk_content(chunking_context, entries, availability_info).await?;
 
     // Find all local chunk items that are self async
     let self_async_children = chunk_items
@@ -119,16 +118,6 @@ pub async fn make_chunk_group(
         availability_info.with_chunk_items(map).await?
     };
 
-    // Pass chunk items to chunking algorithm
-    let mut chunks = make_chunks(
-        chunking_context,
-        Vc::cell(chunk_items.into_iter().collect()),
-        "".into(),
-        references_to_output_assets(external_module_references).await?,
-    )
-    .await?
-    .clone_value();
-
     // Insert async chunk loaders for every referenced async module
     let async_loaders = async_modules
         .into_iter()
@@ -149,6 +138,16 @@ pub async fn make_chunk_group(
         .iter()
         .flat_map(|references| references.iter().copied())
         .collect();
+
+    // Pass chunk items to chunking algorithm
+    let mut chunks = make_chunks(
+        chunking_context,
+        Vc::cell(chunk_items.into_iter().collect()),
+        "".into(),
+        references_to_output_assets(external_module_references).await?,
+    )
+    .await?
+    .clone_value();
 
     if has_async_loaders {
         // Pass async chunk loaders to chunking algorithm

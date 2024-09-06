@@ -2,7 +2,7 @@ use serde::Serialize;
 use turbo_tasks::ReadRef;
 use turbopack_core::chunk::{ChunkData, ModuleId};
 
-#[derive(Debug, Serialize, Hash, PartialEq, Eq)]
+#[derive(Serialize, Hash, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum EcmascriptChunkData<'a> {
     Simple(&'a str),
