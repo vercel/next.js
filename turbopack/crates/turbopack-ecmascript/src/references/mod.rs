@@ -74,7 +74,7 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
 };
 use turbopack_resolve::{
-    ecmascript::{apply_cjs_specific_options, cjs_resolve},
+    ecmascript::{apply_cjs_specific_options, cjs_resolve_source},
     typescript::tsconfig,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
@@ -2409,14 +2409,14 @@ async fn require_resolve_visitor(
     Ok(if args.len() == 1 {
         let pat = js_value_to_pattern(&args[0]);
         let request = Request::parse(Value::new(pat.clone()));
-        let resolved = cjs_resolve(origin, request, None, IssueSeverity::Warning.cell())
+        let resolved = cjs_resolve_source(origin, request, None, IssueSeverity::Warning.cell())
             .resolve()
             .await?;
         let mut values = resolved
-            .primary_modules()
+            .primary_sources()
             .await?
             .iter()
-            .map(|&module| async move { require_resolve(module.ident().path()).await })
+            .map(|&source| async move { require_resolve(source.ident().path()).await })
             .try_join()
             .await?;
 

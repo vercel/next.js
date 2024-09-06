@@ -2752,10 +2752,6 @@ async fn resolve_package_internal_with_imports_field(
     .await
 }
 
-async fn is_unresolveable(result: Vc<ModuleResolveResult>) -> Result<bool> {
-    Ok(*result.resolve().await?.is_unresolveable().await?)
-}
-
 pub async fn handle_resolve_error(
     result: Vc<ModuleResolveResult>,
     reference_type: Value<ReferenceType>,
@@ -2765,39 +2761,122 @@ pub async fn handle_resolve_error(
     severity: Vc<IssueSeverity>,
     source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
+    async fn is_unresolveable(result: Vc<ModuleResolveResult>) -> Result<bool> {
+        Ok(*result.resolve().await?.is_unresolveable().await?)
+    }
     Ok(match is_unresolveable(result).await {
         Ok(unresolveable) => {
             if unresolveable {
-                ResolvingIssue {
+                emit_unresolveable_issue(
                     severity,
-                    file_path: origin_path,
-                    request_type: format!("{} request", reference_type.into_value()),
+                    origin_path,
+                    reference_type,
                     request,
                     resolve_options,
-                    error_message: None,
                     source,
-                }
-                .cell()
-                .emit();
+                );
             }
 
             result
         }
         Err(err) => {
-            ResolvingIssue {
+            emit_resolve_error_issue(
                 severity,
-                file_path: origin_path,
-                request_type: format!("{} request", reference_type.into_value()),
+                origin_path,
+                reference_type,
                 request,
                 resolve_options,
-                error_message: Some(format!("{}", PrettyPrintError(&err))),
+                err,
                 source,
-            }
-            .cell()
-            .emit();
+            );
             ModuleResolveResult::unresolveable().cell()
         }
     })
+}
+
+pub async fn handle_resolve_source_error(
+    result: Vc<ResolveResult>,
+    reference_type: Value<ReferenceType>,
+    origin_path: Vc<FileSystemPath>,
+    request: Vc<Request>,
+    resolve_options: Vc<ResolveOptions>,
+    severity: Vc<IssueSeverity>,
+    source: Option<Vc<IssueSource>>,
+) -> Result<Vc<ResolveResult>> {
+    async fn is_unresolveable(result: Vc<ResolveResult>) -> Result<bool> {
+        Ok(*result.resolve().await?.is_unresolveable().await?)
+    }
+    Ok(match is_unresolveable(result).await {
+        Ok(unresolveable) => {
+            if unresolveable {
+                emit_unresolveable_issue(
+                    severity,
+                    origin_path,
+                    reference_type,
+                    request,
+                    resolve_options,
+                    source,
+                );
+            }
+
+            result
+        }
+        Err(err) => {
+            emit_resolve_error_issue(
+                severity,
+                origin_path,
+                reference_type,
+                request,
+                resolve_options,
+                err,
+                source,
+            );
+            ResolveResult::unresolveable().cell()
+        }
+    })
+}
+
+fn emit_resolve_error_issue(
+    severity: Vc<IssueSeverity>,
+    origin_path: Vc<FileSystemPath>,
+    reference_type: Value<ReferenceType>,
+    request: Vc<Request>,
+    resolve_options: Vc<ResolveOptions>,
+    err: anyhow::Error,
+    source: Option<Vc<IssueSource>>,
+) {
+    ResolvingIssue {
+        severity,
+        file_path: origin_path,
+        request_type: format!("{} request", reference_type.into_value()),
+        request,
+        resolve_options,
+        error_message: Some(format!("{}", PrettyPrintError(&err))),
+        source,
+    }
+    .cell()
+    .emit();
+}
+
+fn emit_unresolveable_issue(
+    severity: Vc<IssueSeverity>,
+    origin_path: Vc<FileSystemPath>,
+    reference_type: Value<ReferenceType>,
+    request: Vc<Request>,
+    resolve_options: Vc<ResolveOptions>,
+    source: Option<Vc<IssueSource>>,
+) {
+    ResolvingIssue {
+        severity,
+        file_path: origin_path,
+        request_type: format!("{} request", reference_type.into_value()),
+        request,
+        resolve_options,
+        error_message: None,
+        source,
+    }
+    .cell()
+    .emit();
 }
 
 // TODO this should become a TaskInput instead of a Vc
