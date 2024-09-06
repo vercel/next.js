@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-describe('app dir - external dependency', () => {
+describe('app dir - workers', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
