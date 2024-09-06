@@ -15674,6 +15674,24 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/actions-tree-shaking/use-effect-actions/use-effect-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - use-effect-actions should not tree shake the used action under useEffect"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/use-effect-actions/use-effect-actions.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - use-effect-actions should not tree shake the used action under useEffect"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/app-edge-middleware/app-edge-middleware.test.ts": {
       "passed": [
         "app edge middleware without node.js modules should not have any errors about using Node.js modules if not present in middleware"
