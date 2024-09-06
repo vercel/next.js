@@ -11,10 +11,7 @@ use super::{
     invalidate::make_task_dirty,
     ExecuteContext, Operation,
 };
-use crate::{
-    data::{CachedDataItemKey, CellRef},
-    get_many,
-};
+use crate::data::{CachedDataItemKey, CellRef};
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum CleanupOldEdgesOperation {

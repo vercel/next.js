@@ -9,7 +9,7 @@ use super::{
 };
 use crate::{
     data::{CachedDataItem, CachedDataItemKey},
-    get, get_many,
+    get,
 };
 
 const AGGREGATION_NUMBER_BUFFER_SPACE: u32 = 2;
