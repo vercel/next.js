@@ -110,4 +110,16 @@ describe('interceptors', () => {
       DeeplyNestedPage, finish
     `)
   })
+
+  it('should render error boundary when error is thrown', async () => {
+    const browser = await next.browser('/nested/deep?error')
+
+    expect(await browser.elementByCss('h3').text()).toBe(
+      'Something went wrong!'
+    )
+
+    expect(next.cliOutput.slice(cliOutputLength)).not.toInclude(
+      'DeeplyNestedPage'
+    )
+  })
 })

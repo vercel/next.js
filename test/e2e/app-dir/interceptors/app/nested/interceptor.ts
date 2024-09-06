@@ -11,4 +11,8 @@ export default async function interceptNested(
   if (request.nextUrl.searchParams.has('redirect')) {
     redirect('/')
   }
+
+  if (request.nextUrl.searchParams.has('error')) {
+    throw new Error('Kaputt!')
+  }
 }
