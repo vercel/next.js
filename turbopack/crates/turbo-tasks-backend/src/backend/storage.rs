@@ -106,11 +106,13 @@ where
     T: KeyValuePair,
 {
     pub fn new() -> Self {
+        let shard_amount =
+            (available_parallelism().map_or(4, |v| v.get()) * 64).next_power_of_two();
         Self {
             map: DashMap::with_capacity_and_hasher_and_shard_amount(
                 1024 * 1024,
                 Default::default(),
-                available_parallelism().map_or(4, |v| v.get()) * 64,
+                shard_amount,
             ),
         }
     }
