@@ -70,6 +70,7 @@ pub enum InProgressState {
     },
     InProgress {
         stale: bool,
+        #[allow(dead_code)]
         once_task: bool,
         done_event: Event,
     },

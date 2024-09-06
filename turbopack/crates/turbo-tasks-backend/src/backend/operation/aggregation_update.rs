@@ -113,7 +113,7 @@ impl AggregatedDataUpdate {
                 dirty_tasks_update.insert(task.id(), 1);
             }
             Self {
-                dirty_task_count: dirty_task_count as i32,
+                dirty_task_count,
                 dirty_tasks_update,
             }
         } else if dirty {
@@ -539,6 +539,7 @@ impl AggregationUpdateQueue {
                     for task_id in task_ids {
                         let description = ctx.backend.get_task_desc_fn(task_id);
                         let mut task = ctx.task(task_id);
+                        #[allow(clippy::collapsible_if, reason = "readablility")]
                         if task.has_key(&CachedDataItemKey::Dirty {}) {
                             if task.add(CachedDataItem::new_scheduled(description)) {
                                 ctx.turbo_tasks.schedule(task_id);
@@ -558,46 +559,46 @@ impl AggregationUpdateQueue {
                     if should_be_inner {
                         // remove all follower edges
                         let count = remove!(upper, Follower { task: task_id }).unwrap_or_default();
-                        if count < 0 {
-                            upper.add_new(CachedDataItem::Follower {
+                        match count.cmp(&0) {
+                            std::cmp::Ordering::Less => upper.add_new(CachedDataItem::Follower {
                                 task: task_id,
                                 value: count,
-                            })
-                        } else if count > 0 {
-                            let upper_ids = get_uppers(&upper);
+                            }),
+                            std::cmp::Ordering::Greater => {
+                                let upper_ids = get_uppers(&upper);
 
-                            // Add the same amount of upper edges
-                            if update_count!(task, Upper { task: upper_id }, count as i32) {
-                                // When this is a new inner node, update aggregated data and
-                                // followers
-                                let data = AggregatedDataUpdate::from_task(&mut task);
-                                let followers = get_followers(&task);
-                                let diff = data.apply(&mut upper, self);
+                                // Add the same amount of upper edges
+                                if update_count!(task, Upper { task: upper_id }, count) {
+                                    // When this is a new inner node, update aggregated data and
+                                    // followers
+                                    let data = AggregatedDataUpdate::from_task(&mut task);
+                                    let followers = get_followers(&task);
+                                    let diff = data.apply(&mut upper, self);
 
-                                if !upper_ids.is_empty() {
-                                    if !diff.is_empty() {
+                                    if !upper_ids.is_empty() && !diff.is_empty() {
                                         // Notify uppers about changed aggregated data
                                         self.push(AggregationUpdateJob::AggregatedDataUpdate {
                                             upper_ids: upper_ids.clone(),
                                             update: diff,
                                         });
                                     }
+                                    if !followers.is_empty() {
+                                        self.push(AggregationUpdateJob::InnerHasNewFollowers {
+                                            upper_ids: vec![upper_id],
+                                            new_follower_ids: followers,
+                                        });
+                                    }
                                 }
-                                if !followers.is_empty() {
-                                    self.push(AggregationUpdateJob::InnerHasNewFollowers {
-                                        upper_ids: vec![upper_id],
-                                        new_follower_ids: followers,
+
+                                // notify uppers about lost follower
+                                if !upper_ids.is_empty() {
+                                    self.push(AggregationUpdateJob::InnerLostFollower {
+                                        upper_ids,
+                                        lost_follower_id: task_id,
                                     });
                                 }
                             }
-
-                            // notify uppers about lost follower
-                            if !upper_ids.is_empty() {
-                                self.push(AggregationUpdateJob::InnerLostFollower {
-                                    upper_ids,
-                                    lost_follower_id: task_id,
-                                });
-                            }
+                            std::cmp::Ordering::Equal => {}
                         }
                     } else if should_be_follower {
                         // Remove the upper edge
@@ -606,7 +607,7 @@ impl AggregationUpdateQueue {
                             let upper_ids: Vec<_> = get_uppers(&upper);
 
                             // Add the same amount of follower edges
-                            if update_count!(upper, Follower { task: task_id }, count as i32) {
+                            if update_count!(upper, Follower { task: task_id }, count) {
                                 // notify uppers about new follower
                                 if !upper_ids.is_empty() {
                                     self.push(AggregationUpdateJob::InnerHasNewFollower {
@@ -621,13 +622,11 @@ impl AggregationUpdateQueue {
                             let data = AggregatedDataUpdate::from_task(&mut task).invert();
                             let followers = get_followers(&task);
                             let diff = data.apply(&mut upper, self);
-                            if !upper_ids.is_empty() {
-                                if !diff.is_empty() {
-                                    self.push(AggregationUpdateJob::AggregatedDataUpdate {
-                                        upper_ids: upper_ids.clone(),
-                                        update: diff,
-                                    });
-                                }
+                            if !upper_ids.is_empty() && !diff.is_empty() {
+                                self.push(AggregationUpdateJob::AggregatedDataUpdate {
+                                    upper_ids: upper_ids.clone(),
+                                    update: diff,
+                                });
                             }
                             if !followers.is_empty() {
                                 self.push(AggregationUpdateJob::InnerLostFollowers {

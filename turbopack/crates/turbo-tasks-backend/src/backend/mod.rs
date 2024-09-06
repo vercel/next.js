@@ -64,6 +64,9 @@ impl SnapshotRequest {
     }
 }
 
+type TransientOnceTask =
+    Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>;
+
 pub enum TransientTask {
     /// A root task that will track dependencies and re-execute when
     /// dependencies change. Task will eventually settle to the correct
@@ -78,7 +81,7 @@ pub enum TransientTask {
     /// happened after that. It may see these invalidations partially
     /// applied.
     /// Active until done. Automatically scheduled.
-    Once(Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>),
+    Once(TransientOnceTask),
 }
 
 pub struct TurboTasksBackend {
@@ -241,7 +244,7 @@ impl TurboTasksBackend {
                         if let Some(reader_desc) = reader_desc.as_ref() {
                             format!("try_read_task_output from {}", reader_desc())
                         } else {
-                            format!("try_read_task_output (untracked)")
+                            "try_read_task_output (untracked)".to_string()
                         }
                     });
                     return Ok(Err(listener));
@@ -339,7 +342,7 @@ impl TurboTasksBackend {
             if let Some(reader_desc) = reader_desc.as_ref() {
                 format!("try_read_task_output (recompute) from {}", reader_desc())
             } else {
-                format!("try_read_task_output (recompute, untracked)")
+                "try_read_task_output (recompute, untracked)".to_string()
             }
         };
 
@@ -409,7 +412,7 @@ impl TurboTasksBackend {
             if let Some(reader_desc) = reader_desc.as_ref() {
                 format!("try_read_task_cell from {}", reader_desc())
             } else {
-                format!("try_read_task_cell (untracked)")
+                "try_read_task_cell (untracked)".to_string()
             }
         };
 
@@ -552,9 +555,7 @@ impl Backend for TurboTasksBackend {
     }
 
     type TaskState = ();
-    fn new_task_state(&self, _task: TaskId) -> Self::TaskState {
-        ()
-    }
+    fn new_task_state(&self, _task: TaskId) -> Self::TaskState {}
 
     fn try_start_task_execution(
         &self,
@@ -740,14 +741,8 @@ impl Backend for TurboTasksBackend {
                 let task_type = task_type.clone();
                 let span = tracing::trace_span!("turbo_tasks::root_task");
                 let future = match &*task_type {
-                    TransientTask::Root(f) => {
-                        let future = f();
-                        future
-                    }
-                    TransientTask::Once(future_mutex) => {
-                        let future = take(&mut *future_mutex.lock())?;
-                        future
-                    }
+                    TransientTask::Root(f) => f(),
+                    TransientTask::Once(future_mutex) => take(&mut *future_mutex.lock())?,
                 };
                 (span, future)
             }
@@ -782,7 +777,7 @@ impl Backend for TurboTasksBackend {
         };
         let InProgressState::InProgress {
             done_event,
-            once_task,
+            once_task: _,
             stale,
         } = in_progress
         else {
@@ -995,7 +990,7 @@ impl Backend for TurboTasksBackend {
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         let task_id = self.transient_task_id_factory.get();
         let root_type = match task_type {

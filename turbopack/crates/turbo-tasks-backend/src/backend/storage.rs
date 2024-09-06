@@ -74,10 +74,8 @@ where
             } else {
                 self.map.remove(key);
             }
-        } else {
-            if let Some(v) = update(None) {
-                self.map.insert(key.clone(), v);
-            }
+        } else if let Some(v) = update(None) {
+            self.map.insert(key.clone(), v);
         }
     }
 }
