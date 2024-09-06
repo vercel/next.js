@@ -752,18 +752,41 @@ function doRender(input: RenderRouteInfo): Promise<any> {
         })
       }
 
-      // Finally, clean up server rendered stylesheets:
+      // Finally, clean up server-rendered stylesheets:
       looseToArray<HTMLLinkElement>(
         document.querySelectorAll('link[data-n-p]')
       ).forEach((el) => {
-        // remove `link` with `data-n-p` attribute AND `href` in `styleSheets`
-        if (desiredHrefs.has(el.href)) {
+        console.log(
+          {
+            desiredHrefs: JSON.stringify(Array.from(desiredHrefs.values())),
+            currentHrefs: JSON.stringify(currentHrefs),
+            err,
+            href: el.getAttribute('href'),
+          },
+          'HREAF'
+        )
+
+        // The `data-n-p` attribute is set to styles from client build-manifest (`styleSheets`).
+        // If the `data-n-p` is set but is not in the manifest, we assume that the
+        // style was imported dynamically. Since `mini-css-extract-plugin` checks to set
+        // the link tag only by href, the dynamic imported stylesheet may not be loaded.
+        // We explicitly mark it as `data-n-d` as "dynamic".
+        if (desiredHrefs.has(el.getAttribute('href')!)) {
           el.parentNode!.removeChild(el)
         } else {
-          // or else, it is a dynamic loaded CSS, so remove `data-n-p` attribute
           el.removeAttribute('data-n-p')
+          el.setAttribute('data-n-d', '')
         }
       })
+
+      // When a client-side error occurs,
+      if (err) {
+        looseToArray<HTMLLinkElement>(
+          document.querySelectorAll('link[data-n-d]')
+        ).forEach((el) => {
+          el.parentNode!.removeChild(el)
+        })
+      }
     }
 
     if (input.scroll) {
