@@ -237,7 +237,10 @@ async function loadWebAssemblyModule(
     const decodedChunkUrl = decodeURI(chunkUrl);
 
     if (typeof importScripts === "function") {
-      if (chunkPath.endsWith(".js")) {
+      // We're in a web worker
+      if (chunkPath.endsWith(".css")) {
+        // ignore
+      } else if (chunkPath.endsWith(".js")) {
         importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
       } else {
         throw new Error(`can't infer type of chunk from path ${chunkPath} in worker`);
