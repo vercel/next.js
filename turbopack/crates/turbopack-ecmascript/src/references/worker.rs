@@ -5,11 +5,8 @@ use swc_core::{
 };
 use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{
-        ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
-        ChunkingTypeOption,
-    },
-    issue::IssueSource,
+    chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
+    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     module::Module,
     reference::ModuleReference,
     reference_type::ReferenceType,
@@ -58,7 +55,9 @@ impl WorkerAssetReference {
 }
 
 impl WorkerAssetReference {
-    async fn worker_loader_module(self: &WorkerAssetReference) -> Result<Vc<WorkerLoaderModule>> {
+    async fn worker_loader_module(
+        self: &WorkerAssetReference,
+    ) -> Result<Option<Vc<WorkerLoaderModule>>> {
         let module = url_resolve(
             self.origin,
             self.request,
@@ -67,13 +66,23 @@ impl WorkerAssetReference {
             try_to_severity(self.in_try),
         );
 
-        // TODO unwrap
-        let module = module.first_module().await?.unwrap();
+        let Some(module) = *module.first_module().await? else {
+            bail!("Expected worker to resolve to a module");
+        };
         let Some(chunkable) = Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await?
         else {
-            bail!("x");
+            CodeGenerationIssue {
+                severity: IssueSeverity::Bug.into(),
+                title: StyledString::Text("non-ecmascript placeable asset".into()).cell(),
+                message: StyledString::Text("asset is not placeable in ESM chunks".into()).cell(),
+                path: self.origin.origin_path(),
+            }
+            .cell()
+            .emit();
+            return Ok(None);
         };
-        Ok(WorkerLoaderModule::new(chunkable))
+
+        Ok(Some(WorkerLoaderModule::new(chunkable)))
     }
 }
 
@@ -81,7 +90,11 @@ impl WorkerAssetReference {
 impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        Ok(ModuleResolveResult::module(Vc::upcast(self.worker_loader_module().await?)).cell())
+        if let Some(worker_loader_module) = self.worker_loader_module().await? {
+            Ok(ModuleResolveResult::module(Vc::upcast(worker_loader_module)).cell())
+        } else {
+            Ok(ModuleResolveResult::unresolveable().cell())
+        }
     }
 }
 
@@ -105,7 +118,9 @@ impl CodeGenerateable for WorkerAssetReference {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let loader = self.worker_loader_module().await?;
+        let Some(loader) = self.worker_loader_module().await? else {
+            bail!("Worker loader could not be created");
+        };
 
         let item_id = chunking_context
             .chunk_item_id_from_ident(loader.ident())

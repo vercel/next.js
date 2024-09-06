@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo, ChunkData, ChunkItem, ChunkType, ChunkingContext,
@@ -27,6 +27,11 @@ pub struct WorkerLoaderChunkItem {
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,
 }
 
+#[turbo_tasks::function]
+pub fn worker_modifier() -> Vc<RcStr> {
+    Vc::cell("worker".into())
+}
+
 #[turbo_tasks::value_impl]
 impl WorkerLoaderChunkItem {
     #[turbo_tasks::function]
@@ -37,14 +42,18 @@ impl WorkerLoaderChunkItem {
         let Some(evaluatable) =
             Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module.inner).await?
         else {
-            bail!("not evaluatable");
+            bail!(
+                "{} is not evaluatable for Worker loader module",
+                module.inner.ident().to_string().await?
+            );
         };
 
         Ok(this.chunking_context.evaluated_chunk_group_assets(
             AssetIdent::from_path(
                 this.chunking_context
                     .chunk_path(module.inner.ident(), ".js".into()),
-            ), // .with_modifier("worker".into().cell())
+            )
+            .with_modifier(worker_modifier()),
             EvaluatableAssets::empty().with_entry(evaluatable),
             Value::new(AvailabilityInfo::Root),
         ))
