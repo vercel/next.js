@@ -756,7 +756,13 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       looseToArray<HTMLLinkElement>(
         document.querySelectorAll('link[data-n-p]')
       ).forEach((el) => {
-        el.parentNode!.removeChild(el)
+        // remove `link` with `data-n-p` attribute AND `href` in `styleSheets`
+        if (desiredHrefs.has(el.href)) {
+          el.parentNode!.removeChild(el)
+        } else {
+          // or else, it is a dynamic loaded CSS, so remove `data-n-p` attribute
+          el.removeAttribute('data-n-p')
+        }
       })
     }
 
