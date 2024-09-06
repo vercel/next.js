@@ -12686,10 +12686,10 @@
       "runtimeError": false
     },
     "test/integration/jsconfig-empty/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Empty JSConfig Support production mode should compile successfully"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15264,11 +15264,10 @@
         "tsconfig.json verifier allows you to set target mode",
         "tsconfig.json verifier allows you to set verbatimModuleSyntax true via extends without adding isolatedModules",
         "tsconfig.json verifier allows you to set verbatimModuleSyntax true without adding isolatedModules",
-        "tsconfig.json verifier creates compilerOptions when you extend another config"
-      ],
-      "failed": [
+        "tsconfig.json verifier creates compilerOptions when you extend another config",
         "tsconfig.json verifier Works with an empty tsconfig.json (docs)"
       ],
+      "failed": [],
       "pending": [
         "tsconfig.json verifier allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\""
       ],
