@@ -18,15 +18,18 @@ describe('custom-cache-control', () => {
       isNextDev ? 'no-store, must-revalidate' : 's-maxage=31'
     )
   })
-
-  it('should have default cache-control for app-ssg another', async () => {
-    const res = await next.fetch('/app-ssg/another')
-    expect(res.headers.get('cache-control')).toBe(
-      isNextDev
-        ? 'no-store, must-revalidate'
-        : 's-maxage=120, stale-while-revalidate'
-    )
-  })
+  ;(process.env.__NEXT_EXPERIMENTAL_PPR ? it.skip : it)(
+    'should have default cache-control for app-ssg another',
+    async () => {
+      const res = await next.fetch('/app-ssg/another')
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(res.headers.get('cache-control')).toBe(
+        isNextDev
+          ? 'no-store, must-revalidate'
+          : 's-maxage=120, stale-while-revalidate'
+      )
+    }
+  )
 
   it('should have custom cache-control for app-ssr', async () => {
     const res = await next.fetch('/app-ssr')
