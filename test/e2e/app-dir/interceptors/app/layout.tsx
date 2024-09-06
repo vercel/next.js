@@ -12,7 +12,7 @@ export default async function RootLayout({
   return (
     <html>
       <body>
-        <h1>Root Layout {createTimeStamp()}</h1>
+        <h1 suppressHydrationWarning>Root Layout {createTimeStamp()}</h1>
         {children}
       </body>
     </html>

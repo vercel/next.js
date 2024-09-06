@@ -12,7 +12,7 @@ export default async function DeeplyNestedPage({
   return (
     <>
       <h3>{slug}</h3>
-      <p>deeply nested page {createTimeStamp()}</p>
+      <p suppressHydrationWarning>deeply nested page {createTimeStamp()}</p>
     </>
   )
 }

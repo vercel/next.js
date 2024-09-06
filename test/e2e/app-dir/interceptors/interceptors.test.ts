@@ -20,12 +20,21 @@ describe('interceptors', () => {
   }
 
   if (isNextStart) {
-    it('should build all pages with interceptors as dynamic functions', () => {
-      expect(next.cliOutput).toInclude('ƒ / ')
-      expect(next.cliOutput).toInclude('ƒ /_not-found ')
-      expect(next.cliOutput).toInclude('ƒ /nested ')
-      expect(next.cliOutput).toInclude('ƒ /nested/[slug] ')
-    })
+    if (process.env.__NEXT_EXPERIMENTAL_PPR) {
+      it('should build all pages with interceptors as partial prerenders', () => {
+        expect(next.cliOutput).toInclude('◐ / ')
+        expect(next.cliOutput).toInclude('○ /_not-found ')
+        expect(next.cliOutput).toInclude('◐ /nested ')
+        expect(next.cliOutput).toInclude('◐ /nested/[slug] ')
+      })
+    } else {
+      it('should build all pages with interceptors as dynamic functions', () => {
+        expect(next.cliOutput).toInclude('ƒ / ')
+        expect(next.cliOutput).toInclude('ƒ /_not-found ')
+        expect(next.cliOutput).toInclude('ƒ /nested ')
+        expect(next.cliOutput).toInclude('ƒ /nested/[slug] ')
+      })
+    }
   }
 
   it('should intercept requests at the root', async () => {
@@ -55,6 +64,13 @@ describe('interceptors', () => {
     expect(
       (await browser.elementByCss('p').text()).replace(timeStampRegExp, '')
     ).toBe('deeply nested page')
+
+    if (isNextStart && process.env.__NEXT_EXPERIMENTAL_PPR) {
+      // On the first request there's also the route shell generated in the
+      // background, which will mix into the cli output. So we refresh the page
+      // to get isolated output for the actual page rendering.
+      await browser.refresh()
+    }
 
     const cliOutput = next.cliOutput.slice(cliOutputLength)
 
