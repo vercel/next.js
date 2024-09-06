@@ -277,7 +277,7 @@ function assignDefaults(
     {}
   )
 
-  // TODO: remove once we've made PPR default
+  // TODO: remove these once we've made PPR default
   // If this was defaulted to true, it implies that the configuration was
   // overridden for testing to be defaulted on.
   if (defaultConfig.experimental?.ppr) {
@@ -285,8 +285,19 @@ function assignDefaults(
       `\`experimental.ppr\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
     )
   }
+  if (defaultConfig.experimental?.pprFallbacks) {
+    Log.warn(
+      `\`experimental.pprFallbacks\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
+    )
+  }
 
   const result = { ...defaultConfig, ...config }
+
+  if (result.experimental?.pprFallbacks && !result.experimental?.ppr) {
+    throw new Error(
+      `The experimental.pprFallbacks option requires experimental.ppr to be set to \`true\` or \`"incremental"\`.`
+    )
+  }
 
   if (
     result.experimental?.allowDevelopmentBuild &&

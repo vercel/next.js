@@ -79,6 +79,7 @@ import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { getNodeDebugType } from '../lib/utils'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -125,6 +126,13 @@ export async function createHotReloaderTurbopack(
   hotReloaderSpan.stop()
 
   const encryptionKey = await generateEncryptionKeyBase64(true)
+
+  // TODO: Implement
+  let clientRouterFilters: any
+  if (nextConfig.experimental.clientRouterFilter) {
+    // TODO this need to be set correctly for persistent caching to work
+  }
+
   const project = await bindings.turbo.createProject(
     {
       projectPath: dir,
@@ -136,8 +144,7 @@ export async function createHotReloaderTurbopack(
       env: process.env as Record<string, string>,
       defineEnv: createDefineEnv({
         isTurbopack: true,
-        // TODO: Implement
-        clientRouterFilters: undefined,
+        clientRouterFilters,
         config: nextConfig,
         dev: true,
         distDir,
@@ -526,6 +533,23 @@ export async function createHotReloaderTurbopack(
     isTestMode || opts.telemetry.isEnabled
   )
 
+  let devtoolsFrontendUrl: string | undefined
+  const nodeDebugType = getNodeDebugType()
+  if (nodeDebugType) {
+    const debugPort = process.debugPort
+    let debugInfo
+    try {
+      // It requires to use 127.0.0.1 instead of localhost for server-side fetching.
+      const debugInfoList = await fetch(
+        `http://127.0.0.1:${debugPort}/json/list`
+      ).then((res) => res.json())
+      debugInfo = debugInfoList[0]
+    } catch {}
+    if (debugInfo) {
+      devtoolsFrontendUrl = debugInfo.devtoolsFrontendUrl
+    }
+  }
+
   const hotReloader: NextJsHotReloaderInterface = {
     turbopackProject: project,
     activeWebpackConfigs: undefined,
@@ -695,6 +719,9 @@ export async function createHotReloaderTurbopack(
             warnings: [],
             hash: '',
             versionInfo,
+            debug: {
+              devtoolsFrontendUrl,
+            },
           }
 
           sendToClient(client, sync)

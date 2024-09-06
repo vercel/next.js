@@ -218,15 +218,11 @@ export class IncrementalCache implements IncrementalCacheType {
     this.cacheHandler?.resetRequestCache?.()
   }
 
-  async unlock(cacheKey: string) {
-    const unlock = this.unlocks.get(cacheKey)
-    if (unlock) {
-      unlock()
-      this.locks.delete(cacheKey)
-      this.unlocks.delete(cacheKey)
-    }
-  }
-
+  /**
+   * @TODO this implementation of locking is brokne. Once a lock is created it
+   * will always be reused and all future locks will end up being granted
+   * non-exclusively which is sort of the opposite of what we want with a lock.
+   */
   async lock(cacheKey: string) {
     let unlockNext: () => Promise<void> = () => Promise.resolve()
     const existingLock = this.locks.get(cacheKey)
@@ -399,6 +395,8 @@ export class IncrementalCache implements IncrementalCacheType {
       return null
     }
 
+    const { isFallback } = ctx
+
     cacheKey = this._getPathname(
       cacheKey,
       ctx.kind === IncrementalCacheKind.FETCH
@@ -433,7 +431,8 @@ export class IncrementalCache implements IncrementalCacheType {
           revalidate: revalidate,
         },
         revalidateAfter: Date.now() + revalidate * 1000,
-      }
+        isFallback,
+      } satisfies IncrementalCacheEntry
     }
 
     const curRevalidate = this.revalidateTimings.get(toRoute(cacheKey))
@@ -463,6 +462,7 @@ export class IncrementalCache implements IncrementalCacheType {
         curRevalidate,
         revalidateAfter,
         value: cacheData.value,
+        isFallback,
       }
     }
 
@@ -480,6 +480,7 @@ export class IncrementalCache implements IncrementalCacheType {
         value: null,
         curRevalidate,
         revalidateAfter,
+        isFallback,
       }
       this.set(cacheKey, entry.value, ctx)
     }

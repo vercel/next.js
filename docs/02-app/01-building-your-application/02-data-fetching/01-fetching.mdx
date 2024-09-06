@@ -87,7 +87,7 @@ export default async function Page() {
 }
 ```
 
-If you are not using any [dynamic functions](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) anywhere else in your application, this page will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
+If you are not using any [dynamic functions](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) anywhere else in this route, it will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
 
 If you do _not_ want to cache the response from `fetch`, you can do the following:
 
@@ -97,7 +97,7 @@ let data = await fetch('https://api.vercel.app/blog', { cache: 'no-store' })
 
 ### Fetching data on the server with an ORM or database
 
-This component will always fetch and display a dynamic, up-to-date list of blog posts.
+This component will fetch and display a list of blog posts. The response from the database will be cached.
 
 ```tsx filename="app/page.tsx" switcher
 import { db, posts } from '@/lib/db'
@@ -129,7 +129,15 @@ export default async function Page() {
 }
 ```
 
-The database call is _not_ cached. This example would opt your Next.js application into [server-side rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering). If you want to cache the response and allow the page to be prerendered, see this example.
+If you are not using any [dynamic functions](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) anywhere else in this route, it will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
+
+If you do _not_ want to cache the response from the database, you can add the following to your file:
+
+```js
+export const dynamic = 'force-dynamic'
+```
+
+However, you will commonly use functions like `cookies()`, `headers()`, or reading the incoming `searchParams` from the page props, which will automatically make the page render dynamically. In this case, you do _not_ need to explicitly use `force-dynamic`.
 
 ### Fetching data on the client
 

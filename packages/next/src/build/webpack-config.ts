@@ -81,7 +81,6 @@ import {
   createRSCAliases,
   createNextApiEsmAliases,
   createAppRouterApiAliases,
-  createRSCRendererAliases,
 } from './create-compiler-aliases'
 import { hasCustomExportOutput } from '../export/utils'
 import { CssChunkingPlugin } from './webpack/plugins/css-chunking-plugin'
@@ -1475,8 +1474,11 @@ export default async function getBaseWebpackConfig(
               resolve: {
                 mainFields: getMainField(compilerType, true),
                 conditionNames: reactServerCondition,
-                // Always use default channels when use installed react
-                alias: createRSCRendererAliases(''),
+                alias: createRSCAliases(bundledReactChannel, {
+                  reactProductionProfiling,
+                  layer: WEBPACK_LAYERS.middleware,
+                  isEdgeServer,
+                }),
               },
             },
             {
@@ -1486,8 +1488,11 @@ export default async function getBaseWebpackConfig(
               resolve: {
                 mainFields: getMainField(compilerType, true),
                 conditionNames: reactServerCondition,
-                // Always use default channels when use installed react
-                alias: createRSCRendererAliases(''),
+                alias: createRSCAliases(bundledReactChannel, {
+                  reactProductionProfiling,
+                  layer: WEBPACK_LAYERS.instrument,
+                  isEdgeServer,
+                }),
               },
             },
             ...(hasAppDir

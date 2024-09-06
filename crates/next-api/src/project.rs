@@ -1,6 +1,6 @@
 use std::path::MAIN_SEPARATOR;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::{indexmap, map::Entry, IndexMap};
 use next_core::{
     all_assets_from_entries,
@@ -11,7 +11,7 @@ use next_core::{
     middleware::middleware_files,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
-    next_config::{JsConfig, NextConfig},
+    next_config::{JsConfig, ModuleIdStrategy as ModuleIdStrategyConfig, NextConfig},
     next_server::{
         get_server_chunking_context, get_server_chunking_context_with_client_assets,
         get_server_compile_time_info, get_server_module_options_context,
@@ -26,8 +26,8 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, IntoTraitRef, RcStr, State, TaskInput, TraitRef, TransientInstance,
-    TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, IntoTraitRef, RcStr, ReadRef, State, TaskInput, TraitRef,
+    TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -173,25 +173,46 @@ pub struct Instrumentation {
 
 #[turbo_tasks::value]
 pub struct ProjectContainer {
-    options_state: State<ProjectOptions>,
+    name: RcStr,
+    options_state: State<Option<ProjectOptions>>,
     versioned_content_map: Option<Vc<VersionedContentMap>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
     #[turbo_tasks::function]
-    pub fn new(options: ProjectOptions) -> Vc<Self> {
+    pub fn new(name: RcStr, dev: bool) -> Vc<Self> {
         ProjectContainer {
+            name,
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
-            versioned_content_map: options.dev.then(VersionedContentMap::new),
-            options_state: State::new(options),
+            versioned_content_map: dev.then(VersionedContentMap::new),
+            options_state: State::new(None),
         }
         .cell()
     }
+}
 
-    #[turbo_tasks::function]
-    pub fn update(&self, options: PartialProjectOptions) -> Vc<()> {
+impl ProjectContainer {
+    #[tracing::instrument(level = "info", name = "initialize project", skip_all)]
+    pub async fn initialize(self: Vc<Self>, options: ProjectOptions) -> Result<()> {
+        self.await?.options_state.set(Some(options));
+        let project = self.project();
+        project
+            .project_fs()
+            .strongly_consistent()
+            .await?
+            .start_watching_with_invalidation_reason()?;
+        project
+            .output_fs()
+            .strongly_consistent()
+            .await?
+            .invalidate_with_reason();
+        Ok(())
+    }
+
+    #[tracing::instrument(level = "info", name = "update project", skip_all)]
+    pub async fn update(self: Vc<Self>, options: PartialProjectOptions) -> Result<()> {
         let PartialProjectOptions {
             root_path,
             project_path,
@@ -206,7 +227,13 @@ impl ProjectContainer {
             preview_props,
         } = options;
 
-        let mut new_options = self.options_state.get().clone();
+        let this = self.await?;
+
+        let mut new_options = this
+            .options_state
+            .get()
+            .clone()
+            .context("ProjectContainer need to be initialized with initialize()")?;
 
         if let Some(root_path) = root_path {
             new_options.root_path = root_path;
@@ -244,11 +271,28 @@ impl ProjectContainer {
 
         // TODO: Handle mode switch, should prevent mode being switched.
 
-        self.options_state.set(new_options);
+        let project = self.project();
+        let prev_project_fs = project.project_fs().strongly_consistent().await?;
+        let prev_output_fs = project.output_fs().strongly_consistent().await?;
 
-        Default::default()
+        this.options_state.set(Some(new_options));
+        let project_fs = project.project_fs().strongly_consistent().await?;
+        let output_fs = project.output_fs().strongly_consistent().await?;
+
+        if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
+            // TODO stop watching: prev_project_fs.stop_watching()?;
+            project_fs.start_watching_with_invalidation_reason()?;
+        }
+        if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
+            prev_output_fs.invalidate_with_reason();
+        }
+
+        Ok(())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ProjectContainer {
     #[turbo_tasks::function]
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
@@ -266,6 +310,9 @@ impl ProjectContainer {
         let preview_props;
         {
             let options = this.options_state.get();
+            let options = options
+                .as_ref()
+                .context("ProjectContainer need to be initialized with initialize()")?;
             env_map = Vc::cell(options.env.iter().cloned().collect());
             define_env = ProjectDefineEnv {
                 client: Vc::cell(options.define_env.client.iter().cloned().collect()),
@@ -462,7 +509,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn project_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+    async fn project_fs(self: Vc<Self>) -> Result<Vc<DiskFileSystem>> {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.into(),
@@ -472,7 +519,7 @@ impl Project {
         if this.watch {
             disk_fs.await?.start_watching_with_invalidation_reason()?;
         }
-        Ok(Vc::upcast(disk_fs))
+        Ok(disk_fs)
     }
 
     #[turbo_tasks::function]
@@ -482,10 +529,10 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn output_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+    pub async fn output_fs(self: Vc<Self>) -> Result<Vc<DiskFileSystem>> {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new("output".into(), this.project_path.clone(), vec![]);
-        Ok(Vc::upcast(disk_fs))
+        Ok(disk_fs)
     }
 
     #[turbo_tasks::function]
@@ -1064,7 +1111,7 @@ impl Project {
     pub async fn emit_all_output_assets(
         self: Vc<Self>,
         output_assets: Vc<OutputAssetsOperation>,
-    ) -> Result<Vc<Completion>> {
+    ) -> Result<Vc<()>> {
         let span = tracing::info_span!("emitting");
         async move {
             let all_output_assets = all_assets_from_entries_operation(output_assets);
@@ -1073,21 +1120,27 @@ impl Project {
             let node_root = self.node_root();
 
             if let Some(map) = self.await?.versioned_content_map {
-                let completion = map.insert_output_assets(
-                    all_output_assets,
-                    node_root,
-                    client_relative_path,
-                    node_root,
-                );
+                let _ = map
+                    .insert_output_assets(
+                        all_output_assets,
+                        node_root,
+                        client_relative_path,
+                        node_root,
+                    )
+                    .resolve()
+                    .await?;
 
-                Ok(completion)
+                Ok(Vc::cell(()))
             } else {
-                Ok(emit_assets(
+                let _ = emit_assets(
                     *all_output_assets.await?,
                     node_root,
                     client_relative_path,
                     node_root,
-                ))
+                )
+                .resolve()
+                .await?;
+                Ok(Vc::cell(()))
             }
         }
         .instrument(span)
@@ -1184,14 +1237,19 @@ impl Project {
         Ok(Vc::cell(modules))
     }
 
-    /// Get the module id strategy for the project.
-    /// In production mode, we use the global module id strategy with optimized ids.
-    /// In development mode, we use a standard module id strategy with no modifications.
+    /// Gets the module id strategy for the project.
     #[turbo_tasks::function]
     pub async fn module_id_strategy(self: Vc<Self>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
-        match *self.next_mode().await? {
-            NextMode::Build => Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self))),
-            NextMode::Development => Ok(Vc::upcast(DevModuleIdStrategy::new())),
+        let module_id_strategy = self.next_config().module_id_strategy_config();
+        match *module_id_strategy.await? {
+            Some(ModuleIdStrategyConfig::Named) => Ok(Vc::upcast(DevModuleIdStrategy::new())),
+            Some(ModuleIdStrategyConfig::Deterministic) => {
+                Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self)))
+            }
+            None => match *self.next_mode().await? {
+                NextMode::Development => Ok(Vc::upcast(DevModuleIdStrategy::new())),
+                NextMode::Build => Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self))),
+            },
         }
     }
 }

@@ -164,23 +164,27 @@ mod ser {
         {
             match self {
                 CachedTaskType::Native { fn_type, this, arg } => {
-                    let mut s = serializer.serialize_seq(Some(3))?;
+                    let mut s = serializer.serialize_tuple(5)?;
                     s.serialize_element::<u8>(&0)?;
                     s.serialize_element(&FunctionAndArg::Borrowed {
                         fn_type: *fn_type,
-                        arg,
+                        arg: &**arg,
                     })?;
                     s.serialize_element(this)?;
+                    s.serialize_element(&())?;
+                    s.serialize_element(&())?;
                     s.end()
                 }
                 CachedTaskType::ResolveNative { fn_type, this, arg } => {
-                    let mut s = serializer.serialize_seq(Some(3))?;
+                    let mut s = serializer.serialize_tuple(5)?;
                     s.serialize_element::<u8>(&1)?;
                     s.serialize_element(&FunctionAndArg::Borrowed {
                         fn_type: *fn_type,
                         arg: &**arg,
                     })?;
                     s.serialize_element(this)?;
+                    s.serialize_element(&())?;
+                    s.serialize_element(&())?;
                     s.end()
                 }
                 CachedTaskType::ResolveTrait {
@@ -236,6 +240,12 @@ mod ser {
                             let this = seq
                                 .next_element()?
                                 .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
                             Ok(CachedTaskType::Native { fn_type, this, arg })
                         }
                         1 => {
@@ -248,18 +258,24 @@ mod ser {
                             let this = seq
                                 .next_element()?
                                 .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
                             Ok(CachedTaskType::ResolveNative { fn_type, this, arg })
                         }
                         2 => {
                             let trait_type = seq
                                 .next_element()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
                             let method_name = seq
                                 .next_element()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
                             let this = seq
                                 .next_element()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
                             let Some(method) =
                                 registry::get_trait(trait_type).methods.get(&method_name)
                             else {
@@ -267,7 +283,7 @@ mod ser {
                             };
                             let arg = seq
                                 .next_element_seed(method.arg_deserializer)?
-                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
                             Ok(CachedTaskType::ResolveTrait {
                                 trait_type,
                                 method_name,
@@ -279,7 +295,7 @@ mod ser {
                     }
                 }
             }
-            deserializer.deserialize_seq(Visitor)
+            deserializer.deserialize_tuple(5, Visitor)
         }
     }
 }
@@ -296,18 +312,18 @@ impl CachedTaskType {
                 fn_type: native_fn,
                 this: _,
                 arg: _,
-            }
-            | Self::ResolveNative {
+            } => Cow::Borrowed(&registry::get_function(*native_fn).name),
+            Self::ResolveNative {
                 fn_type: native_fn,
                 this: _,
                 arg: _,
-            } => Cow::Borrowed(&registry::get_function(*native_fn).name),
+            } => format!("*{}", registry::get_function(*native_fn).name).into(),
             Self::ResolveTrait {
                 trait_type: trait_id,
                 method_name: fn_name,
                 this: _,
                 arg: _,
-            } => format!("{}::{}", registry::get_trait(*trait_id).name, fn_name).into(),
+            } => format!("*{}::{}", registry::get_trait(*trait_id).name, fn_name).into(),
         }
     }
 
@@ -441,15 +457,28 @@ pub trait Backend: Sync + Send {
 
     fn get_task_description(&self, task: TaskId) -> String;
 
-    type ExecutionScopeFuture<T: Future<Output = Result<()>> + Send + 'static>: Future<Output = Result<()>>
-        + Send
-        + 'static;
+    /// Task-local state that stored inside of [`TurboTasksBackendApi`]. Constructed with
+    /// [`Self::new_task_state`].
+    ///
+    /// This value that can later be written to or read from using
+    /// [`crate::TurboTasksBackendApiExt::write_task_state`] or
+    /// [`crate::TurboTasksBackendApiExt::read_task_state`]
+    ///
+    /// This data may be shared across multiple threads (must be `Sync`) in order to support
+    /// detached futures ([`crate::TurboTasksApi::detached_for_testing`]) and [pseudo-tasks using
+    /// `local_cells`][crate::function]. A [`RwLock`][std::sync::RwLock] is used to provide
+    /// concurrent access.
+    type TaskState: Send + Sync + 'static;
 
-    fn execution_scope<T: Future<Output = Result<()>> + Send + 'static>(
-        &self,
-        task: TaskId,
-        future: T,
-    ) -> Self::ExecutionScopeFuture<T>;
+    /// Constructs a new task-local [`Self::TaskState`] for the given `task_id`.
+    ///
+    /// If a task is re-executed (e.g. because it is invalidated), this function will be called
+    /// again with the same [`TaskId`].
+    ///
+    /// This value can be written to or read from using
+    /// [`crate::TurboTasksBackendApiExt::write_task_state`] and
+    /// [`crate::TurboTasksBackendApiExt::read_task_state`]
+    fn new_task_state(&self, task: TaskId) -> Self::TaskState;
 
     fn try_start_task_execution<'a>(
         &'a self,
@@ -719,7 +748,7 @@ pub(crate) mod tests {
                 arg: Box::new(()),
             }
             .get_name(),
-            "MockTrait::mock_method_task",
+            "*MockTrait::mock_method_task",
         );
     }
 }
