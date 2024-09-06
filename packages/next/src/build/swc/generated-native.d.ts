@@ -1,10 +1,11 @@
 // This was manually added
 
-type TurboTasks = { readonly __tag: unique symbol }
-type TurbopackResult = import('./types').TurbopackResult
-type ExternalEndpoint = { readonly __tag: unique symbol }
-type RefCell = { readonly __tag: unique symbol }
-type NapiRouteHas = {
+import type { TurbopackResult } from './types'
+
+export type TurboTasks = { readonly __tag: unique symbol }
+export type ExternalEndpoint = { readonly __tag: unique symbol }
+export type RefCell = { readonly __tag: unique symbol }
+export type NapiRouteHas = {
   type: string
   key?: string
   value?: string
