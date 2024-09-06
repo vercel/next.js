@@ -1111,7 +1111,9 @@ class MiniCssExtractPlugin {
                 [
                   `var href = ${RuntimeGlobals.require}.miniCssF(chunkId);`,
                   `var fullhref = ${RuntimeGlobals.publicPath} + href;`,
-                  'if(findStylesheet(href, fullhref)) return resolve();',
+                  'var styleSheet = findStylesheet(href, fullhref);',
+                  // TODO(jiwon): write descriptive comment
+                  'if(styleSheet && !styleSheet.hasAttribute("data-n-p")) return resolve();',
                   'createStylesheet(chunkId, fullhref, null, resolve, reject);',
                 ]
               )});`
