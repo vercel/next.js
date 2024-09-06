@@ -607,7 +607,7 @@ function instantiateModule(id, source) {
     return `/ROOT/${modulePath ?? ""}`;
 }
 function getWorkerBlobURL(chunks) {
-    let bootstrap = `TURBOPACK_WORKER_LOCATION = "${location.origin}";importScripts(${chunks.map((c)=>`TURBOPACK_WORKER_LOCATION + "${getChunkRelativeUrl(c)}"`).join(", ")});`;
+    let bootstrap = `TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};importScripts(${chunks.map((c)=>`TURBOPACK_WORKER_LOCATION + ${JSON.stringify(getChunkRelativeUrl(c))}`).join(", ")});`;
     let blob = new Blob([
         bootstrap
     ], {
@@ -1546,7 +1546,10 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
         const chunkUrl = getChunkRelativeUrl(chunkPath);
         const decodedChunkUrl = decodeURI(chunkUrl);
         if (typeof importScripts === "function") {
-            if (chunkPath.endsWith(".js")) {
+            // We're in a web worker
+            if (chunkPath.endsWith(".css")) {
+            // ignore
+            } else if (chunkPath.endsWith(".js")) {
                 importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
             } else {
                 throw new Error(`can't infer type of chunk from path ${chunkPath} in worker`);

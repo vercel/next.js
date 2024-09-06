@@ -522,14 +522,8 @@ function loadWebAssemblyModule(chunkPath) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     return compileWebAssemblyFromPath(resolved);
 }
-function getWorkerBlobURL(chunks) {
-    let bootstrap = `require(${chunks.map((c)=>path.resolve(RUNTIME_ROOT, c)).join(", ")});`;
-    let blob = new Blob([
-        bootstrap
-    ], {
-        type: "text/javascript"
-    });
-    return URL.createObjectURL(blob);
+function getWorkerBlobURL(_chunks) {
+    throw new Error("Worker blobs are not implemented yet for Node.js");
 }
 function instantiateModule(id, source) {
     const moduleFactory = moduleFactories[id];
