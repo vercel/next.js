@@ -15,8 +15,8 @@ pub fn get<'tx>(
     if key.len() > MAX_KEY_SIZE - 1 {
         let hashed_key = hashed_key(key);
         let data = tx.get(database, &hashed_key)?;
-        let mut iter = ExtendedValueIter::new(data);
-        while let Some((k, v)) = iter.next() {
+        let iter = ExtendedValueIter::new(data);
+        for (k, v) in iter {
             if k == key {
                 return Ok(v);
             }
@@ -46,8 +46,8 @@ pub fn put(
         data.extend_from_slice(&key[SHARED_KEY..]);
         data.extend_from_slice(value);
         if let Ok(old) = old {
-            let mut iter = ExtendedValueIter::new(old);
-            while let Some((k, v)) = iter.next() {
+            let iter = ExtendedValueIter::new(old);
+            for (k, v) in iter {
                 if k != &key[SHARED_KEY..] {
                     data.extend_from_slice(&(k.len() as u32).to_be_bytes());
                     data.extend_from_slice(&(v.len() as u32).to_be_bytes());

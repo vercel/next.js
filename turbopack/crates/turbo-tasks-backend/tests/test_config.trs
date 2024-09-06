@@ -10,7 +10,7 @@
   turbo_tasks::TurboTasks::new(
     turbo_tasks_backend::TurboTasksBackend::new(
       Arc::new(turbo_tasks_backend::LmdbBackingStorage::new(
-        &path.as_path()
+        path.as_path()
       ).unwrap())
     )
   )

@@ -283,10 +283,7 @@ impl CachedDataItem {
     }
 
     pub fn is_optional(&self) -> bool {
-        match self {
-            CachedDataItem::CellData { .. } => true,
-            _ => false,
-        }
+        matches!(self, CachedDataItem::CellData { .. })
     }
 
     pub fn new_scheduled(description: impl Fn() -> String + Sync + Send + 'static) -> Self {
