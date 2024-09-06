@@ -319,13 +319,7 @@ async function generateFlight(
         flightRouterState,
         isFirst: true,
         // For flight, render metadata inside leaf page
-        rscPayloadHead: (
-          <>
-            <NonIndex ctx={ctx} />
-            {/* Adding requestId as react key to make metadata remount for each render */}
-            <MetadataTree key={requestId} />
-          </>
-        ),
+        rscPayloadHead: <MetadataTree key={requestId} />,
         injectedCSS: new Set(),
         injectedJS: new Set(),
         injectedFontPreloadTags: new Set(),
@@ -531,8 +525,8 @@ async function ReactServerError({
 
   const head = (
     <>
-      <NonIndex ctx={ctx} />
       {/* Adding requestId as react key to make metadata remount for each render */}
+      <NonIndex ctx={ctx} />
       <MetadataTree key={requestId} />
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
