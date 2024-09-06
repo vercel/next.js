@@ -185,7 +185,6 @@ impl ModuleReference for EsmAssetReference {
             Value::new(ty),
             IssueSeverity::Error.cell(),
             self.issue_source,
-            self.ignore,
         ))
     }
 }

@@ -292,7 +292,6 @@ async fn build_dynamic_imports_map_for_module(
             Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
             IssueSeverity::Error.cell(),
             None,
-            false,
         )
         .first_module()
         .await?;

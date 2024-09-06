@@ -572,7 +572,6 @@ impl AppProject {
             ))),
             None,
             IssueSeverity::Error.cell(),
-            false,
         )
         .resolve()
         .await?

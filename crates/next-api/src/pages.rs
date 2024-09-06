@@ -575,7 +575,6 @@ impl PagesProject {
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
             IssueSeverity::Error.cell(),
             None,
-            false,
         )
         .first_module()
         .await?
