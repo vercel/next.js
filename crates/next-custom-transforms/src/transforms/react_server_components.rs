@@ -550,6 +550,7 @@ impl ReactServerComponentValidator {
                         "ServerInsertedHTMLContext",
                     ],
                 ),
+                ("next/server", vec!["ImageResponse"]),
             ]
             .into(),
 
