@@ -13478,11 +13478,10 @@
         "Static Image Component Tests for basePath production mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image",
         "Static Image Component Tests for basePath production mode should use height prop to adjust both width and height",
         "Static Image Component Tests for basePath production mode should use width and height prop to override import",
-        "Static Image Component Tests for basePath production mode should use width prop to adjust both width and height"
-      ],
-      "failed": [
+        "Static Image Component Tests for basePath production mode should use width prop to adjust both width and height",
         "Build Error Tests production mode should throw build error when import statement is used with missing file"
       ],
+      "failed": [],
       "pending": [
         "Static Image Component Tests for basePath development mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests for basePath development mode Should automatically provide an image height and width",
