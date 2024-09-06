@@ -67,6 +67,7 @@ export async function walkTreeWithFlightRouterState({
     getDynamicParamFromSegment,
     componentMod: { tree: loaderTree },
     requestStore,
+    workStore,
   } = ctx
 
   const [segment, parallelRoutes, modules] = loaderTreeToFilter
@@ -182,7 +183,7 @@ export async function walkTreeWithFlightRouterState({
 
   const segmentInterceptor =
     interceptor &&
-    (await createInterceptor(interceptor, requestStore.nextRequest))
+    (await createInterceptor(interceptor, requestStore, workStore))
 
   // If we are not rendering on this level we need to check if the current
   // segment has a layout. If so, we need to track all the used CSS to make

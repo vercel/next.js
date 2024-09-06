@@ -13,7 +13,12 @@ export default async function NestedLayout({
   return (
     <main>
       <h2>Nested Layout {createTimeStamp()}</h2>
-      <Link href="/nested/foo">foo</Link> <Link href="/nested/bar">bar</Link>
+      <Link href="/nested/foo" prefetch={false}>
+        foo
+      </Link>{' '}
+      <Link href="/nested/bar" prefetch={false}>
+        bar
+      </Link>
       {children}
     </main>
   )

@@ -5,7 +5,7 @@ import { retry } from 'next-test-utils'
 const timeStampRegExp = /[ ]*\d{2}:\d{2}:\d{2}\.\d{3}[ ]*/gm
 
 describe('interceptors', () => {
-  const { next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -15,12 +15,17 @@ describe('interceptors', () => {
     cliOutputLength = next.cliOutput.length
   })
 
-  if (!isNextDev) {
-    return it.skip('TODO(interceptors): support next build', () => {})
-  }
-
   if (isTurbopack) {
     return it.skip('TODO(interceptors): support turbopack', () => {})
+  }
+
+  if (isNextStart) {
+    it('should build all pages with interceptors as dynamic functions', () => {
+      expect(next.cliOutput).toInclude('ƒ / ')
+      expect(next.cliOutput).toInclude('ƒ /_not-found ')
+      expect(next.cliOutput).toInclude('ƒ /nested ')
+      expect(next.cliOutput).toInclude('ƒ /nested/[slug] ')
+    })
   }
 
   it('should intercept requests at the root', async () => {
