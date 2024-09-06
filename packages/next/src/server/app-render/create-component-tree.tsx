@@ -788,8 +788,10 @@ async function Intercepted({
     throw new InvariantError('requestStore is undefined')
   }
 
-  // TODO(interceptors): Allow concurrent execution of interceptors?
   for (const interceptor of interceptors) {
+    // We don't need to catch parent interceptors here, because if they throw we
+    // wouldn't get to this point (i.e. rendering the segments further down in
+    // the component tree).
     await interceptor(workUnitStore.nextRequest)
   }
 
