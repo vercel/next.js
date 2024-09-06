@@ -212,7 +212,7 @@ pub async fn process_module(
         trimmed_hash = full_hash % power;
     }
 
-    let hashed_module_id = ModuleId::String(trimmed_hash.to_string().into());
+    let hashed_module_id = ModuleId::Number(trimmed_hash);
 
     id_map.insert(ident_str, hashed_module_id.cell());
     used_ids.insert(trimmed_hash);

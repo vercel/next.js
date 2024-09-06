@@ -585,7 +585,7 @@ function instantiateModule(id, source) {
                 U: relativeURL,
                 k: refresh,
                 R: createResolvePathFromModule(r),
-                __dirname: module.id.replace(/(^|\/)\/+$/, "")
+                __dirname: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
             }));
         });
     } catch (error) {

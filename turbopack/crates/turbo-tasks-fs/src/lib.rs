@@ -43,6 +43,7 @@ use auto_hash_map::AutoMap;
 use bitflags::bitflags;
 use dunce::simplified;
 use glob::Glob;
+use invalidation::InvalidateFilesystem;
 use invalidator_map::InvalidatorMap;
 use jsonc_parser::{parse_to_serde_value, ParseOptions};
 use mime::Mime;
@@ -57,8 +58,7 @@ use tokio::{
 };
 use tracing::Instrument;
 use turbo_tasks::{
-    mark_stateful, trace::TraceRawVcs, Completion, InvalidationReason, Invalidator, RcStr, ReadRef,
-    ValueToString, Vc,
+    mark_stateful, trace::TraceRawVcs, Completion, Invalidator, RcStr, ReadRef, ValueToString, Vc,
 };
 use turbo_tasks_hash::{hash_xxh3_hash64, DeterministicHash, DeterministicHasher};
 use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
@@ -165,6 +165,7 @@ impl DiskFileSystem {
     }
 
     pub fn invalidate(&self) {
+        let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
         for (_, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
             invalidators.into_iter().for_each(|i| i.invalidate());
         }
@@ -173,13 +174,17 @@ impl DiskFileSystem {
         }
     }
 
-    pub fn invalidate_with_reason<T: InvalidationReason + Clone>(&self, reason: T) {
-        for (_, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
+    pub fn invalidate_with_reason(&self) {
+        let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
+        for (path, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
+            let reason = InvalidateFilesystem { path: path.into() };
             invalidators
                 .into_iter()
                 .for_each(|i| i.invalidate_with_reason(reason.clone()));
         }
-        for (_, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter() {
+        for (path, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter()
+        {
+            let reason = InvalidateFilesystem { path: path.into() };
             invalidators
                 .into_iter()
                 .for_each(|i| i.invalidate_with_reason(reason.clone()));
@@ -195,6 +200,7 @@ impl DiskFileSystem {
     }
 
     fn start_watching_internal(&self, report_invalidation_reason: bool) -> Result<()> {
+        let _span = tracing::info_span!("start filesystem watching", path = &*self.root).entered();
         let invalidator_map = self.invalidator_map.clone();
         let dir_invalidator_map = self.dir_invalidator_map.clone();
         let root_path = self.root_path().to_path_buf();
@@ -305,6 +311,67 @@ impl DiskFileSystem {
 
         Ok(Self::cell(instance))
     }
+
+    #[turbo_tasks::function(fs)]
+    async fn read_dir_internal(
+        &self,
+        fs_path: Vc<FileSystemPath>,
+    ) -> Result<Vc<InternalDirectoryContent>> {
+        let full_path = self.to_sys_path(fs_path).await?;
+        self.register_dir_invalidator(&full_path)?;
+
+        // we use the sync std function here as it's a lot faster (600%) in
+        // node-file-trace
+        let read_dir = match retry_blocking(
+            &full_path,
+            tracing::info_span!("read directory", path = display(full_path.display())),
+            |path| std::fs::read_dir(path),
+        )
+        .await
+        {
+            Ok(dir) => dir,
+            Err(e)
+                if e.kind() == ErrorKind::NotFound
+                    || e.kind() == ErrorKind::NotADirectory
+                    || e.kind() == ErrorKind::InvalidFilename =>
+            {
+                return Ok(InternalDirectoryContent::not_found());
+            }
+            Err(e) => {
+                bail!(anyhow!(e).context(format!("reading dir {}", full_path.display())))
+            }
+        };
+
+        let entries = read_dir
+            .filter_map(|r| {
+                let e = match r {
+                    Ok(e) => e,
+                    Err(err) => return Some(Err(err.into())),
+                };
+
+                let path = e.path();
+
+                // we filter out any non unicode names and paths without the same root here
+                let file_name: RcStr = path.file_name()?.to_str()?.into();
+                let path_to_root = sys_to_unix(path.strip_prefix(&self.root).ok()?.to_str()?);
+
+                let path = path_to_root.into();
+
+                let entry = match e.file_type() {
+                    Ok(t) if t.is_file() => InternalDirectoryEntry::File(path),
+                    Ok(t) if t.is_dir() => InternalDirectoryEntry::Directory(path),
+                    Ok(t) if t.is_symlink() => InternalDirectoryEntry::Symlink(path),
+                    Ok(_) => InternalDirectoryEntry::Other(path),
+                    Err(err) => return Some(Err(err.into())),
+                };
+
+                Some(anyhow::Ok((file_name, entry)))
+            })
+            .collect::<Result<_>>()
+            .with_context(|| format!("reading directory item in {}", full_path.display()))?;
+
+        Ok(InternalDirectoryContent::new(entries))
+    }
 }
 
 impl Debug for DiskFileSystem {
@@ -339,63 +406,36 @@ impl FileSystem for DiskFileSystem {
         Ok(content.cell())
     }
 
-    #[turbo_tasks::function(fs)]
-    async fn read_dir(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<DirectoryContent>> {
-        let full_path = self.to_sys_path(fs_path).await?;
-        self.register_dir_invalidator(&full_path)?;
-        let fs_path = fs_path.await?;
-
-        // we use the sync std function here as it's a lot faster (600%) in
-        // node-file-trace
-        let read_dir = match retry_blocking(
-            &full_path,
-            tracing::info_span!("read directory", path = display(full_path.display())),
-            |path| std::fs::read_dir(path),
-        )
-        .await
-        {
-            Ok(dir) => dir,
-            Err(e)
-                if e.kind() == ErrorKind::NotFound
-                    || e.kind() == ErrorKind::NotADirectory
-                    || e.kind() == ErrorKind::InvalidFilename =>
-            {
-                return Ok(DirectoryContent::not_found());
+    #[turbo_tasks::function]
+    async fn read_dir(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Result<Vc<DirectoryContent>> {
+        match &*self.read_dir_internal(fs_path).await? {
+            InternalDirectoryContent::NotFound => Ok(DirectoryContent::not_found()),
+            InternalDirectoryContent::Entries(entries) => {
+                let fs = fs_path.await?.fs;
+                let entries = entries
+                    .iter()
+                    .map(|(name, entry)| {
+                        let entry = match entry {
+                            InternalDirectoryEntry::File(path) => DirectoryEntry::File(
+                                FileSystemPath::new_normalized(fs, path.clone()),
+                            ),
+                            InternalDirectoryEntry::Directory(path) => DirectoryEntry::Directory(
+                                FileSystemPath::new_normalized(fs, path.clone()),
+                            ),
+                            InternalDirectoryEntry::Symlink(path) => DirectoryEntry::Symlink(
+                                FileSystemPath::new_normalized(fs, path.clone()),
+                            ),
+                            InternalDirectoryEntry::Other(path) => DirectoryEntry::Other(
+                                FileSystemPath::new_normalized(fs, path.clone()),
+                            ),
+                            InternalDirectoryEntry::Error => DirectoryEntry::Error,
+                        };
+                        (name.clone(), entry)
+                    })
+                    .collect();
+                Ok(DirectoryContent::new(entries))
             }
-            Err(e) => {
-                bail!(anyhow!(e).context(format!("reading dir {}", full_path.display())))
-            }
-        };
-
-        let entries = read_dir
-            .filter_map(|r| {
-                let e = match r {
-                    Ok(e) => e,
-                    Err(err) => return Some(Err(err.into())),
-                };
-
-                let path = e.path();
-
-                // we filter out any non unicode names and paths without the same root here
-                let file_name: RcStr = path.file_name()?.to_str()?.into();
-                let path_to_root = sys_to_unix(path.strip_prefix(&self.root).ok()?.to_str()?);
-
-                let fs_path = FileSystemPath::new_normalized(fs_path.fs, path_to_root.into());
-
-                let entry = match e.file_type() {
-                    Ok(t) if t.is_file() => DirectoryEntry::File(fs_path),
-                    Ok(t) if t.is_dir() => DirectoryEntry::Directory(fs_path),
-                    Ok(t) if t.is_symlink() => DirectoryEntry::Symlink(fs_path),
-                    Ok(_) => DirectoryEntry::Other(fs_path),
-                    Err(err) => return Some(Err(err.into())),
-                };
-
-                Some(anyhow::Ok((file_name, entry)))
-            })
-            .collect::<Result<_>>()
-            .with_context(|| format!("reading directory item in {}", full_path.display()))?;
-
-        Ok(DirectoryContent::new(entries))
+        }
     }
 
     #[turbo_tasks::function(fs)]
@@ -1112,6 +1152,10 @@ impl FileSystemPath {
         self.fs().read(self).parse_json()
     }
 
+    pub fn read_json5(self: Vc<Self>) -> Vc<FileJsonContent> {
+        self.fs().read(self).parse_json5()
+    }
+
     /// Reads content of a directory.
     ///
     /// DETERMINISM: Result is in random order. Either sort result or do not
@@ -1686,6 +1730,33 @@ impl FileContent {
         }
     }
 
+    pub fn parse_json5_ref(&self) -> FileJsonContent {
+        match self {
+            FileContent::Content(file) => match file.content.to_str() {
+                Ok(string) => match parse_to_serde_value(
+                    &string,
+                    &ParseOptions {
+                        allow_comments: true,
+                        allow_trailing_commas: true,
+                        allow_loose_object_property_names: true,
+                    },
+                ) {
+                    Ok(data) => match data {
+                        Some(value) => FileJsonContent::Content(value),
+                        None => FileJsonContent::unparseable(
+                            "text content doesn't contain any json data",
+                        ),
+                    },
+                    Err(e) => FileJsonContent::Unparseable(Box::new(
+                        UnparseableJson::from_jsonc_error(e, string.as_ref()),
+                    )),
+                },
+                Err(_) => FileJsonContent::unparseable("binary is not valid utf-8 text"),
+            },
+            FileContent::NotFound => FileJsonContent::NotFound,
+        }
+    }
+
     pub fn lines_ref(&self) -> FileLinesContent {
         match self {
             FileContent::Content(file) => match file.content.to_str() {
@@ -1727,6 +1798,12 @@ impl FileContent {
     }
 
     #[turbo_tasks::function]
+    pub async fn parse_json5(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
+        let this = self.await?;
+        Ok(this.parse_json5_ref().into())
+    }
+
+    #[turbo_tasks::function]
     pub async fn lines(self: Vc<Self>) -> Result<Vc<FileLinesContent>> {
         let this = self.await?;
         Ok(this.lines_ref().into())
@@ -1762,6 +1839,17 @@ impl ValueToString for FileJsonContent {
     }
 }
 
+#[turbo_tasks::value_impl]
+impl FileJsonContent {
+    #[turbo_tasks::function]
+    pub async fn content(self: Vc<Self>) -> Result<Vc<Value>> {
+        match &*self.await? {
+            FileJsonContent::Content(json) => Ok(Vc::cell(json.clone())),
+            FileJsonContent::Unparseable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
+            FileJsonContent::NotFound => Err(anyhow!("File not found")),
+        }
+    }
+}
 impl FileJsonContent {
     pub fn unparseable(message: &'static str) -> Self {
         FileJsonContent::Unparseable(Box::new(UnparseableJson {
@@ -1793,6 +1881,15 @@ pub enum FileLinesContent {
     Lines(#[turbo_tasks(trace_ignore)] Vec<FileLine>),
     Unparseable,
     NotFound,
+}
+
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+pub enum InternalDirectoryEntry {
+    File(RcStr),
+    Directory(RcStr),
+    Symlink(RcStr),
+    Other(RcStr),
+    Error,
 }
 
 #[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
@@ -1859,6 +1956,23 @@ impl From<&DirectoryEntry> for FileSystemEntryType {
             DirectoryEntry::Other(_) => FileSystemEntryType::Other,
             DirectoryEntry::Error => FileSystemEntryType::Error,
         }
+    }
+}
+
+#[turbo_tasks::value]
+#[derive(Debug)]
+pub enum InternalDirectoryContent {
+    Entries(Vec<(RcStr, InternalDirectoryEntry)>),
+    NotFound,
+}
+
+impl InternalDirectoryContent {
+    pub fn new(entries: Vec<(RcStr, InternalDirectoryEntry)>) -> Vc<Self> {
+        Self::cell(InternalDirectoryContent::Entries(entries))
+    }
+
+    pub fn not_found() -> Vc<Self> {
+        Self::cell(InternalDirectoryContent::NotFound)
     }
 }
 

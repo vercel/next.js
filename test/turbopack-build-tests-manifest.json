@@ -5211,11 +5211,12 @@
       "runtimeError": false
     },
     "test/e2e/middleware-custom-matchers-basepath/test/index.test.ts": {
-      "passed": ["Middleware custom matchers basePath should not match"],
-      "failed": [
+      "passed": [
+        "Middleware custom matchers basePath should not match",
         "Middleware custom matchers basePath should match",
         "Middleware custom matchers basePath should match has query on client routing"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -5363,15 +5364,15 @@
         "Middleware Runtime without i18n should validate & parse request url from any route",
         "Middleware Runtime without i18n should warn when using NextResponse.redirect with a relative URL",
         "Middleware Runtime without i18n should warn when using Response.redirect with a relative URL",
-        "Middleware Runtime without i18n should work with notFound: true correctly"
+        "Middleware Runtime without i18n should work with notFound: true correctly",
+        "Middleware Runtime with i18n should have valid middleware field in manifest",
+        "Middleware Runtime without i18n should have valid middleware field in manifest",
+        "Middleware Runtime with i18n should have correct files in manifest",
+        "Middleware Runtime without i18n should have correct files in manifest"
       ],
       "failed": [
-        "Middleware Runtime with i18n should have correct files in manifest",
         "Middleware Runtime with i18n should have the custom config in the manifest",
-        "Middleware Runtime with i18n should have valid middleware field in manifest",
-        "Middleware Runtime without i18n should have correct files in manifest",
-        "Middleware Runtime without i18n should have the custom config in the manifest",
-        "Middleware Runtime without i18n should have valid middleware field in manifest"
+        "Middleware Runtime without i18n should have the custom config in the manifest"
       ],
       "pending": [],
       "flakey": [],
@@ -5400,9 +5401,7 @@
         "using a single matcher with i18n does not add the header for an unmatched path",
         "using root matcher adds the header for a matched data path (with header)",
         "using root matcher adds the header for a matched data path (without header)",
-        "using root matcher adds the header to the /"
-      ],
-      "failed": [
+        "using root matcher adds the header to the /",
         "using a single matcher with i18n adds the header for a matched path",
         "using a single matcher with i18n adds the header for a mathed root path with /index",
         "using a single matcher with i18n adds the headers for a matched data path",
@@ -5417,6 +5416,7 @@
         "using a single matcher with i18n and trailingSlash adds the headers for a matched data path",
         "using root matcher adds the header to the /index"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -5586,12 +5586,11 @@
         "Middleware Runtime trailing slash with .html extension should work when requesting the page directly",
         "Middleware Runtime trailing slash without .html extension should work using browser",
         "Middleware Runtime trailing slash without .html extension should work when navigating",
-        "Middleware Runtime trailing slash without .html extension should work when requesting the page directly"
-      ],
-      "failed": [
+        "Middleware Runtime trailing slash without .html extension should work when requesting the page directly",
         "Middleware Runtime trailing slash should have correct files in manifest",
         "Middleware Runtime trailing slash should have valid middleware field in manifest"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -7556,10 +7555,10 @@
     },
     "test/integration/config-promise-error/test/index.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Promise in next config production mode should warn when a promise is returned on webpack"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -7880,9 +7879,7 @@
         "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
       ],
       "failed": [
-        "CSS Module Composes Usage (External) production mode should have compiled successfully",
         "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
-        "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
         "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
         "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
       ],
@@ -14988,15 +14985,15 @@
         "config telemetry production mode emits telemetry for usage of middleware",
         "config telemetry production mode emits telemetry for usage of swc plugins"
       ],
-      "failed": [
-        "config telemetry production mode emits telemery for usage of image, script & dynamic",
+      "failed": [],
+      "pending": [
         "config telemetry production mode emits telemetry for middleware related options",
         "config telemetry production mode emits telemetry for transpilePackages",
+        "config telemetry production mode emits telemery for usage of image, script & dynamic",
+        "config telemetry production mode emits telemetry for usage of swc",
         "config telemetry production mode emits telemetry for usage of @vercel/og",
-        "config telemetry production mode emits telemetry for usage of next/legacy/image",
-        "config telemetry production mode emits telemetry for usage of swc"
+        "config telemetry production mode emits telemetry for usage of next/legacy/image"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -15020,12 +15017,11 @@
         "Telemetry CLI production mode detect static 404 correctly for `next build`",
         "Telemetry CLI production mode detects correct cli session defaults",
         "Telemetry CLI production mode detects tests correctly for `next build`",
-        "Telemetry CLI production mode emits event when swc fails to load"
-      ],
-      "failed": [
+        "Telemetry CLI production mode emits event when swc fails to load",
         "Telemetry CLI production mode detects isSrcDir dir correctly for `next build`",
         "Telemetry CLI production mode logs completed `next build` with warnings"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15302,10 +15298,10 @@
     },
     "test/integration/turbotrace-with-webpack-worker/test/index.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "build trace with extra entries production mode should build and trace correctly"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -15701,8 +15697,11 @@
       "runtimeError": false
     },
     "test/production/app-dir/app-only-flag/app-only-flag.test.ts": {
-      "passed": ["app-only-flag should serve app route"],
-      "failed": ["app-only-flag should not serve about route"],
+      "passed": [
+        "app-only-flag should serve app route",
+        "app-only-flag should not serve about route"
+      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16175,11 +16174,11 @@
       "runtimeError": false
     },
     "test/production/generate-middleware-source-maps/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Middleware source maps generates a source map for Edge API",
         "Middleware source maps generates a source map for Middleware"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16292,11 +16291,11 @@
     },
     "test/production/next-font/telemetry.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "next/font unused telemetry should not send next/font/google and next/font/local usage event",
         "next/font used telemetry should send next/font/google and next/font/local usage event"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -16578,6 +16577,8 @@
       "passed": [],
       "failed": [
         "required server files app router middleware rewrite should work with a dynamic path",
+        "required server files app router middleware rewrite should work with a dynamic path (with Next-Resume)",
+        "required server files app router middleware rewrite should work with a dynamic path (without Next-Resume)",
         "required server files app router should handle RSC requests",
         "required server files app router should handle prefetch RSC requests",
         "required server files app router should not fail caching",
@@ -16586,8 +16587,12 @@
         "required server files app router should properly handle fallback for bot request",
         "required server files app router should properly handle prerender for bot request",
         "required server files app router should properly stream resume",
+        "required server files app router should properly stream resume with Next-Resume",
+        "required server files app router should properly stream resume without Next-Resume",
         "required server files app router should send cache tags in minimal mode for ISR",
-        "required server files app router should still render when postponed is corrupted"
+        "required server files app router should still render when postponed is corrupted",
+        "required server files app router should still render when postponed is corrupted with Next-Resume",
+        "required server files app router should still render when postponed is corrupted without Next-Resume"
       ],
       "pending": [],
       "flakey": [],
