@@ -39,11 +39,6 @@ fn passthrough_reference_ty() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::function]
-fn isolated_reference_ty() -> Vc<RcStr> {
-    Vc::cell("isolated reference".into())
-}
-
-#[turbo_tasks::function]
 pub async fn content_to_details(content: Vc<AssetContent>) -> Result<Vc<RcStr>> {
     Ok(match &*content.await? {
         AssetContent::File(file_content) => match &*file_content.await? {
