@@ -1,9 +1,14 @@
 import { setTimeout } from 'timers/promises'
 import { logWithTime } from '../time-utils'
-// import { redirect } from 'next/navigation'
+import { redirect } from 'next/navigation'
+import { NextRequest } from 'next/server'
 
-export default async function interceptNested(request: Request): Promise<void> {
+export default async function interceptNested(
+  request: NextRequest
+): Promise<void> {
   await logWithTime('NestedInterceptor', () => setTimeout(500))
-  // TODO: redirect if search params say so
-  // redirect('/')
+
+  if (request.nextUrl.searchParams.has('redirect')) {
+    redirect('/')
+  }
 }

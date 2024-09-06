@@ -476,7 +476,7 @@ async function createComponentTreeInternal({
 
   const loadingData: LoadingModuleData = Loading
     ? [
-        <MaybeIntercepted key="l" interceptors={interceptors}>
+        <MaybeIntercepted key="l" interceptors={interceptors} catchErrors>
           <Loading />
         </MaybeIntercepted>,
         loadingStyles,
@@ -762,13 +762,17 @@ async function MetadataOutlet({
 
 function MaybeIntercepted({
   interceptors,
+  catchErrors,
   children,
 }: {
   interceptors: (() => Promise<void>)[]
+  catchErrors?: boolean
   children: React.ReactNode
 }) {
   return interceptors.length > 0 ? (
-    <Intercepted interceptors={interceptors}>{children}</Intercepted>
+    <Intercepted interceptors={interceptors} catchErrors={catchErrors}>
+      {children}
+    </Intercepted>
   ) : (
     children
   )
@@ -776,16 +780,21 @@ function MaybeIntercepted({
 
 async function Intercepted({
   interceptors,
+  catchErrors,
   children,
 }: {
   interceptors: (() => Promise<void>)[]
+  catchErrors?: boolean
   children: React.ReactNode
 }) {
   for (const interceptor of interceptors) {
-    // We don't need to catch parent interceptors here, because if they throw we
-    // wouldn't get to this point (i.e. rendering the segments further down in
-    // the component tree).
-    await interceptor()
+    try {
+      await interceptor()
+    } catch (error) {
+      if (!catchErrors) {
+        throw error
+      }
+    }
   }
 
   return children
