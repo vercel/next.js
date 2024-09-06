@@ -15600,6 +15600,24 @@
       "pending": [],
       "flakey": [],
       "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/use-effect-actions/use-effect-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - use-effect-actions should not tree shake the used action under useEffect"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/use-effect-actions/use-effect-actions.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - use-effect-actions should not tree shake the used action under useEffect"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
     }
   },
   "rules": {
