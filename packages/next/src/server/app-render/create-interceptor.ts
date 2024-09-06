@@ -16,12 +16,18 @@ export async function createInterceptor(
   requestStore: RequestStore,
   workStore: WorkStore
 ): Promise<() => Promise<void>> {
-  const [getModule] = moduleTuple
+  const [getModule, , filePathRelative] = moduleTuple
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   const interceptRequest = interopDefault(await getModule()) as (
     request: NextRequest
   ) => Promise<void>
+
+  if (typeof interceptRequest !== 'function') {
+    throw new Error(
+      `The default export in "${filePathRelative}" is not a function.`
+    )
+  }
 
   let interceptorPromise: Promise<void> | undefined
 

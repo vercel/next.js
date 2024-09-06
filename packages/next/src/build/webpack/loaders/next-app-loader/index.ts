@@ -118,6 +118,7 @@ async function createTreeCodeFromPath(
     flyingShuttle,
     collectedDeclarations,
     interceptors,
+    loaderContext,
   }: {
     page: string
     flyingShuttle?: boolean
@@ -384,7 +385,9 @@ async function createTreeCodeFromPath(
           .map(([file, filePath]) => {
             const varName = `module${nestedCollectedDeclarations.length}`
             nestedCollectedDeclarations.push([varName, filePath])
-            return `'${file}': [${varName}, ${JSON.stringify(filePath)}],`
+            return `'${file}': [${varName}, ${JSON.stringify(filePath)}, ${JSON.stringify(
+              path.relative(loaderContext.context || '', filePath)
+            )}],`
           })
           .join('\n')}
         ${createMetadataExportsCode(metadata)}

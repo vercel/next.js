@@ -320,8 +320,6 @@ async function createComponentTreeInternal({
     if (typeof NotFound !== 'undefined' && !isValidElementType(NotFound)) {
       errorMissingDefaultExport(pagePath, 'not-found')
     }
-
-    // TODO(interceptors): Add error handling for wrong interceptor export.
   }
 
   // Handle dynamic segment params.
