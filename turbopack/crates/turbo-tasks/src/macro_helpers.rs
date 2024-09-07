@@ -9,7 +9,8 @@ pub use super::{
     manager::{find_cell_by_type, notify_scheduled_tasks, spawn_detached_for_testing},
 };
 use crate::{
-    debug::ValueDebugFormatString, task::TaskOutput, ResolvedValue, TaskInput, TaskPersistence, Vc,
+    debug::ValueDebugFormatString, task::TaskOutput, RawVc, ResolvedValue, TaskInput,
+    TaskPersistence, Vc,
 };
 
 #[inline(never)]
@@ -25,6 +26,17 @@ pub async fn value_debug_format_field(value: ValueDebugFormatString<'_>) -> Stri
 
 pub fn get_non_local_persistence_from_inputs(inputs: &impl TaskInput) -> TaskPersistence {
     if inputs.is_transient() {
+        TaskPersistence::Transient
+    } else {
+        TaskPersistence::Persistent
+    }
+}
+
+pub fn get_non_local_persistence_from_inputs_and_this(
+    this: RawVc,
+    inputs: &impl TaskInput,
+) -> TaskPersistence {
+    if this.is_transient() || inputs.is_transient() {
         TaskPersistence::Transient
     } else {
         TaskPersistence::Persistent

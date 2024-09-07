@@ -189,7 +189,7 @@ Here's how this example works:
 3. After 60 seconds has passed, the next request will still show the cached (stale) page
 4. The cache is invalidated and a new version of the page begins generating in the background
 5. Once generated successfully, Next.js will display and cache the updated page
-6. If `/blog/26` is requested, Next.js will generated and cached this page on-demand
+6. If `/blog/26` is requested, Next.js will generate and cache this page on-demand
 
 ## Reference
 
@@ -426,10 +426,23 @@ This will make the Next.js server console log ISR cache hits and misses. You can
 
 ## Caveats
 
+<AppOnly>
+
 - ISR is only supported when using the Node.js runtime (default).
 - ISR is not supported when creating a [Static Export](/docs/app/building-your-application/deploying/static-exports).
-- If you have multiple `fetch` requests in a statically rendered route, and each has a different `revalidate` frequency, the lowest time will be used for all requests.
+- If you have multiple `fetch` requests in a statically rendered route, and each has a different `revalidate` frequency, the lowest time will be used for ISR. However, those revalidate frequencies will still be respected by the [Data Cache](/docs/app/building-your-application/caching#data-cache).
+- If any of the `fetch` requests used on a route have a `revalidate` time of `0`, or an explicit `no-store`, the route will be [dynamically rendered](/docs/app/building-your-application/rendering/server-components#dynamic-rendering).
 - Middleware won't be executed for on-demand ISR requests, meaning any path rewrites or logic in Middleware will not be applied. Ensure you are revalidating the exact path. For example, `/post/1` instead of a rewritten `/post-1`.
+
+</AppOnly>
+
+<PagesOnly>
+
+- ISR is only supported when using the Node.js runtime (default).
+- ISR is not supported when creating a [Static Export](/docs/app/building-your-application/deploying/static-exports).
+- Middleware won't be executed for on-demand ISR requests, meaning any path rewrites or logic in Middleware will not be applied. Ensure you are revalidating the exact path. For example, `/post/1` instead of a rewritten `/post-1`.
+
+</PagesOnly>
 
 ## Version history
 

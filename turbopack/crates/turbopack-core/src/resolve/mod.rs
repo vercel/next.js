@@ -1146,14 +1146,60 @@ pub async fn find_context_file(
     names: Vc<Vec<RcStr>>,
 ) -> Result<Vc<FindContextFileResult>> {
     let mut refs = Vec::new();
-    let context_value = lookup_path.await?;
     for name in &*names.await? {
         let fs_path = lookup_path.join(name.clone());
         if let Some(fs_path) = exists(fs_path, &mut refs).await? {
             return Ok(FindContextFileResult::Found(fs_path, refs).into());
         }
     }
-    if context_value.is_root() {
+    if lookup_path.await?.is_root() {
+        return Ok(FindContextFileResult::NotFound(refs).into());
+    }
+    if refs.is_empty() {
+        // Tailcall
+        Ok(find_context_file(
+            lookup_path.parent().resolve().await?,
+            names,
+        ))
+    } else {
+        let parent_result = find_context_file(lookup_path.parent().resolve().await?, names).await?;
+        Ok(match &*parent_result {
+            FindContextFileResult::Found(p, r) => {
+                refs.extend(r.iter().copied());
+                FindContextFileResult::Found(*p, refs)
+            }
+            FindContextFileResult::NotFound(r) => {
+                refs.extend(r.iter().copied());
+                FindContextFileResult::NotFound(refs)
+            }
+        }
+        .into())
+    }
+}
+
+// Same as find_context_file, but also stop for package.json with the specified key
+#[turbo_tasks::function]
+pub async fn find_context_file_or_package_key(
+    lookup_path: Vc<FileSystemPath>,
+    names: Vc<Vec<RcStr>>,
+    package_key: Value<RcStr>,
+) -> Result<Vc<FindContextFileResult>> {
+    let mut refs = Vec::new();
+    let package_json_path = lookup_path.join("package.json".into());
+    if let Some(package_json_path) = exists(package_json_path, &mut refs).await? {
+        if let Some(json) = &*read_package_json(package_json_path).await? {
+            if json.get(&**package_key).is_some() {
+                return Ok(FindContextFileResult::Found(package_json_path, refs).into());
+            }
+        }
+    }
+    for name in &*names.await? {
+        let fs_path = lookup_path.join(name.clone());
+        if let Some(fs_path) = exists(fs_path, &mut refs).await? {
+            return Ok(FindContextFileResult::Found(fs_path, refs).into());
+        }
+    }
+    if lookup_path.await?.is_root() {
         return Ok(FindContextFileResult::NotFound(refs).into());
     }
     if refs.is_empty() {
@@ -2706,10 +2752,6 @@ async fn resolve_package_internal_with_imports_field(
     .await
 }
 
-async fn is_unresolveable(result: Vc<ModuleResolveResult>) -> Result<bool> {
-    Ok(*result.resolve().await?.is_unresolveable().await?)
-}
-
 pub async fn handle_resolve_error(
     result: Vc<ModuleResolveResult>,
     reference_type: Value<ReferenceType>,
@@ -2719,39 +2761,122 @@ pub async fn handle_resolve_error(
     severity: Vc<IssueSeverity>,
     source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
+    async fn is_unresolveable(result: Vc<ModuleResolveResult>) -> Result<bool> {
+        Ok(*result.resolve().await?.is_unresolveable().await?)
+    }
     Ok(match is_unresolveable(result).await {
         Ok(unresolveable) => {
             if unresolveable {
-                ResolvingIssue {
+                emit_unresolveable_issue(
                     severity,
-                    file_path: origin_path,
-                    request_type: format!("{} request", reference_type.into_value()),
+                    origin_path,
+                    reference_type,
                     request,
                     resolve_options,
-                    error_message: None,
                     source,
-                }
-                .cell()
-                .emit();
+                );
             }
 
             result
         }
         Err(err) => {
-            ResolvingIssue {
+            emit_resolve_error_issue(
                 severity,
-                file_path: origin_path,
-                request_type: format!("{} request", reference_type.into_value()),
+                origin_path,
+                reference_type,
                 request,
                 resolve_options,
-                error_message: Some(format!("{}", PrettyPrintError(&err))),
+                err,
                 source,
-            }
-            .cell()
-            .emit();
+            );
             ModuleResolveResult::unresolveable().cell()
         }
     })
+}
+
+pub async fn handle_resolve_source_error(
+    result: Vc<ResolveResult>,
+    reference_type: Value<ReferenceType>,
+    origin_path: Vc<FileSystemPath>,
+    request: Vc<Request>,
+    resolve_options: Vc<ResolveOptions>,
+    severity: Vc<IssueSeverity>,
+    source: Option<Vc<IssueSource>>,
+) -> Result<Vc<ResolveResult>> {
+    async fn is_unresolveable(result: Vc<ResolveResult>) -> Result<bool> {
+        Ok(*result.resolve().await?.is_unresolveable().await?)
+    }
+    Ok(match is_unresolveable(result).await {
+        Ok(unresolveable) => {
+            if unresolveable {
+                emit_unresolveable_issue(
+                    severity,
+                    origin_path,
+                    reference_type,
+                    request,
+                    resolve_options,
+                    source,
+                );
+            }
+
+            result
+        }
+        Err(err) => {
+            emit_resolve_error_issue(
+                severity,
+                origin_path,
+                reference_type,
+                request,
+                resolve_options,
+                err,
+                source,
+            );
+            ResolveResult::unresolveable().cell()
+        }
+    })
+}
+
+fn emit_resolve_error_issue(
+    severity: Vc<IssueSeverity>,
+    origin_path: Vc<FileSystemPath>,
+    reference_type: Value<ReferenceType>,
+    request: Vc<Request>,
+    resolve_options: Vc<ResolveOptions>,
+    err: anyhow::Error,
+    source: Option<Vc<IssueSource>>,
+) {
+    ResolvingIssue {
+        severity,
+        file_path: origin_path,
+        request_type: format!("{} request", reference_type.into_value()),
+        request,
+        resolve_options,
+        error_message: Some(format!("{}", PrettyPrintError(&err))),
+        source,
+    }
+    .cell()
+    .emit();
+}
+
+fn emit_unresolveable_issue(
+    severity: Vc<IssueSeverity>,
+    origin_path: Vc<FileSystemPath>,
+    reference_type: Value<ReferenceType>,
+    request: Vc<Request>,
+    resolve_options: Vc<ResolveOptions>,
+    source: Option<Vc<IssueSource>>,
+) {
+    ResolvingIssue {
+        severity,
+        file_path: origin_path,
+        request_type: format!("{} request", reference_type.into_value()),
+        request,
+        resolve_options,
+        error_message: None,
+        source,
+    }
+    .cell()
+    .emit();
 }
 
 // TODO this should become a TaskInput instead of a Vc

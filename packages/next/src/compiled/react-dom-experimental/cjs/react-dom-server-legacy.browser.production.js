@@ -34,7 +34,7 @@
 */
 "use strict";
 var React = require("next/dist/compiled/react-experimental"),
-  ReactDOM = require("react-dom");
+  ReactDOM = require("next/dist/compiled/react-dom-experimental");
 function formatProdErrorMessage(code) {
   var url = "https://react.dev/errors/" + code;
   if (1 < arguments.length) {
