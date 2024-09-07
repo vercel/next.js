@@ -1804,6 +1804,7 @@ export default async function getBaseWebpackConfig(
           appDir,
           runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
+          buildId,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
       (isNodeServer || (flyingShuttle && isEdgeServer)) &&

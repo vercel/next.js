@@ -24,6 +24,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 
 import path from 'path'
+import devalue from 'next/dist/compiled/devalue'
+import { CLIENT_STATIC_FILES_PATH } from '../../../shared/lib/constants'
 
 function getModuleId(compilation: any, module: any): string | number {
   return compilation.chunkGraph.getModuleId(module)
@@ -151,6 +153,7 @@ export class ReactLoadablePlugin {
   private pagesOrAppDir: string | undefined
   private runtimeAsset?: string
   private dev: boolean
+  private buildId: string
 
   constructor(opts: {
     filename: string
@@ -158,11 +161,13 @@ export class ReactLoadablePlugin {
     appDir?: string
     runtimeAsset?: string
     dev: boolean
+    buildId: string
   }) {
     this.filename = opts.filename
     this.pagesOrAppDir = opts.pagesDir || opts.appDir
     this.runtimeAsset = opts.runtimeAsset
     this.dev = opts.dev
+    this.buildId = opts.buildId
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
@@ -186,6 +191,19 @@ export class ReactLoadablePlugin {
         )}`
       )
     }
+
+    if (!this.dev) {
+      const clientReactLoadableManifestPath = path.join(
+        CLIENT_STATIC_FILES_PATH,
+        this.buildId,
+        '_reactLoadableManifest.js'
+      )
+
+      assets[clientReactLoadableManifestPath] = new sources.RawSource(
+        `self.__REACT_LOADABLE_MANIFEST=${devalue(manifest)};self.__REACT_LOADABLE_MANIFEST_CB && self.__REACT_LOADABLE_MANIFEST_CB()`
+      )
+    }
+
     return assets
   }
 

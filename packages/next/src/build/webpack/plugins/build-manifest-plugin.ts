@@ -37,7 +37,11 @@ function buildNodejsLowPriorityPath(filename: string, buildId: string) {
 }
 
 function createEdgeRuntimeManifest(originAssetMap: BuildManifest): string {
-  const manifestFilenames = ['_buildManifest.js', '_ssgManifest.js']
+  const manifestFilenames = [
+    '_buildManifest.js',
+    '_ssgManifest.js',
+    '_reactLoadableManifest.js',
+  ]
 
   const assetMap: BuildManifest = {
     ...originAssetMap,
@@ -292,7 +296,15 @@ export default class BuildManifestPlugin {
           '_ssgManifest.js',
           this.buildId
         )
-        assetMap.lowPriorityFiles.push(buildManifestPath, ssgManifestPath)
+        const reactLoadableManifestPath = buildNodejsLowPriorityPath(
+          '_reactLoadableManifest.js',
+          this.buildId
+        )
+        assetMap.lowPriorityFiles.push(
+          buildManifestPath,
+          ssgManifestPath,
+          reactLoadableManifestPath
+        )
         assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
       }
 
