@@ -2,6 +2,7 @@ import findUp from 'next/dist/compiled/find-up'
 import { readFile } from 'fs/promises'
 import JSON5 from 'next/dist/compiled/json5'
 import { pathToFileURL } from 'url'
+import { createJiti, type Jiti } from 'jiti'
 
 type RecursivePartial<T> = {
   [P in keyof T]?: RecursivePartial<T[P]>
@@ -18,13 +19,37 @@ export function findConfigPath(
       `.${key}rc.json`,
       `${key}.config.json`,
       `.${key}rc.js`,
+      `.${key}rc.ts`,
       `${key}.config.js`,
+      `${key}.config.ts`,
       `${key}.config.mjs`,
+      `${key}.config.mts`,
       `${key}.config.cjs`,
+      `${key}.config.cts`,
     ],
     {
       cwd: dir,
     }
+  )
+}
+
+function filePathIsAmbiguousJs(filePath: string): boolean {
+  return filePath.endsWith('.js') || filePath.endsWith('.ts')
+}
+
+function filePathIsModule(filePath: string): boolean {
+  return filePath.endsWith('.mjs') || filePath.endsWith('.mts')
+}
+
+function filePathIsCommonJs(filePath: string): boolean {
+  return filePath.endsWith('.cts') || filePath.endsWith('.cjs')
+}
+
+function filePathIsTypescript(filePath: string): boolean {
+  return (
+    filePath.endsWith('.ts') ||
+    filePath.endsWith('.mts') ||
+    filePath.endsWith('.cts')
   )
 }
 
@@ -65,29 +90,43 @@ export async function findConfig<T>(
 
   const filePath = await findConfigPath(directory, key)
 
+  const cjsRequire = (path: string) => {
+    if (filePathIsTypescript(path)) {
+      const jiti = getJiti()
+      return jiti(path)
+    }
+    return require(path)
+  }
+
   const esmImport = (path: string) => {
     // Skip mapping to absolute url with pathToFileURL on windows if it's jest
     // https://github.com/nodejs/node/issues/31710#issuecomment-587345749
     if (process.platform === 'win32' && !process.env.JEST_WORKER_ID) {
       // on windows import("C:\\path\\to\\file") is not valid, so we need to
       // use file:// URLs
-      return import(pathToFileURL(path).toString())
-    } else {
-      return import(path)
+      path = pathToFileURL(path).toString()
     }
+
+    if (filePathIsTypescript(path)) {
+      const jiti = getJiti()
+      return jiti.import(path)
+    }
+
+    return import(path)
   }
 
   if (filePath) {
-    if (filePath.endsWith('.js')) {
-      if (isESM) {
-        return (await esmImport(filePath)).default
-      } else {
-        return require(filePath)
-      }
-    } else if (filePath.endsWith('.mjs')) {
+    if (isESM && filePathIsAmbiguousJs(filePath)) {
       return (await esmImport(filePath)).default
-    } else if (filePath.endsWith('.cjs')) {
-      return require(filePath)
+    }
+    if (!isESM && filePathIsAmbiguousJs(filePath)) {
+      return cjsRequire(filePath)
+    }
+    if (filePathIsModule(filePath)) {
+      return (await esmImport(filePath)).default
+    }
+    if (filePathIsCommonJs(filePath)) {
+      return cjsRequire(filePath)
     }
 
     // We load JSON contents with JSON5 to allow users to comment in their
@@ -97,4 +136,15 @@ export async function findConfig<T>(
   }
 
   return null
+}
+
+// jiti is installed anyway, for tailwind - with pnpm, there is no reason for
+// next.js not to use it too
+// https://github.com/tailwindlabs/tailwindcss/blob/8c6c291869c72ba9aaa274d9ad14a83129b1f8d7/packages/%40tailwindcss-node/src/compile.ts#L50-L64
+let jiti: Jiti | undefined
+function getJiti() {
+  return (jiti ??= createJiti(import.meta.url, {
+    moduleCache: false,
+    fsCache: false,
+  }))
 }
