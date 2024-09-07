@@ -277,9 +277,12 @@ export default class BuildManifestPlugin {
         if (SYSTEM_ENTRYPOINTS.has(entrypoint.name)) continue
         const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
-        if (!pagePath) continue
+        if (!pagePath) {
+          continue
+        }
 
         const filesForPage = getEntrypointFiles(entrypoint)
+
         assetMap.pages[pagePath] = [...new Set([...mainFiles, ...filesForPage])]
       }
 
