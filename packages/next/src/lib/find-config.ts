@@ -18,6 +18,8 @@ export function findConfigPath(
   return findUp(
     [
       `.${key}rc.json`,
+      // `${key}rc.yaml`, the fact YAML is unsupported should be documented
+      // `${key}rc.yml`,
       `${key}.config.json`,
       `.${key}rc.js`,
       `.${key}rc.ts`,
