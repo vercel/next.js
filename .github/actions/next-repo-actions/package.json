@@ -2,7 +2,8 @@
   "private": true,
   "description": "Notify Next.js team about pending PRs and popular issues",
   "scripts": {
-    "build": "pnpm build-issues && pnpm build-prs && pnpm build-feature-requests && pnpm build-bankrupt-issues && pnpm build-triage-issues-with-ai",
+    "build": "pnpm build-issues-by-version && pnpm build-issues && pnpm build-prs && pnpm build-feature-requests && pnpm build-bankrupt-issues && pnpm build-triage-issues-with-ai",
+    "build-issues-by-version": "ncc build src/issues-by-version.ts -m -o dist/issues-by-version --license licenses.txt",
     "build-issues": "ncc build src/popular-issues.mjs -m -o dist/issues --license licenses.txt",
     "build-prs": "ncc build src/popular-prs.mjs -m -o dist/prs --license licenses.txt",
     "build-feature-requests": "ncc build src/popular-feature-requests.mjs -m -o dist/feature-requests --license licenses.txt",
