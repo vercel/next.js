@@ -192,7 +192,7 @@ export class ReactLoadablePlugin {
       )
     }
 
-    if (!this.dev) {
+    if (this.pagesOrAppDir?.endsWith('pages') && !this.dev) {
       const clientReactLoadableManifestPath = path.join(
         CLIENT_STATIC_FILES_PATH,
         this.buildId,

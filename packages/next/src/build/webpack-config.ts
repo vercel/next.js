@@ -1885,6 +1885,7 @@ export default async function getBaseWebpackConfig(
           isDevFallback,
           appDirEnabled: hasAppDir,
           clientRouterFilters,
+          pagesDir,
         }),
       new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
       new WellKnownErrorsPlugin(),
