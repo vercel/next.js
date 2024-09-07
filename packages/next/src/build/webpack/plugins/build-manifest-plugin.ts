@@ -104,8 +104,8 @@ export function generateClientManifest(
     staticFilter: ReturnType<BloomFilter['export']>
     dynamicFilter: ReturnType<BloomFilter['export']>
   },
-  compiler?: webpack.Compiler,
-  compilation?: webpack.Compilation
+  compiler?: any,
+  compilation?: any
 ): string | undefined {
   const compilationSpan = compilation
     ? spans.get(compilation)
@@ -202,17 +202,13 @@ export default class BuildManifestPlugin {
     this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
   }
 
-  createAssets(
-    compiler: webpack.Compiler,
-    compilation: webpack.Compilation,
-    assets: any
-  ) {
+  createAssets(compiler: any, compilation: any, assets: any) {
     const compilationSpan = spans.get(compilation) || spans.get(compiler)
     const createAssetsSpan = compilationSpan?.traceChild(
       'NextJsBuildManifest-createassets'
     )
     return createAssetsSpan?.traceFn(() => {
-      const entrypoints = compilation.entrypoints
+      const entrypoints: Map<string, any> = compilation.entrypoints
       const assetMap: DeepMutable<BuildManifest> = {
         polyfillFiles: [],
         devFiles: [],
@@ -250,8 +246,11 @@ export default class BuildManifestPlugin {
         ]
       }
 
-      const compilationAssets: Readonly<webpack.Asset>[] =
-        compilation.getAssets()
+      const compilationAssets: {
+        name: string
+        source: typeof sources.RawSource
+        info: object
+      }[] = compilation.getAssets()
 
       assetMap.polyfillFiles = compilationAssets
         .filter((p) => {
@@ -275,8 +274,8 @@ export default class BuildManifestPlugin {
       )
 
       for (const entrypoint of compilation.entrypoints.values()) {
-        if (SYSTEM_ENTRYPOINTS.has(entrypoint.name!)) continue
-        const pagePath = getRouteFromEntrypoint(entrypoint.name!)
+        if (SYSTEM_ENTRYPOINTS.has(entrypoint.name)) continue
+        const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
         if (!pagePath) continue
 
