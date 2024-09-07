@@ -14,12 +14,17 @@ export function findConfigPath(
 ): Promise<string | undefined> {
   // If we didn't find the configuration in `package.json`, we should look for
   // known filenames.
+  // https://github.com/postcss/postcss-load-config#postcssrcjs-or-postcssconfigjs
   return findUp(
     [
       `.${key}rc.json`,
       `${key}.config.json`,
       `.${key}rc.js`,
       `.${key}rc.ts`,
+      `.${key}rc.mjs`,
+      `.${key}rc.mts`,
+      `.${key}rc.cjs`,
+      `.${key}rc.cts`,
       `${key}.config.js`,
       `${key}.config.ts`,
       `${key}.config.mjs`,
