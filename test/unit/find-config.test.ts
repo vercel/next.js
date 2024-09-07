@@ -63,6 +63,47 @@ describe('find config', () => {
     })
   })
 
+  describe('typescript config', () => {
+    it('should resolve rc.ts', async () => {
+      const config = await findConfig(join(fixtureDir, 'config-ts'), 'test')
+      expect(config).toEqual({ foo: 'bar' })
+    })
+
+    it('should resolve rc.cts', async () => {
+      const config = await findConfig(join(fixtureDir, 'config-cts'), 'test')
+      expect(config).toEqual({ foo: 'bar' })
+    })
+
+    it('should resolve rc.mts', async () => {
+      const config = await findConfig(join(fixtureDir, 'config-mts'), 'test')
+      expect(config).toEqual({ foo: 'bar' })
+    })
+
+    it('should resolve .config.ts', async () => {
+      const config = await findConfig(
+        join(fixtureDir, 'config-long-ts'),
+        'test'
+      )
+      expect(config).toEqual({ foo: 'bar' })
+    })
+
+    it('should resolve .config.cts', async () => {
+      const config = await findConfig(
+        join(fixtureDir, 'config-long-cts'),
+        'test'
+      )
+      expect(config).toEqual({ foo: 'bar' })
+    })
+
+    it('should resolve .config.mts', async () => {
+      const config = await findConfig(
+        join(fixtureDir, 'config-long-mts'),
+        'test'
+      )
+      expect(config).toEqual({ foo: 'bar' })
+    })
+  })
+
   it('should resolve package.json', async () => {
     const config = await findConfig(
       join(fixtureDir, 'config-package-json'),
