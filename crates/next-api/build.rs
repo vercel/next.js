@@ -1,4 +1,4 @@
-use turbopack_binding::turbo::tasks_build::generate_register;
+use turbo_tasks_build::generate_register;
 
 fn main() {
     // Generates, stores build-time information as static values.

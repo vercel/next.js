@@ -21,6 +21,7 @@ use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
+    changed::content_changed,
     chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
     context::AssetContext,
     error::PrettyPrintError,
@@ -153,11 +154,11 @@ pub async fn get_evaluate_pool(
         chunking_context.root_entry_chunk_group_asset(path, entry_module, runtime_entries);
 
     let output_root: Vc<FileSystemPath> = chunking_context.output_root();
-    let emit_package = emit_package_json(output_root);
-    let emit = emit(bootstrap, output_root);
+    let _ = emit_package_json(output_root);
+    // Invalidate pool when code content changes
+    content_changed(Vc::upcast(bootstrap)).await?;
+    let _ = emit(bootstrap, output_root);
     let assets_for_source_mapping = internal_assets_for_source_mapping(bootstrap, output_root);
-    emit_package.await?;
-    emit.await?;
     let pool = NodeJsPool::new(
         cwd,
         entrypoint,
@@ -242,7 +243,7 @@ pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptE
     // We initialize the cell with a stream that is open, but has no values.
     // The first [compute_evaluate_stream] pipe call will pick up that stream.
     let (sender, receiver) = unbounded();
-    cell.update_shared(JavaScriptEvaluation(JavaScriptStream::new_open(
+    cell.update(JavaScriptEvaluation(JavaScriptStream::new_open(
         vec![],
         Box::new(receiver),
     )));
@@ -258,7 +259,7 @@ pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptE
                     // In cases when only [compute_evaluate_stream] is (re)executed, we need to
                     // update the old stream with a new value.
                     let (sender, receiver) = unbounded();
-                    cell.update_shared(JavaScriptEvaluation(JavaScriptStream::new_open(
+                    cell.update(JavaScriptEvaluation(JavaScriptStream::new_open(
                         vec![],
                         Box::new(receiver),
                     )));

@@ -71,7 +71,7 @@ async function refreshInactiveParallelSegmentsImpl({
         nextUrl: includeNextUrl ? state.nextUrl : null,
         buildId: state.buildId,
       }
-    ).then(({ f: flightData }) => {
+    ).then(({ flightData }) => {
       if (typeof flightData !== 'string') {
         for (const flightDataPath of flightData) {
           // we only pass the new cache as this function is called after clearing the router cache

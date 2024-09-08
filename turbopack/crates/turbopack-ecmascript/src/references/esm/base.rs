@@ -9,7 +9,7 @@ use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
-        ChunkingTypeOption, ModuleId,
+        ChunkingTypeOption,
     },
     issue::{IssueSeverity, IssueSource},
     module::Module,
@@ -30,6 +30,7 @@ use crate::{
     create_visitor, magic_identifier,
     references::util::{request_to_string, throw_module_not_found_expr},
     tree_shake::{asset::EcmascriptModulePartAsset, TURBOPACK_PART_IMPORT_SOURCE},
+    utils::module_id_to_lit,
 };
 
 #[turbo_tasks::value]
@@ -96,7 +97,6 @@ pub struct EsmAssetReference {
     pub issue_source: Option<Vc<IssueSource>>,
     pub export_name: Option<Vc<ModulePart>>,
     pub import_externals: bool,
-    pub special_exports: Vc<Vec<RcStr>>,
 }
 
 /// A list of [EsmAssetReference]s
@@ -122,7 +122,6 @@ impl EsmAssetReference {
         issue_source: Option<Vc<IssueSource>>,
         annotations: Value<ImportAnnotations>,
         export_name: Option<Vc<ModulePart>>,
-        special_exports: Vc<Vec<RcStr>>,
         import_externals: bool,
     ) -> Vc<Self> {
         Self::cell(EsmAssetReference {
@@ -132,7 +131,6 @@ impl EsmAssetReference {
             annotations: annotations.into_value(),
             export_name,
             import_externals,
-            special_exports,
         })
     }
 
@@ -258,11 +256,8 @@ impl CodeGenerateable for EsmAssetReference {
                         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
                             let stmt = quote!(
                                 "var $name = __turbopack_import__($id);" as Stmt,
-                                name = Ident::new(ident.clone().into(), DUMMY_SP),
-                                id: Expr = Expr::Lit(match &*id {
-                                    ModuleId::String(s) => s.clone().as_str().into(),
-                                    ModuleId::Number(n) => (*n as f64).into(),
-                                })
+                                name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                                id: Expr = module_id_to_lit(&id),
                             );
                             insert_hoisted_stmt(program, stmt);
                         }));
@@ -285,13 +280,13 @@ impl CodeGenerateable for EsmAssetReference {
                             let stmt = if import_externals {
                                 quote!(
                                     "var $name = __turbopack_external_import__($id);" as Stmt,
-                                    name = Ident::new(ident.clone().into(), DUMMY_SP),
+                                    name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
                                     id: Expr = Expr::Lit(request.to_string().into())
                                 )
                             } else {
                                 quote!(
                                     "var $name = __turbopack_external_require__($id, true);" as Stmt,
-                                    name = Ident::new(ident.clone().into(), DUMMY_SP),
+                                    name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
                                     id: Expr = Expr::Lit(request.to_string().into())
                                 )
                             };
@@ -318,7 +313,7 @@ impl CodeGenerateable for EsmAssetReference {
                         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
                             let stmt = quote!(
                                 "var $name = __turbopack_external_require__($id, true);" as Stmt,
-                                name = Ident::new(ident.clone().into(), DUMMY_SP),
+                                name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
                                 id: Expr = Expr::Lit(request.to_string().into())
                             );
                             insert_hoisted_stmt(program, stmt);

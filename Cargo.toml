@@ -10,7 +10,8 @@ members = [
   "crates/next-build",
   "crates/next-core",
   "crates/next-custom-transforms",
-  "turbopack/crates/*"
+  "turbopack/crates/*",
+  "turbopack/xtask",
 ]
 
 [workspace.lints.clippy]
@@ -40,9 +41,6 @@ next-custom-transforms = { path = "crates/next-custom-transforms" }
 # Turbopack
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
 node-file-trace = { path = "turbopack/crates/node-file-trace", default-features = false }
-signposter = { path = "turbopack/crates/turbo-tasks-signposter" }
-signposter-sys = { path = "turbopack/crates/turbo-tasks-signposter-sys" }
-tracing-signpost = { path = "turbopack/crates/turbo-tasks-tracing-signpost" }
 swc-ast-explorer = { path = "turbopack/crates/turbopack-swc-ast-explorer" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
@@ -60,7 +58,6 @@ turbo-tasks-memory = { path = "turbopack/crates/turbo-tasks-memory" }
 turbo-tasks-testing = { path = "turbopack/crates/turbo-tasks-testing" }
 turbopack = { path = "turbopack/crates/turbopack" }
 turbopack-bench = { path = "turbopack/crates/turbopack-bench" }
-turbopack-binding = { path = "turbopack/crates/turbopack-binding" }
 turbopack-nodejs = { path = "turbopack/crates/turbopack-nodejs" }
 turbopack-cli = { path = "turbopack/crates/turbopack-cli" }
 turbopack-cli-utils = { path = "turbopack/crates/turbopack-cli-utils" }
@@ -88,21 +85,21 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "0.96.9", features = [
+swc_core = { version = "0.103.1", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "0.36.0" }
+testing = { version = "0.39.0" }
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.16.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
-mdxjs = "0.2.5"
-modularize_imports = { version = "0.68.7" }
-styled_components = { version = "0.96.6" }
-styled_jsx = { version = "0.73.10" }
-swc_emotion = { version = "0.72.6" }
-swc_relay = { version = "0.44.5" }
+mdxjs = "0.2.9"
+modularize_imports = { version = "0.68.25" }
+styled_components = { version = "0.96.23" }
+styled_jsx = { version = "0.73.33" }
+swc_emotion = { version = "0.72.22" }
+swc_relay = { version = "0.44.25" }
 
 # General Deps
 
@@ -135,7 +132,7 @@ async-trait = "0.1.64"
 atty = "0.2.14"
 bytes = "1.1.0"
 chrono = "0.4.23"
-clap = "4.5.2"
+clap = { version = "4.5.2", features = ["derive"] }
 concurrent-queue = "2.5.0"
 console = "0.15.5"
 console-subscriber = "0.1.8"
@@ -156,7 +153,7 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
-lightningcss = { version = "1.0.0-alpha.57", features = [
+lightningcss = { version = "1.0.0-alpha.58", features = [
   "serde",
   "visitor",
   "into_owned",
@@ -184,12 +181,14 @@ proc-macro2 = "1.0.79"
 qstring = "0.7.2"
 quote = "1.0.23"
 rand = "0.8.5"
-regex = "1.7.0"
+regex = "1.10.6"
 rstest = "0.16.0"
 rustc-hash = "1.1.0"
 semver = "1.0.16"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.93"
+serde_bytes = "0.11.15"
+serde_path_to_error = "0.1.9"
 serde_qs = "0.11.0"
 serde_with = "2.3.2"
 serde_yaml = "0.9.17"
@@ -202,16 +201,16 @@ smallvec = { version = "1.13.1", features = [
   "union",
   "const_new",
 ] }
-sourcemap = "8.0.1"
+sourcemap = "9.0.0"
 syn = "1.0.107"
 tempfile = "3.3.0"
 thiserror = "1.0.48"
 tiny-gradient = "0.1.0"
 tokio = "1.25.0"
-tokio-util = { version = "0.7.7", features = ["io"] }
+tokio-util = { version = "0.7.11", features = ["io", "rt"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
-triomphe = "0.1.13"
+triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable" }
 unicode-segmentation = "1.10.1"
 unsize = "1.1.0"
 url = "2.2.2"

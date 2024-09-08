@@ -27,7 +27,10 @@ export const enum ExportedPagesFiles {
   AMP_DATA = 'AMP_PAGE_DATA',
 }
 
-export async function exportPages(
+/**
+ * Renders & exports a page associated with the /pages directory
+ */
+export async function exportPagesPage(
   req: MockedRequest,
   res: MockedResponse,
   path: string,
@@ -84,16 +87,10 @@ export async function exportPages(
     }
   } else {
     /**
-     * This sets environment variable to be used at the time of static export by head.tsx.
+     * This sets environment variable to be used at the time of SSR by head.tsx.
      * Using this from process.env allows targeting SSR by calling
-     * `process.env.__NEXT_OPTIMIZE_FONTS`.
-     * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
+     * `process.env.__NEXT_OPTIMIZE_CSS`.
      */
-    if (renderOpts.optimizeFonts) {
-      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(
-        renderOpts.optimizeFonts
-      )
-    }
     if (renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }

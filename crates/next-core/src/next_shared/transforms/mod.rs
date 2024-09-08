@@ -4,6 +4,7 @@ pub(crate) mod next_amp_attributes;
 pub(crate) mod next_cjs_optimizer;
 pub(crate) mod next_disallow_re_export_all_in_page;
 pub(crate) mod next_dynamic;
+pub(crate) mod next_edge_node_api_assert;
 pub(crate) mod next_font;
 pub(crate) mod next_middleware_dynamic_assert;
 pub(crate) mod next_optimize_server_react;
@@ -28,11 +29,9 @@ pub use next_strip_page_exports::get_next_pages_transforms_rule;
 pub use server_actions::get_server_actions_transform_rule;
 use turbo_tasks::{ReadRef, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    core::reference_type::{ReferenceType, UrlReferenceSubType},
-    ecmascript::{CustomTransformer, EcmascriptInputTransform},
-    turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType},
-};
+use turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType};
+use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
+use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform};
 
 use crate::next_image::{module::BlurPlaceholderMode, StructuredImageModuleType};
 

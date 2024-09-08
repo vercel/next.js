@@ -8,7 +8,9 @@ use swc_core::{
 };
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
-use crate::analyzer::{ConstantNumber, ConstantValue, JsValue};
+use crate::analyzer::{
+    ConstantNumber, ConstantValue, JsValue, ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
+};
 
 pub fn unparen(expr: &Expr) -> &Expr {
     if let Some(expr) = expr.as_paren() {
@@ -51,9 +53,21 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
     result
 }
 
+const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
+
 pub fn module_id_to_lit(module_id: &ModuleId) -> Expr {
     Expr::Lit(match module_id {
-        ModuleId::Number(n) => Lit::Num((*n as f64).into()),
+        ModuleId::Number(n) => {
+            if *n <= JS_MAX_SAFE_INTEGER {
+                Lit::Num((*n as f64).into())
+            } else {
+                Lit::Str(Str {
+                    span: DUMMY_SP,
+                    value: n.to_string().into(),
+                    raw: None,
+                })
+            }
+        }
         ModuleId::String(s) => Lit::Str(Str {
             span: DUMMY_SP,
             value: (s as &str).into(),
@@ -138,4 +152,33 @@ pub enum AstPathRange {
     /// The ast path to a expression just before the range in the parent of the
     /// specific ast path.
     StartAfter(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>),
+}
+
+/// Converts a module value (ie an import) to a well known object,
+/// which we specifically handle.
+pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<JsValue> {
+    Some(match &*module_value.module {
+        "node:path" | "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
+        "node:fs/promises" | "fs/promises" => {
+            JsValue::WellKnownObject(WellKnownObjectKind::FsModule)
+        }
+        "node:fs" | "fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
+        "node:child_process" | "child_process" => {
+            JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess)
+        }
+        "node:os" | "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
+        "node:process" | "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+        "@mapbox/node-pre-gyp" => JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
+        "node-gyp-build" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild),
+        "node:bindings" | "bindings" => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings)
+        }
+        "express" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpress),
+        "strong-globalize" => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalize)
+        }
+        "resolve-from" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom),
+        "@grpc/proto-loader" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader),
+        _ => return None,
+    })
 }

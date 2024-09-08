@@ -217,15 +217,13 @@ pub struct LogOptions {
 /// When a source repulls emitted issues due to a recomputation somewhere in its
 /// graph, there are a few possibilities:
 ///
-/// 1. An issue from this pull is brand new to all sources, in which case it
-///    will be logged and the issue's count is inremented.
-/// 2. An issue from this pull is brand new to this source but another source
-///    has already pulled it, in which case it will be logged and the issue's
-///    count is incremented.
-/// 3. The previous pull from this source had already seen the issue, in which
-///    case the issue will be skipped and the issue's count remains constant.
-/// 4. An issue seen in a previous pull was not repulled, and the issue's count
-///    is decremented.
+/// 1. An issue from this pull is brand new to all sources, in which case it will be logged and the
+///    issue's count is inremented.
+/// 2. An issue from this pull is brand new to this source but another source has already pulled it,
+///    in which case it will be logged and the issue's count is incremented.
+/// 3. The previous pull from this source had already seen the issue, in which case the issue will
+///    be skipped and the issue's count remains constant.
+/// 4. An issue seen in a previous pull was not repulled, and the issue's count is decremented.
 ///
 /// Once an issue's count reaches zero, it's removed. If it is ever seen again,
 /// it is considered new and will be relogged.

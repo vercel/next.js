@@ -158,6 +158,15 @@ export function withQuery(
   return `${pathname}?${querystring}`
 }
 
+export function getFetchUrl(
+  appPort: string | number,
+  pathname: string,
+  query?: Record<string, any> | string | null | undefined
+) {
+  const url = query ? withQuery(pathname, query) : pathname
+  return getFullUrl(appPort, url)
+}
+
 export function fetchViaHTTP(
   appPort: string | number,
   pathname: string,
@@ -866,7 +875,7 @@ export async function assertNoRedbox(browser: BrowserInterface) {
         `description: ${redboxDescription}\n` +
         `source: ${redboxSource}`
     )
-    Error.captureStackTrace(error, assertHasRedbox)
+    Error.captureStackTrace(error, assertNoRedbox)
     throw error
   }
 }

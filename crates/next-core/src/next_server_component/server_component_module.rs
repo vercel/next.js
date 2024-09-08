@@ -2,25 +2,26 @@ use anyhow::{bail, Result};
 use indoc::formatdoc;
 use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    core::{
-        asset::{Asset, AssetContent},
-        chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
-        ident::AssetIdent,
-        module::Module,
-        reference::ModuleReferences,
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
+    ident::AssetIdent,
+    module::{Module, Modules},
+    reference::ModuleReferences,
+};
+use turbopack_ecmascript::{
+    chunk::{
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, EcmascriptExports,
     },
-    ecmascript::{chunk::EcmascriptChunkType, references::esm::EsmExports},
-    turbopack::ecmascript::{
-        chunk::{
-            EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-            EcmascriptExports,
-        },
-        utils::StringifyJs,
-    },
+    references::{esm::EsmExports, external_module::IncludeIdentModule},
+    utils::StringifyJs,
 };
 
 use super::server_component_reference::NextServerComponentModuleReference;
+use crate::next_app::app_client_references_chunks::{
+    client_modules_modifier, client_modules_ssr_modifier,
+};
 
 #[turbo_tasks::function]
 fn modifier() -> Vc<RcStr> {
@@ -59,6 +60,18 @@ impl Module for NextServerComponentModule {
             Vc::upcast(self.module),
         ))])
     }
+
+    #[turbo_tasks::function]
+    fn additional_layers_modules(self: Vc<Self>) -> Vc<Modules> {
+        let base_ident = self.ident();
+        let ssr_entry_module = Vc::upcast(IncludeIdentModule::new(
+            base_ident.with_modifier(client_modules_ssr_modifier()),
+        ));
+        let client_entry_module = Vc::upcast(IncludeIdentModule::new(
+            base_ident.with_modifier(client_modules_modifier()),
+        ));
+        Vc::cell(vec![ssr_entry_module, client_entry_module])
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -75,7 +88,7 @@ impl ChunkableModule for NextServerComponentModule {
     async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>>> {
+    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         Ok(Vc::upcast(
             BuildServerComponentChunkItem {
                 chunking_context,

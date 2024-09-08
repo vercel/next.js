@@ -331,6 +331,7 @@ pub fn increase_aggregation_number_internal<C: AggregationContext>(
     prepared.apply(ctx, balance_queue);
 }
 
+#[allow(dead_code)]
 /// A prepared `increase_aggregation_number` operation.
 pub struct PreparedIncreaseAggregationNumber<C: AggregationContext>(
     PreparedInternalIncreaseAggregationNumber<C>,

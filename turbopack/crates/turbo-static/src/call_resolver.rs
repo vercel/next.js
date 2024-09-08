@@ -41,9 +41,8 @@ impl<'a> CallResolver<'a> {
                 bincode::deserialize_from::<_, HashMap<Identifier, Vec<IdentifierReference>>>(
                     reader,
                 )
-                .map_err(|e| {
+                .inspect_err(|_| {
                     tracing::warn!("failed to load existing cache, restarting");
-                    e
                 })
                 .ok()
             })

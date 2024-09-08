@@ -679,6 +679,8 @@ export interface Project {
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
 
+  shutdown(): Promise<void>
+
   onExit(): Promise<void>
 }
 
@@ -768,6 +770,12 @@ export type WrittenEndpoint =
       clientPaths: string[]
       /** All server paths that have been written for the endpoint. */
       serverPaths: ServerPath[]
+      config: EndpointConfig
+    }
+  | {
+      type: 'none'
+      clientPaths: []
+      serverPaths: []
       config: EndpointConfig
     }
 
@@ -1092,6 +1100,10 @@ function bindingToApi(
           )
       )
       return subscription
+    }
+
+    shutdown(): Promise<void> {
+      return binding.projectShutdown(this._nativeProject)
     }
 
     onExit(): Promise<void> {

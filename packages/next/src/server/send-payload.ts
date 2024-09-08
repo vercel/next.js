@@ -68,52 +68,10 @@ export async function sendRenderResult({
       })
     )
   }
-
   const payload = result.isDynamic ? null : result.toUnchunkedString()
 
-  if (payload !== null) {
-    let etagPayload = payload
-    if (type === 'rsc') {
-      // ensure etag generation is deterministic as
-      // ordering can differ even if underlying content
-      // does not differ
-      etagPayload = payload.split('\n').sort().join('\n')
-    } else if (type === 'html' && payload.includes('__next_f')) {
-      const { parse } =
-        require('next/dist/compiled/node-html-parser') as typeof import('next/dist/compiled/node-html-parser')
-
-      try {
-        // Parse the HTML
-        let root = parse(payload)
-
-        // Get script tags in the body element
-        let scriptTags = root
-          .querySelector('body')
-          ?.querySelectorAll('script')
-          .filter(
-            (node) =>
-              !node.hasAttribute('src') && node.innerHTML?.includes('__next_f')
-          )
-
-        // Sort the script tags by their inner text
-        scriptTags?.sort((a, b) => a.innerHTML.localeCompare(b.innerHTML))
-
-        // Remove the original script tags
-        scriptTags?.forEach((script: any) => script.remove())
-
-        // Append the sorted script tags to the body
-        scriptTags?.forEach((script: any) =>
-          root.querySelector('body')?.appendChild(script)
-        )
-
-        // Stringify back to HTML
-        etagPayload = root.toString()
-      } catch (err) {
-        console.error(`Error parsing HTML payload`, err)
-      }
-    }
-
-    const etag = generateEtags ? generateETag(etagPayload) : undefined
+  if (generateEtags && payload !== null) {
+    const etag = generateETag(payload)
     if (sendEtagResponse(req, res, etag)) {
       return
     }

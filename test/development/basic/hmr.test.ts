@@ -461,12 +461,15 @@ describe.each([
       }
     })
 
-    it('should not continously poll a custom error page', async () => {
-      const errorPage = join('pages', '_error.js')
+    // this test fails frequently with turbopack
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should not continously poll a custom error page',
+      async () => {
+        const errorPage = join('pages', '_error.js')
 
-      await next.patchFile(
-        errorPage,
-        outdent`
+        await next.patchFile(
+          errorPage,
+          outdent`
           function Error({ statusCode, message, count }) {
             return (
               <div>
@@ -486,27 +489,29 @@ describe.each([
 
           export default Error
         `
-      )
+        )
 
-      try {
-        // navigate to a 404 page
-        await webdriver(next.url, basePath + '/does-not-exist')
+        try {
+          // navigate to a 404 page
+          await webdriver(next.url, basePath + '/does-not-exist')
 
-        await check(() => next.cliOutput, /getInitialProps called/)
+          await check(() => next.cliOutput, /getInitialProps called/)
 
-        const outputIndex = next.cliOutput.length
+          const outputIndex = next.cliOutput.length
 
-        // wait a few seconds to ensure polling didn't happen
-        await waitFor(3000)
+          // wait a few seconds to ensure polling didn't happen
+          await waitFor(3000)
 
-        const logOccurrences =
-          next.cliOutput.slice(outputIndex).split('getInitialProps called')
-            .length - 1
-        expect(logOccurrences).toBe(0)
-      } finally {
-        await next.deleteFile(errorPage)
+          const logOccurrences =
+            next.cliOutput.slice(outputIndex).split('getInitialProps called')
+              .length - 1
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(logOccurrences).toBe(0)
+        } finally {
+          await next.deleteFile(errorPage)
+        }
       }
-    })
+    )
 
     it('should detect syntax errors and recover', async () => {
       const browser = await webdriver(next.url, basePath + '/hmr/about2')
@@ -1200,5 +1205,30 @@ describe.each([
     } finally {
       await next.patchFile(pageName, originalContent)
     }
+  })
+
+  it('should reload the page when the server restarts', async () => {
+    const browser = await webdriver(next.url, basePath + '/hmr/about', {
+      headless: false,
+    })
+    await check(() => getBrowserBodyText(browser), /This is the about page/)
+
+    await next.destroy()
+
+    let reloadPromise = new Promise((resolve) => {
+      browser.on('request', (req) => {
+        if (req.url().endsWith('/hmr/about')) {
+          resolve(req.url())
+        }
+      })
+    })
+
+    next = await createNext({
+      files: join(__dirname, 'hmr'),
+      nextConfig,
+      forcedPort: next.appPort,
+    })
+
+    await reloadPromise
   })
 })

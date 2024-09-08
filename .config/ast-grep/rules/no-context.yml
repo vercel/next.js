@@ -1,3 +1,5 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+
 id: no-context
 message: Don't name variables `context`.
 note: Use a more specific name, such as chunking_context, asset_context, etc.
@@ -18,18 +20,3 @@ rule:
         - kind: field_identifier
         - inside:
             kind: field_declaration
-ignores:
-  - './crates/turbopack-css/**'
-  - './crates/turbopack-dev-server/**'
-  - './crates/turbopack-browser/**'
-  - './crates/turbopack-ecmascript-hmr-protocol/**'
-  - './crates/turbopack-ecmascript-plugins/**'
-  - './crates/turbopack-ecmascript-runtime/**'
-  - './crates/turbopack-json/**'
-  - './crates/turbopack-mdx/**'
-  - './crates/turbopack-node/**'
-  - './crates/turbopack-static/**'
-  - './crates/turbopack-tests/**'
-  - './crates/turbopack/**'
-  - './crates/turborepo-cache/**'
-  - './crates/turborepo-scm/**'

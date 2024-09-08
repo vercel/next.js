@@ -1,4 +1,3 @@
-#![feature(lint_reasons)]
 #![feature(iter_intersperse)]
 #![feature(arbitrary_self_types)]
 

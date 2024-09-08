@@ -17,16 +17,14 @@ async fn ignored_indexes() {
         i32,
     );
 
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let input = IgnoredIndexes(-1, 2, -3);
-        let debug = input
-            .value_debug_format(usize::MAX)
-            .try_to_string()
-            .await
-            .unwrap();
+        let debug = input.value_debug_format(usize::MAX).try_to_string().await?;
         assert!(!debug.contains("-1"));
         assert!(debug.contains('2'));
         assert!(!debug.contains("-3"));
+        anyhow::Ok(())
     })
-    .await;
+    .await
+    .unwrap();
 }

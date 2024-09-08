@@ -29,7 +29,7 @@ export function makeGetServerInsertedHTML({
   polyfills: JSX.IntrinsicElements['script'][]
   renderServerInsertedHTML: () => React.ReactNode
   tracingMetadata: ClientTraceDataEntry[] | undefined
-  serverCapturedErrors: Error[]
+  serverCapturedErrors: Array<unknown>
   basePath: string
 }) {
   let flushedErrorMetaTagsUntilIndex = 0

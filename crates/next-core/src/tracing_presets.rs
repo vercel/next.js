@@ -1,5 +1,5 @@
 use once_cell::sync::Lazy;
-use turbopack_binding::turbopack::trace_utils::tracing_presets::{
+use turbopack_trace_utils::tracing_presets::{
     TRACING_OVERVIEW_TARGETS, TRACING_TURBOPACK_TARGETS, TRACING_TURBO_TASKS_TARGETS,
 };
 

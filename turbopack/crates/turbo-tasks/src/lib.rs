@@ -5,12 +5,12 @@
 //! - functions: Unit of execution, invalidation and reexecution.
 //! - values: Data created, stored and returned by functions.
 //! - traits: Traits that define a set of functions on values.
-//! - collectibles: Values emitted in functions that bubble up the call graph
-//!   and can be collected in parent functions.
+//! - collectibles: Values emitted in functions that bubble up the call graph and can be collected
+//!   in parent functions.
 //!
 //! It also defines some derived elements from that:
-//! - cells: The locations in functions where values are stored. The content of
-//!   a cell can change after the reexecution of a function.
+//! - cells: The locations in functions where values are stored. The content of a cell can change
+//!   after the reexecution of a function.
 //! - Vcs: A reference to a cell in a function or a return value of a function.
 //! - task: An instance of a function together with its arguments.
 //!
@@ -62,6 +62,7 @@ mod raw_vc;
 mod rcstr;
 mod read_ref;
 pub mod registry;
+mod serialization_invalidation;
 pub mod small_duration;
 mod state;
 pub mod task;
@@ -81,23 +82,27 @@ use auto_hash_map::AutoSet;
 pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, Completions};
 pub use display::ValueToString;
-pub use id::{FunctionId, TaskId, TraitTypeId, ValueTypeId};
+pub use id::{
+    ExecutionId, FunctionId, LocalTaskId, TaskId, TraitTypeId, ValueTypeId, TRANSIENT_TASK_BIT,
+};
 pub use invalidation::{
-    DynamicEqHash, InvalidationReason, InvalidationReasonKind, InvalidationReasonSet,
+    get_invalidator, DynamicEqHash, InvalidationReason, InvalidationReasonKind,
+    InvalidationReasonSet, Invalidator,
 };
 pub use join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt};
 pub use magic_any::MagicAny;
 pub use manager::{
-    dynamic_call, dynamic_this_call, emit, get_invalidator, mark_finished, mark_stateful,
+    dynamic_call, dynamic_this_call, emit, mark_dirty_when_persisted, mark_finished, mark_stateful,
     prevent_gc, run_once, run_once_with_reason, spawn_blocking, spawn_thread, trait_call,
-    turbo_tasks, CurrentCellRef, Invalidator, TaskIdProvider, TurboTasks, TurboTasksApi,
-    TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo,
+    turbo_tasks, CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
+    TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
 };
-pub use native_function::NativeFunction;
+pub use native_function::{FunctionMeta, NativeFunction};
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
 pub use read_ref::ReadRef;
 use rustc_hash::FxHasher;
-pub use state::State;
+pub use serialization_invalidation::SerializationInvalidator;
+pub use state::{State, TransientState};
 pub use task::{task_input::TaskInput, SharedReference};
 pub use trait_ref::{IntoTraitRef, TraitRef};
 pub use turbo_tasks_macros::{function, value, value_impl, value_trait, TaskInput};

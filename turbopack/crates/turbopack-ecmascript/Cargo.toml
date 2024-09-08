@@ -68,7 +68,7 @@ swc_core = { workspace = true, features = [
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
-rstest = { workspace = true }
+#rstest = { workspace = true }
 turbo-tasks-memory = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 

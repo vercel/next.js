@@ -2,7 +2,7 @@ use anyhow::Result;
 use indexmap::IndexMap;
 use tracing::Instrument;
 use turbo_tasks::{RcStr, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc};
-use turbopack_binding::turbopack::core::{
+use turbopack_core::{
     chunk::{availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt},
     module::Module,
     output::OutputAssets,
@@ -18,12 +18,12 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-fn client_modules_modifier() -> Vc<RcStr> {
+pub fn client_modules_modifier() -> Vc<RcStr> {
     Vc::cell("client modules".into())
 }
 
 #[turbo_tasks::function]
-fn client_modules_ssr_modifier() -> Vc<RcStr> {
+pub fn client_modules_ssr_modifier() -> Vc<RcStr> {
     Vc::cell("client modules ssr".into())
 }
 

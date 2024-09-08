@@ -13,7 +13,6 @@ bench = false
 workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
 either = { workspace = true }
 proc-macro-error = "1.0.4"
 proc-macro2 = { workspace = true }

@@ -2,6 +2,7 @@
 
 import {
   check,
+  retry,
   findPort,
   killApp,
   nextBuild,
@@ -101,20 +102,16 @@ describe('Prefetching Links in viewport', () => {
         try {
           browser = await webdriver(appPort, '/')
 
-          await check(async () => {
+          await retry(async () => {
             const links = await browser.elementsByCss('link[rel=prefetch]')
-            let found = false
 
-            for (const link of links) {
-              const href = await link.getAttribute('href')
-              if (href.includes('first')) {
-                found = true
-                break
-              }
-            }
-            expect(found).toBe(true)
-            return 'success'
-          }, 'success')
+            const hrefs = await Promise.all(
+              links.map((link) => link.getAttribute('href'))
+            )
+            expect(hrefs).toEqual(
+              expect.arrayContaining([expect.stringContaining('first')])
+            )
+          })
         } finally {
           if (browser) await browser.close()
         }
@@ -157,21 +154,17 @@ describe('Prefetching Links in viewport', () => {
         try {
           browser = await webdriver(appPort, '/rewrite-prefetch')
 
-          await check(async () => {
+          await retry(async () => {
             const links = await browser.elementsByCss('link[rel=prefetch]')
-            let found = false
 
-            for (const link of links) {
-              const href = await link.getAttribute('href')
-              if (href.includes('%5Bslug%5D')) {
-                found = true
-                break
-              }
-            }
-            expect(found).toBe(true)
-            return 'success'
-          }, 'success')
+            const hrefs = await Promise.all(
+              links.map((link) => link.getAttribute('href'))
+            )
 
+            expect(hrefs).toEqual(
+              expect.arrayContaining([expect.stringContaining('%5Bslug%5D')])
+            )
+          })
           const hrefs = await browser.eval(
             `Object.keys(window.next.router.sdc)`
           )
@@ -211,19 +204,17 @@ describe('Prefetching Links in viewport', () => {
         try {
           browser = await webdriver(appPort, '/')
           await browser.elementByCss('#scroll-to-another').click()
-          await waitFor(2 * 1000)
 
-          const links = await browser.elementsByCss('link[rel=prefetch]')
-          let found = false
+          await retry(async () => {
+            const links = await browser.elementsByCss('link[rel=prefetch]')
 
-          for (const link of links) {
-            const href = await link.getAttribute('href')
-            if (href.includes('another')) {
-              found = true
-              break
-            }
-          }
-          expect(found).toBe(true)
+            const hrefs = await Promise.all(
+              links.map((link) => link.getAttribute('href'))
+            )
+            expect(hrefs).toEqual(
+              expect.arrayContaining([expect.stringContaining('another')])
+            )
+          })
         } finally {
           if (browser) await browser.close()
         }
@@ -234,36 +225,31 @@ describe('Prefetching Links in viewport', () => {
         try {
           browser = await webdriver(appPort, '/')
           await browser.elementByCss('#scroll-to-another').click()
-          await waitFor(2 * 1000)
 
-          const links = await browser.elementsByCss('link[rel=prefetch]')
-          let foundLink = false
+          await retry(async () => {
+            const links = await browser.elementsByCss('link[rel=prefetch]')
 
-          for (const link of links) {
-            const href = await link.getAttribute('href')
-            if (href.includes('another')) {
-              foundLink = true
-              break
-            }
-          }
-          expect(foundLink).toBe(true)
+            const hrefs = await Promise.all(
+              links.map((link) => link.getAttribute('href'))
+            )
+            expect(hrefs).toEqual(
+              expect.arrayContaining([expect.stringContaining('another')])
+            )
+          })
 
           await browser.elementByCss('#link-another').moveTo()
-          await waitFor(2 * 1000)
 
-          const scripts = await browser.elementsByCss(
+          await retry(async () => {
             // Mouse hover is a high-priority fetch
-            'script:not([async])'
-          )
-          let scriptFound = false
-          for (const aScript of scripts) {
-            const href = await aScript.getAttribute('src')
-            if (href.includes('another')) {
-              scriptFound = true
-              break
-            }
-          }
-          expect(scriptFound).toBe(true)
+            const scripts = await browser.elementsByCss('script:not([async])')
+
+            const srcProps = await Promise.all(
+              scripts.map((script) => script.getAttribute('src'))
+            )
+            expect(srcProps).toEqual(
+              expect.arrayContaining([expect.stringContaining('another')])
+            )
+          })
         } finally {
           if (browser) await browser.close()
         }
@@ -273,19 +259,17 @@ describe('Prefetching Links in viewport', () => {
         let browser
         try {
           browser = await webdriver(appPort, '/prefetch-disabled')
-          await waitFor(2 * 1000)
 
-          const links = await browser.elementsByCss('link[rel=prefetch]')
-          let foundLink = false
+          await retry(async () => {
+            const links = await browser.elementsByCss('link[rel=prefetch]')
 
-          for (const link of links) {
-            const href = await link.getAttribute('href')
-            if (href.includes('another')) {
-              foundLink = true
-              break
-            }
-          }
-          expect(foundLink).toBe(false)
+            const hrefs = await Promise.all(
+              links.map((link) => link.getAttribute('href'))
+            )
+            expect(hrefs).toEqual(
+              expect.not.arrayContaining([expect.stringContaining('another')])
+            )
+          })
 
           async function hasAnotherScript() {
             const scripts = await browser.elementsByCss(
@@ -358,21 +342,18 @@ describe('Prefetching Links in viewport', () => {
         try {
           browser = await webdriver(appPort, '/invalid-ref')
           await browser.elementByCss('#btn-link').moveTo()
-          await waitFor(2 * 1000)
 
-          const scripts = await browser.elementsByCss(
+          await retry(async () => {
             // Mouse hover is a high-priority fetch
-            'script:not([async])'
-          )
-          let scriptFound = false
-          for (const aScript of scripts) {
-            const href = await aScript.getAttribute('src')
-            if (href.includes('another')) {
-              scriptFound = true
-              break
-            }
-          }
-          expect(scriptFound).toBe(true)
+            const scripts = await browser.elementsByCss('script:not([async])')
+
+            const srcProps = await Promise.all(
+              scripts.map((script) => script.getAttribute('src'))
+            )
+            expect(srcProps).toEqual(
+              expect.arrayContaining([expect.stringContaining('another')])
+            )
+          })
         } finally {
           if (browser) await browser.close()
         }
@@ -397,17 +378,15 @@ describe('Prefetching Links in viewport', () => {
       it('should not prefetch when prefetch is explicitly set to false', async () => {
         const browser = await webdriver(appPort, '/opt-out')
 
-        const links = await browser.elementsByCss('link[rel=prefetch]')
-        let found = false
-
-        for (const link of links) {
-          const href = await link.getAttribute('href')
-          if (href.includes('another')) {
-            found = true
-            break
-          }
-        }
-        expect(found).toBe(false)
+        await retry(async () => {
+          const links = await browser.elementsByCss('link[rel=prefetch]')
+          const hrefs = await Promise.all(
+            links.map((link) => link.getAttribute('href'))
+          )
+          expect(hrefs).toEqual(
+            expect.not.arrayContaining([expect.stringContaining('another')])
+          )
+        })
       })
 
       // Turbopack handling of chunks is different, by default it does not include a script tag for the page itself.
@@ -467,20 +446,15 @@ describe('Prefetching Links in viewport', () => {
         // want to be re-fetched/re-observed.
         const browser = await webdriver(appPort, '/')
 
-        await check(async () => {
+        await retry(async () => {
           const links = await browser.elementsByCss('link[rel=prefetch]')
-          let found = false
-
-          for (const link of links) {
-            const href = await link.getAttribute('href')
-            if (href.includes('first')) {
-              found = true
-              break
-            }
-          }
-          expect(found).toBe(true)
-          return 'success'
-        }, 'success')
+          const hrefs = await Promise.all(
+            links.map((link) => link.getAttribute('href'))
+          )
+          expect(hrefs).toEqual(
+            expect.arrayContaining([expect.stringContaining('first')])
+          )
+        })
 
         await browser.eval(`(function() {
       window.calledPrefetch = false

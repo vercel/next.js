@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Upcast, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -104,8 +104,7 @@ pub trait ChunkingContext {
 
     /// Generates an output chunk that:
     /// * evaluates the given assets; and
-    /// * exports the result of evaluating the given module as a CommonJS
-    ///   default export.
+    /// * exports the result of evaluating the given module as a CommonJS default export.
     fn entry_chunk_group(
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
@@ -117,9 +116,7 @@ pub trait ChunkingContext {
     async fn chunk_item_id_from_ident(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-    ) -> Result<Vc<ModuleId>> {
-        Ok(ModuleId::String(ident.to_string().await?.clone_value()).cell())
-    }
+    ) -> Result<Vc<ModuleId>>;
 
     fn chunk_item_id(self: Vc<Self>, chunk_item: Vc<Box<dyn ChunkItem>>) -> Vc<ModuleId> {
         self.chunk_item_id_from_ident(chunk_item.asset_ident())

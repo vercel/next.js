@@ -112,36 +112,43 @@ pub struct JsxTransformOptions {
 #[derive(Clone, Default)]
 #[serde(default)]
 pub struct ModuleOptionsContext {
-    pub enable_typeof_window_inlining: Option<TypeofWindow>,
-    pub enable_jsx: Option<Vc<JsxTransformOptions>>,
+    pub ecmascript: EcmascriptOptionsContext,
+    pub css: CssOptionsContext,
+
     pub enable_postcss_transform: Option<Vc<PostCssTransformOptions>>,
     pub enable_webpack_loaders: Option<Vc<WebpackLoadersOptions>>,
-    /// Follow type references and resolve declaration files in additional to
-    /// normal resolution.
-    pub enable_types: bool,
-    pub enable_typescript_transform: Option<Vc<TypescriptTransformOptions>>,
-    pub decorators: Option<Vc<DecoratorsOptions>>,
-    pub enable_mdx: bool,
-    /// This skips `GlobalCss` and `ModuleCss` module assets from being
-    /// generated in the module graph, generating only `Css` module assets.
-    ///
-    /// This is useful for node-file-trace, which tries to emit all assets in
-    /// the module graph, but neither asset types can be emitted directly.
-    pub enable_raw_css: bool,
     // [Note]: currently mdx, and mdx_rs have different configuration entrypoint from next.config.js,
     // however we might want to unify them in the future.
+    pub enable_mdx: bool,
     pub enable_mdx_rs: Option<Vc<MdxTransformOptions>>,
+
     pub preset_env_versions: Option<Vc<Environment>>,
-    /// Custom rules to be applied after all default rules.
-    pub custom_rules: Vec<ModuleRule>,
     pub execution_context: Option<Vc<ExecutionContext>>,
+    pub side_effect_free_packages: Vec<RcStr>,
+    pub tree_shaking_mode: Option<TreeShakingMode>,
+
+    pub special_exports: Option<Vc<Vec<RcStr>>>,
+
+    /// Custom rules to be applied after all default rules.
+    pub module_rules: Vec<ModuleRule>,
     /// A list of rules to use a different module option context for certain
     /// context paths. The first matching is used.
     pub rules: Vec<(ContextCondition, Vc<ModuleOptionsContext>)>,
     pub placeholder_for_future_extensions: (),
-    pub tree_shaking_mode: Option<TreeShakingMode>,
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Default)]
+#[serde(default)]
+pub struct EcmascriptOptionsContext {
+    pub enable_typeof_window_inlining: Option<TypeofWindow>,
+    pub enable_jsx: Option<Vc<JsxTransformOptions>>,
+    /// Follow type references and resolve declaration files in additional to
+    /// normal resolution.
+    pub enable_types: bool,
+    pub enable_typescript_transform: Option<Vc<TypescriptTransformOptions>>,
+    pub enable_decorators: Option<Vc<DecoratorsOptions>>,
     pub esm_url_rewrite_behavior: Option<UrlRewriteBehavior>,
-    pub special_exports: Option<Vc<Vec<RcStr>>>,
     /// References to externals from ESM imports should use `import()` and make
     /// async modules.
     pub import_externals: bool,
@@ -150,9 +157,22 @@ pub struct ModuleOptionsContext {
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
 
+    pub placeholder_for_future_extensions: (),
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Default)]
+#[serde(default)]
+pub struct CssOptionsContext {
+    /// This skips `GlobalCss` and `ModuleCss` module assets from being
+    /// generated in the module graph, generating only `Css` module assets.
+    ///
+    /// This is useful for node-file-trace, which tries to emit all assets in
+    /// the module graph, but neither asset types can be emitted directly.
+    pub enable_raw_css: bool,
     pub use_swc_css: bool,
 
-    pub side_effect_free_packages: Vec<RcStr>,
+    pub placeholder_for_future_extensions: (),
 }
 
 #[turbo_tasks::value_impl]

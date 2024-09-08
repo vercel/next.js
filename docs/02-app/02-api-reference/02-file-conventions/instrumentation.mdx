@@ -62,6 +62,8 @@ export function register() {
 
 ### `onRequestError` (optional)
 
+> This API is available in Next.js canary.
+
 You can optionally export an `onRequestError` function to track and send **server** errors to an observability tool.
 
 ```ts filename="instrumentation.ts" switcher
@@ -110,7 +112,7 @@ The function accepts three parameters: `error`, `request`, and `context`.
 export function onRequestError(
   error: { digest: string } & Error,
   request: {
-    url: string // full URL
+    path: string // resource path, e.g. /blog?name=foo
     method: string // request method. e.g. GET, POST, etc
     headers: { [key: string]: string }
   },

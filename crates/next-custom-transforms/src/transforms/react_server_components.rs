@@ -1,12 +1,13 @@
-use std::{collections::HashMap, path::PathBuf, rc::Rc};
+use std::{collections::HashMap, path::PathBuf, rc::Rc, sync::Arc};
 
+use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Deserialize;
-use swc_core::{common::util::take::Take, ecma::visit::VisitWith};
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
+        util::take::Take,
         FileName, Span, Spanned, DUMMY_SP,
     },
     ecma::{
@@ -15,6 +16,7 @@ use turbopack_binding::swc::core::{
         utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
         visit::{
             as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
+            VisitWith,
         },
     },
 };
@@ -160,11 +162,11 @@ impl<C: Comments> ReactServerComponents<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("require").as_callee(),
                             args: vec![quote_str!("private-next-rsc-mod-ref-proxy").as_arg()],
-                            type_args: Default::default(),
+                            ..Default::default()
                         }))),
                         definite: false,
                     }],
-                    declare: false,
+                    ..Default::default()
                 })))),
                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
@@ -172,7 +174,7 @@ impl<C: Comments> ReactServerComponents<C> {
                         span: DUMMY_SP,
                         left: MemberExpr {
                             span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(quote_ident!("module"))),
+                            obj: Box::new(Expr::Ident(quote_ident!("module").into())),
                             prop: MemberProp::Ident(quote_ident!("exports")),
                         }
                         .into(),
@@ -181,7 +183,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("createProxy").as_callee(),
                             args: vec![filepath.as_arg()],
-                            type_args: Default::default(),
+                            ..Default::default()
                         })),
                     })),
                 })),
@@ -376,11 +378,24 @@ fn collect_top_level_directives_and_imports(
                     }
                 }
             }
-            ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
+            ModuleItem::ModuleDecl(ModuleDecl::Import(
+                import @ ImportDecl {
+                    type_only: false, ..
+                },
+            )) => {
                 let source = import.src.value.clone();
                 let specifiers = import
                     .specifiers
                     .iter()
+                    .filter(|specifier| {
+                        !matches!(
+                            specifier,
+                            ImportSpecifier::Named(ImportNamedSpecifier {
+                                is_type_only: true,
+                                ..
+                            })
+                        )
+                    })
                     .map(|specifier| match specifier {
                         ImportSpecifier::Named(named) => match &named.imported {
                             Some(imported) => match &imported {
@@ -552,7 +567,8 @@ impl ReactServerComponentValidator {
     }
 
     fn is_from_node_modules(&self, filepath: &str) -> bool {
-        Regex::new(r"node_modules[\\/]").unwrap().is_match(filepath)
+        static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"node_modules[\\/]").unwrap());
+        RE.is_match(filepath)
     }
 
     // Asserts the server lib apis
@@ -560,7 +576,6 @@ impl ReactServerComponentValidator {
     // assert_invalid_server_lib_apis("react", import)
     // assert_invalid_server_lib_apis("react-dom", import)
     fn assert_invalid_server_lib_apis(&self, import_source: String, import: &ModuleImports) {
-        // keys of invalid_server_lib_apis_mapping
         let invalid_apis = self
             .invalid_server_lib_apis_mapping
             .get(import_source.as_str());
@@ -604,9 +619,10 @@ impl ReactServerComponentValidator {
         if self.is_from_node_modules(&self.filepath) {
             return;
         }
-        let is_error_file = Regex::new(r"[\\/]error\.(ts|js)x?$")
-            .unwrap()
-            .is_match(&self.filepath);
+        static RE: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"[\\/]((global-)?error)\.(ts|js)x?$").unwrap());
+
+        let is_error_file = RE.is_match(&self.filepath);
 
         if is_error_file {
             if let Some(app_dir) = &self.app_dir {
@@ -666,9 +682,9 @@ impl ReactServerComponentValidator {
         if self.is_from_node_modules(&self.filepath) {
             return;
         }
-        let is_layout_or_page = Regex::new(r"[\\/](page|layout)\.(ts|js)x?$")
-            .unwrap()
-            .is_match(&self.filepath);
+        static RE: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"[\\/](page|layout)\.(ts|js)x?$").unwrap());
+        let is_layout_or_page = RE.is_match(&self.filepath);
 
         if is_layout_or_page {
             let mut span = DUMMY_SP;
@@ -847,7 +863,7 @@ pub fn server_components_assert(
 /// Runs react server component transform for the module proxy, as well as
 /// running assertion.
 pub fn server_components<C: Comments>(
-    filename: FileName,
+    filename: Arc<FileName>,
     config: Config,
     comments: C,
     app_dir: Option<PathBuf>,
@@ -859,7 +875,7 @@ pub fn server_components<C: Comments>(
     as_folder(ReactServerComponents {
         is_react_server_layer,
         comments,
-        filepath: match filename {
+        filepath: match &*filename {
             FileName::Custom(path) => format!("<{path}>"),
             _ => filename.to_string(),
         },

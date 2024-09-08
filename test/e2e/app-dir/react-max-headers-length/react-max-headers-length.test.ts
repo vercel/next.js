@@ -28,6 +28,7 @@ describe('react-max-headers-length', () => {
 
       it('should respect reactMaxHeadersLength', async () => {
         const res = await next.fetch('/')
+        expect(res.status).toBe(200)
 
         // React currently only sets the `Link` header, so we should check to
         // see that the length of the header has respected the configured
@@ -35,6 +36,7 @@ describe('react-max-headers-length', () => {
         const header = res.headers.get('Link')
         if (reactMaxHeadersLength === undefined) {
           // This is the default case.
+          expect(header).not.toBeNull()
           expect(header).toBeString()
 
           expect(header.length).toBeGreaterThanOrEqual(
@@ -47,6 +49,7 @@ describe('react-max-headers-length', () => {
         } else if (typeof reactMaxHeadersLength === 'number') {
           // This is the case where the header is emitted and the length is
           // respected.
+          expect(header).not.toBeNull()
           expect(header).toBeString()
 
           expect(header.length).toBeGreaterThanOrEqual(

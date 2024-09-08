@@ -14,7 +14,6 @@ use swc_core::{
         visit::{noop_visit_type, Visit, VisitWith},
     },
 };
-use turbo_tasks::RcStr;
 
 use crate::TURBOPACK_HELPER;
 
@@ -113,16 +112,16 @@ impl Visit for IdentUsageCollector<'_> {
             return;
         }
 
-        if n.span.ctxt == self.unresolved {
+        if n.ctxt == self.unresolved {
             self.vars.found_unresolved = true;
             return;
         }
 
         // We allow SyntaxContext::empty() because Some built-in files do not go into
         // resolver()
-        if n.span.ctxt != self.unresolved
-            && n.span.ctxt != self.top_level
-            && n.span.ctxt != SyntaxContext::empty()
+        if n.ctxt != self.unresolved
+            && n.ctxt != self.top_level
+            && n.ctxt != SyntaxContext::empty()
             && !self.top_level_vars.contains(&n.to_id())
         {
             return;
@@ -393,7 +392,7 @@ where
     v.bindings
 }
 
-pub fn should_skip_tree_shaking(m: &Program, special_exports: &[RcStr]) -> bool {
+pub fn should_skip_tree_shaking(m: &Program) -> bool {
     if let Program::Module(m) = m {
         for item in m.body.iter() {
             match item {
@@ -437,40 +436,6 @@ pub fn should_skip_tree_shaking(m: &Program, special_exports: &[RcStr]) -> bool 
                     }
                 }
 
-                // Skip sever actions
-                ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                    expr: box Expr::Lit(Lit::Str(Str { value, .. })),
-                    ..
-                })) => {
-                    if value == "use server" {
-                        return true;
-                    }
-                }
-
-                // Skip special reexports that are recognized by next.js
-                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                    decl: Decl::Var(box VarDecl { decls, .. }),
-                    ..
-                })) => {
-                    for decl in decls {
-                        if let Pat::Ident(name) = &decl.name {
-                            if special_exports.iter().any(|s| **s == *name.sym) {
-                                return true;
-                            }
-                        }
-                    }
-                }
-
-                // Skip special reexports that are recognized by next.js
-                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                    decl: Decl::Fn(f),
-                    ..
-                })) => {
-                    if special_exports.iter().any(|s| **s == *f.ident.sym) {
-                        return true;
-                    }
-                }
-
                 _ => {}
             }
         }
@@ -497,16 +462,6 @@ struct ShouldSkip {
 }
 
 impl Visit for ShouldSkip {
-    fn visit_expr_stmt(&mut self, e: &ExprStmt) {
-        e.visit_children_with(self);
-
-        if let Expr::Lit(Lit::Str(Str { value, .. })) = &*e.expr {
-            if value == "use server" {
-                self.skip = true;
-            }
-        }
-    }
-
     fn visit_stmt(&mut self, n: &Stmt) {
         if self.skip {
             return;

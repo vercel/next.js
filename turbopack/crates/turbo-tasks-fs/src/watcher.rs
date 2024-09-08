@@ -111,13 +111,12 @@ impl DiskWatcher {
     /// `notify` provides 2 different debouncer implementations, `-full`
     /// provides below differences for the easy of use:
     ///
-    /// - Only emits a single Rename event if the rename From and To events can
-    ///   be matched
+    /// - Only emits a single Rename event if the rename From and To events can be matched
     /// - Merges multiple Rename events
-    /// - Takes Rename events into account and updates paths for events that
-    ///   occurred before the rename event, but which haven't been emitted, yet
-    /// - Optionally keeps track of the file system IDs all files and stitches
-    ///   rename events together (FSevents, Windows)
+    /// - Takes Rename events into account and updates paths for events that occurred before the
+    ///   rename event, but which haven't been emitted, yet
+    /// - Optionally keeps track of the file system IDs all files and stitches rename events
+    ///   together (FSevents, Windows)
     /// - Emits only one Remove event when deleting a directory (inotify)
     /// - Doesn't emit duplicate create events
     /// - Doesn't emit Modify events after a Create event
@@ -154,15 +153,25 @@ impl DiskWatcher {
 
         // We need to invalidate all reads that happened before watching
         // Best is to start_watching before starting to read
-        for invalidator in take(&mut *invalidator_map.lock().unwrap())
-            .into_iter()
-            .chain(take(&mut *dir_invalidator_map.lock().unwrap()).into_iter())
-            .flat_map(|(_, invalidators)| invalidators.into_iter())
         {
-            if report_invalidation_reason.is_some() {
-                invalidator.invalidate_with_reason(WatchStart { name: name.clone() })
-            } else {
-                invalidator.invalidate();
+            let _span = tracing::info_span!("invalidate filesystem").entered();
+            for (path, invalidators) in take(&mut *invalidator_map.lock().unwrap())
+                .into_iter()
+                .chain(take(&mut *dir_invalidator_map.lock().unwrap()).into_iter())
+            {
+                if report_invalidation_reason.is_some() {
+                    let path: RcStr = path.into();
+                    for invalidator in invalidators {
+                        invalidator.invalidate_with_reason(WatchStart {
+                            name: name.clone(),
+                            path: path.clone(),
+                        })
+                    }
+                } else {
+                    for invalidator in invalidators {
+                        invalidator.invalidate();
+                    }
+                }
             }
         }
 
