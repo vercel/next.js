@@ -31,17 +31,19 @@ function getModuleId(compilation: any, module: any): string | number {
   return compilation.chunkGraph.getModuleId(module)
 }
 
+type ModuleWithResource = webpack.Module & { resource?: string }
+
 function getModuleFromDependency(
   compilation: any,
   dep: any
-): webpack.Module & { resource?: string } {
+): ModuleWithResource {
   return compilation.moduleGraph.getModule(dep)
 }
 
 function getOriginModuleFromDependency(
   compilation: any,
   dep: any
-): webpack.Module & { resource?: string } {
+): ModuleWithResource {
   return compilation.moduleGraph.getParentModule(dep)
 }
 
@@ -50,6 +52,35 @@ function getChunkGroupFromBlock(
   block: any
 ): webpack.Compilation['chunkGroups'] {
   return compilation.chunkGraph.getBlockChunkGroup(block)
+}
+
+function getPageRouteFromModule(
+  compilation: webpack.Compilation,
+  originModule: ModuleWithResource,
+  projectSrcDir: string
+): string {
+  const originRequest: string = originModule.resource!
+
+  const relativeOrigin = path.relative(projectSrcDir!, originRequest)
+  if (relativeOrigin.startsWith('pages')) {
+    // remove the starting `pages` and extension:
+    // "pages/foo.tsx" -> "/foo"
+    const pageRoute = relativeOrigin
+      .replace(/^pages/, '')
+      .replace(/\.[^.]+$/, '')
+    return pageRoute
+  }
+
+  const issuer: ModuleWithResource | null =
+    compilation.moduleGraph.getIssuer(originModule)
+
+  if (!issuer?.resource) {
+    throw new Error(
+      `Page route not found for "${originRequest}", Module issuer: "${issuer}"`
+    )
+  }
+
+  return getPageRouteFromModule(compilation, issuer, projectSrcDir)
 }
 
 function buildManifest(
@@ -61,7 +92,9 @@ function buildManifest(
   if (!projectSrcDir) {
     return {}
   }
-  let manifest: { [k: string]: { id: string | number; files: string[] } } = {}
+  let manifest: {
+    [k: string]: { id: string | number; route: string; files: string[] }
+  } = {}
 
   // This is allowed:
   // import("./module"); <- ImportDependency
@@ -71,7 +104,7 @@ function buildManifest(
   // import(`./module/${param}`) <- ImportContextDependency
 
   // Find all dependencies blocks which contains a `import()` dependency
-  const handleBlock = (block: any) => {
+  const handleBlock = (block: webpack.AsyncDependenciesBlock) => {
     block.blocks.forEach(handleBlock)
     const chunkGroup = getChunkGroupFromBlock(compilation, block)
     for (const dependency of block.dependencies) {
@@ -92,7 +125,8 @@ function buildManifest(
         // It's not perfect unique, but that will be fine for us.
         // We also need to construct the same in the babel plugin.
         const key = `${path.relative(projectSrcDir, originRequest)} -> ${
-          dependency.request
+          // TODO: fix type
+          (dependency as any).request
         }`
 
         // Capture all files that need to be loaded.
@@ -126,13 +160,19 @@ function buildManifest(
           }
         }
 
+        const pageRoute = getPageRouteFromModule(
+          compilation,
+          originModule,
+          projectSrcDir
+        )
+
         // usually we have to add the parent chunk groups too
         // but we assume that all parents are also imported by
         // next/dynamic so they are loaded by the same technique
 
         // add the id and files to the manifest
         const id = dev ? key : getModuleId(compilation, module)
-        manifest[key] = { id, files: Array.from(files) }
+        manifest[key] = { id, route: pageRoute, files: Array.from(files) }
       }
     }
   }
