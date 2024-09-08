@@ -273,19 +273,11 @@ function getClientReactLoadableManifest() {
 }
 
 function parseDynamicCssFromReactLoadableManifest(
-  manifest: Record<string, { id: string; files: string[] }>
+  manifest: Record<string, { id: string; route: string; files: string[] }>
 ): Record<string, string[]> {
   return Object.fromEntries(
-    Object.entries(manifest).map(([key, value]) => {
-      return [
-        // normalize react-loadable key to page path
-        // "pages/foo.tsx -> ../components/bar" => "/foo"
-        key
-          .split('->')[0]
-          .replace(/\.[^/]+$/, '')
-          .replace(/^pages/, ''),
-        value.files.filter((file) => file.endsWith('.css')),
-      ]
+    Object.values(manifest).map((value) => {
+      return [value.route, value.files.filter((file) => file.endsWith('.css'))]
     })
   )
 }
@@ -322,9 +314,9 @@ function getFilesForRoute(
       (entry) => assetPrefix + '/_next/' + encodeURI(entry)
     )
 
-    const normalizedReactLoadableManifest =
-      parseDynamicCssFromReactLoadableManifest(reactLoadableManifest)
-    const dynamicCss = normalizedReactLoadableManifest[route] || []
+    const dynamicCss =
+      parseDynamicCssFromReactLoadableManifest(reactLoadableManifest)[route] ||
+      []
 
     return {
       scripts: allFiles
