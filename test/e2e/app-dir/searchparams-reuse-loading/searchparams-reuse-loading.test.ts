@@ -58,7 +58,9 @@ describe('searchparams-reuse-loading', () => {
     expect(await browser.elementByCss('h1').text()).toBe('You are on page "4".')
     await browser.elementByCss("[href='/other-page']").click()
     await retry(async () => {
-      expect(await browser.url()).toEqual('/other-page')
+      const currentUrl = new URL(await browser.url());
+       expect(currentUrl.pathname).toBe('/other-page');
+        expect(currentUrl.search).toBe('');
     })
     expect(await browser.elementByCss('h1').text()).toBe(
       'You are on the root page.'
