@@ -1483,7 +1483,8 @@
         "css-order turbo should load correct styles on reversed-b",
         "css-order turbo should load correct styles on second",
         "css-order turbo should load correct styles on second-client",
-        "css-order turbo should load correct styles on third"
+        "css-order turbo should load correct styles on third",
+        "css-order turbo should load correct styles on vendor"
       ],
       "failed": [
         "css-order turbo should load correct styles navigating back again first -> first-client -> first -> first-client",
@@ -1659,6 +1660,26 @@
     "test/e2e/app-dir/dynamic-interception-route-revalidate/dynamic-interception-route-revalidate.test.ts": {
       "passed": [
         "dynamic-interception-route-revalidate should refresh the dynamic intercepted route when the interception route is revalidated"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/dynamic-io/dynamic-io.test.ts": {
+      "passed": [
+        "dynamic-io should not prerender pages that do any uncached IO",
+        "dynamic-io should not prerender pages that take longer than a single task to render",
+        "dynamic-io should not prerender pages that use `cookies()`",
+        "dynamic-io should not prerender pages that use `headers()`",
+        "dynamic-io should not prerender pages that use `searchParams` in Client Components",
+        "dynamic-io should not prerender pages that use `searchParams` in Server Components",
+        "dynamic-io should not prerender pages that use `unstable_noStore()`",
+        "dynamic-io should not prerender pages that use at least one fetch without cache",
+        "dynamic-io should prerender fully static pages",
+        "dynamic-io should prerender pages that only use cached (unstable_cache) IO",
+        "dynamic-io should prerender pages that only use cached fetches",
+        "dynamic-io should prerender pages that render in a microtask"
       ],
       "failed": [],
       "pending": [],
@@ -3046,6 +3067,21 @@
         "ppr-full Dynamic RSC Response for /on-demand/c should have correct headers",
         "ppr-full Dynamic RSC Response for /static should have correct headers",
         "ppr-full Dynamic RSC Response for /static should not contain dynamic content",
+        "ppr-full HTML Fallback Dynamic Shell should render the dynamic shell as static if the page is static",
+        "ppr-full HTML Fallback Dynamic Shell should render the dynamic shell on the second visit",
+        "ppr-full HTML Fallback Dynamic Shell should render the fallback shell on first visit",
+        "ppr-full HTML Fallback Dynamic Shell will only revalidate the page",
+        "ppr-full HTML Fallback Dynamic Shell will revalidate the page and fallback shell",
+        "ppr-full HTML Fallback for /fallback/nested/params/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/nested/use-params/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/nested/use-pathname/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/nested/use-selected-layout-segment/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/nested/use-selected-layout-segments/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/params/slug-01 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/use-params/slug-01 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/use-pathname/slug-01 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/use-selected-layout-segment/slug-01 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/use-selected-layout-segments/slug-01 should render the fallback HTML immediately",
         "ppr-full HTML Response for / should allow navigations to and from a pages/ page",
         "ppr-full HTML Response for / should cache the static part",
         "ppr-full HTML Response for / should have correct headers",
@@ -4025,6 +4061,7 @@
       "passed": [
         "searchparams-reuse-loading With Middleware should correctly return different RSC data for full prefetches with different searchParam values",
         "searchparams-reuse-loading Without Middleware should correctly return different RSC data for full prefetches with different searchParam values",
+        "searchparams-reuse-loading should properly render root page with searchParams when prefetch is aliased",
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-full route",
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-less route",
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-less URL when navigating to param-full route",
@@ -4221,6 +4258,13 @@
         "app-dir trailingSlash handling should redirect route when requesting it directly by browser",
         "app-dir trailingSlash handling should render link with trailing slash"
       ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/turbopack-loader-resource-query/turbopack-loader-resource-query.test.ts": {
+      "passed": ["turbopack-loader-resource-query should pass query to loader"],
       "failed": [],
       "pending": [],
       "flakey": [],
@@ -4784,6 +4828,7 @@
         "getServerSideProps should not show error for accessing res after gssp returns",
         "getServerSideProps should not show error for invalid JSON returned from getServerSideProps",
         "getServerSideProps should not show error for invalid JSON returned from getStaticProps on CST",
+        "getServerSideProps should not trigger an error when a data request is cancelled due to another navigation",
         "getServerSideProps should not warn for accessing res after gssp returns",
         "getServerSideProps should output routes-manifest correctly",
         "getServerSideProps should parse query values on mount correctly",
@@ -5212,9 +5257,9 @@
     },
     "test/e2e/middleware-custom-matchers-basepath/test/index.test.ts": {
       "passed": [
-        "Middleware custom matchers basePath should not match",
         "Middleware custom matchers basePath should match",
-        "Middleware custom matchers basePath should match has query on client routing"
+        "Middleware custom matchers basePath should match has query on client routing",
+        "Middleware custom matchers basePath should not match"
       ],
       "failed": [],
       "pending": [],
@@ -5303,13 +5348,16 @@
         "Middleware Runtime with i18n should be able to rewrite on _next/static/chunks/pages/ 404",
         "Middleware Runtime with i18n should contain `globalThis`",
         "Middleware Runtime with i18n should contain crypto APIs",
+        "Middleware Runtime with i18n should handle 404 on fallback: false route correctly",
         "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
         "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
+        "Middleware Runtime with i18n should have correct files in manifest",
         "Middleware Runtime with i18n should have correct query values for rewrite to ssg page",
         "Middleware Runtime with i18n should have correct route params for chained rewrite from middleware to config rewrite",
         "Middleware Runtime with i18n should have correct route params for rewrite from config dynamic route",
         "Middleware Runtime with i18n should have correct route params for rewrite from config non-dynamic route",
         "Middleware Runtime with i18n should have init header for NextResponse.redirect",
+        "Middleware Runtime with i18n should have valid middleware field in manifest",
         "Middleware Runtime with i18n should keep non data requests in their original shape",
         "Middleware Runtime with i18n should normalize data requests into page requests",
         "Middleware Runtime with i18n should not run middleware for on-demand revalidate",
@@ -5340,13 +5388,16 @@
         "Middleware Runtime without i18n should be able to rewrite on _next/static/chunks/pages/ 404",
         "Middleware Runtime without i18n should contain `globalThis`",
         "Middleware Runtime without i18n should contain crypto APIs",
+        "Middleware Runtime without i18n should handle 404 on fallback: false route correctly",
         "Middleware Runtime without i18n should have correct dynamic route params for middleware rewrite to dynamic route",
         "Middleware Runtime without i18n should have correct dynamic route params on client-transition to dynamic route",
+        "Middleware Runtime without i18n should have correct files in manifest",
         "Middleware Runtime without i18n should have correct query values for rewrite to ssg page",
         "Middleware Runtime without i18n should have correct route params for chained rewrite from middleware to config rewrite",
         "Middleware Runtime without i18n should have correct route params for rewrite from config dynamic route",
         "Middleware Runtime without i18n should have correct route params for rewrite from config non-dynamic route",
         "Middleware Runtime without i18n should have init header for NextResponse.redirect",
+        "Middleware Runtime without i18n should have valid middleware field in manifest",
         "Middleware Runtime without i18n should keep non data requests in their original shape",
         "Middleware Runtime without i18n should normalize data requests into page requests",
         "Middleware Runtime without i18n should not run middleware for on-demand revalidate",
@@ -5364,11 +5415,7 @@
         "Middleware Runtime without i18n should validate & parse request url from any route",
         "Middleware Runtime without i18n should warn when using NextResponse.redirect with a relative URL",
         "Middleware Runtime without i18n should warn when using Response.redirect with a relative URL",
-        "Middleware Runtime without i18n should work with notFound: true correctly",
-        "Middleware Runtime with i18n should have valid middleware field in manifest",
-        "Middleware Runtime without i18n should have valid middleware field in manifest",
-        "Middleware Runtime with i18n should have correct files in manifest",
-        "Middleware Runtime without i18n should have correct files in manifest"
+        "Middleware Runtime without i18n should work with notFound: true correctly"
       ],
       "failed": [
         "Middleware Runtime with i18n should have the custom config in the manifest",
@@ -5395,13 +5442,6 @@
         "using a single matcher does not add the header for an unmatched path",
         "using a single matcher does not add the header for root data request",
         "using a single matcher does not add the header for root request",
-        "using a single matcher with i18n and basePath and trailingSlash does not add the header for an unmatched path",
-        "using a single matcher with i18n and basePath does not add the header for an unmatched path",
-        "using a single matcher with i18n and trailingSlash does not add the header for an unmatched path",
-        "using a single matcher with i18n does not add the header for an unmatched path",
-        "using root matcher adds the header for a matched data path (with header)",
-        "using root matcher adds the header for a matched data path (without header)",
-        "using root matcher adds the header to the /",
         "using a single matcher with i18n adds the header for a matched path",
         "using a single matcher with i18n adds the header for a mathed root path with /index",
         "using a single matcher with i18n adds the headers for a matched data path",
@@ -5411,9 +5451,16 @@
         "using a single matcher with i18n and basePath and trailingSlash adds the header for a matched path",
         "using a single matcher with i18n and basePath and trailingSlash adds the header for a mathed root path with /index",
         "using a single matcher with i18n and basePath and trailingSlash adds the headers for a matched data path",
+        "using a single matcher with i18n and basePath and trailingSlash does not add the header for an unmatched path",
+        "using a single matcher with i18n and basePath does not add the header for an unmatched path",
         "using a single matcher with i18n and trailingSlash adds the header for a matched path",
         "using a single matcher with i18n and trailingSlash adds the header for a mathed root path with /index",
         "using a single matcher with i18n and trailingSlash adds the headers for a matched data path",
+        "using a single matcher with i18n and trailingSlash does not add the header for an unmatched path",
+        "using a single matcher with i18n does not add the header for an unmatched path",
+        "using root matcher adds the header for a matched data path (with header)",
+        "using root matcher adds the header for a matched data path (without header)",
+        "using root matcher adds the header to the /",
         "using root matcher adds the header to the /index"
       ],
       "failed": [],
@@ -5567,11 +5614,13 @@
         "Middleware Runtime trailing slash should add a rewrite header on data requests for rewrites",
         "Middleware Runtime trailing slash should have correct dynamic route params for middleware rewrite to dynamic route",
         "Middleware Runtime trailing slash should have correct dynamic route params on client-transition to dynamic route",
+        "Middleware Runtime trailing slash should have correct files in manifest",
         "Middleware Runtime trailing slash should have correct query values for rewrite to ssg page",
         "Middleware Runtime trailing slash should have correct route params for chained rewrite from middleware to config rewrite",
         "Middleware Runtime trailing slash should have correct route params for rewrite from config dynamic route",
         "Middleware Runtime trailing slash should have correct route params for rewrite from config non-dynamic route",
         "Middleware Runtime trailing slash should have init header for NextResponse.redirect",
+        "Middleware Runtime trailing slash should have valid middleware field in manifest",
         "Middleware Runtime trailing slash should keep non data requests in their original shape",
         "Middleware Runtime trailing slash should normalize data requests into page requests",
         "Middleware Runtime trailing slash should not run middleware for on-demand revalidate",
@@ -5586,9 +5635,7 @@
         "Middleware Runtime trailing slash with .html extension should work when requesting the page directly",
         "Middleware Runtime trailing slash without .html extension should work using browser",
         "Middleware Runtime trailing slash without .html extension should work when navigating",
-        "Middleware Runtime trailing slash without .html extension should work when requesting the page directly",
-        "Middleware Runtime trailing slash should have correct files in manifest",
-        "Middleware Runtime trailing slash should have valid middleware field in manifest"
+        "Middleware Runtime trailing slash without .html extension should work when requesting the page directly"
       ],
       "failed": [],
       "pending": [],
@@ -6030,6 +6077,15 @@
     },
     "test/e2e/postcss-config-cjs/index.test.ts": {
       "passed": ["postcss-config-cjs works with postcss.config.cjs files"],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/postcss-config-package/index.test.ts": {
+      "passed": [
+        "postcss-config-json works with postcss config specified in package.json"
+      ],
       "failed": [],
       "pending": [],
       "flakey": [],
@@ -7583,6 +7639,7 @@
     },
     "test/integration/config-validation/test/index.test.ts": {
       "passed": [
+        "next.config.js validation production mode it should validate correctly for invalid config array lengths",
         "next.config.js validation production mode it should validate correctly for invalid config types",
         "next.config.js validation production mode it should validate correctly for unexpected config fields",
         "next.config.js validation production mode should allow undefined environment variables"
@@ -7726,6 +7783,62 @@
         "create-next-app --app (App Router) should create an empty project with --empty flag",
         "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag",
         "create-next-app --app (App Router) should enable turbopack dev with --turbo flag"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/integration/create-next-app/templates/matrix.test.ts": {
+      "passed": [
+        "CNA options matrix - app --app --turbo --js --import-alias=@/* --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - app --app --turbo --js --import-alias=@/* --eslint --no-src-dir --tailwind",
+        "CNA options matrix - app --app --turbo --js --import-alias=@/* --eslint --src-dir --no-tailwind",
+        "CNA options matrix - app --app --turbo --js --import-alias=@/* --eslint --src-dir --tailwind",
+        "CNA options matrix - app --app --turbo --js --import-alias=@acme/* --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - app --app --turbo --js --import-alias=@acme/* --eslint --no-src-dir --tailwind",
+        "CNA options matrix - app --app --turbo --js --import-alias=@acme/* --eslint --src-dir --no-tailwind",
+        "CNA options matrix - app --app --turbo --js --import-alias=@acme/* --eslint --src-dir --tailwind",
+        "CNA options matrix - app --app --turbo --js --no-import-alias --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - app --app --turbo --js --no-import-alias --eslint --no-src-dir --tailwind",
+        "CNA options matrix - app --app --turbo --js --no-import-alias --eslint --src-dir --no-tailwind",
+        "CNA options matrix - app --app --turbo --js --no-import-alias --eslint --src-dir --tailwind",
+        "CNA options matrix - app --app --turbo --ts --import-alias=@/* --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - app --app --turbo --ts --import-alias=@/* --eslint --no-src-dir --tailwind",
+        "CNA options matrix - app --app --turbo --ts --import-alias=@/* --eslint --src-dir --no-tailwind",
+        "CNA options matrix - app --app --turbo --ts --import-alias=@/* --eslint --src-dir --tailwind",
+        "CNA options matrix - app --app --turbo --ts --import-alias=@acme/* --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - app --app --turbo --ts --import-alias=@acme/* --eslint --no-src-dir --tailwind",
+        "CNA options matrix - app --app --turbo --ts --import-alias=@acme/* --eslint --src-dir --no-tailwind",
+        "CNA options matrix - app --app --turbo --ts --import-alias=@acme/* --eslint --src-dir --tailwind",
+        "CNA options matrix - app --app --turbo --ts --no-import-alias --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - app --app --turbo --ts --no-import-alias --eslint --no-src-dir --tailwind",
+        "CNA options matrix - app --app --turbo --ts --no-import-alias --eslint --src-dir --no-tailwind",
+        "CNA options matrix - app --app --turbo --ts --no-import-alias --eslint --src-dir --tailwind",
+        "CNA options matrix - pages --no-app --turbo --js --import-alias=@/* --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - pages --no-app --turbo --js --import-alias=@/* --eslint --no-src-dir --tailwind",
+        "CNA options matrix - pages --no-app --turbo --js --import-alias=@/* --eslint --src-dir --no-tailwind",
+        "CNA options matrix - pages --no-app --turbo --js --import-alias=@/* --eslint --src-dir --tailwind",
+        "CNA options matrix - pages --no-app --turbo --js --import-alias=@acme/* --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - pages --no-app --turbo --js --import-alias=@acme/* --eslint --no-src-dir --tailwind",
+        "CNA options matrix - pages --no-app --turbo --js --import-alias=@acme/* --eslint --src-dir --no-tailwind",
+        "CNA options matrix - pages --no-app --turbo --js --import-alias=@acme/* --eslint --src-dir --tailwind",
+        "CNA options matrix - pages --no-app --turbo --js --no-import-alias --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - pages --no-app --turbo --js --no-import-alias --eslint --no-src-dir --tailwind",
+        "CNA options matrix - pages --no-app --turbo --js --no-import-alias --eslint --src-dir --no-tailwind",
+        "CNA options matrix - pages --no-app --turbo --js --no-import-alias --eslint --src-dir --tailwind",
+        "CNA options matrix - pages --no-app --turbo --ts --import-alias=@/* --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - pages --no-app --turbo --ts --import-alias=@/* --eslint --no-src-dir --tailwind",
+        "CNA options matrix - pages --no-app --turbo --ts --import-alias=@/* --eslint --src-dir --no-tailwind",
+        "CNA options matrix - pages --no-app --turbo --ts --import-alias=@/* --eslint --src-dir --tailwind",
+        "CNA options matrix - pages --no-app --turbo --ts --import-alias=@acme/* --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - pages --no-app --turbo --ts --import-alias=@acme/* --eslint --no-src-dir --tailwind",
+        "CNA options matrix - pages --no-app --turbo --ts --import-alias=@acme/* --eslint --src-dir --no-tailwind",
+        "CNA options matrix - pages --no-app --turbo --ts --import-alias=@acme/* --eslint --src-dir --tailwind",
+        "CNA options matrix - pages --no-app --turbo --ts --no-import-alias --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - pages --no-app --turbo --ts --no-import-alias --eslint --no-src-dir --tailwind",
+        "CNA options matrix - pages --no-app --turbo --ts --no-import-alias --eslint --src-dir --no-tailwind",
+        "CNA options matrix - pages --no-app --turbo --ts --no-import-alias --eslint --src-dir --tailwind"
       ],
       "failed": [],
       "pending": [],
@@ -9018,22 +9131,22 @@
     },
     "test/integration/edge-runtime-module-errors/test/index.test.js": {
       "passed": [
+        "Edge runtime code with imports Edge API dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
+        "Edge runtime code with imports Edge API dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Edge API importing vanilla 3rd party module does not throw in dev at runtime",
         "Edge runtime code with imports Edge API importing vanilla 3rd party module production mode does not throw in production at runtime",
         "Edge runtime code with imports Edge API statically importing 3rd party module production mode does not build and reports",
         "Edge runtime code with imports Edge API statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Edge API using Buffer polyfill does not throw in dev at runtime",
         "Edge runtime code with imports Edge API using Buffer polyfill production mode does not throw in production at runtime",
+        "Edge runtime code with imports Middleware dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
+        "Edge runtime code with imports Middleware dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Middleware importing vanilla 3rd party module does not throw in dev at runtime",
         "Edge runtime code with imports Middleware importing vanilla 3rd party module production mode does not throw in production at runtime",
         "Edge runtime code with imports Middleware statically importing 3rd party module production mode does not build and reports",
         "Edge runtime code with imports Middleware statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware using Buffer polyfill does not throw in dev at runtime",
-        "Edge runtime code with imports Middleware using Buffer polyfill production mode does not throw in production at runtime",
-        "Edge runtime code with imports Edge API dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Edge API dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Middleware dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Middleware dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
+        "Edge runtime code with imports Middleware using Buffer polyfill production mode does not throw in production at runtime"
       ],
       "failed": [],
       "pending": [
@@ -9052,20 +9165,19 @@
         "Edge runtime code with imports Edge API importing unused 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Edge API importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Edge API importing unused node.js module does not throw in dev at runtime",
+        "Edge runtime code with imports Edge API importing unused node.js module production mode does not throw in production at runtime",
+        "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Edge API statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware dynamically importing 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Middleware dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware importing unused 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
-        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
-        "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
+        "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime",
+        "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
+        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
       ],
-      "failed": [
-        "Edge runtime code with imports Edge API importing unused node.js module production mode does not throw in production at runtime",
-        "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -11224,6 +11336,11 @@
     },
     "test/integration/i18n-support-base-path/test/index.test.js": {
       "passed": [
+        "i18n Support basePath with localeDetection disabled production mode should have localeDetection in routes-manifest",
+        "i18n Support basePath with localeDetection disabled production mode should not detect locale from accept-language",
+        "i18n Support basePath with localeDetection disabled production mode should set locale from detected path"
+      ],
+      "failed": [
         "i18n Support basePath production mode should 404 for GSP pages that returned notFound",
         "i18n Support basePath production mode should 404 for GSP that returned notFound on client-transition",
         "i18n Support basePath production mode should 404 for locale prefixed public folder files",
@@ -11312,12 +11429,8 @@
         "i18n Support basePath production mode should use default locale when no locale is in href with locale false",
         "i18n Support basePath production mode should visit API route directly correctly",
         "i18n Support basePath production mode should visit dynamic API route directly correctly",
-        "i18n Support basePath production mode should work with AMP first page with all locales",
-        "i18n Support basePath with localeDetection disabled production mode should have localeDetection in routes-manifest",
-        "i18n Support basePath with localeDetection disabled production mode should not detect locale from accept-language",
-        "i18n Support basePath with localeDetection disabled production mode should set locale from detected path"
+        "i18n Support basePath production mode should work with AMP first page with all locales"
       ],
-      "failed": [],
       "pending": [
         "i18n Support basePath development mode should 404 for GSP pages that returned notFound",
         "i18n Support basePath development mode should 404 for GSP that returned notFound on client-transition",
@@ -11716,10 +11829,10 @@
     },
     "test/integration/image-optimizer/test/content-disposition-type.test.ts": {
       "passed": [
-        "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
         "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
         "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
         "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should fail with relative next image url",
+        "with contentDispositionType inline dev support with next.config.js recursive url is not allowed should pass with absolute next image url",
         "with contentDispositionType inline dev support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with contentDispositionType inline dev support with next.config.js should compress avif smaller than webp at q=100",
         "with contentDispositionType inline dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -11790,10 +11903,10 @@
       ],
       "failed": [],
       "pending": [
-        "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
         "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
         "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
         "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
+        "with contentDispositionType inline Production Mode Server support with next.config.js recursive url is not allowed should pass with absolute next image url",
         "with contentDispositionType inline Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with contentDispositionType inline Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
         "with contentDispositionType inline Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -11867,10 +11980,10 @@
     },
     "test/integration/image-optimizer/test/dangerously-allow-svg.test.ts": {
       "passed": [
-        "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
         "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
         "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
         "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should fail with relative next image url",
+        "with dangerouslyAllowSVG config dev support with next.config.js recursive url is not allowed should pass with absolute next image url",
         "with dangerouslyAllowSVG config dev support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with dangerouslyAllowSVG config dev support with next.config.js should compress avif smaller than webp at q=100",
         "with dangerouslyAllowSVG config dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -11938,10 +12051,10 @@
       ],
       "failed": [],
       "pending": [
-        "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
+        "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should pass with absolute next image url",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -12046,10 +12159,10 @@
     },
     "test/integration/image-optimizer/test/minimum-cache-ttl.test.ts": {
       "passed": [
-        "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
         "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
         "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
         "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with relative next image url",
+        "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should pass with absolute next image url",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should compress avif smaller than webp at q=100",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -12120,10 +12233,10 @@
       ],
       "failed": [],
       "pending": [
-        "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
+        "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js recursive url is not allowed should pass with absolute next image url",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -12256,10 +12369,10 @@
         "with latest sharp dev support w/o next.config.js should set cache-control to immutable for static images",
         "with latest sharp dev support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
         "with latest sharp dev support w/o next.config.js should use cached image file when parameters are the same for animated gif",
-        "with latest sharp dev support with next.config.js recursive url is not allowed should fail with absolute next image url",
         "with latest sharp dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
         "with latest sharp dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
         "with latest sharp dev support with next.config.js recursive url is not allowed should fail with relative next image url",
+        "with latest sharp dev support with next.config.js recursive url is not allowed should pass with absolute next image url",
         "with latest sharp dev support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with latest sharp dev support with next.config.js should compress avif smaller than webp at q=100",
         "with latest sharp dev support with next.config.js should compress avif smaller than webp at q=50",
@@ -12389,10 +12502,10 @@
         "with latest sharp Production Mode Server support w/o next.config.js should set cache-control to immutable for static images",
         "with latest sharp Production Mode Server support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
         "with latest sharp Production Mode Server support w/o next.config.js should use cached image file when parameters are the same for animated gif",
-        "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with absolute next image url",
         "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
         "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
         "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
+        "with latest sharp Production Mode Server support with next.config.js recursive url is not allowed should pass with absolute next image url",
         "with latest sharp Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
         "with latest sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
         "with latest sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
@@ -12744,7 +12857,27 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/integration/link-ref/test/index.test.js": {
+    "test/integration/link-ref-app/test/index.test.js": {
+      "passed": [
+        "Invalid hrefs production mode should not have a race condition with a click handler",
+        "Invalid hrefs production mode should preload with child ref with React.createRef",
+        "Invalid hrefs production mode should preload with child ref with function",
+        "Invalid hrefs production mode should preload with child ref with function that returns a cleanup function",
+        "Invalid hrefs production mode should preload with forwardRef"
+      ],
+      "failed": [],
+      "pending": [
+        "Invalid hrefs development mode should handle child ref that is a function",
+        "Invalid hrefs development mode should handle child ref that is a function that returns a cleanup function",
+        "Invalid hrefs development mode should handle child ref with React.createRef",
+        "Invalid hrefs development mode should not have a race condition with a click handler",
+        "Invalid hrefs development mode should not show error for class component as child of next/link",
+        "Invalid hrefs development mode should not show error for function component with forwardRef"
+      ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/integration/link-ref-pages/test/index.test.js": {
       "passed": [
         "Invalid hrefs production mode should not have a race condition with a click handler",
         "Invalid hrefs production mode should preload with child ref with React.createRef",
@@ -12898,6 +13031,23 @@
         "Mixed getStaticProps and getServerSideProps error production mode should error when exporting both getStaticPaths and getServerSideProps",
         "Mixed getStaticProps and getServerSideProps error production mode should error when exporting both getStaticProps and getServerSideProps",
         "Mixed getStaticProps and getServerSideProps error production mode should error with getStaticProps but no default export"
+      ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/integration/module-id-strategies/test/index.test.js": {
+      "passed": [
+        "minified module ids production mode should have no long module id for the next client runtime module",
+        "minified module ids production mode should have no long module ids for async loader modules",
+        "minified module ids production mode should have no long module ids for basic modules",
+        "minified module ids production mode should have no long module ids for external modules"
+      ],
+      "failed": [],
+      "pending": [
+        "minified module ids development mode should have long module id for the next client runtime module",
+        "minified module ids development mode should have long module ids for async loader modules",
+        "minified module ids development mode should have long module ids for basic modules",
+        "minified module ids development mode should have long module ids for external modules"
       ],
       "flakey": [],
       "runtimeError": false
@@ -13468,6 +13618,7 @@
     },
     "test/integration/next-image-new/base-path/test/static.test.js": {
       "passed": [
+        "Build Error Tests production mode should throw build error when import statement is used with missing file",
         "Static Image Component Tests for basePath production mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests for basePath production mode Should automatically provide an image height and width",
         "Static Image Component Tests for basePath production mode Should use immutable cache-control header even when unoptimized",
@@ -13478,8 +13629,7 @@
         "Static Image Component Tests for basePath production mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image",
         "Static Image Component Tests for basePath production mode should use height prop to adjust both width and height",
         "Static Image Component Tests for basePath production mode should use width and height prop to override import",
-        "Static Image Component Tests for basePath production mode should use width prop to adjust both width and height",
-        "Build Error Tests production mode should throw build error when import statement is used with missing file"
+        "Static Image Component Tests for basePath production mode should use width prop to adjust both width and height"
       ],
       "failed": [],
       "pending": [
@@ -14986,12 +15136,12 @@
       ],
       "failed": [],
       "pending": [
+        "config telemetry production mode emits telemery for usage of image, script & dynamic",
         "config telemetry production mode emits telemetry for middleware related options",
         "config telemetry production mode emits telemetry for transpilePackages",
-        "config telemetry production mode emits telemery for usage of image, script & dynamic",
-        "config telemetry production mode emits telemetry for usage of swc",
         "config telemetry production mode emits telemetry for usage of @vercel/og",
-        "config telemetry production mode emits telemetry for usage of next/legacy/image"
+        "config telemetry production mode emits telemetry for usage of next/legacy/image",
+        "config telemetry production mode emits telemetry for usage of swc"
       ],
       "flakey": [],
       "runtimeError": false
@@ -15015,9 +15165,9 @@
         "Telemetry CLI production mode detect page counts correctly for `next build`",
         "Telemetry CLI production mode detect static 404 correctly for `next build`",
         "Telemetry CLI production mode detects correct cli session defaults",
+        "Telemetry CLI production mode detects isSrcDir dir correctly for `next build`",
         "Telemetry CLI production mode detects tests correctly for `next build`",
         "Telemetry CLI production mode emits event when swc fails to load",
-        "Telemetry CLI production mode detects isSrcDir dir correctly for `next build`",
         "Telemetry CLI production mode logs completed `next build` with warnings"
       ],
       "failed": [],
@@ -15255,6 +15405,7 @@
       "passed": [
         "tsconfig.json verifier Creates a default tsconfig.json when one is missing",
         "tsconfig.json verifier Updates an existing tsconfig.json without losing comments",
+        "tsconfig.json verifier Works with an empty tsconfig.json (docs)",
         "tsconfig.json verifier allows you to extend another configuration file",
         "tsconfig.json verifier allows you to set bundler moduleResolution mode",
         "tsconfig.json verifier allows you to set commonjs module mode",
@@ -15264,8 +15415,7 @@
         "tsconfig.json verifier allows you to set target mode",
         "tsconfig.json verifier allows you to set verbatimModuleSyntax true via extends without adding isolatedModules",
         "tsconfig.json verifier allows you to set verbatimModuleSyntax true without adding isolatedModules",
-        "tsconfig.json verifier creates compilerOptions when you extend another config",
-        "tsconfig.json verifier Works with an empty tsconfig.json (docs)"
+        "tsconfig.json verifier creates compilerOptions when you extend another config"
       ],
       "failed": [],
       "pending": [
@@ -15693,11 +15843,10 @@
     },
     "test/production/app-dir/app-edge-middleware/app-edge-middleware.test.ts": {
       "passed": [
+        "app edge middleware with node.js modules should have errors about using Node.js modules when present in middleware",
         "app edge middleware without node.js modules should not have any errors about using Node.js modules if not present in middleware"
       ],
-      "failed": [
-        "app edge middleware with node.js modules should have errors about using Node.js modules when present in middleware"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15714,8 +15863,8 @@
     },
     "test/production/app-dir/app-only-flag/app-only-flag.test.ts": {
       "passed": [
-        "app-only-flag should serve app route",
-        "app-only-flag should not serve about route"
+        "app-only-flag should not serve about route",
+        "app-only-flag should serve app route"
       ],
       "failed": [],
       "pending": [],
@@ -15751,6 +15900,12 @@
     "test/production/app-dir/build-output/index.test.ts": {
       "passed": [
         "production - app dir - build output should always log version first then the rest jobs",
+        "production - app dir - build output should fail the build if you use a dynamic API outside of a render context - cookies",
+        "production - app dir - build output should fail the build if you use a dynamic API outside of a render context - headers",
+        "production - app dir - build output should fail the build if you use a dynamic API outside of a render context - notFound",
+        "production - app dir - build output should fail the build if you use a dynamic API outside of a render context - redirect",
+        "production - app dir - build output should fail the build if you use a dynamic API outside of a render context - searchParams",
+        "production - app dir - build output should log errors not caught by the worker without terminating the process",
         "production - app dir - build output should match the expected output format",
         "production - app dir - build output should only log app routes"
       ],
@@ -16592,7 +16747,6 @@
     "test/production/standalone-mode/required-server-files/required-server-files-ppr.test.ts": {
       "passed": [],
       "failed": [
-        "required server files app router middleware rewrite should work with a dynamic path",
         "required server files app router middleware rewrite should work with a dynamic path (with Next-Resume)",
         "required server files app router middleware rewrite should work with a dynamic path (without Next-Resume)",
         "required server files app router should handle RSC requests",
@@ -16602,11 +16756,9 @@
         "required server files app router should not send invalid soft tags to cache handler",
         "required server files app router should properly handle fallback for bot request",
         "required server files app router should properly handle prerender for bot request",
-        "required server files app router should properly stream resume",
         "required server files app router should properly stream resume with Next-Resume",
         "required server files app router should properly stream resume without Next-Resume",
         "required server files app router should send cache tags in minimal mode for ISR",
-        "required server files app router should still render when postponed is corrupted",
         "required server files app router should still render when postponed is corrupted with Next-Resume",
         "required server files app router should still render when postponed is corrupted without Next-Resume"
       ],
