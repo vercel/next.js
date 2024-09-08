@@ -39,7 +39,7 @@ describe('searchparams-reuse-loading', () => {
     expect(params).toBe('{"id":"1"}')
   })
 
-  it('should return reflect the correct searchParams when re-using the same page segment', async () => {
+  it('should reflect the correct searchParams when re-using the same page segment', async () => {
     const browser = await next.browser('/other-page')
     await browser.elementByCss("[href='/other-page?page=2']").click()
     await retry(async () => {
@@ -58,9 +58,9 @@ describe('searchparams-reuse-loading', () => {
     expect(await browser.elementByCss('h1').text()).toBe('You are on page "4".')
     await browser.elementByCss("[href='/other-page']").click()
     await retry(async () => {
-      const currentUrl = new URL(await browser.url());
-       expect(currentUrl.pathname).toBe('/other-page');
-        expect(currentUrl.search).toBe('');
+      const currentUrl = new URL(await browser.url())
+      expect(currentUrl.pathname).toBe('/other-page')
+      expect(currentUrl.search).toBe('')
     })
     expect(await browser.elementByCss('h1').text()).toBe(
       'You are on the root page.'
