@@ -14,13 +14,14 @@ use swc_core::{
     },
 };
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
-use turbopack_core::chunk::ChunkingContext;
+use turbopack_core::{chunk::ChunkingContext, resolve::ModulePart};
 
-use super::EsmAssetReference;
+use super::{base::ReferencedAsset, EsmAssetReference};
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration, VisitorFactory},
     create_visitor,
     references::AstPath,
+    tree_shake::asset::EcmascriptModulePartAsset,
 };
 
 #[turbo_tasks::value(shared)]
@@ -64,6 +65,20 @@ impl EsmBinding {
         let item = self.clone();
         let imported_module = self.reference.get_referenced_asset();
 
+        let is_export_part = match &*imported_module.await? {
+            ReferencedAsset::Some(asset) => {
+                if let Some(module_part_asset) =
+                    Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(*asset).await?
+                {
+                    let part = &*module_part_asset.await?.part.await?;
+                    matches!(part, ModulePart::Export(_))
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        };
+
         let mut ast_path = item.ast_path.await?.clone_value();
         let imported_module = imported_module.await?.get_ident().await?;
 
@@ -80,7 +95,7 @@ impl EsmBinding {
                             if let Some(imported_ident) = imported_module.as_deref() {
                                 *prop = Prop::KeyValue(KeyValueProp {
                                     key: PropName::Ident(ident.clone().into()),
-                                    value: Box::new(make_expr(imported_ident, item.export.as_deref(), ident.span, false))
+                                    value: Box::new(make_expr(imported_ident, item.export.as_deref(), ident.span, false, is_export_part)),
                                 });
                             }
                         }
@@ -101,7 +116,7 @@ impl EsmBinding {
                     create_visitor!(exact ast_path, visit_mut_expr(expr: &mut Expr) {
                         if let Some(ident) = imported_module.as_deref() {
                             use swc_core::common::Spanned;
-                            *expr = make_expr(ident, item.export.as_deref(), expr.span(), in_call);
+                            *expr = make_expr(ident, item.export.as_deref(), expr.span(), in_call, is_export_part);
                         }
                         // If there's no identifier for the imported module,
                         // resolution failed and will insert code that throws
@@ -126,7 +141,7 @@ impl EsmBinding {
                         create_visitor!(exact ast_path, visit_mut_simple_assign_target(l: &mut SimpleAssignTarget) {
                                 if let Some(ident) = imported_module.as_deref() {
                                     use swc_core::common::Spanned;
-                                    *l = match make_expr(ident, item.export.as_deref(), l.span(), false) {
+                                    *l = match make_expr(ident, item.export.as_deref(), l.span(), false, is_export_part) {
                                         Expr::Ident(ident) => SimpleAssignTarget::Ident(ident.into()),
                                         Expr::Member(member) => SimpleAssignTarget::Member(member),
                                         _ => unreachable!(),
@@ -166,7 +181,13 @@ impl CodeGenerateable for EsmBindings {
     }
 }
 
-fn make_expr(imported_module: &str, export: Option<&str>, span: Span, in_call: bool) -> Expr {
+fn make_expr(
+    imported_module: &str,
+    export: Option<&str>,
+    span: Span,
+    in_call: bool,
+    is_export_part: bool,
+) -> Expr {
     if let Some(export) = export {
         let mut expr = Expr::Member(MemberExpr {
             span,
@@ -179,7 +200,11 @@ fn make_expr(imported_module: &str, export: Option<&str>, span: Span, in_call: b
                 span,
                 expr: Box::new(Expr::Lit(Lit::Str(Str {
                     span,
-                    value: export.into(),
+                    value: if is_export_part {
+                        "testexportname".into()
+                    } else {
+                        export.into()
+                    },
                     raw: None,
                 }))),
             }),
