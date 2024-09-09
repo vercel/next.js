@@ -118,6 +118,9 @@ pub struct NapiProjectOptions {
 
     /// Options for draft mode.
     pub preview_props: NapiDraftModeOptions,
+
+    /// The browserslist query to use for targeting browsers.
+    pub browserslist_query: String,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -161,6 +164,9 @@ pub struct NapiPartialProjectOptions {
 
     /// Options for draft mode.
     pub preview_props: Option<NapiDraftModeOptions>,
+
+    /// The browserslist query to use for targeting browsers.
+    pub browserslist_query: Option<String>,
 }
 
 #[napi(object)]
@@ -195,6 +201,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             encryption_key: val.encryption_key.into(),
             build_id: val.build_id.into(),
             preview_props: val.preview_props.into(),
+            browserslist_query: val.browserslist_query.into(),
         }
     }
 }

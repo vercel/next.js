@@ -58,7 +58,8 @@ use tokio::{
 };
 use tracing::Instrument;
 use turbo_tasks::{
-    mark_stateful, trace::TraceRawVcs, Completion, Invalidator, RcStr, ReadRef, ValueToString, Vc,
+    mark_stateful, trace::TraceRawVcs, Completion, Invalidator, RcStr, ReadRef,
+    SerializationInvalidator, ValueToString, Vc,
 };
 use turbo_tasks_hash::{hash_xxh3_hash64, DeterministicHash, DeterministicHasher};
 use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
@@ -106,6 +107,8 @@ pub struct DiskFileSystem {
     invalidator_map: Arc<InvalidatorMap>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     dir_invalidator_map: Arc<InvalidatorMap>,
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    serialization_invalidator: SerializationInvalidator,
     /// Lock that makes invalidation atomic. It will keep a write lock during
     /// watcher invalidation and a read lock during other operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
@@ -126,6 +129,7 @@ impl DiskFileSystem {
     fn register_invalidator(&self, path: &Path) -> Result<()> {
         let invalidator = turbo_tasks::get_invalidator();
         self.invalidator_map.insert(path_to_key(path), invalidator);
+        self.serialization_invalidator.invalidate();
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         if let Some(dir) = path.parent() {
             self.watcher.ensure_watching(dir, self.root_path())?;
@@ -140,6 +144,8 @@ impl DiskFileSystem {
         let invalidator = turbo_tasks::get_invalidator();
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
         let old_invalidators = invalidator_map.insert(path_to_key(path), [invalidator].into());
+        drop(invalidator_map);
+        self.serialization_invalidator.invalidate();
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         if let Some(dir) = path.parent() {
             self.watcher.ensure_watching(dir, self.root_path())?;
@@ -153,6 +159,7 @@ impl DiskFileSystem {
         let invalidator = turbo_tasks::get_invalidator();
         self.dir_invalidator_map
             .insert(path_to_key(path), invalidator);
+        self.serialization_invalidator.invalidate();
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         self.watcher.ensure_watching(path, self.root_path())?;
         Ok(())
@@ -172,6 +179,7 @@ impl DiskFileSystem {
         for (_, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter() {
             invalidators.into_iter().for_each(|i| i.invalidate());
         }
+        self.serialization_invalidator.invalidate();
     }
 
     pub fn invalidate_with_reason(&self) {
@@ -189,6 +197,7 @@ impl DiskFileSystem {
                 .into_iter()
                 .for_each(|i| i.invalidate_with_reason(reason.clone()));
         }
+        self.serialization_invalidator.invalidate();
     }
 
     pub fn start_watching(&self) -> Result<()> {
@@ -217,6 +226,7 @@ impl DiskFileSystem {
             invalidator_map,
             dir_invalidator_map,
         )?;
+        self.serialization_invalidator.invalidate();
 
         Ok(())
     }
@@ -293,7 +303,7 @@ impl DiskFileSystem {
     ///   ignore specific subpaths from each.
     #[turbo_tasks::function]
     pub async fn new(name: RcStr, root: RcStr, ignored_subpaths: Vec<RcStr>) -> Result<Vc<Self>> {
-        mark_stateful();
+        let serialization_invalidator = mark_stateful();
         // create the directory for the filesystem on disk, if it doesn't exist
         fs::create_dir_all(&root).await?;
 
@@ -304,6 +314,7 @@ impl DiskFileSystem {
             invalidation_lock: Default::default(),
             invalidator_map: Arc::new(InvalidatorMap::new()),
             dir_invalidator_map: Arc::new(InvalidatorMap::new()),
+            serialization_invalidator,
             watcher: Arc::new(DiskWatcher::new(
                 ignored_subpaths.into_iter().map(PathBuf::from).collect(),
             )),
@@ -561,6 +572,7 @@ impl FileSystem for DiskFileSystem {
                 for i in old_invalidators {
                     self.invalidator_map.insert(key.clone(), i);
                 }
+                self.serialization_invalidator.invalidate();
             }
             return Ok(Completion::unchanged());
         }

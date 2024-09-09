@@ -39,6 +39,7 @@ use crate::{
     magic_any::MagicAny,
     raw_vc::{CellId, RawVc},
     registry::{self, get_function},
+    serialization_invalidation::SerializationInvalidator,
     task::shared_reference::TypedSharedReference,
     trace::TraceRawVcs,
     trait_helpers::get_trait_method,
@@ -115,6 +116,8 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn invalidate(&self, task: TaskId);
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>);
 
+    fn invalidate_serialization(&self, task: TaskId);
+
     /// Eagerly notifies all tasks that were scheduled for notifications via
     /// `schedule_notify_tasks_set()`
     fn notify_scheduled_tasks(&self);
@@ -180,6 +183,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent>;
     fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent);
     fn mark_own_task_as_finished(&self, task: TaskId);
+    fn mark_own_task_as_dirty_when_persisted(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
 
@@ -1256,6 +1260,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.invalidate_task(task, self);
     }
 
+    fn invalidate_serialization(&self, task: TaskId) {
+        self.backend.invalidate_serialization(task, self);
+    }
+
     fn notify_scheduled_tasks(&self) {
         let _ = CURRENT_GLOBAL_TASK_STATE.try_with(|cell| {
             let tasks = {
@@ -1393,6 +1401,11 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     fn mark_own_task_as_finished(&self, task: TaskId) {
         self.backend.mark_own_task_as_finished(task, self);
+    }
+
+    fn mark_own_task_as_dirty_when_persisted(&self, task: TaskId) {
+        self.backend
+            .mark_own_task_as_dirty_when_persisted(task, self);
     }
 
     /// Creates a future that inherits the current task id and task state. The current global task
@@ -1677,6 +1690,15 @@ pub fn current_task_for_testing() -> TaskId {
     CURRENT_GLOBAL_TASK_STATE.with(|ts| ts.read().unwrap().task_id)
 }
 
+/// Marks the current task as dirty when restored from persistent cache.
+pub fn mark_dirty_when_persisted() {
+    with_turbo_tasks(|tt| {
+        tt.mark_own_task_as_dirty_when_persisted(current_task(
+            "turbo_tasks::mark_dirty_when_persisted()",
+        ))
+    });
+}
+
 /// Marks the current task as finished. This excludes it from waiting for
 /// strongly consistency.
 pub fn mark_finished() {
@@ -1687,10 +1709,15 @@ pub fn mark_finished() {
 
 /// Marks the current task as stateful. This prevents the tasks from being
 /// dropped without persisting the state.
-pub fn mark_stateful() {
+/// Returns a [`SerializationInvalidator`] that can be used to invalidate the
+/// serialization of the current task cells
+pub fn mark_stateful() -> SerializationInvalidator {
     CURRENT_GLOBAL_TASK_STATE.with(|cell| {
-        let CurrentGlobalTaskState { stateful, .. } = &mut *cell.write().unwrap();
+        let CurrentGlobalTaskState {
+            stateful, task_id, ..
+        } = &mut *cell.write().unwrap();
         *stateful = true;
+        SerializationInvalidator::new(*task_id)
     })
 }
 
