@@ -16031,11 +16031,10 @@
     },
     "test/production/edge-dynamic-code-eval/index.test.ts": {
       "passed": [
-        "Dynamic Code Evaluation (DCE) should not fail when \"function-bind\" package is used"
-      ],
-      "failed": [
+        "Dynamic Code Evaluation (DCE) should not fail when \"function-bind\" package is used",
         "Dynamic Code Evaluation (DCE) should show the user's import trace"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
