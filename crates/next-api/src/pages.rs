@@ -3,6 +3,7 @@ use indexmap::IndexMap;
 use next_core::{
     all_assets_from_entries, create_page_loader_entry_module, get_asset_path_from_pathname,
     get_edge_resolve_options_context,
+    hmr_entry::HmrEntryModule,
     mode::NextMode,
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -645,11 +646,24 @@ impl PageEndpoint {
     #[turbo_tasks::function]
     async fn client_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let this = self.await?;
-        Ok(create_page_loader_entry_module(
+        let page_loader = create_page_loader_entry_module(
             this.pages_project.client_module_context(),
             self.source(),
             this.pathname,
-        ))
+        );
+        if matches!(
+            *this.pages_project.project().next_mode().await?,
+            NextMode::Development
+        ) {
+            if let Some(chunkable) = Vc::try_resolve_downcast(page_loader).await? {
+                return Ok(Vc::upcast(HmrEntryModule::new(
+                    AssetIdent::from_path(this.page.await?.base_path),
+                    chunkable,
+                    true,
+                )));
+            }
+        }
+        Ok(page_loader)
     }
 
     #[turbo_tasks::function]
@@ -663,13 +677,13 @@ impl PageEndpoint {
             let Some(client_module) =
                 Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
             else {
-                bail!("expected an ECMAScript module asset");
+                bail!("expected an evaluateable asset");
             };
 
             let Some(client_main_module) =
                 Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_main_module).await?
             else {
-                bail!("expected an ECMAScript module asset");
+                bail!("expected an evaluateable asset");
             };
 
             let client_chunking_context = this.pages_project.project().client_chunking_context();
