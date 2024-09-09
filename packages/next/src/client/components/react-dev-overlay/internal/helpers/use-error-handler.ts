@@ -5,13 +5,6 @@ import { attachHydrationErrorState } from './attach-hydration-error-state'
 
 export type ErrorHandler = (error: Error) => void
 
-if (typeof window !== 'undefined') {
-  try {
-    // Increase the number of stack frames on the client
-    Error.stackTraceLimit = 50
-  } catch {}
-}
-
 let hasHydrationError = false
 const errorQueue: Array<Error> = []
 const rejectionQueue: Array<Error> = []
@@ -40,6 +33,11 @@ export function handleClientError(error: unknown) {
 
 export function patchEventListeners() {
   if (typeof window !== 'undefined') {
+    try {
+      // Increase the number of stack frames on the client
+      Error.stackTraceLimit = 50
+    } catch {}
+
     // These event handlers must be added outside of the hook because there is no
     // guarantee that the hook will be alive in a mounted component in time to
     // when the errors occur.
