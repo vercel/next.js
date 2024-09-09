@@ -15304,12 +15304,12 @@
       "runtimeError": false
     },
     "test/integration/typeof-window-replace/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "typeof window replace production mode Does not replace `typeof window` for `node_modules` code",
         "typeof window replace production mode Replaces `typeof window` with object for client code",
         "typeof window replace production mode Replaces `typeof window` with undefined for server code"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
