@@ -45,6 +45,7 @@ use turbopack_core::{
     },
     context::AssetContext,
     file_source::FileSource,
+    ident::AssetIdent,
     issue::IssueSeverity,
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
@@ -674,7 +675,7 @@ impl PageEndpoint {
             let client_chunking_context = this.pages_project.project().client_chunking_context();
 
             let client_chunks = client_chunking_context.evaluated_chunk_group_assets(
-                self.source().ident(),
+                AssetIdent::from_path(this.page.await?.base_path),
                 this.pages_project
                     .client_runtime_entries()
                     .with_entry(client_main_module)
