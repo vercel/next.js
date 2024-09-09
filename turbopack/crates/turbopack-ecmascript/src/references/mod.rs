@@ -18,9 +18,7 @@ pub mod util;
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap, HashSet},
-    future::Future,
     mem::take,
-    pin::Pin,
     sync::Arc,
 };
 
@@ -74,7 +72,7 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
 };
 use turbopack_resolve::{
-    ecmascript::{apply_cjs_specific_options, cjs_resolve},
+    ecmascript::{apply_cjs_specific_options, cjs_resolve_source},
     typescript::tsconfig,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
@@ -1243,30 +1241,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         .await
 }
 
-fn handle_call_boxed<'a, G: Fn(Vec<Effect>) + Send + Sync + 'a>(
-    ast_path: &'a [AstParentKind],
-    span: Span,
-    func: JsValue,
-    this: JsValue,
-    args: Vec<EffectArg>,
-    state: &'a AnalysisState<'a>,
-    add_effects: &'a G,
-    analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
-    in_try: bool,
-) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
-    Box::pin(handle_call(
-        ast_path,
-        span,
-        func,
-        this,
-        args,
-        state,
-        add_effects,
-        analysis,
-        in_try,
-    ))
-}
-
 async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
     ast_path: &[AstParentKind],
     span: Span,
@@ -1317,7 +1291,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             logical_property: _,
         } => {
             for alt in values {
-                handle_call_boxed(
+                Box::pin(handle_call(
                     ast_path,
                     span,
                     alt,
@@ -1327,7 +1301,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     add_effects,
                     analysis,
                     in_try,
-                )
+                ))
                 .await?;
             }
         }
@@ -2409,14 +2383,14 @@ async fn require_resolve_visitor(
     Ok(if args.len() == 1 {
         let pat = js_value_to_pattern(&args[0]);
         let request = Request::parse(Value::new(pat.clone()));
-        let resolved = cjs_resolve(origin, request, None, IssueSeverity::Warning.cell())
+        let resolved = cjs_resolve_source(origin, request, None, IssueSeverity::Warning.cell())
             .resolve()
             .await?;
         let mut values = resolved
-            .primary_modules()
+            .primary_sources()
             .await?
             .iter()
-            .map(|&module| async move { require_resolve(module.ident().path()).await })
+            .map(|&source| async move { require_resolve(source.ident().path()).await })
             .try_join()
             .await?;
 
