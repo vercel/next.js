@@ -423,10 +423,14 @@ impl SourceMap {
                         if map.get_source_count() == 1 {
                             let source = map.sources().next().unwrap();
                             *guessed_original_file = Some(source.to_string());
-
-                            let c = map.source_contents().next().unwrap();
-                            content = c.map(|c| c.to_string());
                         }
+                    }
+                }
+
+                if let Some(map) = map.map.as_regular_source_map() {
+                    if map.get_source_count() == 1 {
+                        let c = map.source_contents().next().unwrap();
+                        content = c.map(|c| c.to_string());
                     }
                 }
 
