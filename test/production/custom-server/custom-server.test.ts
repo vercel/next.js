@@ -28,7 +28,7 @@ describe('custom server', () => {
 
     it('should render pages with installed react', async () => {
       const $ = await next.render$(`/2`)
-      expect($('body').text()).toMatch(/pages: 19.0.0/)
+      expect($('body').text()).toMatch(/pages: 18\.\d+\.\d+\{/)
     })
   })
 })

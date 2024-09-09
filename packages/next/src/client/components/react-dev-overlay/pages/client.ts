@@ -52,11 +52,13 @@ function handleError(error: unknown) {
 
 let origConsoleError = console.error
 function nextJsHandleConsoleError(...args: any[]) {
+  // To support React 19, this will need to be updated as follows:
+  // const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
   // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
-  const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
-  storeHydrationErrorStateFromConsoleArgs(...args)
+  const error = args[0]
+  const errorArgs = storeHydrationErrorStateFromConsoleArgs(...args)
   handleError(error)
-  origConsoleError.apply(window.console, args)
+  origConsoleError.apply(window.console, errorArgs)
 }
 
 function onUnhandledError(event: ErrorEvent) {

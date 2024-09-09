@@ -32,7 +32,7 @@ describe('Basics', () => {
       const browser = await webdriver(context.appPort, '/')
       expect(await browser.eval('window.didHydrate')).toBe(true)
       expect(await browser.elementById('react-dom-version').text()).toMatch(
-        /19/
+        /18/
       )
     })
 
