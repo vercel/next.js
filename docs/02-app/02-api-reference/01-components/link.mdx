@@ -227,7 +227,7 @@ export default function Home() {
 
 ### `scroll`
 
-**Defaults to `true`.** By default, the scrolling behavior of `<Link>` in Next.js **is to maintain scroll position**, similar to how browsers handle back and fowards navigation. When you navigate to a new [Page](/docs/app/building-your-application/routing/pages), scroll position will stay the same as long as the Page is visible in the viewport. However, if the Page is not visible in the viewport, Next.js will scroll to the top of the first Page element.
+**Defaults to `true`.** The default scrolling behavior of `<Link>` in Next.js **is to maintain scroll position**, similar to how browsers handle back and fowards navigation. When you navigate to a new [Page](/docs/app/building-your-application/routing/pages), scroll position will stay the same as long as the Page is visible in the viewport. However, if the Page is not visible in the viewport, Next.js will scroll to the top of the first Page element.
 
 When `scroll = {false}`, Next.js will not attempt to scroll to the first Page element.
 
@@ -582,8 +582,6 @@ export function Links() {
 
 ### Scrolling to an `id`
 
-The default behavior of the Next.js App Router is to **scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.**
-
 If you'd like to scroll to a specific `id` on navigation, you can append your URL with a `#` hash link or just pass a hash link to the `href` prop. This is possible since `<Link>` renders to an `<a>` element.
 
 ```jsx
@@ -596,45 +594,6 @@ If you'd like to scroll to a specific `id` on navigation, you can append your UR
 > **Good to know**:
 >
 > - Next.js will scroll to the [Page](/docs/app/building-your-application/routing/pages) if it is not visible in the viewport upon navigation.
-
-### Disabling scroll restoration
-
-The default behavior of the Next.js App Router is to **scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.** If you'd like to disable this behavior, you can pass `scroll={false}` to the `<Link>` component, or `scroll: false` to `router.push()` or `router.replace()`.
-
-```tsx filename="app/page.tsx" switcher
-import Link from 'next/link'
-
-export default function Home() {
-  return (
-    <Link href="/dashboard" scroll={false}>
-      Dashboard
-    </Link>
-  )
-}
-```
-
-```jsx filename="app/page.js" switcher
-import Link from 'next/link'
-
-export default function Home() {
-  return (
-    <Link href="/dashboard" scroll={false}>
-      Dashboard
-    </Link>
-  )
-}
-```
-
-Using `router.push()` or `router.replace()`:
-
-```jsx
-// useRouter
-import { useRouter } from 'next/navigation'
-
-const router = useRouter()
-
-router.push('/dashboard', { scroll: false })
-```
 
 </AppOnly>
 
@@ -1052,9 +1011,11 @@ export default function Home() {
 
 ### Disable scrolling to the top of the page
 
-The default behavior of `Link` is to scroll to the top of the page. When there is a hash defined it will scroll to the specific id, like a normal `<a>` tag. To prevent scrolling to the top / hash `scroll={false}` can be added to `Link`:
-
 <AppOnly>
+
+The default scrolling behavior of `<Link>` in Next.js **is to maintain scroll position**, similar to how browsers handle back and fowards navigation. When you navigate to a new [Page](/docs/app/building-your-application/routing/pages), scroll position will stay the same as long as the Page is visible in the viewport.
+
+However, if the Page is not visible in the viewport, Next.js will scroll to the top of the first Page element. If you'd like to disable this behavior, you can pass `scroll={false}` to the `<Link>` component, or `scroll: false` to `router.push()` or `router.replace()`.
 
 ```jsx filename="app/page.js" switcher
 import Link from 'next/link'
@@ -1080,9 +1041,22 @@ export default function Page() {
 }
 ```
 
+Using `router.push()` or `router.replace()`:
+
+```jsx
+// useRouter
+import { useRouter } from 'next/navigation'
+
+const router = useRouter()
+
+router.push('/dashboard', { scroll: false })
+```
+
 </AppOnly>
 
 <PagesOnly>
+
+The default behavior of `Link` is to scroll to the top of the page. When there is a hash defined it will scroll to the specific id, like a normal `<a>` tag. To prevent scrolling to the top / hash `scroll={false}` can be added to `Link`:
 
 ```jsx filename="pages/index.js" switcher
 import Link from 'next/link'
