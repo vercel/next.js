@@ -1,7 +1,6 @@
 use std::ops::Deref;
 
 use anyhow::{bail, Result};
-use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
@@ -478,7 +477,6 @@ pub async fn parse_segment_config_from_loader_tree(
         .cell())
 }
 
-#[async_recursion]
 pub async fn parse_segment_config_from_loader_tree_internal(
     loader_tree: &LoaderTree,
 ) -> Result<NextSegmentConfig> {
@@ -488,7 +486,7 @@ pub async fn parse_segment_config_from_loader_tree_internal(
         .parallel_routes
         .values()
         .map(|loader_tree| async move {
-            parse_segment_config_from_loader_tree_internal(loader_tree).await
+            Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)).await
         })
         .try_join()
         .await?;
