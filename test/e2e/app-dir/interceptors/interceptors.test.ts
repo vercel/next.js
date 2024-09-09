@@ -143,4 +143,18 @@ describe('interceptors', () => {
       'DeeplyNestedPage'
     )
   })
+
+  it('can seed the react cache for the current request', async () => {
+    const browser = await next.browser('/nested?seed-react-cache')
+
+    const renderedValue = await browser
+      .elementByCss('p[data-testid="data"]')
+      .text()
+
+    // The logged value from the interceptor should be the same as the rendered
+    // value from the page.
+    expect(next.cliOutput.slice(cliOutputLength)).toInclude(
+      `{ data: '${renderedValue}' }`
+    )
+  })
 })
