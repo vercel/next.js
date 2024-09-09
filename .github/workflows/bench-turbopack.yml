@@ -1,0 +1,97 @@
+name: Benchmark Turbopack
+on:
+  push:
+    branches: [canary]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  turbopack_rust_check:
+    name: Turbopack rust check
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Run cargo check release
+        run: |
+          RUSTFLAGS="-D warnings -A deprecated" cargo check --workspace --all-targets --features rustls-tls --release
+
+  turbopack_bench_pr:
+    needs: [turbopack_rust_check]
+    if: github.event_name == 'pull_request'
+    name: Benchmark and compare Turbopack performance on ${{ matrix.os.title }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - name: linux
+            title: Linux
+            quiet: false
+            runs-on:
+              - 'self-hosted'
+              - 'linux'
+              - 'x64'
+              - 'metal'
+          # - name: macos
+          #   title: MacOS
+          #   quiet: true
+          #   runner: macos-latest
+          # - name: windows
+          #   title: Windows
+          #   quiet: true
+          #   runner: windows-latest
+    runs-on: ${{ matrix.os.runs-on }}
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      #      - name: Fetch the base branch
+      #        run: git -c protocol.version=2 fetch --no-tags --progress --no-recurse-submodules --depth=1 origin +${{ github.base_ref }}:base
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - run: node -v
+      - run: corepack enable
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-codspeed
+
+      - name: Build the benchmark target(s)
+        run: cargo codspeed build --workspace
+
+      - name: Run the benchmarks
+        uses: CodSpeedHQ/action@v3
+        with:
+          run: cargo codspeed run
+#          token: ${{ secrets.CODSPEED_TOKEN }}
