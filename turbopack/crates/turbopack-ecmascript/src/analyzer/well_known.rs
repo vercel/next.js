@@ -57,12 +57,12 @@ pub async fn well_known_function_call(
         WellKnownFunctionKind::PathJoin => path_join(args),
         WellKnownFunctionKind::PathDirname => path_dirname(args),
         WellKnownFunctionKind::PathResolve(cwd) => path_resolve(*cwd, args),
-        WellKnownFunctionKind::Import => JsValue::unknown(
+        WellKnownFunctionKind::Import { .. } => JsValue::unknown(
             JsValue::call(Box::new(JsValue::WellKnownFunction(kind)), args),
             true,
             "import() is not supported",
         ),
-        WellKnownFunctionKind::Require => require(args),
+        WellKnownFunctionKind::Require { ignore } => require(args, ignore),
         WellKnownFunctionKind::RequireContextRequire(value) => {
             require_context_require(value, args).await?
         }
@@ -322,7 +322,11 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
     )
 }
 
-pub fn require(args: Vec<JsValue>) -> JsValue {
+/// Resolve the contents of a require call, throwing errors
+/// if we come across any unsupported syntax.
+///
+/// `ignore` is true if the require call is marked with `turbopackIgnore` or `webpackIgnore`.
+pub fn require(args: Vec<JsValue>, ignore: bool) -> JsValue {
     if args.len() == 1 {
         if let Some(s) = args[0].as_str() {
             JsValue::Module(ModuleValue {
@@ -332,7 +336,9 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
         } else {
             JsValue::unknown(
                 JsValue::call(
-                    Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::Require)),
+                    Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::Require {
+                        ignore,
+                    })),
                     args,
                 ),
                 true,
@@ -342,7 +348,9 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
     } else {
         JsValue::unknown(
             JsValue::call(
-                Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::Require)),
+                Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::Require {
+                    ignore,
+                })),
                 args,
             ),
             true,
@@ -520,13 +528,13 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
 
 pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> (JsValue, bool) {
     let new_value = match (kind, prop.as_str()) {
-        (WellKnownFunctionKind::Require, Some("resolve")) => {
+        (WellKnownFunctionKind::Require { .. }, Some("resolve")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
         }
-        (WellKnownFunctionKind::Require, Some("cache")) => {
+        (WellKnownFunctionKind::Require { .. }, Some("cache")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::RequireCache)
         }
-        (WellKnownFunctionKind::Require, Some("context")) => {
+        (WellKnownFunctionKind::Require { .. }, Some("context")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext)
         }
         (WellKnownFunctionKind::RequireContextRequire(val), Some("resolve")) => {
