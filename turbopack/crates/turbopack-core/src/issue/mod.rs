@@ -15,7 +15,7 @@ use turbo_tasks::{
     emit, CollectiblesSource, RawVc, RcStr, ReadRef, TransientInstance, TransientValue,
     TryJoinIterExt, Upcast, ValueToString, Vc,
 };
-use turbo_tasks_fs::{File, FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileLine, FileLinesContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::{
@@ -571,7 +571,6 @@ async fn source_pos(
 
         match &*token.await? {
             crate::source_map::Token::Synthetic(t) => Ok::<_, anyhow::Error>((
-                None,
                 SourcePos {
                     line: t.generated_line as _,
                     column: t.generated_column as _,
@@ -579,7 +578,6 @@ async fn source_pos(
                 *source_content,
             )),
             crate::source_map::Token::Original(t) => Ok((
-                Some(t.original_file.clone()),
                 SourcePos {
                     line: t.original_line as _,
                     column: t.original_column as _,
@@ -589,29 +587,20 @@ async fn source_pos(
         }
     };
 
-    let (f1, start, content_1) = find(start.line, start.column).await?;
-    let (f2, end, content_2) = find(end.line, end.column).await?;
+    let (start, content_1) = find(start.line, start.column).await?;
+    let (end, content_2) = find(end.line, end.column).await?;
 
-    let file_name = f1.or(f2);
     let content = content_1.or(content_2);
 
-    let source = match file_name {
-        Some(file_name) => {
-            if let Some(content) = content {
-                let file = File::from(content.await?.clone_value());
+    let source = if let Some(content) = content {
+        let file = File::from(content.await?.clone_value());
 
-                let content = FileContent::new(file).cell();
-                let content = AssetContent::file(content);
+        let content = FileContent::new(file).cell();
+        let content = AssetContent::file(content);
 
-                Vc::upcast(VirtualSource::new(
-                    origin.fs().root().join(file_name.into()),
-                    content,
-                ))
-            } else {
-                source
-            }
-        }
-        None => source,
+        Vc::upcast(VirtualSource::new(source.ident().path(), content))
+    } else {
+        source
     };
 
     Ok(Some((source, start, end)))
