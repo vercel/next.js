@@ -1333,7 +1333,10 @@ export default async function build(
         const project = await bindings.turbo.createProject(
           {
             projectPath: dir,
-            rootPath: config.outputFileTracingRoot || dir,
+            rootPath:
+              config.experimental?.turbo?.root ||
+              config.outputFileTracingRoot ||
+              dir,
             nextConfig: config,
             jsConfig: await getTurbopackJsConfig(dir, config),
             watch: false,

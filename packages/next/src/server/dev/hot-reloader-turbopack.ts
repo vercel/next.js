@@ -136,7 +136,10 @@ export async function createHotReloaderTurbopack(
   const project = await bindings.turbo.createProject(
     {
       projectPath: dir,
-      rootPath: opts.nextConfig.outputFileTracingRoot || dir,
+      rootPath:
+        opts.nextConfig.experimental.turbo?.root ||
+        opts.nextConfig.outputFileTracingRoot ||
+        dir,
       nextConfig: opts.nextConfig,
       jsConfig: await getTurbopackJsConfig(dir, nextConfig),
       watch: true,
