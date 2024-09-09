@@ -269,7 +269,7 @@ impl EcmascriptModulePartAsset {
 }
 
 #[turbo_tasks::function]
-async fn analyze(
+fn analyze(
     module: Vc<EcmascriptModuleAsset>,
     part: Vc<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {

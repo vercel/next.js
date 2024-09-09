@@ -59,13 +59,12 @@ import type {
   BaseRequestHandler,
 } from './base-server'
 import BaseServer, { NoFallbackError } from './base-server'
-import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
+import { getMaybePagePath, getPagePath } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
 import type { LoadComponentsReturnType } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
-import type { FontManifest } from './font-utils'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from './web/utils'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
 import { loadEnvConfig } from '@next/env'
@@ -178,11 +177,6 @@ export default class NextNodeServer extends BaseServer<
      * Using this from process.env allows targeting SSR by calling
      * `process.env.__NEXT_OPTIMIZE_CSS`.
      */
-    if (this.renderOpts.optimizeFonts) {
-      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(
-        this.renderOpts.optimizeFonts
-      )
-    }
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
@@ -297,10 +291,7 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected async loadInstrumentationModule() {
-    if (
-      !this.serverOptions.dev &&
-      !!this.nextConfig.experimental.instrumentationHook
-    ) {
+    if (!this.serverOptions.dev) {
       try {
         this.instrumentation = await dynamicRequire(
           resolve(
@@ -312,8 +303,10 @@ export default class NextNodeServer extends BaseServer<
         )
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
-          err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-          throw err
+          throw new Error(
+            'An error occurred while loading the instrumentation hook',
+            { cause: err }
+          )
         }
       }
     }
@@ -569,7 +562,16 @@ export default class NextNodeServer extends BaseServer<
       renderOpts.nextFontManifest = this.nextFontManifest
 
       if (this.enabledDirectories.app && renderOpts.isAppPath) {
-        return lazyRenderAppPage(req, res, pathname, query, renderOpts)
+        return lazyRenderAppPage(
+          req,
+          res,
+          pathname,
+          query,
+          // This code path does not service revalidations for unknown param
+          // shells. As a result, we don't need to pass in the unknown params.
+          null,
+          renderOpts
+        )
       }
 
       // TODO: re-enable this once we've refactored to use implicit matches
@@ -787,10 +789,6 @@ export default class NextNodeServer extends BaseServer<
     return null
   }
 
-  protected getFontManifest(): FontManifest {
-    return requireFontManifest(this.distDir)
-  }
-
   protected getNextFontManifest(): NextFontManifest | undefined {
     return loadManifest(
       join(this.distDir, 'server', NEXT_FONT_MANIFEST + '.json')
@@ -872,6 +870,7 @@ export default class NextNodeServer extends BaseServer<
                 etag,
                 extension: getExtension(contentType) as string,
               },
+              isFallback: false,
               revalidate: maxAge,
             }
           },

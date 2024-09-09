@@ -459,6 +459,11 @@ export interface ProjectOptions {
    * Options for draft mode.
    */
   previewProps: __ApiPreviewProps
+
+  /**
+   * The browserslist query to use for targeting browsers.
+   */
+  browserslistQuery: string
 }
 
 type RustifiedEnv = { name: string; value: string }[]
@@ -678,6 +683,8 @@ export interface Project {
   updateInfoSubscribe(
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+
+  shutdown(): Promise<void>
 
   onExit(): Promise<void>
 }
@@ -1098,6 +1105,10 @@ function bindingToApi(
           )
       )
       return subscription
+    }
+
+    shutdown(): Promise<void> {
+      return binding.projectShutdown(this._nativeProject)
     }
 
     onExit(): Promise<void> {

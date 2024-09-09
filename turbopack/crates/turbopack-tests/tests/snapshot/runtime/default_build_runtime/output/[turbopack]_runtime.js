@@ -522,6 +522,9 @@ function loadWebAssemblyModule(chunkPath) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     return compileWebAssemblyFromPath(resolved);
 }
+function getWorkerBlobURL(_chunks) {
+    throw new Error("Worker blobs are not implemented yet for Node.js");
+}
 function instantiateModule(id, source) {
     const moduleFactory = moduleFactories[id];
     if (typeof moduleFactory !== "function") {
@@ -595,7 +598,8 @@ function instantiateModule(id, source) {
             P: resolveAbsolutePath,
             U: relativeURL,
             R: createResolvePathFromModule(r),
-            __dirname: module1.id.replace(/(^|\/)\/+$/, "")
+            b: getWorkerBlobURL,
+            __dirname: typeof module1.id === "string" ? module1.id.replace(/(^|\/)\/+$/, "") : module1.id
         });
     } catch (error) {
         module1.error = error;

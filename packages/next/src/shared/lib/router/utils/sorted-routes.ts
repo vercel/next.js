@@ -222,3 +222,25 @@ export function getSortedRoutes(
   // Smoosh will then sort those sublevels up to the point where you get the correct route definition priority
   return root.smoosh()
 }
+
+export function getSortedRouteObjects<T>(
+  objects: T[],
+  getter: (obj: T) => string
+): T[] {
+  // We're assuming here that all the pathnames are unique, that way we can
+  // sort the list and use the index as the key.
+  const indexes: Record<string, number> = {}
+  const pathnames: string[] = []
+  for (let i = 0; i < objects.length; i++) {
+    const pathname = getter(objects[i])
+    indexes[pathname] = i
+    pathnames[i] = pathname
+  }
+
+  // Sort the pathnames.
+  const sorted = getSortedRoutes(pathnames)
+
+  // Map the sorted pathnames back to the original objects using the new sorted
+  // index.
+  return sorted.map((pathname) => objects[indexes[pathname]])
+}

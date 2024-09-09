@@ -106,16 +106,21 @@ jobs:
       fail-fast: false
       matrix:
         exclude:
-          # Exclude slow builds for automated previews
-          # These are rarely needed for the standard preview usage (e.g. Front sync)
+          # only build the binaries we usually test with
+          # darwin arm64, windows x64, linux GNU x64
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'i686-pc-windows-msvc' }}
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-pc-windows-msvc' }}
           - settings:
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-unknown-linux-gnu' }}
+          - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-unknown-linux-musl' }}
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-unknown-linux-musl' }}
+          - settings:
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-apple-darwin' }}
+
         settings:
           - host:
               - 'self-hosted'

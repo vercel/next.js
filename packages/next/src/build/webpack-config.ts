@@ -81,7 +81,6 @@ import {
   createRSCAliases,
   createNextApiEsmAliases,
   createAppRouterApiAliases,
-  createRSCRendererAliases,
 } from './create-compiler-aliases'
 import { hasCustomExportOutput } from '../export/utils'
 import { CssChunkingPlugin } from './webpack/plugins/css-chunking-plugin'
@@ -1475,8 +1474,11 @@ export default async function getBaseWebpackConfig(
               resolve: {
                 mainFields: getMainField(compilerType, true),
                 conditionNames: reactServerCondition,
-                // Always use default channels when use installed react
-                alias: createRSCRendererAliases(''),
+                alias: createRSCAliases(bundledReactChannel, {
+                  reactProductionProfiling,
+                  layer: WEBPACK_LAYERS.middleware,
+                  isEdgeServer,
+                }),
               },
             },
             {
@@ -1486,8 +1488,11 @@ export default async function getBaseWebpackConfig(
               resolve: {
                 mainFields: getMainField(compilerType, true),
                 conditionNames: reactServerCondition,
-                // Always use default channels when use installed react
-                alias: createRSCRendererAliases(''),
+                alias: createRSCAliases(bundledReactChannel, {
+                  reactProductionProfiling,
+                  layer: WEBPACK_LAYERS.instrument,
+                  isEdgeServer,
+                }),
               },
             },
             ...(hasAppDir
@@ -1856,20 +1861,6 @@ export default async function getBaseWebpackConfig(
           clientRouterFilters,
         }),
       new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
-      config.optimizeFonts &&
-        !dev &&
-        isNodeServer &&
-        (function () {
-          const { FontStylesheetGatheringPlugin } =
-            require('./webpack/plugins/font-stylesheet-gathering-plugin') as {
-              FontStylesheetGatheringPlugin: typeof import('./webpack/plugins/font-stylesheet-gathering-plugin').FontStylesheetGatheringPlugin
-            }
-          return new FontStylesheetGatheringPlugin({
-            adjustFontFallbacks: config.experimental.adjustFontFallbacks,
-            adjustFontFallbacksWithSizeAdjust:
-              config.experimental.adjustFontFallbacksWithSizeAdjust,
-          })
-        })(),
       new WellKnownErrorsPlugin(),
       isClient &&
         new CopyFilePlugin({
@@ -2071,7 +2062,6 @@ export default async function getBaseWebpackConfig(
     buildActivityPosition: config.devIndicators.buildActivityPosition,
     productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
     reactStrictMode: config.reactStrictMode,
-    optimizeFonts: config.optimizeFonts,
     optimizeCss: config.experimental.optimizeCss,
     nextScriptWorkers: config.experimental.nextScriptWorkers,
     scrollRestoration: config.experimental.scrollRestoration,

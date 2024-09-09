@@ -34,6 +34,12 @@ bun add next@rc react@rc react-dom@rc eslint-config-next@rc
 
 - The minimum `react` and `react-dom` is now 19.
 
+## React 19
+
+- `useFormState` has been replaced by `useActionState`. The `useFormState` hook is still available in React 19, but it is deprecated and will be removed in a future release. `useActionState` is recommended and includes additional properties like reading the `pending` state directly. [Learn more](https://react.dev/reference/react/useActionState).
+- `useFormStatus` now includes additional keys like `data`, `method`, and `action`. If you are not using React 19, only the `pending` key is available. [Learn more](https://react.dev/reference/react-dom/hooks/useFormStatus).
+- Read more in the [React 19 upgrade guide](https://react.dev/blog/2024/04/25/react-19-upgrade-guide).
+
 ## `fetch` requests
 
 [`fetch` requests](/docs/app/api-reference/functions/fetch) are no longer cached by default.

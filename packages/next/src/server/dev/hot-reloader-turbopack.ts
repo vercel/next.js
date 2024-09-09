@@ -79,6 +79,8 @@ import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { getNodeDebugType } from '../lib/utils'
+// import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -95,6 +97,7 @@ export async function createHotReloaderTurbopack(
   distDir: string,
   resetFetch: () => void
 ): Promise<NextJsHotReloaderInterface> {
+  const dev = true
   const buildId = 'development'
   const { nextConfig, dir } = opts
 
@@ -124,22 +127,36 @@ export async function createHotReloaderTurbopack(
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
 
-  const encryptionKey = await generateEncryptionKeyBase64(true)
+  const encryptionKey = await generateEncryptionKeyBase64(dev)
+
+  // TODO: Implement
+  let clientRouterFilters: any
+  if (nextConfig.experimental.clientRouterFilter) {
+    // TODO this need to be set correctly for persistent caching to work
+  }
+
+  // const supportedBrowsers = await getSupportedBrowsers(dir, dev)
+  const supportedBrowsers = [
+    'last 1 Chrome versions, last 1 Firefox versions, last 1 Safari versions, last 1 Edge versions',
+  ]
+
   const project = await bindings.turbo.createProject(
     {
       projectPath: dir,
-      rootPath: opts.nextConfig.outputFileTracingRoot || dir,
+      rootPath:
+        opts.nextConfig.experimental.turbo?.root ||
+        opts.nextConfig.outputFileTracingRoot ||
+        dir,
       nextConfig: opts.nextConfig,
       jsConfig: await getTurbopackJsConfig(dir, nextConfig),
-      watch: true,
-      dev: true,
+      watch: dev,
+      dev,
       env: process.env as Record<string, string>,
       defineEnv: createDefineEnv({
         isTurbopack: true,
-        // TODO: Implement
-        clientRouterFilters: undefined,
+        clientRouterFilters,
         config: nextConfig,
-        dev: true,
+        dev,
         distDir,
         fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
         hasRewrites,
@@ -149,6 +166,7 @@ export async function createHotReloaderTurbopack(
       buildId,
       encryptionKey,
       previewProps: opts.fsChecker.prerenderManifest.preview,
+      browserslistQuery: supportedBrowsers.join(', '),
     },
     {
       memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
@@ -478,7 +496,6 @@ export async function createHotReloaderTurbopack(
 
         currentEntryIssues,
         manifestLoader,
-        nextConfig: opts.nextConfig,
         devRewrites: opts.fsChecker.rewrites,
         productionRewrites: undefined,
         logErrors: true,
@@ -526,6 +543,23 @@ export async function createHotReloaderTurbopack(
   const versionInfoPromise = getVersionInfo(
     isTestMode || opts.telemetry.isEnabled
   )
+
+  let devtoolsFrontendUrl: string | undefined
+  const nodeDebugType = getNodeDebugType()
+  if (nodeDebugType) {
+    const debugPort = process.debugPort
+    let debugInfo
+    try {
+      // It requires to use 127.0.0.1 instead of localhost for server-side fetching.
+      const debugInfoList = await fetch(
+        `http://127.0.0.1:${debugPort}/json/list`
+      ).then((res) => res.json())
+      debugInfo = debugInfoList[0]
+    } catch {}
+    if (debugInfo) {
+      devtoolsFrontendUrl = debugInfo.devtoolsFrontendUrl
+    }
+  }
 
   const hotReloader: NextJsHotReloaderInterface = {
     turbopackProject: project,
@@ -696,6 +730,9 @@ export async function createHotReloaderTurbopack(
             warnings: [],
             hash: '',
             versionInfo,
+            debug: {
+              devtoolsFrontendUrl,
+            },
           }
 
           sendToClient(client, sync)
@@ -832,6 +869,7 @@ export async function createHotReloaderTurbopack(
         let finishBuilding = startBuilding(pathname, requestUrl, false)
         try {
           await handlePagesErrorRoute({
+            dev: true,
             currentEntryIssues,
             entrypoints: currentEntrypoints,
             manifestLoader,
@@ -886,7 +924,7 @@ export async function createHotReloaderTurbopack(
       const finishBuilding = startBuilding(pathname, requestUrl, false)
       try {
         await handleRouteType({
-          dev: true,
+          dev,
           page,
           pathname,
           route,

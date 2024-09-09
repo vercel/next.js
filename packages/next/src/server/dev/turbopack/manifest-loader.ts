@@ -12,7 +12,6 @@ import type { LoadableManifest } from '../../load-components'
 import {
   APP_BUILD_MANIFEST,
   APP_PATHS_MANIFEST,
-  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   BUILD_MANIFEST,
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
@@ -43,6 +42,7 @@ import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { existsSync } from 'fs'
 import { addMetadataIdToRoute, addRouteSuffix, removeRouteSuffix } from '../turbopack-utils'
+import { tryToParsePath } from '../../../lib/try-to-parse-path'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -267,18 +267,6 @@ export class TurbopackManifestLoader {
     )
   }
 
-  /**
-   * Turbopack doesn't support this functionality, so it writes an empty manifest.
-   */
-  private async writeAutomaticFontOptimizationManifest() {
-    const manifestPath = join(
-      this.distDir,
-      'server',
-      AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
-    )
-
-    await writeFileAtomic(manifestPath, JSON.stringify([]))
-  }
 
   async loadBuildManifest(
     pageName: string,
@@ -615,6 +603,20 @@ export class TurbopackManifestLoader {
     const middlewareManifest = this.mergeMiddlewareManifests(
       this.middlewareManifests.values()
     )
+
+    // Normalize regexes as it uses path-to-regexp
+    for (const key in middlewareManifest.middleware) {
+      middlewareManifest.middleware[key].matchers.forEach((matcher) => {
+        if (!matcher.regexp.startsWith('^')) {
+          const parsedPage = tryToParsePath(matcher.regexp)
+          if (parsedPage.error || !parsedPage.regexStr) {
+            throw new Error(`Invalid source: ${matcher.regexp}`)
+          }
+          matcher.regexp = parsedPage.regexStr
+        }
+      })
+    }
+
     const middlewareManifestPath = join(
       this.distDir,
       'server',
@@ -664,7 +666,6 @@ export class TurbopackManifestLoader {
     await this.writeActionManifest()
     await this.writeAppBuildManifest()
     await this.writeAppPathsManifest()
-    await this.writeAutomaticFontOptimizationManifest()
     await this.writeBuildManifest(entrypoints, devRewrites, productionRewrites)
     await this.writeFallbackBuildManifest()
     await this.writeLoadableManifest()

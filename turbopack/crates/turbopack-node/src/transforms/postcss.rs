@@ -19,7 +19,7 @@ use turbopack_core::{
         Issue, IssueDescriptionExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
     },
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
-    resolve::{find_context_file, options::ImportMapping, FindContextFileResult},
+    resolve::{find_context_file_or_package_key, options::ImportMapping, FindContextFileResult},
     source::Source,
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
@@ -225,12 +225,97 @@ async fn extra_configs_changed(
     Ok(Vc::<Completions>::cell(configs).completed())
 }
 
+#[turbo_tasks::value]
+pub struct JsonSource {
+    pub path: Vc<FileSystemPath>,
+    pub key: Vc<Option<RcStr>>,
+    pub allow_json5: bool,
+}
+
+#[turbo_tasks::value_impl]
+impl JsonSource {
+    #[turbo_tasks::function]
+    pub fn new(path: Vc<FileSystemPath>, key: Vc<Option<RcStr>>, allow_json5: bool) -> Vc<Self> {
+        Self::cell(JsonSource {
+            path,
+            key,
+            allow_json5,
+        })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Source for JsonSource {
+    #[turbo_tasks::function]
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        match &*self.key.await? {
+            Some(key) => Ok(AssetIdent::from_path(
+                self.path
+                    .append(".".into())
+                    .append(key.clone())
+                    .append(".json".into()),
+            )),
+            None => Ok(AssetIdent::from_path(self.path.append(".json".into()))),
+        }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for JsonSource {
+    #[turbo_tasks::function]
+    async fn content(&self) -> Result<Vc<AssetContent>> {
+        let file_type = &*self.path.get_type().await?;
+        match file_type {
+            FileSystemEntryType::File => {
+                let json = if self.allow_json5 {
+                    self.path.read_json5().content().await?
+                } else {
+                    self.path.read_json().content().await?
+                };
+                let value = match &*self.key.await? {
+                    Some(key) => {
+                        let Some(value) = json.get(&**key) else {
+                            return Err(anyhow::anyhow!("Invalid file type {:?}", file_type));
+                        };
+                        value
+                    }
+                    None => &*json,
+                };
+                Ok(AssetContent::file(File::from(value.to_string()).into()))
+            }
+            FileSystemEntryType::NotFound => {
+                Ok(AssetContent::File(FileContent::NotFound.cell()).cell())
+            }
+            _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
+        }
+    }
+}
+
 #[turbo_tasks::function]
 pub(crate) async fn config_loader_source(
     project_path: Vc<FileSystemPath>,
     postcss_config_path: Vc<FileSystemPath>,
 ) -> Result<Vc<Box<dyn Source>>> {
     let postcss_config_path_value = &*postcss_config_path.await?;
+    let postcss_config_path_filename = postcss_config_path_value.file_name();
+
+    if postcss_config_path_filename == "package.json" {
+        return Ok(Vc::upcast(JsonSource::new(
+            postcss_config_path,
+            Vc::cell(Some("postcss".into())),
+            false,
+        )));
+    }
+
+    if postcss_config_path_value.path.ends_with(".json")
+        || postcss_config_path_filename == ".postcssrc"
+    {
+        return Ok(Vc::upcast(JsonSource::new(
+            postcss_config_path,
+            Vc::cell(None),
+            true,
+        )));
+    }
 
     // We can only load js files with `import()`.
     if !postcss_config_path_value.path.ends_with(".js") {
@@ -298,15 +383,23 @@ async fn find_config_in_location(
     location: PostCssConfigLocation,
     source: Vc<Box<dyn Source>>,
 ) -> Result<Option<Vc<FileSystemPath>>> {
-    if let FindContextFileResult::Found(config_path, _) =
-        *find_context_file(project_path, postcss_configs()).await?
+    if let FindContextFileResult::Found(config_path, _) = *find_context_file_or_package_key(
+        project_path,
+        postcss_configs(),
+        Value::new("postcss".into()),
+    )
+    .await?
     {
         return Ok(Some(config_path));
     }
 
     if matches!(location, PostCssConfigLocation::ProjectPathOrLocalPath) {
-        if let FindContextFileResult::Found(config_path, _) =
-            *find_context_file(source.ident().path().parent(), postcss_configs()).await?
+        if let FindContextFileResult::Found(config_path, _) = *find_context_file_or_package_key(
+            source.ident().path().parent(),
+            postcss_configs(),
+            Value::new("postcss".into()),
+        )
+        .await?
         {
             return Ok(Some(config_path));
         }

@@ -396,10 +396,7 @@ async function startWatcher(opts: SetupOpts) {
           ]
           continue
         }
-        if (
-          isInstrumentationHookFile(rootFile) &&
-          nextConfig.experimental.instrumentationHook
-        ) {
+        if (isInstrumentationHookFile(rootFile)) {
           serverFields.actualInstrumentationHookFile = rootFile
           await propagateServerField(
             opts,
