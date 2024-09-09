@@ -3,6 +3,7 @@ use std::mem::take;
 use swc_core::ecma::atoms::js_word;
 
 use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart};
+use crate::analyzer::JsValueUrlKind;
 
 /// Replaces some builtin values with their resulting values. Called early
 /// without lazy nested values. This allows to skip a lot of work to process the
@@ -26,7 +27,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
                 // We known that these callee will lead to an error at runtime, so we can skip
                 // processing them
                 JsValue::Constant(_)
-                | JsValue::Url(_)
+                | JsValue::Url(_, _)
                 | JsValue::WellKnownObject(_)
                 | JsValue::Array { .. }
                 | JsValue::Object { .. }
@@ -341,7 +342,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                         arg,
                                         JsValue::Array { .. }
                                             | JsValue::Constant(_)
-                                            | JsValue::Url(_)
+                                            | JsValue::Url(_, JsValueUrlKind::Absolute)
                                             | JsValue::Concat(..)
                                             | JsValue::Add(..)
                                             | JsValue::WellKnownObject(_)
@@ -360,7 +361,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                                 *mutable |= *inner_mutable;
                                             }
                                             JsValue::Constant(_)
-                                            | JsValue::Url(_)
+                                            | JsValue::Url(_, JsValueUrlKind::Absolute)
                                             | JsValue::Concat(..)
                                             | JsValue::Add(..)
                                             | JsValue::WellKnownObject(_)

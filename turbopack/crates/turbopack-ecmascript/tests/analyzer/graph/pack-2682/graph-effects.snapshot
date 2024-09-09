@@ -217,6 +217,7 @@
         ],
         span: 50..63,
         in_try: false,
+        new: false,
     },
     Member {
         obj: FreeVar(
@@ -763,6 +764,7 @@
         ],
         span: 273..398,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -869,5 +871,6 @@
         ],
         span: 416..453,
         in_try: false,
+        new: false,
     },
 ]
