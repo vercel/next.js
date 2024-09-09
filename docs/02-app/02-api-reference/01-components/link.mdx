@@ -55,16 +55,16 @@ The following props can be passed to the `<Link>` component:
 
 <PagesOnly>
 
-| Prop                     | Example             | Type             | Required |
-| ------------------------ | ------------------- | ---------------- | -------- |
-| [`href`](#href-required) | `href="/dashboard"` | String or Object | Yes      |
-| [`replace`](#replace)    | `replace={false}`   | Boolean          | -        |
-| [`scroll`](#scroll)      | `scroll={false}`    | Boolean          | -        |
-| [`prefetch`](#prefetch)  | `prefetch={false}`  | Boolean          | -        |
-| [`legacyBehavior`](#legacybehavior) | `legacyBehavior={true}`  | Boolean          | -        |
-| [`passHref`](#passhref)  | `passHref={true}`              | Boolean          | -        |
-| [`shallow`](#shallow)    | `shallow={false}`              | Boolean          | -        |
-| [`locale`](#locale)      | `locale="fr"`                  | String or Boolean | -        |
+| Prop                                | Example                 | Type              | Required |
+| ----------------------------------- | ----------------------- | ----------------- | -------- |
+| [`href`](#href-required)            | `href="/dashboard"`     | String or Object  | Yes      |
+| [`replace`](#replace)               | `replace={false}`       | Boolean           | -        |
+| [`scroll`](#scroll)                 | `scroll={false}`        | Boolean           | -        |
+| [`prefetch`](#prefetch)             | `prefetch={false}`      | Boolean           | -        |
+| [`legacyBehavior`](#legacybehavior) | `legacyBehavior={true}` | Boolean           | -        |
+| [`passHref`](#passhref)             | `passHref={true}`       | Boolean           | -        |
+| [`shallow`](#shallow)               | `shallow={false}`       | Boolean           | -        |
+| [`locale`](#locale)                 | `locale="fr"`           | String or Boolean | -        |
 
 </PagesOnly>
 
@@ -221,7 +221,7 @@ export default function Home() {
     </Link>
   )
 }
-``` 
+```
 
 </PagesOnly>
 
@@ -368,7 +368,7 @@ An `<a>` element is no longer required as a child of `<Link>`. Add the `legacyBe
 
 ### `passHref`
 
-Forces `Link` to send the `href` property to its child. Defaults to `false`. See [If the child is a functional component](#if-the-child-is-a-functional-component) for more information.
+Forces `Link` to send the `href` property to its child. Defaults to `false`. See the [passing a functional component](#passing-a-functional-component) example for more information.
 
 ### `scroll`
 
@@ -426,7 +426,6 @@ export default function Home() {
 }
 ```
 
-
 ### `locale`
 
 The active locale is automatically prepended. `locale` allows for providing a different locale. When `false` `href` has to include the locale as the default behavior is disabled.
@@ -438,9 +437,7 @@ export default function Home() {
   return (
     <>
       {/* Default behavior: locale is prepended */}
-      <Link href="/dashboard">
-        Dashboard (with locale)
-      </Link>
+      <Link href="/dashboard">Dashboard (with locale)</Link>
 
       {/* Disable locale prepending */}
       <Link href="/dashboard" locale={false}>
@@ -463,9 +460,7 @@ export default function Home() {
   return (
     <>
       {/* Default behavior: locale is prepended */}
-      <Link href="/dashboard">
-        Dashboard (with locale)
-      </Link>
+      <Link href="/dashboard">Dashboard (with locale)</Link>
 
       {/* Disable locale prepending */}
       <Link href="/dashboard" locale={false}>
@@ -801,10 +796,10 @@ interface MyButtonProps {
 }
 
 // Use React.ForwardRefRenderFunction to properly type the forwarded ref
-const MyButton: React.ForwardRefRenderFunction<HTMLAnchorElement, MyButtonProps> = (
-  { onClick, href },
-  ref
-) => {
+const MyButton: React.ForwardRefRenderFunction<
+  HTMLAnchorElement,
+  MyButtonProps
+> = ({ onClick, href }, ref) => {
   return (
     <a href={href} onClick={onClick} ref={ref}>
       Click Me
@@ -865,10 +860,10 @@ interface MyButtonProps {
 }
 
 // Use React.ForwardRefRenderFunction to properly type the forwarded ref
-const MyButton: React.ForwardRefRenderFunction<HTMLAnchorElement, MyButtonProps> = (
-  { onClick, href },
-  ref
-) => {
+const MyButton: React.ForwardRefRenderFunction<
+  HTMLAnchorElement,
+  MyButtonProps
+> = ({ onClick, href }, ref) => {
   return (
     <a href={href} onClick={onClick} ref={ref}>
       Click Me
@@ -1165,9 +1160,7 @@ export default function Page() {
   const isAuthed = useIsAuthed()
   const path = isAuthed ? '/auth/dashboard' : '/public/dashboard'
   return (
-    <Link as="/dashboard" href
-      href={path}
-    >
+    <Link as="/dashboard" href href={path}>
       Dashboard
     </Link>
   )
@@ -1201,9 +1194,7 @@ export default function Home() {
   const isAuthed = useIsAuthed()
   const path = isAuthed ? '/auth/dashboard' : '/public/dashboard'
   return (
-    <Link as="/dashboard" href
-      href={path}
-    >
+    <Link as="/dashboard" href href={path}>
       Dashboard
     </Link>
   )
