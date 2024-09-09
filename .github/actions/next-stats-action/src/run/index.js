@@ -22,6 +22,7 @@ async function runConfigs(
     let diffRepoStats
     let diffs
 
+    let i = 0
     for (const pkgPaths of [mainRepoPkgPaths, diffRepoPkgPaths]) {
       let curStats = {
         General: {
@@ -48,7 +49,42 @@ async function runConfigs(
       }
 
       // links local builds of the packages and installs dependencies
-      await linkPkgs(statsAppDir, pkgPaths)
+      const pkgJsonPath = path.join(statsAppDir, 'package.json')
+      const isMainRepo = i === 0
+      if (isMainRepo) {
+        // TODO: Remove me before merging
+        const original = await fs.readFile(
+          path.join(statsAppDir, 'package.json'),
+          'utf8'
+        )
+        await fs.writeFile(
+          path.join(statsAppDir, 'package.json'),
+          original.replaceAll('^18.2.0', '19.0.0-rc-7771d3a7-20240827'),
+          'utf8'
+        )
+      } else {
+        // TODO: Remove me before merging
+        const original = await fs.readFile(
+          path.join(statsAppDir, 'package.json'),
+          'utf8'
+        )
+        await fs.writeFile(
+          path.join(statsAppDir, 'package.json'),
+          original.replaceAll('19.0.0-rc-7771d3a7-20240827', '^18.2.0'),
+          'utf8'
+        )
+      }
+
+      const initialPkg = JSON.parse(
+        await fs.readFile(path.join(statsAppDir, 'package.json'), 'utf8')
+      )
+
+      const pkgData = await linkPkgs(statsAppDir, initialPkg, pkgPaths)
+      await fs.writeFile(pkgJsonPath, JSON.stringify(pkgData, null, 2), 'utf8')
+      await exec(
+        `cd ${statsAppDir} && pnpm install --strict-peer-dependencies=false`,
+        false
+      )
 
       if (!diffing) {
         curStats.General.nodeModulesSize = await getDirSize(
@@ -156,6 +192,7 @@ async function runConfigs(
         await exec(`cd ${statsAppDir} && ${statsConfig.appBuildCommand}`, false)
       )
       curStats.General.buildDurationCached = Date.now() - secondBuildStart
+      i++
     }
 
     logger(`Finished running: ${config.title}`)
@@ -171,14 +208,11 @@ async function runConfigs(
   return results
 }
 
-async function linkPkgs(pkgDir = '', pkgPaths) {
+async function linkPkgs(pkgDir = '', pkgData, pkgPaths) {
   await fs.rm(path.join(pkgDir, 'node_modules'), {
     recursive: true,
     force: true,
   })
-
-  const pkgJsonPath = path.join(pkgDir, 'package.json')
-  const pkgData = require(pkgJsonPath)
 
   if (!pkgData.dependencies && !pkgData.devDependencies) return
 
@@ -191,12 +225,8 @@ async function linkPkgs(pkgDir = '', pkgPaths) {
       pkgData.devDependencies[pkg] = pkgPath
     }
   }
-  await fs.writeFile(pkgJsonPath, JSON.stringify(pkgData, null, 2), 'utf8')
 
-  await exec(
-    `cd ${pkgDir} && pnpm install --strict-peer-dependencies=false`,
-    false
-  )
+  return pkgData
 }
 
 module.exports = runConfigs
