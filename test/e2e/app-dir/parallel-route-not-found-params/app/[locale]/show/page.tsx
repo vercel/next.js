@@ -1,10 +1,8 @@
 'use client'
 import { notFound } from 'next/navigation'
 
-export default function Page({ params }) {
-  console.log(params)
-
-  if (params.locale !== 'en') {
+export default async function Page({ params }) {
+  if ((await params).locale !== 'en') {
     notFound()
   }
 
