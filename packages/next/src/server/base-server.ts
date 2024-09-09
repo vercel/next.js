@@ -2995,6 +2995,13 @@ export default abstract class Server<
       }
     )
 
+    if (isPreviewMode) {
+      res.setHeader(
+        'Cache-Control',
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
+    }
+
     if (!cacheEntry) {
       if (ssgCacheKey && !(isOnDemandRevalidate && revalidateOnlyGenerated)) {
         // A cache entry might not be generated if a response is written
@@ -3181,7 +3188,9 @@ export default abstract class Server<
       // for the revalidate value
       addRequestMeta(req, 'notFoundRevalidate', cacheEntry.revalidate)
 
-      if (cacheEntry.revalidate) {
+      // If cache control is already set on the response we don't
+      // override it to allow users to customize it via next.config
+      if (cacheEntry.revalidate && !res.getHeader('Cache-Control')) {
         res.setHeader(
           'Cache-Control',
           formatRevalidate({
@@ -3202,7 +3211,9 @@ export default abstract class Server<
       await this.render404(req, res, { pathname, query }, false)
       return null
     } else if (cachedData.kind === CachedRouteKind.REDIRECT) {
-      if (cacheEntry.revalidate) {
+      // If cache control is already set on the response we don't
+      // override it to allow users to customize it via next.config
+      if (cacheEntry.revalidate && !res.getHeader('Cache-Control')) {
         res.setHeader(
           'Cache-Control',
           formatRevalidate({
@@ -3693,7 +3704,7 @@ export default abstract class Server<
     if (setHeaders) {
       res.setHeader(
         'Cache-Control',
-        'no-cache, no-store, max-age=0, must-revalidate'
+        'private, no-cache, no-store, max-age=0, must-revalidate'
       )
     }
 
