@@ -2116,6 +2116,9 @@ import { d as structuredError } from "__TURBOPACK_PART__" assert {
 import { a as createConnection } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export structuredError"
+};
 function createIpc(port) {
     const socket = createConnection(port, "127.0.0.1");
     const packetQueue = [];
@@ -2383,6 +2386,9 @@ import "__TURBOPACK_PART__" assert {
 };
 import { g as IPC } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 10
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export IPC"
 };
 process.on("uncaughtException", (err)=>{
     IPC.sendError(err);
@@ -3541,6 +3547,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 29
 };
+"module evaluation";
 
 ```
 ## Part 31
@@ -3624,6 +3631,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 29
 };
+"module evaluation";
 
 ```
 # Entrypoints
@@ -3719,6 +3727,9 @@ import { d as structuredError } from "__TURBOPACK_PART__" assert {
 import { a as createConnection } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export structuredError"
+};
 function createIpc(port) {
     const socket = createConnection(port, "127.0.0.1");
     const packetQueue = [];
@@ -3939,6 +3950,9 @@ import "__TURBOPACK_PART__" assert {
 };
 import { g as IPC } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 10
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export IPC"
 };
 process.on("uncaughtException", (err)=>{
     IPC.sendError(err);
@@ -4893,6 +4907,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
+"module evaluation";
 
 ```
 ## Part 31
@@ -4976,5 +4991,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
+"module evaluation";
 
 ```

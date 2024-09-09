@@ -141,6 +141,7 @@ await Promise.resolve();
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+"module evaluation";
 
 ```
 ## Part 2
@@ -172,6 +173,9 @@ import "__TURBOPACK_PART__" assert {
 };
 import { a as effects } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export effects"
 };
 function effect(name) {
     effects.push(name);
@@ -207,6 +211,7 @@ export { effect } from "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+"module evaluation";
 
 ```
 # Entrypoints
@@ -236,6 +241,7 @@ await Promise.resolve();
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+"module evaluation";
 
 ```
 ## Part 2
@@ -253,6 +259,9 @@ import "__TURBOPACK_PART__" assert {
 };
 import { a as effects } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export effects"
 };
 function effect(name) {
     effects.push(name);
@@ -299,5 +308,6 @@ export { effects } from "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+"module evaluation";
 
 ```

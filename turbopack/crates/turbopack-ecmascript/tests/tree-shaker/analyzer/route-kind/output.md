@@ -120,6 +120,9 @@ import "__TURBOPACK_PART__" assert {
 import { a as RouteKind } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export RouteKind"
+};
 (function(RouteKind) {
     RouteKind["PAGES"] = "PAGES";
     RouteKind["PAGES_API"] = "PAGES_API";
@@ -133,6 +136,7 @@ import { a as RouteKind } from "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
+"module evaluation";
 
 ```
 ## Part 3
@@ -161,6 +165,7 @@ export { RouteKind } from "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
+"module evaluation";
 
 ```
 # Entrypoints
@@ -193,6 +198,9 @@ import "__TURBOPACK_PART__" assert {
 import { a as RouteKind } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export RouteKind"
+};
 (function(RouteKind) {
     RouteKind["PAGES"] = "PAGES";
     RouteKind["PAGES_API"] = "PAGES_API";
@@ -206,6 +214,7 @@ import { a as RouteKind } from "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
+"module evaluation";
 
 ```
 ## Part 3
@@ -234,5 +243,6 @@ export { RouteKind } from "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
+"module evaluation";
 
 ```

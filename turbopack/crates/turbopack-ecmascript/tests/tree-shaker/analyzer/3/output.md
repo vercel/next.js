@@ -518,6 +518,9 @@ import "__TURBOPACK_PART__" assert {
 import { i as c1_3 } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export c1_3"
+};
 c1_3();
 
 ```
@@ -544,6 +547,9 @@ import "__TURBOPACK_PART__" assert {
 import { c as c2_2 } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export c2_2"
+};
 c2_2();
 
 ```
@@ -555,6 +561,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
+"module evaluation";
 
 ```
 ## Part 11
@@ -578,6 +585,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
+"module evaluation";
 
 ```
 # Entrypoints
@@ -733,6 +741,9 @@ import "__TURBOPACK_PART__" assert {
 import { i as c1_3 } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export c1_3"
+};
 c1_3();
 
 ```
@@ -747,6 +758,9 @@ import "__TURBOPACK_PART__" assert {
 import { c as c2_2 } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export c2_2"
+};
 c2_2();
 
 ```
@@ -758,6 +772,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
+"module evaluation";
 
 ```
 ## Part 11
@@ -781,6 +796,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
+"module evaluation";
 
 ```
 # Entrypoints

@@ -44,6 +44,7 @@ const shared = {
 
 ```
 
+- Side effects
 - Declares: `shared`
 - Reads: `random`, `order`
 - Write: `random`, `order`, `shared`
@@ -212,6 +213,7 @@ graph TD
     Item11 --> Item7;
     Item8 --> Item2;
     Item8 --> Item3;
+    Item8 --> Item4;
     Item8 --> Item5;
 ```
 # Final
@@ -246,6 +248,7 @@ graph TD
     N7 --> N6;
     N9 --> N1;
     N9 --> N2;
+    N9 --> N3;
     N9 --> N8;
 ```
 # Entrypoints
@@ -284,6 +287,9 @@ import "__TURBOPACK_PART__" assert {
 import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export order"
+};
 order.push("a");
 
 ```
@@ -314,6 +320,9 @@ import { b as random } from "__TURBOPACK_PART__" assert {
 };
 import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export order"
 };
 const shared = {
     random,
@@ -400,6 +409,9 @@ import "__TURBOPACK_PART__" assert {
 import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export order"
+};
 order.push("c");
 
 ```
@@ -412,8 +424,12 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
+"module evaluation";
 
 ```
 ## Part 10
@@ -452,8 +468,12 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
+"module evaluation";
 
 ```
 # Entrypoints
@@ -492,6 +512,9 @@ import "__TURBOPACK_PART__" assert {
 import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export order"
+};
 order.push("a");
 
 ```
@@ -522,6 +545,9 @@ import { b as random } from "__TURBOPACK_PART__" assert {
 };
 import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export order"
 };
 const shared = {
     random,
@@ -608,6 +634,9 @@ import "__TURBOPACK_PART__" assert {
 import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export order"
+};
 order.push("c");
 
 ```
@@ -620,8 +649,12 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
+"module evaluation";
 
 ```
 ## Part 10
@@ -660,7 +693,11 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
+"module evaluation";
 
 ```

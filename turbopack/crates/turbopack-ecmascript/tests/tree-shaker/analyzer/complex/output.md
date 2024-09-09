@@ -457,6 +457,9 @@ import "__TURBOPACK_PART__" assert {
 import { a as cat } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export cat"
+};
 const initialCat = cat;
 export { initialCat as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -575,6 +578,9 @@ import { c as dog } from "__TURBOPACK_PART__" assert {
 import { a as cat } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export cat"
+};
 function getChimera() {
     return cat + dog;
 }
@@ -644,6 +650,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
+"module evaluation";
 
 ```
 ## Part 15
@@ -723,6 +730,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
+"module evaluation";
 
 ```
 # Entrypoints
@@ -774,6 +782,9 @@ import "__TURBOPACK_PART__" assert {
 };
 import { a as cat } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export cat"
 };
 const initialCat = cat;
 export { initialCat as b } from "__TURBOPACK_VAR__" assert {
@@ -871,6 +882,9 @@ import { c as dog } from "__TURBOPACK_PART__" assert {
 };
 import { a as cat } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export cat"
 };
 function getChimera() {
     return cat + dog;
@@ -1016,6 +1030,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 14
 };
+"module evaluation";
 
 ```
 ## Part 18
@@ -1045,5 +1060,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 14
 };
+"module evaluation";
 
 ```

@@ -144,6 +144,7 @@ export { a };
 ```
 ## Part 4
 ```js
+"module evaluation";
 
 ```
 ## Part 5
@@ -158,6 +159,7 @@ export { a } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
+"module evaluation";
 
 ```
 # Entrypoints
@@ -217,6 +219,7 @@ export { a };
 ```
 ## Part 4
 ```js
+"module evaluation";
 
 ```
 ## Part 5
@@ -231,5 +234,6 @@ export { a } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
+"module evaluation";
 
 ```

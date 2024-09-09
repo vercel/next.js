@@ -144,6 +144,7 @@ export { dog as DOG };
 ```
 ## Part 4
 ```js
+"module evaluation";
 
 ```
 ## Part 5
@@ -151,13 +152,14 @@ export { dog as DOG };
 export { cat } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export cat"
 };
-export { dog as DOG } from "__TURBOPACK_PART__" assert {
+export { DOG } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export DOG"
 };
 
 ```
 ## Merged (module eval)
 ```js
+"module evaluation";
 
 ```
 # Entrypoints
@@ -217,6 +219,7 @@ export { dog as DOG };
 ```
 ## Part 4
 ```js
+"module evaluation";
 
 ```
 ## Part 5
@@ -224,12 +227,13 @@ export { dog as DOG };
 export { cat } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export cat"
 };
-export { dog as DOG } from "__TURBOPACK_PART__" assert {
+export { DOG } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export DOG"
 };
 
 ```
 ## Merged (module eval)
 ```js
+"module evaluation";
 
 ```

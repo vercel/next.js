@@ -520,6 +520,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
+"module evaluation";
 
 ```
 ## Part 13
@@ -535,7 +536,7 @@ export { __TURBOPACK__default__export__ as default };
 ```
 ## Part 14
 ```js
-export { __TURBOPACK__default__export__ as default } from "__TURBOPACK_PART__" assert {
+export { default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
 };
 
@@ -551,6 +552,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
+"module evaluation";
 
 ```
 # Entrypoints
@@ -761,6 +763,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
+"module evaluation";
 
 ```
 ## Part 13
@@ -776,7 +779,7 @@ export { __TURBOPACK__default__export__ as default };
 ```
 ## Part 14
 ```js
-export { __TURBOPACK__default__export__ as default } from "__TURBOPACK_PART__" assert {
+export { default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
 };
 
@@ -792,5 +795,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
+"module evaluation";
 
 ```

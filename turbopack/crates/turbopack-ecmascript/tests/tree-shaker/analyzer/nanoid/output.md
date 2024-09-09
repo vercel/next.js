@@ -581,6 +581,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
+"module evaluation";
 
 ```
 ## Part 10
@@ -663,6 +664,9 @@ import { a as urlAlphabet } from "__TURBOPACK_PART__" assert {
 import { e as pool } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export urlAlphabet"
+};
 let nanoid = (size = 21)=>{
     fillPool((size -= 0));
     let id = '';
@@ -715,6 +719,12 @@ import { g as customRandom } from "__TURBOPACK_PART__" assert {
 import { h as random } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export customRandom"
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export random"
+};
 let customAlphabet = (alphabet, size)=>customRandom(alphabet, size, random);
 export { customAlphabet as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -765,6 +775,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
+"module evaluation";
 
 ```
 # Entrypoints
@@ -939,6 +950,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
+"module evaluation";
 
 ```
 ## Part 10
@@ -1021,6 +1033,9 @@ import { a as urlAlphabet } from "__TURBOPACK_PART__" assert {
 import { e as pool } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export urlAlphabet"
+};
 let nanoid = (size = 21)=>{
     fillPool((size -= 0));
     let id = '';
@@ -1073,6 +1088,12 @@ import { g as customRandom } from "__TURBOPACK_PART__" assert {
 import { h as random } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export customRandom"
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export random"
+};
 let customAlphabet = (alphabet, size)=>customRandom(alphabet, size, random);
 export { customAlphabet as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1123,5 +1144,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
+"module evaluation";
 
 ```
