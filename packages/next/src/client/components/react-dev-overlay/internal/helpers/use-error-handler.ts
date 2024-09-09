@@ -38,23 +38,22 @@ export function handleClientError(error: unknown) {
   }
 }
 
-let listened = false
-if (!listened && typeof window !== 'undefined') {
-  listened = true
-  // These event handlers must be added outside of the hook because there is no
-  // guarantee that the hook will be alive in a mounted component in time to
-  // when the errors occur.
-  // uncaught errors go through reportError
-  window.addEventListener(
-    'error',
-    (event: WindowEventMap['error']): void | boolean => {
-      if (isNextRouterError(event.error)) {
-        event.preventDefault()
-        return false
+export function patchEventListeners() {
+  if (typeof window !== 'undefined') {
+    // These event handlers must be added outside of the hook because there is no
+    // guarantee that the hook will be alive in a mounted component in time to
+    // when the errors occur.
+    // uncaught errors go through reportError
+    window.addEventListener(
+      'error',
+      (event: WindowEventMap['error']): void | boolean => {
+        if (isNextRouterError(event.error)) {
+          event.preventDefault()
+          return false
+        }
+        handleClientError(event.error)
       }
-      handleClientError(event.error)
-    }
-  )
+    )
 
   window.addEventListener(
     'unhandledrejection',
@@ -74,13 +73,14 @@ if (!listened && typeof window !== 'undefined') {
         return
       }
 
-      const e = reason
-      rejectionQueue.push(e)
-      for (const handler of rejectionHandlers) {
-        handler(e)
+        const e = reason
+        rejectionQueue.push(e)
+        for (const handler of rejectionHandlers) {
+          handler(e)
+        }
       }
-    }
-  )
+    )
+  }
 }
 
 export function useErrorHandler(

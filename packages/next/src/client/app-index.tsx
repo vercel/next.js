@@ -22,10 +22,12 @@ import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
+import { patchEventListeners } from './components/react-dev-overlay/internal/helpers/use-error-handler'
 
 /// <reference types="react-dom/experimental" />
 
 patchConsoleError()
+patchEventListeners()
 
 const isReactOwnerStackEnabled = !!process.env.__NEXT_REACT_OWNER_STACK
 
