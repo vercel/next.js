@@ -234,7 +234,7 @@ describe('dynamic-data with dynamic = "error"', () => {
         'Error: Route /headers with `dynamic = "error"` couldn\'t be rendered statically because it used `headers`'
       )
       expect(next.cliOutput).toMatch(
-        "Error: Route /search couldn't be rendered statically because it used `await searchParams`, `use(searchParams)`, or similar"
+        "Error: Route /search couldn't be rendered statically because it used `await searchParams`, `searchParams.then`, or similar"
       )
       expect(next.cliOutput).toMatch(
         'Error: Route /routes/form-data/error with `dynamic = "error"` couldn\'t be rendered statically because it used `request.formData`'

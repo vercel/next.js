@@ -1,8 +1,8 @@
-export default function Page({ params }) {
+export default async function Page({ params }) {
   return (
     <div>
       Hello from [this-is-my-route]/some-page. Param:{' '}
-      {params['this-is-my-route']}
+      {(await params)['this-is-my-route']}
     </div>
   )
 }
