@@ -2103,7 +2103,7 @@ async fn handle_free_var_reference(
                     None => None,
                 },
                 state.import_externals,
-                true,
+                false,
             )
             .resolve()
             .await?;
