@@ -438,17 +438,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-recursion"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e97ce7de6cf12de5d7226c73f5ba9811622f4db3a5b91b55c53e987e5f91cba"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.58",
-]
-
-[[package]]
 name = "async-signal"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3628,6 +3617,7 @@ checksum = "c1cc9717a20b1bb222f333e6a92fd32f7d8a18ddc5a3191a11af45dcbf4dcd16"
 dependencies = [
  "autocfg",
  "scopeguard",
+ "serde",
 ]
 
 [[package]]
@@ -4134,7 +4124,6 @@ version = "0.1.0"
 dependencies = [
  "allsorts",
  "anyhow",
- "async-recursion",
  "async-trait",
  "auto-hash-map",
  "base64 0.21.4",
@@ -8801,7 +8790,6 @@ name = "turbopack"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-recursion",
  "criterion",
  "difference",
  "futures",
@@ -8939,7 +8927,6 @@ name = "turbopack-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-recursion",
  "async-trait",
  "auto-hash-map",
  "browserslist-rs",

@@ -197,6 +197,7 @@
         ],
         span: 11..35,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Member(
@@ -693,6 +694,7 @@
         ],
         span: 47..198,
         in_try: false,
+        new: false,
     },
     Conditional {
         condition: Constant(
@@ -760,6 +762,7 @@
                         ],
                         span: 226..237,
                         in_try: false,
+                        new: false,
                     },
                 ],
                 range: Exact(
@@ -845,6 +848,7 @@
                         ],
                         span: 254..265,
                         in_try: false,
+                        new: false,
                     },
                 ],
                 range: Exact(
@@ -1288,6 +1292,7 @@
         ],
         span: 438..449,
         in_try: false,
+        new: false,
     },
     ImportedBinding {
         esm_reference_index: 4,
