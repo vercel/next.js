@@ -6,7 +6,7 @@ export default function Home() {
   return (
     <>
       <Link href="/dynamic-import/basic">/dynamic-import/basic</Link>
-      {/* RedButton should be imported to reproduce the issue */}
+      {/* Both RedButton and RedButtonLazy should be imported to reproduce the issue */}
       <RedButton />
       <RedButtonLazy />
     </>
