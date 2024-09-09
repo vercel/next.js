@@ -9,6 +9,7 @@ describe('custom-cache-control', () => {
     // customizing these headers won't apply on environments
     // where headers are applied outside of the Next.js server
     it('should skip for deploy', () => {})
+    return
   }
 
   it('should have custom cache-control for app-ssg prerendered', async () => {
