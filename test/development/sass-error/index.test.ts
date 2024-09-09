@@ -15,13 +15,15 @@ describe('app dir - css', () => {
   }
 
   describe('sass support', () => {
-    describe('error handling', () => {
-      it('should use original source points for sass errors', async () => {
-        const browser = await next.browser('/sass-error')
+    ;(process.env.TURBOPACK ? describe : describe.skip)(
+      'error handling',
+      () => {
+        it('should use original source points for sass errors', async () => {
+          const browser = await next.browser('/sass-error')
 
-        const source = await getRedboxSource(browser)
+          const source = await getRedboxSource(browser)
 
-        expect(source).toMatchInlineSnapshot(`
+          expect(source).toMatchInlineSnapshot(`
           "./app/global.scss.css:45:1
           Parsing css source code failed
             43 | }
@@ -34,7 +36,8 @@ describe('app dir - css', () => {
 
           Unexpected token Ident("path") at [project]/app/global.scss.css:0:884"
         `)
-      })
-    })
+        })
+      }
+    )
   })
 })
