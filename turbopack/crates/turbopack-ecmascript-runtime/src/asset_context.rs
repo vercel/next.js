@@ -15,6 +15,8 @@ pub fn get_runtime_asset_context(environment: Vc<Environment>) -> Vc<Box<dyn Ass
             enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
             ..Default::default()
         },
+        // TODO: Somehow this fails to compile when enabled.
+        // preset_env_versions: Some(environment),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         ..Default::default()
     }
