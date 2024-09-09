@@ -14,6 +14,7 @@ pub mod type_issue;
 pub mod typescript;
 pub mod unreachable;
 pub mod util;
+pub mod worker;
 
 use std::{
     borrow::Cow,
@@ -56,6 +57,7 @@ use turbopack_core::{
     compile_time_info::{
         CompileTimeInfo, DefineableNameSegment, FreeVarReference, FreeVarReferences,
     },
+    environment::Rendering,
     error::PrettyPrintError,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     module::Module,
@@ -77,6 +79,7 @@ use turbopack_resolve::{
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 use unreachable::Unreachable;
+use worker::WorkerAssetReference;
 
 use self::{
     amd::{
@@ -1334,24 +1337,32 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             }
             JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor) => {
                 let args = linked_args(args).await?;
-                if let [_url @ JsValue::Url(_, JsValueUrlKind::Relative)] = &args[..] {
-                    // let pat = js_value_to_pattern(url);
-                    // if !pat.has_constant_parts() {
-                    //     let (args, hints) = explain_args(&args);
-                    //     handler.span_warn_with_code(
-                    //         span,
-                    //         &format!("new Worker({args}) is very dynamic{hints}",),
-                    //         DiagnosticId::Lint(
-                    //             errors::failed_to_analyse::ecmascript::NEW_URL_IMPORT_META
-                    //                 .to_string(),
-                    //         ),
-                    //     );
-                    //     if ignore_dynamic_requests {
-                    //         return Ok(());
-                    //     }
-                    // }
+                if let [url @ JsValue::Url(_, JsValueUrlKind::Relative)] = &args[..] {
+                    let pat = js_value_to_pattern(url);
+                    if !pat.has_constant_parts() {
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("new Worker({args}) is very dynamic{hints}",),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyse::ecmascript::NEW_WORKER.to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                    }
 
-                    // TODO add worker reference
+                    if *compile_time_info.environment().rendering().await? == Rendering::Client {
+                        analysis.add_reference(WorkerAssetReference::new(
+                            origin,
+                            Request::parse(Value::new(pat)),
+                            Vc::cell(ast_path.to_vec()),
+                            issue_source(source, span),
+                            in_try,
+                        ));
+                    }
+
                     return Ok(());
                 }
                 let (args, hints) = explain_args(&args);

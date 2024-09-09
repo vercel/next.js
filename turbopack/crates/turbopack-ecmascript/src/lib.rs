@@ -31,6 +31,7 @@ pub mod tree_shake;
 pub mod typescript;
 pub mod utils;
 pub mod webpack;
+pub mod worker_chunk;
 
 use std::fmt::{Display, Formatter};
 
