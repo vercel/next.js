@@ -232,6 +232,16 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
             _ => (),
         }
     }
+
+    fn emit_dynamic_not_allowed_error(&self, span: Span) {
+        let msg = "Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') \
+                   not allowed in Edge Runtime"
+            .to_string();
+
+        HANDLER.with(|h| {
+            h.struct_span_err(span, &msg).emit();
+        });
+    }
 }
 
 impl Visit for WarnForEdgeRuntime {
@@ -255,6 +265,11 @@ impl Visit for WarnForEdgeRuntime {
     fn visit_expr(&mut self, n: &Expr) {
         if let Expr::Ident(ident) = n {
             if ident.ctxt == self.ctx.unresolved_ctxt {
+                if ident.sym == "eval" {
+                    self.emit_dynamic_not_allowed_error(ident.span);
+                    return;
+                }
+
                 for api in EDGE_UNSUPPORTED_NODE_APIS {
                     if self.is_in_middleware_layer() && ident.sym == *api {
                         self.emit_unsupported_api_error(ident.span, api);
