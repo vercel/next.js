@@ -1199,6 +1199,7 @@ pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<P
         })) if &*key.sym == ASSERT_CHUNK_KEY => match &*s.value {
             "module evaluation" => Some(PartId::ModuleEvaluation),
             "exports" => Some(PartId::Exports),
+            _ if s.value.starts_with("export ") => Some(PartId::Export(s.value[7..].into())),
             _ => None,
         },
         _ => None,

@@ -12686,10 +12686,10 @@
       "runtimeError": false
     },
     "test/integration/jsconfig-empty/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Empty JSConfig Support production mode should compile successfully"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15264,11 +15264,10 @@
         "tsconfig.json verifier allows you to set target mode",
         "tsconfig.json verifier allows you to set verbatimModuleSyntax true via extends without adding isolatedModules",
         "tsconfig.json verifier allows you to set verbatimModuleSyntax true without adding isolatedModules",
-        "tsconfig.json verifier creates compilerOptions when you extend another config"
-      ],
-      "failed": [
+        "tsconfig.json verifier creates compilerOptions when you extend another config",
         "tsconfig.json verifier Works with an empty tsconfig.json (docs)"
       ],
+      "failed": [],
       "pending": [
         "tsconfig.json verifier allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\""
       ],
@@ -15674,6 +15673,24 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/actions-tree-shaking/use-effect-actions/use-effect-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - use-effect-actions should not tree shake the used action under useEffect"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/use-effect-actions/use-effect-actions.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - use-effect-actions should not tree shake the used action under useEffect"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/app-edge-middleware/app-edge-middleware.test.ts": {
       "passed": [
         "app edge middleware without node.js modules should not have any errors about using Node.js modules if not present in middleware"
@@ -16027,11 +16044,10 @@
     "test/production/edge-runtime-is-addressable/index.test.ts": {
       "passed": [
         "Edge Runtime can be set to the production provider EdgeRuntime evaluates to a string",
-        "Edge Runtime is addressable EdgeRuntime evaluates to a string"
-      ],
-      "failed": [
+        "Edge Runtime is addressable EdgeRuntime evaluates to a string",
         "Edge Runtime is addressable removes the undefined branch with dead code elimination"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
