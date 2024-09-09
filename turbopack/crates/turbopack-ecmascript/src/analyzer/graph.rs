@@ -21,7 +21,7 @@ use super::{
     WellKnownFunctionKind,
 };
 use crate::{
-    analyzer::is_unresolved,
+    analyzer::{is_unresolved, WellKnownObjectKind},
     utils::{unparen, AstPathRange},
 };
 
@@ -136,15 +136,16 @@ pub enum Effect {
         span: Span,
         in_try: bool,
     },
-    /// A function call.
+    /// A function call or a new call of a function.
     Call {
         func: JsValue,
         args: Vec<EffectArg>,
         ast_path: Vec<AstParentKind>,
         span: Span,
         in_try: bool,
+        new: bool,
     },
-    /// A function call of a property of an object.
+    /// A function call or a new call of a property of an object.
     MemberCall {
         obj: JsValue,
         prop: JsValue,
@@ -152,6 +153,7 @@ pub enum Effect {
         ast_path: Vec<AstParentKind>,
         span: Span,
         in_try: bool,
+        new: bool,
     },
     /// A property access.
     Member {
@@ -185,13 +187,6 @@ pub enum Effect {
     // TODO ImportMeta should be replaced with Member
     /// A reference to `import.meta`.
     ImportMeta {
-        ast_path: Vec<AstParentKind>,
-        span: Span,
-        in_try: bool,
-    },
-    /// A reference to `new URL(..., import.meta.url)`.
-    Url {
-        input: JsValue,
         ast_path: Vec<AstParentKind>,
         span: Span,
         in_try: bool,
@@ -237,9 +232,6 @@ impl Effect {
                 arg.normalize();
             }
             Effect::ImportMeta { .. } => {}
-            Effect::Url { input, .. } => {
-                input.normalize();
-            }
             Effect::Unreachable { .. } => {}
         }
     }
@@ -538,8 +530,6 @@ impl EvalContext {
 
             Expr::Await(AwaitExpr { arg, .. }) => self.eval(arg),
 
-            Expr::New(..) => JsValue::unknown_empty(true, "unknown new expression"),
-
             Expr::Seq(e) => {
                 let mut seq = e.exprs.iter().map(|e| self.eval(e)).peekable();
                 let mut side_effects = false;
@@ -571,6 +561,26 @@ impl EvalContext {
                 let obj = self.eval(obj);
                 let prop = self.eval(&computed.expr);
                 JsValue::member(Box::new(obj), Box::new(prop))
+            }
+
+            Expr::New(NewExpr {
+                callee: box callee,
+                args,
+                ..
+            }) => {
+                // We currently do not handle spreads.
+                if args.iter().flatten().any(|arg| arg.spread.is_some()) {
+                    return JsValue::unknown_empty(true, "spread in new calls is not supported");
+                }
+
+                let args: Vec<_> = args
+                    .iter()
+                    .flatten()
+                    .map(|arg| self.eval(&arg.expr))
+                    .collect();
+                let callee = Box::new(self.eval(callee));
+
+                JsValue::new(callee, args)
             }
 
             Expr::Call(CallExpr {
@@ -683,6 +693,11 @@ impl EvalContext {
                 )
             }
 
+            Expr::MetaProp(MetaPropExpr {
+                kind: MetaPropKind::ImportMeta,
+                ..
+            }) => JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
+
             _ => JsValue::unknown_empty(true, "unsupported expression"),
         }
     }
@@ -758,6 +773,25 @@ pub fn is_in_try(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
             _ => None,
         })
         .unwrap_or(false)
+}
+
+enum CallOrNewExpr<'ast> {
+    Call(&'ast CallExpr),
+    New(&'ast NewExpr),
+}
+impl CallOrNewExpr<'_> {
+    fn as_call(&self) -> Option<&CallExpr> {
+        match *self {
+            CallOrNewExpr::Call(n) => Some(n),
+            CallOrNewExpr::New(_) => None,
+        }
+    }
+    fn as_new(&self) -> Option<&NewExpr> {
+        match *self {
+            CallOrNewExpr::Call(_) => None,
+            CallOrNewExpr::New(n) => Some(n),
+        }
+    }
 }
 
 impl Analyzer<'_> {
@@ -988,20 +1022,91 @@ impl Analyzer<'_> {
         }
     }
 
-    fn check_call_expr_for_effects<'ast: 'r, 'r>(
+    fn check_call_expr_for_effects<'ast: 'r, 'n, 'r>(
         &mut self,
-        n: &'ast CallExpr,
-        args: Vec<EffectArg>,
-        ast_path: &AstNodePath<AstParentNodeRef<'r>>,
+        callee: &'n Callee,
+        args: impl Iterator<Item = &'ast ExprOrSpread>,
+        span: Span,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+        n: CallOrNewExpr<'ast>,
     ) {
-        match &n.callee {
+        let new = n.as_new().is_some();
+        let args = args
+            .enumerate()
+            .map(|(i, arg)| {
+                let mut ast_path = ast_path.with_guard(match n {
+                    CallOrNewExpr::Call(n) => AstParentNodeRef::CallExpr(n, CallExprField::Args(i)),
+                    CallOrNewExpr::New(n) => AstParentNodeRef::NewExpr(n, NewExprField::Args(i)),
+                });
+                if arg.spread.is_none() {
+                    let value = self.eval_context.eval(&arg.expr);
+
+                    let block_path = match &*arg.expr {
+                        Expr::Fn(FnExpr { .. }) => {
+                            let mut path = as_parent_path(&ast_path);
+                            path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
+                            path.push(AstParentKind::Expr(ExprField::Fn));
+                            path.push(AstParentKind::FnExpr(FnExprField::Function));
+                            path.push(AstParentKind::Function(FunctionField::Body));
+                            Some(path)
+                        }
+                        Expr::Arrow(ArrowExpr {
+                            body: box BlockStmtOrExpr::BlockStmt(_),
+                            ..
+                        }) => {
+                            let mut path = as_parent_path(&ast_path);
+                            path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
+                            path.push(AstParentKind::Expr(ExprField::Arrow));
+                            path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
+                            path.push(AstParentKind::BlockStmtOrExpr(
+                                BlockStmtOrExprField::BlockStmt,
+                            ));
+                            Some(path)
+                        }
+                        Expr::Arrow(ArrowExpr {
+                            body: box BlockStmtOrExpr::Expr(_),
+                            ..
+                        }) => {
+                            let mut path = as_parent_path(&ast_path);
+                            path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
+                            path.push(AstParentKind::Expr(ExprField::Arrow));
+                            path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
+                            path.push(AstParentKind::BlockStmtOrExpr(BlockStmtOrExprField::Expr));
+                            Some(path)
+                        }
+                        _ => None,
+                    };
+                    if let Some(path) = block_path {
+                        let old_effects = take(&mut self.effects);
+                        arg.visit_with_ast_path(self, &mut ast_path);
+                        let effects = replace(&mut self.effects, old_effects);
+                        EffectArg::Closure(
+                            value,
+                            EffectsBlock {
+                                effects,
+                                range: AstPathRange::Exact(path),
+                            },
+                        )
+                    } else {
+                        arg.visit_with_ast_path(self, &mut ast_path);
+                        EffectArg::Value(value)
+                    }
+                } else {
+                    arg.visit_with_ast_path(self, &mut ast_path);
+                    EffectArg::Spread
+                }
+            })
+            .collect();
+
+        match callee {
             Callee::Import(_) => {
                 self.add_effect(Effect::Call {
                     func: JsValue::FreeVar(js_word!("import")),
                     args,
                     ast_path: as_parent_path(ast_path),
-                    span: n.span(),
+                    span,
                     in_try: is_in_try(ast_path),
+                    new,
                 });
             }
             Callee::Expr(box expr) => {
@@ -1022,8 +1127,9 @@ impl Analyzer<'_> {
                         prop: prop_value,
                         args,
                         ast_path: as_parent_path(ast_path),
-                        span: n.span(),
+                        span,
                         in_try: is_in_try(ast_path),
+                        new,
                     });
                 } else {
                     let fn_value = self.eval_context.eval(expr);
@@ -1031,17 +1137,22 @@ impl Analyzer<'_> {
                         func: fn_value,
                         args,
                         ast_path: as_parent_path(ast_path),
-                        span: n.span(),
+                        span,
                         in_try: is_in_try(ast_path),
+                        new,
                     });
                 }
             }
             Callee::Super(_) => self.add_effect(Effect::Call {
-                func: self.eval_context.eval(&Expr::Call(n.clone())),
+                func: self
+                    .eval_context
+                    // Unwrap because `new super(..)` isn't valid anyway
+                    .eval(&Expr::Call(n.as_call().unwrap().clone())),
                 args,
                 ast_path: as_parent_path(ast_path),
-                span: n.span(),
+                span,
                 in_try: is_in_try(ast_path),
+                new,
             }),
         }
     }
@@ -1265,109 +1376,33 @@ impl VisitAstPath for Analyzer<'_> {
             n.callee.visit_with_ast_path(self, &mut ast_path);
         }
 
-        let args = n
-            .args
-            .iter()
-            .enumerate()
-            .map(|(i, arg)| {
-                let mut ast_path =
-                    ast_path.with_guard(AstParentNodeRef::CallExpr(n, CallExprField::Args(i)));
-                if arg.spread.is_none() {
-                    let value = self.eval_context.eval(&arg.expr);
-
-                    let block_path = match &*arg.expr {
-                        Expr::Fn(FnExpr { .. }) => {
-                            let mut path = as_parent_path(&ast_path);
-                            path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
-                            path.push(AstParentKind::Expr(ExprField::Fn));
-                            path.push(AstParentKind::FnExpr(FnExprField::Function));
-                            path.push(AstParentKind::Function(FunctionField::Body));
-                            Some(path)
-                        }
-                        Expr::Arrow(ArrowExpr {
-                            body: box BlockStmtOrExpr::BlockStmt(_),
-                            ..
-                        }) => {
-                            let mut path = as_parent_path(&ast_path);
-                            path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
-                            path.push(AstParentKind::Expr(ExprField::Arrow));
-                            path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
-                            path.push(AstParentKind::BlockStmtOrExpr(
-                                BlockStmtOrExprField::BlockStmt,
-                            ));
-                            Some(path)
-                        }
-                        Expr::Arrow(ArrowExpr {
-                            body: box BlockStmtOrExpr::Expr(_),
-                            ..
-                        }) => {
-                            let mut path = as_parent_path(&ast_path);
-                            path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
-                            path.push(AstParentKind::Expr(ExprField::Arrow));
-                            path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
-                            path.push(AstParentKind::BlockStmtOrExpr(BlockStmtOrExprField::Expr));
-                            Some(path)
-                        }
-                        _ => None,
-                    };
-                    if let Some(path) = block_path {
-                        let old_effects = take(&mut self.effects);
-                        arg.visit_with_ast_path(self, &mut ast_path);
-                        let effects = replace(&mut self.effects, old_effects);
-                        EffectArg::Closure(
-                            value,
-                            EffectsBlock {
-                                effects,
-                                range: AstPathRange::Exact(path),
-                            },
-                        )
-                    } else {
-                        arg.visit_with_ast_path(self, &mut ast_path);
-                        EffectArg::Value(value)
-                    }
-                } else {
-                    arg.visit_with_ast_path(self, &mut ast_path);
-                    EffectArg::Spread
-                }
-            })
-            .collect();
-        self.check_call_expr_for_effects(n, args, ast_path);
+        self.check_call_expr_for_effects(
+            &n.callee,
+            n.args.iter(),
+            n.span(),
+            ast_path,
+            CallOrNewExpr::Call(n),
+        );
     }
 
     fn visit_new_expr<'ast: 'r, 'r>(
         &mut self,
-        new_expr: &'ast NewExpr,
+        n: &'ast NewExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        // new URL("path", import.meta.url)
-        if let box Expr::Ident(ref callee) = &new_expr.callee {
-            if &*callee.sym == "URL" && is_unresolved(callee, self.eval_context.unresolved_mark) {
-                if let Some(args) = &new_expr.args {
-                    if args.len() == 2 {
-                        if let Expr::Member(MemberExpr {
-                            obj:
-                                box Expr::MetaProp(MetaPropExpr {
-                                    kind: MetaPropKind::ImportMeta,
-                                    ..
-                                }),
-                            prop: MemberProp::Ident(prop),
-                            ..
-                        }) = &*args[1].expr
-                        {
-                            if &*prop.sym == "url" {
-                                self.add_effect(Effect::Url {
-                                    input: self.eval_context.eval(&args[0].expr),
-                                    ast_path: as_parent_path(ast_path),
-                                    span: new_expr.span(),
-                                    in_try: is_in_try(ast_path),
-                                });
-                            }
-                        }
-                    }
-                }
-            }
+        {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::NewExpr(n, NewExprField::Callee));
+            n.callee.visit_with_ast_path(self, &mut ast_path);
         }
-        new_expr.visit_children_with_ast_path(self, ast_path);
+
+        self.check_call_expr_for_effects(
+            &Callee::Expr(n.callee.clone()),
+            n.args.iter().flatten(),
+            n.span(),
+            ast_path,
+            CallOrNewExpr::New(n),
+        );
     }
 
     fn visit_member_expr<'ast: 'r, 'r>(

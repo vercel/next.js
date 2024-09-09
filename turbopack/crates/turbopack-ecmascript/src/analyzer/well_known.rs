@@ -6,8 +6,8 @@ use turbopack_core::compile_time_info::CompileTimeInfo;
 use url::Url;
 
 use super::{
-    imports::ImportAnnotations, ConstantValue, JsValue, ModuleValue, WellKnownFunctionKind,
-    WellKnownObjectKind,
+    imports::ImportAnnotations, ConstantValue, JsValue, JsValueUrlKind, ModuleValue,
+    WellKnownFunctionKind, WellKnownObjectKind,
 };
 use crate::analyzer::RequireContextValue;
 
@@ -486,8 +486,7 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
         if let Some(path) = args[0].as_str() {
             Url::from_file_path(path)
-                .map(Box::new)
-                .map(JsValue::Url)
+                .map(|url| JsValue::Url(String::from(url).into(), JsValueUrlKind::Absolute))
                 .unwrap_or_else(|_| {
                     JsValue::unknown(
                         JsValue::call(
@@ -547,6 +546,9 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir)
         }
         (WellKnownFunctionKind::NodeResolveFrom, Some("silent")) => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
+        }
+        (WellKnownFunctionKind::Import { .. }, Some("meta")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
         }
         #[allow(unreachable_patterns)]
