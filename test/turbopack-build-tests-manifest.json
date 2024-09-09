@@ -11026,10 +11026,10 @@
         "GSP build errors production mode should handle non-serializable error in getStaticPaths",
         "GSP build errors production mode should handle non-serializable error in getStaticProps"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "GSP build errors production mode should fail build from module not found"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
