@@ -8978,7 +8978,8 @@
         "Edge runtime configurable guards Middleware with use of Function as a type does not warn in dev at runtime",
         "Edge runtime configurable guards Middleware with use of Function as a type production mode build and does not warn at runtime",
         "Edge runtime configurable guards Multiple functions with different configurations warns in dev for allowed code",
-        "Edge runtime configurable guards Multiple functions with different configurations warns in dev for unallowed code"
+        "Edge runtime configurable guards Multiple functions with different configurations warns in dev for unallowed code",
+        "Edge runtime configurable guards Multiple functions with different configurations production mode fails to build because of unallowed code"
       ],
       "failed": [
         "Edge runtime configurable guards Edge API using lib with allowed, unused dynamic code production mode build and does not warn at runtime",
@@ -8986,8 +8987,7 @@
         "Edge runtime configurable guards Edge API with allowed, unused dynamic code production mode build and does not warn at runtime",
         "Edge runtime configurable guards Middleware using lib with allowed, unused dynamic code production mode build and does not warn at runtime",
         "Edge runtime configurable guards Middleware using lib with unallowed, used dynamic code production mode fails to build because of dynamic code evaluation",
-        "Edge runtime configurable guards Middleware with allowed, unused dynamic code production mode build and does not warn at runtime",
-        "Edge runtime configurable guards Multiple functions with different configurations production mode fails to build because of unallowed code"
+        "Edge runtime configurable guards Middleware with allowed, unused dynamic code production mode build and does not warn at runtime"
       ],
       "pending": [],
       "flakey": [],
