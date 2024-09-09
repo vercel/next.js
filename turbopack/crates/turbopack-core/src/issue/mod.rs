@@ -15,15 +15,13 @@ use turbo_tasks::{
     emit, CollectiblesSource, RawVc, RcStr, ReadRef, TransientInstance, TransientValue,
     TryJoinIterExt, Upcast, ValueToString, Vc,
 };
-use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath,
-};
+use turbo_tasks_fs::{File, FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::{
     asset::{Asset, AssetContent},
     source::Source,
-    source_map::{convert_to_turbopack_source_map, GenerateSourceMap},
+    source_map::{convert_to_turbopack_source_map, GenerateSourceMap, TokenWithSource},
     source_pos::SourcePos,
     virtual_source::VirtualSource,
 };
@@ -566,15 +564,19 @@ async fn source_pos(
     };
 
     let find = |line: usize, col: usize| async move {
-        let token = srcmap.lookup_token(line, col).await?;
+        let TokenWithSource {
+            token,
+            source_content,
+        } = &*srcmap.lookup_token_and_source(line, col).await?;
 
-        match &*token {
+        match &*token.await? {
             crate::source_map::Token::Synthetic(t) => Ok::<_, anyhow::Error>((
-                t.guessed_original_file.clone(),
+                None,
                 SourcePos {
                     line: t.generated_line as _,
                     column: t.generated_column as _,
                 },
+                *source_content,
             )),
             crate::source_map::Token::Original(t) => Ok((
                 Some(t.original_file.clone()),
@@ -582,29 +584,29 @@ async fn source_pos(
                     line: t.original_line as _,
                     column: t.original_column as _,
                 },
+                *source_content,
             )),
         }
     };
 
-    let (f1, start) = find(start.line, start.column).await?;
-    let (f2, end) = find(end.line, end.column).await?;
+    let (f1, start, content_1) = find(start.line, start.column).await?;
+    let (f2, end, content_2) = find(end.line, end.column).await?;
 
     let file_name = f1.or(f2);
+    let content = content_1.or(content_2);
 
     let source = match file_name {
         Some(file_name) => {
-            let fs = origin.fs();
+            if let Some(content) = content {
+                let file = File::from(content.await?.clone_value());
 
-            if let Some(fs) = Vc::try_resolve_downcast_type::<DiskFileSystem>(fs).await? {
-                let file_name = file_name
-                    .strip_prefix(&*fs.await?.root)
-                    .unwrap_or(&file_name);
+                let content = FileContent::new(file).cell();
+                let content = AssetContent::file(content);
 
-                let new_path = origin.fs().root().join(file_name.into());
-
-                let content = AssetContent::file(new_path.read());
-
-                Vc::upcast(VirtualSource::new(new_path, content))
+                Vc::upcast(VirtualSource::new(
+                    origin.fs().root().join(file_name.into()),
+                    content,
+                ))
             } else {
                 source
             }
