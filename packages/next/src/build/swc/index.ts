@@ -459,6 +459,11 @@ export interface ProjectOptions {
    * Options for draft mode.
    */
   previewProps: __ApiPreviewProps
+
+  /**
+   * The browserslist query to use for targeting browsers.
+   */
+  browserslistQuery: string
 }
 
 type RustifiedEnv = { name: string; value: string }[]

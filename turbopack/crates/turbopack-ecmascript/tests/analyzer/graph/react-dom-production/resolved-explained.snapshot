@@ -114,9 +114,7 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 129753* = (...) => dl(a, b, null, c)
 
-*anonymous function 129905* = (...) => ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+*anonymous function 129905* = (...) => new ml(b)
 
 *anonymous function 130256* = (...) => (null | a)
 
@@ -124,9 +122,7 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 130565* = (...) => sl(null, a, b, !(0), c)
 
-*anonymous function 130658* = (...) => ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+*anonymous function 130658* = (...) => new nl(b)
 
 *anonymous function 131212* = (...) => sl(null, a, b, !(1), c)
 
@@ -340,13 +336,8 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 9983* = (...) => undefined
 
-A = ???*0*
-- *0* ???*1*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *1* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+A = Object.assign*0*
+- *0* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
 
 Aa = ???*0*
 - *0* ???*1*["for"]("react.profiler")
@@ -364,36 +355,35 @@ Ab = (null | [???*0*] | ???*1*)
 
 Ac = (...) => undefined
 
-Ad = ???*0*
-- *0* ???*1*(
-        {},
-        ud,
-        {
-            "screenX": 0,
-            "screenY": 0,
-            "clientX": 0,
-            "clientY": 0,
-            "pageX": 0,
-            "pageY": 0,
-            "ctrlKey": 0,
-            "shiftKey": 0,
-            "altKey": 0,
-            "metaKey": 0,
-            "getModifierState": zd,
-            "button": 0,
-            "buttons": 0,
-            "relatedTarget": *anonymous function 28404*,
-            "movementX": *anonymous function 28530*,
-            "movementY": *anonymous function 28699*
-        }
-    )
-  ⚠️  unknown callee
+Ad = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0,
+    "screenX": 0,
+    "screenY": 0,
+    "clientX": 0,
+    "clientY": 0,
+    "pageX": 0,
+    "pageY": 0,
+    "ctrlKey": 0,
+    "shiftKey": 0,
+    "altKey": 0,
+    "metaKey": 0,
+    "getModifierState": (...) => Pd,
+    "button": 0,
+    "buttons": 0,
+    "relatedTarget": (...) => ((???*0* === a["relatedTarget"]) ? ((a["fromElement"] === a["srcElement"]) ? a["toElement"] : a["fromElement"]) : a["relatedTarget"]),
+    "movementX": (...) => (a["movementX"] | wd),
+    "movementY": (...) => (???*1* ? a["movementY"] : xd)
+}
+- *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+- *1* unsupported expression
   ⚠️  This value might have side effects
 
 Ae = (...) => undefined
@@ -440,9 +430,7 @@ Be = (...) => undefined
 
 Bf = (...) => undefined
 
-Bg = (...) => ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+Bg = (...) => new al(a, b, c, d)
 
 Bh = (...) => (
   | g(a)
@@ -487,15 +475,36 @@ Cb = (...) => ((
 
 Cc = (...) => undefined
 
-Cd = ???*0*
-- *0* ???*1*({}, Ad, {"dataTransfer": 0})
-  ⚠️  unknown callee
+Cd = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0,
+    "screenX": 0,
+    "screenY": 0,
+    "clientX": 0,
+    "clientY": 0,
+    "pageX": 0,
+    "pageY": 0,
+    "ctrlKey": 0,
+    "shiftKey": 0,
+    "altKey": 0,
+    "metaKey": 0,
+    "getModifierState": (...) => Pd,
+    "button": 0,
+    "buttons": 0,
+    "relatedTarget": (...) => ((???*0* === a["relatedTarget"]) ? ((a["fromElement"] === a["srcElement"]) ? a["toElement"] : a["fromElement"]) : a["relatedTarget"]),
+    "movementX": (...) => (a["movementX"] | wd),
+    "movementY": (...) => (???*1* ? a["movementY"] : xd),
+    "dataTransfer": 0
+}
+- *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+- *1* unsupported expression
   ⚠️  This value might have side effects
 
 Ce = (...) => undefined
@@ -608,16 +617,17 @@ Ec = (???*0* | (...) => undefined)
 - *0* Ec
   ⚠️  pattern without value
 
-Ed = ???*0*
-- *0* ???*1*({}, ud, {"relatedTarget": 0})
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+Ed = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0,
+    "relatedTarget": 0
+}
 
 Ee = (...) => (undefined | te(b))
 
@@ -728,20 +738,17 @@ Gc = (???*0* | (...) => undefined)
 - *0* Gc
   ⚠️  pattern without value
 
-Gd = ???*0*
-- *0* ???*1*(
-        {},
-        sd,
-        {"animationName": 0, "elapsedTime": 0, "pseudoElement": 0}
-    )
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+Gd = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "animationName": 0,
+    "elapsedTime": 0,
+    "pseudoElement": 0
+}
 
 Ge = (...) => (((a === b) && ((0 !== a) || (???*0* === ???*1*))) || ((a !== a) && (b !== b)))
 - *0* unsupported expression
@@ -801,18 +808,14 @@ He = (???*0* ? ???*4* : (...) => ???*6*)
   ⚠️  nested operation
 - *1* typeof(???*2*)
   ⚠️  nested operation
-- *2* ???*3*["is"]
-  ⚠️  unknown object
+- *2* Object*3*["is"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *3* FreeVar(Object)
-  ⚠️  unknown global
+- *3* Object: The global Object variable
+- *4* Object*5*["is"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *4* ???*5*["is"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *5* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *5* Object: The global Object variable
 - *6* (((a === b) && ((0 !== a) || (???*7* === ???*8*))) || ((a !== a) && (b !== b)))
   ⚠️  nested operation
 - *7* unsupported expression
@@ -871,15 +874,16 @@ Ic = (???*0* | (...) => (undefined | ???*1*))
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
 
-Id = ???*0*
-- *0* ???*1*({}, sd, {"clipboardData": *anonymous function 28936*})
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+Id = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "clipboardData": (...) => (???*0* ? a["clipboardData"] : FreeVar(window)["clipboardData"])
+}
+- *0* unsupported expression
   ⚠️  This value might have side effects
 
 Ie = (...) => (!(0) | !(1))
@@ -1020,16 +1024,15 @@ Kb = (...) => (null | c)
 
 Kc = []
 
-Kd = ???*0*
-- *0* ???*1*({}, sd, {"data": 0})
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+Kd = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "data": 0
+}
 
 Ke = (...) => (undefined | {"node": c, "offset": ???*0*})
 - *0* unsupported expression
@@ -1660,8 +1663,9 @@ Oa = (...) => ("" | k | (???*0* ? Ma(a) : ""))
 
 Ob = (false | true)
 
-Oc = ???*0*
-- *0* unknown new expression
+Oc = new ???*0*()
+- *0* FreeVar(Map)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 Od = {"Alt": "altKey", "Control": "ctrlKey", "Meta": "metaKey", "Shift": "shiftKey"}
@@ -1719,8 +1723,9 @@ Pb = (null | ???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-Pc = ???*0*
-- *0* unknown new expression
+Pc = new ???*0*()
+- *0* FreeVar(Map)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 Pd = (...) => (b["getModifierState"] ? b["getModifierState"](a) : (???*0* ? !(!(b[a])) : !(1)))
@@ -1788,33 +1793,34 @@ Qb = (false | true)
 
 Qc = []
 
-Qd = ???*0*
-- *0* ???*1*(
-        {},
-        ud,
-        {
-            "key": *anonymous function 29891*,
-            "code": 0,
-            "location": 0,
-            "ctrlKey": 0,
-            "shiftKey": 0,
-            "altKey": 0,
-            "metaKey": 0,
-            "repeat": 0,
-            "locale": 0,
-            "getModifierState": zd,
-            "charCode": *anonymous function 30217*,
-            "keyCode": *anonymous function 30272*,
-            "which": *anonymous function 30346*
-        }
-    )
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+Qd = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0,
+    "key": (...) => (
+      | b
+      | (("keypress" === a["type"]) ? ???*0* : ((("keydown" === a["type"]) || ("keyup" === a["type"])) ? (Nd[a["keyCode"]] || "Unidentified") : ""))
+    ),
+    "code": 0,
+    "location": 0,
+    "ctrlKey": 0,
+    "shiftKey": 0,
+    "altKey": 0,
+    "metaKey": 0,
+    "repeat": 0,
+    "locale": 0,
+    "getModifierState": (...) => Pd,
+    "charCode": (...) => (("keypress" === a["type"]) ? od(a) : 0),
+    "keyCode": (...) => ((("keydown" === a["type"]) || ("keyup" === a["type"])) ? a["keyCode"] : 0),
+    "which": (...) => (("keypress" === a["type"]) ? od(a) : ((("keydown" === a["type"]) || ("keyup" === a["type"])) ? a["keyCode"] : 0))
+}
+- *0* ((13 === a) ? "Enter" : FreeVar(String)["fromCharCode"](a))
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
 
 Qe = ???*0*
@@ -1848,7 +1854,12 @@ Qj = (...) => undefined
 
 Qk = (...) => null
 
-R = (null | ???*0* | ???*1* | ???*4*)
+R = (
+  | null
+  | ???*0*
+  | ???*1*
+  | new (...) => undefined(???*4*, (null | ???*7*), ???*10*, ???*13*)
+)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["alternate"]
@@ -1857,8 +1868,30 @@ R = (null | ???*0* | ???*1* | ???*4*)
   ⚠️  unknown object
 - *3* a
   ⚠️  circular variable reference
-- *4* unknown new expression
-  ⚠️  This value might have side effects
+- *4* ???*5*["tag"]
+  ⚠️  unknown object
+- *5* ???*6*["current"]
+  ⚠️  unknown object
+- *6* a
+  ⚠️  circular variable reference
+- *7* ???*8*["dependencies"]
+  ⚠️  unknown object
+- *8* ???*9*["current"]
+  ⚠️  unknown object
+- *9* a
+  ⚠️  circular variable reference
+- *10* ???*11*["key"]
+  ⚠️  unknown object
+- *11* ???*12*["current"]
+  ⚠️  unknown object
+- *12* a
+  ⚠️  circular variable reference
+- *13* ???*14*["mode"]
+  ⚠️  unknown object
+- *14* ???*15*["current"]
+  ⚠️  unknown object
+- *15* a
+  ⚠️  circular variable reference
 
 Ra = (...) => (
   | "Cache"
@@ -1938,30 +1971,45 @@ Sb = {"onError": (...) => undefined}
 
 Sc = (...) => undefined
 
-Sd = ???*0*
-- *0* ???*1*(
-        {},
-        Ad,
-        {
-            "pointerId": 0,
-            "width": 0,
-            "height": 0,
-            "pressure": 0,
-            "tangentialPressure": 0,
-            "tiltX": 0,
-            "tiltY": 0,
-            "twist": 0,
-            "pointerType": 0,
-            "isPrimary": 0
-        }
-    )
-  ⚠️  unknown callee
+Sd = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0,
+    "screenX": 0,
+    "screenY": 0,
+    "clientX": 0,
+    "clientY": 0,
+    "pageX": 0,
+    "pageY": 0,
+    "ctrlKey": 0,
+    "shiftKey": 0,
+    "altKey": 0,
+    "metaKey": 0,
+    "getModifierState": (...) => Pd,
+    "button": 0,
+    "buttons": 0,
+    "relatedTarget": (...) => ((???*0* === a["relatedTarget"]) ? ((a["fromElement"] === a["srcElement"]) ? a["toElement"] : a["fromElement"]) : a["relatedTarget"]),
+    "movementX": (...) => (a["movementX"] | wd),
+    "movementY": (...) => (???*1* ? a["movementY"] : xd),
+    "pointerId": 0,
+    "width": 0,
+    "height": 0,
+    "pressure": 0,
+    "tangentialPressure": 0,
+    "tiltX": 0,
+    "tiltY": 0,
+    "twist": 0,
+    "pointerType": 0,
+    "isPrimary": 0
+}
+- *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+- *1* unsupported expression
   ⚠️  This value might have side effects
 
 Se = ???*0*
@@ -1974,8 +2022,11 @@ Sg = (...) => undefined
 
 Sh = (false | true)
 
-Si = (???*0* | null)
-- *0* unknown new expression
+Si = (new ???*0*([???*1*]) | null)
+- *0* FreeVar(Set)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* unsupported expression
   ⚠️  This value might have side effects
 
 Sj = (...) => undefined
@@ -2039,29 +2090,24 @@ Uc = (...) => (???*0* | !(0) | !(1))
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
 
-Ud = ???*0*
-- *0* ???*1*(
-        {},
-        ud,
-        {
-            "touches": 0,
-            "targetTouches": 0,
-            "changedTouches": 0,
-            "altKey": 0,
-            "metaKey": 0,
-            "ctrlKey": 0,
-            "shiftKey": 0,
-            "getModifierState": zd
-        }
-    )
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+Ud = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0,
+    "touches": 0,
+    "targetTouches": 0,
+    "changedTouches": 0,
+    "altKey": 0,
+    "metaKey": 0,
+    "ctrlKey": 0,
+    "shiftKey": 0,
+    "getModifierState": (...) => Pd
+}
 
 Ue = (...) => undefined
 
@@ -2121,20 +2167,17 @@ Wb = (...) => (b["dehydrated"] | null)
 
 Wc = (...) => (b | c | null)
 
-Wd = ???*0*
-- *0* ???*1*(
-        {},
-        sd,
-        {"propertyName": 0, "elapsedTime": 0, "pseudoElement": 0}
-    )
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+Wd = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "propertyName": 0,
+    "elapsedTime": 0,
+    "pseudoElement": 0
+}
 
 We = {"animationend": {}, "animationiteration": {}, "animationstart": {}, "transitionend": {}}
 
@@ -2235,24 +2278,55 @@ Yc = (...) => (
   | null
 )
 
-Yd = ???*0*
-- *0* ???*1*(
-        {},
-        Ad,
-        {
-            "deltaX": *anonymous function 30803*,
-            "deltaY": *anonymous function 30887*,
-            "deltaZ": 0,
-            "deltaMode": 0
-        }
-    )
-  ⚠️  unknown callee
+Yd = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0,
+    "screenX": 0,
+    "screenY": 0,
+    "clientX": 0,
+    "clientY": 0,
+    "pageX": 0,
+    "pageY": 0,
+    "ctrlKey": 0,
+    "shiftKey": 0,
+    "altKey": 0,
+    "metaKey": 0,
+    "getModifierState": (...) => Pd,
+    "button": 0,
+    "buttons": 0,
+    "relatedTarget": (...) => ((???*0* === a["relatedTarget"]) ? ((a["fromElement"] === a["srcElement"]) ? a["toElement"] : a["fromElement"]) : a["relatedTarget"]),
+    "movementX": (...) => (a["movementX"] | wd),
+    "movementY": (...) => (???*1* ? a["movementY"] : xd),
+    "deltaX": (...) => (???*2* ? a["deltaX"] : (???*3* ? ???*4* : 0)),
+    "deltaY": (...) => (???*5* ? a["deltaY"] : (???*6* ? ???*7* : (???*8* ? ???*9* : 0))),
+    "deltaZ": 0,
+    "deltaMode": 0
+}
+- *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
+- *1* unsupported expression
   ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+- *3* unsupported expression
+  ⚠️  This value might have side effects
+- *4* unsupported expression
+  ⚠️  This value might have side effects
+- *5* unsupported expression
+  ⚠️  This value might have side effects
+- *6* unsupported expression
+  ⚠️  This value might have side effects
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* unsupported expression
+  ⚠️  This value might have side effects
+- *9* unsupported expression
   ⚠️  This value might have side effects
 
 Ye = ({} | ???*0*)
@@ -3027,15 +3101,15 @@ a#232 = (???*0* | ???*1*)
 - *2* arguments[1]
   ⚠️  function calls are not analysed yet
 
-a#233 = (???*0* | null | ???*1* | ???*19*)
+a#233 = (???*0* | null | ???*1* | ???*15*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* ???*2*((???*13* | 0 | ???*14*), ???*15*)
+- *1* ???*2*((???*9* | 0 | ???*10*), ???*11*)
   ⚠️  unknown callee
   ⚠️  This value might have side effects
 - *2* ???*3*["slice"]
   ⚠️  unknown object
-- *3* (???*4* ? (null["value"] | ???*5* | ???*7*) : (null["textContent"] | ???*9* | ???*11*))
+- *3* (???*4* ? (null["value"] | ???*5*) : (null["textContent"] | ???*7*))
   ⚠️  nested operation
 - *4* unsupported expression
   ⚠️  This value might have side effects
@@ -3043,33 +3117,23 @@ a#233 = (???*0* | null | ???*1* | ???*19*)
   ⚠️  unknown object
 - *6* (??? ? (??? | ???) : (??? | ??? | ???))
   ⚠️  nested operation
-- *7* ???*8*["value"]
+- *7* ???*8*["textContent"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *8* unknown new expression
-  ⚠️  This value might have side effects
-- *9* ???*10*["textContent"]
-  ⚠️  unknown object
-- *10* (??? ? (??? | ???) : (??? | ??? | ???))
+- *8* (??? ? (??? | ???) : (??? | ??? | ???))
   ⚠️  nested operation
-- *11* ???*12*["textContent"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *12* unknown new expression
-  ⚠️  This value might have side effects
-- *13* a
+- *9* a
   ⚠️  pattern without value
-- *14* updated with update expression
+- *10* updated with update expression
   ⚠️  This value might have side effects
-- *15* (???*16* ? ???*17* : ???*18*)
+- *11* (???*12* ? ???*13* : ???*14*)
   ⚠️  nested operation
-- *16* unsupported expression
+- *12* unsupported expression
   ⚠️  This value might have side effects
-- *17* unsupported expression
+- *13* unsupported expression
   ⚠️  This value might have side effects
-- *18* unsupported expression
+- *14* unsupported expression
   ⚠️  This value might have side effects
-- *19* unsupported expression
+- *15* unsupported expression
   ⚠️  This value might have side effects
 
 a#235 = ???*0*
@@ -3556,15 +3620,30 @@ a#347 = (???*0* | {} | ???*1* | ???*2*)
   ⚠️  function calls are not analysed yet
 - *1* unknown mutation
   ⚠️  This value might have side effects
-- *2* ???*3*({}, c, d)
-  ⚠️  unknown callee
+- *2* Object.assign*3*({}, ({} | ???*4*), (???*5* | ???*7* | ???*8* | ???*9* | ???*11*()))
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *3* ???*4*["assign"]
+- *3* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *4* unknown mutation
+  ⚠️  This value might have side effects
+- *5* ???*6*["stateNode"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *4* FreeVar(Object)
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* FreeVar(undefined)
   ⚠️  unknown global
   ⚠️  This value might have side effects
+- *8* unknown mutation
+  ⚠️  This value might have side effects
+- *9* ???*10*["stateNode"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *10* unknown mutation
+  ⚠️  This value might have side effects
+- *11* ???*12*["getChildContext"]
+  ⚠️  unknown object
+- *12* d
+  ⚠️  circular variable reference
 
 a#348 = ???*0*
 - *0* arguments[0]
@@ -3931,12 +4010,10 @@ a#429 = (???*0* | ???*1*)
 - *2* ???*3*["toString"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *3* ???*4*["prototype"]
-  ⚠️  unknown object
+- *3* Object*4*["prototype"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *4* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *4* Object: The global Object variable
 
 a#430 = ???*0*
 - *0* arguments[0]
@@ -3946,26 +4023,61 @@ a#431 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#435 = (???*0* | ???*1*)
+a#435 = (???*0* | new ???*1*())
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* FreeVar(Map)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
-a#436 = (???*0* | ???*1* | ???*3* | ???*5*)
+a#436 = (
+  | ???*0*
+  | ???*1*
+  | new (...) => undefined(???*3*, (???*5* | ???*6*), ???*8*, ???*10*)["alternate"]
+  | new (...) => undefined(???*12*, (???*14* | ???*15*), ???*17*, ???*19*)
+)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["alternate"]
   ⚠️  unknown object
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
-- *3* ???*4*["alternate"]
+- *3* ???*4*["tag"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *4* unknown new expression
-  ⚠️  This value might have side effects
-- *5* unknown new expression
-  ⚠️  This value might have side effects
+- *4* a
+  ⚠️  circular variable reference
+- *5* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *6* ???*7*["dependencies"]
+  ⚠️  unknown object
+- *7* a
+  ⚠️  circular variable reference
+- *8* ???*9*["key"]
+  ⚠️  unknown object
+- *9* a
+  ⚠️  circular variable reference
+- *10* ???*11*["mode"]
+  ⚠️  unknown object
+- *11* a
+  ⚠️  circular variable reference
+- *12* ???*13*["tag"]
+  ⚠️  unknown object
+- *13* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *14* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *15* ???*16*["dependencies"]
+  ⚠️  unknown object
+- *16* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *17* ???*18*["key"]
+  ⚠️  unknown object
+- *18* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *19* ???*20*["mode"]
+  ⚠️  unknown object
+- *20* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 a#439 = ???*0*
 - *0* arguments[0]
@@ -4589,44 +4701,8 @@ a#591 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#592 = (
-  | ???*0*
-  | ???*1*
-  | ???*3*
-  | ???*4*
-  | null
-  | (???*5* ? ???*7* : (...) => (???*8* | ???*9*))["type"]["alternate"]
-  | ???*10*
-  | null["child"]["alternate"]
-)
-- *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *1* ???*2*["children"]
-  ⚠️  unknown object
-- *2* arguments[3]
-  ⚠️  function calls are not analysed yet
-- *3* unknown new expression
-  ⚠️  This value might have side effects
-- *4* a
-  ⚠️  sequence with side effects
-  ⚠️  This value might have side effects
-- *5* (null !== ???*6*)
-  ⚠️  nested operation
-- *6* c
-  ⚠️  circular variable reference
-- *7* c
-  ⚠️  circular variable reference
-- *8* !(0)
-  ⚠️  nested operation
-- *9* !(1)
-  ⚠️  nested operation
-- *10* ???*11*["alternate"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *11* ???*12*["child"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *12* unknown new expression
+a#592 = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 a#595 = ???*0*
@@ -5123,7 +5199,12 @@ a#834 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#838 = (???*0* | ???*1* | ???*4* | ???*7*)
+a#838 = (
+  | ???*0*
+  | ???*1*
+  | new (...) => undefined(???*4*, (null | ???*7*), ???*10*, ???*13*)["current"]["alternate"]
+  | new (...) => undefined(???*16*, (null | ???*19*), ???*22*, ???*25*)
+)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["alternate"]
@@ -5132,16 +5213,54 @@ a#838 = (???*0* | ???*1* | ???*4* | ???*7*)
   ⚠️  unknown object
 - *3* arguments[0]
   ⚠️  function calls are not analysed yet
-- *4* ???*5*["alternate"]
+- *4* ???*5*["tag"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
 - *5* ???*6*["current"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *6* unknown new expression
-  ⚠️  This value might have side effects
-- *7* unknown new expression
-  ⚠️  This value might have side effects
+- *6* a
+  ⚠️  circular variable reference
+- *7* ???*8*["dependencies"]
+  ⚠️  unknown object
+- *8* ???*9*["current"]
+  ⚠️  unknown object
+- *9* a
+  ⚠️  circular variable reference
+- *10* ???*11*["key"]
+  ⚠️  unknown object
+- *11* ???*12*["current"]
+  ⚠️  unknown object
+- *12* a
+  ⚠️  circular variable reference
+- *13* ???*14*["mode"]
+  ⚠️  unknown object
+- *14* ???*15*["current"]
+  ⚠️  unknown object
+- *15* a
+  ⚠️  circular variable reference
+- *16* ???*17*["tag"]
+  ⚠️  unknown object
+- *17* ???*18*["current"]
+  ⚠️  unknown object
+- *18* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *19* ???*20*["dependencies"]
+  ⚠️  unknown object
+- *20* ???*21*["current"]
+  ⚠️  unknown object
+- *21* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *22* ???*23*["key"]
+  ⚠️  unknown object
+- *23* ???*24*["current"]
+  ⚠️  unknown object
+- *24* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *25* ???*26*["mode"]
+  ⚠️  unknown object
+- *26* ???*27*["current"]
+  ⚠️  unknown object
+- *27* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 a#843 = ???*0*
 - *0* arguments[0]
@@ -5297,29 +5416,125 @@ a#946 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#947 = (???*0* | ???*1*)
+a#947 = (
+  | ???*0*
+  | new (...) => undefined(12, ???*1*, (???*2* | ???*3*), ???*8*)
+  | new (...) => undefined(13, ???*9*, (???*10* | ???*11*), (???*16* | ???*17*))
+  | new (...) => undefined(19, ???*18*, (???*19* | ???*20*), (???*25* | ???*26*))
+)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *3* new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*4*, ???*5*, (???*6* | ???*7*))
+  ⚠️  nested operation
+- *4* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *5* b
+  ⚠️  circular variable reference
+- *6* arguments[4]
+  ⚠️  function calls are not analysed yet
+- *7* unsupported assign operation
+  ⚠️  This value might have side effects
+- *8* unsupported expression
+  ⚠️  This value might have side effects
+- *9* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *10* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *11* new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*12*, ???*13*, (???*14* | ???*15*))
+  ⚠️  nested operation
+- *12* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *13* b
+  ⚠️  circular variable reference
+- *14* arguments[4]
+  ⚠️  function calls are not analysed yet
+- *15* unsupported assign operation
+  ⚠️  This value might have side effects
+- *16* arguments[4]
+  ⚠️  function calls are not analysed yet
+- *17* unsupported assign operation
+  ⚠️  This value might have side effects
+- *18* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *19* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *20* new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*21*, ???*22*, (???*23* | ???*24*))
+  ⚠️  nested operation
+- *21* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *22* b
+  ⚠️  circular variable reference
+- *23* arguments[4]
+  ⚠️  function calls are not analysed yet
+- *24* unsupported assign operation
+  ⚠️  This value might have side effects
+- *25* arguments[4]
+  ⚠️  function calls are not analysed yet
+- *26* unsupported assign operation
   ⚠️  This value might have side effects
 
-a#948 = (???*0* | ???*1*)
+a#948 = (
+  | ???*0*
+  | new (...) => undefined(7, (???*1* | ???*2*), ???*6*, ???*7*)
+)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
-  ⚠️  This value might have side effects
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* new (...) => undefined(7, ???*3*, ???*4*, ???*5*)
+  ⚠️  nested operation
+- *3* a
+  ⚠️  circular variable reference
+- *4* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *5* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *6* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *7* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-a#949 = (???*0* | ???*1*)
+a#949 = (
+  | ???*0*
+  | new (...) => undefined(22, (???*1* | ???*2*), ???*6*, ???*7*)
+)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
-  ⚠️  This value might have side effects
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* new (...) => undefined(22, ???*3*, ???*4*, ???*5*)
+  ⚠️  nested operation
+- *3* a
+  ⚠️  circular variable reference
+- *4* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *5* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *6* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *7* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-a#950 = (???*0* | ???*1*)
+a#950 = (
+  | ???*0*
+  | new (...) => undefined(6, (???*1* | ???*2*), null, ???*5*)
+)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
-  ⚠️  This value might have side effects
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* new (...) => undefined(6, ???*3*, null, ???*4*)
+  ⚠️  nested operation
+- *3* a
+  ⚠️  circular variable reference
+- *4* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *5* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 a#951 = ???*0*
 - *0* arguments[0]
@@ -5329,11 +5544,38 @@ a#952 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#953 = (???*0* | ???*1*)
+a#953 = (
+  | ???*0*
+  | new (...) => undefined((???*1* | ???*2*), (???*9* | 1 | ???*10* | 0), ???*11*, ???*12*, ???*13*)
+)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* new (...) => undefined(???*3*, (???*4* | 1 | ???*5* | 0), ???*6*, ???*7*, ???*8*)
+  ⚠️  nested operation
+- *3* a
+  ⚠️  circular variable reference
+- *4* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *5* unsupported assign operation
   ⚠️  This value might have side effects
+- *6* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *7* arguments[7]
+  ⚠️  function calls are not analysed yet
+- *8* arguments[8]
+  ⚠️  function calls are not analysed yet
+- *9* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *10* unsupported assign operation
+  ⚠️  This value might have side effects
+- *11* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *12* arguments[7]
+  ⚠️  function calls are not analysed yet
+- *13* arguments[8]
+  ⚠️  function calls are not analysed yet
 
 a#954 = ???*0*
 - *0* arguments[0]
@@ -5532,20 +5774,21 @@ a#982 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-a#984 = (undefined | null | ???*0* | ???*3*)
+a#984 = (
+  | undefined
+  | null
+  | ???*0*
+  | new (...) => undefined(???*3*, (0 | 1 | ???*4*), false, "", (...) => undefined)["child"]["stateNode"]
+)
 - *0* ???*1*["stateNode"]
   ⚠️  unknown object
 - *1* ???*2*["child"]
   ⚠️  unknown object
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
-- *3* ???*4*["stateNode"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *4* ???*5*["child"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *5* unknown new expression
+- *3* a
+  ⚠️  circular variable reference
+- *4* unsupported assign operation
   ⚠️  This value might have side effects
 
 a#986 = ???*0*
@@ -5692,11 +5935,36 @@ b#1012 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#1013 = (???*0* | ???*1*)
+b#1013 = (
+  | ???*0*
+  | new (...) => undefined(???*1*, (1 | ???*2* | 0), false, ("" | ???*3*), (???*5* | ???*10*))
+)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* a
+  ⚠️  circular variable reference
+- *2* unsupported assign operation
   ⚠️  This value might have side effects
+- *3* ???*4*["identifierPrefix"]
+  ⚠️  unknown object
+- *4* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *5* (???*6* ? ???*9* : (...) => undefined)
+  ⚠️  nested operation
+- *6* ("function" === ???*7*)
+  ⚠️  nested operation
+- *7* typeof(???*8*)
+  ⚠️  nested operation
+- *8* FreeVar(reportError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *9* FreeVar(reportError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *10* ???*11*["onRecoverableError"]
+  ⚠️  unknown object
+- *11* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 b#1014 = ???*0*
 - *0* max number of linking steps reached
@@ -5982,7 +6250,7 @@ b#203 = ???*0*
 b#207 = (
   | null
   | ???*0*
-  | (???*1* ? (null["value"] | ???*2* | ???*17*) : (null["textContent"] | ???*19* | ???*34*))
+  | (???*1* ? (null["value"] | ???*2*) : (null["textContent"] | ???*17*))
 )
 - *0* unsupported expression
   ⚠️  This value might have side effects
@@ -6023,50 +6291,40 @@ b#207 = (
 - *16* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *17* ???*18*["value"]
+- *17* ???*18*["textContent"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *18* unknown new expression
-  ⚠️  This value might have side effects
-- *19* ???*20*["textContent"]
+- *18* (???*19* ? (???*24* | ???*26*) : (???*28* | ???*29* | ???*31*))
+  ⚠️  nested operation
+- *19* (3 === (???*20* | ???*22*))
+  ⚠️  nested operation
+- *20* ???*21*["nodeType"]
   ⚠️  unknown object
-- *20* (???*21* ? (???*26* | ???*28*) : (???*30* | ???*31* | ???*33*))
-  ⚠️  nested operation
-- *21* (3 === (???*22* | ???*24*))
-  ⚠️  nested operation
+- *21* arguments[2]
+  ⚠️  function calls are not analysed yet
 - *22* ???*23*["nodeType"]
   ⚠️  unknown object
-- *23* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *24* ???*25*["nodeType"]
-  ⚠️  unknown object
   ⚠️  This value might have side effects
-- *25* FreeVar(window)
+- *23* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
+- *24* ???*25*["parentNode"]
+  ⚠️  unknown object
+- *25* arguments[2]
+  ⚠️  function calls are not analysed yet
 - *26* ???*27*["parentNode"]
   ⚠️  unknown object
-- *27* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *28* ???*29*["parentNode"]
-  ⚠️  unknown object
   ⚠️  This value might have side effects
-- *29* FreeVar(window)
+- *27* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *30* arguments[2]
+- *28* arguments[2]
   ⚠️  function calls are not analysed yet
-- *31* ???*32*["target"]
+- *29* ???*30*["target"]
   ⚠️  unknown object
-- *32* a
+- *30* a
   ⚠️  circular variable reference
-- *33* FreeVar(window)
+- *31* FreeVar(window)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *34* ???*35*["textContent"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *35* unknown new expression
   ⚠️  This value might have side effects
 
 b#208 = (???*0* | 13["keyCode"])
@@ -6270,11 +6528,26 @@ b#266 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-b#269 = (???*0* | ???*1*)
+b#269 = (
+  | ???*0*
+  | new (...) => ???*1*("onSelect", "select", null, (???*2* | ???*3*), ???*7*)
+)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* unsupported expression
   ⚠️  This value might have side effects
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *3* new (...) => ???*4*("onSelect", "select", null, ???*5*, ???*6*)
+  ⚠️  nested operation
+- *4* unsupported expression
+  ⚠️  This value might have side effects
+- *5* b
+  ⚠️  circular variable reference
+- *6* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *7* arguments[2]
+  ⚠️  function calls are not analysed yet
 
 b#27 = ???*0*
 - *0* ???*1*(/\n( *(at )?)/)
@@ -6523,15 +6796,18 @@ b#370 = ???*0*
 b#381 = (???*0* | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* ???*2*({}, b)
-  ⚠️  unknown callee
+- *1* Object.assign*2*({}, (???*3* | ???*4*))
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *2* ???*3*["assign"]
-  ⚠️  unknown object
+- *2* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *3* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *4* Object.assign*5*({}, ???*6*)
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *3* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *5* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *6* b
+  ⚠️  circular variable reference
 
 b#384 = (null | ???*0*)
 - *0* unknown mutation
@@ -6676,11 +6952,60 @@ b#420 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#421 = (???*0* | ???*1*)
+b#421 = (
+  | ???*0*
+  | new (???*1* | ???*2*)(???*14*, (???*15* | ???*17* | ???*18* | ???*19*))
+)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *2* new ???*3*(???*4*, (???*5* | ???*7* | ???*8* | ???*9*))
+  ⚠️  nested operation
+- *3* b
+  ⚠️  circular variable reference
+- *4* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *5* ???*6*["contextType"]
+  ⚠️  unknown object
+- *6* b
+  ⚠️  circular variable reference
+- *7* FreeVar(undefined)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
+- *8* unknown mutation
+  ⚠️  This value might have side effects
+- *9* (???*10* ? ({} | ???*11*) : {})
+  ⚠️  nested operation
+- *10* unsupported expression
+  ⚠️  This value might have side effects
+- *11* ???*12*["__reactInternalMemoizedMaskedChildContext"]
+  ⚠️  unknown object
+- *12* ???*13*["stateNode"]
+  ⚠️  unknown object
+- *13* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *14* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *15* ???*16*["contextType"]
+  ⚠️  unknown object
+- *16* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *17* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *18* unknown mutation
+  ⚠️  This value might have side effects
+- *19* (???*20* ? ({} | ???*21*) : {})
+  ⚠️  nested operation
+- *20* unsupported expression
+  ⚠️  This value might have side effects
+- *21* ???*22*["__reactInternalMemoizedMaskedChildContext"]
+  ⚠️  unknown object
+- *22* ???*23*["stateNode"]
+  ⚠️  unknown object
+- *23* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 b#422 = ???*0*
 - *0* arguments[1]
@@ -6746,44 +7071,140 @@ b#438 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#439 = (???*0* | ???*1* | ???*2* | ???*3*)
+b#439 = (
+  | ???*0*
+  | new (...) => undefined(6, ???*1*, null, ???*2*)
+  | ???*4*
+  | ???*5*
+  | new (...) => undefined(???*7*, (???*9* | ???*10*), ???*12*, ???*14*)
+)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
-  ⚠️  This value might have side effects
-- *2* b
+- *1* a
   ⚠️  circular variable reference
-- *3* ???*4*["alternate"]
+- *2* ???*3*["mode"]
   ⚠️  unknown object
-- *4* a
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *4* b
+  ⚠️  circular variable reference
+- *5* ???*6*["alternate"]
+  ⚠️  unknown object
+- *6* a
+  ⚠️  circular variable reference
+- *7* ???*8*["tag"]
+  ⚠️  unknown object
+- *8* a
+  ⚠️  circular variable reference
+- *9* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *10* ???*11*["dependencies"]
+  ⚠️  unknown object
+- *11* a
+  ⚠️  circular variable reference
+- *12* ???*13*["key"]
+  ⚠️  unknown object
+- *13* a
+  ⚠️  circular variable reference
+- *14* ???*15*["mode"]
+  ⚠️  unknown object
+- *15* a
   ⚠️  circular variable reference
 
 b#440 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#441 = (???*0* | ???*1* | ???*3* | ???*4*)
+b#441 = (
+  | ???*0*
+  | ???*1*
+  | new (...) => undefined(4, ???*3*, ???*9*, ???*11*)
+  | ???*12*
+  | new (...) => undefined(???*13*, (???*15* | []), ???*17*, ???*19*)
+)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["mode"]
   ⚠️  unknown object
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
-- *3* unknown new expression
-  ⚠️  This value might have side effects
-- *4* b
+- *3* (???*4* ? ???*7* : [])
+  ⚠️  nested operation
+- *4* (null !== ???*5*)
+  ⚠️  nested operation
+- *5* ???*6*["children"]
+  ⚠️  unknown object
+- *6* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *7* ???*8*["children"]
+  ⚠️  unknown object
+- *8* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*["key"]
+  ⚠️  unknown object
+- *10* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *11* b
+  ⚠️  circular variable reference
+- *12* b
+  ⚠️  circular variable reference
+- *13* ???*14*["tag"]
+  ⚠️  unknown object
+- *14* a
+  ⚠️  circular variable reference
+- *15* ???*16*["children"]
+  ⚠️  unknown object
+- *16* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *17* ???*18*["key"]
+  ⚠️  unknown object
+- *18* a
+  ⚠️  circular variable reference
+- *19* ???*20*["mode"]
+  ⚠️  unknown object
+- *20* a
   ⚠️  circular variable reference
 
-b#442 = (???*0* | ???*1* | ???*2* | ???*3*)
+b#442 = (
+  | ???*0*
+  | new (...) => undefined(7, ???*1*, ???*2*, ???*3*)
+  | ???*5*
+  | ???*6*
+  | new (...) => undefined(???*8*, (???*10* | ???*11*), ???*13*, ???*15*)
+)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
-  ⚠️  This value might have side effects
-- *2* b
+- *1* a
   ⚠️  circular variable reference
-- *3* ???*4*["alternate"]
+- *2* arguments[4]
+  ⚠️  function calls are not analysed yet
+- *3* ???*4*["mode"]
   ⚠️  unknown object
-- *4* a
+- *4* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *5* b
+  ⚠️  circular variable reference
+- *6* ???*7*["alternate"]
+  ⚠️  unknown object
+- *7* a
+  ⚠️  circular variable reference
+- *8* ???*9*["tag"]
+  ⚠️  unknown object
+- *9* a
+  ⚠️  circular variable reference
+- *10* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *11* ???*12*["dependencies"]
+  ⚠️  unknown object
+- *12* a
+  ⚠️  circular variable reference
+- *13* ???*14*["key"]
+  ⚠️  unknown object
+- *14* a
+  ⚠️  circular variable reference
+- *15* ???*16*["mode"]
+  ⚠️  unknown object
+- *16* a
   ⚠️  circular variable reference
 
 b#443 = ???*0*
@@ -8094,9 +8515,13 @@ b#612 = (
   | ???*0*
   | {
         "mode": "visible",
-        "children": (???*1* | {"mode": "visible", "children": ???*2*} | ???*3*)
+        "children": (
+          | ???*1*
+          | {"mode": "visible", "children": ???*2*}
+          | new (...) => undefined(22, ???*3*, null, ???*4*)
+        )
     }
-  | ???*4*
+  | new (...) => undefined(22, ???*6*, null, ???*7*)
 )
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
@@ -8104,10 +8529,18 @@ b#612 = (
   ⚠️  function calls are not analysed yet
 - *2* b
   ⚠️  circular variable reference
-- *3* unknown new expression
-  ⚠️  This value might have side effects
-- *4* unknown new expression
-  ⚠️  This value might have side effects
+- *3* a
+  ⚠️  circular variable reference
+- *4* ???*5*["mode"]
+  ⚠️  unknown object
+- *5* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *6* a
+  ⚠️  circular variable reference
+- *7* ???*8*["mode"]
+  ⚠️  unknown object
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 b#613 = ???*0*
 - *0* arguments[1]
@@ -8739,10 +9172,29 @@ b#946 = (???*0* | ???*1*)
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#947 = (???*0* | ???*1*)
+b#947 = (
+  | ???*0*
+  | new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*1*, (???*2* | ???*3*), (???*8* | ???*9*))
+)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *3* new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*4*, ???*5*, (???*6* | ???*7*))
+  ⚠️  nested operation
+- *4* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *5* b
+  ⚠️  circular variable reference
+- *6* arguments[4]
+  ⚠️  function calls are not analysed yet
+- *7* unsupported assign operation
+  ⚠️  This value might have side effects
+- *8* arguments[4]
+  ⚠️  function calls are not analysed yet
+- *9* unsupported assign operation
   ⚠️  This value might have side effects
 
 b#948 = ???*0*
@@ -8757,11 +9209,50 @@ b#950 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#951 = (???*0* | ???*1*)
+b#951 = (
+  | ???*0*
+  | new (...) => undefined(4, ???*1*, ???*7*, (???*9* | ???*10*))
+)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
-  ⚠️  This value might have side effects
+- *1* (???*2* ? ???*5* : [])
+  ⚠️  nested operation
+- *2* (null !== ???*3*)
+  ⚠️  nested operation
+- *3* ???*4*["children"]
+  ⚠️  unknown object
+- *4* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *5* ???*6*["children"]
+  ⚠️  unknown object
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* ???*8*["key"]
+  ⚠️  unknown object
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *10* new (...) => undefined(4, ???*11*, ???*17*, ???*19*)
+  ⚠️  nested operation
+- *11* (???*12* ? ???*15* : [])
+  ⚠️  nested operation
+- *12* (null !== ???*13*)
+  ⚠️  nested operation
+- *13* ???*14*["children"]
+  ⚠️  unknown object
+- *14* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *15* ???*16*["children"]
+  ⚠️  unknown object
+- *16* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *17* ???*18*["key"]
+  ⚠️  unknown object
+- *18* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *19* b
+  ⚠️  circular variable reference
 
 b#952 = ???*0*
 - *0* arguments[1]
@@ -9087,10 +9578,104 @@ b#997 = (
 - *23* a
   ⚠️  circular variable reference
 
-ba = ("onCompositionStart" | "onCompositionEnd" | "onCompositionUpdate" | ???*0* | ???*1*)
+ba = (
+  | "onCompositionStart"
+  | "onCompositionEnd"
+  | "onCompositionUpdate"
+  | ???*0*
+  | new (...) => ???*1*(
+        ("onCompositionStart" | "onCompositionEnd" | "onCompositionUpdate" | ???*2* | ???*3*),
+        ???*22*,
+        null,
+        ???*23*,
+        ???*24*
+    )
+)
 - *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* unknown new expression
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+- *3* new (...) => ???*4*(???*5*, ???*6*, null, ???*7*, ???*8*)
+  ⚠️  nested operation
+- *4* unsupported expression
+  ⚠️  This value might have side effects
+- *5* ba
+  ⚠️  circular variable reference
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *8* (???*9* ? (???*14* | ???*16*) : (???*18* | ???*19* | ???*21*))
+  ⚠️  nested operation
+- *9* (3 === (???*10* | ???*12*))
+  ⚠️  nested operation
+- *10* ???*11*["nodeType"]
+  ⚠️  unknown object
+- *11* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *12* ???*13*["nodeType"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *13* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *14* ???*15*["parentNode"]
+  ⚠️  unknown object
+- *15* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *16* ???*17*["parentNode"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *17* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *18* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *19* ???*20*["target"]
+  ⚠️  unknown object
+- *20* a
+  ⚠️  circular variable reference
+- *21* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *22* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *23* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *24* (???*25* ? (???*30* | ???*32*) : (???*34* | ???*35* | ???*37*))
+  ⚠️  nested operation
+- *25* (3 === (???*26* | ???*28*))
+  ⚠️  nested operation
+- *26* ???*27*["nodeType"]
+  ⚠️  unknown object
+- *27* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *28* ???*29*["nodeType"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *29* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *30* ???*31*["parentNode"]
+  ⚠️  unknown object
+- *31* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *32* ???*33*["parentNode"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *33* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *34* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *35* ???*36*["target"]
+  ⚠️  unknown object
+- *36* a
+  ⚠️  circular variable reference
+- *37* FreeVar(window)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 bb = (...) => (undefined | FreeVar(undefined))
@@ -9453,7 +10038,7 @@ c#203 = ???*0*
 c#207 = (
   | null["length"]
   | ???*0*
-  | (???*2* ? (null["value"] | ???*3* | ???*18*) : (null["textContent"] | ???*20* | ???*35*))["length"]
+  | (???*2* ? (null["value"] | ???*3*) : (null["textContent"] | ???*18*))["length"]
 )
 - *0* ???*1*["length"]
   ⚠️  unknown object
@@ -9497,61 +10082,66 @@ c#207 = (
 - *17* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *18* ???*19*["value"]
+- *18* ???*19*["textContent"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *19* unknown new expression
-  ⚠️  This value might have side effects
-- *20* ???*21*["textContent"]
+- *19* (???*20* ? (???*25* | ???*27*) : (???*29* | ???*30* | ???*32*))
+  ⚠️  nested operation
+- *20* (3 === (???*21* | ???*23*))
+  ⚠️  nested operation
+- *21* ???*22*["nodeType"]
   ⚠️  unknown object
-- *21* (???*22* ? (???*27* | ???*29*) : (???*31* | ???*32* | ???*34*))
-  ⚠️  nested operation
-- *22* (3 === (???*23* | ???*25*))
-  ⚠️  nested operation
+- *22* arguments[2]
+  ⚠️  function calls are not analysed yet
 - *23* ???*24*["nodeType"]
   ⚠️  unknown object
-- *24* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *25* ???*26*["nodeType"]
-  ⚠️  unknown object
   ⚠️  This value might have side effects
-- *26* FreeVar(window)
+- *24* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
+- *25* ???*26*["parentNode"]
+  ⚠️  unknown object
+- *26* arguments[2]
+  ⚠️  function calls are not analysed yet
 - *27* ???*28*["parentNode"]
   ⚠️  unknown object
-- *28* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *29* ???*30*["parentNode"]
-  ⚠️  unknown object
   ⚠️  This value might have side effects
-- *30* FreeVar(window)
+- *28* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *31* arguments[2]
+- *29* arguments[2]
   ⚠️  function calls are not analysed yet
-- *32* ???*33*["target"]
+- *30* ???*31*["target"]
   ⚠️  unknown object
-- *33* a
+- *31* a
   ⚠️  circular variable reference
-- *34* FreeVar(window)
+- *32* FreeVar(window)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *35* ???*36*["textContent"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *36* unknown new expression
   ⚠️  This value might have side effects
 
 c#212 = ???*0*
 - *0* c
   ⚠️  pattern without value
 
-c#236 = (???*0* | ???*1*)
+c#236 = (
+  | ???*0*
+  | new (...) => ???*1*("onChange", "change", null, (???*2* | ???*3*), ???*7*)
+)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* unsupported expression
   ⚠️  This value might have side effects
+- *2* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *3* new (...) => ???*4*("onChange", "change", null, ???*5*, ???*6*)
+  ⚠️  nested operation
+- *4* unsupported expression
+  ⚠️  This value might have side effects
+- *5* c
+  ⚠️  circular variable reference
+- *6* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *7* arguments[3]
+  ⚠️  function calls are not analysed yet
 
 c#246 = ???*0*
 - *0* arguments[2]
@@ -9618,12 +10208,15 @@ c#25 = (???*0* | null | (???*1* ? "" : (???*13* | null | ???*14*)))
   ⚠️  circular variable reference
 
 c#251 = ???*0*
-- *0* ???*1*["keys"](a)
-  ⚠️  unknown callee object
+- *0* ???*1*(???*3*)
+  ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *1* FreeVar(Object)
-  ⚠️  unknown global
+- *1* Object*2*["keys"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
+- *2* Object: The global Object variable
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 c#254 = (
   | ???*0*
@@ -9937,9 +10530,7 @@ c#357 = (???*0* | ((???*1* | ???*2*) + 1))
 - *3* c
   ⚠️  circular variable reference
 
-c#361 = ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+c#361 = new (...) => undefined(5, null, null, 0)
 
 c#362 = ???*0*
 - *0* max number of linking steps reached
@@ -10005,7 +10596,7 @@ c#412 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-c#415 = (???*0* | ???*1* | (???*13* ? (???*26* | ???*27*) : ???*29*))
+c#415 = (???*0* | ???*1* | (???*16* ? (???*32* | ???*33*) : ???*35*))
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* (???*2* | ???*3* | (???*5* ? (???*7* | ???*8*) : ???*10*))(d, b)
@@ -10026,59 +10617,98 @@ c#415 = (???*0* | ???*1* | (???*13* ? (???*26* | ???*27*) : ???*29*))
   ⚠️  unknown object
 - *9* arguments[0]
   ⚠️  function calls are not analysed yet
-- *10* ???*11*({}, b, c)
-  ⚠️  unknown callee
+- *10* Object.assign*11*({}, (???*12* | ???*13*), ???*15*)
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *11* ???*12*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *12* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *13* (null === (???*14* | ???*15* | ???*17*))
-  ⚠️  nested operation
-- *14* arguments[2]
+- *11* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *12* arguments[1]
   ⚠️  function calls are not analysed yet
-- *15* ???*16*(d, b)
-  ⚠️  unknown callee
-- *16* c
+- *13* ???*14*["memoizedState"]
+  ⚠️  unknown object
+- *14* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *15* c
   ⚠️  circular variable reference
-- *17* (???*18* ? (???*20* | ???*21*) : ???*23*)
+- *16* (null === (???*17* | ???*18* | ???*20*))
   ⚠️  nested operation
-- *18* (null === ???*19*)
-  ⚠️  nested operation
+- *17* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *18* ???*19*(d, b)
+  ⚠️  unknown callee
 - *19* c
   ⚠️  circular variable reference
-- *20* arguments[1]
+- *20* (???*21* ? (???*23* | ???*24*) : ???*26*)
+  ⚠️  nested operation
+- *21* (null === ???*22*)
+  ⚠️  nested operation
+- *22* c
+  ⚠️  circular variable reference
+- *23* arguments[1]
   ⚠️  function calls are not analysed yet
-- *21* ???*22*["memoizedState"]
+- *24* ???*25*["memoizedState"]
   ⚠️  unknown object
-- *22* arguments[0]
+- *25* arguments[0]
   ⚠️  function calls are not analysed yet
-- *23* ???*24*({}, b, c)
+- *26* Object.assign*27*({}, (???*28* | ???*29*), ???*31*)
+  ⚠️  only const object assign is supported
+  ⚠️  This value might have side effects
+- *27* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *28* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *29* ???*30*["memoizedState"]
+  ⚠️  unknown object
+- *30* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *31* c
+  ⚠️  circular variable reference
+- *32* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *33* ???*34*["memoizedState"]
+  ⚠️  unknown object
+- *34* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *35* Object.assign*36*(
+        {},
+        (???*37* | ???*38*),
+        (???*40* | ???*41* | (???*43* ? (???*45* | ???*46*) : ???*48*))
+    )
+  ⚠️  only const object assign is supported
+  ⚠️  This value might have side effects
+- *36* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *37* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *38* ???*39*["memoizedState"]
+  ⚠️  unknown object
+- *39* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *40* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *41* ???*42*(d, b)
   ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *24* ???*25*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *25* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *26* arguments[1]
+- *42* c
+  ⚠️  circular variable reference
+- *43* (null === ???*44*)
+  ⚠️  nested operation
+- *44* c
+  ⚠️  circular variable reference
+- *45* arguments[1]
   ⚠️  function calls are not analysed yet
-- *27* ???*28*["memoizedState"]
+- *46* ???*47*["memoizedState"]
   ⚠️  unknown object
-- *28* arguments[0]
+- *47* arguments[0]
   ⚠️  function calls are not analysed yet
-- *29* ???*30*({}, b, c)
-  ⚠️  unknown callee
+- *48* Object.assign*49*({}, (???*50* | ???*51*), ???*53*)
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *30* ???*31*["assign"]
+- *49* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *50* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *51* ???*52*["memoizedState"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *31* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *52* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *53* c
+  ⚠️  circular variable reference
 
 c#417 = ???*0*
 - *0* arguments[2]
@@ -10929,12 +11559,29 @@ c#559 = (???*0* | ???*1*() | ???*2*())
   ⚠️  circular variable reference
 
 c#56 = ???*0*
-- *0* ???*1*["getOwnPropertyDescriptor"](a["constructor"]["prototype"], b)
-  ⚠️  unknown callee object
+- *0* ???*1*(???*3*, ((???*6* | ???*7*) ? "checked" : "value"))
+  ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *1* FreeVar(Object)
-  ⚠️  unknown global
+- *1* Object*2*["getOwnPropertyDescriptor"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
+- *2* Object: The global Object variable
+- *3* ???*4*["prototype"]
+  ⚠️  unknown object
+- *4* ???*5*["constructor"]
+  ⚠️  unknown object
+- *5* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *6* unsupported expression
+  ⚠️  This value might have side effects
+- *7* ("input" === ???*8*)
+  ⚠️  nested operation
+- *8* ???*9*()
+  ⚠️  nested operation
+- *9* ???*10*["toLowerCase"]
+  ⚠️  unknown object
+- *10* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 c#562 = ???*0*
 - *0* max number of linking steps reached
@@ -11187,16 +11834,35 @@ c#621 = (
 - *6* e
   ⚠️  circular variable reference
 
-c#629 = (???*0* | ???*1* | ???*3* | ???*4*)
+c#629 = (
+  | ???*0*
+  | ???*1*
+  | new (...) => undefined(???*3*, ???*5*, ???*7*, ???*9*)
+  | ???*11*
+)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["alternate"]
   ⚠️  unknown object
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
-- *3* unknown new expression
-  ⚠️  This value might have side effects
-- *4* unsupported expression
+- *3* ???*4*["tag"]
+  ⚠️  unknown object
+- *4* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *5* ???*6*["pendingProps"]
+  ⚠️  unknown object
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* ???*8*["key"]
+  ⚠️  unknown object
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*["mode"]
+  ⚠️  unknown object
+- *10* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *11* unsupported expression
   ⚠️  This value might have side effects
 
 c#631 = ???*0*
@@ -11209,7 +11875,7 @@ c#634 = ???*0*
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-c#639 = (???*0* | null | {} | ???*1* | ???*5* | (???*14* ? ???*15* : ???*17*))
+c#639 = (???*0* | null | {} | ???*1* | ???*5* | (???*22* ? ???*23* : ???*25*))
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*[(???*3* | null | [] | ???*4*)]
@@ -11220,44 +11886,57 @@ c#639 = (???*0* | null | {} | ???*1* | ???*5* | (???*14* ? ???*15* : ???*17*))
   ⚠️  pattern without value
 - *4* f
   ⚠️  circular variable reference
-- *5* ???*6*[(???*12* | null | [] | ???*13*)]
+- *5* ???*6*[(???*20* | null | [] | ???*21*)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *6* ???*7*(
+- *6* Object.assign*7*(
         {},
-        b,
+        ???*8*,
         {
             "defaultChecked": ???*9*,
             "defaultValue": ???*10*,
             "value": ???*11*,
-            "checked": ((null != c) ? c : a["_wrapperState"]["initialChecked"])
+            "checked": (???*12* ? ???*15* : ???*17*)
         }
     )
-  ⚠️  unknown callee
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *7* ???*8*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *8* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *7* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *8* d
+  ⚠️  circular variable reference
 - *9* unsupported expression
   ⚠️  This value might have side effects
 - *10* unsupported expression
   ⚠️  This value might have side effects
 - *11* unsupported expression
   ⚠️  This value might have side effects
-- *12* l
-  ⚠️  pattern without value
-- *13* f
-  ⚠️  circular variable reference
-- *14* k
-  ⚠️  circular variable reference
-- *15* ???*16*["__html"]
+- *12* (null != ???*13*)
+  ⚠️  nested operation
+- *13* ???*14*["checked"]
   ⚠️  unknown object
-- *16* k
+- *14* d
   ⚠️  circular variable reference
-- *17* unsupported expression
+- *15* ???*16*["checked"]
+  ⚠️  unknown object
+- *16* d
+  ⚠️  circular variable reference
+- *17* ???*18*["initialChecked"]
+  ⚠️  unknown object
+- *18* ???*19*["_wrapperState"]
+  ⚠️  unknown object
+- *19* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *20* l
+  ⚠️  pattern without value
+- *21* f
+  ⚠️  circular variable reference
+- *22* k
+  ⚠️  circular variable reference
+- *23* ???*24*["__html"]
+  ⚠️  unknown object
+- *24* k
+  ⚠️  circular variable reference
+- *25* unsupported expression
   ⚠️  This value might have side effects
 
 c#64 = (???*0*() | ""["_valueTracker"]["getValue"]())
@@ -11724,13 +12403,32 @@ c#942 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-c#946 = (???*0* | ???*2*)
+c#946 = (
+  | ???*0*
+  | new (...) => undefined(???*2*, (???*4* | ???*5*), ???*7*, ???*9*)
+)
 - *0* ???*1*["alternate"]
   ⚠️  unknown object
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
-- *2* unknown new expression
-  ⚠️  This value might have side effects
+- *2* ???*3*["tag"]
+  ⚠️  unknown object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *4* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *5* ???*6*["dependencies"]
+  ⚠️  unknown object
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* ???*8*["key"]
+  ⚠️  unknown object
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*["mode"]
+  ⚠️  unknown object
+- *10* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 c#947 = ???*0*
 - *0* arguments[2]
@@ -11776,17 +12474,8 @@ c#96 = ???*0*
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-c#960 = (???*0* | ???*1* | ???*3*)
-- *0* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *1* ???*2*["current"]
-  ⚠️  unknown object
-- *2* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *3* ???*4*["current"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *4* unknown new expression
+c#960 = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 c#961 = (???*0* | {} | ???*1* | ???*2* | ???*4*)
@@ -11798,15 +12487,24 @@ c#961 = (???*0* | {} | ???*1* | ???*2* | ???*4*)
   ⚠️  unknown object
 - *3* a
   ⚠️  circular variable reference
-- *4* ???*5*({}, c, d)
-  ⚠️  unknown callee
+- *4* Object.assign*5*({}, (???*6* | ???*7*), (???*9* | ???*11*()))
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *5* ???*6*["assign"]
+- *5* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *6* c
+  ⚠️  circular variable reference
+- *7* ???*8*["_reactInternals"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *6* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *8* a
+  ⚠️  circular variable reference
+- *9* ???*10*["stateNode"]
+  ⚠️  unknown object
+- *10* c
+  ⚠️  circular variable reference
+- *11* ???*12*["getChildContext"]
+  ⚠️  unknown object
+- *12* d
+  ⚠️  circular variable reference
 
 c#963 = ???*0*
 - *0* ???*1*["retryLane"]
@@ -11978,16 +12676,39 @@ d#1004 = ???*0*
 - *5* updated with update expression
   ⚠️  This value might have side effects
 
-d#1013 = ("" | ???*0* | ???*2*)
+d#1013 = (
+  | ""
+  | ???*0*
+  | new (...) => undefined(???*2*, (1 | ???*3* | 0), false, ("" | ???*4*), (???*6* | ???*11*))["identifierPrefix"]
+)
 - *0* ???*1*["identifierPrefix"]
   ⚠️  unknown object
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
-- *2* ???*3*["identifierPrefix"]
+- *2* a
+  ⚠️  circular variable reference
+- *3* unsupported assign operation
+  ⚠️  This value might have side effects
+- *4* ???*5*["identifierPrefix"]
   ⚠️  unknown object
+- *5* b
+  ⚠️  circular variable reference
+- *6* (???*7* ? ???*10* : (...) => undefined)
+  ⚠️  nested operation
+- *7* ("function" === ???*8*)
+  ⚠️  nested operation
+- *8* typeof(???*9*)
+  ⚠️  nested operation
+- *9* FreeVar(reportError)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* unknown new expression
+- *10* FreeVar(reportError)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
+- *11* ???*12*["onRecoverableError"]
+  ⚠️  unknown object
+- *12* b
+  ⚠️  circular variable reference
 
 d#1018 = (
   | (null != (???*0* | ???*1* | null[(???*6* | 0 | ???*7*)]))
@@ -12126,7 +12847,7 @@ d#176 = ???*0*
   ⚠️  function calls are not analysed yet
 
 d#183 = ???*0*
-- *0* unknown new expression
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 d#189 = (???*0* | ???*1*)
@@ -12195,14 +12916,17 @@ d#25 = (???*0* | (???*1* ? ???*7* : null)["attributeNamespace"] | ???*9*)
 - *11* e
   ⚠️  circular variable reference
 
-d#251 = (???*0* | 0 | ???*2*)
-- *0* ???*1*["keys"](b)
-  ⚠️  unknown callee object
+d#251 = (???*0* | 0 | ???*4*)
+- *0* ???*1*(???*3*)
+  ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *1* FreeVar(Object)
-  ⚠️  unknown global
+- *1* Object*2*["keys"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* updated with update expression
+- *2* Object: The global Object variable
+- *3* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *4* updated with update expression
   ⚠️  This value might have side effects
 
 d#254 = (
@@ -12605,50 +13329,9 @@ d#420 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#421 = (
-  | false
-  | ???*0*
-  | ???*2*
-  | (null !== (false | ???*4* | ???*6* | ???*8*))
-  | (???*10* !== (false | ???*11* | ???*13* | ???*15*))
-)
-- *0* ???*1*["contextTypes"]
-  ⚠️  unknown object
-- *1* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *2* ???*3*["contextTypes"]
-  ⚠️  unknown object
+d#421 = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
-- *3* unknown new expression
-  ⚠️  This value might have side effects
-- *4* ???*5*["contextTypes"]
-  ⚠️  unknown object
-- *5* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *6* ???*7*["contextTypes"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *7* unknown new expression
-  ⚠️  This value might have side effects
-- *8* (null !== ???*9*)
-  ⚠️  nested operation
-- *9* d
-  ⚠️  circular variable reference
-- *10* unsupported expression
-  ⚠️  This value might have side effects
-- *11* ???*12*["contextTypes"]
-  ⚠️  unknown object
-- *12* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *13* ???*14*["contextTypes"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *14* unknown new expression
-  ⚠️  This value might have side effects
-- *15* (null !== ???*16*)
-  ⚠️  nested operation
-- *16* d
-  ⚠️  circular variable reference
 
 d#422 = ???*0*
 - *0* arguments[3]
@@ -12692,17 +13375,103 @@ d#439 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#440 = (???*0* | ???*1* | ???*3* | ???*4*)
+d#440 = (
+  | ???*0*
+  | ???*1*
+  | new (...) => undefined(???*3*, ???*5*, ???*7*, ???*9*)
+  | new (...) => undefined(7, ???*11*, (???*12* | ???*14*), (???*21* | ???*23*))
+  | ???*24*
+  | new (...) => undefined(22, ???*25*, (???*26* | ???*28*), (???*35* | ???*37*))
+  | new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*38*, ???*40*, (???*41* | ???*43*))
+)
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["alternate"]
   ⚠️  unknown object
 - *2* a
   ⚠️  circular variable reference
-- *3* unknown new expression
-  ⚠️  This value might have side effects
+- *3* ???*4*["tag"]
+  ⚠️  unknown object
 - *4* a
+  ⚠️  circular variable reference
+- *5* ???*6*["props"]
+  ⚠️  unknown object
+- *6* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *7* ???*8*["key"]
+  ⚠️  unknown object
+- *8* a
+  ⚠️  circular variable reference
+- *9* ???*10*["mode"]
+  ⚠️  unknown object
+- *10* a
+  ⚠️  circular variable reference
+- *11* a
+  ⚠️  circular variable reference
+- *12* ???*13*["key"]
+  ⚠️  unknown object
+- *13* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *14* new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*15*, ???*17*, (???*18* | ???*20*))
+  ⚠️  nested operation
+- *15* ???*16*["props"]
+  ⚠️  unknown object
+- *16* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *17* b
+  ⚠️  circular variable reference
+- *18* ???*19*["mode"]
+  ⚠️  unknown object
+- *19* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *20* unsupported assign operation
+  ⚠️  This value might have side effects
+- *21* ???*22*["mode"]
+  ⚠️  unknown object
+- *22* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *23* unsupported assign operation
+  ⚠️  This value might have side effects
+- *24* a
   ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
+- *25* a
+  ⚠️  circular variable reference
+- *26* ???*27*["key"]
+  ⚠️  unknown object
+- *27* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *28* new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*29*, ???*31*, (???*32* | ???*34*))
+  ⚠️  nested operation
+- *29* ???*30*["props"]
+  ⚠️  unknown object
+- *30* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *31* b
+  ⚠️  circular variable reference
+- *32* ???*33*["mode"]
+  ⚠️  unknown object
+- *33* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *34* unsupported assign operation
+  ⚠️  This value might have side effects
+- *35* ???*36*["mode"]
+  ⚠️  unknown object
+- *36* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *37* unsupported assign operation
+  ⚠️  This value might have side effects
+- *38* ???*39*["props"]
+  ⚠️  unknown object
+- *39* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *40* b
+  ⚠️  circular variable reference
+- *41* ???*42*["mode"]
+  ⚠️  unknown object
+- *42* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *43* unsupported assign operation
   ⚠️  This value might have side effects
 
 d#441 = ???*0*
@@ -12713,15 +13482,8 @@ d#442 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#443 = (???*0* | ???*2*)
-- *0* ???*1*["_init"]
-  ⚠️  unknown object
-- *1* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *2* ???*3*["_init"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *3* unknown new expression
+d#443 = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 d#445 = ???*0*
@@ -13396,30 +14158,146 @@ d#631 = (???*0* | (0 !== ???*3*))
 d#639 = (???*0* | ???*1*)
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
-- *1* ???*2*(
+- *1* Object.assign*2*(
         {},
-        b,
+        (???*3* | ???*4*),
         {
-            "defaultChecked": ???*4*,
-            "defaultValue": ???*5*,
-            "value": ???*6*,
-            "checked": ((null != c) ? c : a["_wrapperState"]["initialChecked"])
+            "defaultChecked": ???*18*,
+            "defaultValue": ???*19*,
+            "value": ???*20*,
+            "checked": (???*21* ? (???*34* | ???*36*) : ???*49*)
         }
     )
-  ⚠️  unknown callee
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *2* ???*3*["assign"]
+- *2* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *3* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *4* Object.assign*5*(
+        {},
+        ???*6*,
+        {
+            "defaultChecked": ???*7*,
+            "defaultValue": ???*8*,
+            "value": ???*9*,
+            "checked": (???*10* ? ???*13* : ???*15*)
+        }
+    )
+  ⚠️  only const object assign is supported
+  ⚠️  This value might have side effects
+- *5* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *6* d
+  ⚠️  circular variable reference
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* unsupported expression
+  ⚠️  This value might have side effects
+- *9* unsupported expression
+  ⚠️  This value might have side effects
+- *10* (null != ???*11*)
+  ⚠️  nested operation
+- *11* ???*12*["checked"]
+  ⚠️  unknown object
+- *12* d
+  ⚠️  circular variable reference
+- *13* ???*14*["checked"]
+  ⚠️  unknown object
+- *14* d
+  ⚠️  circular variable reference
+- *15* ???*16*["initialChecked"]
+  ⚠️  unknown object
+- *16* ???*17*["_wrapperState"]
+  ⚠️  unknown object
+- *17* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *18* unsupported expression
+  ⚠️  This value might have side effects
+- *19* unsupported expression
+  ⚠️  This value might have side effects
+- *20* unsupported expression
+  ⚠️  This value might have side effects
+- *21* (null != (???*22* | ???*24*))
+  ⚠️  nested operation
+- *22* ???*23*["checked"]
+  ⚠️  unknown object
+- *23* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *24* ???*25*["checked"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *3* FreeVar(Object)
-  ⚠️  unknown global
+- *25* Object.assign*26*(
+        {},
+        ???*27*,
+        {
+            "defaultChecked": ???*28*,
+            "defaultValue": ???*29*,
+            "value": ???*30*,
+            "checked": (???*31* ? ???*32* : ???*33*)
+        }
+    )
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *4* unsupported expression
+- *26* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *27* d
+  ⚠️  circular variable reference
+- *28* unsupported expression
   ⚠️  This value might have side effects
-- *5* unsupported expression
+- *29* unsupported expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
+- *30* unsupported expression
   ⚠️  This value might have side effects
+- *31* (... != ...)
+  ⚠️  nested operation
+- *32* ...[...]
+  ⚠️  unknown object
+- *33* ...[...]
+  ⚠️  unknown object
+- *34* ???*35*["checked"]
+  ⚠️  unknown object
+- *35* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *36* ???*37*["checked"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *37* Object.assign*38*(
+        {},
+        ???*39*,
+        {
+            "defaultChecked": ???*40*,
+            "defaultValue": ???*41*,
+            "value": ???*42*,
+            "checked": (???*43* ? ???*45* : ???*47*)
+        }
+    )
+  ⚠️  only const object assign is supported
+  ⚠️  This value might have side effects
+- *38* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *39* d
+  ⚠️  circular variable reference
+- *40* unsupported expression
+  ⚠️  This value might have side effects
+- *41* unsupported expression
+  ⚠️  This value might have side effects
+- *42* unsupported expression
+  ⚠️  This value might have side effects
+- *43* (null != ???*44*)
+  ⚠️  nested operation
+- *44* ...[...]
+  ⚠️  unknown object
+- *45* ???*46*["checked"]
+  ⚠️  unknown object
+- *46* d
+  ⚠️  circular variable reference
+- *47* ???*48*["initialChecked"]
+  ⚠️  unknown object
+- *48* ...[...]
+  ⚠️  unknown object
+- *49* ???*50*["initialChecked"]
+  ⚠️  unknown object
+- *50* ???*51*["_wrapperState"]
+  ⚠️  unknown object
+- *51* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 d#64 = ???*0*
 - *0* max number of linking steps reached
@@ -13600,9 +14478,9 @@ d#802 = ???*0*
 
 d#803 = (
   | 0
-  | (???*0* ? (0 | ???*7*) : 0)
-  | ???*8*
-  | ???*10*
+  | (???*0* ? (0 | ???*19*) : 0)
+  | ???*20*
+  | ???*22*
   | undefined
   | 1
   | 2
@@ -13610,7 +14488,7 @@ d#803 = (
   | 8
   | 16
   | 32
-  | ???*11*
+  | ???*23*
   | 134217728
   | 268435456
   | 536870912
@@ -13628,17 +14506,41 @@ d#803 = (
   ⚠️  unknown object
 - *5* a
   ⚠️  circular variable reference
-- *6* unknown new expression
-  ⚠️  This value might have side effects
-- *7* unsupported expression
-  ⚠️  This value might have side effects
-- *8* ???*9*["entangledLanes"]
+- *6* new (...) => undefined(???*7*, (null | ???*10*), ???*13*, ???*16*)
+  ⚠️  nested operation
+- *7* ???*8*["tag"]
   ⚠️  unknown object
-- *9* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *10* unsupported assign operation
+- *8* ???*9*["current"]
+  ⚠️  unknown object
+- *9* a
+  ⚠️  circular variable reference
+- *10* ???*11*["dependencies"]
+  ⚠️  unknown object
+- *11* ???*12*["current"]
+  ⚠️  unknown object
+- *12* a
+  ⚠️  circular variable reference
+- *13* ???*14*["key"]
+  ⚠️  unknown object
+- *14* ???*15*["current"]
+  ⚠️  unknown object
+- *15* a
+  ⚠️  circular variable reference
+- *16* ???*17*["mode"]
+  ⚠️  unknown object
+- *17* ???*18*["current"]
+  ⚠️  unknown object
+- *18* a
+  ⚠️  circular variable reference
+- *19* unsupported expression
   ⚠️  This value might have side effects
-- *11* unsupported expression
+- *20* ???*21*["entangledLanes"]
+  ⚠️  unknown object
+- *21* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *22* unsupported assign operation
+  ⚠️  This value might have side effects
+- *23* unsupported expression
   ⚠️  This value might have side effects
 
 d#807 = ???*0*
@@ -13964,10 +14866,66 @@ d#942 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#947 = (???*0* | ???*1* | null)
+d#947 = (
+  | ???*0*
+  | new (...) => undefined(12, ???*1*, (???*2* | ???*3*), ???*8*)
+  | new (...) => undefined(13, ???*9*, (???*10* | ???*11*), (???*16* | ???*17*))
+  | new (...) => undefined(19, ???*18*, (???*19* | ???*20*), (???*25* | ???*26*))
+  | null
+)
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *3* new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*4*, ???*5*, (???*6* | ???*7*))
+  ⚠️  nested operation
+- *4* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *5* b
+  ⚠️  circular variable reference
+- *6* arguments[4]
+  ⚠️  function calls are not analysed yet
+- *7* unsupported assign operation
+  ⚠️  This value might have side effects
+- *8* unsupported expression
+  ⚠️  This value might have side effects
+- *9* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *10* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *11* new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*12*, ???*13*, (???*14* | ???*15*))
+  ⚠️  nested operation
+- *12* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *13* b
+  ⚠️  circular variable reference
+- *14* arguments[4]
+  ⚠️  function calls are not analysed yet
+- *15* unsupported assign operation
+  ⚠️  This value might have side effects
+- *16* arguments[4]
+  ⚠️  function calls are not analysed yet
+- *17* unsupported assign operation
+  ⚠️  This value might have side effects
+- *18* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *19* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *20* new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*21*, ???*22*, (???*23* | ???*24*))
+  ⚠️  nested operation
+- *21* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *22* b
+  ⚠️  circular variable reference
+- *23* arguments[4]
+  ⚠️  function calls are not analysed yet
+- *24* unsupported assign operation
+  ⚠️  This value might have side effects
+- *25* arguments[4]
+  ⚠️  function calls are not analysed yet
+- *26* unsupported assign operation
   ⚠️  This value might have side effects
 
 d#948 = ???*0*
@@ -14096,8 +15054,9 @@ d#997 = (???*0* ? ???*2* : ???*3*)
 - *10* unsupported expression
   ⚠️  This value might have side effects
 
-da = ???*0*
-- *0* unknown new expression
+da = new ???*0*()
+- *0* FreeVar(Set)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 db = (...) => (undefined | FreeVar(undefined))
@@ -14142,8 +15101,9 @@ de = (!(???*0*) | !((???*3* | ???*7*)) | null | ???*8* | ???*10*)
 - *10* unsupported expression
   ⚠️  This value might have side effects
 
-df = ???*0*
-- *0* unknown new expression
+df = new ???*0*()
+- *0* FreeVar(Map)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 dg = (...) => undefined
@@ -14185,7 +15145,11 @@ e#1004 = (???*0* | null)
 - *6* updated with update expression
   ⚠️  This value might have side effects
 
-e#1013 = ((???*0* ? ???*3* : (...) => undefined) | ???*4* | ???*6*)
+e#1013 = (
+  | (???*0* ? ???*3* : (...) => undefined)
+  | ???*4*
+  | new (...) => undefined(???*6*, (1 | ???*7* | 0), false, ("" | ???*8*), (???*10* | ???*15*))["onRecoverableError"]
+)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
 - *1* typeof(???*2*)
@@ -14200,11 +15164,30 @@ e#1013 = ((???*0* ? ???*3* : (...) => undefined) | ???*4* | ???*6*)
   ⚠️  unknown object
 - *5* arguments[1]
   ⚠️  function calls are not analysed yet
-- *6* ???*7*["onRecoverableError"]
+- *6* a
+  ⚠️  circular variable reference
+- *7* unsupported assign operation
+  ⚠️  This value might have side effects
+- *8* ???*9*["identifierPrefix"]
   ⚠️  unknown object
+- *9* b
+  ⚠️  circular variable reference
+- *10* (???*11* ? ???*14* : (...) => undefined)
+  ⚠️  nested operation
+- *11* ("function" === ???*12*)
+  ⚠️  nested operation
+- *12* typeof(???*13*)
+  ⚠️  nested operation
+- *13* FreeVar(reportError)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *7* unknown new expression
+- *14* FreeVar(reportError)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
+- *15* ???*16*["onRecoverableError"]
+  ⚠️  unknown object
+- *16* b
+  ⚠️  circular variable reference
 
 e#1018 = (
   | false
@@ -14447,7 +15430,7 @@ e#199 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-e#207 = (???*0* ? (null["value"] | ???*1* | ???*16*) : (null["textContent"] | ???*18* | ???*33*))
+e#207 = (???*0* ? (null["value"] | ???*1*) : (null["textContent"] | ???*16*))
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* ???*2*["value"]
@@ -14485,50 +15468,40 @@ e#207 = (???*0* ? (null["value"] | ???*1* | ???*16*) : (null["textContent"] | ??
 - *15* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *16* ???*17*["value"]
+- *16* ???*17*["textContent"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *17* unknown new expression
-  ⚠️  This value might have side effects
-- *18* ???*19*["textContent"]
+- *17* (???*18* ? (???*23* | ???*25*) : (???*27* | ???*28* | ???*30*))
+  ⚠️  nested operation
+- *18* (3 === (???*19* | ???*21*))
+  ⚠️  nested operation
+- *19* ???*20*["nodeType"]
   ⚠️  unknown object
-- *19* (???*20* ? (???*25* | ???*27*) : (???*29* | ???*30* | ???*32*))
-  ⚠️  nested operation
-- *20* (3 === (???*21* | ???*23*))
-  ⚠️  nested operation
+- *20* arguments[2]
+  ⚠️  function calls are not analysed yet
 - *21* ???*22*["nodeType"]
   ⚠️  unknown object
-- *22* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *23* ???*24*["nodeType"]
-  ⚠️  unknown object
   ⚠️  This value might have side effects
-- *24* FreeVar(window)
+- *22* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
+- *23* ???*24*["parentNode"]
+  ⚠️  unknown object
+- *24* arguments[2]
+  ⚠️  function calls are not analysed yet
 - *25* ???*26*["parentNode"]
   ⚠️  unknown object
-- *26* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *27* ???*28*["parentNode"]
-  ⚠️  unknown object
   ⚠️  This value might have side effects
-- *28* FreeVar(window)
+- *26* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *29* arguments[2]
+- *27* arguments[2]
   ⚠️  function calls are not analysed yet
-- *30* ???*31*["target"]
+- *28* ???*29*["target"]
   ⚠️  unknown object
-- *31* a
+- *29* a
   ⚠️  circular variable reference
-- *32* FreeVar(window)
+- *30* FreeVar(window)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *33* ???*34*["textContent"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *34* unknown new expression
   ⚠️  This value might have side effects
 
 e#212 = ???*0*
@@ -14602,12 +15575,15 @@ e#251 = ???*0*
 - *0* ???*1*[d]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *1* ???*2*["keys"](a)
-  ⚠️  unknown callee object
+- *1* ???*2*(???*4*)
+  ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+- *2* Object*3*["keys"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
+- *3* Object: The global Object variable
+- *4* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 e#266 = ???*0*
 - *0* max number of linking steps reached
@@ -14643,7 +15619,7 @@ e#286 = ???*0*
 
 e#292 = (
   | (???*0* ? (???*5* | ???*7*) : (???*9* | ???*10* | ???*12*))
-  | ???*13*
+  | new (...) => ???*13*("onBeforeInput", "beforeinput", null, ???*14*, ???*15*)
 )
 - *0* (3 === (???*1* | ???*3*))
   ⚠️  nested operation
@@ -14676,7 +15652,42 @@ e#292 = (
 - *12* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *13* unknown new expression
+- *13* unsupported expression
+  ⚠️  This value might have side effects
+- *14* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *15* (???*16* ? (???*21* | ???*23*) : (???*25* | ???*26* | ???*28*))
+  ⚠️  nested operation
+- *16* (3 === (???*17* | ???*19*))
+  ⚠️  nested operation
+- *17* ???*18*["nodeType"]
+  ⚠️  unknown object
+- *18* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *19* ???*20*["nodeType"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *20* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *21* ???*22*["parentNode"]
+  ⚠️  unknown object
+- *22* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *23* ???*24*["parentNode"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *24* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *25* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *26* ???*27*["target"]
+  ⚠️  unknown object
+- *27* a
+  ⚠️  circular variable reference
+- *28* FreeVar(window)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 e#30 = ???*0*
@@ -15089,20 +16100,41 @@ e#420 = ???*0*
 - *0* arguments[4]
   ⚠️  function calls are not analysed yet
 
-e#421 = ({} | (???*0* ? ({} | ???*5*) : ({} | ???*6*)))
-- *0* (null !== (???*1* | ???*2* | ???*3*))
+e#421 = ({} | (???*0* ? ({} | ???*15*) : ({} | ???*16*)))
+- *0* (null !== (???*1* | ???*2* | ???*13*))
   ⚠️  nested operation
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
-- *2* unknown new expression
-  ⚠️  This value might have side effects
-- *3* ???*4*["childContextTypes"]
-  ⚠️  unknown object
-- *4* a
+- *2* new ???*3*(???*4*, (???*5* | ???*7* | ???*8* | ???*9*))
+  ⚠️  nested operation
+- *3* b
   ⚠️  circular variable reference
-- *5* unknown mutation
+- *4* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *5* ???*6*["contextType"]
+  ⚠️  unknown object
+- *6* b
+  ⚠️  circular variable reference
+- *7* FreeVar(undefined)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
-- *6* unknown mutation
+- *8* unknown mutation
+  ⚠️  This value might have side effects
+- *9* (???*10* ? ({} | ???*11*) : {})
+  ⚠️  nested operation
+- *10* unsupported expression
+  ⚠️  This value might have side effects
+- *11* ???*12*["__reactInternalMemoizedMaskedChildContext"]
+  ⚠️  unknown object
+- *12* ???["stateNode"]
+  ⚠️  unknown object
+- *13* ???*14*["childContextTypes"]
+  ⚠️  unknown object
+- *14* a
+  ⚠️  circular variable reference
+- *15* unknown mutation
+  ⚠️  This value might have side effects
+- *16* unknown mutation
   ⚠️  This value might have side effects
 
 e#423 = ???*0*
@@ -15496,12 +16528,27 @@ e#56 = ???*0*
 - *0* ???*1*["get"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *1* ???*2*["getOwnPropertyDescriptor"](a["constructor"]["prototype"], b)
-  ⚠️  unknown callee object
+- *1* ???*2*(???*4*, ((???*7* | ???*8*) ? "checked" : "value"))
+  ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+- *2* Object*3*["getOwnPropertyDescriptor"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
+- *3* Object: The global Object variable
+- *4* ???*5*["prototype"]
+  ⚠️  unknown object
+- *5* ???*6*["constructor"]
+  ⚠️  unknown object
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* ("input" === ???*9*)
+  ⚠️  nested operation
+- *9* ???*10*()
+  ⚠️  nested operation
+- *10* ???["toLowerCase"]
+  ⚠️  unknown object
 
 e#570 = ???*0*
 - *0* max number of linking steps reached
@@ -15513,8 +16560,9 @@ e#580 = ???*0*
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-e#585 = (???*0* | ???*1* | ???*5* | ???*13*)
-- *0* unknown new expression
+e#585 = (new ???*0*() | ???*1* | ???*5* | ???*13*)
+- *0* FreeVar(Set)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 - *1* ???*2*["get"](???*4*)
   ⚠️  unknown callee object
@@ -15690,30 +16738,152 @@ e#639 = (???*0* | ???*2*)
   ⚠️  unknown object
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
-- *2* ???*3*(
+- *2* Object.assign*3*(
         {},
-        b,
+        (???*4* | ???*6*),
         {
-            "defaultChecked": ???*5*,
-            "defaultValue": ???*6*,
-            "value": ???*7*,
-            "checked": ((null != c) ? c : a["_wrapperState"]["initialChecked"])
+            "defaultChecked": ???*20*,
+            "defaultValue": ???*21*,
+            "value": ???*22*,
+            "checked": (???*23* ? (???*37* | ???*40*) : ???*53*)
         }
     )
-  ⚠️  unknown callee
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *3* ???*4*["assign"]
+- *3* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *4* ???*5*["memoizedProps"]
+  ⚠️  unknown object
+- *5* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *6* Object.assign*7*(
+        {},
+        ???*8*,
+        {
+            "defaultChecked": ???*9*,
+            "defaultValue": ???*10*,
+            "value": ???*11*,
+            "checked": (???*12* ? ???*15* : ???*17*)
+        }
+    )
+  ⚠️  only const object assign is supported
+  ⚠️  This value might have side effects
+- *7* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *8* e
+  ⚠️  circular variable reference
+- *9* unsupported expression
+  ⚠️  This value might have side effects
+- *10* unsupported expression
+  ⚠️  This value might have side effects
+- *11* unsupported expression
+  ⚠️  This value might have side effects
+- *12* (null != ???*13*)
+  ⚠️  nested operation
+- *13* ???*14*["checked"]
+  ⚠️  unknown object
+- *14* e
+  ⚠️  circular variable reference
+- *15* ???*16*["checked"]
+  ⚠️  unknown object
+- *16* e
+  ⚠️  circular variable reference
+- *17* ???*18*["initialChecked"]
+  ⚠️  unknown object
+- *18* ???*19*["_wrapperState"]
+  ⚠️  unknown object
+- *19* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *20* unsupported expression
+  ⚠️  This value might have side effects
+- *21* unsupported expression
+  ⚠️  This value might have side effects
+- *22* unsupported expression
+  ⚠️  This value might have side effects
+- *23* (null != (???*24* | ???*27*))
+  ⚠️  nested operation
+- *24* ???*25*["checked"]
+  ⚠️  unknown object
+- *25* ???*26*["memoizedProps"]
+  ⚠️  unknown object
+- *26* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *27* ???*28*["checked"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *4* FreeVar(Object)
-  ⚠️  unknown global
+- *28* Object.assign*29*(
+        {},
+        ???*30*,
+        {
+            "defaultChecked": ???*31*,
+            "defaultValue": ???*32*,
+            "value": ???*33*,
+            "checked": (???*34* ? ???*35* : ???*36*)
+        }
+    )
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *5* unsupported expression
+- *29* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *30* e
+  ⚠️  circular variable reference
+- *31* unsupported expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
+- *32* unsupported expression
   ⚠️  This value might have side effects
-- *7* unsupported expression
+- *33* unsupported expression
   ⚠️  This value might have side effects
+- *34* (... != ...)
+  ⚠️  nested operation
+- *35* ...[...]
+  ⚠️  unknown object
+- *36* ...[...]
+  ⚠️  unknown object
+- *37* ???*38*["checked"]
+  ⚠️  unknown object
+- *38* ???*39*["memoizedProps"]
+  ⚠️  unknown object
+- *39* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *40* ???*41*["checked"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *41* Object.assign*42*(
+        {},
+        ???*43*,
+        {
+            "defaultChecked": ???*44*,
+            "defaultValue": ???*45*,
+            "value": ???*46*,
+            "checked": (???*47* ? ???*49* : ???*51*)
+        }
+    )
+  ⚠️  only const object assign is supported
+  ⚠️  This value might have side effects
+- *42* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *43* e
+  ⚠️  circular variable reference
+- *44* unsupported expression
+  ⚠️  This value might have side effects
+- *45* unsupported expression
+  ⚠️  This value might have side effects
+- *46* unsupported expression
+  ⚠️  This value might have side effects
+- *47* (null != ???*48*)
+  ⚠️  nested operation
+- *48* ...[...]
+  ⚠️  unknown object
+- *49* ???*50*["checked"]
+  ⚠️  unknown object
+- *50* e
+  ⚠️  circular variable reference
+- *51* ???*52*["initialChecked"]
+  ⚠️  unknown object
+- *52* ...[...]
+  ⚠️  unknown object
+- *53* ???*54*["initialChecked"]
+  ⚠️  unknown object
+- *54* ???*55*["_wrapperState"]
+  ⚠️  unknown object
+- *55* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 e#646 = ???*0*
 - *0* ???*1*["child"]
@@ -16175,7 +17345,7 @@ f#199 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-f#207 = (???*0* ? (null["value"] | ???*1* | ???*16*) : (null["textContent"] | ???*18* | ???*33*))["length"]
+f#207 = (???*0* ? (null["value"] | ???*1*) : (null["textContent"] | ???*16*))["length"]
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* ???*2*["value"]
@@ -16213,50 +17383,40 @@ f#207 = (???*0* ? (null["value"] | ???*1* | ???*16*) : (null["textContent"] | ??
 - *15* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *16* ???*17*["value"]
+- *16* ???*17*["textContent"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *17* unknown new expression
-  ⚠️  This value might have side effects
-- *18* ???*19*["textContent"]
+- *17* (???*18* ? (???*23* | ???*25*) : (???*27* | ???*28* | ???*30*))
+  ⚠️  nested operation
+- *18* (3 === (???*19* | ???*21*))
+  ⚠️  nested operation
+- *19* ???*20*["nodeType"]
   ⚠️  unknown object
-- *19* (???*20* ? (???*25* | ???*27*) : (???*29* | ???*30* | ???*32*))
-  ⚠️  nested operation
-- *20* (3 === (???*21* | ???*23*))
-  ⚠️  nested operation
+- *20* arguments[2]
+  ⚠️  function calls are not analysed yet
 - *21* ???*22*["nodeType"]
   ⚠️  unknown object
-- *22* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *23* ???*24*["nodeType"]
-  ⚠️  unknown object
   ⚠️  This value might have side effects
-- *24* FreeVar(window)
+- *22* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
+- *23* ???*24*["parentNode"]
+  ⚠️  unknown object
+- *24* arguments[2]
+  ⚠️  function calls are not analysed yet
 - *25* ???*26*["parentNode"]
   ⚠️  unknown object
-- *26* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *27* ???*28*["parentNode"]
-  ⚠️  unknown object
   ⚠️  This value might have side effects
-- *28* FreeVar(window)
+- *26* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *29* arguments[2]
+- *27* arguments[2]
   ⚠️  function calls are not analysed yet
-- *30* ???*31*["target"]
+- *28* ???*29*["target"]
   ⚠️  unknown object
-- *31* a
+- *29* a
   ⚠️  circular variable reference
-- *32* FreeVar(window)
+- *30* FreeVar(window)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *33* ???*34*["textContent"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *34* unknown new expression
   ⚠️  This value might have side effects
 
 f#212 = ???*0*
@@ -16554,44 +17714,9 @@ f#420 = ???*0*
 - *0* arguments[5]
   ⚠️  function calls are not analysed yet
 
-f#421 = (
-  | ???*0*
-  | ???*2*
-  | (???*4* ? ({} | ???*5*) : {})["_currentValue"]
-  | ???*8*
-  | ???*9*
-  | (???*10* ? ({} | ???*11*) : {})
-)
-- *0* ???*1*["contextType"]
-  ⚠️  unknown object
-- *1* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *2* ???*3*["contextType"]
-  ⚠️  unknown object
+f#421 = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
-- *3* unknown new expression
-  ⚠️  This value might have side effects
-- *4* unsupported expression
-  ⚠️  This value might have side effects
-- *5* ???*6*["__reactInternalMemoizedMaskedChildContext"]
-  ⚠️  unknown object
-- *6* ???*7*["stateNode"]
-  ⚠️  unknown object
-- *7* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *8* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *9* unknown mutation
-  ⚠️  This value might have side effects
-- *10* unsupported expression
-  ⚠️  This value might have side effects
-- *11* ???*12*["__reactInternalMemoizedMaskedChildContext"]
-  ⚠️  unknown object
-- *12* ???*13*["stateNode"]
-  ⚠️  unknown object
-- *13* arguments[0]
-  ⚠️  function calls are not analysed yet
 
 f#423 = (???*0* | (???*2* ? ({} | ???*7*) : ({} | ???*8*)))
 - *0* ???*1*["contextType"]
@@ -16739,12 +17864,27 @@ f#56 = ???*0*
 - *0* ???*1*["set"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *1* ???*2*["getOwnPropertyDescriptor"](a["constructor"]["prototype"], b)
-  ⚠️  unknown callee object
+- *1* ???*2*(???*4*, ((???*7* | ???*8*) ? "checked" : "value"))
+  ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
+- *2* Object*3*["getOwnPropertyDescriptor"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
+- *3* Object: The global Object variable
+- *4* ???*5*["prototype"]
+  ⚠️  unknown object
+- *5* ???*6*["constructor"]
+  ⚠️  unknown object
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* ("input" === ???*9*)
+  ⚠️  nested operation
+- *9* ???*10*()
+  ⚠️  nested operation
+- *10* ???["toLowerCase"]
+  ⚠️  unknown object
 
 f#572 = ???*0*
 - *0* f
@@ -16765,9 +17905,13 @@ f#591 = ???*0*
 f#592 = (
   | ???*0*
   | (???*2* ? ???*4* : (...) => (???*5* | ???*6*))["type"]
-  | ???*7*
+  | new (...) => undefined(7, ???*7*, (null | ???*8*), (???*14* | ???*16*))["child"]
+  | ???*17*
+  | new (...) => undefined(22, ???*19*, (null | ???*20*), (???*26* | ???*28*))["child"]
   | null["child"]
-  | (???*9* ? ???*11* : (...) => (???*12* | ???*13*))["type"]["alternate"]["child"]
+  | new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*29*, ???*30*, (???*31* | ???*33*))["child"]
+  | (???*34* ? ???*36* : (...) => (???*37* | ???*38*))["type"]["alternate"]["child"]
+  | new (...) => undefined(???*39*, (???*42* | ???*43*), ???*46*, ???*49*)["child"]
 )
 - *0* ???*1*["type"]
   ⚠️  unknown object
@@ -16783,21 +17927,98 @@ f#592 = (
   ⚠️  nested operation
 - *6* !(1)
   ⚠️  nested operation
-- *7* ???*8*["child"]
+- *7* a
+  ⚠️  circular variable reference
+- *8* new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*9*, ???*10*, (???*11* | ???*13*))
+  ⚠️  nested operation
+- *9* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *10* b
+  ⚠️  circular variable reference
+- *11* ???*12*["mode"]
+  ⚠️  unknown object
+- *12* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *13* unsupported assign operation
+  ⚠️  This value might have side effects
+- *14* ???*15*["mode"]
+  ⚠️  unknown object
+- *15* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *16* unsupported assign operation
+  ⚠️  This value might have side effects
+- *17* ???*18*["child"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *8* unknown new expression
+- *18* a
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *9* (null !== ???*10*)
-  ⚠️  nested operation
-- *10* c
+- *19* a
   ⚠️  circular variable reference
-- *11* c
+- *20* new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*21*, ???*22*, (???*23* | ???*25*))
+  ⚠️  nested operation
+- *21* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *22* b
   ⚠️  circular variable reference
-- *12* !(0)
+- *23* ???*24*["mode"]
+  ⚠️  unknown object
+- *24* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *25* unsupported assign operation
+  ⚠️  This value might have side effects
+- *26* ???*27*["mode"]
+  ⚠️  unknown object
+- *27* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *28* unsupported assign operation
+  ⚠️  This value might have side effects
+- *29* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *30* b
+  ⚠️  circular variable reference
+- *31* ???*32*["mode"]
+  ⚠️  unknown object
+- *32* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *33* unsupported assign operation
+  ⚠️  This value might have side effects
+- *34* (null !== ???*35*)
   ⚠️  nested operation
-- *13* !(1)
+- *35* c
+  ⚠️  circular variable reference
+- *36* c
+  ⚠️  circular variable reference
+- *37* !(0)
   ⚠️  nested operation
+- *38* !(1)
+  ⚠️  nested operation
+- *39* ???*40*["tag"]
+  ⚠️  unknown object
+- *40* ???*41*["type"]
+  ⚠️  unknown object
+- *41* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *42* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *43* ???*44*["dependencies"]
+  ⚠️  unknown object
+- *44* ???*45*["type"]
+  ⚠️  unknown object
+- *45* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *46* ???*47*["key"]
+  ⚠️  unknown object
+- *47* ???*48*["type"]
+  ⚠️  unknown object
+- *48* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *49* ???*50*["mode"]
+  ⚠️  unknown object
+- *50* ???*51*["type"]
+  ⚠️  unknown object
+- *51* arguments[2]
+  ⚠️  function calls are not analysed yet
 
 f#595 = ???*0*
 - *0* ???*1*["memoizedProps"]
@@ -17069,10 +18290,15 @@ f#947 = ???*0*
 - *0* arguments[5]
   ⚠️  function calls are not analysed yet
 
-f#953 = (???*0* | ???*1*)
+f#953 = (
+  | ???*0*
+  | new (...) => undefined(3, null, null, (???*1* | 1 | ???*2* | 0))
+)
 - *0* arguments[5]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *2* unsupported assign operation
   ⚠️  This value might have side effects
 
 f#960 = (
@@ -17085,13 +18311,14 @@ f#960 = (
           | ???*14*
           | ???*15*
           | ???*16*
-          | ???*18*
+          | new (...) => undefined(???*18*, (???*19* | ???*20* | 1 | ???*32* | 0), true, ???*33*, ???*34*)["current"]
           | 0
-          | ???*20*
+          | ???*35*
           | 4
-          | ((???*21* | ???*23*) ? ???*24* : 4)
-          | (???*25* ? 16 : (???*26* | null | ???*33* | ???*34*))
-          | (???*36* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+          | ((???*36* | ???*38*) ? ???*39* : 4)
+          | (???*40* ? 16 : (???*41* | null | ???*48* | ???*49*))
+          | ???*51*
+          | (???*53* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
         ),
         "tag": 0,
         "payload": null,
@@ -17136,48 +18363,83 @@ f#960 = (
   ⚠️  unknown object
 - *17* arguments[0]
   ⚠️  function calls are not analysed yet
-- *18* ???*19*["current"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *19* unknown new expression
-  ⚠️  This value might have side effects
-- *20* C
+- *18* a
   ⚠️  circular variable reference
+- *19* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *20* (???*21* ? ???*23* : ???*24*)
+  ⚠️  nested operation
 - *21* (0 !== ???*22*)
   ⚠️  nested operation
-- *22* C
-  ⚠️  circular variable reference
-- *23* unsupported expression
+- *22* unsupported expression
   ⚠️  This value might have side effects
-- *24* C
-  ⚠️  circular variable reference
-- *25* unsupported expression
-  ⚠️  This value might have side effects
-- *26* (???*27* ? ???*28* : 1)
+- *23* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
+- *24* (???*25* ? (???*29* | ???*30*) : ???*31*)
+  ⚠️  nested operation
+- *25* (???*26* !== (???*27* | ???*28*))
+  ⚠️  nested operation
+- *26* unsupported expression
+  ⚠️  This value might have side effects
 - *27* unsupported expression
   ⚠️  This value might have side effects
-- *28* (???*29* ? ???*30* : 4)
+- *28* ...()
   ⚠️  nested operation
 - *29* unsupported expression
   ⚠️  This value might have side effects
-- *30* (???*31* ? 16 : 536870912)
+- *30* ...[...]()
   ⚠️  nested operation
-- *31* (0 !== ???*32*)
-  ⚠️  nested operation
-- *32* unsupported expression
+- *31* unsupported expression
   ⚠️  This value might have side effects
-- *33* arguments[0]
+- *32* unsupported assign operation
+  ⚠️  This value might have side effects
+- *33* arguments[7]
   ⚠️  function calls are not analysed yet
-- *34* ???*35*["value"]
+- *34* arguments[8]
+  ⚠️  function calls are not analysed yet
+- *35* C
+  ⚠️  circular variable reference
+- *36* (0 !== ???*37*)
+  ⚠️  nested operation
+- *37* C
+  ⚠️  circular variable reference
+- *38* unsupported expression
+  ⚠️  This value might have side effects
+- *39* C
+  ⚠️  circular variable reference
+- *40* unsupported expression
+  ⚠️  This value might have side effects
+- *41* (???*42* ? ???*43* : 1)
+  ⚠️  nested operation
+- *42* unsupported expression
+  ⚠️  This value might have side effects
+- *43* (???*44* ? ???*45* : 4)
+  ⚠️  nested operation
+- *44* unsupported expression
+  ⚠️  This value might have side effects
+- *45* (???*46* ? 16 : 536870912)
+  ⚠️  nested operation
+- *46* (0 !== ???*47*)
+  ⚠️  nested operation
+- *47* unsupported expression
+  ⚠️  This value might have side effects
+- *48* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *49* ???*50*["value"]
   ⚠️  unknown object
-- *35* arguments[1]
+- *50* arguments[1]
   ⚠️  function calls are not analysed yet
-- *36* (???*37* === ???*38*)
-  ⚠️  nested operation
-- *37* unsupported expression
+- *51* ???*52*["event"]
+  ⚠️  unknown object
   ⚠️  This value might have side effects
-- *38* a
+- *52* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *53* (???*54* === ???*55*)
+  ⚠️  nested operation
+- *54* unsupported expression
+  ⚠️  This value might have side effects
+- *55* a
   ⚠️  circular variable reference
 
 f#961 = (???*0* ? ???*2* : ???*3*)
@@ -17430,8 +18692,12 @@ g#539 = ???*0*
 g#592 = (
   | ???*0*
   | (???*3* ? ???*5* : (...) => (???*6* | ???*7*))["type"]["memoizedProps"]
-  | ???*8*
+  | new (...) => undefined(7, ???*8*, (null | ???*9*), (???*15* | ???*17*))["child"]["memoizedProps"]
+  | ???*18*
+  | new (...) => undefined(22, ???*21*, (null | ???*22*), (???*28* | ???*30*))["child"]["memoizedProps"]
   | null["child"]["memoizedProps"]
+  | new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*31*, ???*32*, (???*33* | ???*35*))["child"]["memoizedProps"]
+  | new (...) => undefined(???*36*, (???*38* | ???*39*), ???*41*, ???*43*)["child"]["memoizedProps"]
 )
 - *0* ???*1*["memoizedProps"]
   ⚠️  unknown object
@@ -17449,14 +18715,83 @@ g#592 = (
   ⚠️  nested operation
 - *7* !(1)
   ⚠️  nested operation
-- *8* ???*9*["memoizedProps"]
+- *8* a
+  ⚠️  circular variable reference
+- *9* new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*10*, ???*11*, (???*12* | ???*14*))
+  ⚠️  nested operation
+- *10* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *11* b
+  ⚠️  circular variable reference
+- *12* ???*13*["mode"]
+  ⚠️  unknown object
+- *13* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *14* unsupported assign operation
+  ⚠️  This value might have side effects
+- *15* ???*16*["mode"]
+  ⚠️  unknown object
+- *16* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *17* unsupported assign operation
+  ⚠️  This value might have side effects
+- *18* ???*19*["memoizedProps"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *9* ???*10*["child"]
+- *19* ???*20*["child"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *10* unknown new expression
+- *20* a
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
+- *21* a
+  ⚠️  circular variable reference
+- *22* new (...) => undefined((2 | 1 | 5 | 8 | 10 | 9 | 11 | 14 | 16), ???*23*, ???*24*, (???*25* | ???*27*))
+  ⚠️  nested operation
+- *23* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *24* b
+  ⚠️  circular variable reference
+- *25* ???*26*["mode"]
+  ⚠️  unknown object
+- *26* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *27* unsupported assign operation
+  ⚠️  This value might have side effects
+- *28* ???*29*["mode"]
+  ⚠️  unknown object
+- *29* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *30* unsupported assign operation
+  ⚠️  This value might have side effects
+- *31* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *32* b
+  ⚠️  circular variable reference
+- *33* ???*34*["mode"]
+  ⚠️  unknown object
+- *34* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *35* unsupported assign operation
+  ⚠️  This value might have side effects
+- *36* ???*37*["tag"]
+  ⚠️  unknown object
+- *37* f
+  ⚠️  circular variable reference
+- *38* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *39* ???*40*["dependencies"]
+  ⚠️  unknown object
+- *40* f
+  ⚠️  circular variable reference
+- *41* ???*42*["key"]
+  ⚠️  unknown object
+- *42* f
+  ⚠️  circular variable reference
+- *43* ???*44*["mode"]
+  ⚠️  unknown object
+- *44* f
+  ⚠️  circular variable reference
 
 g#601 = ???*0*
 - *0* ???*1*["stateNode"]
@@ -17692,14 +19027,8 @@ g#961 = (
 - *27* a
   ⚠️  circular variable reference
 
-g#979 = (???*0* | ???*1* | ???*3*)
-- *0* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *1* ???*2*["current"]
-  ⚠️  unknown object
-- *2* a
-  ⚠️  circular variable reference
-- *3* unknown new expression
+g#979 = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 g#986 = ???*0*
@@ -18060,12 +19389,10 @@ ja = ???*0*
 - *0* ???*1*["hasOwnProperty"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *1* ???*2*["prototype"]
-  ⚠️  unknown object
+- *1* Object*2*["prototype"]
+  ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *2* Object: The global Object variable
 
 jb = (...) => undefined
 
@@ -18092,12 +19419,7 @@ jf = ???*0*()
 
 jg = (...) => null
 
-jh = ???*0*
-- *0* ???*1*["refs"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *1* unknown new expression
-  ⚠️  This value might have side effects
+jh = new module<react, {}>["Component"]()["refs"]
 
 ji = (...) => ui(2048, 8, a, b)
 
@@ -18372,7 +19694,7 @@ k#609 = ???*0*
 k#639 = (
   | ???*0*
   | ???*4*
-  | ((???*13* | ???*17* | ???*26*) ? (???*31* | ???*36*) : ???*46*)
+  | ((???*21* | ???*25* | ???*42*) ? (???*47* | ???*52*) : ???*68*)
 )
 - *0* ???*1*[(???*2* | null | [] | ???*3*)]
   ⚠️  unknown object
@@ -18382,131 +19704,166 @@ k#639 = (
   ⚠️  pattern without value
 - *3* f
   ⚠️  circular variable reference
-- *4* ???*5*[(???*11* | null | [] | ???*12*)]
+- *4* ???*5*[(???*19* | null | [] | ???*20*)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *5* ???*6*(
+- *5* Object.assign*6*(
         {},
-        b,
+        ???*7*,
         {
             "defaultChecked": ???*8*,
             "defaultValue": ???*9*,
             "value": ???*10*,
-            "checked": ((null != c) ? c : a["_wrapperState"]["initialChecked"])
+            "checked": (???*11* ? ???*14* : ???*16*)
         }
     )
-  ⚠️  unknown callee
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *6* ???*7*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *7* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *6* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *7* d
+  ⚠️  circular variable reference
 - *8* unsupported expression
   ⚠️  This value might have side effects
 - *9* unsupported expression
   ⚠️  This value might have side effects
 - *10* unsupported expression
   ⚠️  This value might have side effects
-- *11* l
-  ⚠️  pattern without value
-- *12* f
-  ⚠️  circular variable reference
-- *13* ???*14*[(???*15* | null | [] | ???*16*)]
+- *11* (null != ???*12*)
+  ⚠️  nested operation
+- *12* ???*13*["checked"]
   ⚠️  unknown object
-- *14* arguments[3]
-  ⚠️  function calls are not analysed yet
-- *15* l
-  ⚠️  pattern without value
-- *16* f
+- *13* d
   ⚠️  circular variable reference
-- *17* ???*18*[(???*24* | null | [] | ???*25*)]
+- *14* ???*15*["checked"]
+  ⚠️  unknown object
+- *15* d
+  ⚠️  circular variable reference
+- *16* ???*17*["initialChecked"]
+  ⚠️  unknown object
+- *17* ???*18*["_wrapperState"]
+  ⚠️  unknown object
+- *18* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *19* l
+  ⚠️  pattern without value
+- *20* f
+  ⚠️  circular variable reference
+- *21* ???*22*[(???*23* | null | [] | ???*24*)]
+  ⚠️  unknown object
+- *22* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *23* l
+  ⚠️  pattern without value
+- *24* f
+  ⚠️  circular variable reference
+- *25* ???*26*[(???*40* | null | [] | ???*41*)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *18* ???*19*(
+- *26* Object.assign*27*(
         {},
-        b,
+        ???*28*,
         {
-            "defaultChecked": ???*21*,
-            "defaultValue": ???*22*,
-            "value": ???*23*,
-            "checked": ((null != c) ? c : a["_wrapperState"]["initialChecked"])
+            "defaultChecked": ???*29*,
+            "defaultValue": ???*30*,
+            "value": ???*31*,
+            "checked": (???*32* ? ???*35* : ???*37*)
         }
     )
-  ⚠️  unknown callee
+  ⚠️  only const object assign is supported
   ⚠️  This value might have side effects
-- *19* ???*20*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *20* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *21* unsupported expression
-  ⚠️  This value might have side effects
-- *22* unsupported expression
-  ⚠️  This value might have side effects
-- *23* unsupported expression
-  ⚠️  This value might have side effects
-- *24* l
-  ⚠️  pattern without value
-- *25* f
+- *27* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *28* d
   ⚠️  circular variable reference
-- *26* (???*27* ? ???*28* : ???*30*)
-  ⚠️  nested operation
-- *27* k
-  ⚠️  circular variable reference
-- *28* ???*29*["__html"]
-  ⚠️  unknown object
-- *29* k
-  ⚠️  circular variable reference
+- *29* unsupported expression
+  ⚠️  This value might have side effects
 - *30* unsupported expression
   ⚠️  This value might have side effects
-- *31* ???*32*["__html"]
+- *31* unsupported expression
+  ⚠️  This value might have side effects
+- *32* (null != ???*33*)
+  ⚠️  nested operation
+- *33* ???*34*["checked"]
   ⚠️  unknown object
-- *32* ???*33*[(???*34* | null | [] | ???*35*)]
-  ⚠️  unknown object
-- *33* arguments[3]
-  ⚠️  function calls are not analysed yet
-- *34* l
-  ⚠️  pattern without value
-- *35* f
+- *34* d
   ⚠️  circular variable reference
-- *36* ???*37*["__html"]
+- *35* ???*36*["checked"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *37* ???*38*[(???*44* | null | [] | ???*45*)]
+- *36* d
+  ⚠️  circular variable reference
+- *37* ???*38*["initialChecked"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *38* ???*39*(
-        {},
-        b,
-        {
-            "defaultChecked": ???*41*,
-            "defaultValue": ???*42*,
-            "value": ???*43*,
-            "checked": ((null != c) ? c : a["_wrapperState"]["initialChecked"])
-        }
-    )
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *39* ???*40*["assign"]
+- *38* ???*39*["_wrapperState"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *40* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *41* unsupported expression
-  ⚠️  This value might have side effects
-- *42* unsupported expression
-  ⚠️  This value might have side effects
-- *43* unsupported expression
-  ⚠️  This value might have side effects
-- *44* l
+- *39* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *40* l
   ⚠️  pattern without value
-- *45* f
+- *41* f
+  ⚠️  circular variable reference
+- *42* (???*43* ? ???*44* : ???*46*)
+  ⚠️  nested operation
+- *43* k
+  ⚠️  circular variable reference
+- *44* ???*45*["__html"]
+  ⚠️  unknown object
+- *45* k
   ⚠️  circular variable reference
 - *46* unsupported expression
+  ⚠️  This value might have side effects
+- *47* ???*48*["__html"]
+  ⚠️  unknown object
+- *48* ???*49*[(???*50* | null | [] | ???*51*)]
+  ⚠️  unknown object
+- *49* arguments[3]
+  ⚠️  function calls are not analysed yet
+- *50* l
+  ⚠️  pattern without value
+- *51* f
+  ⚠️  circular variable reference
+- *52* ???*53*["__html"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *53* ???*54*[(???*66* | null | [] | ???*67*)]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *54* Object.assign*55*(
+        {},
+        ???*56*,
+        {
+            "defaultChecked": ???*57*,
+            "defaultValue": ???*58*,
+            "value": ???*59*,
+            "checked": (???*60* ? ???*62* : ???*64*)
+        }
+    )
+  ⚠️  only const object assign is supported
+  ⚠️  This value might have side effects
+- *55* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+- *56* d
+  ⚠️  circular variable reference
+- *57* unsupported expression
+  ⚠️  This value might have side effects
+- *58* unsupported expression
+  ⚠️  This value might have side effects
+- *59* unsupported expression
+  ⚠️  This value might have side effects
+- *60* (null != ???*61*)
+  ⚠️  nested operation
+- *61* ???["checked"]
+  ⚠️  unknown object
+- *62* ???*63*["checked"]
+  ⚠️  unknown object
+- *63* d
+  ⚠️  circular variable reference
+- *64* ???*65*["initialChecked"]
+  ⚠️  unknown object
+- *65* ???["_wrapperState"]
+  ⚠️  unknown object
+- *66* l
+  ⚠️  pattern without value
+- *67* f
+  ⚠️  circular variable reference
+- *68* unsupported expression
   ⚠️  This value might have side effects
 
 k#647 = ???*0*
@@ -18593,10 +19950,15 @@ k#960 = ???*0*
 - *0* arguments[8]
   ⚠️  function calls are not analysed yet
 
-k#979 = (???*0* | ???*1*)
+k#979 = (
+  | ???*0*
+  | new (...) => undefined(???*1*, (0 | 1 | ???*2*), false, "", (...) => undefined)
+)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* a
+  ⚠️  circular variable reference
+- *2* unsupported assign operation
   ⚠️  This value might have side effects
 
 ka = /^[:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD][:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\-.0-9\u00B7\u0300-\u036F\u203F-\u2040]*$/
@@ -18619,7 +19981,7 @@ kc = (null | ???*0*)
 kd = (
   | null
   | (???*0* ? (???*5* | ???*7*) : (???*9* | ???*10* | ???*12*))
-  | ???*13*
+  | new (...) => ???*13*("onBeforeInput", "beforeinput", null, ???*14*, ???*15*)
 )
 - *0* (3 === (???*1* | ???*3*))
   ⚠️  nested operation
@@ -18652,8 +20014,12 @@ kd = (
 - *12* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *13* unknown new expression
+- *13* unsupported expression
   ⚠️  This value might have side effects
+- *14* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *15* e
+  ⚠️  circular variable reference
 
 ke = (...) => (
   | undefined
@@ -18867,7 +20233,7 @@ lc = (null | ???*0*)
 ld = (
   | null
   | ???*0*
-  | (???*1* ? (null["value"] | ???*2* | ???*17*) : (null["textContent"] | ???*19* | ???*34*))
+  | (???*1* ? (null["value"] | ???*2*) : (null["textContent"] | ???*17*))
 )
 - *0* unsupported expression
   ⚠️  This value might have side effects
@@ -18908,50 +20274,40 @@ ld = (
 - *16* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *17* ???*18*["value"]
+- *17* ???*18*["textContent"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *18* unknown new expression
-  ⚠️  This value might have side effects
-- *19* ???*20*["textContent"]
+- *18* (???*19* ? (???*24* | ???*26*) : (???*28* | ???*29* | ???*31*))
+  ⚠️  nested operation
+- *19* (3 === (???*20* | ???*22*))
+  ⚠️  nested operation
+- *20* ???*21*["nodeType"]
   ⚠️  unknown object
-- *20* (???*21* ? (???*26* | ???*28*) : (???*30* | ???*31* | ???*33*))
-  ⚠️  nested operation
-- *21* (3 === (???*22* | ???*24*))
-  ⚠️  nested operation
+- *21* arguments[2]
+  ⚠️  function calls are not analysed yet
 - *22* ???*23*["nodeType"]
   ⚠️  unknown object
-- *23* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *24* ???*25*["nodeType"]
-  ⚠️  unknown object
   ⚠️  This value might have side effects
-- *25* FreeVar(window)
+- *23* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
+- *24* ???*25*["parentNode"]
+  ⚠️  unknown object
+- *25* arguments[2]
+  ⚠️  function calls are not analysed yet
 - *26* ???*27*["parentNode"]
   ⚠️  unknown object
-- *27* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *28* ???*29*["parentNode"]
-  ⚠️  unknown object
   ⚠️  This value might have side effects
-- *29* FreeVar(window)
+- *27* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *30* arguments[2]
+- *28* arguments[2]
   ⚠️  function calls are not analysed yet
-- *31* ???*32*["target"]
+- *29* ???*30*["target"]
   ⚠️  unknown object
-- *32* a
+- *30* a
   ⚠️  circular variable reference
-- *33* FreeVar(window)
+- *31* FreeVar(window)
   ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *34* ???*35*["textContent"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *35* unknown new expression
   ⚠️  This value might have side effects
 
 le = {
@@ -19080,13 +20436,13 @@ mb = (???*0* | ???*1* | ???*2*)
 
 mc = (...) => undefined
 
-md = (null | ???*0* | ???*18*)
-- *0* ???*1*((???*12* | 0 | ???*13*), ???*14*)
+md = (null | ???*0* | ???*14*)
+- *0* ???*1*((???*8* | 0 | ???*9*), ???*10*)
   ⚠️  unknown callee
   ⚠️  This value might have side effects
 - *1* ???*2*["slice"]
   ⚠️  unknown object
-- *2* (???*3* ? (null["value"] | ???*4* | ???*6*) : (null["textContent"] | ???*8* | ???*10*))
+- *2* (???*3* ? (null["value"] | ???*4*) : (null["textContent"] | ???*6*))
   ⚠️  nested operation
 - *3* unsupported expression
   ⚠️  This value might have side effects
@@ -19094,40 +20450,39 @@ md = (null | ???*0* | ???*18*)
   ⚠️  unknown object
 - *5* (??? ? (??? | ???) : (??? | ??? | ???))
   ⚠️  nested operation
-- *6* ???*7*["value"]
+- *6* ???*7*["textContent"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *7* unknown new expression
-  ⚠️  This value might have side effects
-- *8* ???*9*["textContent"]
-  ⚠️  unknown object
-- *9* (??? ? (??? | ???) : (??? | ??? | ???))
+- *7* (??? ? (??? | ???) : (??? | ??? | ???))
   ⚠️  nested operation
-- *10* ???*11*["textContent"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *11* unknown new expression
-  ⚠️  This value might have side effects
-- *12* a
+- *8* a
   ⚠️  pattern without value
-- *13* updated with update expression
+- *9* updated with update expression
   ⚠️  This value might have side effects
-- *14* (???*15* ? ???*16* : ???*17*)
+- *10* (???*11* ? ???*12* : ???*13*)
   ⚠️  nested operation
-- *15* unsupported expression
+- *11* unsupported expression
   ⚠️  This value might have side effects
-- *16* unsupported expression
+- *12* unsupported expression
   ⚠️  This value might have side effects
-- *17* unsupported expression
+- *13* unsupported expression
   ⚠️  This value might have side effects
-- *18* unsupported expression
+- *14* unsupported expression
   ⚠️  This value might have side effects
 
 me = (...) => (("input" === b) ? !(!(le[a["type"]])) : (("textarea" === b) ? !(0) : !(1)))
 
-mf = ???*0*
-- *0* unknown new expression
+mf = new ???*0*(???*1*)
+- *0* FreeVar(Set)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
+- *1* ???*2*(???*4*)
+  ⚠️  unknown callee
+- *2* ???*3*["concat"]
+  ⚠️  unknown object
+- *3* "cancel close invalid load scroll toggle"["split"](" ")
+  ⚠️  nested operation
+- *4* "abort canplay canplaythrough durationchange emptied encrypted ended error loadeddata loadedmetadata loadstart pause play playing progress ratechange resize seeked seeking stalled suspend timeupdate volumechange waiting"["split"](" ")
+  ⚠️  nested operation
 
 mg = (null | ???*0* | ???*1*)
 - *0* arguments[0]
@@ -19699,8 +21054,9 @@ t#753 = ???*0*
 - *0* t
   ⚠️  pattern without value
 
-t#843 = ???*0*
-- *0* unknown new expression
+t#843 = new ???*0*()
+- *0* FreeVar(Set)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 t#883 = ???*0*
@@ -19709,35 +21065,24 @@ t#883 = ???*0*
 
 ta = (...) => undefined
 
-tb = ???*0*
-- *0* ???*1*(
-        {"menuitem": !(0)},
-        {
-            "area": !(0),
-            "base": !(0),
-            "br": !(0),
-            "col": !(0),
-            "embed": !(0),
-            "hr": !(0),
-            "img": !(0),
-            "input": !(0),
-            "keygen": !(0),
-            "link": !(0),
-            "meta": !(0),
-            "param": !(0),
-            "source": !(0),
-            "track": !(0),
-            "wbr": !(0)
-        }
-    )
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+tb = {
+    "menuitem": true,
+    "area": true,
+    "base": true,
+    "br": true,
+    "col": true,
+    "embed": true,
+    "hr": true,
+    "img": true,
+    "input": true,
+    "keygen": true,
+    "link": true,
+    "meta": true,
+    "param": true,
+    "source": true,
+    "track": true,
+    "wbr": true
+}
 
 tc = (...) => (undefined | 1 | 2 | 4 | 8 | 16 | 32 | ???*0* | 134217728 | 268435456 | 536870912 | 1073741824 | a)
 - *0* unsupported expression
@@ -19808,16 +21153,16 @@ ub = (...) => undefined
 
 uc = (...) => (0 | b | d)
 
-ud = ???*0*
-- *0* ???*1*({}, sd, {"view": 0, "detail": 0})
-  ⚠️  unknown callee
-  ⚠️  This value might have side effects
-- *1* ???*2*["assign"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *2* FreeVar(Object)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+ud = {
+    "eventPhase": 0,
+    "bubbles": 0,
+    "cancelable": 0,
+    "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
+    "defaultPrevented": 0,
+    "isTrusted": 0,
+    "view": 0,
+    "detail": 0
+}
 
 ue = (...) => (undefined | a["stateNode"])
 
@@ -19975,8 +21320,8 @@ wa = ???*0*
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-wb = (null | ???*0*)
-- *0* unknown new expression
+wb = ???*0*
+- *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 wc = (...) => undefined
