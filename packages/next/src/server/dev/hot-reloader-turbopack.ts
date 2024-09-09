@@ -60,7 +60,6 @@ import {
   isWellKnownError,
   printNonFatalIssue,
   normalizedPageToTurbopackStructureRoute,
-  TurbopackInternalError,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -453,23 +452,6 @@ export async function createHotReloaderTurbopack(
         }
       }
     } catch (e) {
-      if (e instanceof TurbopackInternalError) {
-        sendToClient(client, {
-          action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
-          errors: [
-            {
-              message:
-                'An unexpected Turbopack error occurred. Please see the output of `next dev` for more details.',
-            },
-          ],
-          hash: String(++hmrHash),
-          warnings: [],
-          versionInfo: await versionInfoPromise,
-        })
-        client.close()
-        return
-      }
-
       // The client might be using an HMR session from a previous server, tell them
       // to fully reload the page to resolve the issue. We can't use
       // `hotReloader.send` since that would force every connected client to
