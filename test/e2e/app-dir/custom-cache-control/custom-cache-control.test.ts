@@ -1,9 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('custom-cache-control', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
+
+  if (isNextDeploy) {
+    // customizing these headers won't apply on environments
+    // where headers are applied outside of the Next.js server
+    it('should skip for deploy', () => {})
+  }
 
   it('should have custom cache-control for app-ssg prerendered', async () => {
     const res = await next.fetch('/app-ssg/first')
