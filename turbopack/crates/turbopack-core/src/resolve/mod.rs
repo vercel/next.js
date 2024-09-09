@@ -4,7 +4,6 @@ use std::{
     fmt::{Display, Formatter, Write},
     future::Future,
     iter::once,
-    pin::Pin,
 };
 
 use anyhow::{bail, Result};
@@ -1595,14 +1594,6 @@ async fn resolve_internal(
     resolve_internal_inline(lookup_path, request, options).await
 }
 
-fn resolve_internal_boxed(
-    lookup_path: Vc<FileSystemPath>,
-    request: Vc<Request>,
-    options: Vc<ResolveOptions>,
-) -> Pin<Box<dyn Future<Output = Result<Vc<ResolveResult>>> + Send>> {
-    Box::pin(resolve_internal_inline(lookup_path, request, options))
-}
-
 async fn resolve_internal_inline(
     lookup_path: Vc<FileSystemPath>,
     request: Vc<Request>,
@@ -1661,7 +1652,7 @@ async fn resolve_internal_inline(
             Request::Alternatives { requests } => {
                 let results = requests
                     .iter()
-                    .map(|req| resolve_internal_boxed(lookup_path, *req, options))
+                    .map(|req| Box::pin(resolve_internal_inline(lookup_path, *req, options)))
                     .try_join()
                     .await?;
 
@@ -1790,11 +1781,11 @@ async fn resolve_internal_inline(
                     .emit();
                 }
 
-                resolve_internal_boxed(
+                Box::pin(resolve_internal_inline(
                     lookup_path.root().resolve().await?,
                     relative.resolve().await?,
                     options,
-                )
+                ))
                 .await?
             }
             Request::Windows {
@@ -2425,8 +2416,12 @@ async fn resolve_module_request(
             path.clone(),
         ]);
         let relative = Request::relative(Value::new(pattern), query, fragment, true);
-        let relative_result =
-            resolve_internal_boxed(lookup_path, relative.resolve().await?, options).await?;
+        let relative_result = Box::pin(resolve_internal_inline(
+            lookup_path,
+            relative.resolve().await?,
+            options,
+        ))
+        .await?;
         let relative_result = relative_result
             .with_replaced_request_key(module_prefix, Value::new(RequestKey::new(module.into())));
 
@@ -2545,14 +2540,14 @@ async fn resolve_import_map_result(
             let results = list
                 .iter()
                 .map(|result| {
-                    resolve_import_map_result_boxed(
+                    Box::pin(resolve_import_map_result(
                         result,
                         lookup_path,
                         original_lookup_path,
                         original_request,
                         options,
                         query,
-                    )
+                    ))
                 })
                 .try_join()
                 .await?;
@@ -2561,26 +2556,6 @@ async fn resolve_import_map_result(
         }
         ImportMapResult::NoEntry => None,
     })
-}
-
-type ResolveImportMapResult = Result<Option<Vc<ResolveResult>>>;
-
-fn resolve_import_map_result_boxed<'a>(
-    result: &'a ImportMapResult,
-    lookup_path: Vc<FileSystemPath>,
-    original_lookup_path: Vc<FileSystemPath>,
-    original_request: Vc<Request>,
-    options: Vc<ResolveOptions>,
-    query: Vc<RcStr>,
-) -> Pin<Box<dyn Future<Output = ResolveImportMapResult> + Send + 'a>> {
-    Box::pin(resolve_import_map_result(
-        result,
-        lookup_path,
-        original_lookup_path,
-        original_request,
-        options,
-        query,
-    ))
 }
 
 #[tracing::instrument(level = Level::TRACE, skip_all)]
@@ -2684,7 +2659,8 @@ async fn handle_exports_imports_field(
                 result_path,
             ])));
 
-            let resolve_result = resolve_internal_boxed(package_path, request, options).await?;
+            let resolve_result =
+                Box::pin(resolve_internal_inline(package_path, request, options)).await?;
             if conditions.is_empty() {
                 resolved_results.push(resolve_result.with_request(path.into()));
             } else {

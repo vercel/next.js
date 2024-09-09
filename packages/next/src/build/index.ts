@@ -1503,6 +1503,7 @@ export default async function build(
 
         enqueue(() =>
           handlePagesErrorRoute({
+            dev: false,
             currentEntryIssues,
             entrypoints: currentEntrypoints,
             manifestLoader,

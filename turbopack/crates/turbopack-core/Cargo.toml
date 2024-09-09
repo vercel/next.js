@@ -14,7 +14,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-async-recursion = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 browserslist-rs = { workspace = true }
