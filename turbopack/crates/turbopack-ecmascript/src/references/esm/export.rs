@@ -291,7 +291,7 @@ pub async fn expand_star_exports(
                     }
                 }
             }
-            EcmascriptExports::None => emit_star_exports_issue(
+            EcmascriptExports::None | EcmascriptExports::EmptyCommonJs => emit_star_exports_issue(
                 asset.ident(),
                 format!(
                     "export * used with module {} which has no exports\nTypescript only: Did you \

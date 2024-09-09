@@ -846,7 +846,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
                 .cell(),
             ),
-            DetectedDynamicExportType::None => EcmascriptExports::None,
+            DetectedDynamicExportType::None => EcmascriptExports::EmptyCommonJs,
         }
     };
 
