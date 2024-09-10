@@ -7555,10 +7555,10 @@
     },
     "test/integration/config-promise-error/test/index.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Promise in next config production mode should warn when a promise is returned on webpack"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -7879,9 +7879,7 @@
         "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
       ],
       "failed": [
-        "CSS Module Composes Usage (External) production mode should have compiled successfully",
         "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
-        "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
         "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
         "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
       ],
@@ -11028,10 +11026,10 @@
         "GSP build errors production mode should handle non-serializable error in getStaticPaths",
         "GSP build errors production mode should handle non-serializable error in getStaticProps"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "GSP build errors production mode should fail build from module not found"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -12688,10 +12686,10 @@
       "runtimeError": false
     },
     "test/integration/jsconfig-empty/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Empty JSConfig Support production mode should compile successfully"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -13480,11 +13478,10 @@
         "Static Image Component Tests for basePath production mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image",
         "Static Image Component Tests for basePath production mode should use height prop to adjust both width and height",
         "Static Image Component Tests for basePath production mode should use width and height prop to override import",
-        "Static Image Component Tests for basePath production mode should use width prop to adjust both width and height"
-      ],
-      "failed": [
+        "Static Image Component Tests for basePath production mode should use width prop to adjust both width and height",
         "Build Error Tests production mode should throw build error when import statement is used with missing file"
       ],
+      "failed": [],
       "pending": [
         "Static Image Component Tests for basePath development mode Should allow an image with a static src to omit height and width",
         "Static Image Component Tests for basePath development mode Should automatically provide an image height and width",
@@ -14810,11 +14807,10 @@
         "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive on navigate",
         "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive with inline script",
         "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive with inline script should execute",
-        "Next.js Script - Primary Strategies - Strict Mode priority lazyOnload"
-      ],
-      "failed": [
+        "Next.js Script - Primary Strategies - Strict Mode priority lazyOnload",
         "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive with inline script"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -14987,15 +14983,15 @@
         "config telemetry production mode emits telemetry for usage of middleware",
         "config telemetry production mode emits telemetry for usage of swc plugins"
       ],
-      "failed": [
-        "config telemetry production mode emits telemery for usage of image, script & dynamic",
+      "failed": [],
+      "pending": [
         "config telemetry production mode emits telemetry for middleware related options",
         "config telemetry production mode emits telemetry for transpilePackages",
+        "config telemetry production mode emits telemery for usage of image, script & dynamic",
+        "config telemetry production mode emits telemetry for usage of swc",
         "config telemetry production mode emits telemetry for usage of @vercel/og",
-        "config telemetry production mode emits telemetry for usage of next/legacy/image",
-        "config telemetry production mode emits telemetry for usage of swc"
+        "config telemetry production mode emits telemetry for usage of next/legacy/image"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -15019,12 +15015,11 @@
         "Telemetry CLI production mode detect static 404 correctly for `next build`",
         "Telemetry CLI production mode detects correct cli session defaults",
         "Telemetry CLI production mode detects tests correctly for `next build`",
-        "Telemetry CLI production mode emits event when swc fails to load"
-      ],
-      "failed": [
+        "Telemetry CLI production mode emits event when swc fails to load",
         "Telemetry CLI production mode detects isSrcDir dir correctly for `next build`",
         "Telemetry CLI production mode logs completed `next build` with warnings"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15268,11 +15263,10 @@
         "tsconfig.json verifier allows you to set target mode",
         "tsconfig.json verifier allows you to set verbatimModuleSyntax true via extends without adding isolatedModules",
         "tsconfig.json verifier allows you to set verbatimModuleSyntax true without adding isolatedModules",
-        "tsconfig.json verifier creates compilerOptions when you extend another config"
-      ],
-      "failed": [
+        "tsconfig.json verifier creates compilerOptions when you extend another config",
         "tsconfig.json verifier Works with an empty tsconfig.json (docs)"
       ],
+      "failed": [],
       "pending": [
         "tsconfig.json verifier allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\""
       ],
@@ -15301,20 +15295,20 @@
     },
     "test/integration/turbotrace-with-webpack-worker/test/index.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "build trace with extra entries production mode should build and trace correctly"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/typeof-window-replace/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "typeof window replace production mode Does not replace `typeof window` for `node_modules` code",
         "typeof window replace production mode Replaces `typeof window` with object for client code",
         "typeof window replace production mode Replaces `typeof window` with undefined for server code"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15678,6 +15672,24 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/actions-tree-shaking/use-effect-actions/use-effect-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - use-effect-actions should not tree shake the used action under useEffect"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/use-effect-actions/use-effect-actions.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - use-effect-actions should not tree shake the used action under useEffect"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/app-edge-middleware/app-edge-middleware.test.ts": {
       "passed": [
         "app edge middleware without node.js modules should not have any errors about using Node.js modules if not present in middleware"
@@ -15700,8 +15712,11 @@
       "runtimeError": false
     },
     "test/production/app-dir/app-only-flag/app-only-flag.test.ts": {
-      "passed": ["app-only-flag should serve app route"],
-      "failed": ["app-only-flag should not serve about route"],
+      "passed": [
+        "app-only-flag should serve app route",
+        "app-only-flag should not serve about route"
+      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16028,11 +16043,10 @@
     "test/production/edge-runtime-is-addressable/index.test.ts": {
       "passed": [
         "Edge Runtime can be set to the production provider EdgeRuntime evaluates to a string",
-        "Edge Runtime is addressable EdgeRuntime evaluates to a string"
-      ],
-      "failed": [
+        "Edge Runtime is addressable EdgeRuntime evaluates to a string",
         "Edge Runtime is addressable removes the undefined branch with dead code elimination"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16174,11 +16188,11 @@
       "runtimeError": false
     },
     "test/production/generate-middleware-source-maps/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Middleware source maps generates a source map for Edge API",
         "Middleware source maps generates a source map for Middleware"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16291,11 +16305,11 @@
     },
     "test/production/next-font/telemetry.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "next/font unused telemetry should not send next/font/google and next/font/local usage event",
         "next/font used telemetry should send next/font/google and next/font/local usage event"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -16577,6 +16591,8 @@
       "passed": [],
       "failed": [
         "required server files app router middleware rewrite should work with a dynamic path",
+        "required server files app router middleware rewrite should work with a dynamic path (with Next-Resume)",
+        "required server files app router middleware rewrite should work with a dynamic path (without Next-Resume)",
         "required server files app router should handle RSC requests",
         "required server files app router should handle prefetch RSC requests",
         "required server files app router should not fail caching",
@@ -16585,8 +16601,12 @@
         "required server files app router should properly handle fallback for bot request",
         "required server files app router should properly handle prerender for bot request",
         "required server files app router should properly stream resume",
+        "required server files app router should properly stream resume with Next-Resume",
+        "required server files app router should properly stream resume without Next-Resume",
         "required server files app router should send cache tags in minimal mode for ISR",
-        "required server files app router should still render when postponed is corrupted"
+        "required server files app router should still render when postponed is corrupted",
+        "required server files app router should still render when postponed is corrupted with Next-Resume",
+        "required server files app router should still render when postponed is corrupted without Next-Resume"
       ],
       "pending": [],
       "flakey": [],

@@ -94,6 +94,7 @@
         ],
         span: 18..22,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -250,6 +251,7 @@
         ],
         span: 82..86,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -458,6 +460,7 @@
         ],
         span: 151..155,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -666,6 +669,7 @@
         ],
         span: 241..245,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -874,6 +878,7 @@
         ],
         span: 325..329,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -1082,6 +1087,7 @@
         ],
         span: 409..413,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -1284,6 +1290,7 @@
         ],
         span: 479..483,
         in_try: true,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -1451,6 +1458,7 @@
         ],
         span: 527..531,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -1603,6 +1611,7 @@
         ],
         span: 579..583,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -1759,5 +1768,6 @@
         ],
         span: 614..618,
         in_try: false,
+        new: false,
     },
 ]

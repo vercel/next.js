@@ -24,6 +24,11 @@ export default function Page({ searchParams }) {
             /search-params (prefetch: true)
           </Link>
         </li>
+        <li>
+          <Link href="/other-page" prefetch={false}>
+            /other-page
+          </Link>
+        </li>
       </ul>
     </>
   )

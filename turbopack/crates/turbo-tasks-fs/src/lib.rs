@@ -43,6 +43,7 @@ use auto_hash_map::AutoMap;
 use bitflags::bitflags;
 use dunce::simplified;
 use glob::Glob;
+use invalidation::InvalidateFilesystem;
 use invalidator_map::InvalidatorMap;
 use jsonc_parser::{parse_to_serde_value, ParseOptions};
 use mime::Mime;
@@ -57,8 +58,8 @@ use tokio::{
 };
 use tracing::Instrument;
 use turbo_tasks::{
-    mark_stateful, trace::TraceRawVcs, Completion, InvalidationReason, Invalidator, RcStr, ReadRef,
-    ValueToString, Vc,
+    mark_stateful, trace::TraceRawVcs, Completion, Invalidator, RcStr, ReadRef,
+    SerializationInvalidator, ValueToString, Vc,
 };
 use turbo_tasks_hash::{hash_xxh3_hash64, DeterministicHash, DeterministicHasher};
 use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
@@ -106,6 +107,8 @@ pub struct DiskFileSystem {
     invalidator_map: Arc<InvalidatorMap>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     dir_invalidator_map: Arc<InvalidatorMap>,
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    serialization_invalidator: SerializationInvalidator,
     /// Lock that makes invalidation atomic. It will keep a write lock during
     /// watcher invalidation and a read lock during other operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
@@ -126,6 +129,7 @@ impl DiskFileSystem {
     fn register_invalidator(&self, path: &Path) -> Result<()> {
         let invalidator = turbo_tasks::get_invalidator();
         self.invalidator_map.insert(path_to_key(path), invalidator);
+        self.serialization_invalidator.invalidate();
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         if let Some(dir) = path.parent() {
             self.watcher.ensure_watching(dir, self.root_path())?;
@@ -140,6 +144,8 @@ impl DiskFileSystem {
         let invalidator = turbo_tasks::get_invalidator();
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
         let old_invalidators = invalidator_map.insert(path_to_key(path), [invalidator].into());
+        drop(invalidator_map);
+        self.serialization_invalidator.invalidate();
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         if let Some(dir) = path.parent() {
             self.watcher.ensure_watching(dir, self.root_path())?;
@@ -153,6 +159,7 @@ impl DiskFileSystem {
         let invalidator = turbo_tasks::get_invalidator();
         self.dir_invalidator_map
             .insert(path_to_key(path), invalidator);
+        self.serialization_invalidator.invalidate();
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         self.watcher.ensure_watching(path, self.root_path())?;
         Ok(())
@@ -165,25 +172,32 @@ impl DiskFileSystem {
     }
 
     pub fn invalidate(&self) {
+        let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
         for (_, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
             invalidators.into_iter().for_each(|i| i.invalidate());
         }
         for (_, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter() {
             invalidators.into_iter().for_each(|i| i.invalidate());
         }
+        self.serialization_invalidator.invalidate();
     }
 
-    pub fn invalidate_with_reason<T: InvalidationReason + Clone>(&self, reason: T) {
-        for (_, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
+    pub fn invalidate_with_reason(&self) {
+        let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
+        for (path, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
+            let reason = InvalidateFilesystem { path: path.into() };
             invalidators
                 .into_iter()
                 .for_each(|i| i.invalidate_with_reason(reason.clone()));
         }
-        for (_, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter() {
+        for (path, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter()
+        {
+            let reason = InvalidateFilesystem { path: path.into() };
             invalidators
                 .into_iter()
                 .for_each(|i| i.invalidate_with_reason(reason.clone()));
         }
+        self.serialization_invalidator.invalidate();
     }
 
     pub fn start_watching(&self) -> Result<()> {
@@ -195,6 +209,7 @@ impl DiskFileSystem {
     }
 
     fn start_watching_internal(&self, report_invalidation_reason: bool) -> Result<()> {
+        let _span = tracing::info_span!("start filesystem watching", path = &*self.root).entered();
         let invalidator_map = self.invalidator_map.clone();
         let dir_invalidator_map = self.dir_invalidator_map.clone();
         let root_path = self.root_path().to_path_buf();
@@ -211,6 +226,7 @@ impl DiskFileSystem {
             invalidator_map,
             dir_invalidator_map,
         )?;
+        self.serialization_invalidator.invalidate();
 
         Ok(())
     }
@@ -287,7 +303,7 @@ impl DiskFileSystem {
     ///   ignore specific subpaths from each.
     #[turbo_tasks::function]
     pub async fn new(name: RcStr, root: RcStr, ignored_subpaths: Vec<RcStr>) -> Result<Vc<Self>> {
-        mark_stateful();
+        let serialization_invalidator = mark_stateful();
         // create the directory for the filesystem on disk, if it doesn't exist
         fs::create_dir_all(&root).await?;
 
@@ -298,12 +314,74 @@ impl DiskFileSystem {
             invalidation_lock: Default::default(),
             invalidator_map: Arc::new(InvalidatorMap::new()),
             dir_invalidator_map: Arc::new(InvalidatorMap::new()),
+            serialization_invalidator,
             watcher: Arc::new(DiskWatcher::new(
                 ignored_subpaths.into_iter().map(PathBuf::from).collect(),
             )),
         };
 
         Ok(Self::cell(instance))
+    }
+
+    #[turbo_tasks::function(fs)]
+    async fn read_dir_internal(
+        &self,
+        fs_path: Vc<FileSystemPath>,
+    ) -> Result<Vc<InternalDirectoryContent>> {
+        let full_path = self.to_sys_path(fs_path).await?;
+        self.register_dir_invalidator(&full_path)?;
+
+        // we use the sync std function here as it's a lot faster (600%) in
+        // node-file-trace
+        let read_dir = match retry_blocking(
+            &full_path,
+            tracing::info_span!("read directory", path = display(full_path.display())),
+            |path| std::fs::read_dir(path),
+        )
+        .await
+        {
+            Ok(dir) => dir,
+            Err(e)
+                if e.kind() == ErrorKind::NotFound
+                    || e.kind() == ErrorKind::NotADirectory
+                    || e.kind() == ErrorKind::InvalidFilename =>
+            {
+                return Ok(InternalDirectoryContent::not_found());
+            }
+            Err(e) => {
+                bail!(anyhow!(e).context(format!("reading dir {}", full_path.display())))
+            }
+        };
+
+        let entries = read_dir
+            .filter_map(|r| {
+                let e = match r {
+                    Ok(e) => e,
+                    Err(err) => return Some(Err(err.into())),
+                };
+
+                let path = e.path();
+
+                // we filter out any non unicode names and paths without the same root here
+                let file_name: RcStr = path.file_name()?.to_str()?.into();
+                let path_to_root = sys_to_unix(path.strip_prefix(&self.root).ok()?.to_str()?);
+
+                let path = path_to_root.into();
+
+                let entry = match e.file_type() {
+                    Ok(t) if t.is_file() => InternalDirectoryEntry::File(path),
+                    Ok(t) if t.is_dir() => InternalDirectoryEntry::Directory(path),
+                    Ok(t) if t.is_symlink() => InternalDirectoryEntry::Symlink(path),
+                    Ok(_) => InternalDirectoryEntry::Other(path),
+                    Err(err) => return Some(Err(err.into())),
+                };
+
+                Some(anyhow::Ok((file_name, entry)))
+            })
+            .collect::<Result<_>>()
+            .with_context(|| format!("reading directory item in {}", full_path.display()))?;
+
+        Ok(InternalDirectoryContent::new(entries))
     }
 }
 
@@ -339,63 +417,36 @@ impl FileSystem for DiskFileSystem {
         Ok(content.cell())
     }
 
-    #[turbo_tasks::function(fs)]
-    async fn read_dir(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<DirectoryContent>> {
-        let full_path = self.to_sys_path(fs_path).await?;
-        self.register_dir_invalidator(&full_path)?;
-        let fs_path = fs_path.await?;
-
-        // we use the sync std function here as it's a lot faster (600%) in
-        // node-file-trace
-        let read_dir = match retry_blocking(
-            &full_path,
-            tracing::info_span!("read directory", path = display(full_path.display())),
-            |path| std::fs::read_dir(path),
-        )
-        .await
-        {
-            Ok(dir) => dir,
-            Err(e)
-                if e.kind() == ErrorKind::NotFound
-                    || e.kind() == ErrorKind::NotADirectory
-                    || e.kind() == ErrorKind::InvalidFilename =>
-            {
-                return Ok(DirectoryContent::not_found());
+    #[turbo_tasks::function]
+    async fn read_dir(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Result<Vc<DirectoryContent>> {
+        match &*self.read_dir_internal(fs_path).await? {
+            InternalDirectoryContent::NotFound => Ok(DirectoryContent::not_found()),
+            InternalDirectoryContent::Entries(entries) => {
+                let fs = fs_path.await?.fs;
+                let entries = entries
+                    .iter()
+                    .map(|(name, entry)| {
+                        let entry = match entry {
+                            InternalDirectoryEntry::File(path) => DirectoryEntry::File(
+                                FileSystemPath::new_normalized(fs, path.clone()),
+                            ),
+                            InternalDirectoryEntry::Directory(path) => DirectoryEntry::Directory(
+                                FileSystemPath::new_normalized(fs, path.clone()),
+                            ),
+                            InternalDirectoryEntry::Symlink(path) => DirectoryEntry::Symlink(
+                                FileSystemPath::new_normalized(fs, path.clone()),
+                            ),
+                            InternalDirectoryEntry::Other(path) => DirectoryEntry::Other(
+                                FileSystemPath::new_normalized(fs, path.clone()),
+                            ),
+                            InternalDirectoryEntry::Error => DirectoryEntry::Error,
+                        };
+                        (name.clone(), entry)
+                    })
+                    .collect();
+                Ok(DirectoryContent::new(entries))
             }
-            Err(e) => {
-                bail!(anyhow!(e).context(format!("reading dir {}", full_path.display())))
-            }
-        };
-
-        let entries = read_dir
-            .filter_map(|r| {
-                let e = match r {
-                    Ok(e) => e,
-                    Err(err) => return Some(Err(err.into())),
-                };
-
-                let path = e.path();
-
-                // we filter out any non unicode names and paths without the same root here
-                let file_name: RcStr = path.file_name()?.to_str()?.into();
-                let path_to_root = sys_to_unix(path.strip_prefix(&self.root).ok()?.to_str()?);
-
-                let fs_path = FileSystemPath::new_normalized(fs_path.fs, path_to_root.into());
-
-                let entry = match e.file_type() {
-                    Ok(t) if t.is_file() => DirectoryEntry::File(fs_path),
-                    Ok(t) if t.is_dir() => DirectoryEntry::Directory(fs_path),
-                    Ok(t) if t.is_symlink() => DirectoryEntry::Symlink(fs_path),
-                    Ok(_) => DirectoryEntry::Other(fs_path),
-                    Err(err) => return Some(Err(err.into())),
-                };
-
-                Some(anyhow::Ok((file_name, entry)))
-            })
-            .collect::<Result<_>>()
-            .with_context(|| format!("reading directory item in {}", full_path.display()))?;
-
-        Ok(DirectoryContent::new(entries))
+        }
     }
 
     #[turbo_tasks::function(fs)]
@@ -521,6 +572,7 @@ impl FileSystem for DiskFileSystem {
                 for i in old_invalidators {
                     self.invalidator_map.insert(key.clone(), i);
                 }
+                self.serialization_invalidator.invalidate();
             }
             return Ok(Completion::unchanged());
         }
@@ -1843,6 +1895,15 @@ pub enum FileLinesContent {
     NotFound,
 }
 
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+pub enum InternalDirectoryEntry {
+    File(RcStr),
+    Directory(RcStr),
+    Symlink(RcStr),
+    Other(RcStr),
+    Error,
+}
+
 #[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
 pub enum DirectoryEntry {
     File(Vc<FileSystemPath>),
@@ -1907,6 +1968,23 @@ impl From<&DirectoryEntry> for FileSystemEntryType {
             DirectoryEntry::Other(_) => FileSystemEntryType::Other,
             DirectoryEntry::Error => FileSystemEntryType::Error,
         }
+    }
+}
+
+#[turbo_tasks::value]
+#[derive(Debug)]
+pub enum InternalDirectoryContent {
+    Entries(Vec<(RcStr, InternalDirectoryEntry)>),
+    NotFound,
+}
+
+impl InternalDirectoryContent {
+    pub fn new(entries: Vec<(RcStr, InternalDirectoryEntry)>) -> Vc<Self> {
+        Self::cell(InternalDirectoryContent::Entries(entries))
+    }
+
+    pub fn not_found() -> Vc<Self> {
+        Self::cell(InternalDirectoryContent::NotFound)
     }
 }
 

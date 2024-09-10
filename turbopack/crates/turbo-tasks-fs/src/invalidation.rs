@@ -1,4 +1,7 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    hash::Hash,
+};
 
 use indexmap::IndexSet;
 use turbo_tasks::{util::StaticOrArc, InvalidationReason, InvalidationReasonKind, RcStr};
@@ -51,6 +54,7 @@ impl InvalidationReasonKind for WatchChangeKind {
 #[derive(PartialEq, Eq, Hash)]
 pub struct WatchStart {
     pub name: RcStr,
+    pub path: RcStr,
 }
 
 impl InvalidationReason for WatchStart {
@@ -61,7 +65,7 @@ impl InvalidationReason for WatchStart {
 
 impl Display for WatchStart {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} started watching", self.name)
+        write!(f, "started watching {} in {}", self.path, self.name)
     }
 }
 
@@ -77,15 +81,13 @@ impl InvalidationReasonKind for WatchStartKind {
         reasons: &IndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
+        let example = reasons[0].as_any().downcast_ref::<WatchStart>().unwrap();
         write!(
             f,
-            "{} directories started watching (e. g. {})",
+            "{} items started watching (e. g. {} in {})",
             reasons.len(),
-            reasons[0]
-                .as_any()
-                .downcast_ref::<WatchStart>()
-                .unwrap()
-                .name
+            example.path,
+            example.name
         )
     }
 }
@@ -125,6 +127,49 @@ impl InvalidationReasonKind for WriteKind {
             "{} files written ({}, ...)",
             reasons.len(),
             reasons[0].as_any().downcast_ref::<Write>().unwrap().path
+        )
+    }
+}
+
+/// Invalidation was caused by a invalidate operation on the filesystem
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct InvalidateFilesystem {
+    pub path: RcStr,
+}
+
+impl InvalidationReason for InvalidateFilesystem {
+    fn kind(&self) -> Option<StaticOrArc<dyn InvalidationReasonKind>> {
+        Some(StaticOrArc::Static(&INVALIDATE_FILESYSTEM_KIND))
+    }
+}
+
+impl Display for InvalidateFilesystem {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} in filesystem invalidated", self.path)
+    }
+}
+
+/// Invalidation kind for [InvalidateFilesystem]
+#[derive(PartialEq, Eq, Hash)]
+struct InvalidateFilesystemKind;
+
+static INVALIDATE_FILESYSTEM_KIND: InvalidateFilesystemKind = InvalidateFilesystemKind;
+
+impl InvalidationReasonKind for InvalidateFilesystemKind {
+    fn fmt(
+        &self,
+        reasons: &IndexSet<StaticOrArc<dyn InvalidationReason>>,
+        f: &mut Formatter<'_>,
+    ) -> std::fmt::Result {
+        write!(
+            f,
+            "{} items in filesystem invalidated ({}, ...)",
+            reasons.len(),
+            reasons[0]
+                .as_any()
+                .downcast_ref::<InvalidateFilesystem>()
+                .unwrap()
+                .path
         )
     }
 }
