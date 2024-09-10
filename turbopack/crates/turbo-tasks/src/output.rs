@@ -16,9 +16,7 @@ pub enum OutputContent {
 }
 
 impl OutputContent {
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    pub fn read_untracked(&self) -> anyhow::Result<RawVc> {
+    pub fn as_read_result(&self) -> anyhow::Result<RawVc> {
         match &self {
             Self::Error(err) => Err(anyhow::Error::new(err.clone())),
             Self::Link(raw_vc) => Ok(*raw_vc),

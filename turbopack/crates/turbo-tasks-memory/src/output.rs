@@ -24,7 +24,7 @@ impl Output {
     pub fn read_untracked(&self) -> Result<RawVc> {
         match &self.content {
             None => Err(anyhow!("Output is empty")),
-            Some(content) => content.read_untracked(),
+            Some(content) => content.as_read_result(),
         }
     }
 
