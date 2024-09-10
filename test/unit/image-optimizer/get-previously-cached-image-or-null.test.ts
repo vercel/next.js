@@ -3,6 +3,7 @@ import {
   getPreviouslyCachedImageOrNull,
   getImageEtag,
 } from 'next/dist/server/image-optimizer'
+import { CachedRouteKind } from 'next/dist/server/response-cache/types'
 import { readFile } from 'fs-extra'
 import { join } from 'path'
 
@@ -34,7 +35,7 @@ const getPreviousCacheEntry = async (
   return {
     ...baseCacheEntry,
     value: {
-      kind: 'IMAGE',
+      kind: CachedRouteKind.IMAGE,
       upstreamEtag,
       etag: optimizedEtag ? 'optimized-etag' : upstreamEtag,
       buffer,
@@ -57,7 +58,7 @@ describe('shouldUsePreviouslyCachedEntry', () => {
   it('should return null if previous cache entry value is not of kind IMAGE', async () => {
     const nonImageCacheEntry = {
       ...baseCacheEntry,
-      value: { kind: 'REDIRECT', props: {} },
+      value: { kind: CachedRouteKind.REDIRECT, props: {} },
     } satisfies Parameters<typeof getPreviouslyCachedImageOrNull>[1]
     expect(
       getPreviouslyCachedImageOrNull(
