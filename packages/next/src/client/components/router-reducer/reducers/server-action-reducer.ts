@@ -21,11 +21,12 @@ const { createFromFetch, encodeReply } = (
       require('react-server-dom-webpack/client')
 ) as typeof import('react-server-dom-webpack/client')
 
-import type {
-  ReadonlyReducerState,
-  ReducerState,
-  ServerActionAction,
-  ServerActionMutable,
+import {
+  PrefetchKind,
+  type ReadonlyReducerState,
+  type ReducerState,
+  type ServerActionAction,
+  type ServerActionMutable,
 } from '../router-reducer-types'
 import { addBasePath } from '../../../add-base-path'
 import { createHrefFromUrl } from '../create-href-from-url'
@@ -43,6 +44,10 @@ import {
   normalizeFlightData,
   type NormalizedFlightData,
 } from '../../../flight-data-helpers'
+import { getRedirectError, RedirectType } from '../../redirect'
+import { createSeededPrefetchCacheEntry } from '../prefetch-cache-utils'
+import { removeBasePath } from '../../../remove-base-path'
+import { hasBasePath } from '../../../has-base-path'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -221,7 +226,41 @@ export function serverActionReducer(
 
       if (redirectLocation) {
         const newHref = createHrefFromUrl(redirectLocation, false)
-        mutable.canonicalUrl = newHref
+
+        // Because the RedirectBoundary will trigger a navigation, we need to seed the prefetch cache
+        // with the FlightData that we got from the server action for the target page, so that it's
+        // available when the page is navigated to and doesn't need to be re-fetched.
+        createSeededPrefetchCacheEntry({
+          url: redirectLocation,
+          data: {
+            flightData,
+            canonicalUrl: undefined,
+            couldBeIntercepted: false,
+            isPrerender: false,
+            postponed: false,
+          },
+          tree: state.tree,
+          prefetchCache: state.prefetchCache,
+          nextUrl: state.nextUrl,
+          kind: PrefetchKind.FULL,
+        })
+
+        mutable.prefetchCache = state.prefetchCache
+        // If the action triggered a redirect, we reject the action promise with a redirect
+        // so that it's handled by RedirectBoundary as we won't have a valid
+        // action result to resolve the promise with. This will effectively reset the state of
+        // the component that called the action as the error boundary will remount the tree.
+        // The status code doesn't matter here as the action handler will have already sent
+        // a response with the correct status code.
+
+        reject(
+          getRedirectError(
+            hasBasePath(newHref) ? removeBasePath(newHref) : newHref,
+            RedirectType.push
+          )
+        )
+
+        return handleMutable(state, mutable)
       }
 
       for (const normalizedFlightData of flightData) {

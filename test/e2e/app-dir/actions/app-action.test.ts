@@ -564,6 +564,64 @@ describe('app-dir action handling', () => {
     await check(() => browser.elementByCss('h1').text(), 'Transition is: idle')
   })
 
+  it('should reset the form state when the action redirects to a page that contains the same form', async () => {
+    const browser = await next.browser('/redirect')
+    const input = await browser.elementByCss('input[name="name"]')
+    const submit = await browser.elementByCss('button')
+
+    expect(await browser.hasElementByCssSelector('#error')).toBe(false)
+
+    await input.fill('foo')
+    await submit.click()
+
+    // The server action will fail validation and will return error state
+    // verify that the error state is displayed
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#error')).toBe(true)
+      expect(await browser.elementByCss('#error').text()).toBe(
+        "Only 'justputit' is accepted."
+      )
+    })
+
+    // The server action won't return an error state, it will just call redirect to itself
+    // Validate that the form state is reset
+    await input.fill('justputit')
+    await submit.click()
+
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#error')).toBe(false)
+    })
+  })
+
+  it('should reset the form state when the action redirects to itself', async () => {
+    const browser = await next.browser('/self-redirect')
+    const input = await browser.elementByCss('input[name="name"]')
+    const submit = await browser.elementByCss('button')
+
+    expect(await browser.hasElementByCssSelector('#error')).toBe(false)
+
+    await input.fill('foo')
+    await submit.click()
+
+    // The server action will fail validation and will return error state
+    // verify that the error state is displayed
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#error')).toBe(true)
+      expect(await browser.elementByCss('#error').text()).toBe(
+        "Only 'justputit' is accepted."
+      )
+    })
+
+    // The server action won't return an error state, it will just call redirect to itself
+    // Validate that the form state is reset
+    await input.fill('justputit')
+    await submit.click()
+
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#error')).toBe(false)
+    })
+  })
+
   // This is disabled when deployed because the 404 page will be served as a static route
   // which will not support POST requests, and will return a 405 instead.
   if (!isNextDeploy) {
