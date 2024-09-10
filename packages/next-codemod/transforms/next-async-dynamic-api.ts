@@ -3,13 +3,9 @@ import type { API, FileInfo } from 'jscodeshift'
 export default function transform(file: FileInfo, api: API) {
   const j = api.jscodeshift
   const root = j(file.source)
-  let modified = false
 
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
-
-  const isClientComponent =
-    root.find(j.Literal, { value: 'use client' }).size() > 0
 
   function processAsyncApiCalls(functionName: 'cookies' | 'headers') {
     // Process each call to cookies() or headers()
@@ -27,7 +23,13 @@ export default function transform(file: FileInfo, api: API) {
           .nodes()
           .some((node) => node.async)
 
-        if (isClientComponent || !isAsyncFunction) {
+        // For cookies/headers API, only transform server and shared components
+        if (isAsyncFunction) {
+          // Add 'await' in front of cookies() call
+          j(path).replaceWith(
+            j.awaitExpression(j.callExpression(j.identifier(functionName), []))
+          )
+        } else {
           // Wrap cookies() with use() from 'react'
           j(path).replaceWith(
             j.callExpression(j.identifier('use'), [
@@ -35,19 +37,17 @@ export default function transform(file: FileInfo, api: API) {
             ])
           )
           needsReactUseImport = true
-          modified = true
-        } else if (isAsyncFunction) {
-          // Add 'await' in front of cookies() call
-          j(path).replaceWith(
-            j.awaitExpression(j.callExpression(j.identifier(functionName), []))
-          )
-          modified = true
         }
       })
   }
 
-  processAsyncApiCalls('cookies')
-  processAsyncApiCalls('headers')
+  const isClientComponent =
+    root.find(j.Literal, { value: 'use client' }).size() > 0
+
+  if (!isClientComponent) {
+    processAsyncApiCalls('cookies')
+    processAsyncApiCalls('headers')
+  }
 
   // Add import { use } from 'react' if needed and not already imported
   if (needsReactUseImport) {
@@ -98,9 +98,8 @@ export default function transform(file: FileInfo, api: API) {
           root.get().node.program.body.unshift(newImport)
         }
       }
-      modified = true
     }
   }
 
-  return modified ? root.toSource() : undefined
+  return root.toSource()
 }
