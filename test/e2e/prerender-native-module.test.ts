@@ -3,8 +3,6 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 
-const isReact18 = true
-
 describe('prerender native module', () => {
   let next: NextInstance
 
@@ -72,9 +70,7 @@ describe('prerender native module', () => {
             /webpack-runtime\.js/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
-            isReact18
-              ? /node_modules\/react\/cjs\/react\.production\.min\.js/
-              : /node_modules\/react\/cjs\/react\.production\.js/,
+            /node_modules\/react\/cjs\/react\.production\.js/,
           ],
           notTests: [],
         },
@@ -84,9 +80,7 @@ describe('prerender native module', () => {
             /webpack-runtime\.js/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
-            isReact18
-              ? /node_modules\/react\/cjs\/react\.production\.min\.js/
-              : /node_modules\/react\/cjs\/react\.production\.js/,
+            /node_modules\/react\/cjs\/react\.production\.js/,
             /node_modules\/sqlite3\/.*?\.js/,
             /node_modules\/sqlite3\/.*?\.node/,
             /node_modules\/sqlite\/.*?\.js/,

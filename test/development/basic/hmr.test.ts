@@ -18,8 +18,6 @@ import { NextInstance } from 'e2e-utils'
 import { outdent } from 'outdent'
 import type { NextConfig } from 'next'
 
-const isReact18 = true
-
 describe.each([
   { basePath: '', assetPrefix: '' },
   { basePath: '', assetPrefix: '/asset-prefix' },
@@ -43,14 +41,11 @@ describe.each([
     })
     await retry(async () => {
       const logs = await browser.log()
-
       expect(logs).toEqual(
         expect.arrayContaining([
           {
             message: expect.stringContaining(
-              isReact18
-                ? 'https://nextjs.org/docs/messages/react-hydration-error'
-                : 'https://react.dev/link/hydration-mismatch'
+              'https://react.dev/link/hydration-mismatch'
             ),
             source: 'error',
           },
