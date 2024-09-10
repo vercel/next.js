@@ -459,15 +459,15 @@ impl IssueSource {
     }
 
     #[turbo_tasks::function]
-    pub async fn from_line_col(
+    pub fn from_line_col(
         source: Vc<Box<dyn Source>>,
         start: SourcePos,
         end: SourcePos,
-    ) -> Result<Vc<Self>> {
-        Ok(Self::cell(IssueSource {
+    ) -> Vc<Self> {
+        Self::cell(IssueSource {
             source,
             range: Some(SourceRange::LineColumn(start, end).cell()),
-        }))
+        })
     }
 
     #[turbo_tasks::function]
