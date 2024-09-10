@@ -733,7 +733,14 @@ pub fn project_hmr_events(
                 async move {
                     let project = project.project().resolve().await?;
                     let state = project.hmr_version_state(identifier.clone(), session);
-                    let update = hmr_update(project, identifier, state)
+
+                    let Some(state) = &*state.await? else {
+                        // If there's no matching version state and no error was returned, refresh
+                        // the page.
+                        return Ok((None, Arc::new(vec![]), Arc::new(vec![])));
+                    };
+
+                    let update = hmr_update(project, identifier, *state)
                         .strongly_consistent()
                         .await
                         .inspect_err(|e| log_panic_and_inform(e))?;
@@ -743,7 +750,7 @@ pub fn project_hmr_events(
                         diagnostics,
                     } = &*update;
                     match &**update {
-                        Update::None => {}
+                        Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
                             state.set(to.clone()).await?;
                         }
@@ -751,7 +758,7 @@ pub fn project_hmr_events(
                             state.set(to.clone()).await?;
                         }
                     }
-                    Ok((update.clone(), issues.clone(), diagnostics.clone()))
+                    Ok((Some(update.clone()), issues.clone(), diagnostics.clone()))
                 }
                 .instrument(tracing::info_span!(
                     "HMR subscription",
@@ -775,14 +782,16 @@ pub fn project_hmr_events(
                 path: identifier.clone(),
                 headers: None,
             };
-            let update = match &*update {
-                Update::Total(_) => ClientUpdateInstruction::restart(&identifier, &update_issues),
-                Update::Partial(update) => ClientUpdateInstruction::partial(
+            let update = match update.as_deref() {
+                None | Some(Update::Missing) | Some(Update::Total(_)) => {
+                    ClientUpdateInstruction::restart(&identifier, &update_issues)
+                }
+                Some(Update::Partial(update)) => ClientUpdateInstruction::partial(
                     &identifier,
                     &update.instruction,
                     &update_issues,
                 ),
-                Update::None => ClientUpdateInstruction::issues(&identifier, &update_issues),
+                Some(Update::None) => ClientUpdateInstruction::issues(&identifier, &update_issues),
             };
 
             Ok(vec![TurbopackResult {
@@ -1030,18 +1039,22 @@ pub async fn project_trace_source(
                 .client_relative_path()
                 .join(chunk_base.into());
 
-            let mut map_result = project
+            let mut map = project
                 .container
                 .get_source_map(server_path, module.clone())
-                .await;
-            if map_result.is_err() {
+                .await?;
+
+            if map.is_none() {
                 // If the chunk doesn't exist as a server chunk, try a client chunk.
                 // TODO: Properly tag all server chunks and use the `isServer` query param.
                 // Currently, this is inaccurate as it does not cover RSC server
                 // chunks.
-                map_result = project.container.get_source_map(client_path, module).await;
+                map = project
+                    .container
+                    .get_source_map(client_path, module)
+                    .await?;
             }
-            let map = map_result?.context("chunk/module is missing a sourcemap")?;
+            let map = map.context("chunk/module is missing a sourcemap")?;
 
             let Some(line) = frame.line else {
                 return Ok(None);

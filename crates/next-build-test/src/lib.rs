@@ -257,12 +257,10 @@ async fn hmr(tt: &TurboTasks<MemoryBackend>, project: Vc<ProjectContainer>) -> R
             let session = session.clone();
             async move {
                 let project = project.project();
-                project
-                    .hmr_update(
-                        ident.clone(),
-                        project.hmr_version_state(ident.clone(), session),
-                    )
-                    .await?;
+                let state = *project.hmr_version_state(ident.clone(), session).await?;
+                if let Some(state) = state {
+                    project.hmr_update(ident.clone(), state).await?;
+                }
                 Ok(Vc::<()>::cell(()))
             }
         });
