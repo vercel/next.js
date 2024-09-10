@@ -491,23 +491,35 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         return analysis.build(false).await;
     };
 
-    let compile_time_info = if (specified_type == SpecifiedModuleType::CommonJs)
-        || (specified_type == SpecifiedModuleType::Automatic && !eval_context.is_esm())
-    {
+    let compile_time_info = {
         let compile_time_info = raw_module.compile_time_info.await?;
         let mut free_var_references = compile_time_info.free_var_references.await?.clone_value();
+
+        let (typeof_exports, typeof_module) = if eval_context.is_esm(specified_type) {
+            ("undefined", "undefined")
+        } else {
+            ("object", "object")
+        };
+
+        free_var_references
+            .entry(vec![
+                DefineableNameSegment::Name("import".into()),
+                DefineableNameSegment::Name("meta".into()),
+                DefineableNameSegment::TypeOf,
+            ])
+            .or_insert("object".into());
         free_var_references
             .entry(vec![
                 DefineableNameSegment::Name("exports".into()),
                 DefineableNameSegment::TypeOf,
             ])
-            .or_insert("object".into());
+            .or_insert(typeof_exports.into());
         free_var_references
             .entry(vec![
                 DefineableNameSegment::Name("module".into()),
                 DefineableNameSegment::TypeOf,
             ])
-            .or_insert("object".into());
+            .or_insert(typeof_module.into());
         free_var_references
             .entry(vec![
                 DefineableNameSegment::Name("require".into()),
@@ -521,8 +533,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             free_var_references: FreeVarReferences(free_var_references).cell(),
         }
         .cell()
-    } else {
-        raw_module.compile_time_info
     };
 
     let mut import_references = Vec::new();
@@ -844,7 +854,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         set_handler_and_globals(&handler, globals, || has_top_level_await(program));
     let has_top_level_await = top_level_await_span.is_some();
 
-    if eval_context.is_esm() || specified_type == SpecifiedModuleType::EcmaScript {
+    if eval_context.is_esm(specified_type) {
         let async_module = AsyncModule {
             has_top_level_await,
             import_externals,
