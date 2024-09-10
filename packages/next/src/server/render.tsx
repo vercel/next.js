@@ -285,6 +285,9 @@ export type RenderOptsPartial = {
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
   swrDelta?: SwrDelta
+  experimental: {
+    clientTraceMetadata?: string[]
+  }
 }
 
 export type RenderOpts = LoadComponentsReturnType<PagesModule> &
@@ -1493,6 +1496,8 @@ export async function renderToHTMLImpl(
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
     nextFontManifest: renderOpts.nextFontManifest,
+    experimentalClientTraceMetadata:
+      renderOpts.experimental.clientTraceMetadata,
   }
 
   const document = (

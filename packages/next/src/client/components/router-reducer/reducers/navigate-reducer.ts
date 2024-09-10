@@ -20,7 +20,10 @@ import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
-import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
+import {
+  addSearchParamsIfPageSegment,
+  DEFAULT_SEGMENT_KEY,
+} from '../../../../shared/lib/segment'
 import {
   listenForDynamicRequest,
   updateCacheNodeOnNavigation,
@@ -178,6 +181,15 @@ export function navigateReducer(
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
+
+        // Segments are keyed by searchParams (e.g. __PAGE__?{"foo":"bar"}), so if we returned an aliased entry,
+        // we need to ensure the correct searchParams are provided in the updated FlightRouterState tree.
+        if (prefetchValues.aliased) {
+          treePatch[0] = addSearchParamsIfPageSegment(
+            treePatch[0],
+            Object.fromEntries(url.searchParams)
+          )
+        }
 
         // Create new tree based on the flightSegmentPath and router state patch
         let newTree = applyRouterStatePatchToTree(

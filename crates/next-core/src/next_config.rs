@@ -314,10 +314,10 @@ pub struct ImageConfig {
     pub loader_file: Option<String>,
     pub domains: Vec<String>,
     pub disable_static_images: bool,
-    #[serde(rename(deserialize = "minimumCacheTTL"))]
+    #[serde(rename = "minimumCacheTTL")]
     pub minimum_cache_ttl: u64,
     pub formats: Vec<ImageFormat>,
-    #[serde(rename(deserialize = "dangerouslyAllowSVG"))]
+    #[serde(rename = "dangerouslyAllowSVG")]
     pub dangerously_allow_svg: bool,
     pub content_security_policy: String,
     pub remote_patterns: Vec<RemotePattern>,

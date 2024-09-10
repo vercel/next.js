@@ -63,6 +63,10 @@ pub const USER_AGENT_FOR_GOOGLE_FONTS: &str = "Mozilla/5.0 (Macintosh; Intel Mac
                                                AppleWebKit/537.36 (KHTML, like Gecko) \
                                                Chrome/104.0.0.0 Safari/537.36";
 
+/// The google fonts plugin downloads fonts locally and transforms the url in the css into a
+/// specific format that is then intercepted later. This is the prefix we use for the new url.
+pub const GOOGLE_FONTS_INTERNAL_PREFIX: &str = "@vercel/turbopack-next/internal/font/google/font";
+
 #[turbo_tasks::value(transparent)]
 struct FontData(IndexMap<RcStr, FontDataEntry>);
 
@@ -430,10 +434,7 @@ async fn update_google_stylesheet(
 
         stylesheet = stylesheet.replace(
             &font_url,
-            &format!(
-                "@vercel/turbopack-next/internal/font/google/font?{}",
-                query_str
-            ),
+            &format!("{}?{}", GOOGLE_FONTS_INTERNAL_PREFIX, query_str),
         )
     }
 
