@@ -14,21 +14,19 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::AssetContent,
     chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
+    file_source::FileSource,
     module::Module,
     output::OutputAsset,
     reference::primary_referenced_modules,
-    reference_type::{
-        EcmaScriptModulesReferenceSubType, ReferenceType, TypeScriptReferenceSubType,
-    },
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     virtual_output::VirtualOutputAsset,
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
-    chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptModuleAssetType,
-    EcmascriptParsable,
+    chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptParsable,
 };
 
 /// Scans the RSC entry point's full module graph looking for exported Server
@@ -158,11 +156,6 @@ async fn build_manifest(
     )))
 }
 
-#[turbo_tasks::function]
-fn action_modifier() -> Vc<RcStr> {
-    Vc::cell("action".into())
-}
-
 /// Traverses the entire module graph starting from [Module], looking for magic
 /// comment which identifies server actions. Every found server action will be
 /// returned along with the module which exports that action.
@@ -230,23 +223,14 @@ async fn to_rsc_context(
     module: Vc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    let source = VirtualSource::new_with_ident(
-        module.ident().with_modifier(action_modifier()),
-        module.content(),
-    );
-    let ty = if let Some(module) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
-    {
-        if *module.ty().await? == EcmascriptModuleAssetType::Ecmascript {
-            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
-        } else {
-            ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)
-        }
-    } else {
-        ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)
-    };
+    let source = FileSource::new_with_query(module.ident().path(), module.ident().query());
     let module = asset_context
-        .process(Vc::upcast(source), Value::new(ty))
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::EcmaScriptModules(
+                EcmaScriptModulesReferenceSubType::Undefined,
+            )),
+        )
         .module();
     Ok(module)
 }
