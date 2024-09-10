@@ -1,5 +1,4 @@
 use anyhow::Result;
-use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{primitives::Regex, trace::TraceRawVcs, ReadRef, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
@@ -50,7 +49,6 @@ impl ModuleRuleCondition {
 }
 
 impl ModuleRuleCondition {
-    #[async_recursion]
     pub async fn matches(
         &self,
         source: Vc<Box<dyn Source>>,
@@ -60,7 +58,7 @@ impl ModuleRuleCondition {
         Ok(match self {
             ModuleRuleCondition::All(conditions) => {
                 for condition in conditions {
-                    if !condition.matches(source, path, reference_type).await? {
+                    if !Box::pin(condition.matches(source, path, reference_type)).await? {
                         return Ok(false);
                     }
                 }
@@ -68,14 +66,14 @@ impl ModuleRuleCondition {
             }
             ModuleRuleCondition::Any(conditions) => {
                 for condition in conditions {
-                    if condition.matches(source, path, reference_type).await? {
+                    if Box::pin(condition.matches(source, path, reference_type)).await? {
                         return Ok(true);
                     }
                 }
                 false
             }
             ModuleRuleCondition::Not(condition) => {
-                !condition.matches(source, path, reference_type).await?
+                !Box::pin(condition.matches(source, path, reference_type)).await?
             }
             ModuleRuleCondition::ResourcePathEquals(other) => path == &**other,
             ModuleRuleCondition::ResourcePathEndsWith(end) => path.path.ends_with(end),
