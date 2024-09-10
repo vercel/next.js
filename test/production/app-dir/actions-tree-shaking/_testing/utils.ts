@@ -1,4 +1,3 @@
-// @ts-ignore avoid ts errors during manual testing
 import { type NextInstance } from 'e2e-utils'
 
 async function getActionsMappingByRuntime(
