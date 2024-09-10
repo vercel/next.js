@@ -30,7 +30,7 @@ const cwd = process.cwd()
     }
     throw err
   }
-  console.log(`Publishing ${isCanary ? 'canary' : 'stable'}`)
+  console.log(`Publishing ${isCanary ? 'canary' : 'next-13'}`)
 
   if (!process.env.NPM_TOKEN) {
     console.log('No NPM_TOKEN, exiting...')
@@ -52,7 +52,7 @@ const cwd = process.cwd()
           '--access',
           'public',
           '--ignore-scripts',
-          ...(isCanary ? ['--tag', 'canary'] : []),
+          ...(isCanary ? ['--tag', 'canary'] : ['--tag', 'next-13']),
         ],
         { stdio: 'inherit' }
       )
