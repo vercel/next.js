@@ -59,9 +59,7 @@ function buildManifest(
   if (!projectSrcDir) {
     return {}
   }
-  let manifest: {
-    [k: string]: { id: string | number; files: string[] }
-  } = {}
+  let manifest: { [k: string]: { id: string | number; files: string[] } } = {}
 
   // This is allowed:
   // import("./module"); <- ImportDependency
@@ -92,8 +90,7 @@ function buildManifest(
         // It's not perfect unique, but that will be fine for us.
         // We also need to construct the same in the babel plugin.
         const key = `${path.relative(projectSrcDir, originRequest)} -> ${
-          // TODO: fix type
-          (dependency as any).request
+          dependency.request
         }`
 
         // Capture all files that need to be loaded.
@@ -189,7 +186,6 @@ export class ReactLoadablePlugin {
         )}`
       )
     }
-
     return assets
   }
 

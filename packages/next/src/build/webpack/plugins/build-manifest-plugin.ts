@@ -295,7 +295,6 @@ export default class BuildManifestPlugin {
           this.buildId
         )
         assetMap.lowPriorityFiles.push(buildManifestPath, ssgManifestPath)
-
         assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
       }
 
