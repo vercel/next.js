@@ -1501,6 +1501,7 @@ export default class NextNodeServer extends BaseServer<
       // Add cookies to request meta.
       addRequestMeta(params.request, 'middlewareCookie', cookies)
     }
+
     return result
   }
 
