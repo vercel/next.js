@@ -844,7 +844,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         set_handler_and_globals(&handler, globals, || has_top_level_await(program));
     let has_top_level_await = top_level_await_span.is_some();
 
-    if eval_context.is_esm() || specified_type == SpecifiedModuleType::EcmaScript {
+    if eval_context.is_esm(specified_type) {
         let async_module = AsyncModule {
             has_top_level_await,
             import_externals,

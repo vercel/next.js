@@ -885,8 +885,7 @@ async fn gen_content_with_visitors(
             Ok(EcmascriptModuleContent {
                 inner_code: bytes.into(),
                 source_map: Some(Vc::upcast(srcmap)),
-                is_esm: eval_context.is_esm()
-                    || specified_module_type == SpecifiedModuleType::EcmaScript,
+                is_esm: eval_context.is_esm(specified_module_type),
             }
             .cell())
         }
