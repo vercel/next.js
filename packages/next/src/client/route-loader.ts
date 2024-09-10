@@ -19,7 +19,6 @@ declare global {
     __MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
     __MIDDLEWARE_MANIFEST_CB?: Function
     __REACT_LOADABLE_MANIFEST?: any
-    __REACT_LOADABLE_MANIFEST_CB?: Function
     __RSC_MANIFEST?: any
     __RSC_SERVER_MANIFEST?: any
     __NEXT_FONT_MANIFEST?: any
@@ -249,39 +248,6 @@ export function getClientBuildManifest() {
   )
 }
 
-function getClientReactLoadableManifest() {
-  if (self.__REACT_LOADABLE_MANIFEST) {
-    return Promise.resolve(self.__REACT_LOADABLE_MANIFEST)
-  }
-
-  const onReactLoadableManifest = new Promise<Record<string, string[]>>(
-    (resolve) => {
-      // Mandatory because this is not concurrent safe:
-      const cb = self.__REACT_LOADABLE_MANIFEST_CB
-      self.__REACT_LOADABLE_MANIFEST_CB = () => {
-        resolve(self.__REACT_LOADABLE_MANIFEST!)
-        cb && cb()
-      }
-    }
-  )
-
-  return resolvePromiseWithTimeout(
-    onReactLoadableManifest,
-    MS_MAX_IDLE_DELAY,
-    markAssetError(new Error('Failed to load react-loadable manifest'))
-  )
-}
-
-function parseDynamicCssFromReactLoadableManifest(
-  manifest: Record<string, { id: string; route: string; files: string[] }>
-): Record<string, string[]> {
-  return Object.fromEntries(
-    Object.values(manifest).map((value) => {
-      return [value.route, value.files.filter((file) => file.endsWith('.css'))]
-    })
-  )
-}
-
 interface RouteFiles {
   scripts: (TrustedScriptURL | string)[]
   css: string[]
@@ -302,35 +268,20 @@ function getFilesForRoute(
       css: [],
     })
   }
-
-  return Promise.all([
-    getClientBuildManifest(),
-    getClientReactLoadableManifest(),
-  ]).then(([buildManifest, reactLoadableManifest]) => {
-    if (!(route in buildManifest)) {
+  return getClientBuildManifest().then((manifest) => {
+    if (!(route in manifest)) {
       throw markAssetError(new Error(`Failed to lookup route: ${route}`))
     }
-    const allFiles = buildManifest[route].map(
+    const allFiles = manifest[route].map(
       (entry) => assetPrefix + '/_next/' + encodeURI(entry)
     )
-
-    const dynamicCss =
-      parseDynamicCssFromReactLoadableManifest(reactLoadableManifest)[route] ||
-      []
-
     return {
       scripts: allFiles
         .filter((v) => v.endsWith('.js'))
         .map((v) => __unsafeCreateTrustedScriptURL(v) + getAssetQueryString()),
-      css: [
-        ...allFiles
-          .filter((v) => v.endsWith('.css'))
-          .map((v) => v + getAssetQueryString()),
-        ...dynamicCss.map(
-          (file) =>
-            assetPrefix + '/_next/' + encodeURI(file) + getAssetQueryString()
-        ),
-      ],
+      css: allFiles
+        .filter((v) => v.endsWith('.css'))
+        .map((v) => v + getAssetQueryString()),
     }
   })
 }

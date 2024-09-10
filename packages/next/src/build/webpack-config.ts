@@ -1804,7 +1804,6 @@ export default async function getBaseWebpackConfig(
           appDir,
           runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
-          buildId,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
       (isNodeServer || (flyingShuttle && isEdgeServer)) &&
@@ -1885,7 +1884,6 @@ export default async function getBaseWebpackConfig(
           isDevFallback,
           appDirEnabled: hasAppDir,
           clientRouterFilters,
-          pagesDir,
         }),
       new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
       new WellKnownErrorsPlugin(),

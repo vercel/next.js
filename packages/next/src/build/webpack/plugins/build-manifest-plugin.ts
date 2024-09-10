@@ -36,15 +36,8 @@ function buildNodejsLowPriorityPath(filename: string, buildId: string) {
   return `${CLIENT_STATIC_FILES_PATH}/${buildId}/${filename}`
 }
 
-function createEdgeRuntimeManifest(
-  originAssetMap: BuildManifest,
-  isPagesDir: boolean
-): string {
+function createEdgeRuntimeManifest(originAssetMap: BuildManifest): string {
   const manifestFilenames = ['_buildManifest.js', '_ssgManifest.js']
-
-  if (isPagesDir) {
-    manifestFilenames.push('_reactLoadableManifest.js')
-  }
 
   const assetMap: BuildManifest = {
     ...originAssetMap,
@@ -183,7 +176,6 @@ export default class BuildManifestPlugin {
   private isDevFallback: boolean
   private appDirEnabled: boolean
   private clientRouterFilters?: Parameters<typeof generateClientManifest>[2]
-  private isPagesDir: boolean
 
   constructor(options: {
     buildId: string
@@ -191,7 +183,6 @@ export default class BuildManifestPlugin {
     isDevFallback?: boolean
     appDirEnabled: boolean
     clientRouterFilters?: Parameters<typeof generateClientManifest>[2]
-    pagesDir?: string
   }) {
     this.buildId = options.buildId
     this.isDevFallback = !!options.isDevFallback
@@ -201,7 +192,6 @@ export default class BuildManifestPlugin {
       fallback: [],
     }
     this.appDirEnabled = options.appDirEnabled
-    this.isPagesDir = !!options.pagesDir?.endsWith('pages')
     this.clientRouterFilters = options.clientRouterFilters
     this.rewrites.beforeFiles = options.rewrites.beforeFiles.map(processRoute)
     this.rewrites.afterFiles = options.rewrites.afterFiles.map(processRoute)
@@ -306,15 +296,6 @@ export default class BuildManifestPlugin {
         )
         assetMap.lowPriorityFiles.push(buildManifestPath, ssgManifestPath)
 
-        if (this.isPagesDir) {
-          assetMap.lowPriorityFiles.push(
-            buildNodejsLowPriorityPath(
-              '_reactLoadableManifest.js',
-              this.buildId
-            )
-          )
-        }
-
         assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
       }
 
@@ -337,7 +318,7 @@ export default class BuildManifestPlugin {
       )
 
       assets[`server/${MIDDLEWARE_BUILD_MANIFEST}.js`] = new sources.RawSource(
-        `${createEdgeRuntimeManifest(assetMap, this.isPagesDir)}`
+        `${createEdgeRuntimeManifest(assetMap)}`
       )
 
       if (!this.isDevFallback) {

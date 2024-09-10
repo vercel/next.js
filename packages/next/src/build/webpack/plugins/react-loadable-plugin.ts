@@ -24,26 +24,22 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 
 import path from 'path'
-import devalue from 'next/dist/compiled/devalue'
-import { CLIENT_STATIC_FILES_PATH } from '../../../shared/lib/constants'
 
 function getModuleId(compilation: any, module: any): string | number {
   return compilation.chunkGraph.getModuleId(module)
 }
 
-type ModuleWithResource = webpack.Module & { resource?: string }
-
 function getModuleFromDependency(
   compilation: any,
   dep: any
-): ModuleWithResource {
+): webpack.Module & { resource?: string } {
   return compilation.moduleGraph.getModule(dep)
 }
 
 function getOriginModuleFromDependency(
   compilation: any,
   dep: any
-): ModuleWithResource {
+): webpack.Module & { resource?: string } {
   return compilation.moduleGraph.getParentModule(dep)
 }
 
@@ -52,35 +48,6 @@ function getChunkGroupFromBlock(
   block: any
 ): webpack.Compilation['chunkGroups'] {
   return compilation.chunkGraph.getBlockChunkGroup(block)
-}
-
-function getPageRouteFromModule(
-  compilation: webpack.Compilation,
-  originModule: ModuleWithResource,
-  projectSrcDir: string
-): string {
-  const originRequest: string = originModule.resource!
-
-  const relativeOrigin = path.relative(projectSrcDir!, originRequest)
-  if (relativeOrigin.startsWith('pages')) {
-    // remove the starting `pages` and extension:
-    // "pages/foo.tsx" -> "/foo"
-    const pageRoute = relativeOrigin
-      .replace(/^pages/, '')
-      .replace(/\.[^.]+$/, '')
-    return pageRoute
-  }
-
-  const issuer: ModuleWithResource | null =
-    compilation.moduleGraph.getIssuer(originModule)
-
-  if (!issuer?.resource) {
-    throw new Error(
-      `Page route not found for "${originRequest}", Module issuer: "${issuer}"`
-    )
-  }
-
-  return getPageRouteFromModule(compilation, issuer, projectSrcDir)
 }
 
 function buildManifest(
@@ -93,7 +60,7 @@ function buildManifest(
     return {}
   }
   let manifest: {
-    [k: string]: { id: string | number; route: string; files: string[] }
+    [k: string]: { id: string | number; files: string[] }
   } = {}
 
   // This is allowed:
@@ -104,7 +71,7 @@ function buildManifest(
   // import(`./module/${param}`) <- ImportContextDependency
 
   // Find all dependencies blocks which contains a `import()` dependency
-  const handleBlock = (block: webpack.AsyncDependenciesBlock) => {
+  const handleBlock = (block: any) => {
     block.blocks.forEach(handleBlock)
     const chunkGroup = getChunkGroupFromBlock(compilation, block)
     for (const dependency of block.dependencies) {
@@ -160,19 +127,13 @@ function buildManifest(
           }
         }
 
-        const pageRoute = getPageRouteFromModule(
-          compilation,
-          originModule,
-          projectSrcDir
-        )
-
         // usually we have to add the parent chunk groups too
         // but we assume that all parents are also imported by
         // next/dynamic so they are loaded by the same technique
 
         // add the id and files to the manifest
         const id = dev ? key : getModuleId(compilation, module)
-        manifest[key] = { id, route: pageRoute, files: Array.from(files) }
+        manifest[key] = { id, files: Array.from(files) }
       }
     }
   }
@@ -193,7 +154,6 @@ export class ReactLoadablePlugin {
   private pagesOrAppDir: string | undefined
   private runtimeAsset?: string
   private dev: boolean
-  private buildId: string
 
   constructor(opts: {
     filename: string
@@ -201,13 +161,11 @@ export class ReactLoadablePlugin {
     appDir?: string
     runtimeAsset?: string
     dev: boolean
-    buildId: string
   }) {
     this.filename = opts.filename
     this.pagesOrAppDir = opts.pagesDir || opts.appDir
     this.runtimeAsset = opts.runtimeAsset
     this.dev = opts.dev
-    this.buildId = opts.buildId
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
@@ -229,18 +187,6 @@ export class ReactLoadablePlugin {
         `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(
           JSON.stringify(manifest)
         )}`
-      )
-    }
-
-    if (this.pagesOrAppDir?.endsWith('pages') && !this.dev) {
-      const clientReactLoadableManifestPath = path.join(
-        CLIENT_STATIC_FILES_PATH,
-        this.buildId,
-        '_reactLoadableManifest.js'
-      )
-
-      assets[clientReactLoadableManifestPath] = new sources.RawSource(
-        `self.__REACT_LOADABLE_MANIFEST=${devalue(manifest)};self.__REACT_LOADABLE_MANIFEST_CB && self.__REACT_LOADABLE_MANIFEST_CB()`
       )
     }
 
