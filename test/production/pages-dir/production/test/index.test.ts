@@ -29,8 +29,6 @@ if (process.env.TEST_WASM) {
   jest.setTimeout(120 * 1000)
 }
 
-const isReact18 = true
-
 describe('Production Usage', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, '../fixture'),
@@ -183,9 +181,7 @@ describe('Production Usage', () => {
           /webpack-runtime\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
-          isReact18
-            ? /node_modules\/react\/cjs\/react\.production\.min\.js/
-            : /node_modules\/react\/cjs\/react\.production\.js/,
+          /node_modules\/react\/cjs\/react\.production\.js/,
         ],
         notTests: [/\0/, /\?/, /!/],
       },
@@ -196,9 +192,7 @@ describe('Production Usage', () => {
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
-          isReact18
-            ? /node_modules\/react\/cjs\/react\.production\.min\.js/
-            : /node_modules\/react\/cjs\/react\.production\.js/,
+          /node_modules\/react\/cjs\/react\.production\.js/,
           /node_modules\/next/,
         ],
         notTests: [/\0/, /\?/, /!/],
@@ -210,9 +204,7 @@ describe('Production Usage', () => {
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
-          isReact18
-            ? /node_modules\/react\/cjs\/react\.production\.min\.js/
-            : /node_modules\/react\/cjs\/react\.production\.js/,
+          /node_modules\/react\/cjs\/react\.production\.js/,
           /node_modules\/next/,
           /node_modules\/nanoid\/index\.js/,
           /node_modules\/nanoid\/url-alphabet\/index\.js/,
@@ -227,9 +219,7 @@ describe('Production Usage', () => {
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
-          isReact18
-            ? /node_modules\/react\/cjs\/react\.production\.min\.js/
-            : /node_modules\/react\/cjs\/react\.production\.js/,
+          /node_modules\/react\/cjs\/react\.production\.js/,
           /node_modules\/next/,
         ],
         notTests: [
