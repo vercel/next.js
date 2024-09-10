@@ -367,7 +367,7 @@ describe('opentelemetry', () => {
               runtime: 'nodejs',
               traceId: env.span.traceId,
               parentId: env.span.rootParentId,
-              name: 'GET /app/[param]/rsc-fetch',
+              name: 'GET /app/[param]/rsc-fetch (partial render tree)',
               attributes: {
                 'http.method': 'GET',
                 'http.route': '/app/[param]/rsc-fetch',
@@ -375,7 +375,8 @@ describe('opentelemetry', () => {
                 'http.target': '/app/param/rsc-fetch',
                 'next.route': '/app/[param]/rsc-fetch',
                 'next.rsc': true,
-                'next.span_name': 'GET /app/[param]/rsc-fetch',
+                'next.span_name':
+                  'GET /app/[param]/rsc-fetch (partial render tree)',
                 'next.span_type': 'BaseServer.handleRequest',
               },
               kind: 1,
