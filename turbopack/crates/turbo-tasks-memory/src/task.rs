@@ -32,7 +32,7 @@ use crate::{
     cell::{Cell, ReadContentError},
     edges_set::{TaskEdge, TaskEdgesList, TaskEdgesSet},
     gc::{GcQueue, GcTaskState},
-    output::{Output, OutputContent},
+    output::Output,
     task::aggregation::{TaskAggregationContext, TaskChange},
     MemoryBackend,
 };
@@ -876,7 +876,7 @@ impl Task {
                 Ok(Ok(result)) => {
                     if state.output != result {
                         if cfg!(feature = "print_task_invalidation")
-                            && !matches!(state.output.content, OutputContent::Empty)
+                            && state.output.content.is_some()
                         {
                             println!(
                                 "Task {{ id: {}, name: {} }} invalidates:",
