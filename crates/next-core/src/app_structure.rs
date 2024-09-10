@@ -422,7 +422,7 @@ impl LoaderTree {
         false
     }
 
-    /// Returns whether or not the only match in this tree is for a catch-all
+    /// Returns whether the only match in this tree is for a catch-all
     /// route.
     pub fn has_only_catchall(&self) -> bool {
         if &*self.segment == "__PAGE__" && !self.page.is_catchall() {
@@ -436,6 +436,21 @@ impl LoaderTree {
         }
 
         true
+    }
+
+    /// Returns true if this loader tree contains an intercepting route match.
+    pub fn is_intercepting(&self) -> bool {
+        if self.page.is_intercepting() && self.has_page() {
+            return true;
+        }
+
+        for (_, tree) in &self.parallel_routes {
+            if tree.is_intercepting() {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Returns the specificity of the page (i.e. the number of segments
@@ -936,6 +951,38 @@ fn directory_tree_to_loader_tree_internal(
                 "missing page or default for parallel route `{}` (page: {})",
                 key,
                 app_page
+            );
+        }
+    }
+
+    // make sure we don't have a match for other slots if there's an intercepting route match
+    if tree.is_intercepting() {
+        let mut keys_to_replace = Vec::new();
+
+        for (key, parallel_tree) in &tree.parallel_routes {
+            if !parallel_tree.is_intercepting() {
+                keys_to_replace.push(key.clone());
+            }
+        }
+
+        for key in keys_to_replace {
+            tree.parallel_routes.insert(
+                key,
+                LoaderTree {
+                    page: app_page.clone(),
+                    segment: "__DEFAULT__".into(),
+                    parallel_routes: IndexMap::new(),
+                    components:
+                        // default fallback component
+                        Components {
+                            default: Some(
+                                get_next_package(app_dir)
+                                    .join("dist/client/components/parallel-route-default.js".into()),
+                            ),
+                            ..Default::default()
+                        },
+                    global_metadata,
+                },
             );
         }
     }
