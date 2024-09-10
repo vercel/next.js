@@ -11,9 +11,8 @@ use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 use turbo_tasks_fetch::{fetch, HttpResponseBody};
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, DiskFileSystem, File, FileContent, FileSystem,
-    FileSystemPath, MAX_FILE_NAME_LENGTH_UNIX,
+    FileSystemPath,
 };
-use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack::evaluate_context::node_evaluate_asset_context;
 use turbopack_core::{
     asset::AssetContent,
@@ -366,18 +365,9 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             name.push_str(".p")
         }
 
-        // turbo-fs has a hard limit of 255 characters on unix. for the sake of consistency, we'll
-        // also apply that limit to windows. some font files exceed this, so lets be safe and
-        // replace it with a hash of the font name if it exceeds the limit, with some buffer room
-        // in case downstream code needs to append more onto the file name.
-        //
-        // NOTE: we are hashing the _name_ not the _contents_.
-        if name.len() > MAX_FILE_NAME_LENGTH_UNIX - 50 {
-            name = format!("xxh3_{:x}", hash_xxh3_hash64(name.as_bytes()));
-        }
-
         let font_virtual_path = next_js_file_path("internal/font/google".into())
-            .join(format!("/{}.{}", name, ext).into());
+            .join(format!("/{}.{}", name, ext).into())
+            .truncate_file_name_with_hash_vc();
 
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
