@@ -84,7 +84,7 @@ pub enum Token {
 #[derive(Clone, Debug)]
 pub struct TokenWithSource {
     pub token: Vc<Token>,
-    pub source_content: Option<Vc<String>>,
+    pub source_content: Option<Vc<RcStr>>,
 }
 
 /// A SyntheticToken represents a region of the generated file that was created
